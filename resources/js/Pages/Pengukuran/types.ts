@@ -2,6 +2,8 @@ export interface PeriodePengukuran {
     id: string;
     nama_periode: string;
     urutan: number;
+    tahun: number;
+    is_nilai_akhir: boolean;
 }
 
 export interface BuktiPengukuran {
@@ -31,7 +33,7 @@ export interface PersyaratanBukti {
     pemenuhan: { terpenuhi: boolean; mode_terpenuhi: string[]; mode_kurang: string[]; mode_dikecualikan: string[]; alasan_pengecualian: string | null };
 }
 
-export const statusPerhitungan = { belum_diisi: 'Belum diisi', terhitung: 'Terhitung', tidak_dapat_dihitung: 'Tidak dapat dihitung' };
+export const statusPerhitungan = { belum_diisi: 'Belum diisi', terhitung: 'Terhitung', tidak_dapat_dihitung: 'Tidak dapat dihitung', belum_dapat_diukur: 'Belum dapat diukur' };
 
 export interface Pengukuran {
     id: string;
@@ -47,18 +49,23 @@ export interface Pengukuran {
     selisih_target_pk?: string | null;
     klaim?: KlaimPengukuran[];
     nilai: string | number | null;
-    status_perhitungan: 'belum_diisi' | 'terhitung' | 'tidak_dapat_dihitung';
+    status_perhitungan: keyof typeof statusPerhitungan;
     sumber_nilai: 'manual' | 'komponen' | 'historis';
     catatan: string | null;
+    alasan_tidak_dapat_dihitung: string | null;
+    /** Narasi hanya dikirim pada detail; versi beku tanpa key narasi bernilai null. */
     progres_kegiatan?: string | null;
     kendala_masalah?: string | null;
     strategi_tindak_lanjut?: string | null;
-    alasan_tidak_dapat_dihitung: string | null;
+    tindak_lanjut_rekomendasi?: string | null;
+    /** Diomit sampai reader rekomendasi tersedia; null berarti terbukti tidak ada rekomendasi approved. */
+    rekomendasi_sebelumnya?: null | { id: string; isi: string; tahun: number; periode_id: string; disetujui_pada: string };
     komponen: { komponen_id: string; kode: string; label: string; peran: string; bobot: string | number | null; nilai: string | number | null }[];
     prasyarat: { siap: boolean; alasan: string[] };
     persyaratan_bukti: PersyaratanBukti[];
     unggahan_aktif: boolean;
     can: PengukuranCapabilities;
+    businessErrors?: PengukuranBusinessErrors;
     penugasan_indikator: {
         indikator_kinerja: { kode: string; nama: string; definisi_operasional?: string | null; tipe_perhitungan: 'manual' | 'rasio_persen' | 'penjumlahan'; arah: 'naik_baik' | 'turun_baik'; presisi: number; desimal_tampilan: number; satuan: string };
         unit_kerja: { id: string; nama: string };
@@ -82,6 +89,12 @@ export interface PengukuranCapabilities {
     verify: boolean;
     ratify: boolean;
     return: boolean;
+}
+
+export interface PengukuranBusinessErrors {
+    verifikasi: string[];
+    sahkan: string[];
+    kembalikan: string[];
 }
 
 export interface KlaimPengukuran {
@@ -113,4 +126,36 @@ export interface PengukuranPagination {
     total: number;
     prev_page_url: string | null;
     next_page_url: string | null;
+}
+
+export type RingkasanPengukuran = Pick<Pengukuran, 'id' | 'status' | 'nilai' | 'status_perhitungan' | 'target' | 'tanpa_target_periode' | 'bukti_count' | 'self_approval' | 'reviu_terlambat'>;
+
+export interface KonteksBarisPengukuran {
+    indikator_id: string;
+    jadwal_id: string;
+    jadwal_snapshot_id: string;
+    tahun: number;
+    periode: PeriodePengukuran;
+    indikator: { kode: string; nama: string; satuan: string; desimal_tampilan: number };
+    unit: { id: string; nama: string };
+    pic: { id: string; nama: string } | null;
+}
+
+/** Baris kewajiban: header existing, belum diisi (berlaku), atau sebelum efektif ("Tidak berlaku"). */
+export type BarisPengukuran = KonteksBarisPengukuran & (
+    | { jenis: 'existing'; pengukuran: RingkasanPengukuran; can: { create: false } }
+    | { jenis: 'absent'; berlaku: true; pengukuran: null; target: string | number | null; tanpa_target_periode?: boolean; can: { create: boolean } }
+    | { jenis: 'absent'; berlaku: false; pengukuran: null; target: null; tanpa_target_periode?: boolean; can: { create: false } }
+);
+
+export interface KonteksPengukuran {
+    jadwal_id: string;
+    tahun: number;
+    periode: PeriodePengukuran | null;
+}
+
+export interface PilihanJadwalPengukuran {
+    id: string;
+    tahun: number;
+    periode: PeriodePengukuran[];
 }

@@ -81,7 +81,7 @@ class PreviewTargetPeriodeRequest extends FormRequest
             'present' => 'Kolom :attribute harus dikirim; gunakan nilai kosong untuk target yang belum diisi.',
             'nullable' => 'Kolom :attribute boleh dikosongkan.',
             'numeric' => 'Kolom :attribute harus berupa angka.',
-            'between' => 'Nilai :attribute melebihi kapasitas penyimpanan.',
+            'between' => 'Kolom :attribute melebihi kapasitas penyimpanan.',
             'integer' => 'Kolom :attribute harus berupa bilangan bulat.',
             'uuid' => 'Identitas :attribute tidak sah.',
             'exists' => 'Data :attribute tidak ditemukan.',

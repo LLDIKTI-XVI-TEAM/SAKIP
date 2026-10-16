@@ -198,7 +198,7 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
         Jawab (langkah 24)
       → Disetujui teknis: Status: Diverifikasi
       → GERBANG PEMISAHAN TUGAS (§20): bila aktor yang memverifikasi/mengesahkan adalah PIC yang
-        sama dengan pengukuran.created_by melalui jalur scope unit, aksi DITOLAK — tidak berlaku
+        sama dengan pengukuran_versi.diajukan_by melalui jalur scope unit, aksi DITOLAK — tidak berlaku
         bagi Perencanaan yang mengisi atas nama unit (lihat §20)
   29. Mengesahkan pengukuran (Fase Awal: langsung, tanpa approval Pimpinan) → Status: Disahkan
 
@@ -1420,7 +1420,7 @@ flowchart TD
      → Setuju: Status: Diverifikasi
      → Perlu revisi: Status: Dikembalikan + alasan wajib diisi
      GERBANG PEMISAHAN TUGAS (§20, aturan F1): ditolak bila aktor yang memverifikasi adalah PIC
-     yang sama dengan pengukuran.created_by lewat jalur scope unit — tidak berlaku bagi
+     yang sama dengan pengukuran_versi.diajukan_by lewat jalur scope unit — tidak berlaku bagi
      Perencanaan yang mengisi atas nama unit (F2)
   5. Untuk pengukuran yang sudah Diverifikasi, masih bisa dikembalikan bila belakangan ditemukan
      masalah → Status: Dikembalikan + alasan wajib diisi
@@ -2024,11 +2024,11 @@ Pemisahan tugas pada verifikasi dan pengesahan pengukuran adalah **aturan bisnis
 
 ⚙️ Sistem (aturan bisnis keras F1 — tidak dapat dikonfigurasi lewat izin)
   2. Pada transisi diajukan → diverifikasi dan diverifikasi → disahkan: membandingkan aktor
-     yang menjalankan aksi dengan pengukuran.created_by
-     → Aktor SAMA dengan pengukuran.created_by, DAN pengisian dilakukan lewat jalur grant
+     yang menjalankan aksi dengan pengukuran_versi.diajukan_by
+     → Aktor SAMA dengan pengukuran_versi.diajukan_by, DAN pengisian dilakukan lewat jalur grant
        scope unit (jalur PIC): TOLAK — terlepas dari permission pengukuran:verifikasi/
        pengukuran:sahkan yang dimiliki aktor tersebut
-     → Aktor BERBEDA dari pengukuran.created_by: lanjut sebagai aksi yang diizinkan (tunduk
+     → Aktor BERBEDA dari pengukuran_versi.diajukan_by: lanjut sebagai aksi yang diizinkan (tunduk
        evaluasi izin normal §19)
 
 📋 Perencanaan (mengisi ATAS NAMA unit, permission global lewat peran, tanpa scope unit)
@@ -2050,9 +2050,9 @@ Pemisahan tugas pada verifikasi dan pengesahan pengukuran adalah **aturan bisnis
 flowchart TD
     A[Aktor menjalankan\npengukuran:verifikasi / pengukuran:sahkan] --> B{Aktor lolos evaluasi\nizin normal - §19?}
     B -- Tidak --> C[TOLAK - 403]
-    B -- Ya --> D{aktor = pengukuran.created_by?}
-    D -- Tidak --> H[IZINKAN - aktor berbeda\ndari pengisi pengukuran]
-    D -- Ya --> E{created_by mengisi lewat\ngrant scope unit - jalur PIC,\natau lewat peran global -\njalur Perencanaan?}
+    B -- Ya --> D{aktor = pengukuran_versi.diajukan_by?}
+    D -- Tidak --> H[IZINKAN - aktor berbeda\ndari pengaju versi beku]
+    D -- Ya --> E{diajukan_by berasal dari\ngrant scope unit - jalur PIC,\natau lewat peran global -\njalur Perencanaan?}
     E -- Jalur PIC - aturan F1 --> F[TOLAK - pemisahan tugas keras,\ntidak dapat dikonfigurasi]
     E -- Jalur Perencanaan - aturan F2 --> G[IZINKAN -\ntandai self_approval di audit_log]
     H --> J[Aksi dieksekusi]
@@ -2088,6 +2088,7 @@ Tanpa role = nol permission. Sejak Q38 tidak ada langkah aktivasi; login ulang t
 - alasan wajib (Q43 §43.2 butir 4);
 - tidak mengubah grant, deny, atau assignment PJ;
 - menonaktifkan dan mengaktifkan kembali akun lain dilakukan dari halaman yang sama dengan alasan wajib dan audit; peran dan grant disimpan sehingga pengaktifan kembali memulihkan akses yang sama; akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan; bila pengguna masih menjadi PJ aktif, UI menampilkan peringatan tanpa memblokir (Q38 §38.2).
+- penetapan peran tidak dapat menurunkan peran superadmin aktif terakhir, termasuk peran akun sendiri; superadmin `nonaktif` tidak dihitung (Q53).
 
 ### 21.3 Grant Unit
 

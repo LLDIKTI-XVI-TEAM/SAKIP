@@ -14,7 +14,10 @@ class PengukuranKinerja extends Model
 
     protected $table = 'pengukuran_kinerjas';
 
-    protected $fillable = ['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'alasan_tidak_dapat_dihitung', 'alasan_historis', 'sumber_historis', 'catatan', 'progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut', 'status_alur', 'versi', 'created_by'];
+    /** Narasi laporan draft; ikut dibekukan pada versi pengajuan dengan nama key yang sama. */
+    public const NARASI = ['progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut', 'tindak_lanjut_rekomendasi'];
+
+    protected $fillable = ['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'alasan_tidak_dapat_dihitung', 'alasan_historis', 'sumber_historis', 'catatan', ...self::NARASI, 'status_alur', 'versi', 'created_by'];
 
     protected $casts = ['tahun' => 'integer', 'nilai' => 'decimal:12', 'versi' => 'integer'];
 

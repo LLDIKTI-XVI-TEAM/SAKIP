@@ -2,6 +2,7 @@
 
 namespace App\Actions\Kegiatan;
 
+use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
 use App\Models\Periode;
 use App\Models\Unit;
@@ -54,6 +55,9 @@ class DaftarKegiatan
         $editableUnits = $activeUnits
             ->filter(fn (Unit $unit) => ($decisions[$unit->id]['kegiatan:update']['allowed'] ?? false))
             ->values();
+        // Aturan sama dengan SimpanKegiatan agar tombol ubah tidak ditawarkan untuk tahun yang pasti ditolak.
+        $tahunDitutup = JadwalTahunan::whereIn('tahun', $page->getCollection()->pluck('tahun')->unique()->values())->where('status', '!=', 'draft')->get()
+            ->filter(fn (JadwalTahunan $jadwal): bool => $jadwal->tahunDitutup())->pluck('tahun')->unique()->all();
 
         $page->through(fn (Kegiatan $kegiatan) => [
             'id' => $kegiatan->id,
@@ -71,7 +75,8 @@ class DaftarKegiatan
             'unit' => $kegiatan->unit->only(['id', 'nama']),
             'periode' => $kegiatan->periode->only(['id', 'nama']),
             // Allow dari role tidak bergantung status unit; writer tetap mensyaratkan unit aktif.
-            'can' => ['update' => $decisions[$kegiatan->unit_id]['kegiatan:update']['allowed'] && $activeUnitIds->contains($kegiatan->unit_id)],
+            'can' => ['update' => $decisions[$kegiatan->unit_id]['kegiatan:update']['allowed'] && $activeUnitIds->contains($kegiatan->unit_id)
+                && ! in_array($kegiatan->tahun, $tahunDitutup, true)],
         ]);
 
         return [

@@ -9,6 +9,8 @@ export interface SwitchProps {
     label?: string;
     id?: string;
     'aria-label'?: string;
+    'aria-invalid'?: boolean;
+    'aria-describedby'?: string;
     className?: string;
 }
 
@@ -19,6 +21,8 @@ export const Switch: React.FC<SwitchProps> = ({
     label,
     id,
     'aria-label': ariaLabel,
+    'aria-invalid': ariaInvalid,
+    'aria-describedby': ariaDescribedBy,
     className,
 }) => {
     const handleToggle = () => {
@@ -41,6 +45,8 @@ export const Switch: React.FC<SwitchProps> = ({
             id={id}
             aria-checked={checked}
             aria-label={ariaLabel || label}
+            aria-invalid={ariaInvalid}
+            aria-describedby={ariaDescribedBy}
             disabled={disabled}
             onClick={handleToggle}
             onKeyDown={handleKeyDown}

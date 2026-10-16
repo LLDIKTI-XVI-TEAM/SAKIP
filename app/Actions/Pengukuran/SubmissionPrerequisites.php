@@ -73,6 +73,10 @@ class SubmissionPrerequisites
         if ($pengukuran->status_perhitungan === 'belum_diisi') {
             $errors[] = 'Nilai manual atau seluruh komponen snapshot wajib diisi.';
         }
+        // Nilai belum tersedia mengecualikan kelengkapan komponen; narasi dan gerbang lain tetap berlaku.
+        if ($pengukuran->status_perhitungan === 'belum_dapat_diukur' && $pengukuran->periode->is_nilai_akhir) {
+            $errors[] = 'Status Belum dapat diukur tidak tersedia pada periode nilai akhir.';
+        }
         if ($pengukuran->status_perhitungan === 'tidak_dapat_dihitung' && trim((string) $pengukuran->alasan_tidak_dapat_dihitung) === '') {
             $errors[] = 'Alasan penyebut nol wajib diisi.';
         }

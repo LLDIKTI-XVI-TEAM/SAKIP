@@ -63,7 +63,7 @@ class SubmitPengukuran
     {
         $snapshot = $p->jadwalSnapshot;
 
-        return [...$p->only(['indikator_id', 'tahun', 'periode_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut', 'alasan_tidak_dapat_dihitung']),
+        return [...$p->only(['indikator_id', 'tahun', 'periode_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'alasan_tidak_dapat_dihitung', ...PengukuranKinerja::NARASI]),
             'indikator' => [...$snapshot->only(['nama', 'definisi', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'id' => $p->indikator_id, 'kode' => $p->indikator->kode],
             'unit_kerja' => $snapshot->unit->only(['id', 'nama']), 'pic' => $p->effectivePic()?->pic?->only(['id', 'nama']),
             'periode' => $p->periode->only(['id', 'nama', 'urutan', 'is_nilai_akhir']), 'target' => $prerequisite['target'], 'tanpa_target_periode' => $prerequisite['tanpa_target_periode'], 'target_pk' => $snapshot->target,

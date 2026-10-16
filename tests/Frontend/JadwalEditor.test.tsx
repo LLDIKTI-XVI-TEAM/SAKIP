@@ -1,7 +1,7 @@
 import type { Page, PendingVisit } from '@inertiajs/core';
 import type { ReactNode } from 'react';
 import { router } from '@inertiajs/react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderToString } from 'react-dom/server';
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
@@ -63,14 +63,14 @@ const periodeOptions = [
 ];
 const props: JadwalEditorProps = {
     jadwal,
-    can: { create: true, update: true, activate: false },
+    can: { create: true, update: true, activate: false, close: false },
     read_only_reason: null,
     renstra_options: [jadwal.renstra],
     periode_options: periodeOptions,
 };
 const createProps: JadwalEditorProps = {
     jadwal: null,
-    can: { create: true, update: false, activate: false },
+    can: { create: true, update: false, activate: false, close: false },
     read_only_reason: null,
     renstra_options: [jadwal.renstra],
     periode_options: periodeOptions,
@@ -248,7 +248,7 @@ it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalen
         <Editor
             {...props}
             jadwal={{ ...jadwal, renstra: { ...jadwal.renstra, status } }}
-            can={{ create: true, update: false, activate: false }}
+            can={{ create: true, update: false, activate: false, close: false }}
             read_only_reason={`Renstra ${status}.`}
             renstra_options={[]}
         />,
@@ -436,13 +436,13 @@ it('panel aktivasi hanya untuk can.activate dan kalender dirty memblokir aktivas
     expect(fetch).not.toHaveBeenCalled();
     unmount();
 
-    render(<Editor {...props} can={{ create: false, update: false, activate: true }} read_only_reason="Anda tidak memiliki izin mengubah jadwal." />);
+    render(<Editor {...props} can={{ create: false, update: false, activate: true, close: false }} read_only_reason="Anda tidak memiliki izin mengubah jadwal." />);
     expect(await screen.findByText('Siap diaktifkan')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Simpan draft' })).toBeNull();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan jadwal' }).disabled).toBe(false);
     cleanup();
 
-    render(<Editor {...props} can={{ create: true, update: true, activate: true }} />);
+    render(<Editor {...props} can={{ create: true, update: true, activate: true, close: false }} />);
     await screen.findByText('Siap diaktifkan');
     fireEvent.change(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review'), { target: { value: '2027-01-17' } });
     expect(screen.getByText(/Simpan atau batalkan perubahan kalender/)).toBeTruthy();
@@ -457,7 +457,7 @@ it('revisi props baru dengan kalender tampil lama tetap memakai revisi tampil da
     });
     const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(readiness(4)), { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
-    const activator = { ...props, can: { create: false, update: false, activate: true }, read_only_reason: 'Anda tidak memiliki izin mengubah jadwal.' };
+    const activator = { ...props, can: { create: false, update: false, activate: true, close: false }, read_only_reason: 'Anda tidak memiliki izin mengubah jadwal.' };
     const { rerender } = render(<Editor {...activator} />);
     await screen.findByText('Siap diaktifkan');
     // preserveState sesudah POST gagal: props revisi naik, kalender yang tampil tetap revisi 4.
@@ -466,4 +466,20 @@ it('revisi props baru dengan kalender tampil lama tetap memakai revisi tampil da
     fireEvent.click(screen.getByRole('button', { name: 'Periksa ulang' }));
     expect(await screen.findByText(/Kalender sudah berubah/)).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan jadwal' }).disabled).toBe(true);
+});
+it('panel penutupan hanya untuk can.close dan mengirim revisi tampil serta alasan', async () => {
+    const aktif = { ...jadwal, status: 'aktif' as const };
+    const readOnly = 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.';
+    const { unmount } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ create: false, update: false, activate: false, close: false }} />);
+    expect(screen.queryByRole('button', { name: 'Tutup Jadwal' })).toBeNull();
+    unmount();
+
+    render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ create: false, update: false, activate: false, close: true }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Tutup Jadwal' }));
+    const dialog = screen.getByRole('dialog');
+    const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Tutup Jadwal' });
+    expect(confirm.disabled).toBe(true);
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Tahun pelaporan 2026 selesai.');
+    await userEvent.click(confirm);
+    expect(router.post).toHaveBeenCalledWith('/jadwal/jadwal-1/tutup', { expected_revisi: 4, alasan: 'Tahun pelaporan 2026 selesai.' }, expect.anything());
 });

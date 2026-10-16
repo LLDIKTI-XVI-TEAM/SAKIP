@@ -392,6 +392,55 @@ class AssignRoleTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'user_roles.tambah')->count());
     }
 
+    #[DataProvider('superadminDemotions')]
+    public function test_last_active_superadmin_cannot_be_demoted_until_another_remains(bool $self): void
+    {
+        if ($self) {
+            $this->target = $this->actor;
+        } else {
+            $this->target->update(['status' => 'aktif']);
+            $this->grantRole($this->target, 'superadmin');
+            $this->actor->roles()->sync([Role::where('kode', 'admin')->value('id') => [
+                'id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now(),
+            ]]);
+        }
+        $pegawai = Role::where('kode', 'pegawai')->value('id');
+        $token = $this->token();
+        try {
+            app(AssignRole::class)->handle($this->actor->fresh(), $this->target->id, $pegawai, 'Penurunan uji', $token);
+            $this->fail('Superadmin aktif terakhir tidak boleh diturunkan.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(['Superadmin aktif terakhir tidak dapat diturunkan perannya.'], $exception->errors()['role_id']);
+        }
+        $this->assertSame($token, $this->token());
+        $this->assertSame(0, AuditLog::where('tindakan', 'user_roles.ubah')->count());
+        $this->assertSame('Superadmin aktif terakhir tidak dapat diturunkan perannya.', AuditLog::where('tindakan', 'user_roles.ditolak')->sole()->alasan);
+
+        $this->grantRole(User::factory()->create(['status' => 'aktif']), 'superadmin');
+        $this->assertSame('changed', app(AssignRole::class)->handle($this->actor->fresh(), $this->target->id, $pegawai, 'Penurunan uji', $token)['status']);
+        $this->assertSame('pegawai', $this->target->roles()->value('kode'));
+    }
+
+    public static function superadminDemotions(): array
+    {
+        return ['akun sendiri' => [true], 'oleh admin' => [false]];
+    }
+
+    public function test_inactive_superadmin_is_not_counted_and_can_still_be_demoted(): void
+    {
+        $this->grantRole($this->target, 'superadmin');
+        $pegawai = Role::where('kode', 'pegawai')->value('id');
+        $own = (array) DB::table('user_roles')->where('user_id', $this->actor->id)->first(['id', 'role_id', 'audit_id']);
+        try {
+            app(AssignRole::class)->handle($this->actor, $this->actor->id, $pegawai, 'Penurunan diri', $own);
+            $this->fail('Superadmin nonaktif tidak boleh dihitung sebagai superadmin aktif lain.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('role_id', $exception->errors());
+        }
+        $this->assertSame('superadmin', $this->actor->roles()->value('kode'));
+        $this->assertSame('changed', app(AssignRole::class)->handle($this->actor, $this->target->id, $pegawai, 'Penurunan akun nonaktif', $this->token())['status']);
+    }
+
     #[DataProvider('invalidChanges')]
     public function test_invalid_domain_input_does_not_assign(string $case, string $field): void
     {
@@ -477,10 +526,26 @@ class AssignRoleTest extends TestCase
                 $this->deny($permission);
             }
             $this->get('/akses/peran')->assertForbidden();
+            $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertForbidden();
             $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertForbidden();
             $this->assertDatabaseCount('audit_log', $this->seedAudits + 0);
             $this->assertDatabaseMissing('user_roles', ['user_id' => $this->target->id]);
         }
+    }
+
+    public function test_user_options_search_all_accounts_for_role_page_autocomplete(): void
+    {
+        $this->target->update(['nama' => 'Aa Target Nonaktif', 'email' => 'aa.target@example.test']);
+        $this->actingAs($this->actor)->getJson('/akses/peran/opsi/pengguna?q=aa.target')->assertOk()
+            ->assertJsonCount(1, 'items')
+            ->assertJsonPath('items.0.id', $this->target->id)
+            ->assertJsonPath('items.0.status', 'nonaktif')
+            ->assertJsonPath('items.0.roles', [])
+            ->assertJsonPath('page', 1)
+            ->assertJsonPath('hasMore', false);
+        $this->getJson('/akses/peran/opsi/pengguna?q=Pengelola')->assertOk()->assertJsonPath('items.0.roles', ['Superadmin']);
+        $this->getJson('/akses/peran/opsi/pengguna?q='.str_repeat('a', 101))->assertUnprocessable();
+        $this->assertDatabaseCount('audit_log', $this->seedAudits);
     }
 
     public function test_index_bounds_users_filters_and_orders_official_roles_without_sensitive_props(): void
@@ -511,6 +576,53 @@ class AssignRoleTest extends TestCase
         $this->post('/akses/peran/'.$this->target->id, $this->payload())->assertSessionHasErrors('role_id');
     }
 
+    public function test_selected_user_filter_is_exact_and_search_escapes_wildcards(): void
+    {
+        $ana = User::factory()->create(['nama' => 'Ana', 'email' => 'ana@lldikti16.test', 'status' => 'aktif']);
+        User::factory()->create(['nama' => 'Diana', 'email' => 'diana@lldikti16.test', 'status' => 'aktif']);
+        $underscore = User::factory()->create(['nama' => 'Garis Bawah', 'email' => 'a_b@lldikti16.test', 'status' => 'aktif']);
+        User::factory()->create(['nama' => 'Huruf X', 'email' => 'axb@lldikti16.test', 'status' => 'aktif']);
+        // Pengguna terpilih dari autocomplete disaring per id, bukan potongan email.
+        $this->actingAs($this->actor)->get('/akses/peran?user='.$ana->id)->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('users.data', 1)->where('users.data.0.id', $ana->id)->where('filters.user', $ana->id));
+        // Kontrol: pencarian teks tetap mencocokkan sebagian.
+        $this->get('/akses/peran?q=ana%40lldikti16')->assertInertia(fn (Assert $page) => $page->has('users.data', 2));
+        // `_` dan `%` adalah karakter biasa, bukan wildcard SQL.
+        $this->get('/akses/peran?q=a_b%40')->assertInertia(fn (Assert $page) => $page->has('users.data', 1)->where('users.data.0.id', $underscore->id));
+        $this->get('/akses/peran?q='.urlencode('%@lldikti16'))->assertInertia(fn (Assert $page) => $page->has('users.data', 0));
+        // UUID berhuruf besar sah; filter dikembalikan dalam bentuk kanonis agar cocok dengan id di klien.
+        $this->get('/akses/peran?user='.strtoupper($ana->id))->assertInertia(fn (Assert $page) => $page
+            ->has('users.data', 1)->where('filters.user', $ana->id));
+        $this->get('/akses/peran?user='.Str::uuid())->assertInertia(fn (Assert $page) => $page->has('users.data', 0));
+        $this->get('/akses/peran?user=bukan-uuid')->assertSessionHasErrors('user');
+    }
+
+    public function test_result_fallback_keeps_pagination_links_on_index_route(): void
+    {
+        User::factory()->count(25)->create(['nama' => 'Z Pengguna']);
+        // Tanpa receipt, daftar dirender di /akses/peran/hasil; tautan halaman tetap menuju daftar.
+        $this->actingAs($this->actor)->get('/akses/peran/hasil')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('Access/RoleAssignmentIndex', false)->where('confirmationUnavailable', true)
+            ->where('users.links', fn ($links) => collect($links)->pluck('url')->filter()->isNotEmpty()
+                && collect($links)->pluck('url')->filter()->every(fn ($url) => parse_url($url, PHP_URL_PATH) === '/akses/peran')));
+    }
+
+    public function test_user_options_require_login_active_actor_and_valid_page(): void
+    {
+        $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertUnauthorized();
+        $this->actingAs($this->actor);
+        foreach (['0', 'abc'] as $page) {
+            $this->getJson('/akses/peran/opsi/pengguna?q=aa&page='.$page)->assertUnprocessable()->assertJsonValidationErrors('page');
+        }
+        // Gerbang izin dicek sebelum validasi: aktor tanpa izin tidak mendapat detail validasi.
+        DB::table('role_permissions')->where('role_id', Role::where('kode', 'superadmin')->value('id'))
+            ->where('permission_id', Permission::where('kode', 'akses:update')->value('id'))->delete();
+        $this->getJson('/akses/peran/opsi/pengguna?q='.str_repeat('a', 101))->assertForbidden();
+        // Akun yang dinonaktifkan di sesi lain diarahkan ke halaman menunggu tanpa data pengguna.
+        $this->actor->update(['status' => 'nonaktif']);
+        $this->getJson('/akses/peran/opsi/pengguna?q=aa')->assertRedirect('/auth/pending');
+    }
+
     #[DataProvider('invalidPayloads')]
     public function test_http_rejects_invalid_payload_without_mutation(array $override, array $remove, string $field): void
     {
@@ -538,6 +650,8 @@ class AssignRoleTest extends TestCase
     public function test_self_change_receipt_remains_available_after_losing_access_and_expires(): void
     {
         $this->target = $this->actor;
+        // Superadmin aktif lain membuat penurunan peran sendiri sah (Q53).
+        $this->grantRole(User::factory()->create(['status' => 'aktif']), 'superadmin');
         $this->assignment($this->indicator(), $this->actor, '2026-01-01', '2026-01-01 09:00:00');
         $url = $this->actingAs($this->actor)->from('/akses/peran')->post('/akses/peran/'.$this->actor->id, $this->payload())
             ->assertStatus(303)->headers->get('Location');
@@ -609,6 +723,11 @@ class AssignRoleTest extends TestCase
         $row = DB::table('user_roles')->where('user_id', $this->target->id)->first(['id', 'role_id', 'audit_id']);
 
         return $row ? (array) $row : null;
+    }
+
+    private function grantRole(User $user, string $kode): void
+    {
+        $user->roles()->attach(Role::where('kode', $kode)->value('id'), ['id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
     }
 
     private function deny(string $permission): void

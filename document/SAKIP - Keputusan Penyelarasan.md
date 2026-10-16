@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **14 Oktober 2026**
+Pembaruan terakhir: **15 Oktober 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -12,6 +12,10 @@ Basis commit sebelum pembaruan Q36: `db0a887923127dc7af4b667bdf98c5d91e9a06b1`
 Basis commit sebelum keputusan review Q37 (semula bernomor Q36): `bba499436be3f919b24cea9ffbf6295ba1bc00bc`
 
 Basis commit sebelum pembaruan Q39–Q51: `0a260708d3b6df328d82151f85bf274d29bdec3b`
+
+Basis commit sebelum pembaruan Q52: `edd08533ec01170c8946f8f3b38ffdd633bbb0a0`
+
+Basis commit sebelum pembaruan Q53: `80d32e533382446471469c5b3af6f6af387bec85`
 
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
@@ -47,6 +51,10 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Rapat asistensi LLDIKTI 13 Oktober 2026 (Q39–Q46)** menetapkan dua lapis target dengan target PK sebagai acuan pengukuran (Q39); revisi PK berversi dan revisi Renstra ringan (Q40); Rencana Aksi tanpa jendela penyusunan dengan kunci per triwulan (Q41); kegiatan, anggaran, dan RAB di dalam Rencana Aksi, menggantikan Q28 (Q42); penyempitan kewajiban alasan (Q43); penghapusan Kebijakan Storage dengan batas teknis di server serta penataan menu referensi, menggantikan Q23 (Q44); narasi pelaporan wajib, Rekomendasi Pimpinan oleh Pimpinan, dan dashboard kegiatan (Q45); serta penggunaan pertama 2026 dan urutan pengerjaan (Q46). Status konfirmasi tertulis Tim Perencanaan dicatat pada pengantar Q39–Q46.
 
 **Analisis dokumen resmi 2026 (Q47–Q51)**, ditetapkan PM pada 13 Oktober 2026, menetapkan indikator dinilai tahunan, periode tanpa target, dan realisasi "belum dapat diukur" (Q47); keluaran Rencana Aksi tahunan dan Laporan Kinerja Triwulan beserta unggahan PDF bertanda tangan (Q48); atribut kegiatan dan salin kegiatan (Q49); nomor PK opsional, presisi target, dan kode indikator mengikuti PK (Q50); serta alur draf dan persetujuan Rekomendasi Pimpinan (Q51). Dasar dan status konfirmasinya dicatat pada pengantar Q47–Q51.
+
+**Keputusan 14 Oktober 2026 (Q52)** menetapkan penutupan resmi jadwal tahunan: alasan wajib untuk `jadwal:tutup`, tahun terkunci bila jadwal berstatus `ditutup` atau tanggal `penutupan` terlewati, serta penguncian kegiatan per tahun.
+
+**Keputusan 15 Oktober 2026 (Q53)** menetapkan bahwa Penetapan Peran tidak dapat menurunkan peran superadmin aktif terakhir, melengkapi Q38 §38.2.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -829,7 +837,7 @@ Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.
 2. Guard dipusatkan pada `businessErrors` yang sama untuk verifikasi, pengembalian (ISS-05.04), dan pengesahan (ISS-05.05), ditegakkan server-side termasuk untuk request langsung dan diperiksa ulang pada mutation boundary. F2 tidak melewati guard ini.
 3. Penolakan diaudit; UI menerima capability dan alasan dari server agar alasan aksi tidak tersedia dapat ditampilkan.
 4. Renstra `diarsipkan` sudah tertutup oleh guard jadwal: Renstra tidak dapat keluar dari `aktif` selama masih mempunyai jadwal aktif (Data Model §2.9 pada baseline ini). Keputusan ini tidak menambahkan guard Renstra arsip terpisah.
-5. Aturan unit nonaktif selaras dengan Pengukuran. Pengecekan indikator arsip pada verifikasi Pengukuran menjadi tindak lanjut untuk keseragaman kedua modul; Q37 tidak mengklaim perubahan tersebut sudah diimplementasikan.
+5. Aturan unit nonaktif selaras dengan Pengukuran. Pengecekan indikator arsip pada verifikasi Pengukuran menjadi tindak lanjut untuk keseragaman kedua modul; Q37 tidak mengklaim perubahan tersebut sudah diimplementasikan. Tambahan Pengukuran (ditetapkan PM 15 Oktober 2026 melalui komentar review PR #107): guard indikator `arsip` pada Pengukuran berlaku untuk kelima perintah — simpan draf, ajukan, verifikasi, kembalikan, dan sahkan — dengan pesan `Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.`; penolakan diaudit tanpa mengubah header; detail/histori tetap terbaca. Opsi pembatasan ke perintah review saja ditolak: PIC masih dapat mengajukan pengukuran yang kemudian tidak mungkin direviu.
 
 ## 37.2 Konfirmasi Verifikasi dan Alasan Pengembalian
 
@@ -892,7 +900,7 @@ Admin menetapkan satu dari 5 role (alasan wajib, teraudit)
 ## 38.2 Status Nonaktif, Penonaktifan, dan Pengaktifan Kembali
 
 1. `nonaktif` berarti akun dinonaktifkan. Middleware `active` memblokir sesi akun nonaktif pada request berikutnya; halaman pending menampilkan "Akun tidak aktif".
-2. Aktor dengan `akses:update` dapat menonaktifkan dan mengaktifkan kembali akun lain melalui Penetapan Peran dengan alasan wajib dan audit. Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
+2. Aktor dengan `akses:update` dapat menonaktifkan dan mengaktifkan kembali akun lain melalui Penetapan Peran dengan alasan wajib dan audit. Akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan. Penetapan Peran juga tidak dapat menurunkan peran superadmin aktif terakhir (Q53).
 3. Peran dan grant tidak dihapus saat akun dinonaktifkan, sehingga pengaktifan kembali memulihkan akses yang sama.
 4. Bila pengguna masih menjadi Penanggung Jawab aktif, UI menampilkan peringatan sebelum konfirmasi; penonaktifan tidak diblokir.
 
@@ -1476,6 +1484,57 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
+# Keputusan Q52 — Penutupan Resmi Jadwal Tahunan
+
+**Keputusan PM, 14 Oktober 2026**, untuk [ISS-14.01 / Issue #86](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/86). Melengkapi Q41 (penutupan tahun Rencana Aksi), Q43 §43.2 (daftar alasan wajib), dan Q48 §48.2 butir 5.
+
+## 52.1 Alasan dan transisi
+
+1. Penutupan jadwal (`jadwal:tutup`) wajib alasan pengguna. Alasan divalidasi dan disanitasi server, lalu dicatat di `audit_log` bersama `dasar_izin`. Butir ini menambah daftar Q43 §43.2.
+2. Penutupan hanya dari status `aktif`. Status menjadi `ditutup` dan `closed_at` mencatat waktu penutupan sebenarnya; tanggal `penutupan` rencana dan snapshot tidak berubah.
+
+## 52.2 Tahun terkunci
+
+1. Tahun jadwal terkunci bila jadwal berstatus `ditutup` atau tanggal `penutupan` sudah terlewati pada tanggal bisnis (Asia/Makassar). Penutupan resmi boleh dilakukan sebelum tanggal `penutupan`.
+2. Selama terkunci, mutasi normal Rencana Aksi (pembuatan, target, pengajuan, bukti, review), pengukuran, dan kegiatan ditolak sebagai validasi bisnis. Koreksi hanya lewat `jadwal:buka_kembali` dengan sesi koreksi (ISS-14.02).
+3. Unggahan arsip PDF Rencana Aksi tahunan dan Laporan Kinerja Triwulan bukan mutasi yang dikunci (Q48 §48.2 butir 5).
+4. Data tahun yang terkunci tetap dapat dibaca sesuai izin baca; daftar Rencana Aksi memuat tahun yang ditutup sebagai baris baca saja.
+
+## 52.3 Kegiatan dan klaim
+
+1. Kegiatan tidak terikat Renstra. Tahun kegiatan T terkunci bila ada jadwal non-draft tahun T yang terkunci menurut §52.2; tahun tanpa jadwal tidak terkunci.
+2. Perubahan kegiatan memeriksa tahun lama dan tahun baru, sehingga kegiatan tidak dapat dipindahkan keluar dari tahun yang terkunci.
+3. Kegiatan belum memiliki pengecualian sesi koreksi; ISS-14.02 menetapkan lingkupnya bila diperlukan.
+4. Klaim kegiatan belum memiliki jalur tulis. Penulis klaim kelak memakai aturan yang sama.
+
+## 52.4 Dampak dan traceability
+
+- Diselaraskan: PRD §4 prinsip 6 dan §15.4; Data Model §2.32 kolom `alasan`; User Stories US-14.01; User Issues ISS-14.01.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan menunggu bersama Q38–Q51.
+- Q52 adalah keputusan requirement; implementasinya dibawa PR ISS-14.01.
+
+---
+
+# Keputusan Q53 — Superadmin Aktif Terakhir pada Penetapan Peran
+
+**Keputusan PM, 15 Oktober 2026**, untuk [Issue #112](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/112), tindak lanjut ISS-01.08 / Issue #99 dari review PR #108. Melengkapi Q38 §38.2 butir 2.
+
+## 53.1 Aturan
+
+1. Penetapan Peran menolak perubahan peran bila target adalah superadmin aktif, peran tujuan bukan superadmin, dan tidak ada superadmin aktif lain. Penolakan dicatat di `audit_log` sebagai `user_roles.ditolak`.
+2. Aturan ini juga berlaku untuk akun sendiri. Akun sendiri tetap boleh mengubah perannya selama masih ada superadmin aktif lain.
+3. Superadmin aktif adalah akun berstatus `aktif` yang memegang peran `superadmin` yang aktif. Superadmin berstatus `nonaktif` tidak dihitung, dan perannya tetap boleh diturunkan.
+4. Tidak ada hierarki peran baru: aktor dengan `akses:update` tetap dapat menetapkan peran superadmin.
+5. Penurunan peran dan penonaktifan akun yang berjalan bersamaan diserialkan, sehingga keduanya tidak dapat menghabiskan superadmin aktif terakhir.
+
+## 53.2 Dampak dan traceability
+
+- Diselaraskan: Q38 §38.2 butir 2, Workflow §21.2, User Stories US-01.08, dan User Issues ISS-01.08.
+- Status keputusan: baseline kerja PM.
+- Q53 adalah keputusan requirement; implementasinya dibawa PR untuk Issue #112.
+
+---
+
 # Bukti aritmetika IKU 3
 
 Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `54c9489`, SHA-256 `66840a50d3048e9aa0a1c10c6d7b8158b80b95d006d2df9feefd209fdc09054b`. Workbook/transkrip sudah dihapus PM dari development melalui `17761d8`; keduanya tidak dipulihkan oleh penyelarasan ini.
@@ -1503,7 +1562,7 @@ Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 
 | Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. |
 | Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. |
 | Daftar penetapan awal 2026 | Perencanaan | Daftar unit, mapping indikator→unit, PJ, dan grant turunan dari penetapan PJ perlu disiapkan sebelum operasional TW IV (Q46; semula TW III). Pemetaan unit sementara tercantum pada asumsi kerja di bawah. |
-| Konfirmasi tertulis Q38–Q51 | PM + Perencanaan | Menunggu; tanggal kirim, bentuk, dan hasil dicatat pada pengantar Q39–Q46 dan pengantar Q47–Q51. |
+| Konfirmasi tertulis Q38–Q52 | PM + Perencanaan | Menunggu; tanggal kirim, bentuk, dan hasil dicatat pada pengantar Q39–Q46, pengantar Q47–Q51, dan Q52 §52.4. |
 | Contoh dokumen PK, Rencana Aksi, dan Pengukuran | Perencanaan | **Selesai.** Diterima sebagai lima dokumen resmi 2026 dan dianalisis pada Q47–Q51. |
 | Penjumlahan anggaran untuk kegiatan lintas IKU | Perencanaan | Q42 §42.2 memakai penanda "kegiatan bersama" dan total dari kegiatan unik; alternatif satu kegiatan hanya untuk satu IKU menunggu konfirmasi. |
 | Formula dan komponen indikator 2026 | Perencanaan | Renstra 2025–2029 tidak memuat formula, komponen, satuan, maupun baseline. Asumsi kerja di bawah; komponen tidak disetel di produksi sebelum dikonfirmasi. |

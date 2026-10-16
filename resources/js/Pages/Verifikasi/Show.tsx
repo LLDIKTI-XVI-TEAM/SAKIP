@@ -15,6 +15,13 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const { can } = pengukuran;
+    const businessErrors = pengukuran.businessErrors ?? { verifikasi: [], sahkan: [], kembalikan: [] };
+    const alasanGuard: string[] = [...new Set([
+        ...(!can.verify ? (businessErrors.verifikasi ?? []) : []),
+        ...(!can.ratify ? (businessErrors.sahkan ?? []) : []),
+        ...(!can.return ? (businessErrors.kembalikan ?? []) : []),
+    ])];
+    const panelKeputusanTerlihat: boolean = can.verify || can.ratify || can.return;
     const [decision, setDecision] = useState<ReviewDecision | null>(null);
     const trigger = useRef<HTMLButtonElement | null>(null);
     const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
@@ -52,7 +59,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                 </CardContent>
             </Card>
             <Card><CardHeader><CardTitle>Narasi pengukuran</CardTitle></CardHeader><CardContent className="space-y-4 text-sm">
-                <dl className="space-y-4">{([['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Tindak lanjut/strategi penyelesaian']] as const).map(([field, label]) => <div key={field}><dt className="font-semibold text-ink">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-ink">{pengukuran[field] || 'Tidak diisi.'}</dd></div>)}</dl>
+                <dl className="space-y-4">{([['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Tindak lanjut/strategi penyelesaian'], ['tindak_lanjut_rekomendasi', 'Tindak lanjut rekomendasi']] as const).map(([field, label]) => <div key={field}><dt className="font-semibold text-ink">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-ink">{pengukuran[field] || 'Tidak diisi.'}</dd></div>)}</dl>
                 <div className="border-t border-border pt-4"><h2 className="font-semibold">Catatan pengukuran</h2><p className="mt-1 whitespace-pre-wrap break-words">{pengukuran.catatan || 'Tidak ada catatan.'}</p></div>
                 {pengukuran.alasan_tidak_dapat_dihitung && <div><h2 className="font-medium">Alasan hasil tidak dapat dihitung</h2><p className="mt-1 whitespace-pre-wrap break-words text-muted">{pengukuran.alasan_tidak_dapat_dihitung}</p></div>}
             </CardContent></Card>
@@ -65,6 +72,10 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                     {can.verify && <Button type="button" className="bg-primary text-white hover:bg-primary/90 focus:ring-primary" onClick={(event) => choose('verifikasi', event.currentTarget)}>Verifikasi pengukuran</Button>}
                     {can.ratify && <Button type="button" className="bg-primary text-white hover:bg-primary/90 focus:ring-primary" onClick={(event) => choose('sahkan', event.currentTarget)}>Sahkan kinerja resmi</Button>}
                 </div>
+            </div>}
+            {alasanGuard.length > 0 && <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm">
+                <p className="font-semibold text-warning-dark">{panelKeputusanTerlihat ? 'Sebagian tindakan tidak tersedia' : 'Tindakan reviu tidak tersedia'}</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">{alasanGuard.map((alasan: string) => <li key={alasan}>{alasan}</li>)}</ul>
             </div>}
             {decision && <DecisionDialog key={`${pengukuran.id}-${decision}`} pengukuran={pengukuran} decision={decision} onClose={closeDecision} />}
         </div>

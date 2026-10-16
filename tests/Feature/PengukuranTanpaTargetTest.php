@@ -39,8 +39,14 @@ class PengukuranTanpaTargetTest extends TestCase
 
         if ($allowed || $status === 'belum_diisi') {
             $this->actingAs($this->actor)->get('/pengukuran')->assertInertia(fn ($page) => $page
-                ->where('pengukurans.0.tanpa_target_periode', $status === 'tidak_ditargetkan' && $value === null)
-                ->where('pengukurans.0.target', $value));
+                ->where('pengukurans.0.pengukuran.tanpa_target_periode', $status === 'tidak_ditargetkan' && $value === null)
+                ->where('pengukurans.0.pengukuran.target', $value));
+            $originalPeriod = $this->pengukuran->periode_id;
+            $this->pengukuran->update(['periode_id' => $last->id]);
+            $this->get('/pengukuran')->assertInertia(fn ($page) => $page
+                ->where('pengukurans.0.jenis', 'absent')->where('pengukurans.0.target', $value)
+                ->where('pengukurans.0.tanpa_target_periode', $status === 'tidak_ditargetkan' && $value === null));
+            $this->pengukuran->update(['periode_id' => $originalPeriod]);
         }
         $response = $this->actingAs($this->actor)->postJson('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75]);
         if (! $allowed) {
@@ -64,9 +70,10 @@ class PengukuranTanpaTargetTest extends TestCase
             'snapshot' => ['target_periode' => [['periode_id' => $this->pengukuran->periode_id, 'nilai' => 100, 'status_perhitungan' => 'terhitung', 'komponen' => []]]],
             'disahkan_by' => $this->actor->id, 'disahkan_at' => now()]);
         foreach (['/pengukuran', '/verifikasi'] as $route) {
+            $prefix = $route === '/pengukuran' ? 'pengukurans.0.pengukuran.' : 'pengukurans.0.';
             $this->get($route)->assertInertia(fn ($page) => $page
-                ->where('pengukurans.0.tanpa_target_periode', $value === null)
-                ->where('pengukurans.0.target', $value === null ? null : '0.00'));
+                ->where($prefix.'tanpa_target_periode', $value === null)
+                ->where($prefix.'target', $value === null ? null : '0.00'));
         }
     }
 
@@ -82,7 +89,7 @@ class PengukuranTanpaTargetTest extends TestCase
     }
 
     #[DataProvider('komponenTanpaTarget')]
-    public function test_target_rasio_tidak_ditargetkan_harus_memuat_seluruh_komponen_kosong(string $condition, bool $allowed): void
+    public function test_target_rasio_tidak_ditargetkan_harus_memuat_seluruh_komponen_kosong(string $condition, bool $allowed, bool $unmeasurable = false): void
     {
         $final = Periode::create(['nama' => 'Periode akhir', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $final->id, 'pengisian_mulai' => '2026-12-01',
@@ -118,11 +125,13 @@ class PengukuranTanpaTargetTest extends TestCase
             'snapshot' => ['target_periode' => [['periode_id' => $this->pengukuran->periode_id, 'nilai' => null, 'status_perhitungan' => 'tidak_ditargetkan', 'komponen' => $targets]]],
             'disahkan_by' => $this->actor->id, 'disahkan_at' => now()]);
         $input = [['komponen_id' => $definitions[0]['komponen_id'], 'nilai' => 8], ['komponen_id' => $definitions[1]['komponen_id'], 'nilai' => 10]];
-        $response = $this->actingAs($this->actor)->postJson('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'komponen' => $input]);
+        $response = $this->actingAs($this->actor)->postJson('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan',
+            'komponen' => $unmeasurable ? [] : $input, 'status_perhitungan' => $unmeasurable ? 'belum_dapat_diukur' : null]);
         if ($allowed) {
             $response->assertRedirect('/pengukuran');
             $this->assertTrue($this->pengukuran->fresh()->latestVersion->snapshot['tanpa_target_periode']);
-            $this->assertSame('80.000000000000', $this->pengukuran->fresh()->latestVersion->snapshot['nilai']);
+            $this->assertSame($unmeasurable ? null : '80.000000000000', $this->pengukuran->fresh()->latestVersion->snapshot['nilai']);
+            $this->assertSame($unmeasurable ? 'belum_dapat_diukur' : 'terhitung', $this->pengukuran->fresh()->latestVersion->snapshot['status_perhitungan']);
         } else {
             $response->assertUnprocessable()->assertJsonValidationErrors('pengajuan');
             $this->assertDatabaseCount('pengukuran_versi', 0);
@@ -132,7 +141,7 @@ class PengukuranTanpaTargetTest extends TestCase
 
     public static function komponenTanpaTarget(): array
     {
-        return ['semua kosong' => ['empty', true], 'nol dan kosong' => ['partial', false],
+        return ['semua kosong' => ['empty', true], 'realisasi belum dapat diukur' => ['empty', true, true], 'nol dan kosong' => ['partial', false],
             'ID duplikat' => ['duplicate', false], 'nilai absen' => ['missing-value', false], 'komponen absen' => ['missing-component', false]];
     }
 }

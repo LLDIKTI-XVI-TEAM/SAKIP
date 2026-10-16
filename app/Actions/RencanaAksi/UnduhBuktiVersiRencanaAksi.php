@@ -26,6 +26,7 @@ class UnduhBuktiVersiRencanaAksi
         $header = RencanaAksi::findOrFail($id);
         Gate::forUser($actor)->authorize('viewEvidence', $header);
         $pengajuan = $header->versions()->whereKey($versi)->firstOrFail();
+        Gate::forUser($actor)->authorize('viewVersi', [$header, $pengajuan]);
         $beku = collect($pengajuan->snapshot['bukti_dukungs'] ?? [])->first(fn ($row) => is_array($row) && ($row['id'] ?? null) === $bukti && ($row['mode'] ?? null) === 'file');
         abort_unless($beku, 404);
         $berkas = $header->buktiDukungs()->current()->whereKey($bukti)->where('mode', 'file')->first();

@@ -2,6 +2,8 @@
 
 namespace App\Policies;
 
+use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
 use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
 use App\Models\User;
@@ -121,6 +123,9 @@ class PengukuranKinerjaPolicy
         if (! DB::table('unit')->where('id', $snapshot->unit_id)->where('status', 'aktif')->exists()) {
             $errors[] = 'Unit organisasi pengukuran berstatus nonaktif.';
         }
+        if ($p->indikator && $p->indikator->isArsip()) {
+            $errors[] = 'Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.';
+        }
         if ($p->sumber_nilai === 'historis') {
             $errors[] = 'Koreksi nilai historis memerlukan alur backfill resmi.';
         }
@@ -131,17 +136,9 @@ class PengukuranKinerjaPolicy
         if (! $period || $p->periode->urutan < $snapshot->periodeMulai->urutan) {
             $errors[] = 'Periode belum termasuk kewajiban efektif indikator pada jadwal ini.';
         }
-        $scope = $schedule->lingkup_koreksi ?? [];
-        $correction = $schedule->koreksi_mulai && $schedule->koreksi_sampai && now()->betweenIncluded($schedule->koreksi_mulai, $schedule->koreksi_sampai)
-            && in_array($p->indikator_id, $scope['indikator_ids'] ?? [], true) && in_array($p->periode_id, $scope['periode_ids'] ?? [], true)
-            && in_array('pengukuran', $scope['jenis_objek'] ?? [], true);
-        if ($date > $schedule->penutupan->toDateString()) {
-            $scope = $schedule->lingkup_koreksi ?? [];
-            if (! $schedule->koreksi_mulai || ! $schedule->koreksi_sampai || ! now()->betweenIncluded($schedule->koreksi_mulai, $schedule->koreksi_sampai)
-                || ! in_array($p->indikator_id, $scope['indikator_ids'] ?? [], true) || ! in_array($p->periode_id, $scope['periode_ids'] ?? [], true)
-                || ! in_array('pengukuran', $scope['jenis_objek'] ?? [], true)) {
-                $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
-            }
+        $correction = $this->sesiKoreksiAktif($schedule, $p->indikator_id, $p->periode_id);
+        if ($date > $schedule->penutupan->toDateString() && ! $correction) {
+            $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
         }
         $statuses = match ($command) {
             'draft','ajukan' => ['draft', 'dikembalikan'], 'verifikasi' => ['diajukan'], 'sahkan' => ['diverifikasi'], 'kembalikan' => ['diajukan', 'diverifikasi']
@@ -171,5 +168,46 @@ class PengukuranKinerjaPolicy
         }
 
         return $errors;
+    }
+
+    /**
+     * Guard bisnis pembentukan header draf, tanpa query: snapshot membawa relasi jadwal dan unit yang sudah dimuat,
+     * dan PJ efektif dipasok pemanggil (Action dari baris terkunci; daftar dari data pramuat). Keputusan resolver
+     * pengukuran:create menentukan jalur: allow dari peran = Perencanaan tanpa syarat PJ/jendela; grant unit saja = PIC.
+     */
+    public function creationErrors(User $actor, JadwalSnapshot $snapshot, PeriodeJadwal $period, array $decision, ?string $picUserId): array
+    {
+        $schedule = $snapshot->jadwal;
+        $date = today(config('app.business_timezone'))->toDateString();
+        $errors = [];
+        if ($snapshot->unit?->status !== 'aktif') {
+            $errors[] = 'Unit organisasi pengukuran berstatus nonaktif.';
+        }
+        if ($schedule->status !== 'aktif') {
+            $errors[] = 'Jadwal tahunan harus aktif.';
+        }
+        if ($date > $schedule->penutupan->toDateString() && ! $this->sesiKoreksiAktif($schedule, $snapshot->indikator_id, $period->periode_id)) {
+            $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
+        }
+        if ($decision['roles'] === []) {
+            if ($picUserId !== $actor->id) {
+                $errors[] = 'Tindakan ini memerlukan penugasan PIC yang efektif.';
+            }
+            if ($date < $period->pengisian_mulai->toDateString() || $date > $period->pengisian_selesai->toDateString()) {
+                $errors[] = 'Jendela pengisian PIC periode ini sudah ditutup.';
+            }
+        }
+
+        return $errors;
+    }
+
+    /** Sesi koreksi resmi membuka tahun yang ditutup hanya untuk indikator × periode × jenis objek dalam lingkupnya. */
+    private function sesiKoreksiAktif(JadwalTahunan $schedule, string $indicatorId, string $periodId): bool
+    {
+        $scope = $schedule->lingkup_koreksi ?? [];
+
+        return $schedule->koreksi_mulai && $schedule->koreksi_sampai && now()->betweenIncluded($schedule->koreksi_mulai, $schedule->koreksi_sampai)
+            && in_array($indicatorId, $scope['indikator_ids'] ?? [], true) && in_array($periodId, $scope['periode_ids'] ?? [], true)
+            && in_array('pengukuran', $scope['jenis_objek'] ?? [], true);
     }
 }

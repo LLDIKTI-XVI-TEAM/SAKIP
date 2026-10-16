@@ -7,13 +7,14 @@ use App\Models\PenugasanIndikator;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
+use App\Policies\PengukuranKinerjaPolicy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class PresentPengukuran
 {
-    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private CalculatePengukuran $calculator) {}
+    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private CalculatePengukuran $calculator, private PengukuranKinerjaPolicy $policy) {}
 
     /**
      * Audit, target RA, dan PIC efektif dibaca sekaligus per halaman, tanpa query per baris.
@@ -33,28 +34,45 @@ class PresentPengukuran
             ->select(['objek_id', 'tindakan'])->selectRaw("nilai_baru->>'self_approval' as self_approval, nilai_baru->>'reviu_terlambat' as reviu_terlambat")->get();
         $ids = $reviews->where('tindakan', 'pengukuran.verifikasi')->where('self_approval', 'true')->pluck('objek_id')->all();
         $lateIds = $reviews->where('reviu_terlambat', 'true')->pluck('objek_id')->all();
-        $plans = RencanaAksi::whereIn('indikator_id', $rows->pluck('indikator_id'))->whereIn('tahun', $rows->pluck('tahun'))
+        $rows = $rows->values();
+        $targets = $this->periodTargets($rows->map(fn ($row) => [...$row->only(['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id']), 'unit_id' => $row->targetUnitId()])->all());
+        foreach ($rows as $index => $row) {
+            $row->setAttribute('summary_pic', $pics->get($row->indikator_id)?->pic?->only(['id', 'nama']));
+            $row->setAttribute('self_verified', in_array($row->id, $ids, true));
+            $row->setAttribute('late_review', in_array($row->id, $lateIds, true));
+            $row->setAttribute('summary_target', $targets[$index]['target']);
+            $row->setAttribute('summary_tanpa_target_periode', $targets[$index]['tanpa_target_periode']);
+        }
+    }
+
+    /**
+     * Target periode dari versi terakhir RA sah yang dijepit ke snapshot dan unit yang sama; selain itu null, bukan nol
+     * atau target PK. Dibaca sekaligus untuk ringkasan header dan baris kewajiban yang belum memiliki header.
+     *
+     * @param  list<array{indikator_id: string, tahun: int, periode_id: string, jadwal_snapshot_id: string, unit_id: string}>  $contexts
+     * @return list<array{target: mixed, tanpa_target_periode: bool}> target dan penanda sesuai urutan konteks
+     */
+    public function periodTargets(array $contexts): array
+    {
+        if ($contexts === []) {
+            return [];
+        }
+        $plans = RencanaAksi::whereIn('indikator_id', array_column($contexts, 'indikator_id'))->whereIn('tahun', array_column($contexts, 'tahun'))
             ->where('status_alur', 'disahkan')->get()->keyBy(fn ($plan) => $plan->indikator_id.':'.$plan->tahun);
         $planVersions = RencanaAksiVersi::whereIn('rencana_aksi_id', $plans->modelKeys())
             ->whereRaw('nomor = (select max(rv.nomor) from rencana_aksi_versi rv where rv.rencana_aksi_id = rencana_aksi_versi.rencana_aksi_id)')
             ->whereNotNull('disahkan_at')->whereNotNull('disahkan_by')->get()->keyBy('rencana_aksi_id');
-        foreach ($rows as $row) {
-            $row->setAttribute('summary_pic', $pics->get($row->indikator_id)?->pic?->only(['id', 'nama']));
-            $row->setAttribute('self_verified', in_array($row->id, $ids, true));
-            $row->setAttribute('late_review', in_array($row->id, $lateIds, true));
-            $plan = $plans->get($row->indikator_id.':'.$row->tahun);
+
+        return array_map(function (array $context) use ($plans, $planVersions) {
+            $plan = $plans->get($context['indikator_id'].':'.$context['tahun']);
             $planVersion = $plan ? $planVersions->get($plan->id) : null;
-            $target = null;
-            $withoutTarget = false;
-            if ($planVersion && $planVersion->jadwal_snapshot_id === $row->jadwal_snapshot_id && $plan->unit_id === $row->targetUnitId()) {
-                $periodTarget = collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $row->periode_id);
-                $target = $periodTarget['nilai'] ?? null;
-                $withoutTarget = $periodTarget && array_key_exists('nilai', $periodTarget) && $target === null
-                    && ($periodTarget['status_perhitungan'] ?? null) === 'tidak_ditargetkan';
-            }
-            $row->setAttribute('summary_target', $target);
-            $row->setAttribute('summary_tanpa_target_periode', $withoutTarget);
-        }
+            $periodTarget = $planVersion && $planVersion->jadwal_snapshot_id === $context['jadwal_snapshot_id'] && $plan->unit_id === $context['unit_id']
+                ? collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $context['periode_id']) : null;
+            $target = $periodTarget['nilai'] ?? null;
+
+            return ['target' => $target, 'tanpa_target_periode' => $periodTarget && array_key_exists('nilai', $periodTarget)
+                && $target === null && ($periodTarget['status_perhitungan'] ?? null) === 'tidak_ditargetkan'];
+        }, $contexts);
     }
 
     public function handle(PengukuranKinerja $p, User $actor, bool $detail = false): array
@@ -74,10 +92,12 @@ class PresentPengukuran
             'diajukan_pada' => $version?->diajukan_at?->toIso8601String(),
             'penugasan_indikator' => ['indikator_kinerja' => $frozen ? [...$frozen['indikator'], 'definisi_operasional' => $frozen['indikator']['definisi']] : [...$context->only(['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $p->indikator->kode, 'definisi_operasional' => $context->definisi],
                 'unit_kerja' => $frozen ? $frozen['unit_kerja'] : $context->unit->only(['id', 'nama']), 'pic' => $frozen ? $frozen['pic'] : ($detail ? $p->effectivePic()?->pic?->only(['id', 'nama']) : $p->getAttribute('summary_pic'))],
-            'periode_jadwal' => ['id' => $p->periode_id, 'nama_periode' => $frozen ? $frozen['periode']['nama'] : $p->periode->nama, 'urutan' => $p->periode->urutan, 'tahun' => $p->tahun],
+            'periode_jadwal' => ['id' => $p->periode_id, 'nama_periode' => $frozen ? $frozen['periode']['nama'] : $p->periode->nama, 'urutan' => $p->periode->urutan, 'tahun' => $p->tahun,
+                'is_nilai_akhir' => (bool) ($frozen ? $frozen['periode']['is_nilai_akhir'] : $p->periode->is_nilai_akhir)],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
             'prasyarat' => ['siap' => false, 'alasan' => []], 'unggahan_aktif' => false,
-            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false]];
+            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false],
+            'businessErrors' => ['verifikasi' => [], 'sahkan' => [], 'kembalikan' => []]];
         if (! $detail) {
             return $data;
         }
@@ -86,8 +106,22 @@ class PresentPengukuran
             $can[$key] = Gate::forUser($actor)->allows($ability, $p);
         }
         $data['can'] = $can;
-        foreach (['progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut'] as $field) {
-            $data[$field] = $frozen ? ($frozen[$field] ?? null) : $p->{$field};
+        // Q37 §37.1 butir 3: UI menerima capability beserta alasan bisnis (statis, tanpa dasar_izin/token).
+        // Murni baca via policy; tanpa mutasi header, versi, maupun audit.
+        // Notice hanya memakai perintah yang berlaku pada status saat ini agar pesan status lain tidak ikut tampil.
+        if ($p->status_alur === 'diajukan') {
+            // Diajukan: perintah reviu yang berlaku adalah verifikasi dan kembalikan.
+            $data['businessErrors']['verifikasi'] = $this->policy->businessErrors($actor, $p, 'verifikasi');
+            $data['businessErrors']['kembalikan'] = $this->policy->businessErrors($actor, $p, 'kembalikan');
+        } elseif ($p->status_alur === 'diverifikasi') {
+            // Diverifikasi: perintah reviu yang berlaku adalah sahkan dan kembalikan.
+            $data['businessErrors']['sahkan'] = $this->policy->businessErrors($actor, $p, 'sahkan');
+            $data['businessErrors']['kembalikan'] = $this->policy->businessErrors($actor, $p, 'kembalikan');
+        }
+        // Status lain (draft, dikembalikan, disahkan): peta tetap kosong agar notice tidak tampil.
+        foreach (PengukuranKinerja::NARASI as $key) {
+            // Versi beku tanpa key narasi (sebelum fitur ini) tetap null; header hidup bukan sumber histori.
+            $data[$key] = $frozen ? ($frozen[$key] ?? null) : $p->{$key};
         }
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
         $data['selisih_target_pk'] = $this->calculator->differenceFromPk($data['nilai'], $data['target_pk']);

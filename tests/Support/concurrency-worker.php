@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Access\AssignRole;
+use App\Actions\Access\ChangeUserStatus;
 use App\Actions\Access\CreateDeny;
 use App\Actions\Access\RevokeDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
@@ -9,6 +10,7 @@ use App\Actions\Auth\ProvisionKeycloakUser;
 use App\Actions\PenanggungJawab\AssignPenanggungJawab;
 use App\Actions\PenanggungJawab\ChangePenanggungJawab;
 use App\Actions\PenanggungJawab\ReadPenanggungJawab;
+use App\Actions\Pengukuran\ApprovePengukuran;
 use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
@@ -94,7 +96,10 @@ try {
             'unit-delete' => app(DeleteUnitAction::class)->handle($actor, $assignment['unit_id'], 'Alasan penghapusan fixture', $initialDecision),
             'sync-presets' => app(SyncRolePermissionPresets::class)->handle('test-release', 'Fixture konkurensi rilis', 'test-process:'.getmypid()),
             'pengukuran-ajukan' => app(SubmitPengukuran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->status_alur,
+            'pengukuran-sahkan' => app(ApprovePengukuran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->status_alur,
+            'pengukuran-ensure-draft' => performPengukuranEnsureDraft($assignment),
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment'])['status'],
+            'change-status' => app(ChangeUserStatus::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['status'], $assignment['alasan'], $assignment['expected_status'])['status'],
             'receipt-consume' => app(RoleAssignmentReceipt::class)->consume($assignment['actor_id'], $assignment['session_id'], $assignment['reference']) === null ? 'unknown' : 'consumed',
             'create-deny' => app(CreateDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['permission_id'], $assignment['unit_id'], $assignment['alasan']),
             'revoke-deny' => app(RevokeDeny::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['deny_id'], $assignment['alasan']),
@@ -110,7 +115,7 @@ try {
             default => $result,
         };
     } catch (AuthorizationException $exception) {
-        if (! in_array($argv[1], ['assign-role', 'formula-update', 'pj-assign', 'pengukuran-ajukan', 'ra-verifikasi', 'ra-kembalikan'], true)) {
+        if (! in_array($argv[1], ['assign-role', 'change-status', 'formula-update', 'pj-assign', 'pengukuran-ajukan', 'ra-verifikasi', 'ra-kembalikan'], true)) {
             throw $exception;
         }
         $result = 'denied';
@@ -128,7 +133,8 @@ try {
     } catch (ValidationException $exception) {
         $expectedField = match ($argv[1]) {
             'pj-assign', 'pj-change' => $assignment['expected_error_field'] ?? 'expected_state',
-            'assign-role' => 'expected_assignment',
+            'assign-role' => $assignment['expected_error_field'] ?? 'expected_assignment',
+            'change-status' => $assignment['expected_error_field'] ?? 'expected_status',
             'formula-update' => 'konflik',
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
@@ -136,6 +142,8 @@ try {
             'pengukuran-ajukan' => 'versi',
             // Penolakan bisnis gerbang review bersama (mis. unit dinonaktifkan selagi menunggu kunci).
             'rencana-sahkan' => 'businessErrors',
+            // Pemenang race menaikkan versi header; yang kalah membaca baris segar dan ditolak pada token versi.
+            'pengukuran-sahkan' => 'versi',
             default => null,
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {
@@ -227,6 +235,33 @@ function performRencanaAksiMutation(string $operation, array $assignment): strin
     }
 
     return 'mutated';
+}
+
+/** Request ensure-draft pengukuran melewati middleware, FormRequest, controller, dan transaksi Action; hasil sukses berupa ID header tujuan redirect. */
+function performPengukuranEnsureDraft(array $assignment): string
+{
+    Auth::setUser(User::findOrFail($assignment['actor_id']));
+    $request = Request::create('/pengukuran/ensure-draft', 'POST', $assignment['data']);
+    $kernel = app(Illuminate\Contracts\Http\Kernel::class);
+    $response = $kernel->handle($request);
+    $kernel->terminate($request, $response);
+
+    if ($response->getStatusCode() === 403) {
+        return 'denied';
+    }
+    if (isset($assignment['expected_error_field']) && $response->getStatusCode() === 302 && $request->session()->has('errors')) {
+        if (! array_key_exists($assignment['expected_error_field'], (array) $request->session()->get('errors.default.messages'))) {
+            throw new RuntimeException('Penolakan validasi ensure-draft tidak sesuai field yang diharapkan.');
+        }
+
+        return 'conflict';
+    }
+    if ($response->getStatusCode() !== 302 || $request->session()->has('errors')
+        || preg_match('#/pengukuran/([0-9a-f-]{36})/edit$#', (string) $response->headers->get('Location'), $match) !== 1) {
+        throw new RuntimeException('Ensure-draft pengukuran tidak mencapai editor atau penolakan izin.');
+    }
+
+    return $match[1];
 }
 
 /** Jalur request Regulasi mencakup middleware, FormRequest, dan controller yang dipakai aplikasi. */

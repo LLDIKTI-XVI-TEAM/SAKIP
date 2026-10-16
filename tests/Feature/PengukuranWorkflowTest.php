@@ -3,14 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Policies\PengukuranKinerjaPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PengukuranWorkflowTest extends TestCase
@@ -194,5 +197,66 @@ class PengukuranWorkflowTest extends TestCase
         $this->assertDatabaseCount('pengukuran_versi', 1);
         $this->assertSame(2, $this->pengukuran->fresh()->versi);
         $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
+    }
+
+    #[DataProvider('pengajuanBelumDapatDiukur')]
+    public function test_gerbang_final_belum_dapat_diukur(bool $final, ?string $missing, bool $normal): void
+    {
+        $this->pengukuran->periode->update(['is_nilai_akhir' => $final]);
+        $payload = ['versi' => 1, 'action' => 'ajukan', 'nilai' => $normal ? 0 : null,
+            'status_perhitungan' => $normal ? null : 'belum_dapat_diukur',
+            'progres_kegiatan' => 'Nilai belum tersedia.', 'kendala_masalah' => 'Data masih diproses.',
+            'strategi_tindak_lanjut' => 'Konfirmasi sumber data.', 'catatan' => null];
+        if ($missing !== null) {
+            $payload[$missing] = '   ';
+        }
+        $response = $this->actingAs($this->actor)->postJson('/pengukuran/'.$this->pengukuran->id, $payload);
+        if ($final || $missing !== null) {
+            $response->assertUnprocessable()->assertJsonValidationErrors($final ? 'status_perhitungan' : $missing);
+            $this->assertDatabaseCount('pengukuran_versi', 0);
+            $this->assertSame(['draft', 1, null], [$this->pengukuran->fresh()->status_alur, $this->pengukuran->fresh()->versi, $this->pengukuran->fresh()->nilai]);
+            $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+        } else {
+            $response->assertRedirect('/pengukuran');
+            $version = $this->pengukuran->fresh()->latestVersion;
+            $this->assertSame('diajukan', $this->pengukuran->fresh()->status_alur);
+            $this->assertSame($normal ? 'terhitung' : 'belum_dapat_diukur', $version->snapshot['status_perhitungan']);
+            $this->assertSame($normal ? '0.000000000000' : null, $version->snapshot['nilai']);
+            $this->assertSame($payload['progres_kegiatan'], $version->snapshot['progres_kegiatan']);
+            $this->assertArrayHasKey('tindak_lanjut_rekomendasi', $version->snapshot);
+            $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
+        }
+    }
+
+    public static function pengajuanBelumDapatDiukur(): array
+    {
+        return ['narasi lengkap' => [false, null, false],
+            'progres kosong' => [false, 'progres_kegiatan', false], 'kendala kosong' => [false, 'kendala_masalah', false],
+            'strategi kosong' => [false, 'strategi_tindak_lanjut', false], 'periode nilai akhir' => [true, null, false],
+            'kontrol nilai nol' => [false, null, true]];
+    }
+
+    public function test_pengajuan_membekukan_empat_narasi_dan_presenter_hanya_membaca_versi(): void
+    {
+        $narasi = ['progres_kegiatan' => 'Progres beku.', 'kendala_masalah' => 'Kendala beku.', 'strategi_tindak_lanjut' => 'Strategi beku.', 'tindak_lanjut_rekomendasi' => null];
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75, ...$narasi])->assertSessionHasNoErrors();
+        $version = $this->pengukuran->fresh()->latestVersion;
+        foreach ($narasi as $key => $value) {
+            // JSONB tidak menjaga urutan key; null tetap harus tersimpan sebagai key.
+            $this->assertArrayHasKey($key, $version->snapshot);
+            $this->assertSame($value, $version->snapshot[$key]);
+        }
+
+        DB::table('pengukuran_kinerjas')->where('id', $this->pengukuran->id)->update(['progres_kegiatan' => 'Diubah langsung.', 'tindak_lanjut_rekomendasi' => 'Teks hidup.']);
+        $this->pengukuran->periode->update(['is_nilai_akhir' => true]);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pengukuran.progres_kegiatan', 'Progres beku.')->where('pengukuran.tindak_lanjut_rekomendasi', null)
+            ->where('pengukuran.periode_jadwal.is_nilai_akhir', false));
+
+        // Versi lama tanpa key narasi tidak mewarisi teks header hidup.
+        KinerjaSnapshot::create([...$version->only(['pengukuran_id', 'rencana_aksi_versi_id', 'jadwal_snapshot_id', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan', 'dasar_izin_pengajuan']),
+            'nomor' => 2, 'snapshot' => Arr::except($version->snapshot, array_keys($narasi))]);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pengukuran.progres_kegiatan', null)->where('pengukuran.tindak_lanjut_rekomendasi', null));
     }
 }

@@ -128,7 +128,7 @@ describe('GrantUserAutocomplete Component', () => {
         expect(emptyMessage).toBeTruthy();
     });
 
-    it('menampilkan "Tanpa Role" untuk pengguna yang tidak memiliki peran', async () => {
+    it('menampilkan "Belum memiliki peran" untuk pengguna yang tidak memiliki peran', async () => {
         const user = userEvent.setup();
 
         render(
@@ -143,7 +143,8 @@ describe('GrantUserAutocomplete Component', () => {
         await user.type(input, 'rian');
 
         expect(await screen.findByText('Rian Staf')).toBeTruthy();
-        expect(screen.getByText('Tanpa Role')).toBeTruthy();
+        expect(screen.getByText('Belum memiliki peran')).toBeTruthy();
+        expect(screen.queryByText('Tanpa Role')).toBeNull();
     });
 
     it('memilih pengguna target: menampilkan kartu pengguna terpilih dan memanggil onChange dengan user_id', async () => {
@@ -274,9 +275,11 @@ describe('GrantUserAutocomplete Component', () => {
     });
 
     it('memakai endpoint PJ dan dapat memuat pilihan di halaman berikutnya', async () => {
-        const fetchMock = vi.spyOn(globalThis, 'fetch')
-            .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: 'pj-a', nama: 'Calon A', email: 'a@example.test', roles: [] }], page: 1, hasMore: true }), { status: 200 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ id: 'pj-b', nama: 'Calon B', email: 'b@example.test', roles: [] }], page: 2, hasMore: false }), { status: 200 }));
+        // Respons dipetakan dari parameter page, bukan urutan panggilan: debounce 10 ms bisa lolos di tengah ketikan pada runner lambat.
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+            const second = new URL(String(url), 'http://localhost').searchParams.get('page') === '2';
+            return new Response(JSON.stringify({ items: [second ? { id: 'pj-b', nama: 'Calon B', email: 'b@example.test', roles: [] } : { id: 'pj-a', nama: 'Calon A', email: 'a@example.test', roles: [] }], page: second ? 2 : 1, hasMore: !second }), { status: 200 });
+        });
         const user = userEvent.setup();
         render(<GrantUserAutocomplete endpoint="/penanggung-jawab/opsi/pengguna" value="" onChange={vi.fn()} debounceMs={10} />);
         await user.type(screen.getByRole('combobox'), 'Calon');
