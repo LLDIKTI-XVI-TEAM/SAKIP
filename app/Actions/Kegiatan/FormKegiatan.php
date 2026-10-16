@@ -56,17 +56,20 @@ class FormKegiatan
     /**
      * Permission ini unit-scoped; keputusan tanpa unit selalu `invalid_scope`. Gabungkan keputusan
      * batch per unit agar audit tetap memuat alasan, sumber allow, dan ID deny yang sebenarnya.
+     * Label permission mengikuti izin yang menolak bila izin itu seragam di semua unit.
      *
-     * @param  list<array{reason: string, roles: list<string>, grants: list<string>, denies: list<string>}>  $perUnit
+     * @param  list<array{permission: string, reason: string, roles: list<string>, grants: list<string>, denies: list<string>}>  $perUnit
      */
     private function keputusanTanpaUnit(string $code, array $perUnit): PermissionDecision
     {
         $alasan = array_values(array_unique(array_column($perUnit, 'reason')));
+        $izin = array_values(array_unique(array_column($perUnit, 'permission')));
         $gabung = fn (string $key) => array_values(array_unique(array_merge([], ...array_column($perUnit, $key))));
 
-        return new PermissionDecision(false, $code, [
+        return new PermissionDecision(false, count($izin) === 1 ? $izin[0] : $code, [
             'alasan' => count($alasan) === 1 ? $alasan[0] : 'no_active_writable_unit',
             'alasan_unit' => $alasan,
+            'izin_unit' => $izin,
             'sumber_allow' => ['roles' => $gabung('roles'), 'grants' => $gabung('grants')],
             'deny' => $gabung('denies'),
         ]);
