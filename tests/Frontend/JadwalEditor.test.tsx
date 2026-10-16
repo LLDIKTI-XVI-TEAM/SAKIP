@@ -63,14 +63,14 @@ const periodeOptions = [
 ];
 const props: JadwalEditorProps = {
     jadwal,
-    can: { create: true, update: true, activate: false, close: false },
+    can: { create: true, update: true, activate: false, close: false, revise_windows: false },
     read_only_reason: null,
     renstra_options: [jadwal.renstra],
     periode_options: periodeOptions,
 };
 const createProps: JadwalEditorProps = {
     jadwal: null,
-    can: { create: true, update: false, activate: false, close: false },
+    can: { create: true, update: false, activate: false, close: false, revise_windows: false },
     read_only_reason: null,
     renstra_options: [jadwal.renstra],
     periode_options: periodeOptions,
@@ -248,7 +248,7 @@ it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalen
         <Editor
             {...props}
             jadwal={{ ...jadwal, renstra: { ...jadwal.renstra, status } }}
-            can={{ create: true, update: false, activate: false, close: false }}
+            can={{ create: true, update: false, activate: false, close: false, revise_windows: false }}
             read_only_reason={`Renstra ${status}.`}
             renstra_options={[]}
         />,
@@ -436,13 +436,13 @@ it('panel aktivasi hanya untuk can.activate dan kalender dirty memblokir aktivas
     expect(fetch).not.toHaveBeenCalled();
     unmount();
 
-    render(<Editor {...props} can={{ create: false, update: false, activate: true, close: false }} read_only_reason="Anda tidak memiliki izin mengubah jadwal." />);
+    render(<Editor {...props} can={{ create: false, update: false, activate: true, close: false, revise_windows: false }} read_only_reason="Anda tidak memiliki izin mengubah jadwal." />);
     expect(await screen.findByText('Siap diaktifkan')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Simpan draft' })).toBeNull();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan jadwal' }).disabled).toBe(false);
     cleanup();
 
-    render(<Editor {...props} can={{ create: true, update: true, activate: true, close: false }} />);
+    render(<Editor {...props} can={{ create: true, update: true, activate: true, close: false, revise_windows: false }} />);
     await screen.findByText('Siap diaktifkan');
     fireEvent.change(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review'), { target: { value: '2027-01-17' } });
     expect(screen.getByText(/Simpan atau batalkan perubahan kalender/)).toBeTruthy();
@@ -457,7 +457,7 @@ it('revisi props baru dengan kalender tampil lama tetap memakai revisi tampil da
     });
     const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(readiness(4)), { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
-    const activator = { ...props, can: { create: false, update: false, activate: true, close: false }, read_only_reason: 'Anda tidak memiliki izin mengubah jadwal.' };
+    const activator = { ...props, can: { create: false, update: false, activate: true, close: false, revise_windows: false }, read_only_reason: 'Anda tidak memiliki izin mengubah jadwal.' };
     const { rerender } = render(<Editor {...activator} />);
     await screen.findByText('Siap diaktifkan');
     // preserveState sesudah POST gagal: props revisi naik, kalender yang tampil tetap revisi 4.
@@ -470,11 +470,11 @@ it('revisi props baru dengan kalender tampil lama tetap memakai revisi tampil da
 it('panel penutupan hanya untuk can.close dan mengirim revisi tampil serta alasan', async () => {
     const aktif = { ...jadwal, status: 'aktif' as const };
     const readOnly = 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.';
-    const { unmount } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ create: false, update: false, activate: false, close: false }} />);
+    const { unmount } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ create: false, update: false, activate: false, close: false, revise_windows: false }} />);
     expect(screen.queryByRole('button', { name: 'Tutup Jadwal' })).toBeNull();
     unmount();
 
-    render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ create: false, update: false, activate: false, close: true }} />);
+    render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ create: false, update: false, activate: false, close: true, revise_windows: false }} />);
     await userEvent.click(screen.getByRole('button', { name: 'Tutup Jadwal' }));
     const dialog = screen.getByRole('dialog');
     const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Tutup Jadwal' });
@@ -482,4 +482,53 @@ it('panel penutupan hanya untuk can.close dan mengirim revisi tampil serta alasa
     await userEvent.type(within(dialog).getByRole('textbox'), 'Tahun pelaporan 2026 selesai.');
     await userEvent.click(confirm);
     expect(router.post).toHaveBeenCalledWith('/jadwal/jadwal-1/tutup', { expected_revisi: 4, alasan: 'Tahun pelaporan 2026 selesai.' }, expect.anything());
+});
+it('revisi jendela PIC hanya untuk can.revise_windows, mengubah tanggal saja, dan mengirim revisi tampil serta alasan', async () => {
+    const aktif = { ...jadwal, status: 'aktif' as const };
+    const readOnly = 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.';
+    const tanpaIzin = { create: false, update: false, activate: false, close: false, revise_windows: false };
+    const { unmount } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={tanpaIzin} />);
+    expect(screen.queryByRole('button', { name: 'Revisi Jendela PIC' })).toBeNull();
+    expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Selesai pengisian').disabled).toBe(true);
+    unmount();
+
+    render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ ...tanpaIzin, revise_windows: true }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
+    const simpan = screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan revisi' });
+    expect(simpan.disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /dari draft/ })).toBeNull();
+    expect(screen.queryByLabelText('Pilih periode')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Revisi Jendela PIC' })).toBeNull();
+    const selesai = screen.getByLabelText<HTMLInputElement>('Triwulan I: Selesai pengisian');
+    expect(selesai.disabled).toBe(false);
+    fireEvent.change(selesai, { target: { value: '2026-04-12' } });
+    fireEvent.change(screen.getByLabelText('Triwulan I: Mulai Review'), { target: { value: '2026-04-13' } });
+    await userEvent.click(simpan);
+    const dialog = screen.getByRole('dialog');
+    const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan revisi' });
+    expect(confirm.disabled).toBe(true);
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Gangguan jaringan unit.');
+    await userEvent.click(confirm);
+    expect(router.post).toHaveBeenCalledWith('/jadwal/jadwal-1/revisi-jendela', {
+        expected_revisi: 4,
+        alasan: 'Gangguan jaringan unit.',
+        periode: [
+            { periode_id: 'periode-1', pengisian_mulai: '2026-04-01', pengisian_selesai: '2026-04-12', reviu_mulai: '2026-04-13', reviu_selesai: '2026-04-15' },
+            { periode_id: 'periode-4', pengisian_mulai: '2027-01-04', pengisian_selesai: '2027-01-11', reviu_mulai: '2027-01-12', reviu_selesai: '2027-01-18' },
+        ],
+    }, expect.anything());
+
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => {
+        options?.onError?.({ 'periode.0.pengisian_selesai': 'Tanggal harus sama dengan atau setelah tanggal jendela sebelumnya.', penutupan: 'Penutupan paling cepat hari berikutnya setelah seluruh target selesai review.' });
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(selesai.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('Penutupan paling cepat'))).toBe(true);
+    const preserveState = options?.preserveState;
+    expect(typeof preserveState === 'function' && preserveState(page())).toBe(true);
+    expect(typeof preserveState === 'function' && preserveState(page({ success: 'Jendela PIC berhasil direvisi.' }))).toBe(false);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Batal' }));
+    expect(screen.getByRole('button', { name: 'Revisi Jendela PIC' })).toBeTruthy();
 });
