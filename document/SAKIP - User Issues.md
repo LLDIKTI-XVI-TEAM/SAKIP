@@ -3742,7 +3742,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > **Q45, Q51 (13 Oktober 2026):** Rekomendasi Pimpinan kini diisi Pimpinan: Perencanaan menyusun draf, Pimpinan menyetujui draf (dapat mengubah isinya lebih dulu) atau menulis rekomendasi langsung, dan hanya rekomendasi berstatus disetujui yang berlaku (Q45 §45.2 butir 1, Q51 §51.1). Persetujuan oleh Perencanaan menjadi jalur cadangan yang diberi penanda (Q51 §51.2 butir 2). Issue ini belum dikerjakan sehingga isinya diperbarui langsung dan dipindah ke tahap 2 (Q51 §51.3); task Plan memakai 6.7 (rujukan lama "Modul 8: 8.5" kini milik ISS-10.05). Riwayat: judul semula "Pencatatan Rekomendasi Pimpinan oleh Perencanaan" (digantikan Q45/Q51); AC-1 sampai AC-3 semula diperbarui menjadi AC-1, AC-5, dan AC-6; AC-4 semula (Pimpinan hanya membaca rekomendasi pada MVP) dibatalkan Q45 §45.2 butir 1.
 
-> **Q54 (16 Oktober 2026):** paling banyak satu draf terbuka per indikator × tahun × periode, dengan token versi draf; konflik versi ditolak tanpa mengubah data (Q54 §54.1).
+> **Q55 (16 Oktober 2026):** paling banyak satu draf terbuka per indikator × tahun × periode; penyimpanan dan persetujuan membawa token versi draf dan rekomendasi berlaku yang dilihat, sehingga tampilan basi ditolak sebagai konflik versi tanpa mengubah data. Penyetuju cadangan boleh menulis rekomendasi yang langsung disetujui dengan penanda cadangan, dan versi pengajuan pengukuran membekukan rekomendasi yang tampil (Q55 §55.1).
 
 **Terkait User Story:** `US-09.01`  
 **Prioritas:** 🟡 P1 · Tahap 2 (Q46 §46.3; dipindah Q51 §51.3)  
@@ -3763,7 +3763,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 - **Dependensi:** Indikator, tahun, dan periode valid.
 - **Otorisasi:** `rekomendasi:tetapkan` (sensitif; preset Pimpinan dan Perencanaan melalui seeder, Q45 §45.2 butir 1, Q51 §51.2 butir 1).
-- **Dampak Data:** `rekomendasi_pimpinan` (`status` `draf`/`disetujui`, `disetujui_oleh`, `disetujui_oleh_role`, `disetujui_pada`, `rujukan_sumber`, `versi` (Q54)), preset `role_permissions`, `audit_log`.
+- **Dampak Data:** `rekomendasi_pimpinan` (`status` `draf`/`disetujui`, `disetujui_oleh`, `disetujui_oleh_role`, `disetujui_pada`, `rujukan_sumber`, `versi` (Q55)), preset `role_permissions`, `audit_log`.
 - **Keputusan terkait:** Q45 §45.2, Q51, Q46 §46.3.
 - **Rule:** rekomendasi melekat pada indikator × periode dan independen dari status pengukuran (Q45 §45.2 butir 2); rekomendasi yang disetujui dimuat pada Laporan Kinerja Triwulan (Q48 §48.1 butir 1; ISS-10.05).
 - **Rule (Q51 §51.1 butir 4):** kewajiban tindak lanjut berlaku lintas tahun: rekomendasi pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur; tindak lanjut dikecualikan untuk periode lampau (Q46 §46.1 butir 1; ISS-07.03).
