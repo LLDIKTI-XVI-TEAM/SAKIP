@@ -14,6 +14,7 @@ use App\Actions\Pengukuran\ApprovePengukuran;
 use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
+use App\Actions\Rekomendasi\TetapkanRekomendasi;
 use App\Actions\RencanaAksi\KembalikanRencanaAksi;
 use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
@@ -101,6 +102,7 @@ try {
             'provision' => app(ProvisionKeycloakUser::class)->handle(['subject' => $identity, 'nama' => 'Fixture Bersamaan', 'email' => 'concurrent@example.test'])->id,
             'bootstrap' => app(BootstrapSuperadmin::class)->handle($identity, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
             'rencana-sahkan' => app(SahkanRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['rencana_aksi_id'], $assignment['data']),
+            'rekomendasi-tetapkan' => app(TetapkanRekomendasi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['data'])->status,
             default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
         };
         $result = match ($argv[1]) {
@@ -138,6 +140,8 @@ try {
             'rencana-sahkan' => 'businessErrors',
             // Pemenang race menaikkan versi header; yang kalah membaca baris segar dan ditolak pada token versi.
             'pengukuran-sahkan' => 'versi',
+            // Kombinasi rekomendasi diserialkan; yang kalah membaca hasil pemenang dan ditolak sebagai konflik versi.
+            'rekomendasi-tetapkan' => 'konflik',
             default => null,
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {

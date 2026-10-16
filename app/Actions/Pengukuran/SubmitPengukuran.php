@@ -9,13 +9,14 @@ use App\Models\KlaimKegiatan;
 use App\Models\PengukuranKinerja;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
+use App\Services\Rekomendasi\RekomendasiBerlaku;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class SubmitPengukuran
 {
-    public function __construct(private PengukuranMutationSteps $steps, private PengukuranKinerjaPolicy $policy, private SubmissionPrerequisites $prerequisites) {}
+    public function __construct(private PengukuranMutationSteps $steps, private PengukuranKinerjaPolicy $policy, private SubmissionPrerequisites $prerequisites, private RekomendasiBerlaku $rekomendasi) {}
 
     /**
      * Pengajuan menyimpan input lalu membekukan satu versi: nilai, target, snapshot, pengaju/jalur/dasar izin, PIC efektif,
@@ -28,6 +29,12 @@ class SubmitPengukuran
         try {
             return DB::transaction(function () use ($actor, $id, $data, &$path, &$decision) {
                 [$actor, $p, $snapshot, , $before] = $this->steps->lock($actor, $id, 'pengukuran:update', 'ajukan', (int) $data['versi'], $decision);
+                // Dibaca sekali: rekomendasi yang dicek terhadap tampilan form adalah rekomendasi yang dibekukan.
+                $rekomendasi = $this->rekomendasi->tampilanSebelum($p);
+                $dilihat = isset($data['rekomendasi_sebelumnya_id']) ? strtolower($data['rekomendasi_sebelumnya_id']) : null;
+                if (($rekomendasi['id'] ?? null) !== $dilihat) {
+                    throw ValidationException::withMessages(['rekomendasi_sebelumnya' => 'Rekomendasi periode sebelumnya telah berubah. Muat ulang halaman, periksa tindak lanjut, lalu ajukan kembali.'])->status(409);
+                }
                 $this->steps->storeInput($actor, $p, $snapshot, $data, $path, $decision);
                 $prerequisite = $this->prerequisites->handle($p, true);
                 if (! $prerequisite['siap']) {
@@ -39,7 +46,7 @@ class SubmitPengukuran
                 $version = KinerjaSnapshot::create(['pengukuran_id' => $p->id, 'rencana_aksi_versi_id' => $prerequisite['rencana_aksi_versi']->id,
                     'jadwal_snapshot_id' => $snapshot->id, 'nomor' => (int) $p->versions()->max('nomor') + 1, 'diajukan_by' => $actor->id, 'diajukan_at' => now(),
                     'jalur_pengajuan' => $this->policy->usesPlanningPath($actor, $p) ? 'perencanaan' : 'pic', 'dasar_izin_pengajuan' => $provenance,
-                    'snapshot' => $this->payload($p, $prerequisite)]);
+                    'snapshot' => $this->payload($p, $prerequisite, $rekomendasi)]);
                 $waivers = collect($prerequisite['persyaratan_bukti'])
                     ->filter(fn ($requirement) => $requirement['wajib'] && $requirement['pemenuhan']['mode_dikecualikan'] !== [])
                     ->map(fn ($requirement) => ['jenis_berkas_id' => $requirement['id'], 'nama' => $requirement['nama'],
@@ -59,7 +66,7 @@ class SubmitPengukuran
         }
     }
 
-    private function payload(PengukuranKinerja $p, array $prerequisite): array
+    private function payload(PengukuranKinerja $p, array $prerequisite, ?array $rekomendasi): array
     {
         $snapshot = $p->jadwalSnapshot;
 
@@ -67,6 +74,7 @@ class SubmitPengukuran
             'indikator' => [...$snapshot->only(['nama', 'definisi', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'id' => $p->indikator_id, 'kode' => $p->indikator->kode],
             'unit_kerja' => $snapshot->unit->only(['id', 'nama']), 'pic' => $p->effectivePic()?->pic?->only(['id', 'nama']),
             'periode' => $p->periode->only(['id', 'nama', 'urutan', 'is_nilai_akhir']), 'target' => $prerequisite['target'], 'target_pk' => $snapshot->target,
+            'rekomendasi_sebelumnya' => $rekomendasi,
             'komponen' => $snapshot->komponen->map(fn ($c) => [...$c->only(['komponen_id', 'kode', 'label', 'peran', 'bobot']), 'nilai' => $p->komponen()->where('komponen_id', $c->komponen_id)->value('nilai')])->all(),
             'klaim' => $this->activityClaims($p, $prerequisite['rencana_aksi_versi']->rencana_aksi_id),
             'persyaratan_bukti' => $prerequisite['persyaratan_bukti'], 'bukti_dukungs' => $p->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()];

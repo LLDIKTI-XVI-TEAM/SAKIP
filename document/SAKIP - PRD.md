@@ -254,7 +254,7 @@ kegiatan:create
 kegiatan:update
 ```
 
-Permission baca `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, dan `dashboard:read` bersifat global sesuai preset role yang berlaku.
+Permission baca `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, dan `dashboard:read` bersifat global sesuai preset role yang berlaku. Detail Rencana Aksi dan Kegiatan per unit dibatasi unit berizin (Q12, Q54 §54.1): allow dari peran Superadmin, Perencanaan, atau Pimpinan berlaku untuk seluruh unit, sedangkan allow lain hanya berlaku pada unit tempat pengguna memegang Grant Unit aktif.
 
 Tambahan permission governance:
 
@@ -306,7 +306,7 @@ Baseline role:
 | **Admin** | Pengelolaan teknis pengguna/unit/setelan/akses sesuai permission preset; tidak memperoleh kewenangan substantif kinerja secara otomatis. Memiliki `delegasi:update` untuk administrasi grant unit. |
 | **Perencanaan** | Kewenangan substantif perencanaan, jadwal, review/pengesahan sesuai katalog, termasuk `delegasi:update` dan `laporan:unggah` (Q48); `rekomendasi:tetapkan` dipakai untuk menyusun draf Rekomendasi Pimpinan dan persetujuan cadangan bertanda (Q51); permission kerja yang berasal dari role bersifat global. |
 | **Pimpinan** | Baseline read-only/monitoring sesuai permission preset, ditambah `rekomendasi:tetapkan` untuk menulis dan menyetujui Rekomendasi Pimpinan (Q45, Q51); approval fase lanjutan tidak dianggap aktif hanya karena role. |
-| **Pegawai** | Hak baca: `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `dashboard:read`; akses berkas mengikuti ownership/parent authorization. Hak kerja unit tidak berasal dari role Pegawai, melainkan Grant Unit. |
+| **Pegawai** | Hak baca: `pengukuran:read`, `rencana_aksi:read`, `kegiatan:read`, `komponen:read`, `jenis_berkas:read`, `regulasi:read`, `dashboard:read`; detail Rencana Aksi dan Kegiatan hanya pada unit tempat ia memegang Grant Unit aktif (Q54); akses berkas mengikuti ownership/parent authorization. Hak kerja unit tidak berasal dari role Pegawai, melainkan Grant Unit. |
 
 ### 7.4 Algoritma Resolusi Izin
 
@@ -318,7 +318,8 @@ Resolver server-side menerima user, permission, dan unit opsional:
 4. kumpulkan grant yang cocok;
 5. evaluasi explicit deny — **deny menang**;
 6. untuk permission unit-scoped, unit request harus cocok dengan grant yang sah kecuali allow global memang berasal dari role yang secara eksplisit memiliki kewenangan global;
-7. setelah permission lolos, jalankan business guard: status data, assignment, jendela waktu, F1/F2, penutupan, dan rule domain lain.
+7. untuk `rencana_aksi:read` dan `kegiatan:read` dengan unit, allow yang tidak berasal dari peran Superadmin, Perencanaan, atau Pimpinan hanya berlaku pada unit berizin (Q54 §54.1);
+8. setelah permission lolos, jalankan business guard: status data, assignment, jendela waktu, F1/F2, penutupan, dan rule domain lain.
 
 User tanpa role menghasilkan **nol permission** (fail closed).
 
@@ -793,7 +794,7 @@ Tabel `kegiatan` menyimpan:
 
 **Penjumlahan anggaran (Q42 §42.2 butir 3–6):** anggaran dijumlahkan otomatis per periode, per Rencana Aksi, dan per IKU. Kegiatan yang diklaim lebih dari satu IKU ditampilkan penuh di setiap IKU dengan penanda **"kegiatan bersama"**, sedangkan total per unit dan per tahun dihitung dari **kegiatan unik** agar tidak terhitung ganda; alternatif "satu kegiatan hanya untuk satu IKU" masih menunggu konfirmasi Perencanaan. Kegiatan asal yang `ditunda` dan sudah memiliki kegiatan lanjutan tidak dihitung dalam total (§15.2), dan total yang sudah dibekukan pada versi Rencana Aksi tidak berubah (Q42 §42.2 butir 6). Dashboard menampilkan total anggaran per IKU dengan drill-down sampai kegiatan (§23). Rincian realisasi belanja, pagu induk, dan rekonsiliasi anggaran tidak dikelola.
 
-**Akses detail kegiatan (Q12, Q42 §42.5, Q49 §49.3):** detail kegiatan — termasuk anggaran per kegiatan dan berkas RAB — tetap dibatasi unit karena nama kegiatan dapat memuat nama orang atau kasus; Perencanaan dan Pimpinan dapat melihat anggaran dan RAB seluruh unit. Total anggaran per IKU pada dashboard mengikuti akses dashboard.
+**Akses detail kegiatan (Q12, Q42 §42.5, Q49 §49.3, Q54):** detail kegiatan — termasuk anggaran per kegiatan dan berkas RAB — tetap dibatasi unit berizin karena nama kegiatan dapat memuat nama orang atau kasus; Perencanaan dan Pimpinan dapat melihat anggaran dan RAB seluruh unit. Pengguna lain hanya membaca kegiatan pada unit tempat ia memegang Grant Unit aktif, dan form serta penyimpanan kegiatan hanya tersedia pada unit yang juga dapat dibacanya (Q54 §54.1, §54.3). Total anggaran per IKU pada dashboard mengikuti akses dashboard.
 
 ### 15.2 Status & Siklus Hidup Kegiatan
 
@@ -1187,15 +1188,16 @@ Gerbang-gerbang ini **dikecualikan pada periode lampau** (§12.6; semula disebut
 
 - `id`, `indikator_id` (FK), `tahun` (int), `periode_id` (FK).
 - `isi` (text), `ditetapkan_oleh` (FK → users), `created_at`.
-- `status` — enum(`draf`, `disetujui`) (rancangan Q51).
-- `disetujui_oleh` (FK → users, nullable), `disetujui_oleh_role` (salinan kode peran penyetuju, untuk penanda persetujuan cadangan), `disetujui_pada` (timestamp, nullable) (rancangan Q51 §51.3).
-- `rujukan_sumber` (nullable; rancangan Q51 §51.1 butir 5) — rujukan laporan triwulan sumber untuk rekomendasi data awal.
+- `status` — enum(`draf`, `disetujui`) (Q51).
+- `disetujui_oleh` (FK → users, nullable), `disetujui_oleh_role` (salinan kode peran penyetuju, untuk penanda persetujuan cadangan), `disetujui_pada` (timestamp, nullable) (Q51 §51.3).
+- `rujukan_sumber` (nullable; Q51 §51.1 butir 5) — rujukan laporan triwulan sumber untuk rekomendasi data awal.
+- `versi` (int) — token konkurensi draf; paling banyak satu draf terbuka per indikator × tahun × periode (Q55).
 
 Pola "aktif": baris terbaru **berstatus `disetujui`** per (`indikator_id`, `tahun`, `periode_id`) adalah yang berlaku; baris lama tetap sebagai riwayat (soft replace, tidak dihapus) — sama seperti `status_capaian` (§21.2). Perubahan rekomendasi yang sudah disetujui membentuk baris baru dan melalui persetujuan yang sama (Q51 §51.2 butir 3). Draf tidak berlaku dan tidak tampil bagi PIC (Q51 §51.1 butir 2).
 
 ### 22.2 Pengisi dan Persetujuan
 
-> **Digantikan Q45 dan Q51 (13 Oktober 2026):** ketentuan lama "pengisinya pada Fase Awal adalah Perencanaan, Pimpinan read-only" tidak berlaku lagi. Dibangun bersama US/ISS-09.01 pada tahap 2 agar Laporan Kinerja Triwulan TW IV 2026 memuat rekomendasi (Q46 §46.3, Q51 §51.3); status implementasi: belum.
+> **Digantikan Q45 dan Q51 (13 Oktober 2026):** ketentuan lama "pengisinya pada Fase Awal adalah Perencanaan, Pimpinan read-only" tidak berlaku lagi. Dibangun bersama US/ISS-09.01 pada tahap 2 agar Laporan Kinerja Triwulan TW IV 2026 memuat rekomendasi (Q46 §46.3, Q51 §51.3); status implementasi: draf, persetujuan, dan tampilan rekomendasi disetujui pada pengukuran periode berikutnya tersedia (ISS-09.01); gerbang tindak lanjut (ISS-07.03) dan Laporan Kinerja Triwulan (ISS-10.05) belum.
 
 1. Perencanaan menyusun **draf** rekomendasi per indikator × periode. Pimpinan **menyetujui** draf — dan dapat mengubah isinya sebelum menyetujui — atau menulis rekomendasi langsung; rekomendasi tetap baru berlaku setelah berstatus `disetujui` (Q51 §51.1 butir 1–2).
 2. Permission tetap `rekomendasi:tetapkan` pada preset **Pimpinan** (diberikan melalui seeder, Q45 §45.2 butir 1) dan **Perencanaan**. Simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission (Q51 §51.2 butir 1).
@@ -1203,7 +1205,7 @@ Pola "aktif": baris terbaru **berstatus `disetujui`** per (`indikator_id`, `tahu
 4. Hanya rekomendasi **disetujui** yang berlaku: tampil pada pengukuran periode berikutnya dan Laporan Kinerja Triwulan (§24.1, Q48), serta memicu tindak lanjut wajib pada pengukuran periode berikutnya (§20; Q45 §45.2 butir 3).
 5. Kewajiban tindak lanjut berlaku **lintas tahun**: rekomendasi pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
 6. Rekomendasi tetap opsional per indikator per periode (Q51 §51.1 butir 3).
-7. Data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada kolom rancangan `rujukan_sumber` (Q51 §51.1 butir 5, §12.6).
+7. Data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada kolom `rujukan_sumber` (Q51 §51.1 butir 5, §12.6).
 
 ### 22.3 Independensi dari Status Pengukuran
 

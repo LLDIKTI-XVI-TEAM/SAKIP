@@ -22,6 +22,7 @@ import {
     Settings,
     HardDrive,
     ClipboardList,
+    MessageSquareText,
 } from 'lucide-react';
 
 export type LucideIconType = ComponentType<{
@@ -189,6 +190,13 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/verifikasi',
                     icon: CheckCircle2,
                     canKey: 'verifikasi',
+                },
+                {
+                    id: 'rekomendasi',
+                    label: 'Rekomendasi Pimpinan',
+                    href: '/rekomendasi',
+                    icon: MessageSquareText,
+                    canKey: 'rekomendasi',
                 },
             ],
         },

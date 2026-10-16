@@ -51,6 +51,7 @@ class HandleInertiaRequests extends Middleware
                         'jadwal' => $can['jadwal'],
                         'pk:create' => $can['pk:create'],
                         'pk:update' => $can['pk:update'],
+                        'rekomendasi' => $can['rekomendasi'],
                     ],
                 ];
             },
@@ -102,6 +103,7 @@ class HandleInertiaRequests extends Middleware
             'jadwal' => false,
             'pk:create' => false,
             'pk:update' => false,
+            'rekomendasi' => false,
         ];
 
         if ($user === null || $user->status !== 'aktif') {
@@ -121,7 +123,7 @@ class HandleInertiaRequests extends Middleware
             'regulasi:read', 'regulasi:create', 'regulasi:update', 'regulasi:delete',
             'renstra:read', 'renstra:create', 'renstra:update', 'renstra:delete',
             'berkas:delete', 'pengaturan:update', 'jenis_berkas:read', 'indikator:read',
-            'periode:create', 'periode:update', 'pk:create', 'pk:update',
+            'periode:create', 'periode:update', 'pk:create', 'pk:update', 'rekomendasi:tetapkan',
         ]);
         $boleh = fn (string $kode): bool => $izin[$kode]['allowed'];
         $regulasiRead = $boleh('regulasi:read');
@@ -167,6 +169,7 @@ class HandleInertiaRequests extends Middleware
             'jadwal' => $user->can('viewAny', JadwalTahunan::class),
             'pk:create' => $boleh('pk:create'),
             'pk:update' => $boleh('pk:update'),
+            'rekomendasi' => $boleh('rekomendasi:tetapkan'),
         ];
 
         if ($request) {

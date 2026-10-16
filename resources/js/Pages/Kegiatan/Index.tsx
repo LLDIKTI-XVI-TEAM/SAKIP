@@ -162,7 +162,7 @@ export default function Index({
                                         <p className="mt-1 text-xs text-muted">
                                             {hasActiveFilters
                                                 ? 'Coba sesuaikan atau bersihkan kata kunci filter pencarian Anda.'
-                                                : 'Belum ada rencana kegiatan yang dicatat dalam sistem.'}
+                                                : 'Belum ada rencana kegiatan pada unit yang dapat Anda akses.'}
                                         </p>
                                     </TableCell>
                                 </TableRow>

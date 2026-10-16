@@ -79,7 +79,7 @@ describe('Daftar Rencana Aksi', () => {
     it('daftar kosong cukup satu kalimat tanpa aksi', () => {
         render(<RencanaAksiIndex daftar={[]} pagination={satuHalaman} />);
 
-        expect(screen.getByText('Belum ada indikator pada jadwal aktif.')).toBeTruthy();
+        expect(screen.getByText('Belum ada indikator pada jadwal aktif untuk unit yang dapat Anda akses.')).toBeTruthy();
         expect(screen.queryByRole('button')).toBeNull();
     });
 });

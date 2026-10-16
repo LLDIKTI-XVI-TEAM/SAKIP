@@ -123,6 +123,7 @@ class InertiaCapabilitiesTest extends TestCase
             'jadwal' => $user->can('viewAny', JadwalTahunan::class),
             'pk:create' => $a('pk:create'),
             'pk:update' => $a('pk:update'),
+            'rekomendasi' => $a('rekomendasi:tetapkan'),
         ];
     }
 

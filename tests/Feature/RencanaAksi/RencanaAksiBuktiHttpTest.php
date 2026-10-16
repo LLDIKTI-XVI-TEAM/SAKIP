@@ -428,6 +428,8 @@ class RencanaAksiBuktiHttpTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('bukti.can.upload', false)->where('bukti.can.delete', false));
 
         $pembaca = $this->createUserWithRole('pegawai');
+        // Q54: pembaca Pegawai memerlukan grant unit; grant pengukuran tidak membuka bukti Rencana Aksi.
+        $this->grantUnitPermission($pembaca, 'pengukuran:update');
         $this->denyPermission($pembaca, 'berkas:read');
         $this->actingAs($pembaca)->get(route('rencana-aksi.show', $this->rencanaAksi->id))
             ->assertOk()
