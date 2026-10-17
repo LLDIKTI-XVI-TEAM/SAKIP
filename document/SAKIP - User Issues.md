@@ -8,6 +8,8 @@
 
 **Pembaruan 13 Oktober 2026 (Q38–Q51):** onboarding SSO langsung aktif tanpa peran (Q38, ISS-01.08), keputusan rapat asistensi Q39–Q46, dan analisis dokumen resmi 2026 Q47–Q51 diselaraskan. Issue baru: ISS-02.10, ISS-02.11, ISS-02.12, ISS-05.07, ISS-06.08, ISS-10.05, ISS-13.05, dan ISS-13.06; ISS-11.06 dibatalkan Q44 dan ISS-13.02 digantikan ISS-13.06. Issue yang sudah diimplementasikan diberi catatan Q tanpa menulis ulang AC; issue yang belum dikerjakan diperbarui langsung dengan rujukan Q. Q38–Q51 adalah keputusan requirement, bukan bukti implementasi.
 
+**Pembaruan 14–17 Oktober 2026 (Q52–Q58):** penutupan resmi jadwal wajib alasan (Q52, ISS-14.01), penolakan penurunan superadmin aktif terakhir (Q53, ISS-01.08), unit berizin untuk detail Rencana Aksi dan Kegiatan (Q54, ISS-06.01), draf/token/pembekuan Rekomendasi Pimpinan (Q55, ISS-09.01), Admin memegang `audit:read` (Q56, ISS-13.03), jendela reviu dalam revisi resmi jendela PIC (Q57, ISS-03.06), dan penyamaran kunci rahasia pada penulisan audit (Q58, Issue #122). Keputusan ini dibawa PR issue masing-masing; tidak ada issue baru. Tenggat WA/email pada Q4 digantikan Q46 §46.3: ISS-12.01–ISS-12.07 dan ISS-13.04 mengikuti rencana sprint setelah Tahap 2.
+
 ## 1. Tujuan
 
 Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang executable**. Setiap issue mempertahankan kontrak bisnis User Story namun menambahkan pekerjaan teknis yang perlu diselesaikan pada persistence, backend/domain, authorization/audit, frontend, testing, dan operasi/integrasi bila relevan.
@@ -88,7 +90,7 @@ Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 
 Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111), ISS-07.03 (PR #105); issue Tahap 1 lainnya belum dimulai.
 
-Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q51) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
+Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q58) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
 
 ## Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC
 
