@@ -1005,7 +1005,7 @@ Sumber: rapat 13 Oktober 2026, menit 58:05–1:02:45, 1:06:49–1:07:32, 1:17:04
 
 - PRD §5.1, §8, §11, §12.4, §14.5, §31–§32; Data Model §2.13 dan entitas baru target Renstra; Workflow §1, §3.3, §5; Plan modul 2; System Architecture §9.
 - User Stories/Issues: US/ISS-02.07 dan 02.08 diberi catatan; issue baru **US/ISS-02.10** (target Renstra) dan **US/ISS-02.11** (input target PK di halaman PK beserta pembanding target Renstra).
-- Status implementasi: belum. Editor target saat ini berada di halaman indikator (`/perencanaan/indikator/{id}/target-tahunan/{tahun}`).
+- Status implementasi: ISS-02.10 (target Renstra) sudah; ISS-02.11 belum. Editor target PK saat ini berada di halaman indikator (`/perencanaan/indikator/{id}/target-tahunan/{tahun}`).
 
 ---
 
@@ -1029,7 +1029,7 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 
 1. Atribut Renstra tetap direvisi **in place** dengan audit (PRD §10.5).
 2. **Lampiran revisi boleh ditambahkan setelah Renstra aktif**; lampiran yang sudah ada tetap tidak dapat dihapus. Ini menyelaraskan implementasi, yang saat ini menolak penambahan lampiran pada Renstra bukan draf (`UpdateRenstraAction.php:127-131`), dengan PRD §10.6 yang hanya melarang penghapusan. (PM; menit 27:24)
-3. Perubahan target Renstra saat Renstra `aktif` wajib beralasan (dasar revisi) dan tercatat di audit dengan nilai lama dan baru; catatan tersebut ditampilkan sebagai riwayat revisi target Renstra. Bila target terlampaui sebelum akhir periode, target tahun-tahun berikutnya dinaikkan dengan cara ini. (PM; menit 1:28:16)
+3. Perubahan target Renstra saat Renstra `aktif` wajib beralasan (dasar revisi) dan tercatat di audit dengan nilai lama dan baru; catatan tersebut ditampilkan sebagai riwayat revisi target Renstra. Bila target terlampaui sebelum akhir periode, target tahun-tahun berikutnya dinaikkan dengan cara ini. (PM; menit 1:28:16) *(Diubah keputusan PM 17 Oktober 2026: perubahan target Renstra tidak memakai alasan; audit tetap mencatat aktor, waktu, nilai lama, dan nilai baru.)*
 4. Versi penuh Renstra, yaitu sasaran dan indikator ikut berversi, **tidak** dibangun saat ini. Penggantian Renstra karena kebijakan kementerian ditangani dengan Renstra baru, dan Renstra lama dinonaktifkan sesuai aturan yang berlaku. (PM)
 5. Lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru. (PM, saat penyelarasan Q47–Q51)
 
@@ -1038,7 +1038,7 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 - Menggantikan PRD §5.2 butir "Revisi target tahunan PK di tengah tahun", PRD §12.7, serta aturan Data Model §2.10 bahwa nomor dan tanggal surat Eselon I dicantumkan pada kolom `alasan`.
 - PRD §5.2, §10.5, §10.6, §12.7, §14.5, §14.10, §18.8; Data Model §2.9, §2.10 (rancangan versi PK), §2.13, §2.17, §2.30; Workflow §2, §3.3, §13, §14; Plan modul 2 dan 3.
 - User Stories/Issues: US/ISS-02.03, 02.08, dan 02.09 diberi catatan; ISS-03.03 menjadi prasyarat; issue baru **US/ISS-02.12** (revisi PK berversi); lampiran revisi dan riwayat target Renstra masuk **US/ISS-02.10**.
-- Status implementasi: belum.
+- Status implementasi: lampiran revisi dan riwayat target Renstra sudah (ISS-02.10); versi PK belum (ISS-02.12).
 
 ---
 
@@ -1146,7 +1146,7 @@ Alasan tidak diwajibkan pada setiap aksi. Setiap aksi tetap tercatat di audit (a
 
 1. Pengembalian dan buka-kembali (Rencana Aksi, pengukuran, jadwal).
 2. Penghapusan data atau berkas.
-3. Koreksi atau revisi data yang sudah sah: koreksi PK, revisi PK (Q40), revisi target Renstra saat Renstra aktif (Q40), dan koreksi snapshot (Q35).
+3. Koreksi atau revisi data yang sudah sah: koreksi PK, revisi PK (Q40), revisi target Renstra saat Renstra aktif (Q40), dan koreksi snapshot (Q35). *(Diubah keputusan PM 17 Oktober 2026: perubahan target Renstra tidak memakai alasan; audit tetap mencatat aktor, waktu, nilai lama, dan nilai baru.)*
 4. Perubahan akses: penetapan dan pergantian peran, penonaktifan dan pengaktifan kembali akun (Q38), pembatasan izin dan pencabutannya, serta pencabutan grant.
 5. Justifikasi kegiatan `tidak_terlaksana`/`ditunda`/`batal`, alasan deviasi terhadap target PK (ADR-0008), dan alasan target PK di bawah target Renstra (Q39).
 
