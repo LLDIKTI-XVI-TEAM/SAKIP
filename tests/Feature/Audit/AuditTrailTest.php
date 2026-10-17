@@ -211,13 +211,72 @@ class AuditTrailTest extends TestCase
 
         $superadmin = $this->user('superadmin');
         app(AssignRole::class)->handle($superadmin, $this->user()->id, Role::where('kode', 'pegawai')->value('id'), 'Penetapan awal.', null);
+        // Writer menyamarkan sejak Q58, sehingga kunci rahasia dari producer terlihat dari penandanya yang tersimpan.
+        $this->assertStringContainsString(AuditLogPresenter::DISAMARKAN, (string) json_encode(AuditLog::findOrFail($audit->id)->nilai_baru));
         $rows = AuditLog::whereKeyNot($audit->id)->get();
         $this->assertGreaterThan(1, $rows->count());
         foreach ($rows as $row) {
             foreach (['nilai_lama', 'nilai_baru', 'dasar_izin'] as $kolom) {
-                $this->assertSame($row->{$kolom}, AuditLogPresenter::samarkan($row->{$kolom}), "{$row->tindakan}.{$kolom} memuat kunci rahasia.");
+                $this->assertStringNotContainsString(AuditLogPresenter::DISAMARKAN, (string) json_encode($row->{$kolom}), "{$row->tindakan}.{$kolom} memuat kunci rahasia.");
             }
         }
+    }
+
+    public function test_penulisan_audit_menyamarkan_kunci_rahasia_pada_nilai_tersimpan(): void
+    {
+        $d = AuditLogPresenter::DISAMARKAN;
+        $audit = $this->audit($this->reader, 'pengaturan.ubah', '2031-01-01 00:00:00', [
+            'nilai_lama' => ['nama' => 'Lama', 'access_token' => 'canary-lama', 'kosong' => null],
+            'nilai_baru' => ['nama' => 'Baru', 'Authorization' => 'Bearer canary-bearer', 'password' => 'canary-password',
+                'API-Key' => 'canary-apikey', 'integrasi.api_key' => 'canary-bertitik',
+                'lampiran' => [['path' => 'berkas/canary-path.pdf', 'nama_asli' => 'surat.pdf', 'storage_path' => 'canary-storage']],
+                'koleksi' => collect(['client_secret' => 'canary-koleksi', 'nama' => 'x'])],
+            'dasar_izin' => ['permission' => 'pengaturan:update', 'keputusan' => 'diizinkan', 'credentials' => ['user' => 'canary-credential']],
+        ]);
+
+        // Dibaca dari kolom jsonb mentah agar yang diuji nilai tersimpan, bukan hasil tampilan.
+        $raw = DB::table('audit_log')->where('id', $audit->id)->sole(['nilai_lama', 'nilai_baru', 'dasar_izin']);
+        foreach (['canary-lama', 'canary-bearer', 'canary-password', 'canary-apikey', 'canary-bertitik', 'canary-path', 'canary-storage', 'canary-koleksi', 'canary-credential'] as $canary) {
+            $this->assertStringNotContainsString($canary, $raw->nilai_lama.$raw->nilai_baru.$raw->dasar_izin);
+        }
+        $this->assertEquals(['nama' => 'Lama', 'access_token' => $d, 'kosong' => null], json_decode($raw->nilai_lama, true));
+        $this->assertEquals(['nama' => 'Baru', 'Authorization' => $d, 'password' => $d, 'API-Key' => $d, 'integrasi.api_key' => $d,
+            'lampiran' => [['path' => $d, 'nama_asli' => 'surat.pdf', 'storage_path' => $d]],
+            'koleksi' => ['client_secret' => $d, 'nama' => 'x']], json_decode($raw->nilai_baru, true));
+        $this->assertEquals(['permission' => 'pengaturan:update', 'keputusan' => 'diizinkan', 'credentials' => $d], json_decode($raw->dasar_izin, true));
+    }
+
+    public function test_penulisan_audit_menyimpan_utuh_kunci_yang_hanya_mirip(): void
+    {
+        // Termasuk kunci yang dibaca ulang kode aplikasi dari payload audit.
+        $baru = ['primary_key' => 'id', 'jalur_pengajuan' => 'pic', 'pathway' => 'x', 'kunci' => 'nama',
+            'penanda_audit_id' => 'a-1', 'versi_pengajuan' => ['id' => 'v-1'], 'self_approval' => true, 'reviu_terlambat' => false,
+            'role_id' => 'r-1', 'sumber_pemberian' => 'sso_onboarding', 'diberikan_oleh' => null, 'is_active' => false];
+        $izin = ['permission' => 'akses:update', 'keputusan' => 'ditolak', 'roles' => [], 'grants' => [], 'denies' => [], 'sumber_allow' => null, 'alasan' => 'inactive_user'];
+        $audit = $this->audit($this->reader, 'renstra.ubah', '2031-01-01 00:00:00', ['nilai_baru' => $baru, 'dasar_izin' => $izin]);
+
+        $raw = DB::table('audit_log')->where('id', $audit->id)->sole(['nilai_lama', 'nilai_baru', 'dasar_izin']);
+        $this->assertNull($raw->nilai_lama);
+        $this->assertEquals($baru, json_decode($raw->nilai_baru, true));
+        $this->assertEquals($izin, json_decode($raw->dasar_izin, true));
+    }
+
+    public function test_detail_audit_menyamarkan_baris_lama_yang_tersimpan_sebelum_q58(): void
+    {
+        $id = (string) Str::uuid();
+        DB::table('audit_log')->insert([
+            'id' => $id, 'actor_id' => $this->reader->id, 'actor_type' => 'user', 'sumber' => 'manual', 'waktu' => now(),
+            'tindakan' => 'pengaturan.ubah', 'objek_tipe' => 'pengaturan', 'objek_id' => (string) Str::uuid(),
+            'nilai_baru' => json_encode(['nama' => 'Lama', 'access_token' => 'canary-baris-lama']),
+            'dasar_izin' => json_encode(['permission' => 'pengaturan:update', 'client_secret' => 'canary-baris-lama-secret']),
+            'alasan' => 'Baris sebelum Q58.',
+        ]);
+
+        $response = $this->actingAs($this->reader)->get('/audit/'.$id)->assertOk();
+        $response->assertInertia(fn (Assert $page) => $page
+            ->where('audit.nilai_baru', ['nama' => 'Lama', 'access_token' => AuditLogPresenter::DISAMARKAN])
+            ->where('audit.dasar_izin', ['permission' => 'pengaturan:update', 'client_secret' => AuditLogPresenter::DISAMARKAN]));
+        $this->assertStringNotContainsString('canary-baris-lama', $response->getContent());
     }
 
     public function test_hanya_pemegang_audit_read_tanpa_deny_yang_dapat_membuka_audit(): void

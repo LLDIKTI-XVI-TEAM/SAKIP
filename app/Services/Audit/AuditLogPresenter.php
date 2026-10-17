@@ -3,13 +3,14 @@
 namespace App\Services\Audit;
 
 use App\Models\AuditLog;
+use JsonSerializable;
 
 /**
  * Menyusun tampilan baca audit dengan allowlist kolom.
  *
- * Payload `nilai_lama`/`nilai_baru`/`dasar_izin` ditulis banyak modul sejak fase awal, sehingga
- * kunci yang menyerupai rahasia disamarkan di server sebelum menjadi props: seluruh props dapat
- * dibaca klien meskipun tidak dirender. Baris audit sendiri tidak diubah (append-only).
+ * Pola kunci rahasia di sini satu-satunya sumber: WriteAuditLog memakainya sebelum menyimpan (Q58),
+ * dan detail memakainya lagi sebelum menjadi props untuk baris yang tersimpan sebelum Q58: seluruh
+ * props dapat dibaca klien meskipun tidak dirender. Baris audit sendiri tidak diubah (append-only).
  */
 final class AuditLogPresenter
 {
@@ -56,6 +57,10 @@ final class AuditLogPresenter
     /** Mengganti nilai di bawah kunci rahasia secara rekursif; kunci lain dan urutannya dipertahankan. */
     public static function samarkan(mixed $nilai): mixed
     {
+        // Objek seperti Collection ditelusuri dalam bentuk yang akan di-encode cast `array`.
+        if ($nilai instanceof JsonSerializable) {
+            $nilai = $nilai->jsonSerialize();
+        }
         if (! is_array($nilai)) {
             return $nilai;
         }
