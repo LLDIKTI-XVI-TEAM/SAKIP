@@ -137,12 +137,9 @@ class IndexRencanaAksi
             $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
             // Daftar periode terkunci bagi aktor untuk UI hanya-baca per
             // periode; Perencanaan dikecualikan sehingga daftarnya kosong.
-            // Dalam sesi koreksi aktif daftar juga dikosongkan: lingkup
-            // koreksi sudah menjadi pembatas dan kunci tanggal diabaikan
-            // (cermin `penilaian()`), sehingga periode dalam lingkup tidak
-            // dikunci UI.
+            // Kunci tanggal juga berlaku dalam sesi koreksi (cermin `penilaian()`).
             $hariIni = today(config('app.business_timezone'))->toDateString();
-            $terkunciIds = ($this->jendela->jalurPerencanaan($keputusanUbah) || $koreksi['aktif'])
+            $terkunciIds = $this->jendela->jalurPerencanaan($keputusanUbah)
                 ? []
                 : array_column($this->jendela->rincianTerkunci($jadwal, $efektifIds->all(), $hariIni), 'id');
             // Hanya kolom ringkas; jsonb `snapshot` versi tidak dibutuhkan halaman.
@@ -217,9 +214,8 @@ class IndexRencanaAksi
     }
 
     /**
-     * Periode yang dapat ditulis: irisan efektif ∩ lingkup dalam sesi
-     * koreksi (kunci tanggal diabaikan di sana); di luar itu efektif
-     * dikurangi terkunci bagi aktor.
+     * Periode yang dapat ditulis: efektif (dibatasi lingkup dalam sesi
+     * koreksi) dikurangi terkunci bagi aktor.
      *
      * @param  Collection<int, string>  $efektifIds
      * @param  array{aktif: bool, periode_ids: list<string>}  $koreksi
@@ -228,11 +224,9 @@ class IndexRencanaAksi
      */
     private function periodeDapatDitulis(Collection $efektifIds, array $koreksi, array $terkunciIds): array
     {
-        if ($koreksi['aktif']) {
-            return array_values(array_intersect($efektifIds->all(), $koreksi['periode_ids']));
-        }
+        $periode = $koreksi['aktif'] ? array_intersect($efektifIds->all(), $koreksi['periode_ids']) : $efektifIds->all();
 
-        return array_values(array_diff($efektifIds->all(), $terkunciIds));
+        return array_values(array_diff($periode, $terkunciIds));
     }
 
     private function bolehUbah(User $actor, PermissionDecision $keputusanUbah, RencanaAksi $segel, IndikatorKinerja $indikator, JadwalTahunan $jadwal, Collection $efektifIds, array $koreksi, array $terkunciIds): bool

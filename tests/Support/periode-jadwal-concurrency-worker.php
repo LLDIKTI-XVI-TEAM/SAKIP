@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Jadwal\RevisiJendelaPic;
 use App\Actions\Jadwal\SaveJadwalDraft;
 use App\Actions\Jadwal\ShowJadwalEditor;
 use App\Actions\Periode\ListPeriode;
@@ -36,7 +37,7 @@ try {
     $actor = User::findOrFail($payload['actor_id']);
     if ($payload['pause_before_save'] ?? false) {
         $model = match ($payload['operation']) {
-            'save' => JadwalTahunan::class,
+            'save', 'revisi' => JadwalTahunan::class,
             'deactivate' => Renstra::class,
             default => Periode::class,
         };
@@ -65,6 +66,7 @@ try {
             'master' => app(SavePeriode::class)->handle($actor, $payload['data'], isset($payload['id']) ? (new Periode)->forceFill(['id' => $payload['id']]) : null),
             'swap' => app(ReplaceFinalPeriode::class)->handle($actor, $payload['data']),
             'deactivate' => app(ChangeRenstraStatus::class)->execute(Renstra::findOrFail($payload['id']), $actor, 'deactivate', $payload['expected_state']),
+            'revisi' => app(RevisiJendelaPic::class)->handle($actor, $payload['id'], $payload['data']),
             'show' => app(ShowJadwalEditor::class)->handle($actor, (new JadwalTahunan)->forceFill(['id' => $payload['id']])),
             'list' => app(ListPeriode::class)->handle($actor, ['q' => 'Kandidat']),
         };

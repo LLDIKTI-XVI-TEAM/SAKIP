@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Jadwal;
 use App\Actions\Jadwal\ActivateJadwal;
 use App\Actions\Jadwal\ListJadwal;
 use App\Actions\Jadwal\ReadJadwalActivation;
+use App\Actions\Jadwal\RevisiJendelaPic;
 use App\Actions\Jadwal\SaveJadwalDraft;
 use App\Actions\Jadwal\ShowJadwalEditor;
 use App\Actions\Jadwal\TutupJadwal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Jadwal\ActivateJadwalRequest;
+use App\Http\Requests\Jadwal\RevisiJendelaPicRequest;
 use App\Http\Requests\Jadwal\StoreJadwalRequest;
 use App\Http\Requests\Jadwal\TutupJadwalRequest;
 use App\Http\Requests\Jadwal\UpdateJadwalRequest;
@@ -54,6 +56,14 @@ class JadwalController extends Controller
     {
         $action->handle($request->user(), $jadwal, $request->validated());
         Inertia::flash('success', 'Jadwal berhasil ditutup.');
+
+        return redirect()->route('jadwal.show', $jadwal);
+    }
+
+    public function reviseWindows(RevisiJendelaPicRequest $request, string $jadwal, RevisiJendelaPic $action): RedirectResponse
+    {
+        $action->handle($request->user(), $jadwal, $request->validated());
+        Inertia::flash('success', 'Jendela PIC berhasil direvisi.');
 
         return redirect()->route('jadwal.show', $jadwal);
     }

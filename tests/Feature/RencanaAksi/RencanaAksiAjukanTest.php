@@ -10,6 +10,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\Pengaturan;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
+use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
@@ -604,6 +605,10 @@ class RencanaAksiAjukanTest extends TestCase
         ]);
         $this->travelTo(Carbon::parse('2026-04-10 09:00', 'Asia/Makassar'));
 
+        // PIC tetap tunduk pada kunci tanggal dalam sesi koreksi sampai jendela TW II dibuka resmi (Q41 §41.2 butir 6).
+        $this->ajukan($kedua['pic'], $headerKedua, $diubahKedua)->assertSessionHasErrors('jendela');
+        PeriodeJadwal::where('jadwal_id', $kedua['jadwal']->id)->where('periode_id', $kedua['periode2']->id)
+            ->update(['pengisian_selesai' => '2026-04-15', 'reviu_mulai' => '2026-04-16', 'reviu_selesai' => '2026-04-30']);
         $this->ajukan($kedua['pic'], $headerKedua, $diubahKedua)->assertSessionHasNoErrors();
         $this->assertSame('diajukan', $headerKedua->fresh()->status_alur);
     }
