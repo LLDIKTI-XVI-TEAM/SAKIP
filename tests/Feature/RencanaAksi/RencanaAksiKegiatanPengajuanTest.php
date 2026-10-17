@@ -77,6 +77,23 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         $this->assertSame('pic', RencanaAksiVersi::sole()->jalur_pengajuan);
     }
 
+    public function test_ra_2027_dengan_seluruh_periode_efektif_lewat_tetap_memerlukan_kegiatan(): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-04-05 09:00:00');
+        $fixture['jadwal']->update(['tahun' => 2027, 'activated_at' => '2027-04-05 09:00:00',
+            'rencana_aksi_mulai' => '2027-03-01', 'rencana_aksi_selesai' => '2027-03-31', 'penutupan' => '2027-12-31']);
+        $fixture['jadwal']->periode()->update(['pengisian_mulai' => '2027-03-01', 'pengisian_selesai' => '2027-03-31',
+            'reviu_mulai' => '2027-04-01', 'reviu_selesai' => '2027-04-30']);
+        $header->update(['tahun' => 2027]);
+        $this->travelTo(now()->setDate(2027, 3, 10)->setTime(9, 0));
+
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasErrors(['pengajuan' => self::PESAN]);
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.pengajuan.siap', false)
+                ->where('rencanaAksi.pengajuan.alasan', fn ($alasan) => collect($alasan)->contains(self::PESAN)));
+    }
+
     public function test_klaim_yang_tidak_cocok_dengan_konteks_beku_terbaru_menolak_pengajuan(): void
     {
         [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');

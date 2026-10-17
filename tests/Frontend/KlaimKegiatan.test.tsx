@@ -129,5 +129,23 @@ it('menonaktifkan tambah kegiatan selama form target berubah belum disimpan', ()
         kegiatan={{ daftar: [], can: { tambah: true, kelola: true } }} />);
 
     expect(screen.getByRole<HTMLButtonElement>('button', { name: /Tambah kegiatan Triwulan I$/ }).disabled).toBe(true);
-    expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah kegiatan.')).toBeTruthy();
+    expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
+});
+
+it('menahan kelola klaim saat target kotor dan mengaktifkannya kembali sesudah bersih', () => {
+    const props = {
+        rencanaAksiId: 'ra-1', periode: [periode('tw1', 'Triwulan I')], komponen: [], terkunci: [],
+        kegiatan: { daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana' as const,
+            komponen_id: null, arah_dampak: 'menambah' as const, catatan: null }], can: { tambah: false, kelola: true } },
+    };
+    const { rerender } = render(<KegiatanPanel {...props} kotor />);
+
+    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Kelola klaim' }));
+
+    rerender(<KegiatanPanel {...props} kotor={false} />);
+    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('aria-disabled')).toBe('false');
+    expect(screen.queryByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/kegiatan/keg-1/edit');
 });

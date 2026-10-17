@@ -2600,6 +2600,8 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tujuan rencana kegiatan yang dibekukan terhadap versi sah untuk menjaga periode terkunci; perubahan status pelaksanaan saja tidak dianggap perubahan rencana. Tambah/hapus klaim tahap RA dan tambah/salin kegiatan dari RA menaikkan versi header sekali per transaksi berhasil, sehingga pengajuan memakai versi lama ditolak 409. Panel RA menampilkan komponen snapshot, arah dampak, dan catatan klaim bagi pembaca berizin. Perbaikan ini tidak mencentang penerimaan UI/UAT atau AC-8 yang masih tertunda.
 
+Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat target belum disimpan, mengikuti penahan tambah kegiatan; anjuran menyimpan draf yang selalu tampil pada kartu kesiapan dihapus. Pengecualian seluruh periode efektif lampau memakai definisi bersama khusus jadwal 2026 (Q46 §46.1); RA 2027 tanpa kegiatan tetap ditolak. Regresi frontend dan kontrol backend 2026/2027 ditambahkan. AC-8, QA browser, UAT, dan deployment tetap tidak dicentang.
+
 **Terkait User Story:** `US-06.02`  
 **Prioritas:** 🟡 P1 · Tahap 1 (Q46 §46.3)  
 **Story Points:** 5  

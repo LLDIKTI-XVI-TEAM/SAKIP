@@ -11,7 +11,6 @@ use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use App\Support\DeviasiTargetPk;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -124,7 +123,7 @@ class KesiapanPengajuan
      * butir 3); tidak setiap periode wajib berisi kegiatan. Dikecualikan
      * untuk RA data awal 2026 yang diajukan lewat jalur Perencanaan (Q46
      * §46.1 butir 3, Q32.8) dan RA yang seluruh periode efektifnya sudah
-     * lampau saat aktivasi jadwal (Q46 §46.1 butir 1). Kegiatan pada periode
+     * lampau saat aktivasi jadwal 2026 (Q46 §46.1 butir 1). Kegiatan pada periode
      * lampau tetap dihitung bila ada.
      *
      * @param  Collection<int, PeriodeJadwal>  $jendela
@@ -139,10 +138,9 @@ class KesiapanPengajuan
         if ($tahun === self::TAHUN_DATA_AWAL && $jalurPerencanaan) {
             return null;
         }
-        // Periode lampau mengikuti JadwalActivationReadiness: pengisian selesai sebelum tanggal aktivasi jadwal.
-        $aktivasi = $jadwal->activated_at === null ? null : Carbon::parse($jadwal->activated_at)->setTimezone(config('app.business_timezone'))->toDateString();
-        $lampau = $aktivasi === null ? collect() : $jendela
-            ->filter(fn (PeriodeJadwal $row): bool => $row->pengisian_selesai !== null && $row->pengisian_selesai->toDateString() < $aktivasi)
+        // Pengecualian periode lampau memakai definisi bersama khusus jadwal 2026 (Q46).
+        $lampau = $jendela
+            ->filter(fn (PeriodeJadwal $row): bool => PeriodeTanpaTarget::isPeriodeLampau($jadwal, $row))
             ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id);
         if ($periodeEfektif->isNotEmpty() && $periodeEfektif->diff($lampau)->isEmpty()) {
             return null;

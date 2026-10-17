@@ -115,7 +115,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                 <p className="text-sm text-muted">Kegiatan yang ditambahkan di sini langsung diklaim ke rencana aksi ini. Klaim menjelaskan dukungan kegiatan dan tidak mengubah nilai target atau pengukuran.</p>
             </CardHeader>
             <CardContent className="space-y-4">
-                {kotor && kegiatan.can.tambah && <p className="text-sm text-muted">Simpan atau buang perubahan target sebelum menambah kegiatan.</p>}
+                {kotor && (kegiatan.can.tambah || kegiatan.can.kelola) && <p className="text-sm text-muted">Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.</p>}
                 {periode.length === 0 && <p className="text-sm text-muted">Tidak ada periode efektif untuk rencana aksi ini.</p>}
                 {periode.map((item) => {
                     const daftar = kegiatan.daftar.filter((row) => row.periode_id === item.id);
@@ -154,7 +154,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                 <span className="flex items-center gap-2">
                                                     <Badge variant={status.variant}>{status.label}</Badge>
                                                     {kegiatan.can.kelola && (
-                                                        <Link href={`/kegiatan/${row.kegiatan_id}/edit`} className="rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">
+                                                        <Link href={`/kegiatan/${row.kegiatan_id}/edit`} aria-disabled={kotor} onBefore={() => !kotor} className="rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">
                                                             Kelola klaim
                                                         </Link>
                                                     )}
