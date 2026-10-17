@@ -6,6 +6,8 @@ use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalTahunan;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\PenugasanIndikator;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
@@ -67,7 +69,10 @@ class AjukanRencanaAksi
      * sehingga dinilai sebagai daftar kosong (guard simpan sudah mencegah
      * perubahan sejak awal). Dalam sesi koreksi, lingkup dinilai terhadap
      * periode yang berubah pula, berlaku untuk PIC maupun Perencanaan.
-     * Klaim kegiatan belum dibekukan karena belum ada writer klaim rencana aksi.
+     * Klaim kegiatan tahap RA (`sumber_klaim = rencana_aksi`) dibekukan ke
+     * snapshot versi dan wajib minimal satu kecuali pengecualian Q46. Pengajuan
+     * menilai periode yang berubah dari target dan klaim tahap RA terhadap versi
+     * sah, selain pemeriksaan periode kegiatan oleh writer klaim saat mutasi.
      *
      * Pengajuan Pengukuran juga mengunci header RA sebelum indikator agar
      * tidak membentuk siklus kunci dengan writer/reviewer RA.
@@ -169,8 +174,27 @@ class AjukanRencanaAksi
                 $deviasi = $this->kesiapan->deviasi($baris, $snapshot);
                 $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $bukti);
                 $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan);
+                // Urutan header → klaim → kegiatan sama dengan pengajuan Pengukuran; writer klaim juga mengunci header lebih dulu.
+                $klaim = KlaimKegiatan::where('rencana_aksi_id', $header->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->lockForUpdate()->get();
+                $kegiatan = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                // Snapshot koreksi dapat terbit setelah klaim dibuat; klaim yang tidak lagi cocok tidak boleh dibekukan.
+                $bacaKegiatan = $this->resolver->allows($pengunci, PermissionCodes::KEGIATAN_READ, (string) $header->unit_id);
+                $alasan = [...$alasan, ...$this->kesiapan->alasanKlaim($klaim, $kegiatan, $header, $periodeEfektif, $definisi->pluck('komponen_id')->all(), $bacaKegiatan)];
+                $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $this->jendela->jalurPerencanaan($keputusan), $jadwal, $jendelaPeriode, $periodeEfektif);
+                if ($alasanKegiatan !== null) {
+                    $alasan[] = $alasanKegiatan;
+                }
                 if ($alasan !== []) {
                     throw ValidationException::withMessages(['pengajuan' => $alasan]);
+                }
+                $klaimBeku = $this->kesiapan->klaimBeku($klaim, $kegiatan);
+                // Q41 §41.2: daftar kegiatan periode terkunci tidak boleh berubah lewat pengajuan PIC, dinilai seperti target terhadap versi sah.
+                $berubahKlaim = PerbandinganNilaiRencanaAksi::periodeKlaimBerubahVsVersiSah($header->id, $klaimBeku);
+                if ($berubahKlaim !== []) {
+                    $penilaianKlaim = $this->jendela->penilaian($pengunci, $keputusan, $indikator, $jadwal, 'pengajuan', $berubahKlaim, $penugasan?->user_id, pada: $waktuAjukan);
+                    if ($penilaianKlaim['pesan'] !== null) {
+                        throw ValidationException::withMessages(['jendela' => $penilaianKlaim['pesan']]);
+                    }
                 }
 
                 $sebelum = $header->only(['status_alur', 'versi', 'snapshot_draf_id']);
@@ -196,6 +220,7 @@ class AjukanRencanaAksi
                         'alasan_deviasi_pk' => $header->alasan_deviasi_pk,
                         'deviasi_pk' => $deviasi,
                         'target_periode' => $baris,
+                        'klaim' => $klaimBeku,
                         'persyaratan_bukti' => $persyaratan,
                         // `path` privat hanya untuk unduhan beku di server; tidak pernah masuk props.
                         'bukti_dukungs' => $bukti->map(fn (BuktiDukung $item): array => $item->only([
