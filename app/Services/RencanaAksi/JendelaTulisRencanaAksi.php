@@ -51,11 +51,9 @@ class JendelaTulisRencanaAksi
      * @param  'pembuatan'|'penyimpanan'|'pengajuan'  $tindakan
      * @param  list<string>  $periodeIds  Periode yang hendak ditulis; kosong untuk pembuatan
      *                                    header atau capability tanpa dimensi periode.
-     *                                    Pengajuan memakai seluruh periode efektif karena
-     *                                    menyentuh seluruh RA; perubahan daftar kegiatan
-     *                                    tahap RA (`sumber_klaim = rencana_aksi`) dinilai
-     *                                    writer klaim per periode kegiatan, sehingga
-     *                                    pengajuan cukup menilai target periode.
+     *                                    Pengajuan menilai periode yang berubah dari target
+     *                                    dan klaim tahap RA terhadap versi sah. Writer klaim
+     *                                    juga menilai periode kegiatan saat mutasi klaim.
      * @param  string|null  $picUserId  PIC efektif hari ini yang sudah dibaca pemanggil;
      *                                  null berarti dibaca di sini. Capability baca
      *                                  (`DaftarRencanaAksi`) mengisinya dari join. Gerbang

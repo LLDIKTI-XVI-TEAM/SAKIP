@@ -70,8 +70,9 @@ class AjukanRencanaAksi
      * perubahan sejak awal). Dalam sesi koreksi, lingkup dinilai terhadap
      * periode yang berubah pula, berlaku untuk PIC maupun Perencanaan.
      * Klaim kegiatan tahap RA (`sumber_klaim = rencana_aksi`) dibekukan ke
-     * snapshot versi dan wajib minimal satu kecuali pengecualian Q46; perubahan
-     * daftar kegiatan pada periode terkunci sudah ditolak oleh writer klaim.
+     * snapshot versi dan wajib minimal satu kecuali pengecualian Q46. Pengajuan
+     * menilai periode yang berubah dari target dan klaim tahap RA terhadap versi
+     * sah, selain pemeriksaan periode kegiatan oleh writer klaim saat mutasi.
      *
      * Keterbatasan lintas modul yang sudah ada: `SubmitPengukuran` mengunci
      * indikator lalu `rencana_aksi`, berlawanan dengan writer RA (header lalu

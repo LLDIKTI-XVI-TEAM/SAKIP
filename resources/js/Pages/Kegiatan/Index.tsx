@@ -200,7 +200,7 @@ export default function Index({
                                             </TableCell>
                                             <TableCell className="w-16 whitespace-nowrap text-right">
                                                 {item.can?.update && (
-                                                    <Tooltip content="Ubah kegiatan & klaim RA" align="right">
+                                                    <Tooltip content="Ubah kegiatan & klaim RA" align="right" position="bottom">
                                                         <Link
                                                             href={`/kegiatan/${item.id}/edit`}
                                                             aria-label={`Ubah rencana kegiatan dan klaim rencana aksi ${item.nama}`}

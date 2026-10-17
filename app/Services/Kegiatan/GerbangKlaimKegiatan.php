@@ -36,7 +36,8 @@ class GerbangKlaimKegiatan
 
     /**
      * Allow wajib dari `rencana_aksi:update` pada unit header dan izin
-     * kegiatan pada unit kegiatan; penolakan salah satunya menutup akses.
+     * tulis kegiatan pada unit kegiatan, lalu izin baca unit itu (Q54 §54.3).
+     * Alasan penolakan tulis didahulukan; deny baca tetap menutup akses.
      * Keputusan RA menentukan jalur Perencanaan pada gerbang tulis.
      *
      * @return array{ra: PermissionDecision, kegiatan: ?PermissionDecision, tolak: ?PermissionDecision}
@@ -48,6 +49,12 @@ class GerbangKlaimKegiatan
             return ['ra' => $ra, 'kegiatan' => null, 'tolak' => $ra];
         }
         $kegiatan = $this->resolver->resolve($user, $izinKegiatan, $unitKegiatan);
+        if ($kegiatan->allowed) {
+            $baca = $this->resolver->resolve($user, PermissionCodes::KEGIATAN_READ, $unitKegiatan);
+            if (! $baca->allowed) {
+                return ['ra' => $ra, 'kegiatan' => $kegiatan, 'tolak' => $baca];
+            }
+        }
 
         return ['ra' => $ra, 'kegiatan' => $kegiatan, 'tolak' => $kegiatan->allowed ? null : $kegiatan];
     }

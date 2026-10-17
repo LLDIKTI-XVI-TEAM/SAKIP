@@ -105,6 +105,36 @@ class KlaimKegiatanTest extends TestCase
             AuditLog::where('tindakan', 'klaim_kegiatan.tambah_ditolak')->first()->alasan);
     }
 
+    public function test_deny_baca_kegiatan_menolak_tambah_klaim_tanpa_mutasi_dan_diaudit(): void
+    {
+        $pic = $this->picKegiatan();
+        $this->denyPermission($pic, 'kegiatan:read', $this->unit->id);
+
+        $this->actingAs($pic)->post($this->url(), $this->payload())->assertForbidden();
+
+        $this->assertDatabaseCount('klaim_kegiatan', 0);
+        $this->assertDatabaseCount('kegiatan', 1);
+        $audit = AuditLog::where('tindakan', 'klaim_kegiatan.tambah_ditolak')->sole();
+        $this->assertSame('kegiatan:read', $audit->dasar_izin['permission']);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
+    }
+
+    public function test_deny_baca_kegiatan_menolak_hapus_klaim_tanpa_mutasi_dan_diaudit(): void
+    {
+        $pic = $this->picKegiatan();
+        $this->actingAs($pic)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        $klaim = KlaimKegiatan::sole();
+        $this->denyPermission($pic, 'kegiatan:read', $this->unit->id);
+
+        $this->delete($this->url().'/'.$klaim->id, ['alasan' => 'Klaim keliru'])->assertForbidden();
+
+        $this->assertDatabaseCount('klaim_kegiatan', 1);
+        $this->assertDatabaseHas('klaim_kegiatan', ['id' => $klaim->id]);
+        $audit = AuditLog::where('tindakan', 'klaim_kegiatan.hapus_ditolak')->sole();
+        $this->assertSame('kegiatan:read', $audit->dasar_izin['permission']);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
+    }
+
     public function test_tanpa_izin_kegiatan_atau_terkena_deny_ditolak_403_dan_diaudit(): void
     {
         $pic = $this->createPicPegawai();

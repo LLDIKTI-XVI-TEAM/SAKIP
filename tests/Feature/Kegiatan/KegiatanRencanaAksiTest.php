@@ -86,6 +86,21 @@ class KegiatanRencanaAksiTest extends TestCase
         $this->assertDatabaseCount('kegiatan', 0);
     }
 
+    public function test_deny_baca_kegiatan_menolak_tambah_dari_ra_tanpa_mutasi_dan_diaudit(): void
+    {
+        $pic = $this->createPicPegawai();
+        $this->grantUnitPermission($pic, 'kegiatan:create');
+        $this->denyPermission($pic, 'kegiatan:read', $this->unit->id);
+
+        $this->actingAs($pic)->post($this->url(), $this->payload())->assertForbidden();
+
+        $this->assertDatabaseCount('kegiatan', 0);
+        $this->assertDatabaseCount('klaim_kegiatan', 0);
+        $audit = AuditLog::where('tindakan', 'kegiatan.buat_ditolak')->sole();
+        $this->assertSame('kegiatan:read', $audit->dasar_izin['permission']);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['alasan']);
+    }
+
     public function test_tanpa_izin_buat_kegiatan_ditolak_403_dan_diaudit(): void
     {
         $pic = $this->createPicPegawai();
