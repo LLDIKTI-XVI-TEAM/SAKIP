@@ -532,3 +532,32 @@ it('revisi jendela PIC hanya untuk can.revise_windows, mengubah tanggal saja, da
     await userEvent.click(screen.getByRole('button', { name: 'Batal' }));
     expect(screen.getByRole('button', { name: 'Revisi Jendela PIC' })).toBeTruthy();
 });
+it('revisi jendela PIC tetap mengirim token baseline form setelah ditolak basi dan props berganti', async () => {
+    const aktif = { ...jadwal, status: 'aktif' as const };
+    const readOnly = 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.';
+    const can = { create: false, update: false, activate: false, close: false, revise_windows: true };
+    const { rerender } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={can} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
+    fireEvent.change(screen.getByLabelText('Triwulan I: Selesai pengisian'), { target: { value: '2026-04-12' } });
+    fireEvent.change(screen.getByLabelText('Triwulan I: Mulai Review'), { target: { value: '2026-04-13' } });
+    const kirim = async () => {
+        await userEvent.click(screen.getByRole('button', { name: 'Simpan revisi' }));
+        const dialog = screen.getByRole('dialog');
+        const alasan = within(dialog).getByRole('textbox');
+        if ((alasan as HTMLTextAreaElement).value === '') await userEvent.type(alasan, 'Gangguan jaringan unit.');
+        await userEvent.click(within(dialog).getByRole('button', { name: 'Simpan revisi' }));
+    };
+    await kirim();
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => {
+        options?.onError?.({ jadwal: 'Jadwal sudah berubah. Muat ulang detail jadwal sebelum merevisi jendela.' });
+    });
+
+    // Redirect validasi memuat revisi jadwal terbaru, sedangkan tanggal draf lama dipertahankan.
+    rerender(<Editor {...props} jadwal={{ ...aktif, revisi: 5 }} read_only_reason={readOnly} can={can} />);
+    expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('Jadwal sudah berubah'))).toBe(true);
+    await kirim();
+
+    const kedua = vi.mocked(router.post).mock.calls[1][1] as { expected_revisi: number };
+    expect(kedua.expected_revisi).toBe(4);
+});

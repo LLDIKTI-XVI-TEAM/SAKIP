@@ -35,7 +35,7 @@ export function RevisiJendelaPanel({ tahun, onStart }: { tahun: number; onStart:
 interface RevisiJendelaProps {
     jadwalId: string;
     tahun: number;
-    /** Revisi jadwal yang sedang tampil; satu-satunya sumber expected_revisi. */
+    /** Revisi jadwal saat form dibuka; disimpan bersama baseline tanggal sebagai expected_revisi. */
     revisi: number;
     periode: JadwalPeriode[];
     onCancel: () => void;
@@ -45,11 +45,13 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: Re
     const [open, setOpen] = useState(false);
     const [unknown, setUnknown] = useState(false);
     const recovery = useAuthRecovery();
-    const form = useForm({ alasan: '', periode });
+    // Props dapat memuat revisi terbaru setelah kiriman ditolak; token harus tetap milik tanggal yang sedang disunting.
+    const [awal] = useState(() => ({ periode, revisi }));
+    const form = useForm({ alasan: '', periode: awal.periode });
     const errors = form.errors as Record<string, string | undefined>;
     // Galat per kolom tampil di tabel; sisanya (penutupan, token, daftar periode) diringkas di atas tombol.
     const umum = Object.entries(errors).filter(([field]) => field !== 'alasan' && !field.startsWith('periode.'));
-    const berubah = form.data.periode.some((item, index) => tanggal.some((key) => item[key] !== periode[index]?.[key]));
+    const berubah = form.data.periode.some((item, index) => tanggal.some((key) => item[key] !== awal.periode[index]?.[key]));
     const blocked = unknown || Boolean(recovery.recovery);
     const path = `/jadwal/${jadwalId}/revisi-jendela`;
 
@@ -61,7 +63,7 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: Re
     const confirm = () => {
         if (form.processing || form.data.alasan.trim() === '') return;
         form.transform((data) => ({
-            expected_revisi: revisi,
+            expected_revisi: awal.revisi,
             alasan: data.alasan,
             periode: data.periode.map(({ periode_id, pengisian_mulai, pengisian_selesai, reviu_mulai, reviu_selesai }) => ({
                 periode_id,
