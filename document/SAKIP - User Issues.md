@@ -46,6 +46,8 @@ Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang ex
 
 Setiap issue memuat: **Terkait User Story, Prioritas/Story Point, Traceability, Labels, Scope, Acceptance Criteria, Implementation Tasks, Automated Tests/UAT, dan Definition of Done**. Nomor `ISS-XX.YY` selalu mengikuti `US-XX.YY`.
 
+Centang `[x]` pada Acceptance Criteria dan Automated Tests adalah **bukti implementasi dan test yang ditambahkan oleh PR yang bersangkutan**, bukan status rencana, sehingga jumlah centang tidak dapat dipakai menghitung sisa pekerjaan. Per 17 Oktober 2026, sebelas issue berikut sudah merged tetapi belum memperoleh centang: ISS-01.01, ISS-01.03, ISS-01.04, ISS-01.06, ISS-01.07, ISS-02.02, ISS-02.03, ISS-02.04, ISS-02.08, ISS-03.01 (sebagian), dan ISS-04.01; statusnya mengikuti issue dan PR GitHub masing-masing sampai dicentang lewat PR dokumen yang menyebut nama test bukti. ISS yang kodenya sudah ada di `development` tanpa issue GitHub (ISS-02.05, ISS-07.02, ISS-11.02–ISS-11.05) ditangani issue traceability tersendiri.
+
 ### 4.1 Kontrak Penyelarasan Q32 untuk Development Issue
 
 Semua issue wajib mengikuti keputusan final 24 September 2026:
