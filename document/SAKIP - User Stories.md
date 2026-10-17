@@ -2181,11 +2181,11 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
-- [ ] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
-- [ ] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan.
-- [ ] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
-- [ ] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
+- [x] **AC-1:** Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
+- [x] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
+- [x] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan. *(Dicatat modul masing-masing; ditampilkan di halaman Jejak Audit.)*
+- [x] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
+- [x] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan. *(Allowlist payload di modul penulis; detail audit menyamarkan kunci rahasia di server.)*
 
 ### US-13.04 · Konfigurasi Operasional Notifikasi Eksternal
 
