@@ -1204,11 +1204,13 @@ Urutan modul di atas tetap menjadi urutan dependensi teknis. Prioritas pengerjaa
 
 | Tahap | Batas | Issue dan task Plan |
 |---|---|---|
-| 1 | Sebelum integrasi 9 November 2026 (Q2) | ISS-01.08 (1.3, berjalan); ISS-02.10 (2.21); ISS-02.11 (2.22); ISS-05.06 (11.7, berjalan); ISS-05.07 (11.9); ISS-06.01 (12.1–12.2, PR #97 dengan Q49); ISS-06.02 (12.6–12.9); ISS-06.08 (12.12); ISS-13.05 (10.7); ISS-13.06 (9.10); pengecualian periode lampau (3.11); di akhir tahap, penyiapan data awal 2026 (ISS-15.01) |
+| 1 | Sebelum integrasi 9 November 2026 (Q2) | ISS-01.08 (1.3); ISS-02.10 (2.21); ISS-02.11 (2.22); ISS-05.06 (11.7); ISS-05.07 (11.9); ISS-06.01 (12.1–12.2); ISS-06.02 (12.6–12.9); ISS-06.08 (12.12); ISS-13.05 (10.7); ISS-13.06 (9.10); pengecualian periode lampau (3.11); di akhir tahap, penyiapan data awal 2026 (ISS-15.01) |
 | 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | ISS-06.03 (12.11); ISS-06.04 (12.3); ISS-06.05 (12.4); ISS-07.01 (5.2–5.4, 5.13–5.15); ISS-07.03 (5.5, 5.16); ISS-07.06 (5.13–5.16); ISS-08.01 (5.6–5.8, 6.1); ISS-08.02 (5.9, 6.2); ISS-09.01 (6.7); ISS-10.01 (7.1–7.8); ISS-10.02 (8.1, 8.3); ISS-10.05 (8.5); ISS-14.01 (3.9) |
 | 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 (3.8) dan ISS-02.12 (2.23); simulasi target; tampilan daftar berkas terunggah; versi penuh Renstra; ISS-13.03 (10.1–10.5; 10.6 digantikan Q44) |
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
+
+Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111), ISS-07.03 (PR #105); task Tahap 1 lainnya belum dimulai.
 
 ---
 
