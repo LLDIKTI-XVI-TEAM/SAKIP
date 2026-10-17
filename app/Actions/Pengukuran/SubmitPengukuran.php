@@ -43,7 +43,7 @@ class SubmitPengukuran
                 $pic = $p->effectivePic();
                 $provenance = [...$decision, 'unit_id' => $p->targetUnitId(), 'penugasan_id' => $pic?->id, 'pic_id' => $pic?->user_id];
                 // Jalur mengikuti sumber allow saat pengajuan; perubahan role/PJ belakangan tidak menulis ulang sejarah ini.
-                $version = KinerjaSnapshot::create(['pengukuran_id' => $p->id, 'rencana_aksi_versi_id' => $prerequisite['rencana_aksi_versi']->id,
+                $version = KinerjaSnapshot::create(['pengukuran_id' => $p->id, 'rencana_aksi_versi_id' => $prerequisite['rencana_aksi_versi']?->id,
                     'jadwal_snapshot_id' => $snapshot->id, 'nomor' => (int) $p->versions()->max('nomor') + 1, 'diajukan_by' => $actor->id, 'diajukan_at' => now(),
                     'jalur_pengajuan' => $this->policy->usesPlanningPath($actor, $p) ? 'perencanaan' : 'pic', 'dasar_izin_pengajuan' => $provenance,
                     'snapshot' => $this->payload($p, $prerequisite, $rekomendasi)]);
@@ -76,13 +76,16 @@ class SubmitPengukuran
             'periode' => $p->periode->only(['id', 'nama', 'urutan', 'is_nilai_akhir']), 'target' => $prerequisite['target'], 'tanpa_target_periode' => $prerequisite['tanpa_target_periode'], 'target_pk' => $snapshot->target,
             'rekomendasi_sebelumnya' => $rekomendasi,
             'komponen' => $snapshot->komponen->map(fn ($c) => [...$c->only(['komponen_id', 'kode', 'label', 'peran', 'bobot']), 'nilai' => $p->komponen()->where('komponen_id', $c->komponen_id)->value('nilai')])->all(),
-            'klaim' => $this->activityClaims($p, $prerequisite['rencana_aksi_versi']->rencana_aksi_id),
+            'klaim' => $this->activityClaims($p, $prerequisite['rencana_aksi_id']),
             'persyaratan_bukti' => $prerequisite['persyaratan_bukti'], 'bukti_dukungs' => $p->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()];
     }
 
     /** Klaim dan narasi berasal dari kegiatan nyata pada periode ini, bukan salinan RA hidup. */
-    private function activityClaims(PengukuranKinerja $p, string $planId): array
+    private function activityClaims(PengukuranKinerja $p, ?string $planId): array
     {
+        if ($planId === null) {
+            return [];
+        }
         $claims = KlaimKegiatan::where('rencana_aksi_id', $planId)
             ->where(fn ($q) => $q->where('sumber_klaim', 'rencana_aksi')->orWhere('pengukuran_id', $p->id))->lockForUpdate()->get();
         $activities = Kegiatan::whereIn('id', $claims->pluck('kegiatan_id'))->lockForUpdate()->get()->keyBy('id');

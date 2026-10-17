@@ -22,6 +22,7 @@ class SubmissionPrerequisites
     public function handle(PengukuranKinerja $pengukuran, ?array $rekomendasi, bool $lock = false, ?RencanaAksi $lockedPlan = null, ?PeriodeJadwal $lockedPeriod = null): array
     {
         $errors = [];
+        $gateErrors = [];
         $target = null;
         $withoutTarget = false;
         $version = null;
@@ -31,20 +32,24 @@ class SubmissionPrerequisites
         if (! $snapshot || $snapshot->indikator_id !== $pengukuran->indikator_id || $snapshot->jadwal->tahun !== $pengukuran->tahun) {
             $errors[] = 'Konteks snapshot jadwal tidak cocok dengan indikator/tahun pengukuran.';
         }
+        $periodeLampau = $snapshot && PeriodeTanpaTarget::isPeriodeLampau($snapshot->jadwal, $period);
         // Null dari lookup terkunci tetap berarti RA belum ada; jangan mengambil kunci RA baru setelah indikator.
         $ra = $lock ? $lockedPlan : RencanaAksi::where('indikator_id', $pengukuran->indikator_id)->where('tahun', $pengukuran->tahun)->first();
+        // Klaim melekat ke header RA; periode lampau dapat mengajukan sebelum RA disahkan.
+        $claimPlanId = $ra && $ra->unit_id === $pengukuran->targetUnitId() && $ra->jadwal_tahunan_id === $snapshot?->jadwal_id ? $ra->id : null;
         if (! $ra || $ra->status_alur !== 'disahkan') {
-            $errors[] = 'Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.';
+            $gateErrors[] = 'Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.';
         } else {
             $version = RencanaAksiVersi::where('rencana_aksi_id', $ra->id)->orderByDesc('nomor')->when($lock, fn ($q) => $q->lockForUpdate())->first();
             if (! $version || ! $version->disahkan_at || ! $version->disahkan_by || $version->jadwal_snapshot_id !== $pengukuran->jadwal_snapshot_id
                 || $ra->unit_id !== $pengukuran->targetUnitId()) {
-                $errors[] = 'Versi rencana aksi sah harus cocok dengan snapshot dan unit pengukuran.';
+                $gateErrors[] = 'Versi rencana aksi sah harus cocok dengan snapshot dan unit pengukuran.';
+                $version = null;
             } else {
                 $targets = $version->snapshot['target_periode'] ?? [];
                 $periodTarget = collect($targets)->firstWhere('periode_id', $pengukuran->periode_id);
                 if (! $periodTarget || ! array_key_exists('nilai', $periodTarget)) {
-                    $errors[] = 'Target periode belum tersedia pada versi rencana aksi yang disahkan.';
+                    $gateErrors[] = 'Target periode belum tersedia pada versi rencana aksi yang disahkan.';
                 } else {
                     try {
                         $components = collect($periodTarget['komponen'] ?? []);
@@ -63,18 +68,18 @@ class SubmissionPrerequisites
                             && $period && PeriodeTanpaTarget::bolehTanpaTarget($snapshot, $period, $snapshot->jadwal->periode);
                         if (! $withoutTarget && ($calculated['status_perhitungan'] === 'belum_diisi' || $calculated['status_perhitungan'] !== ($periodTarget['status_perhitungan'] ?? null)
                             || ! $sameValue)) {
-                            $errors[] = 'Target pada versi RA belum lengkap atau tidak konsisten dengan komponen snapshot.';
+                            $gateErrors[] = 'Target pada versi RA belum lengkap atau tidak konsisten dengan komponen snapshot.';
                         } else {
                             $target = $calculated['nilai'];
                         }
                     } catch (\InvalidArgumentException|ValidationException|MathException $exception) {
-                        $errors[] = 'Target versi RA tidak dapat divalidasi: '.$exception->getMessage();
+                        $gateErrors[] = 'Target versi RA tidak dapat divalidasi: '.$exception->getMessage();
                     }
                 }
             }
         }
         if ($pengukuran->status_perhitungan === 'belum_diisi') {
-            $errors[] = 'Nilai manual atau seluruh komponen snapshot wajib diisi.';
+            $gateErrors[] = 'Nilai manual atau seluruh komponen snapshot wajib diisi.';
         }
         // Nilai belum tersedia mengecualikan kelengkapan komponen; narasi dan gerbang lain tetap berlaku.
         if ($pengukuran->status_perhitungan === 'belum_dapat_diukur' && $pengukuran->periode->is_nilai_akhir) {
@@ -89,13 +94,13 @@ class SubmissionPrerequisites
         $requirements = $this->evidence->handle($pengukuran);
         foreach ($requirements as $requirement) {
             if ($requirement['wajib'] && ! $requirement['pemenuhan']['terpenuhi']) {
-                $errors[] = ! $requirement['izinkan_file'] && ! $requirement['izinkan_tautan'] && ! $requirement['izinkan_teks']
+                $gateErrors[] = ! $requirement['izinkan_file'] && ! $requirement['izinkan_tautan'] && ! $requirement['izinkan_teks']
                     ? 'Persyaratan bukti '.$requirement['nama'].' tidak memiliki mode aktif. Hubungi Tim Perencanaan.'
                     : 'Bukti wajib belum lengkap: '.$requirement['nama'].'.';
             }
         }
         $narrativeErrors = [];
-        if (! $snapshot || ! PeriodeTanpaTarget::isPeriodeLampau($snapshot->jadwal, $period)) {
+        if (! $periodeLampau) {
             foreach (['progres_kegiatan' => 'Progres kegiatan', 'kendala_masalah' => 'Kendala/masalah', 'strategi_tindak_lanjut' => 'Tindak lanjut/strategi penyelesaian'] as $field => $label) {
                 if (trim((string) $pengukuran->{$field}) === '') {
                     $narrativeErrors[$field] = $label.' wajib diisi sebelum pengajuan.';
@@ -106,9 +111,12 @@ class SubmissionPrerequisites
             }
         }
 
+        // Q46 membebaskan kelengkapan, bukan konteks/izin ataupun alasan penyebut nol Q9.
+        $errors = [...$errors, ...($periodeLampau ? [] : $gateErrors)];
+        $withoutTarget = $withoutTarget || ($periodeLampau && $target === null);
         $allErrors = [...$errors, ...array_values($narrativeErrors)];
 
         return ['siap' => $allErrors === [], 'alasan' => $allErrors, 'errors' => [...($errors === [] ? [] : ['pengajuan' => $errors]), ...$narrativeErrors],
-            'target' => $target, 'tanpa_target_periode' => (bool) $withoutTarget, 'rencana_aksi_versi' => $version, 'persyaratan_bukti' => $requirements];
+            'target' => $target, 'tanpa_target_periode' => (bool) $withoutTarget, 'rencana_aksi_versi' => $version, 'rencana_aksi_id' => $version?->rencana_aksi_id ?? $claimPlanId, 'persyaratan_bukti' => $requirements];
     }
 }
