@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
                         'grant' => $can['grant'],
                         'pengaturan' => $can['pengaturan'],
                         'pengaturan:update' => $can['pengaturan:update'],
+                        'audit' => $can['audit'],
                         'viewRolePermissions' => $can['viewRolePermissions'],
                         'viewEffectivePermissions' => $can['viewEffectivePermissions'],
                         'jenisBerkas' => $can['jenisBerkas'],
@@ -94,6 +95,7 @@ class HandleInertiaRequests extends Middleware
             'berkas:delete' => false,
             'pengaturan' => false,
             'pengaturan:update' => false,
+            'audit' => false,
             'jenisBerkas' => false,
             'storagePolicy' => false,
             'storagePolicyUpdate' => false,
@@ -119,7 +121,7 @@ class HandleInertiaRequests extends Middleware
         // Policy tetap memakai Policy masing-masing.
         $izin = app(PermissionResolver::class)->decideMany($user, [
             'kegiatan:read', 'dashboard:read', 'pengukuran:read', 'pengukuran:verifikasi', 'pengukuran:sahkan', 'pengukuran:kembalikan',
-            'pengguna:read', 'akses:update', 'unit:read', 'delegasi:update',
+            'pengguna:read', 'akses:update', 'unit:read', 'delegasi:update', 'audit:read',
             'regulasi:read', 'regulasi:create', 'regulasi:update', 'regulasi:delete',
             'renstra:read', 'renstra:create', 'renstra:update', 'renstra:delete',
             'berkas:delete', 'pengaturan:update', 'jenis_berkas:read', 'indikator:read',
@@ -159,6 +161,7 @@ class HandleInertiaRequests extends Middleware
             'berkas:delete' => $boleh('berkas:delete'),
             'pengaturan' => $pengaturanUpdate,
             'pengaturan:update' => $pengaturanUpdate,
+            'audit' => $boleh('audit:read'),
             'jenisBerkas' => $jenisBerkasRead,
             'storagePolicy' => $pengaturanUpdate || $jenisBerkasRead,
             'storagePolicyUpdate' => $pengaturanUpdate,
