@@ -1641,6 +1641,26 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
+# Keputusan Q58 — Penyamaran Kunci Rahasia pada Penulisan Jejak Audit
+
+**Keputusan PM, 17 Oktober 2026**, untuk [Issue #122](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/122) (tindak lanjut review PR #119, ISS-13.03). Nomor Q57 yang semula dirujuk #122 telah dipakai oleh Keputusan Q57, sehingga keputusan ini bernomor Q58.
+
+## 58.1 Aturan
+
+1. `WriteAuditLog` menyamarkan nilai di bawah kunci yang cocok pola rahasia (token, password, secret, authorization, credential, api/access/private key, `path`) dengan penanda tersamar **sebelum** disimpan ke `nilai_lama`, `nilai_baru`, dan `dasar_izin`. Mutasi domain pemanggil tetap berjalan; penyamaran tidak pernah menggagalkan transaksi.
+2. Pola kunci rahasia memiliki **satu sumber** yang dipakai penulisan (`WriteAuditLog`) dan tampilan (`AuditLogPresenter`); penyamaran tampilan tetap ada sebagai lapisan kedua untuk baris yang tersimpan sebelum keputusan ini.
+3. Kunci yang hanya mirip (mis. `primary_key`, `jalur_pengajuan`) tidak disamarkan; pola dibuktikan test positif dan negatif terhadap nilai yang tersimpan di basis data, bukan hanya terhadap tampilan.
+4. Pemilihan field audit tetap tanggung jawab producer (Engineering Standards §7); penyamaran adalah pengaman terakhir, bukan izin mencatat rahasia.
+5. Baris audit yang sudah tersimpan tidak diubah (append-only).
+
+## 58.2 Dampak dan traceability
+
+- Diselaraskan pada PR implementasi: Data Model §2.32 (`audit_log`), PRD §25, Engineering Standards §7 (kontrak penulisan audit memuat penyamaran kunci rahasia).
+- Issue #122: judul, body, dan AC-1–AC-4 dirujuk ke Q58; alternatif "tolak saat menulis" ditolak karena menggagalkan mutasi pemanggil dan dapat menolak data sah, sedangkan "pertahankan kontrak" membiarkan risiko writer mendatang (mis. kredensial notifikasi US-13.04) menyimpan token permanen di tabel append-only.
+- Status keputusan: baseline kerja PM.
+
+---
+
 # Bukti aritmetika IKU 3
 
 Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `54c9489`, SHA-256 `66840a50d3048e9aa0a1c10c6d7b8158b80b95d006d2df9feefd209fdc09054b`. Workbook/transkrip sudah dihapus PM dari development melalui `17761d8`; keduanya tidak dipulihkan oleh penyelarasan ini.
