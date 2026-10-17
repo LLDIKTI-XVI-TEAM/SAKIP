@@ -5,6 +5,8 @@ export interface RenstraOption {
     tahun_mulai: number;
     tahun_selesai: number;
     is_aktif: boolean;
+    /** Hanya dikirim halaman daftar Sasaran & Indikator; bila absen, target Renstra diperlakukan baca-saja. */
+    status?: 'draft' | 'aktif' | 'nonaktif' | 'diarsipkan';
 }
 
 export interface UnitOption {
@@ -61,6 +63,9 @@ export interface IndikatorKinerjaItem {
     regulasi?: RegulasiOption | null;
     /** PJ efektif hari ini; hanya dikirim kepada pemegang `penanggung_jawab:update`, selain itu null. */
     penanggung_jawab?: { nama: string; status: string } | null;
+    /** Target Renstra per tahun yang sudah punya baris (nilai null = dikosongkan); hanya di halaman daftar. */
+    target_renstra?: { tahun: number; nilai: string | null }[];
+    target_renstra_state?: string;
 }
 
 export interface SasaranStrategisItem {
@@ -87,4 +92,5 @@ export interface SasaranIndikatorCapabilities {
     komponen_create?: boolean;
     komponen_update?: boolean;
     komponen_delete?: boolean;
+    target_update?: boolean;
 }

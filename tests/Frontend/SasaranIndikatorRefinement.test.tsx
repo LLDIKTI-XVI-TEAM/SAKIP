@@ -12,6 +12,7 @@ import type {
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()),
     Head: () => null,
+    usePage: () => ({ props: { pengaturan: {} } }),
 }));
 
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
@@ -114,6 +115,36 @@ it('aksi baseline tetap tersedia untuk pembaca dan membuka tahun mulai indikator
     fireEvent.click(screen.getByRole('menuitem', { name: 'Baseline & target IKU-01' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(fetchMock.mock.calls[0][0]).toBe('/perencanaan/indikator/ind-1/target-tahunan/2027/editor');
+});
+
+it('sakelar tab menampilkan tabel target Renstra', () => {
+    renderIndex();
+    const tabTarget = screen.getByRole('button', { name: 'Target Renstra' });
+    fireEvent.click(tabTarget);
+    expect(tabTarget.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('columnheader', { name: '2026' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Aksi IKU-01' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Indikator' }));
+    expect(screen.getByRole('button', { name: 'Aksi IKU-01' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: '2026' })).toBeNull();
+});
+
+it('mengganti Renstra saat sedang mengubah target tidak mengunci tombol Ubah', () => {
+    // preserveState mempertahankan state halaman saat Renstra diganti; baris edit Renstra lama tidak boleh terbawa.
+    const halaman = (id: string, kode: string) => <Index
+        renstras={[{ id, kode: `REN-${id}`, nama: `Renstra ${id}`, tahun_mulai: 2025, tahun_selesai: 2029, is_aktif: false, status: 'draft' }]}
+        selectedRenstraId={id}
+        sasarans={[makeSasaran([makeIndikator({ id: `ind-${id}`, kode })])]}
+        units={[{ id: 'unit-a', nama: 'Unit A' }]}
+        regulasis={[defaultRegulasi]}
+        can={{ ...defaultCan, target_update: true }}
+    />;
+    const { rerender } = render(halaman('ren-a', 'IKU-A'));
+    fireEvent.click(screen.getByRole('button', { name: 'Target Renstra' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ubah target Renstra IKU-A' }));
+    rerender(halaman('ren-b', 'IKU-B'));
+    expect(screen.getByRole('button', { name: 'Ubah target Renstra IKU-B' })).toBeTruthy();
 });
 
 it('aksi baseline tidak tersedia tanpa izin membaca indikator', () => {

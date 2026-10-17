@@ -27,10 +27,10 @@ class TargetTahunanDecimal
     }
 
     /** Hanya target baru/berubah mengikuti presisi indikator; tidak membulatkan nilai historis. */
-    public static function assertPrecision(?string $value, int $precision): void
+    public static function assertPrecision(?string $value, int $precision, string $field = 'target_tahunan'): void
     {
         if ($value !== null && strlen(explode('.', $value, 2)[1] ?? '') > $precision) {
-            throw ValidationException::withMessages(['target_tahunan' => "Target maksimal {$precision} angka desimal bermakna."]);
+            throw ValidationException::withMessages([$field => "Target maksimal {$precision} angka desimal bermakna."]);
         }
     }
 }

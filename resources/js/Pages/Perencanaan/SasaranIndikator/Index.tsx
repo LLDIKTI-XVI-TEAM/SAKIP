@@ -36,6 +36,7 @@ import { FormulaModal } from './FormulaModal';
 import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
 import { TargetModal } from '@/Pages/TargetTahunan/TargetModal';
+import { TargetRenstraTable } from './TargetRenstraTable';
 import type {
     IndikatorKinerjaItem,
     IndikatorTipePerhitungan,
@@ -83,6 +84,7 @@ export default function SasaranIndikatorIndex({
     const [formulaTarget, setFormulaTarget] = useState<DefinitionEditor | null>(null);
     const [annualTarget, setAnnualTarget] = useState<{ id: string; year: number } | null>(null);
     const [annualMessage, setAnnualMessage] = useState('');
+    const [tab, setTab] = useState<'indikator' | 'target'>('indikator');
     const editorLoader = useIndikatorEditorLoader();
 
     const toggleCollapse = (id: string) => {
@@ -223,8 +225,18 @@ export default function SasaranIndikatorIndex({
                     </Card>
                 )}
 
+                {selectedRenstra && (
+                    <div className="flex gap-2">
+                        <Button type="button" size="sm" variant={tab === 'indikator' ? 'primary' : 'outline'} aria-pressed={tab === 'indikator'} onClick={() => setTab('indikator')}>Indikator</Button>
+                        <Button type="button" size="sm" variant={tab === 'target' ? 'primary' : 'outline'} aria-pressed={tab === 'target'} onClick={() => setTab('target')}>Target Renstra</Button>
+                    </div>
+                )}
+
                 {/* Sasaran and Indikator Hierarchy List */}
-                {sasarans.map((sasaran) => {
+                {tab === 'target' && selectedRenstra ? (
+                    // key: preserveState saat ganti Renstra tidak boleh membawa baris edit Renstra lama.
+                    <TargetRenstraTable key={selectedRenstra.id} renstra={selectedRenstra} sasarans={sasarans} canEdit={Boolean(can.indikator_read && can.target_update)} onSaved={setAnnualMessage} />
+                ) : sasarans.map((sasaran) => {
                     const isCollapsed = Boolean(collapsedMap[sasaran.id]);
 
                     return (

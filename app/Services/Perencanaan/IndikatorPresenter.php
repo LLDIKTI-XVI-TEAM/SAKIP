@@ -40,6 +40,7 @@ class IndikatorPresenter
             'komponen_create' => $this->resolver->resolve($user, 'komponen:create')->allowed,
             'komponen_update' => $this->resolver->resolve($user, 'komponen:update')->allowed,
             'komponen_delete' => $this->resolver->resolve($user, 'komponen:delete')->allowed,
+            'target_update' => $this->resolver->resolve($user, PermissionCodes::TARGET_UPDATE)->allowed,
         ];
     }
 
