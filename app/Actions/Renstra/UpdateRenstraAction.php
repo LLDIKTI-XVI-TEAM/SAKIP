@@ -124,12 +124,6 @@ class UpdateRenstraAction
                         'pesan' => 'Renstra yang telah diarsipkan bersifat permanen dan tidak dapat diubah.',
                         'alasan_penolakan' => 'status_diarsipkan',
                     ];
-                } elseif (! empty($data['lampiran']) && $renstraTerkini->status !== Renstra::STATUS_DRAFT) {
-                    $penolakan = [
-                        'field' => 'lampiran',
-                        'pesan' => 'Lampiran baru hanya dapat ditambahkan pada Renstra berstatus draft.',
-                        'alasan_penolakan' => 'renstra_bukan_draft_lampiran_imutabel',
-                    ];
                 } elseif ($renstraTerkini->status === Renstra::STATUS_AKTIF && (! is_string($dasarHukum) || trim($dasarHukum) === '')) {
                     $penolakan = [
                         'field' => 'dasar_hukum',
@@ -198,6 +192,14 @@ class UpdateRenstraAction
                         // EXISTS tanpa lock anak menjaga urutan writer target indikator → sasaran → shared Renstra.
                         // Baris yang dikosongkan tetap histori; nilainya bukan syarat guard rentang.
                         $penolakan = ['field' => 'tahun_mulai', 'pesan' => 'Rentang tahun harus tetap mencakup seluruh tahun target yang sudah ada.', 'alasan_penolakan' => 'tahun_target_di_luar_rentang'];
+                    } elseif (($tahunMulai !== $renstraTerkini->tahun_mulai || $tahunSelesai !== $renstraTerkini->tahun_selesai)
+                        && DB::table('target_renstra as target')
+                            ->join('indikator_kinerjas as indikator', 'indikator.id', '=', 'target.indikator_id')
+                            ->join('sasaran_strategis as sasaran', 'sasaran.id', '=', 'indikator.sasaran_strategis_id')
+                            ->where('sasaran.renstra_id', $renstraTerkini->id)
+                            ->where(fn ($query) => $query->where('target.tahun', '<', $tahunMulai)->orWhere('target.tahun', '>', $tahunSelesai))->exists()) {
+                        // Sama dengan guard target PK: tanpa lock anak, dan baris target Renstra yang dikosongkan tetap dihitung.
+                        $penolakan = ['field' => 'tahun_mulai', 'pesan' => 'Rentang tahun harus tetap mencakup seluruh tahun target Renstra yang sudah ada.', 'alasan_penolakan' => 'tahun_target_renstra_di_luar_rentang'];
                     } elseif ($tahunSelesai !== $renstraTerkini->tahun_selesai
                         && DB::table('indikator_kinerjas as indikator')
                             ->join('sasaran_strategis as sasaran', 'sasaran.id', '=', 'indikator.sasaran_strategis_id')

@@ -608,12 +608,12 @@ test('Pembaruan Renstra aktif tidak boleh mengosongkan dasar hukum', function ()
     ]);
 });
 
-test('Lampiran baru hanya dapat ditambahkan pada Renstra draft', function (): void {
-    foreach ([Renstra::STATUS_AKTIF, Renstra::STATUS_NONAKTIF] as $status) {
+test('Lampiran baru ditolak pada Renstra nonaktif dan diarsipkan', function (): void {
+    foreach ([Renstra::STATUS_NONAKTIF, Renstra::STATUS_DIARSIPKAN] as $status) {
         $renstra = buatRenstra($this->perencanaan, [
             'kode' => "RENSTRA-TAMBAH-LAMPIRAN-{$status}",
             'status' => $status,
-            'is_aktif' => $status === Renstra::STATUS_AKTIF,
+            'is_aktif' => false,
         ]);
 
         $this->actingAs($this->perencanaan)
@@ -629,21 +629,43 @@ test('Lampiran baru hanya dapat ditambahkan pada Renstra draft', function (): vo
                 'alasan' => 'Mencoba menambah lampiran setelah status draft.',
                 'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran baru yang harus ditolak.']],
             ])
-            ->assertSessionHasErrors($status === Renstra::STATUS_NONAKTIF ? ['renstra'] : ['lampiran']);
+            ->assertSessionHasErrors(['renstra']);
 
         expect($renstra->berkas()->exists())->toBeFalse();
         $this->assertDatabaseHas('audit_log', [
             'objek_id' => $renstra->id,
             'tindakan' => 'renstra.ubah_ditolak',
         ]);
-        $response = $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}/edit");
-        if ($status === Renstra::STATUS_NONAKTIF) {
-            $response->assertForbidden();
-        } else {
-            $response->assertInertia(fn (Assert $page) => $page
-                ->component('Renstra/Edit')->where('can.uploadAttachment', false));
-        }
+        $this->actingAs($this->perencanaan)->get("/renstra/{$renstra->id}/edit")->assertForbidden();
     }
+});
+
+test('Lampiran revisi diterima pada Renstra draft dan aktif', function (): void {
+    $aktif = buatRenstra($this->perencanaan, [
+        'kode' => 'RENSTRA-TAMBAH-LAMPIRAN-AKTIF',
+        'status' => Renstra::STATUS_AKTIF,
+        'is_aktif' => true,
+    ]);
+    $payload = fn (Renstra $renstra): array => [
+        'expected_state' => $renstra->fresh()->stateToken(),
+        'nomor_kebijakan' => '123/M/2026',
+        'tanggal_kebijakan' => '2026-09-20',
+        'nama' => $renstra->nama,
+        'tahun_mulai' => $renstra->tahun_mulai,
+        'tahun_selesai' => $renstra->tahun_selesai,
+        'dasar_hukum' => $renstra->dasar_hukum,
+        'alasan' => 'Menambah lampiran revisi Kepmen.',
+        'lampiran' => [['mode' => 'teks', 'isi_teks' => 'Lampiran revisi pada Renstra aktif.']],
+    ];
+
+    // Pengguna tanpa renstra:update tidak dapat menambah lampiran revisi.
+    $this->actingAs($this->pembaca)->put("/renstra/{$aktif->id}", $payload($aktif))->assertForbidden();
+    expect($aktif->berkas()->count())->toBe(0);
+
+    $this->actingAs($this->perencanaan)->put("/renstra/{$aktif->id}", $payload($aktif))->assertRedirect(route('renstra.show', $aktif->id));
+    expect($aktif->berkas()->count())->toBe(1);
+    $this->actingAs($this->perencanaan)->get("/renstra/{$aktif->id}/edit")
+        ->assertInertia(fn (Assert $page) => $page->component('Renstra/Edit')->where('can.uploadAttachment', true));
 
     $draft = buatRenstra($this->perencanaan, ['kode' => 'RENSTRA-TAMBAH-LAMPIRAN-DRAFT']);
     $this->actingAs($this->perencanaan)->put("/renstra/{$draft->id}", [
