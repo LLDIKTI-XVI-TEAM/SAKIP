@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Models\AuditLog;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\Periode;
@@ -14,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
 
@@ -193,6 +195,88 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         $this->actingAs($fixture['perencanaan'])->post("/kegiatan/{$kegiatan->id}/klaim", ['rencana_aksi_id' => $header->id, 'arah_dampak' => 'menambah'])
             ->assertSessionHasErrors('rencana_aksi_id');
         $this->assertSame(0, KlaimKegiatan::where('rencana_aksi_id', $header->id)->count());
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function atributRencanaKegiatan(): array
+    {
+        return ['nama' => ['nama', 'Nama rencana diperbarui'], 'tujuan' => ['tujuan', 'Tujuan rencana diperbarui']];
+    }
+
+    #[DataProvider('atributRencanaKegiatan')]
+    public function test_perubahan_atribut_rencana_kegiatan_menjaga_periode_terkunci(string $field, string $nilai): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        $klaim = $this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Kegiatan awal');
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasNoErrors();
+        DB::table('rencana_aksi_versi')->where('rencana_aksi_id', $header->id)->update(['disahkan_by' => $fixture['perencanaan']->id, 'disahkan_at' => now()]);
+        $header->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
+        $this->travelTo(now()->setDate(2026, 4, 5)->setTime(9, 0));
+        $this->grant($fixture['pic'], 'kegiatan:update', $fixture['unit']->id, $fixture['perencanaan']);
+        $kegiatan = Kegiatan::findOrFail($klaim->kegiatan_id);
+
+        $this->actingAs($fixture['pic'])->post("/kegiatan/{$kegiatan->id}", [
+            ...$kegiatan->rencanaAttributes(), 'expected_state' => $kegiatan->versionToken(), $field => $nilai,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame($nilai, $kegiatan->fresh()->getAttribute($field));
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasErrors('jendela');
+        $this->assertDatabaseCount('rencana_aksi_versi', 1);
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.can.submit', false));
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->where('objek_id', $header->id)->count());
+
+        $this->ajukan($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
+        $this->assertSame($nilai, RencanaAksiVersi::orderByDesc('nomor')->firstOrFail()->snapshot['klaim'][0]['kegiatan'][$field]);
+    }
+
+    public function test_status_pelaksanaan_saja_tidak_mengubah_delta_rencana_periode_terkunci(): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        $klaim = $this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Kegiatan awal');
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasNoErrors();
+        DB::table('rencana_aksi_versi')->where('rencana_aksi_id', $header->id)->update(['disahkan_by' => $fixture['perencanaan']->id, 'disahkan_at' => now()]);
+        $header->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
+        $this->travelTo(now()->setDate(2026, 4, 5)->setTime(9, 0));
+        Kegiatan::findOrFail($klaim->kegiatan_id)->update(['status' => 'batal', 'justifikasi' => 'Kendala pelaksanaan']);
+
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasNoErrors();
+        $this->assertSame('batal', RencanaAksiVersi::orderByDesc('nomor')->firstOrFail()->snapshot['klaim'][0]['kegiatan']['status']);
+        $this->assertSame('rencana', RencanaAksiVersi::orderBy('nomor')->firstOrFail()->snapshot['klaim'][0]['kegiatan']['status']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function mutasiDaftarKlaim(): array
+    {
+        return ['tambah klaim' => ['tambah'], 'hapus klaim' => ['hapus'], 'tambah dan salin kegiatan dari RA' => ['kegiatan']];
+    }
+
+    #[DataProvider('mutasiDaftarKlaim')]
+    public function test_mutasi_daftar_klaim_menolak_pengajuan_dengan_versi_lama(string $mutasi): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        $klaim = $this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Kegiatan awal');
+        $this->klaimKegiatan($fixture, $header, $fixture['periode2']->id, 'Kegiatan lain');
+        $versiLama = $header->fresh()->versi;
+        $aktorLain = $this->actingAs($fixture['perencanaan']);
+        if ($mutasi === 'tambah') {
+            $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $fixture['periode1']->id,
+                'nama' => 'Kegiatan baru', 'created_by' => $fixture['perencanaan']->id]);
+            $aktorLain->post("/kegiatan/{$kegiatan->id}/klaim", ['rencana_aksi_id' => $header->id, 'arah_dampak' => 'menambah'])->assertSessionHasNoErrors();
+        } elseif ($mutasi === 'hapus') {
+            $aktorLain->delete("/kegiatan/{$klaim->kegiatan_id}/klaim/{$klaim->id}", ['alasan' => 'Klaim keliru'])->assertSessionHasNoErrors();
+        } else {
+            $aktorLain->post("/rencana-aksi/{$header->id}/kegiatan", ['periode_id' => $fixture['periode1']->id,
+                'salin_ke_periode_ids' => [$fixture['periode2']->id], 'nama' => 'Kegiatan dari RA', 'arah_dampak' => 'menambah'])->assertSessionHasNoErrors();
+        }
+
+        $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $versiLama])
+            ->assertConflict()->assertJsonValidationErrors('expected_versi');
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
+        $this->assertSame($versiLama + 1, $header->fresh()->versi);
+        $this->assertSame(RencanaAksi::STATUS_DRAFT, $header->fresh()->status_alur);
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->where('objek_id', $header->id)->count());
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('rencana_aksi_versi', 1);
     }
 
     /**

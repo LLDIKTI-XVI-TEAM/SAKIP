@@ -138,10 +138,16 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                 <ul className="mt-2 divide-y divide-border">
                                     {daftar.map((row) => {
                                         const status = statusKegiatanConfig[row.status] ?? { label: row.status, variant: 'muted' as const };
+                                        const komponenKlaim = komponen.find((item) => item.komponen_id === row.komponen_id);
 
                                         return (
-                                            <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                                                <span className="min-w-0 break-words text-sm text-ink">{row.nama}</span>
+                                            <li key={row.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                                                <div className="min-w-0 space-y-1">
+                                                    <p className="break-words text-sm text-ink">{row.nama}</p>
+                                                    <p className="text-xs text-muted">{komponenKlaim ? `${komponenKlaim.kode} — ${komponenKlaim.label}` : row.komponen_id === null ? 'Tanpa komponen tertentu' : 'Komponen tidak tersedia pada snapshot'}</p>
+                                                    <Badge variant={row.arah_dampak === 'menambah' ? 'success' : 'warning'}>{row.arah_dampak === 'menambah' ? 'Menambah' : 'Mengurangi'}</Badge>
+                                                    {row.catatan && <p className="break-words text-xs text-muted">{row.catatan}</p>}
+                                                </div>
                                                 <span className="flex items-center gap-2">
                                                     <Badge variant={status.variant}>{status.label}</Badge>
                                                     {kegiatan.can.kelola && (

@@ -66,6 +66,8 @@ class TambahKlaimKegiatan
                     throw ValidationException::withMessages(['komponen_id' => 'Kegiatan ini sudah diklaim ke rencana aksi dan komponen yang sama.']);
                 }
 
+                $konteks['header']->increment('versi');
+
                 $this->audit->catat(
                     actor: $konteks['pengunci'],
                     tindakan: 'klaim_kegiatan.tambah',

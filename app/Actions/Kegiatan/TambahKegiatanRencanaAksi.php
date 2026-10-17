@@ -74,6 +74,8 @@ class TambahKegiatanRencanaAksi
                     $dibuat[] = $kegiatan;
                 }
 
+                $header->increment('versi');
+
                 return $dibuat;
             });
         } catch (Throwable $exception) {

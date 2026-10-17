@@ -94,3 +94,32 @@ it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke pe
     expect(url).toBe('/rencana-aksi/ra-1/kegiatan');
     expect(data).toMatchObject({ periode_id: 'tw2', salin_ke_periode_ids: ['tw3'], nama: 'Bimtek', sasaran_peserta: null });
 });
+
+it('pembaca RA melihat komponen snapshot, arah dampak, dan catatan tanpa akses kelola', () => {
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I')]}
+        komponen={[{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }]}
+        terkunci={['tw1']} kegiatan={{ daftar: [
+            { id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: 'komp-1', arah_dampak: 'mengurangi', catatan: 'Mengurangi kendala pelaksanaan' },
+        ], can: { tambah: false, kelola: false } }} />);
+
+    const row = within(screen.getByRole('listitem'));
+    expect(row.getByText('Bimtek')).toBeTruthy();
+    expect(row.getByText('P — Pembilang')).toBeTruthy();
+    expect(row.getByText('Mengurangi')).toBeTruthy();
+    expect(row.getByText('Mengurangi kendala pelaksanaan')).toBeTruthy();
+    expect(row.queryByRole('link', { name: 'Kelola klaim' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Tambah kegiatan/ })).toBeNull();
+});
+
+it.each([
+    [null, 'Tanpa komponen tertentu'],
+    ['komponen-lama', 'Komponen tidak tersedia pada snapshot'],
+])('menjelaskan komponen %s tanpa menghilangkan klaim', (komponenId, label) => {
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
+        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: komponenId, arah_dampak: 'menambah', catatan: null }],
+            can: { tambah: false, kelola: false } }} />);
+
+    const row = within(screen.getByRole('listitem'));
+    expect(row.getByText(label)).toBeTruthy();
+    expect(row.getByText('Menambah')).toBeTruthy();
+});

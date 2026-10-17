@@ -70,8 +70,11 @@ class KlaimKegiatanTest extends TestCase
     public function test_klaim_identik_ditolak_termasuk_tanpa_komponen(): void
     {
         $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        $versi = $this->rencanaAksi->fresh()->versi;
         $this->post($this->url(), $this->payload(['arah_dampak' => 'mengurangi']))->assertSessionHasErrors('komponen_id');
+        $this->assertSame($versi, $this->rencanaAksi->fresh()->versi);
         $this->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertSessionHasNoErrors();
+        $this->assertSame($versi + 1, $this->rencanaAksi->fresh()->versi);
 
         $this->assertDatabaseCount('klaim_kegiatan', 2);
     }

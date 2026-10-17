@@ -1097,6 +1097,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Status implementasi (2026-10-15):** Diterapkan pada branch `feature/iss-06-02-klaim-kegiatan` (PR #111). Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT. Asumsi kerja berikut **disetujui PM** pada 16 Oktober 2026 ([review PM PR #111](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/111#issuecomment-6198491258)): (1) tambah/hapus klaim hanya saat RA `draft`/`dikembalikan`, penyelarasan PRD §16.5 dengan Q24/Q26; (2) hapus klaim oleh pembuat klaim atau Perencanaan sesuai PRD §16.5; (3) RA data awal 2026 dikenali dari pengajuan lewat jalur Perencanaan tanpa kolom penanda. Input anggaran belum tersedia (ISS-06.08), sehingga salinan kegiatan membawa anggaran kosong; AC-8 belum dicentang sampai salin dan ubah anggaran per kegiatan tersedia. Smoke browser desktop/mobile belum dilengkapi; item responsivitas, checklist UI, dan traceability belum dicentang.
 
+Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tujuan rencana kegiatan yang dibekukan terhadap versi sah untuk menjaga periode terkunci; perubahan status pelaksanaan saja tidak dianggap perubahan rencana. Tambah/hapus klaim tahap RA dan tambah/salin kegiatan dari RA menaikkan versi header sekali per transaksi berhasil, sehingga pengajuan memakai versi lama ditolak 409. Panel RA menampilkan komponen snapshot, arah dampak, dan catatan klaim bagi pembaca berizin. Perbaikan ini tidak mencentang penerimaan UI/UAT atau AC-8 yang masih tertunda.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-06.02` |

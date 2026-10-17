@@ -47,6 +47,7 @@ class HapusKlaimKegiatan
 
                 $sebelum = TambahKlaimKegiatan::atributAudit($klaim);
                 $klaim->delete();
+                $konteks['header']->increment('versi');
                 $this->audit->catat(
                     actor: $konteks['pengunci'],
                     tindakan: 'klaim_kegiatan.hapus',
