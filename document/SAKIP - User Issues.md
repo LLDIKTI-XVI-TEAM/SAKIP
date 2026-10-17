@@ -8,6 +8,8 @@
 
 **Pembaruan 13 Oktober 2026 (Q38–Q51):** onboarding SSO langsung aktif tanpa peran (Q38, ISS-01.08), keputusan rapat asistensi Q39–Q46, dan analisis dokumen resmi 2026 Q47–Q51 diselaraskan. Issue baru: ISS-02.10, ISS-02.11, ISS-02.12, ISS-05.07, ISS-06.08, ISS-10.05, ISS-13.05, dan ISS-13.06; ISS-11.06 dibatalkan Q44 dan ISS-13.02 digantikan ISS-13.06. Issue yang sudah diimplementasikan diberi catatan Q tanpa menulis ulang AC; issue yang belum dikerjakan diperbarui langsung dengan rujukan Q. Q38–Q51 adalah keputusan requirement, bukan bukti implementasi.
 
+**Pembaruan 14–17 Oktober 2026 (Q52–Q58):** penutupan resmi jadwal wajib alasan (Q52, ISS-14.01), penolakan penurunan superadmin aktif terakhir (Q53, ISS-01.08), unit berizin untuk detail Rencana Aksi dan Kegiatan (Q54, ISS-06.01), draf/token/pembekuan Rekomendasi Pimpinan (Q55, ISS-09.01), Admin memegang `audit:read` (Q56, ISS-13.03), jendela reviu dalam revisi resmi jendela PIC (Q57, ISS-03.06), dan penyamaran kunci rahasia pada penulisan audit (Q58, Issue #122). Keputusan ini dibawa PR issue masing-masing; tidak ada issue baru. Tenggat WA/email pada Q4 digantikan Q46 §46.3: ISS-12.01–ISS-12.07 dan ISS-13.04 mengikuti rencana sprint setelah Tahap 2.
+
 ## 1. Tujuan
 
 Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang executable**. Setiap issue mempertahankan kontrak bisnis User Story namun menambahkan pekerjaan teknis yang perlu diselesaikan pada persistence, backend/domain, authorization/audit, frontend, testing, dan operasi/integrasi bila relevan.
@@ -43,6 +45,8 @@ Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang ex
 ## 4. Format Issue
 
 Setiap issue memuat: **Terkait User Story, Prioritas/Story Point, Traceability, Labels, Scope, Acceptance Criteria, Implementation Tasks, Automated Tests/UAT, dan Definition of Done**. Nomor `ISS-XX.YY` selalu mengikuti `US-XX.YY`.
+
+Centang `[x]` pada Acceptance Criteria dan Automated Tests adalah **bukti implementasi dan test yang ditambahkan oleh PR yang bersangkutan**, bukan status rencana, sehingga jumlah centang tidak dapat dipakai menghitung sisa pekerjaan. Per 17 Oktober 2026, sebelas issue berikut sudah merged tetapi belum memperoleh centang: ISS-01.01, ISS-01.03, ISS-01.04, ISS-01.06, ISS-01.07, ISS-02.02, ISS-02.03, ISS-02.04, ISS-02.08, ISS-03.01 (sebagian), dan ISS-04.01; statusnya mengikuti issue dan PR GitHub masing-masing sampai dicentang lewat PR dokumen yang menyebut nama test bukti. ISS yang kodenya sudah ada di `development` tanpa issue GitHub (ISS-02.05, ISS-07.02, ISS-11.02–ISS-11.05) ditangani issue traceability tersendiri.
 
 ### 4.1 Kontrak Penyelarasan Q32 untuk Development Issue
 
@@ -80,13 +84,15 @@ Urutan pengerjaan (Q46 §46.3, diperbarui Q51):
 
 | Tahap | Batas | Issue |
 |---|---|---|
-| 1 | Sebelum integrasi 9 November 2026 | ISS-01.08 (berjalan), ISS-02.10, ISS-02.11, ISS-05.06 (berjalan), ISS-05.07, ISS-06.01 (PR #97 + Q49), ISS-06.02, ISS-06.08, ISS-13.05, ISS-13.06, pengecualian periode lampau (Q46 §46.1; termasuk ISS-03.05); di akhir tahap ISS-15.01 |
+| 1 | Sebelum integrasi 9 November 2026 | ISS-01.08, ISS-02.10, ISS-02.11, ISS-05.06, ISS-05.07, ISS-06.01, ISS-06.02, ISS-06.08, ISS-13.05, ISS-13.06, pengecualian periode lampau (Q46 §46.1; termasuk ISS-03.05); di akhir tahap ISS-15.01 |
 | 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | ISS-06.03, ISS-06.04, ISS-06.05, ISS-07.01, ISS-07.03, ISS-07.06, ISS-08.01, ISS-08.02, ISS-09.01, ISS-10.01, ISS-10.02, ISS-10.05, ISS-14.01 |
 | 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12, simulasi target, tampilan daftar berkas terunggah, versi penuh Renstra, ISS-13.03 |
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 
-Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q51) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
+Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111), ISS-07.03 (PR #105); issue Tahap 1 lainnya belum dimulai.
+
+Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q58) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
 
 ## Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC
 
