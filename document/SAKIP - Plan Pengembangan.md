@@ -396,6 +396,8 @@ Setiap task memiliki tiga bagian wajib:
 
 > **Q48 (13 Oktober 2026):** penutupan jadwal hanya menghentikan mutasi data kinerja. Unggahan arsip PDF bertanda tangan Rencana Aksi tahunan dan Laporan Kinerja Triwulan tetap dapat dilakukan pada jadwal `ditutup` karena tidak mengubah data, status, maupun snapshot (Q48 §48.2 butir 5, 8.5).
 
+> **Q52 (14 Oktober 2026):** penutupan jadwal (`jadwal:tutup`) juga wajib alasan pengguna; alasan divalidasi dan disanitasi server, lalu dicatat di `audit_log` bersama `dasar_izin` (Q52 §52.1 butir 1; ISS-14.01, PR #109). Daftar Rencana Aksi dan Pengukuran tahun yang ditutup tetap terbaca baca-saja (ISS-14.01 AC-6; PR #117). Buka kembali dan sesi koreksi tetap mengikuti ISS-14.02.
+
 - **Scope:** Transisi status `aktif → ditutup` (mengisi `closed_at`) dan `ditutup → aktif` (`jadwal:buka_kembali`, alasan wajib, memicu ulang trigger idempoten 3.7); permission `jadwal:tutup`, `jadwal:buka_kembali`. Dokumentasikan dalam kode/komentar bahwa buka_kembali adalah jalur standar untuk koreksi pasca-penutupan maupun penambahan indikator baru di tengah tahun — bukan jalur darurat semata.
 - **Dependency:** 3.5, 3.7.
 - **DoD:** Test Pest memverifikasi transisi status dan pengisian/reset `closed_at` sesuai arah transisi; percobaan `jadwal:buka_kembali` tanpa alasan ditolak; setiap transisi tercatat audit_log; setelah buka_kembali, indikator baru yang ditambahkan sejak jadwal ditutup mendapat baris snapshot baru (menguji integrasi dengan 3.7) tanpa mengubah baris snapshot lama.
