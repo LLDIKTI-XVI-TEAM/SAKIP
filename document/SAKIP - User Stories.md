@@ -758,6 +758,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 > **Q41 (13 Oktober 2026):** jendela penyusunan RA tidak ada lagi; revisi jendela PIC pada story ini berlaku untuk jendela pengisian pengukuran, dan Q18 tetap berlaku untuk jendela tersebut (Q41 §41.1 butir 3). Kunci RA per periode bagi PIC mengikuti `pengisian_selesai` yang berlaku, sehingga perpanjangan resmi jendela pengisian periode P ikut menggeser kunci RA periode P (Q41 §41.2 butir 5; US-05.07). AC-6 ditambahkan karena story ini belum dikerjakan.
 
+> **Q57 (17 Oktober 2026):** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama; audit menyimpan seluruh jendela sebelum dan sesudah revisi, dan penanda reviu terlambat yang sudah tercatat tetap beku.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-03.06` |

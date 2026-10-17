@@ -1780,6 +1780,8 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 
 > **Q41 (13 Oktober 2026):** jendela penyusunan Rencana Aksi tidak ada lagi; revisi jendela PIC pada issue ini berlaku untuk jendela pengisian pengukuran, dan Q18 tetap berlaku untuk jendela tersebut (Q41 §41.1 butir 3). "Jendela" pada AC-2 dibaca sebagai jendela pengisian; Rencana Aksi mengikuti kunci per periode bagi PIC (ISS-05.07). Kunci RA per periode mengikuti `pengisian_selesai` yang berlaku, sehingga perpanjangan resmi jendela pengisian periode P ikut menggeser kunci RA periode P (Q41 §41.2 butir 5). Alasan revisi jendela tetap wajib karena tidak termasuk daftar alasan opsional Q43 §43.3. AC-6 ditambahkan karena issue ini belum dikerjakan.
 
+> **Q57 (17 Oktober 2026):** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama karena urutan `pengisian_selesai ≤ reviu_mulai ≤ reviu_selesai`; audit menyimpan seluruh jendela sebelum dan sesudah revisi, penanda `reviu_terlambat` yang sudah tercatat tetap beku, dan reviu sesudahnya mengikuti jendela reviu yang berlaku.
+
 **Terkait User Story:** `US-03.06`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
