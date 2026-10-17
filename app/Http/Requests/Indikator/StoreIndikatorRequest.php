@@ -47,6 +47,7 @@ class StoreIndikatorRequest extends FormRequest
             'presisi' => ['nullable', 'integer', 'between:0,4'],
             'desimal_tampilan' => ['nullable', 'integer', 'between:0,4'],
             'wajib_catatan' => ['nullable', 'boolean'],
+            'dinilai_tahunan' => ['sometimes', 'boolean'],
             'regulasi_id' => ['nullable', 'uuid', Rule::exists('regulasi', 'id')->where('aktif', true)],
         ]);
     }

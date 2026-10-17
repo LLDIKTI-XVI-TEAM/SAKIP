@@ -121,7 +121,7 @@ class IndexRencanaAksi
             // Dihitung dari peta yang sudah disaring agar sel basi tidak
             // dihitung lengkap. Bukti current dibaca lagi oleh
             // `IndexBuktiRencanaAksi` untuk panel (terbatas).
-            $barisBeku = $this->kesiapan->barisPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris);
+            $barisBeku = $this->kesiapan->barisPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris, $snapshot->setRelation('jadwal', $jadwal));
             $deviasiBeku = $this->kesiapan->deviasi($barisBeku, $snapshot);
             $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $segel->buktiDukungs()->current()->get(['id', 'jenis_berkas_id', 'mode']));
             $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan);

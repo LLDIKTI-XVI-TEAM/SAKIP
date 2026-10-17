@@ -74,10 +74,8 @@ class AjukanRencanaAksi
      * menilai periode yang berubah dari target dan klaim tahap RA terhadap versi
      * sah, selain pemeriksaan periode kegiatan oleh writer klaim saat mutasi.
      *
-     * Keterbatasan lintas modul yang sudah ada: `SubmitPengukuran` mengunci
-     * indikator lalu `rencana_aksi`, berlawanan dengan writer RA (header lalu
-     * indikator); race RA dan Pengukuran pada indikator yang sama dapat
-     * berakhir deadlock 40P01.
+     * Pengajuan Pengukuran juga mengunci header RA sebelum indikator agar
+     * tidak membentuk siklus kunci dengan writer/reviewer RA.
      *
      * @param  array<string, mixed>  $data  Hanya `expected_versi`.
      */
@@ -161,6 +159,7 @@ class AjukanRencanaAksi
                     $jendela,
                     $periodeEfektif,
                     $this->kesiapan->petaTarget($targets),
+                    $snapshot->setRelation('jadwal', $jadwal),
                 );
                 // Kunci berbasis perubahan nilai: periode yang dinilai
                 // terhadap lingkup koreksi maupun kunci tanggal adalah

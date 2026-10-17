@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\KinerjaSnapshot;
+use App\Models\PengukuranKinerja;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Policies\PengukuranKinerjaPolicy;
@@ -12,6 +13,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PengukuranWorkflowTest extends TestCase
@@ -90,25 +92,148 @@ class PengukuranWorkflowTest extends TestCase
         $this->assertSame('draft', $this->pengukuran->fresh()->status_alur);
     }
 
-    public function test_pengajuan_belum_dapat_diukur_ditolak_sementara_tanpa_versi_dan_presenter_menutup_ajukan(): void
+    public function test_submit_capability_does_not_block_incomplete_saved_draft(): void
     {
-        $url = '/pengukuran/'.$this->pengukuran->id;
-        $message = 'Pengajuan belum tersedia untuk status Belum dapat diukur. Simpan sebagai draft.';
-        $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft', 'nilai' => 60])->assertSessionHasNoErrors();
+        $this->actingAs($this->actor)->get('/pengukuran/'.$this->pengukuran->id.'/edit')
+            ->assertOk()->assertInertia(fn ($page) => $page
+            ->where('pengukuran.prasyarat.siap', false)
+            ->where('pengukuran.can.submit', true));
+    }
 
-        $this->post($url, ['versi' => 2, 'action' => 'ajukan', 'status_perhitungan' => 'belum_dapat_diukur'])->assertSessionHasErrors(['pengajuan' => $message]);
+    public function test_failed_submission_returns_all_attempt_reasons_separately_from_saved_draft(): void
+    {
+        $this->pengukuran->update(['nilai' => 75, 'status_perhitungan' => 'terhitung']);
+        $this->plan->update(['status_alur' => 'draft']);
+        $url = '/pengukuran/'.$this->pengukuran->id.'/edit';
+        $reasons = ['Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.', 'Nilai manual atau seluruh komponen snapshot wajib diisi.'];
 
+        $this->actingAs($this->actor)->from($url)->post('/pengukuran/'.$this->pengukuran->id,
+            ['versi' => 1, 'action' => 'ajukan', 'nilai' => null])
+            ->assertRedirect($url)->assertSessionHasErrors('pengajuan')
+            ->assertSessionHas('hasil_pengajuan_terakhir.alasan', $reasons);
+
+        $this->get($url)->assertInertia(fn ($page) => $page
+            ->where('hasil_pengajuan_terakhir.alasan', $reasons)
+            ->where('pengukuran.prasyarat.alasan', [$reasons[0]])
+            ->where('pengukuran.nilai', '75.000000000000')
+            ->where('pengukuran.selisih_target_pk', '5.000000000000'));
+        $this->assertSame(1, $this->pengukuran->fresh()->versi);
         $this->assertDatabaseCount('pengukuran_versi', 0);
-        $draft = $this->pengukuran->fresh();
-        $this->assertSame(['draft', 2, 'terhitung', '60.000000000000'], [$draft->status_alur, $draft->versi, $draft->status_perhitungan, $draft->nilai]);
-        $this->assertSame('ajukan', AuditLog::where('tindakan', 'pengukuran.ditolak')->sole()->nilai_baru['tindakan_diminta']);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
 
-        $this->post($url, ['versi' => 2, 'action' => 'draft', 'status_perhitungan' => 'belum_dapat_diukur', 'progres_kegiatan' => 'Belum ada data.'])->assertSessionHasNoErrors();
-        $this->get($url.'/edit')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('pengukuran.status_perhitungan', 'belum_dapat_diukur')->where('pengukuran.can.submit', false)
-            ->where('pengukuran.prasyarat.alasan', fn ($alasan) => collect($alasan)->contains($message))
-            ->where('pengukuran.progres_kegiatan', 'Belum ada data.')->where('pengukuran.kendala_masalah', null)
-            ->where('pengukuran.periode_jadwal.is_nilai_akhir', false)->where('pengukuran.rekomendasi_sebelumnya', null));
+        $this->postJson('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => null])
+            ->assertUnprocessable()->assertJsonPath('errors.pengajuan', $reasons);
+    }
+
+    public function test_submission_feedback_does_not_cross_measurement_or_actor(): void
+    {
+        foreach (['pengukuran_id', 'actor_id'] as $differentKey) {
+            $result = ['pengukuran_id' => $this->pengukuran->id, 'actor_id' => $this->actor->id, 'alasan' => ['Alasan percobaan pada konteks lain.']];
+            $result[$differentKey] = (string) Str::uuid();
+            $this->actingAs($this->actor)->withSession(['hasil_pengajuan_terakhir' => $result])
+                ->get('/pengukuran/'.$this->pengukuran->id.'/edit')
+                ->assertInertia(fn ($page) => $page->where('hasil_pengajuan_terakhir', null));
+        }
+    }
+
+    public function test_submission_without_action_plan_keeps_all_reasons_and_rolls_back(): void
+    {
+        $indicator = $this->pengukuran->indikator->replicate();
+        $indicator->kode = 'I-TANPA-RA';
+        $indicator->save();
+        $context = $this->context->replicate();
+        $context->indikator_id = $indicator->id;
+        $context->save();
+        $measurement = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => 2026,
+            'periode_id' => $this->pengukuran->periode_id, 'jadwal_snapshot_id' => $context->id, 'sumber_nilai' => 'manual',
+            'progres_kegiatan' => 'Progres fixture.', 'kendala_masalah' => 'Kendala fixture.', 'strategi_tindak_lanjut' => 'Strategi fixture.', 'created_by' => $this->actor->id]);
+
+        $this->actingAs($this->actor)->post('/pengukuran/'.$measurement->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => null])
+            ->assertSessionHas('hasil_pengajuan_terakhir.alasan', [
+                'Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.', 'Nilai manual atau seluruh komponen snapshot wajib diisi.',
+            ]);
+        $measurement->refresh();
+        $this->assertSame(['draft', 1, null], [$measurement->status_alur, $measurement->versi, $measurement->nilai]);
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->where('objek_id', $measurement->id)->count());
+    }
+
+    public function test_successful_submission_appears_in_scoped_verification_queue(): void
+    {
+        $reviewer = $this->userWithRole('perencanaan');
+        $this->actingAs($reviewer)->get('/verifikasi')->assertInertia(fn ($page) => $page->has('pengukurans', 0));
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id,
+            ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75])->assertRedirect('/pengukuran');
+        $this->actingAs($reviewer)->get('/verifikasi')->assertInertia(fn ($page) => $page
+            ->has('pengukurans', 1)->where('pengukurans.0.id', $this->pengukuran->id)->where('pengukurans.0.status', 'diajukan'));
+
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $reviewer->id,
+            'permission_id' => Permission::where('kode', 'pengukuran:read')->value('id'), 'unit_id' => $this->unit->id,
+            'alasan' => 'Unit tidak boleh dibaca.', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->get('/verifikasi')->assertInertia(fn ($page) => $page->has('pengukurans', 0));
+    }
+
+    public function test_direct_submission_with_matching_deny_is_rejected_and_audited(): void
+    {
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id,
+            'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'), 'unit_id' => $this->unit->id,
+            'alasan' => 'Pengajuan ditolak.', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id,
+            ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75])->assertForbidden();
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $audit = AuditLog::where('tindakan', 'pengukuran.ditolak')->sole();
+        $this->assertSame('ajukan', $audit->nilai_baru['tindakan_diminta']);
+        $this->assertSame('explicit_deny', $audit->dasar_izin['reason']);
+    }
+
+    public function test_repeated_submission_keeps_one_frozen_version_and_reports_stale_token(): void
+    {
+        $payload = ['versi' => 1, 'action' => 'ajukan', 'nilai' => 75];
+        $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, $payload)->assertRedirect('/pengukuran');
+        $this->post('/pengukuran/'.$this->pengukuran->id, $payload)->assertSessionHasErrors('versi')
+            ->assertSessionHas('hasil_pengajuan_terakhir.alasan', fn ($reasons) => is_array($reasons) && count($reasons) > 1
+                && in_array('Data telah berubah. Muat ulang sebelum mengulangi tindakan.', $reasons, true));
+        $this->assertDatabaseCount('pengukuran_versi', 1);
+        $this->assertSame(2, $this->pengukuran->fresh()->versi);
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
+    }
+
+    #[DataProvider('pengajuanBelumDapatDiukur')]
+    public function test_gerbang_final_belum_dapat_diukur(bool $final, ?string $missing, bool $normal): void
+    {
+        $this->pengukuran->periode->update(['is_nilai_akhir' => $final]);
+        $payload = ['versi' => 1, 'action' => 'ajukan', 'nilai' => $normal ? 0 : null,
+            'status_perhitungan' => $normal ? null : 'belum_dapat_diukur',
+            'progres_kegiatan' => 'Nilai belum tersedia.', 'kendala_masalah' => 'Data masih diproses.',
+            'strategi_tindak_lanjut' => 'Konfirmasi sumber data.', 'catatan' => null];
+        if ($missing !== null) {
+            $payload[$missing] = '   ';
+        }
+        $response = $this->actingAs($this->actor)->postJson('/pengukuran/'.$this->pengukuran->id, $payload);
+        if ($final || $missing !== null) {
+            $response->assertUnprocessable()->assertJsonValidationErrors($final ? 'status_perhitungan' : $missing);
+            $this->assertDatabaseCount('pengukuran_versi', 0);
+            $this->assertSame(['draft', 1, null], [$this->pengukuran->fresh()->status_alur, $this->pengukuran->fresh()->versi, $this->pengukuran->fresh()->nilai]);
+            $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ditolak')->count());
+        } else {
+            $response->assertRedirect('/pengukuran');
+            $version = $this->pengukuran->fresh()->latestVersion;
+            $this->assertSame('diajukan', $this->pengukuran->fresh()->status_alur);
+            $this->assertSame($normal ? 'terhitung' : 'belum_dapat_diukur', $version->snapshot['status_perhitungan']);
+            $this->assertSame($normal ? '0.000000000000' : null, $version->snapshot['nilai']);
+            $this->assertSame($payload['progres_kegiatan'], $version->snapshot['progres_kegiatan']);
+            $this->assertArrayHasKey('tindak_lanjut_rekomendasi', $version->snapshot);
+            $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.ajukan')->count());
+        }
+    }
+
+    public static function pengajuanBelumDapatDiukur(): array
+    {
+        return ['narasi lengkap' => [false, null, false],
+            'progres kosong' => [false, 'progres_kegiatan', false], 'kendala kosong' => [false, 'kendala_masalah', false],
+            'strategi kosong' => [false, 'strategi_tindak_lanjut', false], 'periode nilai akhir' => [true, null, false],
+            'kontrol nilai nol' => [false, null, true]];
     }
 
     public function test_pengajuan_membekukan_empat_narasi_dan_presenter_hanya_membaca_versi(): void

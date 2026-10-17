@@ -8,6 +8,8 @@
 
 **Pembaruan 13 Oktober 2026 (Q38–Q51):** onboarding SSO langsung aktif tanpa peran (Q38, ISS-01.08), keputusan rapat asistensi Q39–Q46, dan analisis dokumen resmi 2026 Q47–Q51 diselaraskan. Issue baru: ISS-02.10, ISS-02.11, ISS-02.12, ISS-05.07, ISS-06.08, ISS-10.05, ISS-13.05, dan ISS-13.06; ISS-11.06 dibatalkan Q44 dan ISS-13.02 digantikan ISS-13.06. Issue yang sudah diimplementasikan diberi catatan Q tanpa menulis ulang AC; issue yang belum dikerjakan diperbarui langsung dengan rujukan Q. Q38–Q51 adalah keputusan requirement, bukan bukti implementasi.
 
+**Pembaruan 14–17 Oktober 2026 (Q52–Q58):** penutupan resmi jadwal wajib alasan (Q52, ISS-14.01), penolakan penurunan superadmin aktif terakhir (Q53, ISS-01.08), unit berizin untuk detail Rencana Aksi dan Kegiatan (Q54, ISS-06.01), draf/token/pembekuan Rekomendasi Pimpinan (Q55, ISS-09.01), Admin memegang `audit:read` (Q56, ISS-13.03), jendela reviu dalam revisi resmi jendela PIC (Q57, ISS-03.06), dan penyamaran kunci rahasia pada penulisan audit (Q58, Issue #122). Keputusan ini dibawa PR issue masing-masing; tidak ada issue baru. Tenggat WA/email pada Q4 digantikan Q46 §46.3: ISS-12.01–ISS-12.07 dan ISS-13.04 mengikuti rencana sprint setelah Tahap 2.
+
 ## 1. Tujuan
 
 Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang executable**. Setiap issue mempertahankan kontrak bisnis User Story namun menambahkan pekerjaan teknis yang perlu diselesaikan pada persistence, backend/domain, authorization/audit, frontend, testing, dan operasi/integrasi bila relevan.
@@ -43,6 +45,8 @@ Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang ex
 ## 4. Format Issue
 
 Setiap issue memuat: **Terkait User Story, Prioritas/Story Point, Traceability, Labels, Scope, Acceptance Criteria, Implementation Tasks, Automated Tests/UAT, dan Definition of Done**. Nomor `ISS-XX.YY` selalu mengikuti `US-XX.YY`.
+
+Centang `[x]` pada Acceptance Criteria dan Automated Tests adalah **bukti implementasi dan test yang ditambahkan oleh PR yang bersangkutan**, bukan status rencana, sehingga jumlah centang tidak dapat dipakai menghitung sisa pekerjaan. Per 17 Oktober 2026, sebelas issue berikut sudah merged tetapi belum memperoleh centang: ISS-01.01, ISS-01.03, ISS-01.04, ISS-01.06, ISS-01.07, ISS-02.02, ISS-02.03, ISS-02.04, ISS-02.08, ISS-03.01 (sebagian), dan ISS-04.01; statusnya mengikuti issue dan PR GitHub masing-masing sampai dicentang lewat PR dokumen yang menyebut nama test bukti. ISS yang kodenya sudah ada di `development` tanpa issue GitHub (ISS-02.05, ISS-07.02, ISS-11.02–ISS-11.05) ditangani issue traceability tersendiri.
 
 ### 4.1 Kontrak Penyelarasan Q32 untuk Development Issue
 
@@ -80,13 +84,15 @@ Urutan pengerjaan (Q46 §46.3, diperbarui Q51):
 
 | Tahap | Batas | Issue |
 |---|---|---|
-| 1 | Sebelum integrasi 9 November 2026 | ISS-01.08 (berjalan), ISS-02.10, ISS-02.11, ISS-05.06 (berjalan), ISS-05.07, ISS-06.01 (PR #97 + Q49), ISS-06.02, ISS-06.08, ISS-13.05, ISS-13.06, pengecualian periode lampau (Q46 §46.1; termasuk ISS-03.05); di akhir tahap ISS-15.01 |
+| 1 | Sebelum integrasi 9 November 2026 | ISS-01.08, ISS-02.10, ISS-02.11, ISS-05.06, ISS-05.07, ISS-06.01, ISS-06.02, ISS-06.08, ISS-13.05, ISS-13.06, pengecualian periode lampau (Q46 §46.1; termasuk ISS-03.05); di akhir tahap ISS-15.01 |
 | 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | ISS-06.03, ISS-06.04, ISS-06.05, ISS-07.01, ISS-07.03, ISS-07.06, ISS-08.01, ISS-08.02, ISS-09.01, ISS-10.01, ISS-10.02, ISS-10.05, ISS-14.01 |
 | 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12, simulasi target, tampilan daftar berkas terunggah, versi penuh Renstra, ISS-13.03 |
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 
-Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q51) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
+Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111), ISS-07.03 (PR #105); issue Tahap 1 lainnya belum dimulai.
+
+Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q58) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
 
 ## Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC
 
@@ -2415,6 +2421,10 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 ### ISS-05.07 · [Feature] Penyusunan Rencana Aksi Sepanjang Tahun, Kunci per Periode, dan Periode tanpa Target
 
+**Status implementasi (2026-10-15):** Sesuai [Keputusan PM M1 pada PR #105](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/105#issuecomment-6189887938), PR #105 memiliki kontrak minimum Q47: penanda dinilai tahunan beserta audit dan snapshot, target kosong yang sah dan status beku `tidak_ditargetkan`, serta gerbang pengajuan/review RA dan pembacanya pada pengukuran. Checklist yang dicentang didukung automated test pada `021c911` dan [CI 9/9](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/38716756264), bukan penerimaan UAT. `RencanaAksiTanpaTargetTest` membuktikan simpan/baca/bekukan kosong vs `0`, pengajuan sampai pengesahan, penolakan target wajib/komponen sebagian, audit penanda, dan imutabilitas snapshot; `DinilaiTahunanSnapshotTest` membuktikan pembekuan saat aktivasi; `RencanaAksiAjukanTest` melindungi rekonsiliasi/deviasi target PK.
+
+**Sisa cakupan:** ISS-05.07 tetap memiliki Q41 (penyusunan sepanjang tahun, kunci periode PIC, dan penghapusan jendela penyusunan). Butir gabungan authorization, audit penolakan periode terkunci, UI kunci periode, PERIODE LAMPAU bagian kunci, SECURITY, dan seluruh DoD tetap belum dicentang karena belum dibuktikan lengkap. Task kolom penanda mencakup pembekuan dan larangan menulis ulang snapshot; implementasi fitur koreksi snapshot tetap milik ISS-03.03. Gerbang RA lintas modul dan urutan kunci akan direview ulang PM setelah integrasi #106.
+
 **Terkait User Story:** `US-05.07`  
 **Prioritas:** Tahap 1 (Q46 §46.3: sebelum integrasi 9 November 2026)  
 **Story Points:** Belum diestimasi  
@@ -2449,25 +2459,25 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] **AC-3:** Given `pengisian_selesai` periode P sudah lewat (tanggal bisnis Asia/Makassar), When PIC menyimpan draf, mengajukan, atau menyimpan versi baru RA yang mengubah target atau daftar kegiatan periode P, Then ditolak sebagai validasi bisnis (422) dan diaudit; perubahan pada periode yang belum terkunci tetap diterima. *(Q41 §41.2 butir 1–2)*
 - [ ] **AC-4:** Given aktor Perencanaan, When mengubah periode yang terkunci bagi PIC sebelum `penutupan`, Then diizinkan. *(Q41 §41.2 butir 3)*
 - [ ] **AC-5:** Given periode lampau saat jadwal diaktifkan, Then periode itu terkunci bagi PIC sejak aktivasi. *(Q41 §41.2 butir 4, Q46 §46.1)*
-- [ ] **AC-6:** Given Perencanaan menandai indikator sebagai dinilai tahunan, When disimpan, Then penanda tersimpan dan diaudit; snapshot jadwal yang diaktifkan sesudahnya membekukan penanda tersebut, dan perubahan setelah jadwal aktif mengikuti koreksi snapshot. *(Q47 §47.1)*
-- [ ] **AC-7:** Given indikator dinilai tahunan menurut snapshot, When RA diajukan dengan target periode sebelum periode nilai akhir kosong, Then pengajuan diterima; target periode nilai akhir tetap wajib dan direkonsiliasi dengan target PK (ADR-0008). *(Q47 §47.2 butir 1)*
-- [ ] **AC-8:** Given indikator yang tidak dinilai tahunan, When salah satu target periode kosong saat pengajuan, Then pengajuan ditolak dengan pesan per periode. *(Q47 §47.2 butir 2)*
-- [ ] **AC-9:** Given target periode dikosongkan, Then disimpan sebagai tidak ditargetkan dan dibedakan dari target `0`. *(Q47 §47.2 butir 3)*
+- [x] **AC-6:** Given Perencanaan menandai indikator sebagai dinilai tahunan, When disimpan, Then penanda tersimpan dan diaudit; snapshot jadwal yang diaktifkan sesudahnya membekukan penanda tersebut, dan perubahan setelah jadwal aktif mengikuti koreksi snapshot. *(Q47 §47.1)*
+- [x] **AC-7:** Given indikator dinilai tahunan menurut snapshot, When RA diajukan dengan target periode sebelum periode nilai akhir kosong, Then pengajuan diterima; target periode nilai akhir tetap wajib dan direkonsiliasi dengan target PK (ADR-0008). *(Q47 §47.2 butir 1)*
+- [x] **AC-8:** Given indikator yang tidak dinilai tahunan, When salah satu target periode kosong saat pengajuan, Then pengajuan ditolak dengan pesan per periode. *(Q47 §47.2 butir 2)*
+- [x] **AC-9:** Given target periode dikosongkan, Then disimpan sebagai tidak ditargetkan dan dibedakan dari target `0`. *(Q47 §47.2 butir 3)*
 - [ ] **AC-10:** Given RA belum disahkan, When pengukuran periode mana pun diajukan, Then tetap ditolak; target kumulatif yang turun tetap berupa peringatan. *(Q41 §41.3 butir 1 dan 3)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tambahkan `indikator.dinilai_tahunan` (boolean, default `false`) dan salinannya `jadwal_snapshot.dinilai_tahunan` yang dibekukan saat snapshot dibentuk (`ActivateJadwal`); perubahan setelah jadwal aktif mengikuti koreksi snapshot ISS-03.03 (Q35, Q47 §47.1 butir 2).
+- [x] Tambahkan `indikator.dinilai_tahunan` (boolean, default `false`) dan salinannya `jadwal_snapshot.dinilai_tahunan` yang dibekukan saat snapshot dibentuk (`ActivateJadwal`); perubahan setelah jadwal aktif mengikuti koreksi snapshot ISS-03.03 (Q35, Q47 §47.1 butir 2).
 - [ ] Biarkan `jadwal_tahunan.rencana_aksi_mulai`/`rencana_aksi_selesai` nullable tanpa dibaca sampai migrasi lanjutan (Q41 §41.1 butir 2).
-- [ ] Pastikan `rencana_aksi_target` menyimpan nilai kosong sebagai "tidak ditargetkan" yang berbeda dari `0`, dan bekukan periode tersebut pada `rencana_aksi_versi` dengan status `tidak_ditargetkan`, bukan `belum_diisi` (Q47 §47.2 butir 5; Data Model §2.34).
+- [x] Pastikan `rencana_aksi_target` menyimpan nilai kosong sebagai "tidak ditargetkan" yang berbeda dari `0`, dan bekukan periode tersebut pada `rencana_aksi_versi` dengan status `tidak_ditargetkan`, bukan `belum_diisi` (Q47 §47.2 butir 5; Data Model §2.34).
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
 - [ ] Ganti pemeriksaan jendela penyusunan pada `JendelaTulisRencanaAksi` (saat ini menolak PIC di luar jendela dan saat tanggal jendela kosong) dengan aturan Q41: PIC efektif dengan grant sah boleh menulis sejak jadwal `aktif` sampai `penutupan`; periode P terkunci bagi PIC setelah `jadwal_periode.pengisian_selesai` P yang berlaku, termasuk hasil revisi resmi jendela (tanggal bisnis Asia/Makassar; Q41 §41.2 butir 5); Perencanaan dikecualikan sampai `penutupan`; periode lampau saat aktivasi terkunci sejak aktivasi; dalam sesi koreksi pascapenutupan PIC hanya dapat mengubah periode yang jendela pengisiannya dibuka kembali (Q41 §41.2 butir 6).
 - [ ] Terapkan guard periode terkunci pada simpan draf (`SimpanTargetPeriode`, `EnsureDraftRencanaAksi`), pengajuan (`AjukanRencanaAksi`), serta versi setelah dikembalikan atau dibuka kembali: tolak perubahan target atau daftar kegiatan periode terkunci sebagai validasi bisnis (422) dan audit penolakannya.
 - [ ] Hapus isian dan validasi jendela RA dari `StoreJadwalRequest`, `UpdateJadwalRequest`, `PeriodeJadwalMutationRequest`, `JadwalDraftRules`, dan `SaveJadwalDraft`; `IndexRencanaAksi` dan `JadwalActivationReadiness` tidak lagi membaca kolom jendela RA.
-- [ ] Perbarui gerbang pengajuan: untuk indikator dinilai tahunan menurut snapshot, terima target kosong pada periode sebelum periode nilai akhir dan tetap wajibkan target periode nilai akhir beserta rekonsiliasinya dengan target PK (ADR-0008, `DeviasiTargetPk`); indikator lain ditolak dengan pesan per periode bila ada target kosong, kecuali periode lampau (Q47 §47.2 butir 4, Q46 §46.1).
+- [x] Perbarui gerbang pengajuan: untuk indikator dinilai tahunan menurut snapshot, terima target kosong pada periode sebelum periode nilai akhir dan tetap wajibkan target periode nilai akhir beserta rekonsiliasinya dengan target PK (ADR-0008, `DeviasiTargetPk`); indikator lain ditolak dengan pesan per periode bila ada target kosong, kecuali periode lampau (Q47 §47.2 butir 4, Q46 §46.1).
 - [ ] Pertahankan aturan Q41 §41.3: pengukuran tetap mensyaratkan RA disahkan dan target kumulatif yang turun tetap berupa peringatan.
 
 **C. Authorization & Audit**
@@ -2478,7 +2488,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 **D. Frontend / UX**
 - [ ] Hapus isian jendela RA dari form jadwal (`resources/js/Pages/Jadwal/Editor.tsx`).
 - [ ] Tampilkan periode terkunci bagi PIC sebagai baca-saja pada matriks target (`resources/js/Pages/RencanaAksi/MatriksTarget.tsx`) dan bedakan target kosong ("tidak ditargetkan") dari `0`.
-- [ ] Tambahkan saklar **Dinilai tahunan** pada form indikator (`resources/js/Pages/Perencanaan/SasaranIndikator/IndikatorModal.tsx`, divalidasi `StoreIndikatorRequest`/`UpdateIndikatorRequest`).
+- [x] Tambahkan saklar **Dinilai tahunan** pada form indikator (`resources/js/Pages/Perencanaan/SasaranIndikator/IndikatorModal.tsx`, divalidasi `StoreIndikatorRequest`/`UpdateIndikatorRequest`).
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
@@ -2488,12 +2498,12 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given `pengisian_selesai` periode P sudah lewat (tanggal bisnis Asia/Makassar), When PIC menyimpan draf, mengajukan, atau menyimpan versi baru RA yang mengubah target atau daftar kegiatan periode P, Then ditolak sebagai validasi bisnis (422) dan diaudit; perubahan pada periode yang belum terkunci tetap diterima. *(Q41 §41.2 butir 1–2)*
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aktor Perencanaan, When mengubah periode yang terkunci bagi PIC sebelum `penutupan`, Then diizinkan. *(Q41 §41.2 butir 3)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given periode lampau saat jadwal diaktifkan, Then periode itu terkunci bagi PIC sejak aktivasi. *(Q41 §41.2 butir 4, Q46 §46.1)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan menandai indikator sebagai dinilai tahunan, When disimpan, Then penanda tersimpan dan diaudit; snapshot jadwal yang diaktifkan sesudahnya membekukan penanda tersebut, dan perubahan setelah jadwal aktif mengikuti koreksi snapshot. *(Q47 §47.1)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given indikator dinilai tahunan menurut snapshot, When RA diajukan dengan target periode sebelum periode nilai akhir kosong, Then pengajuan diterima; target periode nilai akhir tetap wajib dan direkonsiliasi dengan target PK (ADR-0008). *(Q47 §47.2 butir 1)*
-- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given indikator yang tidak dinilai tahunan, When salah satu target periode kosong saat pengajuan, Then pengajuan ditolak dengan pesan per periode. *(Q47 §47.2 butir 2)*
-- [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given target periode dikosongkan, Then disimpan sebagai tidak ditargetkan dan dibedakan dari target `0`. *(Q47 §47.2 butir 3)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan menandai indikator sebagai dinilai tahunan, When disimpan, Then penanda tersimpan dan diaudit; snapshot jadwal yang diaktifkan sesudahnya membekukan penanda tersebut, dan perubahan setelah jadwal aktif mengikuti koreksi snapshot. *(Q47 §47.1)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given indikator dinilai tahunan menurut snapshot, When RA diajukan dengan target periode sebelum periode nilai akhir kosong, Then pengajuan diterima; target periode nilai akhir tetap wajib dan direkonsiliasi dengan target PK (ADR-0008). *(Q47 §47.2 butir 1)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given indikator yang tidak dinilai tahunan, When salah satu target periode kosong saat pengajuan, Then pengajuan ditolak dengan pesan per periode. *(Q47 §47.2 butir 2)*
+- [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given target periode dikosongkan, Then disimpan sebagai tidak ditargetkan dan dibedakan dari target `0`. *(Q47 §47.2 butir 3)*
 - [ ] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given RA belum disahkan, When pengukuran periode mana pun diajukan, Then tetap ditolak; target kumulatif yang turun tetap berupa peringatan. *(Q41 §41.3 butir 1 dan 3)*
-- [ ] VERSI RA: Uji versi RA yang dibekukan mencatat periode tanpa target dengan status `tidak_ditargetkan`, bukan `belum_diisi` (Q47 §47.2 butir 5).
+- [x] VERSI RA: Uji versi RA yang dibekukan mencatat periode tanpa target dengan status `tidak_ditargetkan`, bukan `belum_diisi` (Q47 §47.2 butir 5).
 - [ ] REVISI JENDELA: Uji perpanjangan resmi `pengisian_selesai` periode P menggeser kunci RA periode P bagi PIC, dan dalam sesi koreksi pascapenutupan PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali (Q41 §41.2 butir 5–6).
 - [ ] PERIODE LAMPAU: Uji target kosong pada periode lampau (data awal 2026 TW I–III) tidak ditolak dan kunci periode lampau tidak menghalangi jalur Perencanaan (Q47 §47.2 butir 4, Q46 §46.1).
 - [ ] SECURITY: Uji request langsung PIC tanpa grant unit sah, bukan PIC efektif, atau dengan deny yang cocok menghasilkan 403, sedangkan pelanggaran kunci periode menghasilkan 422.
@@ -3262,6 +3272,12 @@ Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tuj
 
 ### ISS-07.03 · [Feature] Pengajuan Pengukuran & Pembekuan Versi
 
+> **Status implementasi dan verifikasi otomatis — 15 Oktober 2026:** AC-4/TEST-4 dan AC-11/TEST-11 dibuktikan pada commit `60b7dc7`: `tests/Feature/PengukuranNarasiTest.php` menguji penolakan narasi kosong, rollback/audit, serta catatan opsional meski flag lama aktif atau nilai memburuk; `tests/Frontend/IndikatorAtomicForm.test.tsx` dan `tests/Feature/IndikatorKomponen/PhaseDAtomicDefinitionTest.php` membuktikan saklar tersembunyi dan nilai kolom dipertahankan. [CI exact-HEAD](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/38664114343) lulus. Centang menandai implementasi/test otomatis, bukan persetujuan QA/UAT, merge, atau seluruh DoD.
+>
+> **Integrasi dan gerbang rekomendasi — 16 Oktober 2026:** #106 telah diintegrasikan melalui `19ab8fe`; kolom, simpan, presenter, dan form draf narasi memakai kontrak #106, termasuk `PengukuranKinerja::NARASI`, serta migration duplikat telah dihapus sesuai [keputusan PM](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/106#issuecomment-6187340893). Gerbang narasi pengajuan, pembekuan, dan tampilan verifikator tetap milik #105. AC-8/TEST-8 dan uji lintas tahun dibuktikan pada `04c8a16` melalui `tests/Feature/Rekomendasi/RekomendasiBerlakuTest.php`; `850ae98` menambahkan empat skenario konkurensi persetujuan/pengajuan sesuai Q55 pada `tests/Integration/Concurrency/MutationConcurrencyTest.php`. [CI commit `850ae98`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/38921923125) lulus. Centang menandai implementasi/test otomatis, bukan penerimaan QA/UAT atau penyelesaian seluruh DoD.
+>
+> **Pengecualian periode lampau dan gerbang final — 17 Oktober 2026:** AC-10/TEST-10 dan task pengecualian periode lampau dibuktikan pada `346bb66` dan `0c9a1ea`. `tests/Feature/PengukuranPeriodeLampauTest.php` menguji pengecualian gerbang RA disahkan, kelengkapan nilai/komponen, bukti wajib, dan narasi pada periode lampau Jadwal 2026 yang diisi Perencanaan, sedangkan konteks/izin dan alasan penyebut nol (Q9) tetap wajib. Kontrol positifnya: gerbang tetap berlaku pada periode 2026 yang belum lampau saat aktivasi maupun pada aktivasi terlambat 2027, PIC tetap ditolak, dan pengajuan ditolak setelah penutupan. `tests/Feature/Rekomendasi/RekomendasiBerlakuTest.php` menguji pengecualian tindak lanjut rekomendasi pada periode lampau. Gerbang final Belum dapat diukur sudah diterapkan dan diuji di `tests/Feature/PengukuranWorkflowTest.php` (narasi wajib per field dan penolakan pada periode nilai akhir); AC-9/TEST-9 belum dicentang karena klausa kondisi tidak dapat dihitung (Q9) pada periode nilai akhir belum memiliki Pest test khusus. [CI exact-HEAD `0c9a1ea`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/39021536370) lulus. Centang menandai implementasi/test otomatis, bukan penerimaan QA/UAT atau penyelesaian seluruh DoD.
+
 > **Q45, Q46, Q47, Q51 (13 Oktober 2026):** kewajiban `catatan` saat nilai memburuk atau indikator `wajib_catatan` digantikan narasi pengukuran wajib; `catatan` menjadi keterangan opsional dan saklar `wajib_catatan` disembunyikan dari form indikator tanpa menghapus kolomnya (Q45 §45.1 butir 1 dan 3). Tindak lanjut wajib hanya atas Rekomendasi Pimpinan yang disetujui, termasuk lintas tahun (Q45 §45.2 butir 3, Q51 §51.1 butir 2 dan 4). Realisasi `belum_dapat_diukur` mengecualikan gerbang kelengkapan komponen, dan periode tanpa target ditampilkan dengan selisih terhadap target PK (Q47 §47.3–§47.4). Gerbang baru Q42–Q45 dikecualikan untuk periode lampau (Q46 §46.1 butir 1). AC-2 dan AC-4 diperbarui serta AC-8 sampai AC-12 ditambahkan karena issue ini belum dikerjakan.
 
 **Terkait User Story:** `US-07.03`  
@@ -3292,14 +3308,14 @@ Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tuj
 - [ ] **AC-1:** Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
 - [ ] **AC-2:** Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan, dan pengukuran berstatus `belum_dapat_diukur` dikecualikan dari gerbang kelengkapan komponen. *(Q9; diperbarui Q47 §47.4 butir 1)*
 - [ ] **AC-3:** Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
-- [ ] **AC-4:** Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
+- [x] **AC-4:** Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
 - [ ] **AC-5:** Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
 - [ ] **AC-6:** Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
 - [ ] **AC-7:** Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); item notifikasi in-app mengikuti ISS-12.02 AC-2. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi antrean Perencanaan dibuat setelah commit.)*
-- [ ] **AC-8:** Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
+- [x] **AC-8:** Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
 - [ ] **AC-9:** Given pengukuran berstatus `belum_dapat_diukur`, When diajukan, Then narasi pengukuran tetap wajib dan menjelaskan mengapa nilai belum tersedia; pada periode nilai akhir status ini ditolak karena realisasi wajib terisi, sedangkan kondisi tidak dapat dihitung menurut Q9 tetap diperbolehkan. *(Q47 §47.4 butir 2 dan 4)*
-- [ ] **AC-10:** Given pengukuran periode lampau diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
-- [ ] **AC-11:** Given form indikator, Then saklar `wajib_catatan` tidak ditampilkan dan kolomnya tetap tersimpan. *(Q45 §45.1 butir 3)*
+- [x] **AC-10:** Given pengukuran periode lampau diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
+- [x] **AC-11:** Given form indikator, Then saklar `wajib_catatan` tidak ditampilkan dan kolomnya tetap tersimpan. *(Q45 §45.1 butir 3)*
 - [ ] **AC-12:** Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
 
 #### Implementation Tasks
@@ -3312,9 +3328,9 @@ Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tuj
 **B. Backend / Domain**
 - [ ] Submit Pengukuran harus atomik: validasi RA versi disahkan, input/status perhitungan, bukti versi, narasi pengukuran wajib (`catatan` opsional, Q45 §45.1), scope/PIC/waktu, lalu insert `pengukuran_versi`.
 - [ ] Bekukan provenance (`diajukan_by`, `jalur_pengajuan`, `dasar_izin_pengajuan`) serta target PK/RA, komponen/nilai, bukti, klaim/narasi, dan persyaratan.
-- [ ] Wajibkan `tindak_lanjut_rekomendasi` bila ada Rekomendasi Pimpinan `disetujui` pada periode sebelumnya, termasuk periode terakhir tahun sebelumnya terhadap periode pertama jadwal tahun berikutnya bila indikator masih diukur (Q51 §51.1 butir 4); draf tidak memicu kewajiban.
+- [x] Wajibkan `tindak_lanjut_rekomendasi` bila ada Rekomendasi Pimpinan `disetujui` pada periode sebelumnya, termasuk periode terakhir tahun sebelumnya terhadap periode pertama jadwal tahun berikutnya bila indikator masih diukur (Q51 §51.1 butir 4); draf tidak memicu kewajiban.
 - [ ] Terima `belum_dapat_diukur` dengan pengecualian gerbang kelengkapan komponen, kecuali pada periode nilai akhir (`periode.is_nilai_akhir`) yang mewajibkan realisasi terisi selain kondisi Q9 (Q47 §47.4 butir 1 dan 4).
-- [ ] Kecualikan gerbang narasi wajib dan tindak lanjut rekomendasi untuk periode lampau (Q46 §46.1 butir 1 dan 4).
+- [x] Kecualikan gerbang narasi wajib dan tindak lanjut rekomendasi untuk periode lampau (Q46 §46.1 butir 1 dan 4).
 - [ ] Hitung selisih terhadap target PK dari snapshot (realisasi − target PK, dibaca menurut `arah`); pada periode tanpa target, capaian persen dan status capaian tidak dihitung, dan bila realisasi juga belum dapat diukur yang tampil "Belum dapat diukur" (Q47 §47.3 butir 1–3).
 - [ ] `created_by` tidak boleh dipakai sebagai identitas pengaju F1/F2.
 
@@ -3325,7 +3341,7 @@ Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tuj
 
 **D. Frontend / UX**
 - [ ] Buat/rapikan page dan reusable component React untuk **Pengajuan Pengukuran & Pembekuan Versi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Sembunyikan saklar `wajib_catatan` pada form indikator (`resources/js/Pages/Perencanaan/SasaranIndikator/IndikatorModal.tsx`) tanpa menghapus kolomnya (Q45 §45.1 butir 3).
+- [x] Sembunyikan saklar `wajib_catatan` pada form indikator (`resources/js/Pages/Perencanaan/SasaranIndikator/IndikatorModal.tsx`) tanpa menghapus kolomnya (Q45 §45.1 butir 3).
 - [ ] Tampilkan realisasi, target PK, dan selisih terhadap target PK; pada periode tanpa target, tanpa capaian persen maupun status capaian (Q47 §47.3).
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
@@ -3335,16 +3351,16 @@ Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tuj
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan, dan pengukuran berstatus `belum_dapat_diukur` dikecualikan dari gerbang kelengkapan komponen. *(Q9; diperbarui Q47 §47.4 butir 1)*
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
 - [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); pengiriman notifikasi in-app diuji pada ISS-12.02.
-- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
 - [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, When diajukan, Then narasi pengukuran tetap wajib dan menjelaskan mengapa nilai belum tersedia; pada periode nilai akhir status ini ditolak karena realisasi wajib terisi, sedangkan kondisi tidak dapat dihitung menurut Q9 tetap diperbolehkan. *(Q47 §47.4 butir 2 dan 4)*
-- [ ] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran periode lampau diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
-- [ ] TEST-11: Buat Vitest frontend test dan Pest Feature test yang membuktikan — Given form indikator, Then saklar `wajib_catatan` tidak ditampilkan dan kolomnya tetap tersimpan. *(Q45 §45.1 butir 3)*
+- [x] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran periode lampau diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
+- [x] TEST-11: Buat Vitest frontend test dan Pest Feature test yang membuktikan — Given form indikator, Then saklar `wajib_catatan` tidak ditampilkan dan kolomnya tetap tersimpan. *(Q45 §45.1 butir 3)*
 - [ ] TEST-12: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
-- [ ] LINTAS TAHUN: Uji rekomendasi disetujui pada periode terakhir suatu tahun mewajibkan `tindak_lanjut_rekomendasi` pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
+- [x] LINTAS TAHUN: Uji rekomendasi disetujui pada periode terakhir suatu tahun mewajibkan `tindak_lanjut_rekomendasi` pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
 - [ ] TAMPILAN BERSAMAAN: Uji periode tanpa target yang realisasinya `belum_dapat_diukur` ditampilkan sebagai "Belum dapat diukur" (Q47 §47.3 butir 3).
 - [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 - [ ] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.

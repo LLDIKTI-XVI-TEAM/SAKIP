@@ -30,8 +30,8 @@ class RencanaAksiIndexTest extends TestCase
 
     public function test_peringatan_turun_tidak_memblokir_penyimpanan(): void
     {
-        $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $fixture = $this->buatFixtureManual();
 
         $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
             'indikator_id' => $fixture['indikator']->id,

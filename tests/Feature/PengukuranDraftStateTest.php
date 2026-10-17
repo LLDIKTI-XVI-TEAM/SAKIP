@@ -14,9 +14,19 @@ use Tests\TestCase;
 
 class PengukuranDraftStateTest extends TestCase
 {
-    use CreatesPengukuranFixture,RefreshDatabase;
+    use CreatesPengukuranFixture {
+        setUp as private setUpPengukuran;
+    }
+    use RefreshDatabase;
 
     private const NARASI = ['progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut', 'tindak_lanjut_rekomendasi'];
+
+    protected function setUp(): void
+    {
+        $this->setUpPengukuran();
+        // Kasus draf dimulai kosong; fixture pengajuan bersama sengaja sudah memiliki narasi.
+        $this->pengukuran->update(array_fill_keys(self::NARASI, null));
+    }
 
     public function test_pengukuran_status_nilai_check_menegakkan_pasangan_status_dan_nilai(): void
     {

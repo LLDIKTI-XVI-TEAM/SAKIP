@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Gate;
 
 class PresentPengukuran
 {
-    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private PengukuranKinerjaPolicy $policy, private RekomendasiBerlaku $rekomendasi) {}
+    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private CalculatePengukuran $calculator, private PengukuranKinerjaPolicy $policy, private RekomendasiBerlaku $rekomendasi) {}
 
     /**
      * Audit, target RA, dan PIC efektif dibaca sekaligus per halaman, tanpa query per baris.
@@ -41,7 +41,8 @@ class PresentPengukuran
             $row->setAttribute('summary_pic', $pics->get($row->indikator_id)?->pic?->only(['id', 'nama']));
             $row->setAttribute('self_verified', in_array($row->id, $ids, true));
             $row->setAttribute('late_review', in_array($row->id, $lateIds, true));
-            $row->setAttribute('summary_target', $targets[$index]);
+            $row->setAttribute('summary_target', $targets[$index]['target']);
+            $row->setAttribute('summary_tanpa_target_periode', $targets[$index]['tanpa_target_periode']);
         }
     }
 
@@ -50,7 +51,7 @@ class PresentPengukuran
      * atau target PK. Dibaca sekaligus untuk ringkasan header dan baris kewajiban yang belum memiliki header.
      *
      * @param  list<array{indikator_id: string, tahun: int, periode_id: string, jadwal_snapshot_id: string, unit_id: string}>  $contexts
-     * @return list<mixed> target sesuai urutan konteks
+     * @return list<array{target: mixed, tanpa_target_periode: bool}> target dan penanda sesuai urutan konteks
      */
     public function periodTargets(array $contexts): array
     {
@@ -66,11 +67,12 @@ class PresentPengukuran
         return array_map(function (array $context) use ($plans, $planVersions) {
             $plan = $plans->get($context['indikator_id'].':'.$context['tahun']);
             $planVersion = $plan ? $planVersions->get($plan->id) : null;
-            if (! $planVersion || $planVersion->jadwal_snapshot_id !== $context['jadwal_snapshot_id'] || $plan->unit_id !== $context['unit_id']) {
-                return null;
-            }
+            $periodTarget = $planVersion && $planVersion->jadwal_snapshot_id === $context['jadwal_snapshot_id'] && $plan->unit_id === $context['unit_id']
+                ? collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $context['periode_id']) : null;
+            $target = $periodTarget['nilai'] ?? null;
 
-            return collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $context['periode_id'])['nilai'] ?? null;
+            return ['target' => $target, 'tanpa_target_periode' => $periodTarget && array_key_exists('nilai', $periodTarget)
+                && $target === null && ($periodTarget['status_perhitungan'] ?? null) === 'tidak_ditargetkan'];
         }, $contexts);
     }
 
@@ -86,6 +88,7 @@ class PresentPengukuran
             'nilai' => $frozen ? $frozen['nilai'] : $p->nilai, 'status_perhitungan' => $frozen ? $frozen['status_perhitungan'] : $p->status_perhitungan,
             'sumber_nilai' => $p->sumber_nilai === 'historis' ? 'historis' : ($context->tipe_perhitungan === 'manual' ? 'manual' : 'komponen'),
             'target' => $frozen ? $frozen['target'] : $p->getAttribute('summary_target'), 'catatan' => $frozen ? $frozen['catatan'] : $p->catatan,
+            'tanpa_target_periode' => $frozen ? (bool) ($frozen['tanpa_target_periode'] ?? false) : (bool) $p->getAttribute('summary_tanpa_target_periode'),
             'alasan_tidak_dapat_dihitung' => $frozen ? $frozen['alasan_tidak_dapat_dihitung'] : $p->alasan_tidak_dapat_dihitung,
             'diajukan_pada' => $version?->diajukan_at?->toIso8601String(),
             'penugasan_indikator' => ['indikator_kinerja' => $frozen ? [...$frozen['indikator'], 'definisi_operasional' => $frozen['indikator']['definisi']] : [...$context->only(['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $p->indikator->kode, 'definisi_operasional' => $context->definisi],
@@ -123,6 +126,7 @@ class PresentPengukuran
         }
         $data['rekomendasi_sebelumnya'] = $frozen ? ($frozen['rekomendasi_sebelumnya'] ?? null) : $this->rekomendasi->tampilanSebelum($p);
         $data['target_pk'] = $frozen ? $frozen['target_pk'] : $context->target;
+        $data['selisih_target_pk'] = $this->calculator->differenceFromPk($data['nilai'], $data['target_pk']);
         $data['klaim'] = $frozen && $can['viewClaims'] ? array_map(function ($claim) use ($p, $can) {
             $activity = array_intersect_key($claim['kegiatan'], array_flip(['id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']));
             $activity['bukti_dukungs'] = $can['claimEvidence'] ? array_map(fn ($b) => [
@@ -143,10 +147,11 @@ class PresentPengukuran
             $data['prasyarat'] = ['siap' => true, 'alasan' => []];
             $data['persyaratan_bukti'] = $frozen['persyaratan_bukti'];
         } else {
-            $requirements = $this->prerequisites->handle($p);
+            $requirements = $this->prerequisites->handle($p, $data['rekomendasi_sebelumnya']);
             $data['prasyarat'] = ['siap' => $requirements['siap'], 'alasan' => $requirements['alasan']];
             $data['persyaratan_bukti'] = $requirements['persyaratan_bukti'];
             $data['target'] = $requirements['target'];
+            $data['tanpa_target_periode'] = $requirements['tanpa_target_periode'];
         }
         if ($can['evidence']) {
             $items = $frozen ? $frozen['bukti_dukungs'] : $p->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all();

@@ -3,6 +3,7 @@
 namespace App\Actions\RencanaAksi;
 
 use App\Models\IndikatorKinerja;
+use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
@@ -11,6 +12,7 @@ use App\Models\RencanaAksiTarget;
 use App\Models\User;
 use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
+use App\Services\RencanaAksi\PeriodeTanpaTarget;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\DeviasiTargetPk;
 use Brick\Math\BigDecimal;
@@ -118,7 +120,7 @@ class PreviewTargetPeriode
             $this->pastikanTargetsPratinjau($tipe, $definisi, $efektifIds, $jadwal, $diminta);
 
             $lapis = $this->petaLapis($diminta);
-            $periode = $this->susunPratinjau($tipe, $presisi, $definisi, $jendela, $efektifIds, $tersimpan, $lapis);
+            $periode = $this->susunPratinjau($tipe, $presisi, $definisi, $jendela, $efektifIds, $tersimpan, $lapis, $snapshot->setRelation('jadwal', $jadwal));
 
             $alasan = array_key_exists('alasan_deviasi_pk', $data)
                 ? $this->normalisasiTeks($data['alasan_deviasi_pk'])
@@ -253,7 +255,7 @@ class PreviewTargetPeriode
      * @param  array<string, array<string, string|int|float|null>>  $lapis
      * @return list<array<string, mixed>>
      */
-    private function susunPratinjau(string $tipe, int $presisi, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $tersimpan, array $lapis): array
+    private function susunPratinjau(string $tipe, int $presisi, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $tersimpan, array $lapis, JadwalSnapshot $snapshot): array
     {
         $hasil = [];
         /** @var array<string, string|int|float|null> $nilaiSebelumnya */
@@ -275,6 +277,11 @@ class PreviewTargetPeriode
 
             $nilai = $this->nilaiGabungan($tipe, $definisi, $tersimpan->get($periodeId) ?? collect(), $lapis[$periodeId] ?? []);
             $skor = $this->kesiapan->skor($tipe, $presisi, $definisi, $nilai);
+            if ($skor['status_perhitungan'] === 'belum_diisi' && $nilai !== []
+                && array_filter($nilai, fn ($value): bool => $value !== null) === []
+                && PeriodeTanpaTarget::bolehTanpaTarget($snapshot, $window, $jendela)) {
+                $skor['status_perhitungan'] = 'tidak_ditargetkan';
+            }
             $turun = $this->komponenTurun($nilai, $nilaiSebelumnya);
             foreach ($nilai as $kunci => $angka) {
                 $nilaiSebelumnya[$kunci] = $angka;

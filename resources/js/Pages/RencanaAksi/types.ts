@@ -182,6 +182,7 @@ export const rencanaAksiStatusPerhitungan: Record<string, string> = {
     belum_diisi: 'Belum diisi',
     terhitung: 'Terhitung',
     tidak_dapat_dihitung: 'Tidak dapat dihitung',
+    tidak_ditargetkan: 'Tidak ditargetkan',
 };
 
 /** Kunci sel matriks `periode_id::komponen_id` (`manual` untuk indikator manual). */

@@ -21,6 +21,7 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
 
     public function test_show_memuat_pengajuan_belum_siap_dengan_alasan_dan_can_submit(): void
     {
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
         $fixture = $this->buatFixtureManual();
         $header = $this->buatDraf($fixture);
         $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], 100)]);

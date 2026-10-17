@@ -27,7 +27,9 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RoleAssignmentReceipt;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -59,6 +61,9 @@ try {
     $identity = $argv[2];
     try {
         $assignment = isset($argv[3]) ? json_decode($argv[3], true, flags: JSON_THROW_ON_ERROR) : [];
+        if (isset($assignment['test_now'])) {
+            Carbon::setTestNow($assignment['test_now']);
+        }
         if (in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete', 'grant-create', 'grant-revoke', 'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical', 'storage-update', 'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment', 'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment'], true)) {
             $actor = User::findOrFail($assignment['actor_id']);
             $initialDecision = app(PermissionResolver::class)->resolve($actor, $assignment['permission']);
@@ -136,6 +141,7 @@ try {
             'create-deny' => 'permission_id',
             'revoke-deny' => 'deny_id',
             'ra-verifikasi', 'ra-kembalikan' => 'expected_versi',
+            'pengukuran-ajukan' => $assignment['expected_error_field'] ?? 'versi',
             // Penolakan bisnis gerbang review bersama (mis. unit dinonaktifkan selagi menunggu kunci).
             'rencana-sahkan' => 'businessErrors',
             // Pemenang race menaikkan versi header; yang kalah membaca baris segar dan ditolak pada token versi.
@@ -146,6 +152,9 @@ try {
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {
             throw $exception;
+        }
+        if (isset($assignment['expected_error_status']) && $exception->status !== $assignment['expected_error_status']) {
+            throw new RuntimeException('Status penolakan worker tidak sesuai kontrak.');
         }
         $result = match ($argv[1]) {
             'create-deny' => 'duplicate',
@@ -158,6 +167,9 @@ try {
 } catch (Throwable $exception) {
     // Jangan mencetak SQL, konfigurasi koneksi, atau kredensial dari exception.
     fwrite(STDERR, get_class($exception)."\n");
+    if ($exception instanceof QueryException) {
+        fwrite(STDERR, 'SQLSTATE:'.$exception->getCode()."\n");
+    }
     exit(1);
 }
 

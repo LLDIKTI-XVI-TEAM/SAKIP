@@ -179,7 +179,8 @@ class ActivateJadwal
                 'jadwal_id' => $context['jadwal']->id, 'indikator_id' => $indikator->id, 'nomor_versi' => 1, 'periode_mulai_id' => $periodeMulai,
                 'unit_id' => $indikator->unit_id, 'nama' => $indikator->nama, 'definisi' => $indikator->definisi_operasional, 'satuan' => $indikator->satuan,
                 'presisi' => $indikator->presisi, 'desimal_tampilan' => $indikator->desimal_tampilan, 'arah' => $indikator->arah,
-                'tipe_perhitungan' => $indikator->tipe_perhitungan, 'target' => $target->getRawOriginal('target_tahunan'), 'baseline' => $target->getRawOriginal('baseline'),
+                'tipe_perhitungan' => $indikator->tipe_perhitungan, 'dinilai_tahunan' => $indikator->dinilai_tahunan,
+                'target' => $target->getRawOriginal('target_tahunan'), 'baseline' => $target->getRawOriginal('baseline'),
             ]);
             $komponen = $indikator->komponen->map(fn (IndikatorKomponen $row): array => [
                 'komponen_id' => $row->id, 'kode' => $row->kode, 'label' => $row->label, 'peran' => $row->peran, 'bobot' => $row->getRawOriginal('bobot'), 'urutan' => $row->urutan,
@@ -192,7 +193,7 @@ class ActivateJadwal
             // membandingkan seluruh kolom beku lain) meloloskannya.
             JadwalSnapshot::whereKey($snapshot->id)->update(['komposisi_final' => true]);
             $this->audit->catat(actor: $actor, tindakan: 'jadwal_snapshot.buat', objekTipe: 'jadwal_snapshot', objekId: $snapshot->id,
-                nilaiBaru: [...$snapshot->only(['jadwal_id', 'indikator_id', 'nomor_versi', 'periode_mulai_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan']),
+                nilaiBaru: [...$snapshot->only(['jadwal_id', 'indikator_id', 'nomor_versi', 'periode_mulai_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'dinilai_tahunan']),
                     'komposisi_final' => true,
                     'target' => $snapshot->getRawOriginal('target'), 'baseline' => $snapshot->getRawOriginal('baseline'),
                     'komponen' => array_map(fn (array $row): array => array_diff_key($row, ['label' => true]), $komponen)],
