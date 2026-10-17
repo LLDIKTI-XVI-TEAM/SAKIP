@@ -180,7 +180,7 @@ export default function Index({
                                                 {item.tujuan && <p className="mt-1 line-clamp-2 text-xs text-muted" title={item.tujuan}>{item.tujuan}</p>}
                                             </TableCell>
                                             <TableCell className="w-1/4 min-w-[220px] text-xs font-medium text-ink">
-                                                <HoverScrollText>{item.unit?.nama ?? '-'}</HoverScrollText>
+                                                <HoverScrollText showTooltip={false} duration="0.8s">{item.unit?.nama ?? '-'}</HoverScrollText>
                                             </TableCell>
                                             <TableCell className="w-28 whitespace-nowrap">
                                                 <span className="font-mono text-xs font-semibold text-ink">{item.tahun}</span>
@@ -200,7 +200,7 @@ export default function Index({
                                             </TableCell>
                                             <TableCell className="w-16 whitespace-nowrap text-right">
                                                 {item.can?.update && (
-                                                    <Tooltip content="Ubah kegiatan & klaim RA" align="right" position="bottom">
+                                                    <Tooltip content="Edit Kegiatan & Klaim RA" align="right" position="top">
                                                         <Link
                                                             href={`/kegiatan/${item.id}/edit`}
                                                             aria-label={`Ubah rencana kegiatan dan klaim rencana aksi ${item.nama}`}

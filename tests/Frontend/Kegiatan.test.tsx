@@ -140,3 +140,16 @@ it('menjelaskan daftar kosong mengikuti unit yang dapat diakses', () => {
     render(<Index {...indexProps} kegiatan={{ data: [], links: [], from: null, to: null, total: 0 }} />);
     expect(screen.getByText('Belum ada rencana kegiatan pada unit yang dapat Anda akses.')).toBeTruthy();
 });
+
+it('menempatkan tooltip aksi ubah di atas dan menonaktifkan tooltip bawaan unit dengan durasi dipercepat', () => {
+    render(<Index {...indexProps} />);
+    const linkUbah = screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Fasilitasi unit' });
+    const tooltip = linkUbah.closest('.relative')?.querySelector('[role="tooltip"]');
+    expect(tooltip?.className).toContain('bottom-full');
+    expect(tooltip?.textContent).toContain('Edit Kegiatan & Klaim RA');
+
+    const unitCell = screen.getByRole('cell', { name: 'Unit A' });
+    const scrollContainer = unitCell.querySelector('.hover-scroll-text');
+    expect(scrollContainer?.getAttribute('title')).toBeNull();
+    expect(scrollContainer?.getAttribute('style')).toContain('--hover-scroll-duration: 0.8s');
+});
