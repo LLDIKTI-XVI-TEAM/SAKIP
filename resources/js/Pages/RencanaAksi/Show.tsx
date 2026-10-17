@@ -520,6 +520,7 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                             .filter((item) => item.efektif && ((rencanaAksi.periode_terkunci ?? []).includes(item.id) || !dapatDisuntingPeriode(rencanaAksi.koreksi, item.id)))
                             .map((item) => item.id)}
                         kegiatan={kegiatan}
+                        kotor={kotor}
                     />
                 )}
 

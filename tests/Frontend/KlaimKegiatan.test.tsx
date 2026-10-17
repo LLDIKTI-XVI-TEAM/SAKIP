@@ -73,7 +73,7 @@ it('tanpa rencana aksi yang dapat diklaim tidak menampilkan form dan menjelaskan
 });
 
 it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke periode terbuka lain', () => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II'), periode('tw3', 'Triwulan III')]}
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II'), periode('tw3', 'Triwulan III')]}
         komponen={[]} terkunci={['tw1']}
         kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Rapat lama', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null }],
             can: { tambah: true, kelola: true } }} />);
@@ -96,7 +96,7 @@ it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke pe
 });
 
 it('pembaca RA melihat komponen snapshot, arah dampak, dan catatan tanpa akses kelola', () => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I')]}
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]}
         komponen={[{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }]}
         terkunci={['tw1']} kegiatan={{ daftar: [
             { id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: 'komp-1', arah_dampak: 'mengurangi', catatan: 'Mengurangi kendala pelaksanaan' },
@@ -115,11 +115,19 @@ it.each([
     [null, 'Tanpa komponen tertentu'],
     ['komponen-lama', 'Komponen tidak tersedia pada snapshot'],
 ])('menjelaskan komponen %s tanpa menghilangkan klaim', (komponenId, label) => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
         kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: komponenId, arah_dampak: 'menambah', catatan: null }],
             can: { tambah: false, kelola: false } }} />);
 
     const row = within(screen.getByRole('listitem'));
     expect(row.getByText(label)).toBeTruthy();
     expect(row.getByText('Menambah')).toBeTruthy();
+});
+
+it('menonaktifkan tambah kegiatan selama form target berubah belum disimpan', () => {
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
+        kegiatan={{ daftar: [], can: { tambah: true, kelola: true } }} />);
+
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: /Tambah kegiatan Triwulan I$/ }).disabled).toBe(true);
+    expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah kegiatan.')).toBeTruthy();
 });

@@ -19,6 +19,8 @@ interface KegiatanPanelProps {
     /** Periode terkunci bagi aktor (Q41); kosong untuk Perencanaan. */
     terkunci: string[];
     kegiatan: RencanaAksiKegiatan;
+    /** Form target berubah belum disimpan; tambah kegiatan menaikkan versi header dan me-remount form target. */
+    kotor: boolean;
 }
 
 interface FormKegiatan {
@@ -50,7 +52,7 @@ function galatBisnis(errs: Record<string, string | undefined>): string | undefin
  * sekaligus klaimnya dan salin ke periode lain (Q49 §49.2). Periode terkunci
  * tampil baca-saja bagi PIC; server tetap menolak di bawah lock.
  */
-export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkunci, kegiatan }: KegiatanPanelProps) {
+export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkunci, kegiatan, kotor }: KegiatanPanelProps) {
     const [terbuka, setTerbuka] = useState(false);
     const [galatKirim, setGalatKirim] = useState('');
     const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm<FormKegiatan>(KOSONG);
@@ -113,6 +115,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                 <p className="text-sm text-muted">Kegiatan yang ditambahkan di sini langsung diklaim ke rencana aksi ini. Klaim menjelaskan dukungan kegiatan dan tidak mengubah nilai target atau pengukuran.</p>
             </CardHeader>
             <CardContent className="space-y-4">
+                {kotor && kegiatan.can.tambah && <p className="text-sm text-muted">Simpan atau buang perubahan target sebelum menambah kegiatan.</p>}
                 {periode.length === 0 && <p className="text-sm text-muted">Tidak ada periode efektif untuk rencana aksi ini.</p>}
                 {periode.map((item) => {
                     const daftar = kegiatan.daftar.filter((row) => row.periode_id === item.id);
@@ -126,7 +129,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                     {kunci && <Badge variant="muted">Terkunci</Badge>}
                                 </h3>
                                 {kegiatan.can.tambah && !kunci && (
-                                    <Button type="button" size="sm" variant="outline" onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
+                                    <Button type="button" size="sm" variant="outline" disabled={kotor} onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
                                         <Plus className="h-4 w-4" aria-hidden="true" />
                                         Tambah kegiatan
                                     </Button>
