@@ -168,9 +168,14 @@ describe('lingkup koreksi di UI', () => {
         expect(kirim.targets.find((item) => item.periode_id === P4)).toBeDefined();
     });
 
-    it('koreksi TW III mengabaikan daftar terkunci: TW III disunting dan terkirim', async () => {
+    it('koreksi TW III tetap tunduk pada kunci tanggal: disunting hanya setelah jendelanya dibuka resmi', async () => {
         const user = userEvent.setup();
-        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: true, periode_ids: [P3] }, [P1, P2, P3, P4])} />);
+        const { unmount } = render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: true, periode_ids: [P3] }, [P1, P2, P3, P4])} />);
+        expect(screen.queryByRole<HTMLInputElement>('spinbutton', { name: 'Target Triwulan III (poin)' })?.disabled ?? true).toBe(true);
+        unmount();
+
+        // Server tidak lagi mendaftar TW III sebagai terkunci setelah jendela pengisiannya dibuka resmi (ISS-14.03).
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: true, periode_ids: [P3] }, [P1, P2, P4])} />);
 
         expect(screen.getByText(/Sesi koreksi aktif/)).toBeTruthy();
 

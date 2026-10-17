@@ -50,7 +50,7 @@ class InertiaCapabilitiesTest extends TestCase
             'pimpinan' => ['pimpinan', []],
             'pegawai' => ['pegawai', []],
             'perencanaan dengan deny' => ['perencanaan', ['regulasi:read', 'pengukuran:read', 'periode:create', 'kegiatan:read']],
-            'superadmin dengan deny' => ['superadmin', ['akses:update', 'pengaturan:update', 'pk:create']],
+            'superadmin dengan deny' => ['superadmin', ['akses:update', 'pengaturan:update', 'pk:create', 'audit:read']],
         ];
     }
 
@@ -113,6 +113,7 @@ class InertiaCapabilitiesTest extends TestCase
             'berkas:delete' => $a('berkas:delete'),
             'pengaturan' => $a('pengaturan:update'),
             'pengaturan:update' => $a('pengaturan:update'),
+            'audit' => $a('audit:read'),
             'jenisBerkas' => $a('jenis_berkas:read'),
             'storagePolicy' => $a('pengaturan:update') || $a('jenis_berkas:read'),
             'storagePolicyUpdate' => $a('pengaturan:update'),

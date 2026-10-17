@@ -10,6 +10,7 @@ import { Input } from '@/Components/Input';
 import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { PenutupanPanel } from '@/Components/Jadwal/PenutupanPanel';
+import { RevisiJendela, RevisiJendelaPanel } from '@/Components/Jadwal/RevisiJendela';
 import { Select } from '@/Components/Select';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { statusJadwal } from '@/lib/jadwal';
@@ -55,6 +56,7 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
         (option) => !form.data.periode.some((item) => item.periode_id === option.id),
     );
     const [failure, setFailure] = useState('');
+    const [revising, setRevising] = useState(false);
     const recovery = useAuthRecovery();
     const submitting = useRef(false);
     const summaryRef = useRef<HTMLDivElement>(null);
@@ -329,28 +331,42 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                         </p>
                     </CardContent>
                 </Card>
-                <JendelaPeriode
-                    periode={form.data.periode}
-                    errors={errors}
-                    editable={editable}
-                    disabled={disabled}
-                    options={pilihanPeriode}
-                    emptyMessage={
-                        periode_options.length === 0
-                            ? 'Belum ada periode aktif. Tambahkan atau aktifkan di Master Periode.'
-                            : 'Semua periode aktif sudah dipilih.'
-                    }
-                    onAdd={addPeriode}
-                    onRemove={removePeriode}
-                    onChange={(periodeId, field, value) =>
-                        form.setData((data) => ({
-                            ...data,
-                            periode: data.periode.map((period) =>
-                                period.periode_id === periodeId ? { ...period, [field]: value } : period,
-                            ),
-                        }))
-                    }
-                />
+                {/* Revisi menggantikan tabel baca saja di tempat agar id input tanggal tidak ganda. */}
+                {jadwal && revising ? (
+                    <RevisiJendela
+                        jadwalId={jadwal.id}
+                        tahun={jadwal.tahun}
+                        revisi={jadwal.revisi}
+                        periode={jadwal.periode}
+                        onCancel={() => {
+                            setRevising(false);
+                            requestAnimationFrame(() => document.getElementById('revisi-jendela-mulai')?.focus());
+                        }}
+                    />
+                ) : (
+                    <JendelaPeriode
+                        periode={form.data.periode}
+                        errors={errors}
+                        editable={editable}
+                        disabled={disabled}
+                        options={pilihanPeriode}
+                        emptyMessage={
+                            periode_options.length === 0
+                                ? 'Belum ada periode aktif. Tambahkan atau aktifkan di Master Periode.'
+                                : 'Semua periode aktif sudah dipilih.'
+                        }
+                        onAdd={addPeriode}
+                        onRemove={removePeriode}
+                        onChange={(periodeId, field, value) =>
+                            form.setData((data) => ({
+                                ...data,
+                                periode: data.periode.map((period) =>
+                                    period.periode_id === periodeId ? { ...period, [field]: value } : period,
+                                ),
+                            }))
+                        }
+                    />
+                )}
                 {editable && (
                     <div className="flex items-center justify-end gap-3">
                         <Link
@@ -377,6 +393,18 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                         status={jadwal.status}
                         dirtyCalendar={form.isDirty}
                         periodeNames={Object.fromEntries(jadwal.periode.map((item) => [item.periode_id, item.nama]))}
+                    />
+                </div>
+            )}
+            {jadwal && can.revise_windows && !revising && (
+                <div className="mt-5">
+                    <RevisiJendelaPanel
+                        tahun={jadwal.tahun}
+                        onStart={() => {
+                            setRevising(true);
+                            const first = jadwal.periode[0]?.periode_id;
+                            requestAnimationFrame(() => document.getElementById(`periode-${first}-pengisian_mulai`)?.focus());
+                        }}
                     />
                 </div>
             )}

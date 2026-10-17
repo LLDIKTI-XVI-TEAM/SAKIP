@@ -9,6 +9,7 @@ use App\Http\Controllers\Akses\IndexGrant;
 use App\Http\Controllers\Akses\RevokeGrant;
 use App\Http\Controllers\Akses\SearchGrantUsers;
 use App\Http\Controllers\Akses\StoreGrant;
+use App\Http\Controllers\Audit\AuditLogController;
 use App\Http\Controllers\Auth\KeycloakCallback;
 use App\Http\Controllers\Auth\PendingAccount;
 use App\Http\Controllers\Auth\ProcessLogout;
@@ -147,6 +148,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/jadwal/{jadwal}/kesiapan-aktivasi', [JadwalController::class, 'readiness'])->whereUuid('jadwal')->name('jadwal.activation-readiness');
     Route::post('/jadwal/{jadwal}/aktivasi', [JadwalController::class, 'activate'])->whereUuid('jadwal')->name('jadwal.activate');
     Route::post('/jadwal/{jadwal}/tutup', [JadwalController::class, 'close'])->whereUuid('jadwal')->name('jadwal.close');
+    Route::post('/jadwal/{jadwal}/revisi-jendela', [JadwalController::class, 'reviseWindows'])->whereUuid('jadwal')->name('jadwal.revise-windows');
     Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
     Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
     Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');
@@ -243,6 +245,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Kebijakan Storage & Saklar Unggah Berkas
     Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');
     Route::put('/pengaturan/storage', [StoragePolicyController::class, 'update'])->name('pengaturan.storage.update');
+
+    // Jejak audit append-only: hanya baca, tanpa rute ubah atau hapus.
+    Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
+    Route::get('/audit/{id}', [AuditLogController::class, 'show'])->whereUuid('id')->name('audit.show');
 
     // Sasaran Strategis & Indikator Kinerja
     Route::get('/perencanaan/sasaran-indikator', IndexSasaranIndikator::class)->name('perencanaan.sasaran-indikator.index');

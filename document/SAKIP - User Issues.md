@@ -1780,6 +1780,8 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 
 > **Q41 (13 Oktober 2026):** jendela penyusunan Rencana Aksi tidak ada lagi; revisi jendela PIC pada issue ini berlaku untuk jendela pengisian pengukuran, dan Q18 tetap berlaku untuk jendela tersebut (Q41 §41.1 butir 3). "Jendela" pada AC-2 dibaca sebagai jendela pengisian; Rencana Aksi mengikuti kunci per periode bagi PIC (ISS-05.07). Kunci RA per periode mengikuti `pengisian_selesai` yang berlaku, sehingga perpanjangan resmi jendela pengisian periode P ikut menggeser kunci RA periode P (Q41 §41.2 butir 5). Alasan revisi jendela tetap wajib karena tidak termasuk daftar alasan opsional Q43 §43.3. AC-6 ditambahkan karena issue ini belum dikerjakan.
 
+> **Q57 (17 Oktober 2026):** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama karena urutan `pengisian_selesai ≤ reviu_mulai ≤ reviu_selesai`; audit menyimpan seluruh jendela sebelum dan sesudah revisi, penanda `reviu_terlambat` yang sudah tercatat tetap beku, dan reviu sesudahnya mengikuti jendela reviu yang berlaku.
+
 **Terkait User Story:** `US-03.06`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
@@ -1803,49 +1805,59 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given deadline PIC perlu diubah, When Perencanaan mengisi alasan dan batas baru, Then jendela resmi diperbarui dan audit menyimpan batas lama/baru.
-- [ ] **AC-2:** Given PIC mencoba bekerja di luar jendela yang berlaku, Then ditolak meskipun jadwal berstatus aktif.
-- [ ] **AC-3:** Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan.
-- [ ] **AC-4:** Given jendela dibuka untuk PIC, Then grant unit, PIC efektif, deny, status record, dan gerbang kelengkapan tetap wajib.
-- [ ] **AC-5:** Given `jadwal:buka_kembali` dilakukan tanpa revisi jendela PIC, Then PIC tetap tidak memperoleh akses koreksi otomatis.
-- [ ] **AC-6:** Given `pengisian_selesai` periode P diperpanjang secara resmi, Then kunci Rencana Aksi periode P bagi PIC ikut bergeser ke batas baru. *(Q41 §41.2 butir 5)*
+- [x] **AC-1:** Given deadline PIC perlu diubah, When Perencanaan mengisi alasan dan batas baru, Then jendela resmi diperbarui dan audit menyimpan batas lama/baru.
+- [x] **AC-2:** Given PIC mencoba bekerja di luar jendela yang berlaku, Then ditolak meskipun jadwal berstatus aktif.
+- [ ] **AC-3:** Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan. *(Dikerjakan ISS-14.03; revisi pada issue ini hanya untuk jadwal `aktif` yang belum melewati `penutupan`.)*
+- [x] **AC-4:** Given jendela dibuka untuk PIC, Then grant unit, PIC efektif, deny, status record, dan gerbang kelengkapan tetap wajib.
+- [x] **AC-5:** Given `jadwal:buka_kembali` dilakukan tanpa revisi jendela PIC, Then PIC tetap tidak memperoleh akses koreksi otomatis.
+- [x] **AC-6:** Given `pengisian_selesai` periode P diperpanjang secara resmi, Then kunci Rencana Aksi periode P bagi PIC ikut bergeser ke batas baru. *(Q41 §41.2 butir 5)*
+
+> **Status implementasi — ISS-03.06 (#90):** centang menunjukkan bukti implementasi dan test:
+> - `tests/Feature/Jadwal/JadwalRevisiJendelaTest` (AC-1; penolakan aturan kalender, daftar periode, alasan kosong, revisi basi, jadwal bukan aktif atau lewat penutupan, tanpa izin, dan deny beraudit; aturan jendela Rencana Aksi tidak lagi diperiksa sejak Q41);
+> - `tests/Unit/Jadwal/JadwalDraftRulesTest` (aturan kalender bersama untuk revisi);
+> - `tests/Feature/Pengukuran/PengukuranRevisiJendelaTest` (AC-2, AC-4, AC-5 untuk pengukuran, dan penanda `reviu_terlambat` pada audit reviu lama tidak berubah);
+> - `tests/Feature/RencanaAksi/RencanaAksiRevisiJendelaTest` (AC-6) dan `RencanaAksiKoreksiKunciTanggalTest` (AC-5 untuk Rencana Aksi), dengan regresi `BukaKembaliRencanaAksiTest` dan `RencanaAksiAjukanTest`;
+> - `tests/Integration/Jadwal/PeriodeJadwalConcurrencyTest` (dua revisi bersamaan: satu berhasil, satu ditolak basi dan teraudit);
+> - `tests/Frontend/JadwalEditor.test.tsx` dan `tests/Frontend/RencanaAksiKoreksi.test.tsx`.
+>
+> Dalam sesi koreksi, kunci tanggal tetap berlaku bagi PIC pada Rencana Aksi sehingga akses PIC menunggu pembukaan jendela pengisian resmi (Q19, Q41 §41.2 butir 6). Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan`/`jadwal_periode`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan`/`jadwal_periode`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan perubahan deadline/jendela resmi dengan alasan dan audit before/after. Setelah penutupan, jendela PIC baru harus berada di dalam sesi koreksi dan lingkup koreksi.
-- [ ] Pastikan kunci RA per periode (aturan bersama ISS-05.07 pada `JendelaTulisRencanaAksi`) membaca `pengisian_selesai` yang berlaku setelah revisi, tanpa salinan tanggal terpisah (Q41 §41.2 butir 5).
+- [ ] Implementasikan perubahan deadline/jendela resmi dengan alasan dan audit before/after. Setelah penutupan, jendela PIC baru harus berada di dalam sesi koreksi dan lingkup koreksi. *(Revisi pada jadwal aktif selesai; pembukaan setelah penutupan dikerjakan ISS-14.03.)*
+- [x] Pastikan kunci RA per periode (aturan bersama ISS-05.07 pada `JendelaTulisRencanaAksi`) membaca `pengisian_selesai` yang berlaku setelah revisi, tanpa salinan tanggal terpisah (Q41 §41.2 butir 5).
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `jadwal:update`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `jadwal:update`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Revisi Resmi Jendela PIC**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Revisi Resmi Jendela PIC**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC perlu diubah, When Perencanaan mengisi alasan dan batas baru, Then jendela resmi diperbarui dan audit menyimpan batas lama/baru.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given PIC mencoba bekerja di luar jendela yang berlaku, Then ditolak meskipun jadwal berstatus aktif.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela dibuka untuk PIC, Then grant unit, PIC efektif, deny, status record, dan gerbang kelengkapan tetap wajib.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given `jadwal:buka_kembali` dilakukan tanpa revisi jendela PIC, Then PIC tetap tidak memperoleh akses koreksi otomatis.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given `pengisian_selesai` periode P diperpanjang secara resmi, Then kunci Rencana Aksi periode P bagi PIC ikut bergeser ke batas baru. *(Q41 §41.2 butir 5)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC perlu diubah, When Perencanaan mengisi alasan dan batas baru, Then jendela resmi diperbarui dan audit menyimpan batas lama/baru.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given PIC mencoba bekerja di luar jendela yang berlaku, Then ditolak meskipun jadwal berstatus aktif.
+- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan. *(ISS-14.03)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela dibuka untuk PIC, Then grant unit, PIC efektif, deny, status record, dan gerbang kelengkapan tetap wajib.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given `jadwal:buka_kembali` dilakukan tanpa revisi jendela PIC, Then PIC tetap tidak memperoleh akses koreksi otomatis.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given `pengisian_selesai` periode P diperpanjang secara resmi, Then kunci Rencana Aksi periode P bagi PIC ikut bergeser ke batas baru. *(Q41 §41.2 butir 5)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-3/TEST-3 menunggu ISS-14.03.)*
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(Rujukan "Plan Modul 3: 3.12" belum memiliki bagian di Plan Pengembangan.)*
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Responsivitas menunggu smoke SSO.)*
 
 
 ---
@@ -3441,6 +3453,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > **Q47 (13 Oktober 2026):** realisasi yang belum tersedia dan bukan karena penyebut nol dicatat sebagai `status_perhitungan = belum_dapat_diukur` (ISS-07.01), yang berbeda dari `tidak_dapat_dihitung` dan dari realisasi `0`; keduanya tidak dihitung sebagai capaian 0 (Q47 §47.4 butir 3). AC-6 ditambahkan karena issue ini belum dikerjakan.
 
+> **Keputusan PM (16 Oktober 2026):** AC-5 dan TEST-5 disamakan dengan body issue #81: buktinya ada di halaman Verifikasi, yang membaca penanda dan alasan dari snapshot versi. Tampilan laporan beserta alasan tetap terbuka sebagai milik ISS-10.02 (AC-6) dan US-07.06 AC-5, sehingga tidak ikut dicentang di sini.
+
 **Terkait User Story:** `US-07.06`  
 **Prioritas:** 🟡 P1 · Tahap 2 (Q46 §46.3)  
 **Story Points:** 5  
@@ -3464,11 +3478,11 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
-- [ ] **AC-2:** Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
-- [ ] **AC-3:** Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
-- [ ] **AC-4:** Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
-- [ ] **AC-5:** Given versi disahkan, Then laporan menampilkan penanda tidak dapat dihitung beserta alasan yang sesuai hak baca.
+- [x] **AC-1:** Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
+- [x] **AC-2:** Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
+- [x] **AC-3:** Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
+- [x] **AC-4:** Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
+- [x] **AC-5:** Given versi diajukan/disahkan dengan `tidak_dapat_dihitung`, Then halaman verifikasi menampilkan penanda dan alasan dari snapshot versi sesuai hak baca; tampilan laporan milik ISS-10.02.
 - [ ] **AC-6:** Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
 
 #### Implementation Tasks
@@ -3492,11 +3506,11 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi disahkan, Then laporan menampilkan penanda tidak dapat dihitung beserta alasan yang sesuai hak baca.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan/disahkan dengan `tidak_dapat_dihitung`, Then halaman verifikasi menampilkan penanda dan alasan dari snapshot versi sesuai hak baca; tampilan laporan milik ISS-10.02.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
 
 #### Definition of Done
@@ -3997,6 +4011,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > **Q42, Q44, Q45, Q47, Q48, Q51 (13 Oktober 2026):** rekap menampilkan narasi pengukuran bersama daftar kegiatan yang diklaim dan anggarannya (Q45 §45.1 butir 2, Q42 §42.2), Rekomendasi Pimpinan yang berlaku yaitu berstatus disetujui (Q51 §51.1 butir 2), tampilan periode tanpa target dan realisasi belum dapat diukur sesuai Q47 §47.3–§47.4, serta penanda `tidak_dapat_dipenuhi` hanya sebagai histori (Q44 §44.1 butir 2). Dokumen resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat melalui ISS-10.05 (Q48). AC-4 sampai AC-6 diperbarui dan AC-7 ditambahkan karena issue ini belum dikerjakan.
 
+> **Keputusan PM (17 Oktober 2026):** rekap juga menampilkan alasan `tidak_dapat_dihitung` dari versi resmi sesuai hak baca, sehingga tampilan laporan pada US-07.06 AC-5 dipenuhi melalui issue ini (tindak lanjut review PR #118, m2). AC-6 dan TEST-6 diperbarui.
+
 **Terkait User Story:** `US-10.02`  
 **Prioritas:** 🟡 P1 · Tahap 2 (Q46 §46.3)  
 **Story Points:** 8  
@@ -4025,7 +4041,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] **AC-3:** Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
 - [ ] **AC-4:** Then narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, `tindak_lanjut_rekomendasi`) beserta daftar kegiatan yang diklaim dan anggarannya berasal dari versi resmi yang dinilai, bukan live data yang telah berubah. *(Diperbarui Q45 §45.1 butir 2, Q42 §42.2; semula narasi kegiatan/kendala/tindak lanjut.)*
 - [ ] **AC-5:** Then Rekomendasi Pimpinan yang berlaku (berstatus `disetujui`), status capaian, dan status bukti ditampilkan sesuai versi/konteks. *(Diperbarui Q51 §51.1 butir 2)*
-- [ ] **AC-6:** Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3)*
+- [ ] **AC-6:** Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol; penanda `tidak_dapat_dihitung` ditampilkan beserta alasan dari versi resmi sesuai hak baca. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3, keputusan PM 17 Oktober 2026)*
 - [ ] **AC-7:** Given periode tanpa target, Then rekap menampilkan "Tanpa target periode" beserta realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen; bila realisasinya juga belum dapat diukur, yang tampil "Belum dapat diukur". *(Q47 §47.3)*
 
 #### Implementation Tasks
@@ -4055,7 +4071,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Then narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, `tindak_lanjut_rekomendasi`) beserta daftar kegiatan yang diklaim dan anggarannya berasal dari versi resmi yang dinilai, bukan live data yang telah berubah. *(Diperbarui Q45 §45.1 butir 2, Q42 §42.2; semula narasi kegiatan/kendala/tindak lanjut.)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Then Rekomendasi Pimpinan yang berlaku (berstatus `disetujui`), status capaian, dan status bukti ditampilkan sesuai versi/konteks. *(Diperbarui Q51 §51.1 butir 2)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3)*
+- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol; penanda `tidak_dapat_dihitung` ditampilkan beserta alasan dari versi resmi sesuai hak baca. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3, keputusan PM 17 Oktober 2026)*
 - [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then rekap menampilkan "Tanpa target periode" beserta realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen; bila realisasinya juga belum dapat diukur, yang tampil "Belum dapat diukur". *(Q47 §47.3)*
 
 #### Definition of Done
@@ -5315,45 +5331,52 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
-- [ ] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
-- [ ] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan.
-- [ ] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
-- [ ] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
+- [x] **AC-1:** Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
+- [x] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
+- [x] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan. *(Pencatatan dilakukan modul masing-masing; halaman ini menampilkan percobaan bertindakan berakhiran `ditolak` beserta alasannya.)*
+- [x] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
+- [x] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
+
+> **Status implementasi — ISS-13.03 (#87):** centang menunjukkan bukti implementasi dan test:
+> - `tests/Feature/Audit/AuditTrailTest` (AC-1 termasuk batas tanggal Asia/Makassar; AC-2 dan AC-3 dari penetapan peran yang diizinkan dan yang ditolak deny; AC-4 405 dan model append-only; AC-5; 403 tanpa `audit:read` atau terkena deny; paginasi server dan index pencarian);
+> - `tests/Feature/Authorization/InertiaCapabilitiesTest` (`can.audit`);
+> - `tests/Frontend/AuditTrail.test.tsx` dan `tests/Frontend/GroupedSidebarNavigation.test.tsx`.
+>
+> AC-5 sisi penyimpanan bergantung pada allowlist payload di setiap modul penulis; test memeriksa payload modul yang dijalankan dalam test, dan halaman detail menyamarkan kunci yang menyerupai rahasia di server sebelum menjadi props. Membaca audit tidak diaudit karena PRD §25.1 tidak mencantumkannya. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Verifikasi query, relasi, indeks, dan eager-loading yang diperlukan; **jangan** membuat mutasi domain baru untuk fitur read-only.
+- [x] Verifikasi query, relasi, indeks, dan eager-loading yang diperlukan; **jangan** membuat mutasi domain baru untuk fitur read-only.
 
 **B. Backend / Domain**
-- [ ] Audit log bersifat append-only; tidak ada update/delete endpoint. Mask secret/credential dan simpan `dasar_izin` untuk aksi sensitif.
+- [x] Audit log bersifat append-only; tidak ada update/delete endpoint. Mask secret/credential dan simpan `dasar_izin` untuk aksi sensitif.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `audit:read`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `audit:read`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan. *(Tidak ada event baru: fitur ini hanya membaca.)*
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan halaman Inertia React untuk **Penelusuran Audit Trail Append-Only** sebagai tampilan read-only/filterable sesuai hak server.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan halaman Inertia React untuk **Penelusuran Audit Trail Append-Only** sebagai tampilan read-only/filterable sesuai hak server.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given filter waktu/aktor/tindakan/objek, When dicari, Then hasil audit yang cocok ditampilkan.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Responsivitas menunggu smoke SSO.)*
 
 ### ISS-13.04 · [Feature] Konfigurasi Operasional Notifikasi Eksternal
 

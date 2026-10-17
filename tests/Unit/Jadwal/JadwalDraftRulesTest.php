@@ -46,6 +46,34 @@ test('invalid calendar boundaries have field errors', function (string $field, s
     ['penutupan', '2027-01-18', 'penutupan'],
 ]);
 
+test('revisi jendela memakai aturan kalender tanpa jendela Rencana Aksi', function (): void {
+    $data = calendarDates();
+    unset($data['rencana_aksi_mulai'], $data['rencana_aksi_selesai']);
+    // Pengisian pertama sebelum "Rencana Aksi selesai" lama sah sejak Q41.
+    $data['periode'][0]['pengisian_mulai'] = '2026-01-10';
+    (new JadwalDraftRules)->validateJendela($data, ['a' => ['urutan' => 1], 'b' => ['urutan' => 4]]);
+    // Sampai di sini berarti tidak ada galat; aturan draft lama akan menolak tanggal ini pada rencana_aksi_selesai.
+    expect(fn () => (new JadwalDraftRules)->validate([...$data, 'rencana_aksi_mulai' => '2026-01-05', 'rencana_aksi_selesai' => '2026-01-30'], ['a' => ['urutan' => 1], 'b' => ['urutan' => 4]]))
+        ->toThrow(ValidationException::class);
+});
+
+test('revisi jendela tetap menolak pelanggaran kalender per kolom', function (string $field, string $value, string $error): void {
+    $data = calendarDates();
+    unset($data['rencana_aksi_mulai'], $data['rencana_aksi_selesai']);
+    data_set($data, $field, $value);
+    try {
+        (new JadwalDraftRules)->validateJendela($data, ['a' => ['urutan' => 1], 'b' => ['urutan' => 4]]);
+        $this->fail('Kalender invalid diterima.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey($error);
+    }
+})->with([
+    ['periode.0.pengisian_selesai', '2026-03-31', 'periode.0.pengisian_selesai'],
+    ['periode.1.pengisian_mulai', '2026-04-07', 'periode.1.pengisian_mulai'],
+    ['periode.0.reviu_selesai', '2027-01-01', 'periode.0.reviu_selesai'],
+    ['periode.1.reviu_selesai', '2027-01-19', 'penutupan'],
+]);
+
 test('selected order must be unique without imposing chronological order', function (): void {
     $data = calendarDates();
     expect(fn () => (new JadwalDraftRules)->validate($data, ['a' => ['urutan' => 4], 'b' => ['urutan' => 4]]))

@@ -21,6 +21,10 @@ Basis commit sebelum pembaruan Q54: `fe79a3136d38382c9bb4e9ae6a20ed182cc68d2d`
 
 Basis commit sebelum pembaruan Q55: `32d54f628198d8a8f0e0bb1c3fe65fe27d332833`
 
+Basis commit sebelum pembaruan Q56: `7851d3035ebc8f069c2a123e2242f2c6faef91fb`
+
+Basis commit sebelum pembaruan Q57: `118bf003162217d30a77a732db723574174213e8`
+
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
 ---
@@ -64,6 +68,10 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 16 Oktober 2026 (Q55)** menetapkan satu draf terbuka, token draf dan rekomendasi berlaku, persetujuan langsung oleh penyetuju cadangan, serta pembekuan dan token rekomendasi pada pengajuan pengukuran, melengkapi Q51.
 
+**Keputusan 17 Oktober 2026 (Q56)** menetapkan bahwa Admin tetap memegang `audit:read` bersama Superadmin, Perencanaan, dan Pimpinan, menyelaraskan PRD §25.4 dengan Plan Pengembangan, dan menerima secara sadar bahwa izin ini membuka payload audit lintas modul, termasuk draf.
+
+**Keputusan 17 Oktober 2026 (Q57)** menetapkan bahwa revisi resmi jendela PIC dapat ikut menyesuaikan jendela reviu periode yang sama dalam satu aksi beralasan dan teraudit, sedangkan penanda reviu terlambat yang sudah tercatat tetap beku, melengkapi Q18 dan Q41 §41.1 butir 3.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -97,7 +105,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q15 | F1/F2 berlaku untuk RA dan Pengukuran. Gunakan identitas/jalur pengaju yang dibekukan saat pengajuan, bukan pembuat draft atau role terkini; self-approval Perencanaan ditandai. | PRD §7.6; Workflow §20; Model versi |
 | Q16 | Jadwal normal mewajibkan jendela RA selesai sebelum pengisian pertama; indikator baru/revisi/backfill/pembukaan resmi memakai jalur pengecualian teraudit. **Digantikan Q41:** Rencana Aksi tidak lagi memakai jendela penyusunan; periode terkunci bagi PIC setelah jendela pengisiannya lewat. | PRD §12.3; Plan 3.4; Q41 |
 | Q17 | Perencanaan dapat menyelesaikan reviu sampai penutupan tahunan; lewat batas reviu diberi penanda terlambat. | PRD §12.3, §31 |
-| Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. **Q41:** berlaku untuk jendela pengisian pengukuran; jendela penyusunan RA sudah dihapus. | PRD §12.3; Plan 3.12; Q41 |
+| Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. **Q41:** berlaku untuk jendela pengisian pengukuran; jendela penyusunan RA sudah dihapus. **Dilengkapi Q57:** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama. | PRD §12.3; Plan 3.12; Q41; Q57 |
 | Q19 | Koreksi setelah penutupan memerlukan buka kembali dengan lingkup dan durasi eksplisit; tanggal penutupan asli dipertahankan. PIC memerlukan aksi pembukaan jendela terpisah Q18 dalam waktu/lingkup sesi koreksi, bukan otomatis dari buka tahun. | PRD §12.6, §19.5 |
 | Q20 | Indikator baru memiliki periode mulai berlaku; periode sebelumnya Tidak berlaku dan tidak menjadi target/missing/nol. | PRD §10.5, §14.7, §23 |
 | Q21 | Backfill dapat menerima skor historis final tanpa komponen, dengan sumber/alasan/penanda dan alur pengesahan; tidak mengubah tipe master atau membuat komponen rekaan. | PRD §12.6, §17.6 |
@@ -1591,6 +1599,43 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan: Data Model §2.31 dan §2.32, PRD §22.1, Workflow §17, User Stories US-09.01, dan User Issues ISS-09.01.
 - Status keputusan: baseline kerja PM.
 - Q55 adalah keputusan teknis ISS-09.01; implementasinya dibawa PR untuk Issue #103.
+
+# Keputusan Q56 — Admin Memegang Izin Baca Jejak Audit
+
+**Keputusan PM, 17 Oktober 2026**, untuk [ISS-13.03 / Issue #87](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/87). Menyelesaikan perbedaan PRD §25.4 dengan katalog permission dan Plan 10.3 pada Plan Pengembangan.
+
+## 56.1 Aturan
+
+1. `audit:read` termasuk preset Superadmin, Admin, Perencanaan, dan Pimpinan. Preset ini sudah berlaku sejak fondasi akses dan tidak berubah; Pegawai tetap tidak memilikinya.
+2. Deny `audit:read` yang cocok tetap menolak akses halaman Jejak Audit bagi pemegang preset mana pun.
+3. `audit:read` berlaku global dan membuka seluruh isi peristiwa audit lintas modul dan unit, termasuk `nilai_lama`/`nilai_baru` dari draf (misalnya narasi dan tautan bukti pengukuran, serta isi draf Rekomendasi Pimpinan), tanpa memeriksa izin baca modul objeknya. Server hanya menyamarkan kunci yang menyerupai rahasia, dan membaca jejak audit tidak dicatat sebagai peristiwa audit. Konsekuensi ini diterima secara sadar untuk Admin sebagai pengelola akses.
+
+## 56.2 Dampak dan traceability
+
+- Diselaraskan: PRD §25.4. Katalog permission dan Plan 10.3 pada Plan Pengembangan, User Stories US-13.03, dan User Issues ISS-13.03 sudah sesuai; preset dan kode tidak berubah.
+- Butir 3 ditambahkan atas temuan M1 review PR #119: halaman Jejak Audit membuat `audit:read` efektif, sehingga Admin dapat membaca payload modul yang tidak tercakup izin baca perannya.
+- Status keputusan: baseline kerja PM.
+- Q56 menindaklanjuti review PR untuk Issue #87.
+
+---
+
+# Keputusan Q57 — Jendela Reviu dalam Revisi Resmi Jendela PIC
+
+**Keputusan PM, 17 Oktober 2026**, untuk [ISS-03.06 / Issue #90](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/90). Melengkapi Q18 dan Q41 §41.1 butir 3 atas temuan review PR #120.
+
+## 57.1 Aturan
+
+1. Revisi resmi jendela PIC (Q18, `jadwal:update`) pada jadwal `aktif` yang belum melewati `penutupan` dapat mengubah `pengisian_mulai`, `pengisian_selesai`, `reviu_mulai`, dan `reviu_selesai` setiap periode anggota jadwal dalam satu aksi beralasan. Jendela reviu ikut dapat disesuaikan karena urutan `pengisian_selesai ≤ reviu_mulai ≤ reviu_selesai` ditegakkan constraint basis data dan aturan kalender, sehingga perpanjangan jendela pengisian umumnya menggeser jendela reviu periode yang sama.
+2. Jendela reviu tetap jendela kerja Perencanaan (PRD §12.3); revisinya tidak memberi akses tambahan kepada PIC.
+3. Audit `jadwal.revisi_jendela` menyimpan alasan, `dasar_izin`, serta seluruh jendela sebelum dan sesudah revisi, termasuk jendela reviu.
+4. Penanda `reviu_terlambat` pada aksi reviu yang sudah terjadi tetap beku (Q17). Aksi reviu pengukuran sesudah revisi dinilai terhadap jendela reviu yang berlaku saat aksi tersebut: penanda terlambat dihitung dari `reviu_selesai` yang berlaku, dan reviu belum dapat dimulai sebelum `reviu_mulai` yang berlaku kecuali dalam sesi koreksi.
+
+## 57.2 Dampak dan traceability
+
+- Diselaraskan: PRD §12.3; User Stories US-03.06; User Issues ISS-03.06.
+- Kode tidak berubah: perilaku ini sudah ditegakkan `RevisiJendelaPic` dan dibuktikan `JadwalRevisiJendelaTest` serta `PengukuranRevisiJendelaTest` pada PR #120.
+- Status keputusan: baseline kerja PM.
+- Q57 menindaklanjuti review PR untuk Issue #90.
 
 ---
 

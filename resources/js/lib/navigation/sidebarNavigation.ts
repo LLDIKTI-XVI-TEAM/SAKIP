@@ -11,6 +11,7 @@ import {
     BookOpen,
     Layers,
     FileText,
+    History,
     CalendarRange,
     FileSpreadsheet,
     CheckCircle2,
@@ -73,7 +74,7 @@ export type SidebarNavEntry =
 /**
  * Skema kanonikal navigasi SAKIP:
  * - 1 item direct: Dashboard
- * - 6 grup berfitur sesuai hierarki bisnis SAKIP (19 child items)
+ * - 6 grup berfitur sesuai hierarki bisnis SAKIP (21 child items)
  */
 export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
     {
@@ -293,6 +294,13 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/pengaturan/storage',
                     icon: HardDrive,
                     canKey: 'storagePolicy',
+                },
+                {
+                    id: 'audit',
+                    label: 'Jejak Audit',
+                    href: '/audit',
+                    icon: History,
+                    canKey: 'audit',
                 },
             ],
         },
