@@ -34,6 +34,26 @@ const dasar: Pengukuran = {
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
+describe('Rekomendasi beku pada verifikasi', () => {
+    it('menampilkan rekomendasi dari versi pengajuan bersama tindak lanjutnya', () => {
+        render(<VerifikasiShow pengukuran={{ ...dasar,
+            rekomendasi_sebelumnya: { id: 'c2af8a99-5e01-47fb-ae07-74c123880cd2', isi: 'Arahan beku sesuai pengajuan.',
+                tahun: 2025, periode_id: '0d7029ba-96e0-4343-986b-d1ca723c17e1', disetujui_pada: '2025-12-31T08:00:00Z' },
+            tindak_lanjut_rekomendasi: 'Tindak lanjut atas arahan beku.' }} />);
+
+        expect(screen.getByText('Rekomendasi periode sebelumnya')).toBeTruthy();
+        expect(screen.getByText('Arahan beku sesuai pengajuan.')).toBeTruthy();
+        expect(screen.getByText('Tindak lanjut atas arahan beku.')).toBeTruthy();
+    });
+
+    it.each([null, undefined])('menjelaskan rekomendasi yang tidak tersedia pada versi pengajuan (%s)', (rekomendasi) => {
+        render(<VerifikasiShow pengukuran={{ ...dasar, rekomendasi_sebelumnya: rekomendasi }} />);
+
+        expect(screen.getByText('Tidak ada rekomendasi pada versi pengajuan ini.')).toBeTruthy();
+        expect(screen.getByText('Tindak lanjut rekomendasi')).toBeTruthy();
+    });
+});
+
 describe('Verifikasi alasan guard', () => {
     it('menampilkan notice alasan arsip bila panel keputusan tersembunyi', () => {
         render(<VerifikasiShow pengukuran={{ ...dasar,

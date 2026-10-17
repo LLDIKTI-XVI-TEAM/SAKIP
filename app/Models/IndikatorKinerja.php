@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property bool $dinilai_tahunan
+ */
 class IndikatorKinerja extends Model
 {
     use HasFactory, HasUuids;
@@ -24,7 +27,7 @@ class IndikatorKinerja extends Model
         'nama',
         'definisi_operasional',
         'satuan',
-        'tipe_perhitungan', 'unit_id', 'arah', 'presisi', 'desimal_tampilan', 'wajib_catatan',
+        'tipe_perhitungan', 'unit_id', 'arah', 'presisi', 'desimal_tampilan', 'wajib_catatan', 'dinilai_tahunan',
         'jenis_agregasi',
         'status',
         'tahun_mulai_berlaku',
@@ -61,7 +64,7 @@ class IndikatorKinerja extends Model
     }
 
     protected $casts = [
-        'wajib_catatan' => 'boolean', 'presisi' => 'integer', 'desimal_tampilan' => 'integer',
+        'wajib_catatan' => 'boolean', 'dinilai_tahunan' => 'boolean', 'presisi' => 'integer', 'desimal_tampilan' => 'integer',
         'tahun_mulai_berlaku' => 'integer',
     ];
 

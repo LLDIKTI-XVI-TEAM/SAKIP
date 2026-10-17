@@ -2,8 +2,10 @@ import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { CheckCircle2, Eye, AlertCircle, Paperclip } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
+import { Tooltip } from '@/Components/Tooltip';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import type { Pengukuran, PengukuranPagination } from '@/Pages/Pengukuran/types';
 import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
 import Pagination from '@/Pages/Pengukuran/Pagination';
@@ -26,118 +28,104 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
         >
             <Head title="Verifikasi Kinerja" />
 
-            <div className="mb-6">
-                <h2 className="text-sm font-semibold text-ink">
-                    Antrean Verifikasi Capaian Kinerja
-                </h2>
-                <p className="mt-0.5 text-xs text-muted">
-                    Daftar capaian kinerja yang diajukan oleh PIC {labelUnit} dan memerlukan reviu substansi serta pengesahan resmi oleh Tim Perencanaan.
-                </p>
-            </div>
-
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-ink">
-                        Daftar Pengajuan Masuk ({pagination.total})
-                    </CardTitle>
-                </CardHeader>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-ink">
-                        <thead className="bg-soft text-muted font-semibold text-[11px] uppercase tracking-wider border-b border-border">
-                            <tr>
-                                <th className="px-6 py-3.5">KODE & INDIKATOR</th>
-                                <th className="px-6 py-3.5">{labelUnit.toUpperCase()} & PIC</th>
-                                <th className="px-6 py-3.5 text-right">TARGET</th>
-                                <th className="px-6 py-3.5 text-right">REALISASI</th>
-                                <th className="px-6 py-3.5 text-right">HASIL PERHITUNGAN</th>
-                                <th className="px-6 py-3.5 text-center">BUKTI DUKUNG</th>
-                                <th className="px-6 py-3.5 text-center">STATUS</th>
-                                <th className="px-6 py-3.5 text-center">AKSI</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {pengukurans.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success border border-success/20">
-                                                <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
-                                            </div>
-                                            <p className="text-sm font-semibold text-ink">
-                                                Semua pengajuan telah diproses
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted max-w-sm">
-                                                Tidak ada antrean capaian yang menunggu verifikasi saat ini.
-                                            </p>
+                <Table className="min-w-max whitespace-nowrap">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="px-6 py-3.5 text-left">KODE & INDIKATOR</TableHead>
+                            <TableHead className="px-6 py-3.5 text-left">{labelUnit.toUpperCase()} & PIC</TableHead>
+                            <TableHead className="px-6 py-3.5 text-left">TARGET</TableHead>
+                            <TableHead className="px-6 py-3.5 text-left">REALISASI</TableHead>
+                            <TableHead className="px-6 py-3.5 text-left">HASIL PERHITUNGAN</TableHead>
+                            <TableHead className="px-6 py-3.5 text-left">BUKTI DUKUNG</TableHead>
+                            <TableHead className="px-6 py-3.5 text-left">STATUS</TableHead>
+                            <TableHead className="px-6 py-3.5 text-left">AKSI</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {pengukurans.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={8} className="px-6 py-12 text-center whitespace-normal">
+                                    <div className="flex flex-col items-center justify-center">
+                                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success border border-success/20">
+                                            <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
                                         </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                pengukurans.map((p) => {
-                                    const iku = p.penugasan_indikator?.indikator_kinerja;
-                                    const unit = p.penugasan_indikator?.unit_kerja;
-                                    const pic = p.penugasan_indikator?.pic;
+                                        <p className="text-sm font-semibold text-ink">
+                                            Semua pengajuan telah diproses
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted max-w-sm">
+                                            Tidak ada antrean capaian yang menunggu verifikasi saat ini.
+                                        </p>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            pengukurans.map((p) => {
+                                const iku = p.penugasan_indikator?.indikator_kinerja;
+                                const unit = p.penugasan_indikator?.unit_kerja;
+                                const pic = p.penugasan_indikator?.pic;
 
-                                    return (
-                                        <tr key={p.id} className="hover:bg-soft transition-colors">
-                                            <td className="px-6 py-4 max-w-xs">
-                                                <div className="font-bold text-ink text-xs">
-                                                    {iku?.kode}
-                                                </div>
-                                                <div className="text-muted mt-0.5 line-clamp-2 leading-relaxed">
-                                                    {iku?.nama}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-medium text-ink">{unit?.nama}</div>
-                                                <div className="text-[11px] text-muted mt-0.5">
-                                                    PIC: {pic?.nama || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-medium text-ink">
-                                                {p.target === null ? 'Belum tersedia' : `${formatNilai(p.target, iku.desimal_tampilan)} ${iku.satuan}`}
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-semibold text-ink">
-                                                {p.nilai === null ? '—' : `${formatNilai(p.nilai, iku.desimal_tampilan)} ${iku.satuan}`}
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-semibold text-ink">
-                                                <StatusPerhitunganBadge status={p.status_perhitungan} />
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                {p.bukti_count > 0 ? (
-                                                    <span className="inline-flex items-center gap-1 font-semibold text-primary">
-                                                        <Paperclip className="w-3.5 h-3.5" />
-                                                        {p.bukti_count} Dokumen
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-muted">Tanpa bukti</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <Badge status={p.status} />
-                                                    {p.self_approval && <span className="text-[11px] font-medium text-info-dark">Persetujuan sendiri</span>}
-                                                    {p.reviu_terlambat && <span className="text-[11px] font-medium text-warning-dark">Reviu terlambat</span>}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                {p.can.view && (
+                                return (
+                                    <TableRow key={p.id} className="hover:bg-soft transition-colors">
+                                        <TableCell className="px-6 py-4">
+                                            <div className="font-bold text-ink text-xs">
+                                                {iku?.kode}
+                                            </div>
+                                            <div className="text-muted mt-0.5 leading-relaxed">
+                                                {iku?.nama}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4">
+                                            <div className="font-medium text-ink">{unit?.nama}</div>
+                                            <div className="text-[11px] text-muted mt-0.5">
+                                                PIC: {pic?.nama || '-'}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-right font-medium text-ink">
+                                            {p.tanpa_target_periode ? 'Tanpa target periode' : p.target === null ? 'Belum tersedia' : `${formatNilai(p.target, iku.desimal_tampilan)} ${iku.satuan}`}
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-right font-semibold text-ink">
+                                            {p.nilai === null ? '—' : `${formatNilai(p.nilai, iku.desimal_tampilan)} ${iku.satuan}`}
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-left font-semibold text-ink">
+                                            <StatusPerhitunganBadge status={p.status_perhitungan} />
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-center">
+                                            {p.bukti_count > 0 ? (
+                                                <span className="inline-flex items-center gap-1 font-semibold text-primary">
+                                                    <Paperclip className="w-3.5 h-3.5" />
+                                                    {p.bukti_count} Dokumen
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted">Tanpa bukti</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-center">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <Badge status={p.status} />
+                                                {p.self_approval && <span className="text-[11px] font-medium text-info-dark">Persetujuan sendiri</span>}
+                                                {p.reviu_terlambat && <span className="text-[11px] font-medium text-warning-dark">Reviu terlambat</span>}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="px-6 py-4 text-left">
+                                            {p.can.view && (
+                                                <Tooltip content="Lihat pengajuan" align="right">
                                                     <Link
                                                         href={`/verifikasi/${p.id}`}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors shadow-xs"
+                                                        aria-label={`Lihat pengajuan ${iku?.kode ?? 'pengukuran'}`}
+                                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
                                                     >
-                                                        <Eye aria-hidden="true" className="h-3.5 w-3.5" />
-                                                        Lihat pengajuan
+                                                        <Eye aria-hidden="true" className="h-4 w-4" />
                                                     </Link>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                                </Tooltip>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })
+                        )}
+                    </TableBody>
+                </Table>
                 <Pagination pagination={pagination} />
             </Card>
         </AuthenticatedLayout>

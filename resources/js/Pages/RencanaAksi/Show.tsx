@@ -245,16 +245,15 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
         <AuthenticatedLayout
             title={`Rencana Aksi ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`}
             breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: `${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}` }]}
+            headerActions={
+                <Link href="/rencana-aksi" className="ml-auto inline-flex h-9 shrink-0 translate-y-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Kembali ke daftar
+                </Link>
+            }
         >
             <Head title={`Rencana Aksi ${rencanaAksi.indikator.kode}`} />
             <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href="/rencana-aksi" className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20">
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        Kembali ke daftar
-                    </Link>
-                </div>
-
                 <Card>
                     <CardHeader>
                         <div className="min-w-0 flex-1 space-y-1.5">
@@ -370,15 +369,17 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                         ) : (
                             <>
                                 {/* Saat semua periode terkunci, nilai tersimpan tetap terbaca; hanya petunjuk isian yang diganti. */}
-                                <p className="px-6 pt-4 pb-3 text-sm text-muted">
-                                    {terkunciSemua
-                                        ? 'Tidak ada periode yang dapat dikoreksi.'
-                                        : canUpdate
-                                          ? 'Isi target setiap periode yang berlaku. Skor di tabel adalah hasil tersimpan; pratinjau di bawah tabel menghitung perubahan sebelum disimpan.'
-                                          : 'Skor di tabel adalah hasil tersimpan.'}
-                                    {!terkunciSemua && (koreksi.aktif || terkunci.size > 0) ? ' Baris yang dikunci hanya-baca dan tidak dikirim.' : ''}
-                                    {!terkunciSemua && kotor ? ' Perubahan input belum mengubah hasil ini; simpan untuk memperbarui.' : ''}
-                                </p>
+                                {(terkunciSemua || canUpdate || koreksi.aktif || terkunci.size > 0 || kotor) && (
+                                    <p className="px-6 pt-4 pb-3 text-sm text-muted">
+                                        {terkunciSemua
+                                            ? 'Tidak ada periode yang dapat dikoreksi.'
+                                            : canUpdate
+                                              ? 'Isi target setiap periode yang berlaku. Pratinjau di bawah tabel menghitung perubahan sebelum disimpan.'
+                                              : null}
+                                        {!terkunciSemua && (koreksi.aktif || terkunci.size > 0) ? ' Baris yang dikunci hanya-baca dan tidak dikirim.' : ''}
+                                        {!terkunciSemua && kotor ? ' Perubahan input belum mengubah hasil ini; simpan untuk memperbarui.' : ''}
+                                    </p>
+                                )}
                                 <MatriksTarget
                                         tipePerhitungan={rencanaAksi.tipe_perhitungan}
                                         komponen={komponenTerurut}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { http, HttpResponseError } from '@inertiajs/core';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import type { RencanaAksiKomponen, RencanaAksiPreview } from './types';
+import { rencanaAksiStatusPerhitungan } from './types';
 
 interface TargetPreviewProps {
     id: string;
@@ -138,7 +139,7 @@ export default function TargetPreview({
                                     {!latest?.result
                                         ? 'Menghitung pratinjau…'
                                         : baris.skor.nilai === null
-                                          ? (baris.skor.status_perhitungan === 'tidak_dapat_dihitung' ? 'Tidak dapat dihitung' : 'Belum diisi')
+                                          ? (rencanaAksiStatusPerhitungan[baris.skor.status_perhitungan] ?? 'Belum diisi')
                                           : `${formatNilai(baris.skor.nilai, desimalTampilan)} ${satuan}`}
                                 </span>
                             </li>

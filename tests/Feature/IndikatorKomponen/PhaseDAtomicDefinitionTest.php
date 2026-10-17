@@ -163,6 +163,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
 
     public function test_parent_metadata_tanpa_akses_child_tetap_dapat_diubah(): void
     {
+        $this->indikator->update(['wajib_catatan' => true]);
         UserPermissionDeny::create(['user_id' => $this->actor->id,
             'permission_id' => Permission::where('kode', 'komponen:read')->value('id'),
             'ditetapkan_oleh' => $this->actor->id, 'alasan' => 'Tidak boleh membaca konfigurasi.']);
@@ -171,6 +172,7 @@ class PhaseDAtomicDefinitionTest extends TestCase
             'expected_updated_at' => $this->indikator->fresh()->updated_at->toISOString(),
         ])->assertSessionHasNoErrors()->assertInertiaFlash('indikatorMutation.status', 'saved');
         $this->assertSame('Metadata parent saja', $this->indikator->fresh()->nama);
+        $this->assertTrue($this->indikator->fresh()->wajib_catatan);
         $this->assertSame(1, AuditLog::where('tindakan', 'indikator.ubah')->count());
     }
 

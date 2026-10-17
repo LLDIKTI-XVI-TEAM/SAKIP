@@ -72,6 +72,7 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
         presisi: indikator?.presisi ?? 2,
         desimal_tampilan: indikator?.desimal_tampilan ?? 2,
         wajib_catatan: Boolean(indikator?.wajib_catatan),
+        dinilai_tahunan: Boolean(indikator?.dinilai_tahunan),
         regulasi_id: indikator?.regulasi_id ?? '',
         expected_updated_at: baseline?.revision ?? '',
         alasan: '',
@@ -303,6 +304,16 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                     </div>
                 </div>
 
+                <div className="rounded-lg border border-border bg-soft p-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <label htmlFor="indikator_dinilai_tahunan" className="text-sm font-medium text-ink">Dinilai tahunan</label>
+                        <Switch id="indikator_dinilai_tahunan" label="Dinilai tahunan" checked={data.dinilai_tahunan}
+                            onChange={(checked) => setData('dinilai_tahunan', checked)} disabled={processing || feedback.blocked} />
+                    </div>
+                    <p className="mt-2 text-sm text-muted">Target periode sebelum nilai akhir boleh kosong. Jadwal yang sudah aktif tetap memakai penanda pada snapshot-nya sampai ada koreksi resmi.</p>
+                    {errors.dinilai_tahunan && <p role="alert" className="mt-2 text-sm text-danger">{errors.dinilai_tahunan}</p>}
+                </div>
+
                 <div>
                     <Select
                         id="indikator_regulasi_id"
@@ -330,18 +341,6 @@ export const IndikatorModal: React.FC<IndikatorModalProps> = ({
                     error={errors.definisi_operasional}
                 />
 
-                <div className="flex flex-col gap-3 pt-2">
-                    <div className="flex items-center gap-3">
-                        <Switch
-                            id="indikator_wajib_catatan"
-                            checked={data.wajib_catatan}
-                            onChange={(val) => setData('wajib_catatan', val)}
-                        />
-                        <label htmlFor="indikator_wajib_catatan" className="text-sm font-medium text-ink cursor-pointer">
-                            Wajib Melampirkan Catatan Penjelasan saat Pengisian Realisasi
-                        </label>
-                    </div>
-                </div>
                 {definitionReadable && <section className="space-y-3 rounded-lg border border-border p-4">
                     <Button type="button" variant="outline" aria-expanded={definitionOpen} onClick={() => setDefinitionOpen((value) => !value)}>Komponen Formula</Button>
                     {definitionOpen && <DefinitionFields prefix="indikator" rows={rows} deleted={deleted} tipe={data.tipe_perhitungan} can={definitionCan} disabled={processing || feedback.blocked} onRows={setRows} onDeleted={setDeleted} errors={nestedErrors} />}

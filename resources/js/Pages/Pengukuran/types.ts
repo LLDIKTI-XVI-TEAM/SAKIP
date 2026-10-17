@@ -44,7 +44,9 @@ export interface Pengukuran {
     reviu_terlambat: boolean;
     status: 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikasi' | 'disahkan';
     target: string | number | null;
+    tanpa_target_periode?: boolean;
     target_pk?: string | number | null;
+    selisih_target_pk?: string | null;
     klaim?: KlaimPengukuran[];
     nilai: string | number | null;
     status_perhitungan: keyof typeof statusPerhitungan;
@@ -126,7 +128,7 @@ export interface PengukuranPagination {
     next_page_url: string | null;
 }
 
-export type RingkasanPengukuran = Pick<Pengukuran, 'id' | 'status' | 'nilai' | 'status_perhitungan' | 'target' | 'bukti_count' | 'self_approval' | 'reviu_terlambat'>;
+export type RingkasanPengukuran = Pick<Pengukuran, 'id' | 'status' | 'nilai' | 'status_perhitungan' | 'target' | 'tanpa_target_periode' | 'bukti_count' | 'self_approval' | 'reviu_terlambat'>;
 
 export interface KonteksBarisPengukuran {
     indikator_id: string;
@@ -142,8 +144,8 @@ export interface KonteksBarisPengukuran {
 /** Baris kewajiban: header existing, belum diisi (berlaku), atau sebelum efektif ("Tidak berlaku"). */
 export type BarisPengukuran = KonteksBarisPengukuran & (
     | { jenis: 'existing'; pengukuran: RingkasanPengukuran; can: { create: false } }
-    | { jenis: 'absent'; berlaku: true; pengukuran: null; target: string | number | null; can: { create: boolean } }
-    | { jenis: 'absent'; berlaku: false; pengukuran: null; target: null; can: { create: false } }
+    | { jenis: 'absent'; berlaku: true; pengukuran: null; target: string | number | null; tanpa_target_periode?: boolean; can: { create: boolean } }
+    | { jenis: 'absent'; berlaku: false; pengukuran: null; target: null; tanpa_target_periode?: boolean; can: { create: false } }
 );
 
 export interface KonteksPengukuran {

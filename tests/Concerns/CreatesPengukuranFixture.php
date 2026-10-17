@@ -61,7 +61,8 @@ trait CreatesPengukuranFixture
         $this->planVersion = RencanaAksiVersi::create(['rencana_aksi_id' => $this->plan->id, 'jadwal_snapshot_id' => $this->context->id, 'nomor' => 1, 'diajukan_by' => $this->actor->id, 'diajukan_at' => now(),
             'jalur_pengajuan' => 'perencanaan', 'dasar_izin_pengajuan' => ['fixture' => 'sintetis'], 'snapshot' => ['target_periode' => [['periode_id' => $periode->id, 'nilai' => 70, 'status_perhitungan' => 'terhitung', 'komponen' => []]]],
             'disahkan_by' => $this->actor->id, 'disahkan_at' => now()]);
-        $this->pengukuran = PengukuranKinerja::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'periode_id' => $periode->id, 'jadwal_snapshot_id' => $this->context->id, 'sumber_nilai' => 'manual', 'created_by' => $this->actor->id]);
+        $this->pengukuran = PengukuranKinerja::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'periode_id' => $periode->id, 'jadwal_snapshot_id' => $this->context->id, 'sumber_nilai' => 'manual',
+            'progres_kegiatan' => 'Progres fixture pengukuran.', 'kendala_masalah' => 'Kendala fixture pengukuran.', 'strategi_tindak_lanjut' => 'Strategi fixture pengukuran.', 'created_by' => $this->actor->id]);
     }
 
     protected function userWithRole(string $kode): User

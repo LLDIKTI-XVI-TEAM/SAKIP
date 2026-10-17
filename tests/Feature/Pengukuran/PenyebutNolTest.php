@@ -28,7 +28,8 @@ class PenyebutNolTest extends TestCase
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft', ...$komponen(5, 0)])->assertSessionHasNoErrors();
         $this->assertSame('tidak_dapat_dihitung', $this->pengukuran->fresh()->status_perhitungan);
         $this->assertNull($this->pengukuran->fresh()->nilai);
-        $this->get($url.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('pengukuran.can.submit', false)
+        // Capability Ajukan tetap tersedia; alasan kelengkapan diperiksa ulang secara atomik saat pengajuan.
+        $this->get($url.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('pengukuran.can.submit', true)
             ->where('pengukuran.prasyarat.alasan', fn ($alasan) => collect($alasan)->contains(self::PESAN_ALASAN)));
         foreach ([null, '   '] as $alasan) {
             $this->post($url, ['versi' => 2, 'action' => 'ajukan', ...$komponen(5, 0), 'alasan_tidak_dapat_dihitung' => $alasan])
@@ -43,7 +44,7 @@ class PenyebutNolTest extends TestCase
         $this->assertTrue($ditolak->every(fn ($a) => $a->nilai_baru['tindakan_diminta'] === 'ajukan' && $a->nilai_baru['jenis_penolakan'] === 'validasi_bisnis'));
         // Spasi lewat HTTP sudah menjadi null oleh middleware; cabang trim() dikunci lewat nilai DB langsung.
         PengukuranKinerja::whereKey($this->pengukuran->id)->update(['alasan_tidak_dapat_dihitung' => '   ']);
-        $this->get($url.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('pengukuran.can.submit', false)
+        $this->get($url.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('pengukuran.can.submit', true)
             ->where('pengukuran.prasyarat.alasan', fn ($alasan) => collect($alasan)->contains(self::PESAN_ALASAN)));
     }
 
@@ -103,6 +104,7 @@ class PenyebutNolTest extends TestCase
         $alasan = 'Tidak ada mahasiswa baru pada periode ini.';
 
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'draft', ...$komponen(5, 0), 'alasan_tidak_dapat_dihitung' => $alasan])->assertSessionHasNoErrors();
+        // Capability Ajukan tetap tersedia; alasan kelengkapan diperiksa ulang secara atomik saat pengajuan.
         $this->get($url.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('pengukuran.can.submit', true)->where('pengukuran.prasyarat.siap', true));
         $this->post($url, ['versi' => 2, 'action' => 'ajukan', ...$komponen(5, 0), 'alasan_tidak_dapat_dihitung' => $alasan])
             ->assertSessionHasNoErrors()->assertRedirect('/pengukuran');

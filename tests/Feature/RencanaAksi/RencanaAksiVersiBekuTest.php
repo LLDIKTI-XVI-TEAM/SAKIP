@@ -72,7 +72,7 @@ class RencanaAksiVersiBekuTest extends TestCase
             'created_by' => $fixture['pic']->id,
         ]);
 
-        $hasil = app(SubmissionPrerequisites::class)->handle($pengukuran);
+        $hasil = app(SubmissionPrerequisites::class)->handle($pengukuran, null);
 
         $this->assertSame('100.00', $hasil['target']);
         $this->assertSame($versi->id, $hasil['rencana_aksi_versi']->id);

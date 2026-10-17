@@ -103,6 +103,7 @@ class UpdateIndikatorRequest extends FormRequest
             'presisi' => ['nullable', 'integer', 'between:0,4'],
             'desimal_tampilan' => ['nullable', 'integer', 'between:0,4'],
             'wajib_catatan' => ['nullable', 'boolean'],
+            'dinilai_tahunan' => ['sometimes', 'boolean'],
             'regulasi_id' => ['nullable', 'uuid', $regulasiExistsRule],
             'expected_updated_at' => ['required', 'date'],
             // Tujuan kembali setelah simpan; daftar tertutup agar tidak menjadi open redirect.

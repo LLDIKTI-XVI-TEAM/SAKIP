@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Eye, Plus } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Select } from '@/Components/Select';
+import { Tooltip } from '@/Components/Tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import type { BarisPengukuran, KonteksPengukuran, PilihanJadwalPengukuran } from './types';
 import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
@@ -30,12 +32,14 @@ function TombolIsi({ baris }: { baris: BarisPengukuran }) {
     const galat = Object.values(form.errors)[0];
 
     return (
-        <div className="flex flex-col items-end gap-1">
-            <Button type="button" size="sm" className="whitespace-nowrap" isLoading={form.processing}
-                onClick={() => form.post('/pengukuran/ensure-draft')} aria-label={`Isi Pengukuran ${labelBaris(baris)}`}>
-                Isi Pengukuran
-            </Button>
-            {galat && <p role="alert" className="max-w-56 text-right text-xs text-danger">{galat}</p>}
+        <div className="flex flex-col items-start gap-1">
+            <Tooltip content="Isi" align="right">
+                <Button type="button" size="sm" className="h-9 w-9 p-0" isLoading={form.processing}
+                    onClick={() => form.post('/pengukuran/ensure-draft')} aria-label={`Isi Pengukuran ${labelBaris(baris)}`}>
+                    {!form.processing && <Plus className="h-4 w-4" aria-hidden="true" />}
+                </Button>
+            </Tooltip>
+            {galat && <p role="alert" className="max-w-56 text-left text-xs text-danger">{galat}</p>}
         </div>
     );
 }
@@ -54,7 +58,7 @@ function FilterPeriode({ pilihan, konteks, filters, errors }: { pilihan: Pilihan
     };
 
     return (
-        <form onSubmit={tampilkan} className="flex flex-wrap items-start gap-3 border-b border-border p-4">
+        <form onSubmit={tampilkan} className="flex flex-wrap items-start gap-3 p-4">
             <div className="w-52">
                 <Select label="Jadwal" error={errors.jadwal_id} value={jadwalId} onChange={(event) => { setJadwalId(event.target.value); setPeriodeId(periodeAwal(event.target.value)); }}
                     options={pilihan.map((item) => ({ value: item.id, label: `Tahun ${item.tahun}${item.status === 'ditutup' ? ' (ditutup)' : ''}` }))} />
@@ -93,10 +97,12 @@ function AksiBaris({ baris }: { baris: BarisPengukuran }) {
         const label = ['draft', 'dikembalikan'].includes(baris.pengukuran.status) ? 'Buka Draft' : 'Detail';
 
         return (
-            <Link href={`/pengukuran/${baris.pengukuran.id}/edit`} aria-label={`${label} ${labelBaris(baris)}`}
-                className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
-                {label}
-            </Link>
+            <Tooltip content={label} align="right">
+                <Link href={`/pengukuran/${baris.pengukuran.id}/edit`} aria-label={`${label} ${labelBaris(baris)}`}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                </Link>
+            </Tooltip>
         );
     }
 
@@ -108,19 +114,24 @@ export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal 
     const berjalan = konteks.filter((item) => item.periode);
     const kosong = konteks.length === 0 ? 'Jadwal aktif belum tersedia' : berjalan.length === 0 ? 'Pengisian belum dimulai' : 'Belum ada indikator pada periode ini';
     const nilai = (value: string | number | null, baris: BarisPengukuran) => value === null ? '—' : `${formatNilai(value, baris.indikator.desimal_tampilan)} ${baris.indikator.satuan}`;
-    const target = (baris: BarisPengukuran) => nilai(baris.jenis === 'existing' ? baris.pengukuran.target : baris.target, baris);
+    const target = (baris: BarisPengukuran) => {
+        if (baris.jenis === 'absent' && !baris.berlaku) return '—';
+        const data = baris.jenis === 'existing' ? baris.pengukuran : baris;
+        return data.tanpa_target_periode ? 'Tanpa target periode' : data.target === null ? 'Belum tersedia' : nilai(data.target, baris);
+    };
     const realisasi = (baris: BarisPengukuran) => baris.jenis === 'existing' ? nilai(baris.pengukuran.nilai, baris) : '—';
 
     return (
         <AuthenticatedLayout title="Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja' }]}>
             <Head title="Pengukuran Kinerja" />
 
-            <p className="mb-4 text-sm text-muted">
-                {berjalan.length > 0 ? berjalan.map((item) => `${item.periode?.nama_periode} ${item.tahun}`).join(' · ') : 'Periode Kinerja'}
-            </p>
+            {can.selectPeriod && pilihan_jadwal.length > 0 && (
+                <Card className="mb-5">
+                    <FilterPeriode pilihan={pilihan_jadwal} konteks={konteks} filters={filters} errors={errors} />
+                </Card>
+            )}
 
             <Card>
-                {can.selectPeriod && pilihan_jadwal.length > 0 && <FilterPeriode pilihan={pilihan_jadwal} konteks={konteks} filters={filters} errors={errors} />}
                 <Table>
                     <caption className="sr-only">Daftar kewajiban pengukuran per indikator dan periode</caption>
                     <TableHeader>
@@ -130,7 +141,7 @@ export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal 
                             <TableHead className="hidden text-right lg:table-cell">Target</TableHead>
                             <TableHead className="hidden text-right lg:table-cell">Realisasi</TableHead>
                             <TableHead className="hidden lg:table-cell">Status</TableHead>
-                            <TableHead className="text-right">Aksi</TableHead>
+                            <TableHead className="w-20 text-left lg:w-auto">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -153,7 +164,7 @@ export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal 
                                 <TableCell className="hidden text-right lg:table-cell">{target(baris)}</TableCell>
                                 <TableCell className="hidden text-right lg:table-cell">{realisasi(baris)}</TableCell>
                                 <TableCell className="hidden lg:table-cell"><StatusBaris baris={baris} /></TableCell>
-                                <TableCell className="text-right"><AksiBaris baris={baris} /></TableCell>
+                                <TableCell className="text-left"><AksiBaris baris={baris} /></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
