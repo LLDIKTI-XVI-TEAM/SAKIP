@@ -51,7 +51,7 @@ class StoreBerkasKegiatanRequest extends FormRequest
             'tautan' => ['exclude_unless:mode,tautan', 'required', 'string', 'url:http,https', 'max:2048'],
             'isi_teks' => ['exclude_unless:mode,teks', 'required', 'string', 'max:10000', AuditReason::validate(...)],
             'menggantikan_id' => ['nullable', 'uuid'],
-            'alasan_koreksi' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],
+            'alasan_koreksi' => ['required_with:menggantikan_id', 'nullable', 'string', 'max:1000', AuditReason::validate(...)],
         ];
     }
 
@@ -66,6 +66,7 @@ class StoreBerkasKegiatanRequest extends FormRequest
             'tautan.required' => 'Tautan wajib diisi.',
             'tautan.url' => 'Tautan harus berskema http atau https.',
             'isi_teks.required' => 'Keterangan teks wajib diisi.',
+            'alasan_koreksi.required_with' => 'Alasan penggantian wajib diisi.',
         ];
     }
 }

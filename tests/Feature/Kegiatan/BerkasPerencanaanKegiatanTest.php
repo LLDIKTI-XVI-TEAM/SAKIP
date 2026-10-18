@@ -92,7 +92,14 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $this->assertNull($berkas->fresh()->dihapus_pada);
         $this->assertSame(1, AuditLog::where('tindakan', 'berkas.hapus_ditolak')->where('objek_id', $this->kegiatan->id)->count());
 
-        // Koreksi lewat berkas pengganti tetap diterima tanpa mengubah berkas lama (Q25).
+        // Koreksi lewat berkas pengganti tetap diterima tanpa mengubah berkas lama, dan wajib beralasan (Q25).
+        foreach ([[], ['alasan_koreksi' => '   ']] as $tanpaAlasan) {
+            $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
+                'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-revisi.xlsx', 10),
+                'menggantikan_id' => $berkas->id, ...$tanpaAlasan,
+            ])->assertSessionHasErrors('alasan_koreksi');
+        }
+        $this->assertFalse(BuktiDukung::where('menggantikan_id', $berkas->id)->exists());
         $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
             'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-revisi.xlsx', 10),
             'menggantikan_id' => $berkas->id, 'alasan_koreksi' => 'Nilai satuan diperbaiki',

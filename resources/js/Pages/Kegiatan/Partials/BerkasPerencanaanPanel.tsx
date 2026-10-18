@@ -171,7 +171,7 @@ export function BerkasPerencanaanPanel({ kegiatanId, berkas }: Props) {
                                 value={data.isi_teks} onChange={(event) => setData('isi_teks', event.target.value)} error={fieldErrors.isi_teks} />
                         )}
                         {target.ganti && (
-                            <Textarea id="berkas-kegiatan-alasan-koreksi" label="Alasan penggantian" rows={2} disabled={processing}
+                            <Textarea id="berkas-kegiatan-alasan-koreksi" label="Alasan penggantian" rows={2} required disabled={processing}
                                 value={data.alasan_koreksi} onChange={(event) => setData('alasan_koreksi', event.target.value)} error={fieldErrors.alasan_koreksi} />
                         )}
                         {galatBisnis(fieldErrors) && <p role="alert" className="text-sm text-danger">{galatBisnis(fieldErrors)}</p>}

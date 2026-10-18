@@ -63,9 +63,11 @@ it('mengganti berkas dengan menautkan berkas lama dan menghapus dengan alasan', 
     await user.click(screen.getByRole('button', { name: 'Ganti berkas rab.xlsx' }));
     const file = new File(['isi'], 'rab-revisi.xlsx');
     await user.upload(screen.getByLabelText('Berkas'), file);
+    expect((screen.getByLabelText(/Alasan penggantian/) as HTMLTextAreaElement).required).toBe(true);
+    await user.type(screen.getByLabelText(/Alasan penggantian/), 'Nilai satuan diperbaiki');
     // jsdom tidak menganggap input file hasil upload memenuhi `required`; submit form langsung.
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan berkas' }).closest('form')!);
-    expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ mode: 'file', file, menggantikan_id: 'b1' });
+    expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ mode: 'file', file, menggantikan_id: 'b1', alasan_koreksi: 'Nilai satuan diperbaiki' });
     await user.click(screen.getByRole('button', { name: 'Batal' }));
 
     await user.click(screen.getByRole('button', { name: 'Hapus berkas rab.xlsx' }));

@@ -57,14 +57,20 @@ class TambahBerkasKegiatan
                     throw ValidationException::withMessages(['mode' => "Mode {$mode} tidak diizinkan pada persyaratan {$requirement->nama}."]);
                 }
                 $lama = null;
+                $alasanKoreksi = null;
                 if (! empty($data['menggantikan_id'])) {
                     $lama = PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $kegiatan->id)->whereKey($data['menggantikan_id'])
                         ->where('jenis_berkas_id', $requirement->id)->lockForUpdate()->first()
                         ?? throw ValidationException::withMessages(['menggantikan_id' => 'Berkas yang akan diganti tidak ditemukan pada persyaratan ini.']);
+                    // Q25: berkas pengganti wajib beralasan, sejalan dengan bukti pengukuran.
+                    $alasanKoreksi = trim((string) ($data['alasan_koreksi'] ?? ''));
+                    if ($alasanKoreksi === '') {
+                        throw ValidationException::withMessages(['alasan_koreksi' => 'Alasan penggantian wajib diisi.']);
+                    }
                 }
 
                 $attributes = ['berkasable_type' => 'kegiatan', 'berkasable_id' => $kegiatan->id, 'jenis_berkas_id' => $requirement->id,
-                    'menggantikan_id' => $lama?->id, 'alasan_koreksi' => $lama ? ($data['alasan_koreksi'] ?? null) : null,
+                    'menggantikan_id' => $lama?->id, 'alasan_koreksi' => $alasanKoreksi,
                     'mode' => $mode, 'uploaded_by' => $pengunci->id, 'created_at' => now()];
                 $path = null;
                 if ($mode === 'file') {
@@ -100,7 +106,7 @@ class TambahBerkasKegiatan
                         objekId: (string) $berkas->id,
                         nilaiLama: $lama ? [...GerbangBuktiRencanaAksi::metadataAudit($lama), 'id' => (string) $lama->id] : null,
                         nilaiBaru: [...GerbangBuktiRencanaAksi::metadataAudit($berkas), 'kegiatan_id' => (string) $kegiatan->id],
-                        alasan: $lama ? AlasanAudit::sanitasi($data['alasan_koreksi'] ?? null, 'Penggantian berkas perencanaan kegiatan.') : 'Pemenuhan berkas perencanaan kegiatan.',
+                        alasan: $lama ? AlasanAudit::sanitasi($alasanKoreksi, 'Penggantian berkas perencanaan kegiatan.') : 'Pemenuhan berkas perencanaan kegiatan.',
                         dasarIzin: $dasarIzin,
                     );
                 } catch (Throwable $exception) {
