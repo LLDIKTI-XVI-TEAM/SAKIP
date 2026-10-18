@@ -1,3 +1,32 @@
+import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
+
+/**
+ * Kontrak halaman daftar Rencana Aksi (`DaftarRencanaAksi`): daftar indikator
+ * × tahun sekaligus antrean review lewat filter status (Q56).
+ */
+
+/** `belum_dibuat` = indikator tanpa header rencana aksi; `semua` = tanpa saringan. */
+export type FilterStatusRencanaAksi = 'semua' | 'belum_dibuat' | 'draft' | 'diajukan' | 'diverifikasi' | 'dikembalikan' | 'disahkan';
+
+export interface BarisRencanaAksi {
+    indikator_id: string;
+    kode: string;
+    nama: string;
+    unit_nama: string | null;
+    tahun: number;
+    pj_nama: string | null;
+    milik_saya: boolean;
+    rencana_aksi: { id: string; status_alur: string } | null;
+    /** Capability server: `create` sudah memuat PJ efektif, izin unit, unit snapshot, dan jendela; `review` mengikuti policy `view` dan status non-draft. */
+    can: { create: boolean; review: boolean };
+}
+
+export interface RencanaAksiIndexProps {
+    daftar: BarisRencanaAksi[];
+    pagination: PengukuranPagination;
+    filters: { status: FilterStatusRencanaAksi };
+}
+
 /**
  * Kontrak props halaman RencanaAksi/Show.
  *

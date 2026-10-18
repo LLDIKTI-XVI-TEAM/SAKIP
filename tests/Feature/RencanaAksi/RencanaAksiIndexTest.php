@@ -285,6 +285,16 @@ class RencanaAksiIndexTest extends TestCase
         $this->actingAs($this->penggunaDenganPeran('perencanaan'))->get('/rencana-aksi?page=2')->assertOk();
     }
 
+    /** Filter `status` divalidasi setelah otorisasi: nilai di luar daftar ditolak, bukan diteruskan ke query. */
+    public function test_daftar_menolak_status_tak_dikenal(): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+
+        $this->actingAs($this->penggunaDenganPeran('admin'))->get('/rencana-aksi?status=asing')->assertForbidden();
+        $this->actingAs($this->penggunaDenganPeran('perencanaan'))->get('/rencana-aksi?status=asing')->assertSessionHasErrors('status');
+        $this->actingAs($this->penggunaDenganPeran('perencanaan'))->get('/rencana-aksi?status=disahkan')->assertOk();
+    }
+
     /** Halaman yang divalidasi Action juga yang dipakai paginator, bukan halaman dari request global. */
     public function test_daftar_memakai_halaman_dari_query_action(): void
     {
@@ -293,6 +303,74 @@ class RencanaAksiIndexTest extends TestCase
         $daftar = app(DaftarRencanaAksi::class)->handle($this->penggunaDenganPeran('perencanaan'), ['page' => 2]);
 
         $this->assertSame(2, $daftar['pagination']['current_page']);
+    }
+
+    /**
+     * Q56: filter status menyaring baris sebelum paginasi — `belum_dibuat`
+     * hanya indikator tanpa header, `draft` hanya header draf, dan status
+     * pengajuan tidak menarik baris draf.
+     */
+    public function test_daftar_menyaring_status_dan_belum_dibuat(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+        $lain = $this->tambahIndikatorTerjadwal($fixture, 'A-TANPA-HEADER');
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        $this->actingAs($fixture['pic'])->get('/rencana-aksi?status=belum_dibuat')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.status', 'belum_dibuat')
+                ->has('daftar', 1)
+                ->where('daftar.0.indikator_id', $lain->id)
+                ->where('daftar.0.rencana_aksi', null));
+
+        $this->actingAs($fixture['pic'])->get('/rencana-aksi?status=draft')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('daftar', 1)
+                ->where('daftar.0.indikator_id', $fixture['indikator']->id)
+                ->where('daftar.0.rencana_aksi.id', $header->id)
+                ->where('daftar.0.rencana_aksi.status_alur', 'draft'));
+
+        $this->actingAs($fixture['pic'])->get('/rencana-aksi?status=diajukan')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('daftar', 0)->where('pagination.total', 0));
+    }
+
+    /**
+     * Capability review mengikuti policy `view` dan status: draf tanpa versi
+     * pengajuan tidak menawarkan Review, status pengajuan menawarkannya.
+     */
+    public function test_capability_review_mengikuti_policy_view_dan_status(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+
+        $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('daftar.0.rencana_aksi.id', $header->id)
+                ->where('daftar.0.can.review', false));
+
+        $header->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
+        $this->actingAs($fixture['perencanaan'])->get('/rencana-aksi?status=diajukan')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('daftar', 1)
+                ->where('daftar.0.can.review', true)
+                ->where('filters.status', 'diajukan'));
     }
 
     /** Lookup header mendahului Gate: UUID asing selalu 404, dengan maupun tanpa izin baca. */

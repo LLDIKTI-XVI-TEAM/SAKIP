@@ -1,39 +1,39 @@
 import { useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { ClipboardList, Eye, Plus, ShieldCheck } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { ClipboardList, Eye, MoreHorizontal, Plus, ShieldCheck } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { ActionMenu, type ActionMenuItem } from '@/Components/ActionMenu';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
-import { Button } from '@/Components/Button';
+import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import Pagination from '@/Pages/Pengukuran/Pagination';
-import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
+import type { BarisRencanaAksi, FilterStatusRencanaAksi, RencanaAksiIndexProps } from './types';
 
-export interface BarisRencanaAksi {
-    indikator_id: string;
-    kode: string;
-    nama: string;
-    unit_nama: string | null;
-    tahun: number;
-    pj_nama: string | null;
-    milik_saya: boolean;
-    rencana_aksi: { id: string; status_alur: string } | null;
-    /** Capability server: `create` sudah memuat PJ efektif, izin unit, unit snapshot, dan jendela. */
-    can: { create: boolean };
-}
+const OPSI_STATUS: { value: FilterStatusRencanaAksi; label: string }[] = [
+    { value: 'semua', label: 'Semua status' },
+    { value: 'belum_dibuat', label: 'Belum dibuat' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'diajukan', label: 'Diajukan' },
+    { value: 'diverifikasi', label: 'Diverifikasi' },
+    { value: 'dikembalikan', label: 'Dikembalikan' },
+    { value: 'disahkan', label: 'Disahkan' },
+];
 
-interface RencanaAksiIndexProps {
-    daftar: BarisRencanaAksi[];
-    pagination: PengukuranPagination;
-}
-
-/** Satu form per baris agar status proses dan pesan gagal tidak bercampur antarbaris. */
-function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
+/**
+ * Satu menu titik-tiga per baris dengan aksi dari capability server:
+ * "Buat Rencana Aksi" (`create`), "Buka" untuk baris ber-header, dan
+ * "Review" hanya ketika status non-draft + policy `view` mengizinkan.
+ */
+function AksiBaris({ baris }: { baris: BarisRencanaAksi }) {
     const form = useForm({ indikator_id: baris.indikator_id, tahun: baris.tahun });
     // 429 ditampilkan sebagai pesan baris, bukan modal HTML bawaan Inertia.
     const [terlaluSering, setTerlaluSering] = useState(false);
     const galat = terlaluSering ? 'Terlalu sering. Coba lagi sebentar.' : Object.values(form.errors)[0];
     const buat = (): void => {
+        if (form.processing) {
+            return;
+        }
         setTerlaluSering(false);
         form.post('/rencana-aksi/ensure-draft', {
             onHttpException: (response) => {
@@ -46,19 +46,27 @@ function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
         });
     };
 
+    const aksi: ActionMenuItem[] = [
+        ...(baris.can.create ? [{ key: 'buat', label: 'Buat Rencana Aksi', icon: Plus, ariaLabel: `Buat Rencana Aksi ${baris.kode} ${baris.tahun}`, onSelect: buat }] : []),
+        ...(baris.rencana_aksi ? [
+            { key: 'buka', label: 'Buka', icon: Eye, href: `/rencana-aksi/${baris.rencana_aksi.id}`, ariaLabel: `Buka Rencana Aksi ${baris.kode} ${baris.tahun}` },
+            ...(baris.can.review ? [{ key: 'review', label: 'Review', icon: ShieldCheck, href: `/rencana-aksi/${baris.rencana_aksi.id}/review`, ariaLabel: `Review Rencana Aksi ${baris.kode} ${baris.tahun}` }] : []),
+        ] : []),
+    ];
+
+    if (aksi.length === 0) {
+        return <span className="text-muted">—</span>;
+    }
+
     return (
         <div className="flex flex-col items-end gap-1">
-            <Button
-                type="button"
-                size="sm"
-                className="whitespace-nowrap"
-                isLoading={form.processing}
-                onClick={buat}
-                aria-label={`Buat Rencana Aksi ${baris.kode} ${baris.tahun}`}
-            >
-                <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Buat Rencana Aksi
-            </Button>
+            <ActionMenu
+                items={aksi}
+                trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
+                triggerLabel={`Aksi ${baris.kode} ${baris.tahun}`}
+                triggerClassName="h-8 w-8 px-0"
+            />
+            {form.processing && <p role="status" className="text-xs text-muted">Memproses…</p>}
             {galat && (
                 <p role="alert" className="max-w-56 text-right text-xs text-danger">
                     {galat}
@@ -68,24 +76,30 @@ function TombolBuat({ baris }: { baris: BarisRencanaAksi }) {
     );
 }
 
-export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiIndexProps) {
+export default function RencanaAksiIndex({ daftar, pagination, filters }: RencanaAksiIndexProps) {
+    const adaFilter = filters.status !== 'semua';
+    // Baris "Belum dibuat" belum berupa rencana aksi, jadi label jumlah mengikuti isinya.
+    const labelJumlah = adaFilter && filters.status !== 'belum_dibuat' ? 'rencana aksi' : 'indikator';
+
     return (
-        <AuthenticatedLayout
-            title="Rencana Aksi"
-            breadcrumbs={[{ label: 'Rencana Aksi' }]}
-            headerActions={
-                <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-xs text-muted"><span className="font-semibold text-ink">{pagination.total}</span> indikator</p>
-                    <Link href="/rencana-aksi/review" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1">
-                        <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                        Review Rencana Aksi
-                    </Link>
-                </div>
-            }
-        >
+        <AuthenticatedLayout title="Rencana Aksi" breadcrumbs={[{ label: 'Rencana Aksi' }]}>
             <Head title="Rencana Aksi" />
 
             <Card>
+                {/* Filter status mempersatukan daftar dan antrean review (Q56). */}
+                <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border p-4">
+                    <div className="w-full sm:w-72">
+                        <Select
+                            label="Status rencana aksi"
+                            value={filters.status}
+                            onChange={(event) => router.get('/rencana-aksi', { status: event.target.value }, { preserveScroll: true })}
+                            options={OPSI_STATUS}
+                        />
+                    </div>
+                    <p className="text-xs text-muted">
+                        <span className="font-semibold text-ink">{pagination.total}</span> {labelJumlah}
+                    </p>
+                </div>
                 <Table className="table-fixed xl:table-auto">
                     <caption className="sr-only">Daftar indikator dan rencana aksi pada jadwal aktif</caption>
                     <TableHeader>
@@ -95,7 +109,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                             <TableHead className="hidden xl:table-cell">Tahun</TableHead>
                             <TableHead className="hidden xl:table-cell">Penanggung Jawab</TableHead>
                             <TableHead className="hidden xl:table-cell">Status</TableHead>
-                            <TableHead className="w-44 text-right xl:w-auto">Aksi</TableHead>
+                            <TableHead className="w-24 text-right xl:w-auto">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -103,7 +117,14 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                             <TableRow>
                                 <TableCell colSpan={6} className="py-12 text-center text-sm text-muted">
                                     <ClipboardList className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                    <p className="mt-2 font-semibold text-ink">Belum ada indikator pada jadwal aktif untuk unit yang dapat Anda akses.</p>
+                                    {adaFilter ? (
+                                        <>
+                                            <p className="mt-2 font-semibold text-ink">Belum ada rencana aksi pada status yang dipilih untuk unit yang dapat Anda akses.</p>
+                                            <p className="mt-1 text-xs text-muted">Pilih status lain untuk melihat daftar yang tersedia.</p>
+                                        </>
+                                    ) : (
+                                        <p className="mt-2 font-semibold text-ink">Belum ada indikator pada jadwal aktif untuk unit yang dapat Anda akses.</p>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -136,20 +157,7 @@ export default function RencanaAksiIndex({ daftar, pagination }: RencanaAksiInde
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {baris.can.create ? (
-                                            <TombolBuat baris={baris} />
-                                        ) : baris.rencana_aksi ? (
-                                            <Link
-                                                href={`/rencana-aksi/${baris.rencana_aksi.id}`}
-                                                aria-label={`Buka Rencana Aksi ${baris.kode} ${baris.tahun}`}
-                                                className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
-                                            >
-                                                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                                                Buka
-                                            </Link>
-                                        ) : (
-                                            <span className="text-muted">—</span>
-                                        )}
+                                        <AksiBaris baris={baris} />
                                     </TableCell>
                                 </TableRow>
                             ))
