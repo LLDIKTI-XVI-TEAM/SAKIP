@@ -28,6 +28,7 @@ class JenisBerkas extends Model
         'format_diizinkan',
         'ukuran_maks_kb',
         'aktif',
+        'hanya_kegiatan_beranggaran',
         'created_by',
     ];
 
@@ -40,6 +41,7 @@ class JenisBerkas extends Model
         'urutan' => 'integer',
         'ukuran_maks_kb' => 'integer',
         'aktif' => 'boolean',
+        'hanya_kegiatan_beranggaran' => 'boolean',
     ];
 
     protected $dateFormat = 'Y-m-d H:i:s.u';
@@ -47,6 +49,9 @@ class JenisBerkas extends Model
     protected static function booted(): void
     {
         static::saving(function (JenisBerkas $model) {
+            if ($model->tahap !== 'kegiatan_perencanaan') {
+                $model->hanya_kegiatan_beranggaran = false;
+            }
             if ($model->exists && ! $model->isDirty()) {
                 return;
             }

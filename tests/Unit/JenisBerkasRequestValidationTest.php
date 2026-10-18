@@ -200,7 +200,7 @@ class JenisBerkasRequestValidationTest extends TestCase
 
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('tahap', $validator->errors()->messages());
-        $this->assertSame('Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.', $validator->errors()->first('tahap'));
+        $this->assertSame('Tahap saat ini hanya mendukung Pengukuran Kinerja dan Perencanaan Kegiatan karena gerbang bukti tahap lain belum diimplementasikan.', $validator->errors()->first('tahap'));
 
         $validatorKegiatan = Validator::make([
             'nama' => 'Laporan Akuntabilitas',
@@ -210,6 +210,20 @@ class JenisBerkasRequestValidationTest extends TestCase
 
         $this->assertTrue($validatorKegiatan->fails());
         $this->assertArrayHasKey('tahap', $validatorKegiatan->errors()->messages());
+    }
+
+    public function test_tahap_perencanaan_kegiatan_diterima_dan_penanda_beranggaran_hanya_untuk_tahap_itu(): void
+    {
+        $request = new StoreJenisBerkasRequest;
+        $data = ['nama' => 'RAB', 'tahap' => 'kegiatan_perencanaan', 'izinkan_file' => true, 'hanya_kegiatan_beranggaran' => true];
+
+        $validator = Validator::make($data, $request->rules(), $request->messages());
+        $this->assertFalse($validator->fails());
+        $this->assertTrue($validator->validated()['hanya_kegiatan_beranggaran']);
+
+        $pengukuran = Validator::make(['tahap' => 'pengukuran'] + $data, $request->rules(), $request->messages());
+        $this->assertFalse($pengukuran->fails());
+        $this->assertArrayNotHasKey('hanya_kegiatan_beranggaran', $pengukuran->validated());
     }
 
     public function test_update_validation_rejects_unsupported_tahap(): void
@@ -225,6 +239,6 @@ class JenisBerkasRequestValidationTest extends TestCase
 
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('tahap', $validator->errors()->messages());
-        $this->assertSame('Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.', $validator->errors()->first('tahap'));
+        $this->assertSame('Tahap saat ini hanya mendukung Pengukuran Kinerja dan Perencanaan Kegiatan karena gerbang bukti tahap lain belum diimplementasikan.', $validator->errors()->first('tahap'));
     }
 }

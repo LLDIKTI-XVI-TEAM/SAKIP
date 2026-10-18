@@ -76,7 +76,9 @@ class UpdateJenisBerkasRequest extends FormRequest
 
         return [
             'nama' => ['required', 'string', 'max:255'],
-            'tahap' => ['required', 'in:pengukuran'],
+            'tahap' => ['required', 'in:pengukuran,kegiatan_perencanaan'],
+            // Penanda hanya bermakna pada tahap perencanaan kegiatan (Q42 §42.3 butir 3); tahap lain selalu false.
+            'hanya_kegiatan_beranggaran' => ['exclude_unless:tahap,kegiatan_perencanaan', 'boolean'],
             'indikator_id' => [
                 'nullable',
                 'uuid',
@@ -106,7 +108,7 @@ class UpdateJenisBerkasRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tahap.in' => 'Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.',
+            'tahap.in' => 'Tahap saat ini hanya mendukung Pengukuran Kinerja dan Perencanaan Kegiatan karena gerbang bukti tahap lain belum diimplementasikan.',
             'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah diarsipkan.',
             'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
             'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
