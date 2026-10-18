@@ -745,7 +745,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Daftar menandai kelompok tidak berlaku (akun atau unit nonaktif) dan izin nonaktif per butir, mengikuti kriteria resolver, beserta peran penerima.
+     * Daftar menandai kelompok tidak berlaku (akun atau unit nonaktif, atau tanpa peran aktif) dan izin nonaktif per butir, mengikuti kriteria resolver, beserta peran penerima.
      */
     public function test_index_menandai_grant_tidak_berlaku_dan_peran_penerima(): void
     {
@@ -779,9 +779,10 @@ class GrantIzinTambahanUnitTest extends TestCase
 
         $this->assertSame([], $rows[$berlaku]['tidak_berlaku']);
         $this->assertTrue($rows[$berlaku]['izin'][0]['aktif']);
-        $this->assertSame(['Unit nonaktif'], $rows[$unitNonaktif]['tidak_berlaku']);
+        $this->assertSame(['Tanpa peran aktif', 'Unit nonaktif'], $rows[$unitNonaktif]['tidak_berlaku']);
         $this->assertSame(['Akun nonaktif'], $rows[$akunNonaktif]['tidak_berlaku']);
-        $this->assertSame([], $rows[$izinNonaktif]['tidak_berlaku']);
+        // Satu-satunya peran pimpinan dinonaktifkan, sehingga resolver menolak seluruh izinnya.
+        $this->assertSame(['Tanpa peran aktif'], $rows[$izinNonaktif]['tidak_berlaku']);
         $this->assertFalse($rows[$izinNonaktif]['izin'][0]['aktif']);
         $this->assertSame(['Pegawai'], $rows[$berlaku]['user_roles']);
         $this->assertSame([], $rows[$unitNonaktif]['user_roles']);
@@ -2054,7 +2055,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->assertSame(['Mengisi pengukuran', 'Mengubah pengukuran', 'Membuat kegiatan'], collect($kelompok['izin'])->pluck('label')->all());
         $this->assertSame('Pegawai Staf', $kelompok['user_name']);
         $this->assertSame('Pokja Kelembagaan', $kelompok['unit_nama']);
-        $this->assertSame(['grant_id', 'permission_id', 'label', 'aktif'], array_keys($kelompok['izin'][0]));
+        $this->assertSame(['grant_id', 'permission_id', 'label', 'aktif', 'ditolak'], array_keys($kelompok['izin'][0]));
         $this->assertCount(1, $rows["{$this->pegawaiUser->id}:{$this->unitB->id}"]['izin']);
 
         // Paginasi menghitung kelompok, bukan baris izin.
@@ -2131,6 +2132,85 @@ class GrantIzinTambahanUnitTest extends TestCase
                 ->has('unitPermissions', 7)
                 ->where('can.kelola_grant', true)
                 ->where('can.revoke_grant', true));
+    }
+
+    /** Pengguna aktif tanpa peran resmi aktif ditolak resolver, sehingga pasangannya tidak berlaku (Q62 butir 2). */
+    public function test_daftar_menandai_pasangan_tanpa_peran_aktif_dari_resolver(): void
+    {
+        $tanpaPeran = User::factory()->create(['nama' => 'SSO Baru', 'email' => 'ssobaru@sakip.test', 'status' => 'aktif']);
+        foreach ([$tanpaPeran, $this->pegawaiUser] as $user) {
+            UserPermissionGrant::create([
+                'user_id' => $user->id, 'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Fixture status berlaku', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+
+        $rows = collect($this->actingAs($this->adminUser)->get('/akses/grant')->viewData('page')['props']['grants']['data'])->keyBy('key');
+
+        $this->assertSame(['Tanpa peran aktif'], $rows["{$tanpaPeran->id}:{$this->unitA->id}"]['tidak_berlaku']);
+        $this->assertSame([], $rows["{$this->pegawaiUser->id}:{$this->unitA->id}"]['tidak_berlaku']);
+    }
+
+    /** Deny eksplisit global atau pada unit yang sama menandai izin itu ditolak; deny pada unit lain tidak (Q62 butir 2). */
+    #[DataProvider('cakupanDenyIzinUnit')]
+    public function test_detail_menandai_izin_yang_terkena_deny_eksplisit(string $cakupan, bool $ditolak): void
+    {
+        $kegiatan = Permission::where('kode', 'kegiatan:create')->firstOrFail();
+        foreach ([$this->unitPermission, $kegiatan] as $permission) {
+            UserPermissionGrant::create([
+                'user_id' => $this->pegawaiUser->id, 'permission_id' => $permission->id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Fixture deny', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+        UserPermissionDeny::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => ['global' => null, 'unit sama' => $this->unitA->id, 'unit lain' => $this->unitB->id][$cakupan],
+            'alasan' => 'Deny fixture', 'ditetapkan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $this->actingAs($this->adminUser)->get("/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('kelompok.tidak_berlaku', [])
+                ->where('kelompok.izin.0.label', 'Mengisi pengukuran')
+                ->where('kelompok.izin.0.ditolak', $ditolak)
+                ->where('kelompok.izin.1.label', 'Membuat kegiatan')
+                ->where('kelompok.izin.1.ditolak', false));
+    }
+
+    public static function cakupanDenyIzinUnit(): array
+    {
+        return [
+            'deny global' => ['global', true],
+            'deny unit sama' => ['unit sama', true],
+            'deny unit lain' => ['unit lain', false],
+        ];
+    }
+
+    /** Pasangan yang grant terakhirnya dicabut di antara query paginasi dan query detail dilewati, bukan 500. */
+    public function test_daftar_melewati_pasangan_yang_hilang_di_antara_dua_query(): void
+    {
+        $hilang = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Dicabut bersamaan', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id, 'alasan' => 'Tetap ada', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $dicabut = false;
+        DB::listen(function ($query) use (&$dicabut, $hilang): void {
+            if ($dicabut || ! str_contains($query->sql, 'max(created_at)') || ! str_contains($query->sql, 'limit')) {
+                return;
+            }
+            $dicabut = true;
+            DB::table('user_permission_granted')->where('id', $hilang->id)->delete();
+        });
+
+        $response = $this->actingAs($this->adminUser)->get('/akses/grant')->assertOk();
+
+        $this->assertTrue($dicabut);
+        $this->assertSame(["{$this->pegawaiUser->id}:{$this->unitB->id}"], collect($response->viewData('page')['props']['grants']['data'])->pluck('key')->all());
     }
 
     /** Detail hanya untuk pemegang delegasi:update dan pasangan pengguna-unit yang memiliki izin unit. */

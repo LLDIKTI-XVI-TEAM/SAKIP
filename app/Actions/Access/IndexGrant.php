@@ -74,7 +74,9 @@ class IndexGrant
             ->get()
             ->groupBy(fn (UserPermissionGrant $grant) => "{$grant->user_id}:{$grant->unit_id}");
 
-        $kelompok->through(fn (UserPermissionGrant $p) => IzinUnitPresenter::kelompok($grants["{$p->user_id}:{$p->unit_id}"]));
+        // Pasangan yang dicabut di antara dua query dilewati; total paginasi boleh lebih satu sesaat.
+        $kelompok->setCollection($pasangan->filter(fn (UserPermissionGrant $p) => $grants->has("{$p->user_id}:{$p->unit_id}"))
+            ->values()->map(fn (UserPermissionGrant $p) => IzinUnitPresenter::kelompok($grants["{$p->user_id}:{$p->unit_id}"])));
 
         $units = Unit::where('status', 'aktif')
             ->select('id', 'nama')

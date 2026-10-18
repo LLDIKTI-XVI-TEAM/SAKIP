@@ -92,6 +92,15 @@ describe('Detail Izin Unit', () => {
         expect(screen.queryByRole('link', { name: /Jejak audit/ })).toBeNull();
     });
 
+    it('izin yang terkena deny eksplisit tampil Ditolak, bukan Aktif', () => {
+        const awal = props();
+        render(<GrantDetail {...props({ kelompok: { ...awal.kelompok, izin: [{ ...awal.kelompok.izin[0], ditolak: true }, awal.kelompok.izin[1]] } })} />);
+        const [, pertama, kedua] = screen.getAllByRole('row');
+        expect(within(pertama).getByText('Ditolak')).toBeTruthy();
+        expect(within(pertama).queryByText('Aktif')).toBeNull();
+        expect(within(kedua).getByText('Izin nonaktif')).toBeTruthy();
+    });
+
     it('tautan jejak audit per izin hanya tampil bila server memberi kemampuan baca audit', () => {
         currentPage.props.auth.can.audit = true;
         render(<GrantDetail {...props()} />);

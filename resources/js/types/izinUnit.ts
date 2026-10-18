@@ -4,6 +4,8 @@ export interface IzinDalamKelompok {
     permission_id: string;
     label: string;
     aktif: boolean;
+    /** Izin terkena deny eksplisit menurut resolver server. */
+    ditolak?: boolean;
     /** Hanya dikirim halaman detail. */
     alasan?: string;
     diberikan_oleh_nama?: string;

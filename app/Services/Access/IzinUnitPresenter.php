@@ -6,6 +6,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\UserPermissionGrant;
 use App\Services\Authorization\PermissionCatalog;
+use App\Services\Authorization\PermissionResolver;
 use Illuminate\Support\Collection;
 
 /**
@@ -32,6 +33,7 @@ final class IzinUnitPresenter
         $pertama = $grants->first();
         $user = $pertama->user;
         $unit = $pertama->unit;
+        $keputusan = $user ? app(PermissionResolver::class)->decideMany($user, $grants->pluck('permission.kode')->filter()->unique()->values()->all(), $pertama->unit_id) : [];
 
         return [
             'key' => "{$pertama->user_id}:{$pertama->unit_id}",
@@ -41,9 +43,10 @@ final class IzinUnitPresenter
             'user_roles' => $user?->roles->map(fn (Role $role) => $role->aktif ? $role->nama : "{$role->nama} (nonaktif)")->all() ?? [],
             'unit_id' => $pertama->unit_id,
             'unit_nama' => $unit?->nama,
-            // Kriteria sama dengan PermissionResolver: akun dan unit nonaktif menggugurkan seluruh kelompok; izin nonaktif ditandai per butir.
+            // Diturunkan dari PermissionResolver: akun nonaktif, tanpa peran aktif, dan unit nonaktif menggugurkan seluruh kelompok; izin nonaktif dan deny eksplisit ditandai per butir.
             'tidak_berlaku' => array_keys(array_filter([
                 'Akun nonaktif' => $user?->status !== 'aktif',
+                'Tanpa peran aktif' => collect($keputusan)->contains('reason', 'no_role'),
                 'Unit nonaktif' => $unit?->status !== 'aktif',
             ])),
             'izin' => $grants
@@ -54,6 +57,7 @@ final class IzinUnitPresenter
                     'permission_id' => $grant->permission_id,
                     'label' => PermissionCatalog::LABEL_IZIN_UNIT[$grant->permission?->kode] ?? $grant->permission?->keterangan ?? $grant->permission?->kode,
                     'aktif' => (bool) $grant->permission?->aktif,
+                    'ditolak' => ($keputusan[$grant->permission?->kode ?? '']['reason'] ?? null) === 'explicit_deny',
                     ...($rinci ? [
                         'alasan' => $grant->alasan,
                         'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',

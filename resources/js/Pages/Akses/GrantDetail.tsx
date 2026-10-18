@@ -92,7 +92,9 @@ export default function GrantDetail({ kelompok, unitPermissions, can }: GrantDet
                                 </TableCell>
                                 <TableCell className={`col-span-2 ${cellClass}`}>
                                     <span className={mobileLabel}>Status izin</span>
-                                    <Badge variant={izin.aktif ? 'success' : 'muted'}>{izin.aktif ? 'Aktif' : 'Izin nonaktif'}</Badge>
+                                    {izin.ditolak
+                                        ? <Badge variant="warning">Ditolak</Badge>
+                                        : <Badge variant={izin.aktif ? 'success' : 'muted'}>{izin.aktif ? 'Aktif' : 'Izin nonaktif'}</Badge>}
                                 </TableCell>
                                 <TableCell className={`col-span-2 ${cellClass}`}>
                                     <p className="whitespace-pre-wrap break-words text-sm text-ink"><span className={mobileLabel}>Alasan</span>{izin.alasan}</p>
