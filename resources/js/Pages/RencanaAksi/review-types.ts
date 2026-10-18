@@ -1,20 +1,6 @@
 import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
 
 export type StatusReview = 'draft' | 'diajukan' | 'diverifikasi' | 'dikembalikan' | 'disahkan';
-export type FilterReview = Exclude<StatusReview, 'draft'> | 'semua';
-
-export interface ReviewIndexProps {
-    daftar: {
-        id: string;
-        tahun: number;
-        status_alur: StatusReview;
-        nomor_pengajuan: number;
-        indikator: { kode: string; nama: string };
-        unit_nama: string | null;
-    }[];
-    pagination: PengukuranPagination;
-    filters: { status: FilterReview };
-}
 
 export interface ReviewRencanaAksi {
     id: string;

@@ -144,7 +144,7 @@ class ReviewRencanaAksiTest extends TestCase
         $this->assertSame('diajukan', $this->rencanaAksi->fresh()->status_alur);
     }
 
-    public function test_histori_dan_antrean_membaca_snapshot_bukan_master_atau_draf(): void
+    public function test_histori_review_membaca_snapshot_bukan_master_atau_draf(): void
     {
         $this->indikator->update(['nama' => 'Nama master baru', 'satuan' => 'satuan master', 'desimal_tampilan' => 4]);
         $this->rencanaAksi->update(['uraian' => 'Narasi draf baru']);
@@ -153,8 +153,10 @@ class ReviewRencanaAksiTest extends TestCase
             ->where('rencanaAksi.indikator.satuan', $snapshot->satuan)->where('rencanaAksi.indikator.desimal_tampilan', $snapshot->desimal_tampilan)
             ->where('rencanaAksi.uraian', 'Narasi beku')->where('rencanaAksi.target_periode.0.nilai', '0')
             ->where('rencanaAksi.target_periode.0.periode_nama', 'Triwulan beku')->missing('rencanaAksi.versi_pengajuan.dasar_izin_pengajuan'));
-        $this->get('/rencana-aksi/review')->assertOk()->assertInertia(fn (Assert $p) => $p->component('RencanaAksi/ReviewIndex')
-            ->where('daftar.0.indikator.nama', 'Nama beku')->where('pagination.total', 1));
+        // Daftar (termasuk filter status antrean) memakai header dan indikator berjalan; substansi beku tetap hanya di halaman review.
+        $this->get('/rencana-aksi?status=diajukan')->assertOk()->assertInertia(fn (Assert $p) => $p->component('RencanaAksi/Index')
+            ->where('filters.status', 'diajukan')->where('daftar.0.rencana_aksi.id', $this->rencanaAksi->id)
+            ->where('daftar.0.rencana_aksi.status_alur', 'diajukan')->where('pagination.total', 1));
         $baru = $this->rencanaAksi->versions()->create(array_merge($this->versiPengajuan->only(['jadwal_snapshot_id', 'snapshot', 'dasar_izin_pengajuan', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan']), ['nomor' => 2]));
         $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review?versi={$this->versiPengajuan->id}")->assertOk()->assertInertia(fn (Assert $p) => $p
             ->where('rencanaAksi.versi_pengajuan.nomor', 1)->where('rencanaAksi.can.verifikasi', false)->has('rencanaAksi.histori', 2));
@@ -192,7 +194,7 @@ class ReviewRencanaAksiTest extends TestCase
         $this->actingAs($this->reviewer)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/verifikasi", $this->tokens())->assertUnprocessable();
         $this->denyPermission($this->reviewer, 'rencana_aksi:read', $this->unit->id);
         $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertForbidden();
-        $this->get('/rencana-aksi/review?status=semua')->assertInertia(fn (Assert $p) => $p->has('daftar', 0));
+        $this->get('/rencana-aksi?status=semua')->assertInertia(fn (Assert $p) => $p->has('daftar', 0));
     }
 
     public function test_pengembalian_perencanaan_sendiri_bukan_self_approval(): void
@@ -236,7 +238,7 @@ class ReviewRencanaAksiTest extends TestCase
         $this->actingAs($this->actor)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/verifikasi", $tokens)->assertSuccessful();
     }
 
-    public function test_antrean_dan_detail_menolak_record_dengan_snapshot_unit_tidak_selaras(): void
+    public function test_capability_review_dan_detail_menolak_record_dengan_snapshot_unit_tidak_selaras(): void
     {
         $unitLain = Unit::create(['nama' => 'Unit Lain', 'created_by' => $this->actor->id]);
         $snapshotLain = JadwalSnapshot::create(array_merge($this->snapshot->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan',
@@ -244,9 +246,9 @@ class ReviewRencanaAksiTest extends TestCase
         $this->rencanaAksi->versions()->create(array_merge($this->versiPengajuan->only(['snapshot', 'dasar_izin_pengajuan', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan']),
             ['nomor' => 2, 'jadwal_snapshot_id' => $snapshotLain->id]));
 
-        // Selaras dengan RencanaAksiPolicy::view: versi terbaru yang merujuk snapshot unit lain tidak dapat dibuka.
-        $this->actingAs($this->reviewer)->get('/rencana-aksi/review?status=semua')->assertOk()->assertInertia(fn (Assert $p) => $p
-            ->has('daftar', 0)->where('pagination.total', 0));
+        // Selaras dengan RencanaAksiPolicy::view: baris tetap tampil di daftar induk, tetapi capability review ditutup.
+        $this->actingAs($this->reviewer)->get('/rencana-aksi?status=semua')->assertOk()->assertInertia(fn (Assert $p) => $p
+            ->where('daftar.0.rencana_aksi.id', $this->rencanaAksi->id)->where('daftar.0.can.review', false));
         $this->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertForbidden();
     }
 

@@ -880,7 +880,7 @@ Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.
 
 [Keputusan D1 pada PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93#issuecomment-6113303169), disahkan pemilik keputusan SAKIP pada 12 Oktober 2026:
 
-1. ISS-05.04 / PR #93 menjadi pemilik antrean `/rencana-aksi/review`, detail `/rencana-aksi/{id}/review`, `GerbangReviewRencanaAksi`, dan delegasi `RencanaAksiPolicy::businessErrors`.
+1. ISS-05.04 / PR #93 menjadi pemilik antrean `/rencana-aksi/review`, detail `/rencana-aksi/{id}/review`, `GerbangReviewRencanaAksi`, dan delegasi `RencanaAksiPolicy::businessErrors`. Antrean itu menyatu dengan daftar `/rencana-aksi` lewat filter status sejak Q59 (§59.1); kepemilikan gerbang, policy, dan detail review tidak berubah.
 2. ISS-05.05 / PR #66 diselaraskan setelah #93 merged ke `development`: gunakan antrean, halaman review, dan guard yang sama, hapus implementasi paralel yang tumpang tindih, lalu tambahkan aksi Sahkan dan capability-nya pada surface tersebut.
 3. Pengesahan tetap memeriksa izin, F1/F2, versi terbaru, status, konteks dan audit pada mutation boundary; F2 tidak melewati business guard konteks. Hasil integrasi #66 perlu direview dan diuji ulang untuk konflik, method ganda, pengesahan, F1/F2, transaksi/audit dan concurrency.
 4. D1 menetapkan arah integrasi, bukan bukti #66 sudah diperbaiki atau persetujuan merge, QA/UAT, maupun deployment. Pengesahan dan buka-kembali tetap di luar scope #58; pengiriman in-app tetap ISS-12.02.
@@ -1658,6 +1658,26 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan pada PR implementasi: Data Model §2.32 (`audit_log`), PRD §25, Engineering Standards §7 (kontrak penulisan audit memuat penyamaran kunci rahasia).
 - Issue #122: judul, body, dan AC-1–AC-4 dirujuk ke Q58; alternatif "tolak saat menulis" ditolak karena menggagalkan mutasi pemanggil dan dapat menolak data sah, sedangkan "pertahankan kontrak" membiarkan risiko writer mendatang (mis. kredensial notifikasi US-13.04) menyimpan token permanen di tabel append-only.
 - Status keputusan: baseline kerja PM.
+
+---
+
+# Keputusan Q59 — Konsolidasi Antrean Review ke Halaman Rencana Aksi
+
+**Keputusan pemilik produk SAKIP: 16 Oktober 2026 (WITA), melalui permintaan konsolidasi UI pada sesi kerja agent (branch `fix/ui-rencana-aksi`).** Pencatatan ini menyelaraskan §37.5 butir 1 (permukaan antrean) dan **bukan** ratifikasi PM, UAT, merge, maupun deployment. Nomor Q56–Q58 telah dipakai keputusan lain pada 17 Oktober 2026, sehingga keputusan ini bernomor Q59.
+
+## 59.1 Aturan
+
+1. Antrean review Rencana Aksi tidak lagi halaman terpisah: daftar `/rencana-aksi` memuat filter `status` (Semua status, Belum dibuat, Draft, Diajukan, Diverifikasi, Dikembalikan, Disahkan) yang menyaring server-side sebelum paginasi. Antrean reviu berbasis status (AC-7 ISS-05.03; D1 §37.5) tetap tersedia — hanya berpindah permukaan UI.
+2. Halaman detail review tetap `/rencana-aksi/{id}/review` beserta gerbang, policy, dan seluruh aksi verifikasi/pengembalian/pengesahan/buka-kembali yang tidak berubah.
+3. URL lama `/rencana-aksi/review` dipertahankan sebagai redirect ke `/rencana-aksi` agar tautan lama tidak 404; controller dan action daftar antrean lama dihapus.
+4. Aksi per baris pada daftar disajikan satu menu titik-tiga (`ActionMenu`, komponen design system yang sama dengan daftar Sasaran & Indikator): "Buat Rencana Aksi" (capability `create` seperti semula), "Buka" untuk baris ber-header, dan "Review" hanya ketika server menandai capability-nya (status non-draft dan policy `view` mengizinkan — cermin penyaringan antrean lama atas keselarasan unit snapshot versi terbaru), sehingga tautan yang pasti ditolak tidak ditawarkan.
+5. Tidak ada perubahan pada permission, resolver, `GerbangReviewRencanaAksi`, `RencanaAksiPolicy::businessErrors`, maupun aturan mutasi/audit.
+
+## 59.2 Dampak dan traceability
+
+- Diselaraskan: §37.5 butir 1 (antrean pindah permukaan), User Issues ISS-05.04/ISS-05.05 (surface antrean dan detail review), dan Engineering Standards (capability server-side yang ditawarkan UI).
+- Test yang disesuaikan: `RencanaAksiIndexTest`, `ReviewRencanaAksiTest`, `RencanaAksiUnitBerizinTest`, `SahkanRencanaAksiTest`, serta test frontend `RencanaAksiIndex`/`RencanaAksiReview`.
+- Status keputusan: baseline UI. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
 
 ---
 
