@@ -1575,6 +1575,8 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 1. Form buat dan ubah kegiatan, penyimpanan, serta tombol buat hanya tersedia pada unit yang juga dapat dibaca pengguna menurut §54.1.
 2. Penerima grant `kegiatan:create`/`kegiatan:update` tanpa `kegiatan:read` ditolak sejak membuka form, dan penolakannya diaudit. Ketentuan sementara PR #97 (grant tulis kegiatan hanya bagi pemegang `kegiatan:read`) kini ditegakkan sistem.
 
+> **Catatan Issue #123 (18 Oktober 2026):** form buat kegiatan berupa modal pada daftar Kegiatan, tanpa halaman tersendiri. Tombol buat dan pilihan unitnya mengikuti butir 1, sedangkan penolakan buat diaudit saat penyimpanan. Form ubah tetap ditolak dan diaudit saat dibuka. Aturan butir 1–2 tidak berubah.
+
 ## 54.4 Dampak dan traceability
 
 - Diselaraskan: PRD §7.2–§7.4 dan §15.1; Workflow §8 butir 9; Data Model §2.3; User Stories dan User Issues US/ISS-06.01.
