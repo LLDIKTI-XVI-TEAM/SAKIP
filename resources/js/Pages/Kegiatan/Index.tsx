@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { CalendarDays, Pencil, Plus, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
@@ -15,7 +15,6 @@ import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import {
     statusKegiatan,
     statusKegiatanConfig,
-    type KegiatanIndexItem,
     type KegiatanIndexProps,
 } from '@/types/kegiatan';
 import { KegiatanModal } from './Partials/KegiatanModal';
@@ -26,7 +25,6 @@ export default function Index({
     unitOptions = [],
     periodeOptions = [],
     creatableUnitOptions = [],
-    editableUnitOptions = [],
     activePeriodeOptions = [],
     tahunDefault = new Date().getFullYear(),
     can = { create: false },
@@ -38,7 +36,6 @@ export default function Index({
         setSearch({ tahun: tahun || String(tahunDefault), unit_id, periode_id, status });
     }, [tahun, unit_id, periode_id, status, tahunDefault]);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingKegiatan, setEditingKegiatan] = useState<KegiatanIndexItem | null>(null);
     const formatTanggal = useFormatTanggal();
 
     const hasActiveFilters = Boolean(
@@ -62,20 +59,8 @@ export default function Index({
         router.get('/kegiatan', { tahun: tahunDefault }, { replace: true, preserveState: false });
     };
 
-    const openCreateModal = () => {
-        setEditingKegiatan(null);
-        setIsModalOpen(true);
-    };
-
-    const openEditModal = (item: KegiatanIndexItem) => {
-        setEditingKegiatan(item);
-        setIsModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setEditingKegiatan(null);
-    };
+    const openCreateModal = () => setIsModalOpen(true);
+    const closeModal = () => setIsModalOpen(false);
 
     return (
         <AuthenticatedLayout
@@ -195,7 +180,7 @@ export default function Index({
                                                 {item.tujuan && <p className="mt-1 line-clamp-2 text-xs text-muted" title={item.tujuan}>{item.tujuan}</p>}
                                             </TableCell>
                                             <TableCell className="w-1/4 min-w-[220px] text-xs font-medium text-ink">
-                                                <HoverScrollText>{item.unit?.nama ?? '-'}</HoverScrollText>
+                                                <HoverScrollText showTooltip={false} duration="0.8s">{item.unit?.nama ?? '-'}</HoverScrollText>
                                             </TableCell>
                                             <TableCell className="w-28 whitespace-nowrap">
                                                 <span className="font-mono text-xs font-semibold text-ink">{item.tahun}</span>
@@ -215,17 +200,14 @@ export default function Index({
                                             </TableCell>
                                             <TableCell className="w-16 whitespace-nowrap text-right">
                                                 {item.can?.update && (
-                                                    <Tooltip content="Edit rencana kegiatan" align="right">
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="h-8 w-8 p-0 text-muted hover:text-primary"
-                                                            aria-label={`Edit kegiatan ${item.nama}`}
-                                                            onClick={() => openEditModal(item)}
+                                                    <Tooltip content="Edit Kegiatan & Klaim RA" align="right" position="top">
+                                                        <Link
+                                                            href={`/kegiatan/${item.id}/edit`}
+                                                            aria-label={`Ubah rencana kegiatan dan klaim rencana aksi ${item.nama}`}
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted transition-all duration-150 hover:bg-soft hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
                                                         >
                                                             <Pencil className="h-4 w-4" aria-hidden="true" />
-                                                        </Button>
+                                                        </Link>
                                                     </Tooltip>
                                                 )}
                                             </TableCell>
@@ -246,8 +228,7 @@ export default function Index({
             <KegiatanModal
                 isOpen={isModalOpen}
                 onClose={closeModal}
-                kegiatan={editingKegiatan}
-                unitOptions={editingKegiatan ? editableUnitOptions : creatableUnitOptions}
+                unitOptions={creatableUnitOptions}
                 periodeOptions={activePeriodeOptions}
                 tahunDefault={tahunDefault}
             />

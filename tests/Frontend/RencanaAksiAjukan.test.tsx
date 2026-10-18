@@ -133,7 +133,7 @@ describe('pengajuan rencana aksi di halaman Show', () => {
         render(<RencanaAksiShow rencanaAksi={buatPayload({ pengajuan: { siap: false, alasan: ['Target periode Triwulan II belum lengkap.'] } })} />);
 
         expect(screen.getByText('Target periode Triwulan II belum lengkap.')).toBeTruthy();
-        expect(screen.getByText('Simpan draf untuk memperbarui hasil.')).toBeTruthy();
+        expect(screen.queryByText('Simpan draf untuk memperbarui hasil.')).toBeNull();
         expect(screen.getByRole<HTMLButtonElement>('button', { name: TOMBOL_AJUKAN }).disabled).toBe(true);
     });
 

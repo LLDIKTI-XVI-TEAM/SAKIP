@@ -4,7 +4,11 @@ namespace App\Services\RencanaAksi;
 
 use App\Actions\Pengukuran\CalculatePengukuran;
 use App\Models\JadwalSnapshot;
+use App\Models\JadwalTahunan;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\PeriodeJadwal;
+use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use App\Support\DeviasiTargetPk;
 use Illuminate\Support\Collection;
@@ -29,6 +33,9 @@ use InvalidArgumentException;
  */
 class KesiapanPengajuan
 {
+    /** Tahun RA data awal yang dicatat Perencanaan (Q32.8, Q46 §46.1 butir 3). */
+    public const TAHUN_DATA_AWAL = 2026;
+
     public function __construct(private readonly CalculatePengukuran $calculator) {}
 
     /**
@@ -112,6 +119,68 @@ class KesiapanPengajuan
     }
 
     /**
+     * Gerbang minimal satu kegiatan yang diklaim pada tahap RA (Q42 §42.1
+     * butir 3); tidak setiap periode wajib berisi kegiatan. Dikecualikan
+     * untuk RA data awal 2026 yang diajukan lewat jalur Perencanaan (Q46
+     * §46.1 butir 3, Q32.8) dan RA yang seluruh periode efektifnya sudah
+     * lampau saat aktivasi jadwal 2026 (Q46 §46.1 butir 1). Kegiatan pada periode
+     * lampau tetap dihitung bila ada.
+     *
+     * @param  Collection<int, PeriodeJadwal>  $jendela
+     * @param  Collection<int, string>  $periodeEfektif
+     */
+    public function alasanKegiatan(int $jumlahKlaim, int $tahun, bool $jalurPerencanaan, JadwalTahunan $jadwal, Collection $jendela, Collection $periodeEfektif): ?string
+    {
+        if ($jumlahKlaim > 0) {
+            return null;
+        }
+        // Disetujui PM (PR #111): "data awal" dikenali dari tahun 2026 dan jalur Perencanaan, tanpa kolom penanda.
+        if ($tahun === self::TAHUN_DATA_AWAL && $jalurPerencanaan) {
+            return null;
+        }
+        // Pengecualian periode lampau memakai definisi bersama khusus jadwal 2026 (Q46).
+        $lampau = $jendela
+            ->filter(fn (PeriodeJadwal $row): bool => PeriodeTanpaTarget::isPeriodeLampau($jadwal, $row))
+            ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id);
+        if ($periodeEfektif->isNotEmpty() && $periodeEfektif->diff($lampau)->isEmpty()) {
+            return null;
+        }
+
+        return 'Rencana aksi wajib memiliki minimal satu kegiatan yang diklaim pada tahap rencana aksi.';
+    }
+
+    /**
+     * Klaim tahap RA yang tidak lagi cocok dengan konteks beku terbaru
+     * (snapshot koreksi dapat terbit setelah klaim dibuat): unit dan tahun
+     * kegiatan sama dengan header, periode termasuk periode efektif, komponen
+     * anggota snapshot. Dipakai gerbang pengajuan dan kesiapan halaman.
+     * Tanpa izin baca kegiatan pada unit, nama kegiatan tidak disebut.
+     *
+     * @param  iterable<KlaimKegiatan>  $klaim
+     * @param  Collection<string, Kegiatan>  $kegiatan  Diindeks ID kegiatan.
+     * @param  Collection<int, string>  $periodeEfektif
+     * @param  list<string>  $komponenIds
+     * @return list<string>
+     */
+    public function alasanKlaim(iterable $klaim, Collection $kegiatan, RencanaAksi $header, Collection $periodeEfektif, array $komponenIds, bool $tampilNama): array
+    {
+        $alasan = [];
+        foreach ($klaim as $item) {
+            $sumber = $kegiatan->get($item->kegiatan_id);
+            if ($sumber === null || (string) $sumber->unit_id !== (string) $header->unit_id || (int) $sumber->tahun !== (int) $header->tahun
+                || ! $periodeEfektif->contains((string) $sumber->periode_id)
+                || ($item->komponen_id !== null && ! in_array((string) $item->komponen_id, $komponenIds, true))) {
+                $alasan[] = 'Klaim kegiatan "'.($sumber->nama ?? $item->kegiatan_id).'" tidak cocok dengan konteks beku terbaru rencana aksi; hapus atau perbaiki klaim tersebut.';
+            }
+        }
+        if (! $tampilNama && $alasan !== []) {
+            return [count($alasan).' klaim kegiatan tidak cocok dengan konteks beku terbaru rencana aksi; hapus atau perbaiki klaim tersebut.'];
+        }
+
+        return $alasan;
+    }
+
+    /**
      * Alasan pengajuan ditolak dengan teks yang sama untuk kartu kesiapan dan
      * gerbang server. `terhitung` dan pengecualian `tidak_ditargetkan` lengkap; `belum_diisi` dan
      * `tidak_dapat_dihitung` (termasuk penyebut nol) menolak. Deviasi PK yang
@@ -183,5 +252,33 @@ class KesiapanPengajuan
         }
 
         return ['nilai' => $hitung['nilai'] === null ? null : (string) $hitung['nilai'], 'status_perhitungan' => (string) $hitung['status_perhitungan']];
+    }
+
+    /**
+     * Bentuk beku klaim tahap RA (Data Model §2.34): data kegiatan disalin agar
+     * perubahan kegiatan setelah pengajuan tidak mengubah versi. Evaluator
+     * persyaratan tahap perencanaan kegiatan ditambahkan saat persyaratannya ada.
+     *
+     * @param  Collection<int, KlaimKegiatan>  $klaim
+     * @param  Collection<string, Kegiatan>  $kegiatan
+     * @return list<array<string, mixed>>
+     */
+    public function klaimBeku(Collection $klaim, Collection $kegiatan): array
+    {
+        return $klaim->map(function (KlaimKegiatan $item) use ($kegiatan): array {
+            /** @var Kegiatan $sumber */
+            $sumber = $kegiatan->get($item->kegiatan_id);
+
+            return [
+                ...$item->only(['id', 'kegiatan_id', 'komponen_id', 'arah_dampak', 'catatan']),
+                'periode_id' => (string) $sumber->periode_id,
+                'kegiatan' => [
+                    'nama' => $sumber->nama,
+                    'tujuan' => $sumber->tujuan,
+                    'anggaran' => $sumber->anggaran === null ? null : (string) $sumber->anggaran,
+                    'status' => $sumber->status,
+                ],
+            ];
+        })->values()->all();
     }
 }

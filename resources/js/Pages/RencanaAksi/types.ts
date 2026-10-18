@@ -217,3 +217,20 @@ export interface RencanaAksiPreview {
     periode: RencanaAksiPreviewPeriode[];
     deviasi_pk: RencanaAksiDeviasiPk;
 }
+
+/** Kegiatan yang diklaim tahap RA (`sumber_klaim = rencana_aksi`) per periode. */
+export interface KegiatanRencanaAksiItem {
+    id: string;
+    kegiatan_id: string;
+    periode_id: string;
+    nama: string;
+    status: string;
+    komponen_id: string | null;
+    arah_dampak: 'menambah' | 'mengurangi';
+    catatan: string | null;
+}
+
+export interface RencanaAksiKegiatan {
+    daftar: KegiatanRencanaAksiItem[];
+    can: { tambah: boolean; kelola: boolean };
+}
