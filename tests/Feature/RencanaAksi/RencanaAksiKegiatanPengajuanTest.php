@@ -296,6 +296,31 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         $this->assertDatabaseCount('rencana_aksi_versi', 1);
     }
 
+    /** @return array<string, array{string, bool}> */
+    public static function atributKegiatanTerklaim(): array
+    {
+        return ['nama' => ['nama', true], 'tujuan' => ['tujuan', true], 'lokasi di luar snapshot' => ['lokasi', false]];
+    }
+
+    #[DataProvider('atributKegiatanTerklaim')]
+    public function test_perubahan_atribut_beku_kegiatan_menolak_pengajuan_dengan_versi_lama(string $field, bool $beku): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        $kegiatan = Kegiatan::findOrFail($this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Kegiatan awal')->kegiatan_id);
+        $versiLama = $header->fresh()->versi;
+
+        $this->actingAs($fixture['perencanaan'])->post("/kegiatan/{$kegiatan->id}", [
+            ...$kegiatan->rencanaAttributes(), 'expected_state' => $kegiatan->versionToken(), $field => 'Nilai yang diubah pengguna lain',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame($versiLama + ($beku ? 1 : 0), $header->fresh()->versi);
+        if ($beku) {
+            $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $versiLama])
+                ->assertConflict()->assertJsonValidationErrors('expected_versi');
+            $this->assertDatabaseCount('rencana_aksi_versi', 0);
+        }
+    }
+
     /**
      * Draf manual lengkap tanpa klaim tahap RA, dengan waktu aktivasi jadwal
      * ditetapkan eksplisit agar status periode lampau tidak bergantung tanggal run.
