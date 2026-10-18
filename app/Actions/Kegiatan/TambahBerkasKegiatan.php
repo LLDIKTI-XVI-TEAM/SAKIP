@@ -1,0 +1,125 @@
+<?php
+
+namespace App\Actions\Kegiatan;
+
+use App\Actions\Pengukuran\EvaluateEvidence;
+use App\Models\BuktiDukung;
+use App\Models\JenisBerkas;
+use App\Models\Kegiatan;
+use App\Models\RencanaAksi;
+use App\Models\User;
+use App\Services\AuditLogger;
+use App\Services\Kegiatan\GerbangBerkasKegiatan;
+use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
+use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
+use App\Support\AlasanAudit;
+use App\Support\PermissionCodes;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+use Throwable;
+
+/**
+ * Pemenuhan persyaratan tahap perencanaan kegiatan (mis. RAB) sebagai
+ * `berkas` berinduk kegiatan (Q42 §42.3–§42.4). Persyaratan yang berlaku:
+ * global ditambah khusus indikator RA pengklaim. Berkas pengganti menjadi
+ * baris baru dengan `menggantikan_id`, berkas lama tetap utuh (Q25), dan
+ * tetap diterima setelah RA diajukan karena versi beku tidak berubah.
+ */
+class TambahBerkasKegiatan
+{
+    public function __construct(
+        private readonly GerbangBerkasKegiatan $gerbang,
+        private readonly EvaluateEvidence $evidence,
+        private readonly AuditLogger $audit,
+    ) {}
+
+    /** @param array<string, mixed> $data Hasil validasi `StoreBerkasKegiatanRequest`. */
+    public function handle(User $actor, string $kegiatanId, array $data): BuktiDukung
+    {
+        /** @var array<string, mixed>|null $dasarIzin */
+        $dasarIzin = null;
+
+        try {
+            return DB::transaction(function () use ($actor, $kegiatanId, $data, &$dasarIzin): BuktiDukung {
+                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan, 'pengklaim' => $pengklaim] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_UPLOAD, false, $dasarIzin);
+                $mode = (string) $data['mode'];
+                $indikatorIds = $pengklaim->map(fn (RencanaAksi $header): string => (string) $header->indikator_id)->unique()->values()->all();
+                $requirement = JenisBerkas::whereKey($data['jenis_berkas_id'])->where('aktif', true)->where('tahap', PersyaratanPerencanaanKegiatan::TAHAP)
+                    ->where(fn ($q) => $q->whereNull('indikator_id')->orWhereIn('indikator_id', $indikatorIds))->lockForUpdate()->first();
+                if (! $requirement instanceof JenisBerkas) {
+                    throw ValidationException::withMessages(['jenis_berkas_id' => 'Persyaratan tidak berlaku untuk kegiatan ini.']);
+                }
+                if (! $requirement->{'izinkan_'.$mode}) {
+                    throw ValidationException::withMessages(['mode' => "Mode {$mode} tidak diizinkan pada persyaratan {$requirement->nama}."]);
+                }
+                $lama = null;
+                if (! empty($data['menggantikan_id'])) {
+                    $lama = PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $kegiatan->id)->whereKey($data['menggantikan_id'])
+                        ->where('jenis_berkas_id', $requirement->id)->lockForUpdate()->first()
+                        ?? throw ValidationException::withMessages(['menggantikan_id' => 'Berkas yang akan diganti tidak ditemukan pada persyaratan ini.']);
+                }
+
+                $attributes = ['berkasable_type' => 'kegiatan', 'berkasable_id' => $kegiatan->id, 'jenis_berkas_id' => $requirement->id,
+                    'menggantikan_id' => $lama?->id, 'alasan_koreksi' => $lama ? ($data['alasan_koreksi'] ?? null) : null,
+                    'mode' => $mode, 'uploaded_by' => $pengunci->id, 'created_at' => now()];
+                $path = null;
+                if ($mode === 'file') {
+                    $settings = $this->evidence->settings();
+                    if (! $settings['unggahan_aktif']) {
+                        throw ValidationException::withMessages(['file' => 'Unggahan file sedang dinonaktifkan. Mode tautan/teks tetap mengikuti persyaratannya.']);
+                    }
+                    $max = $requirement->ukuran_maks_kb ?? $settings['ukuran_maks_kb'];
+                    $formats = $requirement->format_diizinkan ?: $settings['format_diizinkan'];
+                    Validator::make($data, ['file' => ['required', 'file', "max:{$max}", "mimes:{$formats}"]], [
+                        'file.max' => "Ukuran berkas melebihi batas {$max} KB.",
+                        'file.mimes' => "Format berkas harus salah satu dari: {$formats}.",
+                    ])->validate();
+                    /** @var UploadedFile $file */
+                    $file = $data['file'];
+                    $path = $file->store("berkas/kegiatan/{$kegiatan->id}", 'local');
+                    if (! is_string($path)) {
+                        throw new \RuntimeException('Berkas kegiatan gagal disimpan ke penyimpanan privat.');
+                    }
+                    $attributes += ['nama_asli' => $file->getClientOriginalName(), 'path' => $path, 'mime' => $file->getMimeType(), 'ukuran_bytes' => $file->getSize()];
+                } elseif ($mode === 'tautan') {
+                    $attributes['tautan'] = $data['tautan'];
+                } else {
+                    $attributes['isi_teks'] = $data['isi_teks'];
+                }
+
+                try {
+                    $berkas = BuktiDukung::create($attributes);
+                    $this->audit->catat(
+                        actor: $pengunci,
+                        tindakan: 'berkas.unggah',
+                        objekTipe: 'berkas',
+                        objekId: (string) $berkas->id,
+                        nilaiLama: $lama ? [...GerbangBuktiRencanaAksi::metadataAudit($lama), 'id' => (string) $lama->id] : null,
+                        nilaiBaru: [...GerbangBuktiRencanaAksi::metadataAudit($berkas), 'kegiatan_id' => (string) $kegiatan->id],
+                        alasan: $lama ? AlasanAudit::sanitasi($data['alasan_koreksi'] ?? null, 'Penggantian berkas perencanaan kegiatan.') : 'Pemenuhan berkas perencanaan kegiatan.',
+                        dasarIzin: $dasarIzin,
+                    );
+                } catch (Throwable $exception) {
+                    // Gagal sebelum COMMIT pasti di-rollback, jadi file baru aman dihapus (Eng. Standards §7).
+                    if (is_string($path)) {
+                        Storage::disk('local')->delete($path);
+                    }
+                    throw $exception;
+                }
+
+                return $berkas;
+            });
+        } catch (Throwable $exception) {
+            if (($exception instanceof AuthorizationException || $exception instanceof ValidationException) && Kegiatan::whereKey($kegiatanId)->exists()) {
+                $this->audit->catat(actor: $actor, tindakan: 'berkas.unggah_ditolak', objekTipe: 'kegiatan', objekId: $kegiatanId,
+                    alasan: AlasanAudit::sanitasi($exception->getMessage(), 'Pemenuhan berkas perencanaan kegiatan ditolak.'), dasarIzin: $dasarIzin);
+            }
+
+            throw $exception;
+        }
+    }
+}
