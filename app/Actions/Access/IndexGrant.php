@@ -3,8 +3,8 @@
 namespace App\Actions\Access;
 
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\Unit;
-use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\Authorization\PermissionCatalog;
 use Illuminate\Support\Str;
@@ -17,15 +17,13 @@ class IndexGrant
      *
      * @return array<string, mixed>
      */
-    public function handle(User $actor, string $search, mixed $unitId): array
+    public function handle(string $search, mixed $unitId): array
     {
-        $actorIsSuperadmin = $actor->hasRole('superadmin');
-
         $grantsQuery = UserPermissionGrant::with([
-            'user:id,nama,email',
+            'user:id,nama,email,status',
             'user.roles:id,nama,kode,aktif',
-            'permission:id,kode,keterangan,butuh_scope',
-            'unit:id,nama',
+            'permission:id,kode,keterangan,butuh_scope,aktif',
+            'unit:id,nama,status',
             'diberikanOleh:id,nama',
         ])
             ->whereNotNull('unit_id')
@@ -65,7 +63,7 @@ class IndexGrant
                     'user_id' => $grant->user_id,
                     'user_name' => $grant->user?->nama ?? '-',
                     'user_email' => $grant->user?->email ?? '-',
-                    'user_roles' => $grant->user?->roles->pluck('nama')->all() ?? [],
+                    'user_roles' => $grant->user?->roles->map(fn (Role $role) => $role->aktif ? $role->nama : "{$role->nama} (nonaktif)")->all() ?? [],
                     'permission_id' => $grant->permission_id,
                     'permission_kode' => $grant->permission?->kode,
                     'permission_keterangan' => $grant->permission?->keterangan,
@@ -74,7 +72,12 @@ class IndexGrant
                     'alasan' => $grant->alasan,
                     'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',
                     'created_at' => $grant->created_at?->toISOString(),
-                    'can_revoke' => true,
+                    // Kriteria sama dengan PermissionResolver: akun, izin katalog, dan unit harus aktif agar grant berlaku.
+                    'tidak_berlaku' => array_keys(array_filter([
+                        'Akun nonaktif' => $grant->user?->status !== 'aktif',
+                        'Izin nonaktif' => ! $grant->permission?->aktif,
+                        'Unit nonaktif' => $grant->unit?->status !== 'aktif',
+                    ])),
                 ];
             });
 
@@ -91,7 +94,6 @@ class IndexGrant
             ->get()
             ->map(fn (Permission $p) => [
                 'id' => $p->id,
-                'name' => $p->kode,
                 'kode' => $p->kode,
                 'keterangan' => $p->keterangan,
             ]);
@@ -102,10 +104,8 @@ class IndexGrant
                 'search' => $search,
                 'unit_id' => $unitId ?? 'all',
             ],
-            'users' => [],
             'units' => $units,
             'unitPermissions' => $unitPermissions,
-            'is_superadmin' => $actorIsSuperadmin,
             'can' => [
                 'create_grant' => true,
                 'revoke_grant' => true,

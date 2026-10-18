@@ -325,7 +325,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         ]);
 
         $response->assertRedirect('/akses/grant');
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('success', 'Izin unit pada Pokja Akademik berhasil diberikan kepada Pegawai Staf.');
 
         $this->assertDatabaseHas('user_permission_granted', [
             'user_id' => $this->pegawaiUser->id,
@@ -363,7 +363,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             'alasan' => 'Mencoba memberi izin global via form unit',
         ]);
 
-        $response->assertSessionHasErrors('permission_id');
+        $response->assertSessionHasErrors(['permission_id' => 'Izin ini tidak dapat diberikan sebagai izin unit.']);
         $this->assertDatabaseCount('user_permission_granted', 0);
     }
 
@@ -380,7 +380,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             'alasan' => 'Mencoba submit tanpa unit',
         ]);
 
-        $response->assertSessionHasErrors('unit_id');
+        $response->assertSessionHasErrors(['unit_id' => 'Unit wajib dipilih.']);
         $this->assertDatabaseCount('user_permission_granted', 0);
     }
 
@@ -449,7 +449,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         ]);
 
         $response->assertRedirect('/akses/grant');
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('success', 'Izin unit milik Pegawai Staf berhasil dicabut.');
 
         $this->assertDatabaseMissing('user_permission_granted', [
             'id' => $grant->id,
@@ -714,11 +714,11 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Visibilitas Tombol Cabut: can_revoke bernilai true untuk semua grant karena Admin dan Superadmin dapat mencabut grant.
+     * Visibilitas Tombol Cabut mengikuti can.revoke_grant halaman; tidak ada penanda per baris yang selalu benar.
      */
     public function test_index_marks_can_revoke_appropriately(): void
     {
-        $adminGrant = UserPermissionGrant::create([
+        UserPermissionGrant::create([
             'user_id' => $this->otherAdminUser->id,
             'permission_id' => $this->unitPermission->id,
             'unit_id' => $this->unitA->id,
@@ -726,7 +726,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             'diberikan_oleh' => $this->superadminUser->id,
         ]);
 
-        $pegawaiGrant = UserPermissionGrant::create([
+        UserPermissionGrant::create([
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $this->unitPermission->id,
             'unit_id' => $this->unitB->id,
@@ -734,19 +734,58 @@ class GrantIzinTambahanUnitTest extends TestCase
             'diberikan_oleh' => $this->adminUser->id,
         ]);
 
-        // Aktor Admin: kedua grant bisa dicabut (can_revoke = true)
-        $adminIndex = $this->actingAs($this->adminUser)->get('/akses/grant');
-        $adminGrants = collect($adminIndex->viewData('page')['props']['grants']['data'] ?? $adminIndex->viewData('page')['props']['grants'])->keyBy('id');
+        foreach ([$this->adminUser, $this->superadminUser] as $actor) {
+            $this->actingAs($actor)->get('/akses/grant')->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('can.revoke_grant', true)
+                ->has('grants.data', 2)
+                ->missing('grants.data.0.can_revoke')
+                ->missing('grants.data.1.can_revoke'));
+        }
+    }
 
-        $this->assertTrue($adminGrants[$adminGrant->id]['can_revoke']);
-        $this->assertTrue($adminGrants[$pegawaiGrant->id]['can_revoke']);
+    /**
+     * Daftar menandai grant yang tidak berlaku dengan kriteria resolver (akun, izin, atau unit nonaktif) beserta peran penerima.
+     */
+    public function test_index_menandai_grant_tidak_berlaku_dan_peran_penerima(): void
+    {
+        $izinDimatikan = Permission::where('kode', 'pengukuran:update')->firstOrFail();
+        $tanpaPeran = User::factory()->create(['nama' => 'Tanpa Peran', 'email' => 'tanpaperan@sakip.test', 'status' => 'aktif']);
+        $beri = fn (User $user, Permission $permission, Unit $unit): string => UserPermissionGrant::create([
+            'user_id' => $user->id,
+            'permission_id' => $permission->id,
+            'unit_id' => $unit->id,
+            'alasan' => 'Penugasan fixture',
+            'diberikan_oleh' => $this->adminUser->id,
+        ])->id;
+        $berlaku = $beri($this->pegawaiUser, $this->unitPermission, $this->unitA);
+        $unitNonaktif = $beri($tanpaPeran, $this->unitPermission, $this->unitB);
+        $akunNonaktif = $beri($this->aksesOnlyUser, $this->unitPermission, $this->unitA);
+        $izinNonaktif = $beri($this->pimpinanUser, $izinDimatikan, $this->unitA);
 
-        // Aktor Superadmin: kedua grant bisa dicabut (can_revoke = true)
-        $superIndex = $this->actingAs($this->superadminUser)->get('/akses/grant');
-        $superGrants = collect($superIndex->viewData('page')['props']['grants']['data'] ?? $superIndex->viewData('page')['props']['grants'])->keyBy('id');
+        $this->unitB->update(['status' => 'nonaktif']);
+        $this->aksesOnlyUser->update(['status' => 'nonaktif']);
+        $izinDimatikan->update(['aktif' => false]);
+        $pimpinanRole = Role::where('kode', 'pimpinan')->firstOrFail();
+        $pimpinanRole->update(['aktif' => false]);
 
-        $this->assertTrue($superGrants[$adminGrant->id]['can_revoke']);
-        $this->assertTrue($superGrants[$pegawaiGrant->id]['can_revoke']);
+        $response = $this->actingAs($this->adminUser)->get('/akses/grant');
+        $response->assertInertia(fn (AssertableInertia $page) => $page->missing('users')->missing('is_superadmin'));
+        $rows = collect($response->viewData('page')['props']['grants']['data'])->keyBy('id');
+
+        $this->assertSame([], $rows[$berlaku]['tidak_berlaku']);
+        $this->assertSame(['Unit nonaktif'], $rows[$unitNonaktif]['tidak_berlaku']);
+        $this->assertSame(['Akun nonaktif'], $rows[$akunNonaktif]['tidak_berlaku']);
+        $this->assertSame(['Izin nonaktif'], $rows[$izinNonaktif]['tidak_berlaku']);
+        $this->assertSame(['Pegawai'], $rows[$berlaku]['user_roles']);
+        $this->assertSame([], $rows[$unitNonaktif]['user_roles']);
+        $this->assertSame([$pimpinanRole->nama.' (nonaktif)'], $rows[$izinNonaktif]['user_roles']);
+
+        // Kontrol: resolver memang menolak ketiga grant yang ditandai dan mengizinkan yang berlaku.
+        $resolver = app(PermissionResolver::class);
+        $this->assertTrue($resolver->allows($this->pegawaiUser, 'pengukuran:create', $this->unitA->id));
+        $this->assertFalse($resolver->allows($tanpaPeran, 'pengukuran:create', $this->unitB->id));
+        $this->assertFalse($resolver->allows($this->aksesOnlyUser->fresh(), 'pengukuran:create', $this->unitA->id));
+        $this->assertFalse($resolver->allows($this->pimpinanUser, 'pengukuran:update', $this->unitA->id));
     }
 
     /**
@@ -889,7 +928,7 @@ class GrantIzinTambahanUnitTest extends TestCase
 
         $responsePerm->assertSessionHasErrors('permission_id');
         $this->assertEquals(
-            'Format ID permission tidak valid.',
+            'Format ID izin tidak valid.',
             session('errors')->first('permission_id')
         );
 

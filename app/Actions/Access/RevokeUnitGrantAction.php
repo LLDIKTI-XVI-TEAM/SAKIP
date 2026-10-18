@@ -63,7 +63,7 @@ class RevokeUnitGrantAction
 
             // Endpoint Unit tidak mencabut grant global; referensi nonaktif tetap boleh dibersihkan.
             if ($grant->permission?->butuh_scope !== Permission::SCOPE_UNIT || $grant->unit_id === null) {
-                abort(422, 'Endpoint ini hanya dapat mencabut grant yang berscope unit.');
+                abort(422, 'Hanya izin unit yang dapat dicabut dari halaman ini.');
             }
 
             $oldValues = [

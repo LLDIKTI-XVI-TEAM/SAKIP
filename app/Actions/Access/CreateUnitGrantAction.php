@@ -35,7 +35,7 @@ class CreateUnitGrantAction
         $targetUser = User::with('roles')->find($data['user_id']);
         if (! $targetUser || $targetUser->status !== 'aktif') {
             throw ValidationException::withMessages([
-                'user_id' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
+                'user_id' => 'Pengguna tidak ditemukan atau akunnya nonaktif.',
             ]);
         }
 
@@ -43,21 +43,21 @@ class CreateUnitGrantAction
         $permission = Permission::find($data['permission_id']);
         if (! $permission || ! $permission->aktif || ! in_array($permission->kode, PermissionCatalog::UNIT_SCOPED, true)) {
             throw ValidationException::withMessages([
-                'permission_id' => 'Permission tidak ditemukan dalam katalog atau sudah dinonaktifkan.',
+                'permission_id' => 'Izin tidak tersedia atau sudah dinonaktifkan.',
             ]);
         }
 
         // Grant Unit tidak memberikan permission global.
         if ($permission->butuh_scope !== Permission::SCOPE_UNIT) {
             throw ValidationException::withMessages([
-                'permission_id' => 'Hanya permission dengan cakupan unit (butuh_scope = unit) yang dapat diberikan melalui form ini.',
+                'permission_id' => 'Izin ini tidak dapat diberikan sebagai izin unit.',
             ]);
         }
 
         // Permission unit wajib menyertakan unit target.
         if (empty($data['unit_id'])) {
             throw ValidationException::withMessages([
-                'unit_id' => 'Unit target wajib dipilih untuk permission berscope unit.',
+                'unit_id' => 'Unit wajib dipilih.',
             ]);
         }
 
@@ -66,7 +66,7 @@ class CreateUnitGrantAction
         $unit = Unit::find($data['unit_id']);
         if (! $unit || $unit->status !== 'aktif') {
             throw ValidationException::withMessages([
-                'unit_id' => 'Unit target tidak ditemukan atau berstatus nonaktif.',
+                'unit_id' => 'Unit tidak ditemukan atau berstatus nonaktif.',
             ]);
         }
 
@@ -116,7 +116,7 @@ class CreateUnitGrantAction
                 // Validasi ulang status aktif pengguna target di dalam transaksi untuk mencegah TOCTOU
                 if ($lockedTargetUser->status !== 'aktif') {
                     throw ValidationException::withMessages([
-                        'user_id' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
+                        'user_id' => 'Pengguna tidak ditemukan atau akunnya nonaktif.',
                     ]);
                 }
 
@@ -126,7 +126,7 @@ class CreateUnitGrantAction
                 $lockedUnit = Unit::whereKey($unit->id)->sharedLock()->firstOrFail();
                 if ($lockedUnit->status !== 'aktif') {
                     throw ValidationException::withMessages([
-                        'unit_id' => 'Unit target tidak ditemukan atau berstatus nonaktif.',
+                        'unit_id' => 'Unit tidak ditemukan atau berstatus nonaktif.',
                     ]);
                 }
 
@@ -135,13 +135,13 @@ class CreateUnitGrantAction
                 $lockedPermission = Permission::whereKey($permission->id)->sharedLock()->first();
                 if (! $lockedPermission || ! $lockedPermission->aktif || ! in_array($lockedPermission->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true)) {
                     throw ValidationException::withMessages([
-                        'permission_id' => 'Permission tidak ditemukan dalam katalog atau sudah dinonaktifkan.',
+                        'permission_id' => 'Izin tidak tersedia atau sudah dinonaktifkan.',
                     ]);
                 }
 
                 if ($lockedPermission->butuh_scope !== Permission::SCOPE_UNIT) {
                     throw ValidationException::withMessages([
-                        'permission_id' => 'Hanya permission dengan cakupan unit (butuh_scope = unit) yang dapat diberikan melalui form ini.',
+                        'permission_id' => 'Izin ini tidak dapat diberikan sebagai izin unit.',
                     ]);
                 }
 
@@ -182,7 +182,7 @@ class CreateUnitGrantAction
             });
         } catch (\InvalidArgumentException $exception) {
             throw ValidationException::withMessages([
-                'permission_id' => 'Permission tidak ditemukan, sudah dinonaktifkan, atau tidak memenuhi syarat grant.',
+                'permission_id' => 'Izin tidak tersedia, sudah dinonaktifkan, atau tidak dapat diberikan sebagai izin unit.',
             ]);
         } catch (QueryException $exception) {
             if (($exception->errorInfo[0] ?? null) === '23505'

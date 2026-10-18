@@ -69,7 +69,7 @@ class StoreUnitGrantRequest extends FormRequest
                 ),
             ],
             'unit_id' => [
-                'nullable',
+                'required',
                 'bail',
                 'uuid',
                 Rule::exists('unit', 'id')->where(fn ($query) => $query->where('status', 'aktif')),
@@ -81,7 +81,7 @@ class StoreUnitGrantRequest extends FormRequest
                 'max:1000',
                 function (string $attribute, mixed $value, \Closure $fail): void {
                     if (trim((string) $value) === '' || mb_strlen(trim((string) $value)) < 5) {
-                        $fail('Alasan pemberian grant tidak boleh kosong atau hanya berisi spasi.');
+                        $fail('Alasan pemberian izin tidak boleh kosong atau hanya berisi spasi.');
                     }
                 },
             ],
@@ -91,16 +91,18 @@ class StoreUnitGrantRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'user_id.required' => 'Pengguna target wajib dipilih.',
+            'user_id.required' => 'Pengguna wajib dipilih.',
             'user_id.uuid' => 'Format ID pengguna tidak valid.',
-            'user_id.exists' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
-            'permission_id.required' => 'Permission wajib dipilih.',
-            'permission_id.uuid' => 'Format ID permission tidak valid.',
-            'permission_id.exists' => 'Permission tidak ditemukan dalam katalog.',
+            'user_id.exists' => 'Pengguna tidak ditemukan atau akunnya nonaktif.',
+            'permission_id.required' => 'Izin wajib dipilih.',
+            'permission_id.uuid' => 'Format ID izin tidak valid.',
+            'permission_id.exists' => 'Izin ini tidak dapat diberikan sebagai izin unit.',
+            'unit_id.required' => 'Unit wajib dipilih.',
             'unit_id.uuid' => 'Format ID unit tidak valid.',
-            'unit_id.exists' => 'Unit target tidak ditemukan atau berstatus nonaktif.',
-            'alasan.required' => 'Alasan pemberian grant wajib diisi sebagai dasar audit.',
-            'alasan.min' => 'Alasan pemberian grant minimal 5 karakter.',
+            'unit_id.exists' => 'Unit tidak ditemukan atau berstatus nonaktif.',
+            'alasan.required' => 'Alasan pemberian izin wajib diisi.',
+            'alasan.min' => 'Alasan pemberian izin minimal 5 karakter.',
+            'alasan.max' => 'Alasan pemberian izin maksimal 1.000 karakter.',
         ];
     }
 }

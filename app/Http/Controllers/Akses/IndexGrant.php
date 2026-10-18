@@ -15,6 +15,6 @@ class IndexGrant extends Controller
     {
         Gate::authorize('delegasi:update');
 
-        return Inertia::render('Akses/GrantIndex', $action->handle($request->user(), trim($request->string('search')->toString()), $request->query('unit_id')));
+        return Inertia::render('Akses/GrantIndex', $action->handle(trim($request->string('search')->toString()), $request->query('unit_id')));
     }
 }
