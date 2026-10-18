@@ -23,6 +23,6 @@ class ShowVerifikasi extends Controller
             || $resolver->allows($actor, 'pengukuran:sahkan', $unitId)
             || $resolver->allows($actor, 'pengukuran:kembalikan', $unitId), 403);
 
-        return Inertia::render('Verifikasi/Show', ['pengukuran' => $present->handle($pengukuran, $actor, true)]);
+        return Inertia::render('Verifikasi/Show', ['pengukuran' => $present->handle($pengukuran, $actor, true, true)]);
     }
 }
