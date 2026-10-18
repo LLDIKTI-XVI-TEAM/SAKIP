@@ -11,6 +11,7 @@ use App\Models\KlaimKegiatan;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\Unit;
+use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -85,7 +86,7 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'berkas.unggah_ditolak')->where('objek_id', $this->kegiatan->id)->count());
     }
 
-    public function test_rab_tidak_dapat_dihapus_sejak_ra_pengklaim_diajukan_dan_dapat_lagi_setelah_dikembalikan(): void
+    public function test_rab_tidak_dapat_dihapus_atau_diganti_sejak_ra_pengklaim_diajukan_dan_dapat_lagi_setelah_dikembalikan(): void
     {
         $this->unggah()->assertSessionHasNoErrors();
         $berkas = BuktiDukung::where('berkasable_type', 'kegiatan')->sole();
@@ -94,8 +95,18 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $this->hapus($berkas)->assertSessionHasErrors('berkas');
         $this->assertNull($berkas->fresh()->dihapus_pada);
         $this->assertSame(1, AuditLog::where('tindakan', 'berkas.hapus_ditolak')->where('objek_id', $this->kegiatan->id)->count());
+        // Berkas yang dibekukan versi RA harus tetap berlaku, jadi penggantian ditolak seperti penghapusan (pola Q36).
+        $this->ganti($berkas, 'Nilai satuan diperbaiki')->assertSessionHasErrors('berkas');
+        $this->assertFalse(BuktiDukung::where('menggantikan_id', $berkas->id)->exists());
+        $this->actingAs($this->fixture['pic'])->get("/kegiatan/{$this->kegiatan->id}/edit")->assertInertia(fn ($page) => $page
+            ->where('berkasPerencanaan.alasan_tolak_ganti', fn ($alasan) => str_contains((string) $alasan, 'tidak dapat dihapus atau diganti'))
+            ->where('berkasPerencanaan.alasan_tolak_unggah', null));
+        // Unggahan baru tetap diterima, mis. persyaratan indikator lain atas kegiatan bersama (Q42 §42.4 butir 4).
+        $this->unggah(UploadedFile::fake()->create('rab-tambahan.pdf', 10))->assertSessionHasNoErrors();
+        $this->assertSame(2, PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $this->kegiatan->id)->count());
 
-        // Koreksi lewat berkas pengganti tetap diterima tanpa mengubah berkas lama, dan wajib beralasan (Q25).
+        // Setelah dikembalikan, koreksi lewat berkas pengganti diterima tanpa mengubah berkas lama, dan wajib beralasan (Q25).
+        $this->header->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
         foreach ([[], ['alasan_koreksi' => '   ']] as $tanpaAlasan) {
             $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
                 'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-revisi.xlsx', 10),
@@ -111,7 +122,6 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $this->assertSame('Nilai satuan diperbaiki', $pengganti->alasan_koreksi);
         $this->assertNull($berkas->fresh()->dihapus_pada);
 
-        $this->header->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
         $this->hapus($pengganti, '')->assertSessionHasErrors('alasan');
         $this->hapus($pengganti)->assertSessionHasNoErrors();
         $this->assertNotNull($pengganti->fresh()->dihapus_pada);
@@ -169,6 +179,14 @@ class BerkasPerencanaanKegiatanTest extends TestCase
     {
         return $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
             'mode' => 'file', 'jenis_berkas_id' => ($persyaratan ?? $this->rab)->id, 'file' => $file ?? UploadedFile::fake()->create('rab.pdf', 10),
+        ]);
+    }
+
+    private function ganti(BuktiDukung $berkas, string $alasan)
+    {
+        return $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
+            'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-revisi.xlsx', 10),
+            'menggantikan_id' => $berkas->id, 'alasan_koreksi' => $alasan,
         ]);
     }
 

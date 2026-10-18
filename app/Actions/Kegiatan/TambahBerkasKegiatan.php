@@ -26,8 +26,10 @@ use Throwable;
  * Pemenuhan persyaratan tahap perencanaan kegiatan (mis. RAB) sebagai
  * `berkas` berinduk kegiatan (Q42 §42.3–§42.4). Persyaratan yang berlaku:
  * global ditambah khusus indikator RA pengklaim. Berkas pengganti menjadi
- * baris baru dengan `menggantikan_id`, berkas lama tetap utuh (Q25), dan
- * tetap diterima setelah RA diajukan karena versi beku tidak berubah.
+ * baris baru dengan `menggantikan_id`, berkas lama tetap utuh (Q25).
+ * Unggahan baru tetap diterima setelah RA diajukan (kegiatan bersama dapat
+ * butuh persyaratan indikator lain), tetapi penggantian ditolak seperti
+ * penghapusan agar berkas yang dibekukan versi RA tetap berlaku (Q36).
  */
 class TambahBerkasKegiatan
 {
@@ -45,7 +47,7 @@ class TambahBerkasKegiatan
 
         try {
             return DB::transaction(function () use ($actor, $kegiatanId, $data, &$dasarIzin): BuktiDukung {
-                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan, 'pengklaim' => $pengklaim] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_UPLOAD, false, $dasarIzin);
+                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan, 'pengklaim' => $pengklaim] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_UPLOAD, ! empty($data['menggantikan_id']), $dasarIzin);
                 $mode = (string) $data['mode'];
                 $indikatorIds = $pengklaim->map(fn (RencanaAksi $header): string => (string) $header->indikator_id)->unique()->values()->all();
                 $requirement = JenisBerkas::whereKey($data['jenis_berkas_id'])->where('aktif', true)->where('tahap', PersyaratanPerencanaanKegiatan::TAHAP)

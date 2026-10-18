@@ -151,5 +151,6 @@ export interface PersyaratanPerencanaanKegiatan {
 export interface BerkasPerencanaanKegiatan {
     persyaratan: PersyaratanPerencanaanKegiatan[];
     alasan_tolak_unggah: string | null;
+    alasan_tolak_ganti: string | null;
     alasan_tolak_hapus: string | null;
 }

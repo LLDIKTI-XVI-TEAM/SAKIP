@@ -23,8 +23,9 @@ use Illuminate\Validation\ValidationException;
  * Gerbang tulis berkas persyaratan tahap perencanaan kegiatan (mis. RAB,
  * Q42 §42.3–§42.4). Hak mutasi turun dari `kegiatan:update` pada unit
  * kegiatan beserta izin bacanya (Q54 §54.3); `berkas:*` hanya gerbang deny
- * (Q32.3). Penghapusan ditolak sejak RA pengklaim diajukan (Q42 §42.4
- * butir 5, pola Q36); koreksi lewat pengembalian RA atau berkas pengganti.
+ * (Q32.3). Penghapusan dan penggantian ditolak sejak RA pengklaim diajukan
+ * (Q42 §42.4 butir 5, pola Q36) agar berkas yang dibekukan versi RA tetap
+ * berlaku; koreksi lewat pengembalian RA lalu berkas pengganti.
  * Izin dijawab 403, pelanggaran bisnis 422. `kunci()` wajib di dalam transaksi.
  */
 class GerbangBerkasKegiatan
@@ -64,7 +65,7 @@ class GerbangBerkasKegiatan
      * @param  Collection<int, RencanaAksi>  $pengklaim  Header RA dengan klaim tahap RA atas kegiatan ini.
      * @return array{0: string, 1: string}|null
      */
-    public function pelanggaranBisnis(Kegiatan $kegiatan, Collection $pengklaim, bool $hapus, bool $tahunDitutup): ?array
+    public function pelanggaranBisnis(Kegiatan $kegiatan, Collection $pengklaim, bool $cabut, bool $tahunDitutup): ?array
     {
         if (Unit::whereKey((string) $kegiatan->unit_id)->sharedLock()->value('status') !== 'aktif') {
             return ['unit_id', 'Unit pemilik kegiatan berstatus nonaktif.'];
@@ -72,11 +73,12 @@ class GerbangBerkasKegiatan
         if ($tahunDitutup) {
             return ['tahun', 'Tahun kegiatan sudah ditutup; perubahan hanya melalui pembukaan kembali jadwal.'];
         }
-        if ($hapus && $kegiatan->status === 'terlaksana') {
-            return ['berkas', 'Berkas kegiatan yang sudah terlaksana tidak dapat dihapus.'];
+        // `$cabut`: hapus atau ganti, yaitu aksi yang mengakhiri keberlakuan berkas lama.
+        if ($cabut && $kegiatan->status === 'terlaksana') {
+            return ['berkas', 'Berkas kegiatan yang sudah terlaksana tidak dapat dihapus atau diganti.'];
         }
-        if ($hapus && $pengklaim->contains(fn (RencanaAksi $header): bool => ! in_array($header->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true))) {
-            return ['berkas', 'Berkas perencanaan kegiatan tidak dapat dihapus sejak rencana aksi yang mengklaimnya diajukan; koreksi lewat pengembalian rencana aksi atau unggah berkas pengganti.'];
+        if ($cabut && $pengklaim->contains(fn (RencanaAksi $header): bool => ! in_array($header->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true))) {
+            return ['berkas', 'Berkas perencanaan kegiatan tidak dapat dihapus atau diganti sejak rencana aksi yang mengklaimnya diajukan; koreksi lewat pengembalian rencana aksi.'];
         }
 
         return null;
@@ -98,7 +100,7 @@ class GerbangBerkasKegiatan
      * @throws AuthorizationException
      * @throws ValidationException
      */
-    public function kunci(User $actor, string $kegiatanId, string $izinBerkas, bool $hapus, ?array &$dasarIzin): array
+    public function kunci(User $actor, string $kegiatanId, string $izinBerkas, bool $cabut, ?array &$dasarIzin): array
     {
         $kunci = $this->lockedActor->handle($actor, PermissionCodes::KEGIATAN_UPDATE);
         $pengunci = $kunci['aktor'];
@@ -123,7 +125,7 @@ class GerbangBerkasKegiatan
         if (self::headerPengklaim($kegiatanId) !== $headerIds || (int) $kegiatan->tahun !== (int) $tahun) {
             throw ValidationException::withMessages(['berkas' => 'Klaim kegiatan telah berubah. Muat ulang sebelum mengubah berkas.']);
         }
-        $pelanggaran = $this->pelanggaranBisnis($kegiatan, $pengklaim, $hapus, $ditutup);
+        $pelanggaran = $this->pelanggaranBisnis($kegiatan, $pengklaim, $cabut, $ditutup);
         if ($pelanggaran !== null) {
             throw ValidationException::withMessages([$pelanggaran[0] => $pelanggaran[1]]);
         }

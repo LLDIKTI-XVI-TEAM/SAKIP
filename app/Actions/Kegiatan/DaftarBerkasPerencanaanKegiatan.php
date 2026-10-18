@@ -33,9 +33,9 @@ class DaftarBerkasPerencanaanKegiatan
             ->orderBy('created_at')->get()->groupBy('berkasable_id');
         $ditutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
         $bacaTertutup = $this->gerbang->bacaTertutup($actor, $kegiatan);
-        $alasan = fn (string $izin, bool $hapus): ?string => $this->gerbang->periksaIzin($actor, $kegiatan, $izin)['tolak'] !== null
+        $alasan = fn (string $izin, bool $cabut): ?string => $this->gerbang->periksaIzin($actor, $kegiatan, $izin)['tolak'] !== null
             ? 'Izin mengubah berkas kegiatan tidak tersedia.'
-            : $this->gerbang->pelanggaranBisnis($kegiatan, $pengklaim, $hapus, $ditutup)[1] ?? null;
+            : $this->gerbang->pelanggaranBisnis($kegiatan, $pengklaim, $cabut, $ditutup)[1] ?? null;
 
         return [
             'persyaratan' => array_map(fn (array $item): array => $item + [
@@ -45,6 +45,7 @@ class DaftarBerkasPerencanaanKegiatan
                 'contoh' => ($contoh[$item['id']] ?? collect())->map(fn (BuktiDukung $b): array => $b->only(['id', 'nama_asli']))->values()->all(),
             ], $evaluasi),
             'alasan_tolak_unggah' => $alasan(PermissionCodes::BERKAS_UPLOAD, false),
+            'alasan_tolak_ganti' => $alasan(PermissionCodes::BERKAS_UPLOAD, true),
             'alasan_tolak_hapus' => $alasan(PermissionCodes::BERKAS_DELETE, true),
         ];
     }

@@ -29,7 +29,7 @@ const rab = (atribut: Partial<PersyaratanPerencanaanKegiatan> = {}): Persyaratan
     pemenuhan: { terpenuhi: false, mode_kurang: ['file', 'tautan'] }, berkas: [], contoh: [{ id: 'c1', nama_asli: 'contoh-rab.xlsx' }], ...atribut,
 });
 const panel = (atribut: Partial<BerkasPerencanaanKegiatan> = {}): BerkasPerencanaanKegiatan => ({
-    persyaratan: [rab()], alasan_tolak_unggah: null, alasan_tolak_hapus: null, ...atribut,
+    persyaratan: [rab()], alasan_tolak_unggah: null, alasan_tolak_ganti: null, alasan_tolak_hapus: null, ...atribut,
 });
 const berkas = (atribut: Partial<BerkasKegiatanItem> = {}): BerkasKegiatanItem => ({
     id: 'b1', mode: 'file', nama_asli: 'rab.xlsx', ukuran_bytes: 1024, tautan: null, isi_teks: null, menggantikan_id: null, created_at: null, ...atribut,
@@ -76,13 +76,15 @@ it('mengganti berkas dengan menautkan berkas lama dan menghapus dengan alasan', 
     expect(router.delete).toHaveBeenCalledWith('/kegiatan/k1/berkas/b1', expect.objectContaining({ data: { alasan: 'Salah unggah' } }));
 });
 
-it('menyembunyikan hapus dan menampilkan alasan saat gerbang tulis menolak', () => {
+it('menyembunyikan ganti dan hapus tetapi tetap menawarkan unggah saat RA pengklaim sudah diajukan', () => {
+    const alasan = 'Berkas perencanaan kegiatan tidak dapat dihapus atau diganti sejak rencana aksi yang mengklaimnya diajukan; koreksi lewat pengembalian rencana aksi.';
     render(<BerkasPerencanaanPanel kegiatanId="k1" berkas={panel({ persyaratan: [rab({ berkas: [berkas({ mode: 'teks', nama_asli: null, isi_teks: 'Rincian' })] })],
-        alasan_tolak_hapus: 'Berkas perencanaan kegiatan tidak dapat dihapus sejak rencana aksi yang mengklaimnya diajukan.' })} />);
+        alasan_tolak_ganti: alasan, alasan_tolak_hapus: alasan })} />);
 
     expect(screen.queryByRole('button', { name: /Hapus berkas/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /Ganti berkas/ })).toBeTruthy();
-    expect(screen.getByText(/tidak dapat dihapus sejak rencana aksi/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Ganti berkas/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Unggah' })).toBeTruthy();
+    expect(screen.getByText(/tidak dapat dihapus atau diganti sejak rencana aksi/)).toBeTruthy();
 });
 
 it('tidak tampil bila tidak ada persyaratan perencanaan kegiatan', () => {

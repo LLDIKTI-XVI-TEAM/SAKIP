@@ -25,7 +25,7 @@ const galatBisnis = (errs: Record<string, string | undefined>) => errs.berkas ??
 
 /** Berkas tahap perencanaan kegiatan, mis. RAB (Q42 §42.3); diperiksa saat rencana aksi pengklaim diajukan. */
 export function BerkasPerencanaanPanel({ kegiatanId, berkas }: Props) {
-    const { persyaratan, alasan_tolak_unggah, alasan_tolak_hapus } = berkas;
+    const { persyaratan, alasan_tolak_unggah, alasan_tolak_ganti, alasan_tolak_hapus } = berkas;
     const [target, setTarget] = useState<{ req: PersyaratanPerencanaanKegiatan; ganti: BerkasKegiatanItem | null } | null>(null);
     const [hapus, setHapus] = useState<BerkasKegiatanItem | null>(null);
     const [alasanHapus, setAlasanHapus] = useState('');
@@ -110,7 +110,7 @@ export function BerkasPerencanaanPanel({ kegiatanId, berkas }: Props) {
                                             key={item.id}
                                             berkas={{ ...item, mime: null, download_url: item.mode === 'file' ? `/kegiatan/${kegiatanId}/berkas/${item.id}` : null }}
                                             action={<>
-                                                {!alasan_tolak_unggah && (
+                                                {!alasan_tolak_ganti && (
                                                     <Button type="button" variant="ghost" size="sm" onClick={() => buka(req, item)}
                                                         aria-label={`Ganti berkas ${item.nama_asli ?? req.nama}`}>Ganti</Button>
                                                 )}
