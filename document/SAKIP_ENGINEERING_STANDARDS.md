@@ -132,7 +132,7 @@ Bagian ini adalah guardrail pembacaan, bukan pengganti rumus dan transisi lengka
 - Konsistensi file dan DB perlu penanganan kegagalan; transaksi SQL tidak otomatis mengembalikan upload/delete storage. Jangan menghapus file existing sebagai kompensasi spekulatif.
 - Audit mencatat aktor/target/aksi/waktu/perubahan/alasan serta `dasar_izin` untuk aksi sensitif sesuai kontrak. Aktor dan dasar izin ditentukan server, bukan payload audit dari klien.
 - Audit penolakan yang diwajibkan harus tetap tercatat tanpa menyimpan mutasi domain yang ditolak. Uji bahwa rollback tidak tanpa sengaja menghilangkan bukti penolakan atau meninggalkan mutation parsial.
-- Pilih field audit secara eksplisit. Jangan mencatat credential, cookie, token, isi file, atau seluruh request mentah. Masking/retention baru memerlukan kontrak; jangan mengarang masa retensi.
+- Pilih field audit secara eksplisit. Jangan mencatat credential, cookie, token, isi file, atau seluruh request mentah. `WriteAuditLog` menyamarkan nilai di bawah kunci yang cocok pola rahasia sebelum disimpan (Q58) sebagai pengaman terakhir, bukan izin mencatat rahasia; jangan menamai field non-rahasia dengan kata pada pola tersebut karena nilainya ikut tersamar permanen. Retensi baru memerlukan kontrak; jangan mengarang masa retensi.
 - Akses audit, ekspor, dan download harus diuji scope/privacynya, bukan hanya tombol terlihat.
 
 ## 8. Integrasi dan background work

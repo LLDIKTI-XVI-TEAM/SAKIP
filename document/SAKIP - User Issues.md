@@ -5362,7 +5362,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 > - `tests/Feature/Authorization/InertiaCapabilitiesTest` (`can.audit`);
 > - `tests/Frontend/AuditTrail.test.tsx` dan `tests/Frontend/GroupedSidebarNavigation.test.tsx`.
 >
-> AC-5 sisi penyimpanan bergantung pada allowlist payload di setiap modul penulis; test memeriksa payload modul yang dijalankan dalam test, dan halaman detail menyamarkan kunci yang menyerupai rahasia di server sebelum menjadi props. Membaca audit tidak diaudit karena PRD §25.1 tidak mencantumkannya. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
+> AC-5 sisi penyimpanan dijaga dua lapis: allowlist payload di setiap modul penulis (test memeriksa payload modul yang dijalankan dalam test), dan sejak Q58 (Issue #122) `WriteAuditLog` menyamarkan nilai di bawah kunci rahasia sebelum disimpan (`AuditTrailTest::test_penulisan_audit_menyamarkan_kunci_rahasia_pada_nilai_tersimpan`, `test_penulisan_audit_menyimpan_utuh_kunci_yang_hanya_mirip`). Halaman detail tetap menyamarkan kunci yang menyerupai rahasia di server sebelum menjadi props, termasuk baris yang tersimpan sebelum Q58. Membaca audit tidak diaudit karena PRD §25.1 tidak mencantumkannya. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 
