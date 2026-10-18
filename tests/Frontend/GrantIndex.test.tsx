@@ -101,21 +101,27 @@ describe('Halaman Izin Unit', () => {
         expect(screen.getByRole('navigation', { name: 'Breadcrumb' }).textContent).toBe('Izin Unit');
     });
 
-    it('satu baris per pengguna dan unit memuat daftar izin, status dari server, dan tanpa kolom Pemberian', () => {
+    it('satu baris per pengguna dan unit memuat jumlah izin dimiliki, status dari server, tanpa daftar izin dan kolom Pemberian', () => {
         render(<GrantIndex {...props({ grants: { data: [
             kelompok(),
-            kelompok({ key: 'user-3:unit-2', user_id: 'user-3', user_name: 'Tanpa Peran', user_roles: [], unit_id: 'unit-2', unit_nama: 'Unit Lama', tidak_berlaku: ['Unit nonaktif', 'Akun nonaktif'], izin: [izin('perm-3', 'Membuat kegiatan', false)] }),
-        ], links: [], from: 1, to: 2, total: 2 } })} />);
-        expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Pengguna', 'Unit', 'Izin', 'Status', 'Aksi']);
-        const [, berlaku, tidakBerlaku] = screen.getAllByRole('row');
+            kelompok({ key: 'user-3:unit-2', user_id: 'user-3', user_name: 'Tanpa Peran', user_roles: [], unit_id: 'unit-2', unit_nama: 'Unit Lama', tidak_berlaku: ['Unit nonaktif', 'Akun nonaktif'], izin: [izin('perm-9', 'Izin lama', false)] }),
+            kelompok({ key: 'user-4:unit-1', user_id: 'user-4', user_name: 'PJ Lengkap', izin: [izin('perm-1', 'Mengisi pengukuran'), izin('perm-2', 'Mengubah pengukuran'), izin('perm-3', 'Membuat kegiatan')] }),
+        ], links: [], from: 1, to: 3, total: 3 } })} />);
+        expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Pengguna', 'Unit', 'Izin dimiliki', 'Status', 'Aksi']);
+        const [, berlaku, tidakBerlaku, lengkap] = screen.getAllByRole('row');
         expect(within(berlaku).getByText('Pegawai Test')).toBeTruthy();
         expect(within(berlaku).getByText('Bagian Akademik')).toBeTruthy();
-        expect(within(within(berlaku).getByRole('list', { name: 'Izin Pegawai Test' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Mengisi pengukuran', 'Mengubah pengukuran']);
+        expect(within(berlaku).getByText('2 dari 3')).toBeTruthy();
+        expect(within(berlaku).queryByText('Lengkap')).toBeNull();
+        expect(within(berlaku).queryByText('Mengisi pengukuran')).toBeNull();
         expect(within(berlaku).getByText('Berlaku')).toBeTruthy();
+        // Izin di luar pilihan aktif (mis. izin nonaktif) tidak dihitung karena tidak berlaku.
+        expect(within(tidakBerlaku).getByText('0 dari 3')).toBeTruthy();
         expect(within(tidakBerlaku).getByText('Belum memiliki peran')).toBeTruthy();
         expect(within(tidakBerlaku).getByText('Tidak berlaku')).toBeTruthy();
         expect(within(tidakBerlaku).getByText('Unit nonaktif · Akun nonaktif')).toBeTruthy();
-        expect(within(tidakBerlaku).getByText('Membuat kegiatan (nonaktif)')).toBeTruthy();
+        expect(within(lengkap).getByText('3 dari 3')).toBeTruthy();
+        expect(within(lengkap).getByText('Lengkap')).toBeTruthy();
         expect(screen.queryByText('Pemberian')).toBeNull();
     });
 
@@ -193,6 +199,18 @@ describe('Halaman Izin Unit', () => {
         dialog = screen.getByRole('dialog', { name: 'Cabut semua izin unit Pegawai Test?' });
         expect(within(dialog).getByRole<HTMLTextAreaElement>('textbox').value).toBe('');
         expect(within(dialog).queryByRole('alert')).toBeNull();
+    });
+
+    it('dibuka dari halaman Penanggung Jawab: modal Beri izin unit langsung terbuka dengan PJ dan unitnya terisi', async () => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props({ beri: { user: { id: 'user-9', nama: 'PJ Unit', email: 'pj@example.test', status: 'aktif', roles: ['Pegawai'] }, unit_id: 'unit-1' } })} />);
+        const dialog = screen.getByRole('dialog', { name: 'Beri izin unit' });
+        expect(within(dialog).getByText('PJ Unit')).toBeTruthy();
+        expect(within(dialog).getByLabelText<HTMLSelectElement>(/^Unit/).value).toBe('unit-1');
+
+        await user.click(within(dialog).getByRole('checkbox', { name: 'Mengisi pengukuran' }));
+        await user.click(within(dialog).getByRole('button', { name: 'Simpan' }));
+        expect(router.post).toHaveBeenCalledWith('/akses/grant', expect.objectContaining({ user_id: 'user-9', unit_id: 'unit-1', permission_ids: ['perm-1'] }), expect.anything());
     });
 
     it('paginasi memakai komponen bersama', () => {

@@ -4,6 +4,7 @@ namespace App\Actions\Access;
 
 use App\Models\Permission;
 use App\Models\Unit;
+use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\Access\IzinUnitPresenter;
 use App\Services\Authorization\PermissionCatalog;
@@ -16,9 +17,11 @@ class IndexGrant
      * Paginasi menghitung kelompok; kelompok tampil bila pengguna, unit, atau salah satu izinnya cocok dengan pencarian.
      * Filter unit yang bukan UUID unit aktif jatuh kembali ke "all" agar query tidak membocorkan keberadaan unit nonaktif.
      *
+     * `beri_pengguna`/`beri_unit` (tautan dari halaman Penanggung Jawab) menyiapkan isian Beri izin unit bila keduanya sah dan aktif.
+     *
      * @return array<string, mixed>
      */
-    public function handle(string $search, mixed $unitId): array
+    public function handle(string $search, mixed $unitId, mixed $beriPengguna = null, mixed $beriUnit = null): array
     {
         $grantsQuery = UserPermissionGrant::query()
             ->whereNotNull('unit_id')
@@ -86,11 +89,30 @@ class IndexGrant
             ],
             'units' => $units,
             'unitPermissions' => IzinUnitPresenter::pilihanIzin(),
+            'beri' => $this->isianBeri($beriPengguna, $units->pluck('id')->contains($beriUnit) ? $beriUnit : null),
             'can' => [
                 'create_grant' => true,
                 'kelola_grant' => true,
                 'revoke_grant' => true,
             ],
         ];
+    }
+
+    /**
+     * Isian awal Beri izin unit; hanya pengguna aktif dan unit aktif yang ditawarkan, selain itu diabaikan tanpa galat.
+     *
+     * @return array{user: array{id: string, nama: string, email: string, status: string, roles: list<string>}, unit_id: string}|null
+     */
+    private function isianBeri(mixed $userId, mixed $unitId): ?array
+    {
+        if (! is_string($userId) || ! Str::isUuid($userId) || ! is_string($unitId)) {
+            return null;
+        }
+        $user = User::with('roles:id,nama')->whereKey($userId)->where('status', 'aktif')->first(['id', 'nama', 'email', 'status']);
+
+        return $user ? [
+            'user' => ['id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'status' => $user->status, 'roles' => $user->roles->pluck('nama')->values()->all()],
+            'unit_id' => $unitId,
+        ] : null;
     }
 }

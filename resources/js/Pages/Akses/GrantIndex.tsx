@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/Components/Textarea';
 import { Tooltip } from '@/Components/Tooltip';
 import { CabutSemuaIzinUnitModal } from '@/Components/Access/CabutSemuaIzinUnitModal';
-import { GrantUserAutocomplete } from '@/Components/Access/GrantUserAutocomplete';
+import { GrantUserAutocomplete, type UserOption } from '@/Components/Access/GrantUserAutocomplete';
 import { IzinUnitCheckboxes } from '@/Components/Access/IzinUnitCheckboxes';
 import { KelolaIzinUnitModal } from '@/Components/Access/KelolaIzinUnitModal';
 import { belumDiketahui, failureClass, galatIzin, pesanGagal } from '@/Components/Access/izinUnitFeedback';
@@ -26,6 +26,8 @@ interface GrantIndexProps {
     filters: { search: string; unit_id: string };
     units: { id: string; nama: string }[];
     unitPermissions: PilihanIzin[];
+    /** Isian awal Beri izin unit dari tautan halaman Penanggung Jawab; null bila tidak ada atau tidak sah. */
+    beri?: { user: UserOption; unit_id: string } | null;
     can: { create_grant: boolean; kelola_grant: boolean; revoke_grant: boolean };
 }
 
@@ -33,16 +35,16 @@ const cellClass = 'min-w-0 p-0 md:px-4 md:py-3.5';
 const mobileLabel = 'mr-2 text-xs text-muted md:hidden';
 const iconLinkClass = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25';
 
-export default function GrantIndex({ grants, filters, units, unitPermissions, can }: GrantIndexProps) {
+export default function GrantIndex({ grants, filters, units, unitPermissions, beri = null, can }: GrantIndexProps) {
     const recovery = useAuthRecovery();
     const [search, setSearch] = useState(filters.search);
     const [unitId, setUnitId] = useState(filters.unit_id);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isCreateOpen, setIsCreateOpen] = useState(Boolean(beri && can.create_grant));
     const [createFailure, setCreateFailure] = useState<string | null>(null);
     const [dikelola, setDikelola] = useState<KelompokIzinUnit | null>(null);
     const [dicabut, setDicabut] = useState<KelompokIzinUnit | null>(null);
     const createTrigger = useRef<HTMLButtonElement | null>(null);
-    const createForm = useForm<{ user_id: string; permission_ids: string[]; unit_id: string; alasan: string }>({ user_id: '', permission_ids: [], unit_id: '', alasan: '' });
+    const createForm = useForm<{ user_id: string; permission_ids: string[]; unit_id: string; alasan: string }>({ user_id: beri?.user.id ?? '', permission_ids: [], unit_id: beri?.unit_id ?? '', alasan: '' });
     const hasFilter = filters.search !== '' || filters.unit_id !== 'all';
 
     const filterBy = (nextSearch: string, nextUnitId: string) => {
@@ -125,11 +127,8 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                 </Card>
 
                 <Card>
-                    <CardHeader className="items-start px-4 py-4">
-                        <div className="min-w-0">
-                            <h2 className="text-base font-semibold tracking-tight text-ink">Daftar izin unit</h2>
-                            <p className="mt-0.5 max-w-2xl text-xs text-muted">Izin unit (grant) memberi pengguna hak isi pada unit tertentu tanpa mengubah peran utamanya. Setiap baris memuat seluruh izin satu pengguna pada satu unit; rincian pemberian ada di halaman detail.</p>
-                        </div>
+                    <CardHeader className="px-4 py-4">
+                        <h2 className="min-w-0 text-base font-semibold tracking-tight text-ink">Daftar izin unit</h2>
                         {can.create_grant && <Button type="button" size="sm" className="shrink-0" onClick={openCreate}>
                             <Plus className="h-4 w-4" aria-hidden="true" />
                             Beri izin unit
@@ -142,7 +141,7 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                             <TableRow>
                                 <TableHead className="whitespace-normal">Pengguna</TableHead>
                                 <TableHead>Unit</TableHead>
-                                <TableHead>Izin</TableHead>
+                                <TableHead>Izin dimiliki</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Aksi</TableHead>
                             </TableRow>
@@ -163,6 +162,8 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                             </TableRow>}
                             {grants.data.map((kelompok) => {
                                 const sasaran = `${kelompok.user_name} di ${kelompok.unit_nama ?? 'unit ini'}`;
+                                // Hanya izin yang masih bisa diberikan (aktif) dihitung; daftar lengkapnya ada di halaman detail.
+                                const dimiliki = unitPermissions.filter((permission) => kelompok.izin.some((izin) => izin.permission_id === permission.id)).length;
                                 return <TableRow key={kelompok.key} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
                                     <TableCell className={`col-span-2 ${cellClass}`}>
                                         <p className="break-words text-sm font-semibold text-ink">{kelompok.user_name}</p>
@@ -177,13 +178,12 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                                         <span className={mobileLabel}>Unit</span>
                                         <span className="break-words text-sm text-ink">{kelompok.unit_nama ?? '—'}</span>
                                     </TableCell>
-                                    <TableCell className={`col-span-2 ${cellClass}`}>
+                                    <TableCell className={cellClass}>
                                         <span className={mobileLabel}>Izin</span>
-                                        <ul aria-label={`Izin ${kelompok.user_name}`} className="mt-1 flex flex-wrap gap-1.5 md:mt-0">
-                                            {kelompok.izin.map((izin) => <li key={izin.grant_id}>
-                                                <Badge variant={izin.aktif ? 'primary' : 'muted'}>{izin.aktif ? izin.label : `${izin.label} (nonaktif)`}</Badge>
-                                            </li>)}
-                                        </ul>
+                                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                                            <span className="whitespace-nowrap text-sm text-ink">{dimiliki} dari {unitPermissions.length}</span>
+                                            {dimiliki > 0 && dimiliki === unitPermissions.length && <Badge variant="success">Lengkap</Badge>}
+                                        </span>
                                     </TableCell>
                                     <TableCell className={cellClass}>
                                         <span className={mobileLabel}>Status</span>
@@ -226,7 +226,6 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                 onClose={closeCreate}
                 size="lg"
                 title="Beri izin unit"
-                description="Pengguna mendapat hak isi pada unit yang dipilih tanpa mengubah peran utamanya."
                 footer={<>
                     <Button type="button" variant="outline" disabled={createForm.processing} onClick={closeCreate}>Batal</Button>
                     <Button type="submit" form="grant-create-form" isLoading={createForm.processing} disabled={Boolean(recovery.recovery) || createForm.data.permission_ids.length === 0}>Simpan</Button>
@@ -238,6 +237,7 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                         id="grant-user"
                         label="Pengguna"
                         value={createForm.data.user_id}
+                        initialUser={createForm.data.user_id !== '' && createForm.data.user_id === beri?.user.id ? beri.user : null}
                         onChange={(id) => createForm.setData('user_id', id)}
                         disabled={createForm.processing}
                         error={createForm.errors.user_id}

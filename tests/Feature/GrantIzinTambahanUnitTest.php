@@ -2069,6 +2069,32 @@ class GrantIzinTambahanUnitTest extends TestCase
             ->has('grants.data', 3));
     }
 
+    /** Tautan dari halaman Penanggung Jawab menyiapkan isian Beri izin unit; pengguna atau unit yang tidak sah diabaikan. */
+    public function test_index_menyiapkan_isian_beri_izin_dari_halaman_pj(): void
+    {
+        $this->actingAs($this->adminUser)->get("/akses/grant?beri_pengguna={$this->pegawaiUser->id}&beri_unit={$this->unitA->id}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('beri.user.id', $this->pegawaiUser->id)
+                ->where('beri.user.nama', 'Pegawai Staf')
+                ->where('beri.user.email', 'pegawai@sakip.test')
+                ->where('beri.user.status', 'aktif')
+                ->where('beri.user.roles', ['Pegawai'])
+                ->where('beri.unit_id', $this->unitA->id));
+
+        $this->unitB->update(['status' => 'nonaktif']);
+        $this->aksesOnlyUser->update(['status' => 'nonaktif']);
+        foreach ([
+            "beri_pengguna={$this->aksesOnlyUser->id}&beri_unit={$this->unitA->id}",
+            "beri_pengguna={$this->pegawaiUser->id}&beri_unit={$this->unitB->id}",
+            "beri_pengguna=bukan-uuid&beri_unit={$this->unitA->id}",
+            "beri_pengguna={$this->pegawaiUser->id}",
+            '',
+        ] as $query) {
+            $this->actingAs($this->adminUser)->get("/akses/grant?{$query}")
+                ->assertInertia(fn (AssertableInertia $page) => $page->where('beri', null));
+        }
+    }
+
     /** Halaman detail memuat rincian setiap izin pengguna pada unit itu. */
     public function test_detail_izin_unit_menampilkan_rincian_per_izin(): void
     {
