@@ -223,7 +223,7 @@ class KegiatanHttpTest extends TestCase
         $kegiatan = $this->kegiatan();
         UserPermissionGrant::create(['user_id' => $this->pegawai->id, 'permission_id' => Permission::where('kode', 'kegiatan:update')->value('id'), 'unit_id' => $this->unitLain->id, 'alasan' => 'Izin update unit B', 'diberikan_oleh' => $this->perencanaan->id]);
         $this->actingAs($this->pegawai)->get("/kegiatan/{$kegiatan->id}/edit")->assertInertia(fn (Assert $page) => $page->component('Kegiatan/Form')
-            ->where('kegiatan.id', $kegiatan->id)->has('unitOptions', 2)->where('unitOptions.1.id', $this->unitLain->id)->where('periodeOptions.0.id', $this->periode->id)->missing('kegiatan.anggaran')->missing('tahunDefault'));
+            ->where('kegiatan.id', $kegiatan->id)->has('unitOptions', 2)->where('unitOptions.1.id', $this->unitLain->id)->where('periodeOptions.0.id', $this->periode->id)->has('kegiatan.anggaran')->missing('tahunDefault'));
         $this->actingAs($this->user('pegawai'))->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
         $this->actingAs($this->pegawai)->get('/kegiatan/bukan-uuid/edit')->assertNotFound();
         // Buat kegiatan hanya lewat modal daftar dan POST /kegiatan.
