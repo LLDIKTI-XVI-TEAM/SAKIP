@@ -72,6 +72,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 17 Oktober 2026 (Q57)** menetapkan bahwa revisi resmi jendela PIC dapat ikut menyesuaikan jendela reviu periode yang sama dalam satu aksi beralasan dan teraudit, sedangkan penanda reviu terlambat yang sudah tercatat tetap beku, melengkapi Q18 dan Q41 §41.1 butir 3.
 
+**Keputusan 17 Oktober 2026 (Q60)** menetapkan bahwa target Renstra disimpan tanpa alasan pada Renstra `draft` maupun `aktif`, sedangkan audit tetap mencatat nilai lama dan baru per tahun, mengubah Q40 §40.2 butir 3 dan Q43 §43.2 butir 3.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -1029,7 +1031,7 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 
 1. Atribut Renstra tetap direvisi **in place** dengan audit (PRD §10.5).
 2. **Lampiran revisi boleh ditambahkan setelah Renstra aktif**; lampiran yang sudah ada tetap tidak dapat dihapus. Ini menyelaraskan implementasi, yang saat ini menolak penambahan lampiran pada Renstra bukan draf (`UpdateRenstraAction.php:127-131`), dengan PRD §10.6 yang hanya melarang penghapusan. (PM; menit 27:24)
-3. Perubahan target Renstra saat Renstra `aktif` wajib beralasan (dasar revisi) dan tercatat di audit dengan nilai lama dan baru; catatan tersebut ditampilkan sebagai riwayat revisi target Renstra. Bila target terlampaui sebelum akhir periode, target tahun-tahun berikutnya dinaikkan dengan cara ini. (PM; menit 1:28:16) *(Diubah keputusan PM 17 Oktober 2026: perubahan target Renstra tidak memakai alasan; audit tetap mencatat aktor, waktu, nilai lama, dan nilai baru.)*
+3. Perubahan target Renstra saat Renstra `aktif` tidak memakai alasan (Q60) dan tercatat di audit dengan nilai lama dan baru; catatan tersebut ditampilkan sebagai riwayat revisi target Renstra. Bila target terlampaui sebelum akhir periode, target tahun-tahun berikutnya dinaikkan dengan cara ini. (PM; menit 1:28:16)
 4. Versi penuh Renstra, yaitu sasaran dan indikator ikut berversi, **tidak** dibangun saat ini. Penggantian Renstra karena kebijakan kementerian ditangani dengan Renstra baru, dan Renstra lama dinonaktifkan sesuai aturan yang berlaku. (PM)
 5. Lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru. (PM, saat penyelarasan Q47–Q51)
 
@@ -1146,7 +1148,7 @@ Alasan tidak diwajibkan pada setiap aksi. Setiap aksi tetap tercatat di audit (a
 
 1. Pengembalian dan buka-kembali (Rencana Aksi, pengukuran, jadwal).
 2. Penghapusan data atau berkas.
-3. Koreksi atau revisi data yang sudah sah: koreksi PK, revisi PK (Q40), revisi target Renstra saat Renstra aktif (Q40), dan koreksi snapshot (Q35). *(Diubah keputusan PM 17 Oktober 2026: perubahan target Renstra tidak memakai alasan; audit tetap mencatat aktor, waktu, nilai lama, dan nilai baru.)*
+3. Koreksi atau revisi data yang sudah sah: koreksi PK, revisi PK (Q40), dan koreksi snapshot (Q35).
 4. Perubahan akses: penetapan dan pergantian peran, penonaktifan dan pengaktifan kembali akun (Q38), pembatasan izin dan pencabutannya, serta pencabutan grant.
 5. Justifikasi kegiatan `tidak_terlaksana`/`ditunda`/`batal`, alasan deviasi terhadap target PK (ADR-0008), dan alasan target PK di bawah target Renstra (Q39).
 
@@ -1156,6 +1158,7 @@ Alasan tidak diwajibkan pada setiap aksi. Setiap aksi tetap tercatat di audit (a
 2. Perubahan target PK, yang sudah opsional.
 3. Perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, dan perubahan PK sebelum PK dipakai jadwal aktif.
 4. Kolom alasan pada penetapan dan pergantian **Penanggung Jawab** dihapus dari form; kolom basis datanya sudah nullable. (menit 48:25–49:09)
+5. Perubahan target Renstra pada Renstra `draft` maupun `aktif` (Q60). Simpan target Renstra tidak memiliki field alasan sama sekali.
 
 Kewajiban alasan dari keputusan sebelumnya yang tidak disebut pada §43.3 tetap berlaku.
 
@@ -1680,6 +1683,27 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan: §37.5 butir 1 (antrean pindah permukaan), User Issues ISS-05.04/ISS-05.05 (surface antrean dan detail review), dan Engineering Standards (capability server-side yang ditawarkan UI).
 - Test yang disesuaikan: `RencanaAksiIndexTest`, `ReviewRencanaAksiTest`, `RencanaAksiUnitBerizinTest`, `SahkanRencanaAksiTest`, serta test frontend `RencanaAksiIndex`/`RencanaAksiReview`.
 - Status keputusan: baseline UI. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
+
+---
+
+# Keputusan Q60 — Perubahan Target Renstra Tanpa Alasan
+
+**Keputusan PM, 17 Oktober 2026**, untuk [ISS-02.10 / Issue #125](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/125#issuecomment-6250734629). Mengubah Q40 §40.2 butir 3 dan Q43 §43.2 butir 3.
+
+## 60.1 Aturan
+
+1. Pengisian, perubahan, dan pengosongan target Renstra pada Renstra `draft` maupun `aktif` tidak memakai alasan; server menolak field `alasan` pada simpan target Renstra.
+2. Audit tetap mencatat aktor, waktu, tindakan, nilai lama, nilai baru, dan `dasar_izin` untuk setiap tahun yang berubah; tahun yang nilainya tidak berubah tidak diaudit.
+3. Riwayat revisi target Renstra dibaca dari audit tersebut (waktu, aktor, tahun, nilai lama dan baru).
+4. Keputusan ini tidak mengubah alasan wajib untuk target PK di bawah target Renstra (Q43 §43.2 butir 5, ISS-02.11).
+
+## 60.2 Dampak dan traceability
+
+- Q40 §40.2 butir 3 dan Q43 §43.2 butir 3 diselaraskan; revisi target Renstra masuk Q43 §43.3 butir 5 (alasan tidak dipakai).
+- ISS-13.05 dan Plan 10.7 tidak lagi mencakup target Renstra karena butirnya keluar dari Q43 §43.2.
+- PRD, Data Model, Workflow, Plan Pengembangan, User Stories, dan User Issues merujuk Q60.
+- Status implementasi: ISS-02.10 (PR #143).
+- Status keputusan: baseline kerja PM.
 
 ---
 

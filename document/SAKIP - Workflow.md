@@ -1585,7 +1585,7 @@ stateDiagram-v2
 
 ## 14. Alur Perubahan Kepmen IKU & Revisi Renstra
 
-> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; keputusan PM 17 Oktober 2026; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 sudah; ISS-02.11 dan revisi PK berversi (ISS-02.12) belum.
+> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; Q60; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 sudah; ISS-02.11 dan revisi PK berversi (ISS-02.12) belum.
 
 Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yang wajib diukur. Alur berikut menegaskan bagaimana perubahan itu direfleksikan ke sistem tanpa kehilangan riwayat data yang sudah ada.
 
@@ -1629,8 +1629,8 @@ Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yan
        diarsipkan DITOLAK menerima lampiran baru
 
   Kasus E — Revisi target Renstra saat Renstra aktif (Q40 §40.2 butir 3; ISS-02.10):
-  2e. Mengubah target Renstra indikator di Sasaran & Indikator tanpa alasan (keputusan PM
-      17 Oktober 2026) — permission target:update (Q39 §39.3 butir 3)
+  2e. Mengubah target Renstra indikator di Sasaran & Indikator tanpa alasan (Q60)
+      — permission target:update (Q39 §39.3 butir 3)
   3e. Sistem mencatat audit_log nilai_lama/nilai_baru; catatan tsb tampil sebagai riwayat
       revisi target Renstra — mis. bila target terlampaui sebelum akhir periode Renstra,
       target tahun-tahun berikutnya dinaikkan dengan cara ini
@@ -1661,7 +1661,7 @@ flowchart TD
     M --> N[Indikator terukur mulai periode berikutnya\npada jadwal yang sama]
 
     B -- Lampiran revisi Renstra --> R1[Tambah lampiran revisi pada Renstra draft/aktif\nlampiran lama tidak dapat dihapus - Q40]
-    B -- Revisi target Renstra --> R2[Ubah target Renstra tanpa alasan\naudit nilai lama/baru, tampil sebagai\nriwayat revisi target Renstra - Q40]
+    B -- Revisi target Renstra --> R2[Ubah target Renstra tanpa alasan\naudit nilai lama/baru, tampil sebagai\nriwayat revisi target Renstra - Q40, Q60]
 ```
 
 **Konsekuensi desain yang disadari:** indikator baru yang dibuat setelah jadwal aktif **tanpa** melewati `jadwal:buka_kembali` tidak otomatis terukur pada tahun berjalan — baru terukur mulai jadwal tahun berikutnya diaktifkan. `jadwal:buka_kembali` (Kasus C langkah 5c) adalah satu-satunya jalur agar indikator baru dapat diukur pada sisa tahun berjalan yang sama, dan rencana aksinya tetap wajib disusun-disahkan sebelum pengukuran pertamanya dapat diajukan.
