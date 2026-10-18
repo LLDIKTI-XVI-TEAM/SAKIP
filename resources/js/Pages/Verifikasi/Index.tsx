@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { CheckCircle2, Eye, AlertCircle, Paperclip } from 'lucide-react';
+import { Search, Eye, Paperclip } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
@@ -11,13 +11,19 @@ import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunga
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
+import Filters, { type FilterVerifikasi, type PilihanFilterTerpilih } from './Filters';
 
 interface VerifikasiIndexProps {
     pengukurans: Pengukuran[];
     pagination: PengukuranPagination;
+    filters?: FilterVerifikasi;
+    selected_filters?: PilihanFilterTerpilih;
 }
 
-export default function VerifikasiIndex({ pengukurans = [], pagination }: VerifikasiIndexProps) {
+const defaultFilters: FilterVerifikasi = { status: 'diajukan', renstra_id: '', tahun: '', periode_id: '', unit_id: '' };
+const defaultSelected: PilihanFilterTerpilih = { renstra_id: null, periode_id: null, unit_id: null };
+
+export default function VerifikasiIndex({ pengukurans = [], pagination, filters = defaultFilters, selected_filters = defaultSelected }: VerifikasiIndexProps) {
     const formatNilai = useFormatNilai();
     const labelUnit = useLabelUnit();
 
@@ -29,7 +35,20 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
             <Head title="Verifikasi Kinerja" />
 
             <Card>
-                <Table className="min-w-max whitespace-nowrap">
+                <Filters key={JSON.stringify([filters, selected_filters])} filters={filters} selected={selected_filters} />
+                {pengukurans.length === 0 ? (
+                    <div role="status" className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-soft text-muted border border-border">
+                                <Search className="h-6 w-6" aria-hidden="true" />
+                            </div>
+                            <p className="text-sm font-semibold text-ink">Tidak ada pengukuran sesuai filter</p>
+                            <p className="mt-1 text-xs text-muted max-w-sm">
+                                {filters.status === 'diajukan' ? 'Belum ada pengajuan menunggu verifikasi untuk pilihan ini.' : 'Belum ada pengukuran terverifikasi yang siap disahkan untuk pilihan ini.'} Ubah atau reset filter untuk melihat antrean lain.
+                            </p>
+                        </div>
+                    </div>
+                ) : <Table className="min-w-max whitespace-nowrap">
                     <TableHeader>
                         <TableRow>
                             <TableHead className="px-6 py-3.5 text-left">KODE & INDIKATOR</TableHead>
@@ -43,24 +62,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {pengukurans.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={8} className="px-6 py-12 text-center whitespace-normal">
-                                    <div className="flex flex-col items-center justify-center">
-                                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success border border-success/20">
-                                            <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
-                                        </div>
-                                        <p className="text-sm font-semibold text-ink">
-                                            Semua pengajuan telah diproses
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted max-w-sm">
-                                            Tidak ada antrean capaian yang menunggu verifikasi saat ini.
-                                        </p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            pengukurans.map((p) => {
+                        {pengukurans.map((p) => {
                                 const iku = p.penugasan_indikator?.indikator_kinerja;
                                 const unit = p.penugasan_indikator?.unit_kerja;
                                 const pic = p.penugasan_indikator?.pic;
@@ -74,6 +76,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                                             <div className="text-muted mt-0.5 leading-relaxed">
                                                 {iku?.nama}
                                             </div>
+                                            <div className="mt-1 text-xs text-muted">{p.periode_jadwal.nama_periode} {p.periode_jadwal.tahun}</div>
                                         </TableCell>
                                         <TableCell className="px-6 py-4">
                                             <div className="font-medium text-ink">{unit?.nama}</div>
@@ -103,6 +106,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                                         <TableCell className="px-6 py-4 text-center">
                                             <div className="flex flex-col items-center gap-1">
                                                 <Badge status={p.status} />
+                                                {p.jalur_pengajuan && <span className="text-xs text-muted">{p.jalur_pengajuan === 'pic' ? 'Jalur PIC' : 'Jalur Perencanaan'}</span>}
                                                 {p.self_approval && <span className="text-[11px] font-medium text-info-dark">Persetujuan sendiri</span>}
                                                 {p.reviu_terlambat && <span className="text-[11px] font-medium text-warning-dark">Reviu terlambat</span>}
                                             </div>
@@ -122,10 +126,9 @@ export default function VerifikasiIndex({ pengukurans = [], pagination }: Verifi
                                         </TableCell>
                                     </TableRow>
                                 );
-                            })
-                        )}
+                            })}
                     </TableBody>
-                </Table>
+                </Table>}
                 <Pagination pagination={pagination} />
             </Card>
         </AuthenticatedLayout>

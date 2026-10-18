@@ -1495,6 +1495,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### US-08.01 · Verifikasi & Pengembalian Pengukuran dengan F1
 
+> **Status implementasi (GitHub #83):** Inti verifikasi/pengembalian, F1, alasan wajib, reviu terlambat, peringatan nonblocking, pembacaan narasi/justifikasi beku, filter antrean, serta revisi/pengajuan ulang telah terimplementasi dan diuji; lihat [PR #144](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/144) untuk baseline, cakupan test, CI, dan bukti browser. Kontrak pembanding peringatan mengikuti Q61, berdasarkan keputusan PM 19 Oktober 2026. Status ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+> **Batas completion:** AC-3 tetap terbuka untuk ketergantungan item notifikasi ISS-12.02; transisi pengembalian, alasan, audit, dan revisinya sudah teruji. Reader justifikasi versi beku teruji, sedangkan workflow perubahan status kegiatan tetap mengikuti ISS-06.04. Test utama: VerifikasiPengukuranTest, AntreanVerifikasiTest, VerticalSlice1Test, SahkanPengukuranTest, dan PengukuranWorkflow.
+
 > **Q47 dan ketentuan pelengkap Q47–Q51 (13 Oktober 2026):** saat verifikasi, sistem memperingatkan bila realisasi atau narasi sama persis dengan periode sebelumnya tanpa memblokir verifikasi, dan Perencanaan menilai alasan pengukuran berstatus `belum_dapat_diukur` (Q47 §47.4 butir 2). AC-6 dan AC-7 ditambahkan karena story ini belum dikerjakan.
 
 | Field | Detail |
@@ -1513,13 +1517,13 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
-- [ ] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
+- [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
+- [x] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
 - [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
-- [ ] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
-- [ ] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
-- [ ] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
-- [ ] **AC-7:** Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
+- [x] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
+- [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
+- [x] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
+- [x] **AC-7:** Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
 
 ### US-08.02 · Pengesahan Pengukuran & F1/F2
 

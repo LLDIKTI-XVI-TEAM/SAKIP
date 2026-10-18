@@ -1683,6 +1683,24 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
+# Keputusan Q61 — Pembanding Peringatan Verifikasi Pengukuran
+
+**Keputusan PM: 19 Oktober 2026 (WITA), [Keputusan PM — M1 pada PR #144](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/144#issuecomment-6252830027).** Memperjelas ketentuan pelengkap butir 2 pada pengantar Q47–Q51, PRD §19.1, dan US/ISS-08.01. Q60 digunakan PR #143; nomor keputusan perlu diperiksa kembali saat integrasi. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 61.1 Aturan pembanding
+
+1. Periode pembanding adalah periode tepat sebelum periode pengukuran: urutan lebih kecil pada jadwal yang sama; untuk periode pertama, periode terakhir jadwal tahun sebelumnya berstatus `aktif`/`ditutup` yang juga mengukur indikator tersebut (Q51 §51.1 butir 4). Penentuannya memakai resolver yang sama dengan rekomendasi periode sebelumnya, bukan salinan logika.
+2. Data pembanding hanya versi sah terakhir (`disahkan_at` terisi) pada periode tersebut. Periode tanpa versi sah tidak dilompati; tampilkan bahwa pembanding belum tersedia. Untuk lintas tahun, gunakan tahun dan jadwal pembanding, bukan syarat jadwal sama dengan pengukuran sekarang.
+3. Narasi dianggap sama hanya jika `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut` semuanya terisi dan identik persis. `tindak_lanjut_rekomendasi` dan `catatan` tidak dibandingkan.
+4. Realisasi dibandingkan hanya jika konteks perhitungan sebanding; `0` berbeda dari `null`. Peringatan tidak memblokir keputusan. Data dan label pembanding tidak dibuka jika aktor tidak memiliki hak baca.
+
+## 61.2 Traceability dan verifikasi
+
+- GitHub #83 AC-7 / US-08.01 dan ISS-08.01 AC-6; Plan 5.6 dan 6.1.
+- Regresi mencakup periode pertama tahun N terhadap periode terakhir tahun N−1 yang sah, indikator tidak diukur tahun sebelumnya, periode tanpa versi sah tidak dilompati, dan kesamaan periode dengan resolver rekomendasi. Ketentuan snapshot, izin baca, angka/narasi, serta nonblocking tetap berlaku.
+
+---
+
 # Bukti aritmetika IKU 3
 
 Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `54c9489`, SHA-256 `66840a50d3048e9aa0a1c10c6d7b8158b80b95d006d2df9feefd209fdc09054b`. Workbook/transkrip sudah dihapus PM dari development melalui `17761d8`; keduanya tidak dipulihkan oleh penyelarasan ini.

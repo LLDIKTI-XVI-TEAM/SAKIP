@@ -13,6 +13,6 @@ class SahkanPengukuran extends Controller
     {
         $action->handle($request->user(), $id, $request->validated());
 
-        return redirect()->route('verifikasi.index')->with('success', 'Pengukuran disahkan dan snapshot pengajuan dipertahankan.');
+        return redirect()->route('verifikasi.index', ['status' => 'diverifikasi'])->with('success', 'Pengukuran disahkan dan snapshot pengajuan dipertahankan.');
     }
 }
