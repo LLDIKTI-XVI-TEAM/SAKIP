@@ -12,32 +12,33 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import type { KegiatanFormProps } from '@/types/kegiatan';
 import { KlaimPanel } from './Partials/KlaimPanel';
 
-export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptions, klaim }: KegiatanFormProps) {
+export default function Form({ kegiatan, unitOptions, periodeOptions, klaim }: KegiatanFormProps) {
     const form = useForm({
-        unit_id: kegiatan?.unit_id ?? unitOptions[0]?.id ?? '',
-        tahun: String(kegiatan?.tahun ?? tahunDefault),
-        periode_id: kegiatan?.periode_id ?? periodeOptions[0]?.id ?? '',
-        nama: kegiatan?.nama ?? '', tujuan: kegiatan?.tujuan ?? '',
-        sasaran_peserta: kegiatan?.sasaran_peserta == null ? '' : String(kegiatan.sasaran_peserta),
-        keterangan_peserta: kegiatan?.keterangan_peserta ?? '', lokasi: kegiatan?.lokasi ?? '',
-        tanggal_rencana: kegiatan?.tanggal_rencana ?? '', expected_state: kegiatan?.version_token ?? '',
+        unit_id: kegiatan.unit_id,
+        tahun: String(kegiatan.tahun),
+        periode_id: kegiatan.periode_id,
+        nama: kegiatan.nama, tujuan: kegiatan.tujuan ?? '',
+        sasaran_peserta: kegiatan.sasaran_peserta == null ? '' : String(kegiatan.sasaran_peserta),
+        keterangan_peserta: kegiatan.keterangan_peserta ?? '', lokasi: kegiatan.lokasi ?? '',
+        tanggal_rencana: kegiatan.tanggal_rencana ?? '', expected_state: kegiatan.version_token,
     });
+    const path = `/kegiatan/${kegiatan.id}`;
     const submitting = useRef(false);
     const summary = useRef<HTMLDivElement>(null);
     const [failure, setFailure] = useState('');
     const recovery = useAuthRecovery();
     const blocked = Boolean(failure || recovery.recovery);
-    const title = kegiatan ? 'Ubah rencana kegiatan' : 'Buat rencana kegiatan';
+    const title = 'Ubah rencana kegiatan';
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (submitting.current || blocked) return;
         submitting.current = true;
         form.transform((data) => ({ ...data, tahun: Number(data.tahun), sasaran_peserta: data.sasaran_peserta === '' ? null : Number(data.sasaran_peserta) }));
-        form.post(kegiatan ? `/kegiatan/${kegiatan.id}` : '/kegiatan', {
+        form.post(path, {
             preserveScroll: true,
             onError: () => requestAnimationFrame(() => summary.current?.focus()),
             onHttpException: (response) => {
-                if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path: kegiatan ? `/kegiatan/${kegiatan.id}` : '/kegiatan', mutation: true })) {
+                if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path, mutation: true })) {
                     setFailure(response.status === 403 ? 'Hasil penyimpanan belum terkonfirmasi karena akses ditolak. Periksa izin dan data terbaru sebelum mencoba kembali.' : 'Hasil penyimpanan belum terkonfirmasi. Periksa data terbaru sebelum mencoba kembali.');
                 }
                 return false;
@@ -57,7 +58,7 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
             <Card>
                 <CardContent className="p-4 sm:p-6">
                     <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
-                    <p className="mb-6 text-sm text-muted">Catat rencana kegiatan untuk unit dan periode aktif. Kegiatan baru berstatus Rencana.</p>
+                    <p className="mb-6 text-sm text-muted">Catat rencana kegiatan untuk unit dan periode aktif.</p>
                     <form onSubmit={submit} className="space-y-5">
                         {(form.hasErrors || failure) && <div ref={summary} tabIndex={-1} role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger-dark focus:outline-none focus:ring-2 focus:ring-danger/30">
                             {failure || form.errors.expected_state || 'Periksa kembali isian yang ditandai sebelum menyimpan.'}
@@ -75,12 +76,12 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
                         </fieldset>
                         <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
                             <Button type="submit" disabled={blocked} isLoading={form.processing}>{form.processing ? 'Menyimpan…' : 'Simpan kegiatan'}</Button>
-                            {failure && <Link href={kegiatan ? `/kegiatan/${kegiatan.id}/edit` : '/kegiatan/buat'} className="text-sm text-primary underline">Muat ulang form</Link>}
+                            {failure && <Link href={`${path}/edit`} className="text-sm text-primary underline">Muat ulang form</Link>}
                         </div>
                     </form>
                 </CardContent>
             </Card>
-            {kegiatan && klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
+            {klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
         </div>
     </AuthenticatedLayout>;
 }
