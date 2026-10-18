@@ -28,7 +28,7 @@ class KelolaIzinUnitAction
     /**
      * Samakan Izin Unit satu pengguna pada satu unit dengan daftar akhir (Q62): izin baru diberikan, izin yang dilepas dicabut.
      * Semua atau tidak sama sekali; daftar yang dilihat (`expected_permission_ids`) harus sama dengan data tersimpan.
-     * Urutan lock: pengguna terurut → peran aktor → unit → permission → grant pasangan itu; audit tetap per izin.
+     * Urutan lock: pengguna terurut → peran aktor → unit → lock advisory pasangan pengguna × unit → permission → grant pasangan itu; audit tetap per izin.
      *
      * @param  array{user_id:string,unit_id:string,permission_ids:list<string>,expected_permission_ids:list<string>,alasan?:string|null}  $data
      * @return array{ditambah:int,dicabut:int,sisa:int,target_nama:string,unit_nama:string}
@@ -61,6 +61,8 @@ class KelolaIzinUnitAction
 
                 /** @var Unit $unit */
                 $unit = Unit::whereKey($data['unit_id'])->sharedLock()->firstOrFail();
+                // Serialkan seluruh mutasi satu pasangan: lock baris grant tidak mencakup izin yang baru diinsert.
+                DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['sakip:izin-unit:'.$target->id.':'.$unit->id]);
                 $permissions = Permission::whereKey($this->urutUnik([...$akhir, ...$dilihat]))->orderBy('id')->sharedLock()->get()->keyBy('id');
                 $grants = UserPermissionGrant::with('permission')
                     ->where('user_id', $target->id)

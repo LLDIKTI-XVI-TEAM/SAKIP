@@ -349,13 +349,17 @@ function performGrantMutation(string $operation, array $assignment): string
         'grant-kelola' => ['/akses/grant/kelola', 'PUT', 'managed'],
         default => ['/akses/grant/'.$assignment['grant_id'], 'DELETE', 'revoked'],
     };
-    $request = Request::create($path, $method, $assignment['data']);
+    // Kelola memakai JSON agar galat validasi (422) terbedakan dari redirect sukses (302).
+    $request = Request::create($path, $method, $assignment['data'], server: $operation === 'grant-kelola' ? ['HTTP_ACCEPT' => 'application/json'] : []);
     $kernel = app(Illuminate\Contracts\Http\Kernel::class);
     $response = $kernel->handle($request);
     $kernel->terminate($request, $response);
 
     return match ($response->getStatusCode()) {
         403 => 'denied',
+        422 => isset(json_decode((string) $response->getContent(), true)['errors']['expected_permission_ids'])
+            ? 'stale'
+            : throw new RuntimeException('Validasi grant tidak sesuai: '.$response->getContent()),
         302 => $hasil,
         default => throw new RuntimeException('Status mutasi grant tidak sesuai: '.$response->getStatusCode()),
     };

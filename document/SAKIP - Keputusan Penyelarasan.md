@@ -1716,7 +1716,7 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 7. Alasan: bila hanya menambah, alasan opsional dan server mengisi alasan baku (Q43 §43.3 butir 1); bila ada pencabutan, alasan wajib (Q43 §43.2 butir 4). Satu alasan berlaku untuk seluruh perubahan dalam satu simpan.
 8. Penambahan mensyaratkan akun aktif, unit aktif, dan izin katalog yang aktif; pencabutan tetap boleh pada referensi nonaktif untuk pembersihan.
 9. Kelola izin membawa daftar izin yang dilihat (`expected_permission_ids`). Bila berbeda dengan data tersimpan, permintaan ditolak dengan pesan muat ulang (pola `expected_*` modul Akses) tanpa perubahan. Simpan tanpa perubahan juga ditolak.
-10. Urutan lock: pengguna terurut, peran aktor, unit, permission, lalu grant pasangan itu. Otorisasi `delegasi:update` diulang di dalam transaksi dan penolakan diaudit di luar transaksi.
+10. Urutan lock: pengguna terurut, peran aktor, unit, lock advisory pasangan pengguna × unit, permission, lalu grant pasangan itu. Otorisasi `delegasi:update` diulang di dalam transaksi dan penolakan diaudit di luar transaksi.
 11. Endpoint pemberian (`POST /akses/grant`) dan pencabutan per izin (`DELETE /akses/grant/{id}`) tetap tersedia.
 12. Halaman Penanggung Jawab indikator menampilkan tombol "Beri izin unit" bagi pemegang `delegasi:update` bila PJ efektif dan unitnya aktif. Tombol membuka form Beri izin unit dengan PJ dan unit itu sudah terisi; izin tetap dipilih dan disimpan secara eksplisit, sehingga Q32 §32.2 (penugasan PJ tidak memberi izin) tidak berubah.
 
