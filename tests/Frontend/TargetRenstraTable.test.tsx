@@ -53,6 +53,7 @@ const ubah = () => fireEvent.click(screen.getByRole('button', { name: 'Ubah targ
 const simpan = () => fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 const callbacks = (index = 0) => put.mock.calls[index][2] as {
     onStart: (visit: unknown) => void;
+    onFinish: (visit: unknown) => void;
     onSuccess: (page: Page) => Promise<void> | void;
     onError: (errors: Record<string, string>) => void;
     onHttpException: (response: HttpExceptionResponse) => boolean | void;
@@ -83,6 +84,23 @@ it('isian terkunci selama simpan berjalan agar ketikan tidak hilang saat edit di
     act(() => { callbacks().onStart({}); });
     expect(input(2026)!.readOnly).toBe(true);
     expect(input(2027)!.readOnly).toBe(true);
+});
+
+it('navigasi Inertia lain ditahan selama simpan berjalan', () => {
+    // PUT yang dibatalkan klien tetap bisa berhasil di server; tabel tidak boleh dilepas sebelum hasilnya diketahui.
+    const navigasi = (prefetch = false) => {
+        const event = new CustomEvent('inertia:before', { cancelable: true, detail: { visit: { method: 'get', url: new URL('/monitoring', window.location.href), prefetch } } });
+        document.dispatchEvent(event);
+        return event.defaultPrevented;
+    };
+    tampilkan();
+    ubah();
+    simpan();
+    act(() => { callbacks().onStart({}); });
+    expect(navigasi()).toBe(true);
+    expect(navigasi(true)).toBe(false);
+    act(() => { callbacks().onFinish({}); });
+    expect(navigasi()).toBe(false);
 });
 
 it('hasil simpan ambigu memblokir simpan ulang dan menawarkan muat ulang', () => {

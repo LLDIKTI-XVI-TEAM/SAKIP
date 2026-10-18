@@ -60,6 +60,13 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved, onSavi
         kembaliFokus.current = null;
     }, [editing]);
 
+    // Seperti editor target PK: selama simpan berjalan navigasi Inertia lain ditahan. Membatalkan PUT di klien
+    // tidak membatalkan transaksi server, dan tabel bisa dilepas sebelum peringatan hasil ambigu tampil.
+    useEffect(() => {
+        if (!form.processing) return;
+        return router.on('before', (event) => { if (!event.detail.visit.prefetch) event.preventDefault(); });
+    }, [form.processing]);
+
     const simpan = (ind: IndikatorKinerjaItem) => {
         const path = `/perencanaan/indikator/${ind.id}/target-renstra`;
         setFailure('');
