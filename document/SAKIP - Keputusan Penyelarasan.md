@@ -1130,7 +1130,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:05:23 dan 1:28:47–1:44:27. Bu
 - Menggantikan Q28 serta PRD §5.2 butir "Modul anggaran kegiatan penuh" sepanjang menyangkut input, tampilan, dan penjumlahan anggaran per kegiatan. Q12, Q22, Q24, dan Q25 tetap berlaku.
 - PRD §5.1, §5.2, §14.7, §15.1, §15.6, §16, §18.2–§18.4, §18.6, §18.8, §22.4, §23, §25.1, §30; Data Model §2.25, §2.26, §2.29, §2.30, §6; Workflow §1, §7, §8, §9, §10; Plan modul 7, 8, 11, 12 (task 12.12), dan 13; System Architecture §9.
 - User Stories/Issues: US/ISS-06.01 diberi catatan (PR #97 tidak diperluas; anggaran dikerjakan di ISS-06.08); US/ISS-06.02, 06.03, 10.01, dan 10.02 diselaraskan; US/ISS-11.01 diberi catatan; issue baru **US/ISS-06.08**.
-- Status implementasi: kolom `kegiatan.anggaran` sudah tersedia (nullable). Input anggaran, RAB, tahap persyaratan baru, contoh berkas, gerbang pengajuan, dan penjumlahan belum.
+- Status implementasi: input dan validasi anggaran, tahap persyaratan `kegiatan_perencanaan` dengan penanda `hanya_kegiatan_beranggaran`, contoh berkas, berkas RAB pada kegiatan, dan gerbang pengajuan RA diterapkan ISS-06.08 (PR pertama). Penjumlahan anggaran (§42.2 butir 4–6) dan pembatasan tampilan anggaran per kegiatan (§42.5) dikerjakan pada PR kedua ISS-06.08.
 
 ---
 
@@ -1409,7 +1409,7 @@ Sumber: Rencana Aksi 2026 — sekitar 228 kegiatan; dua nama kegiatan melebihi 2
 
 1. `nama` kegiatan hingga **500 karakter**.
 2. `tujuan` kegiatan **opsional**.
-3. Diterapkan di PR #97 (ISS-06.01) sebelum merge karena perubahannya kecil. Bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan di ISS-06.08.
+3. Diterapkan di PR #97 (ISS-06.01) sebelum merge karena perubahannya kecil. Bila PR #97 sudah di-merge lebih dulu, perubahan dikerjakan di ISS-06.08. *(Tidak berlaku bagi ISS-06.08: PR #97 sudah menerapkan butir 1–2.)*
 
 ## 49.2 Salin kegiatan ke periode lain
 
@@ -1426,7 +1426,7 @@ Detail kegiatan tetap dibatasi unit (Q12), karena nama kegiatan dapat memuat nam
 
 - PRD §15.1; Data Model §2.25 (`kegiatan.nama` hingga 500 karakter, `tujuan` nullable); Workflow (penambahan kegiatan dari Rencana Aksi); Plan modul 12; design system (batas field).
 - User Stories/Issues: US/ISS-06.01 diberi catatan (validasi PR #97); US/ISS-06.02 (salin kegiatan).
-- Status implementasi: §49.1 diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). §49.2 diterapkan oleh ISS-06.02 (anggaran ikut disalin setelah ISS-06.08 menyediakan inputnya).
+- Status implementasi: §49.1 diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). §49.2 diterapkan oleh ISS-06.02; anggaran ikut disalin sejak ISS-06.08 menyediakan inputnya.
 
 ---
 
