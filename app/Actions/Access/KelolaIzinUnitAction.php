@@ -26,7 +26,7 @@ class KelolaIzinUnitAction
     ) {}
 
     /**
-     * Samakan Izin Unit satu pengguna pada satu unit dengan daftar akhir (Q61): izin baru diberikan, izin yang dilepas dicabut.
+     * Samakan Izin Unit satu pengguna pada satu unit dengan daftar akhir (Q62): izin baru diberikan, izin yang dilepas dicabut.
      * Semua atau tidak sama sekali; daftar yang dilihat (`expected_permission_ids`) harus sama dengan data tersimpan.
      * Urutan lock: pengguna terurut → peran aktor → unit → permission → grant pasangan itu; audit tetap per izin.
      *

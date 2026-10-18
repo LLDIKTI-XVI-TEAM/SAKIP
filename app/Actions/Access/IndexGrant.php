@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 class IndexGrant
 {
     /**
-     * Daftar Izin Unit satu baris per pengguna × unit (Q61) beserta pilihan unit aktif dan permission yang boleh didelegasikan.
+     * Daftar Izin Unit satu baris per pengguna × unit (Q62) beserta pilihan unit aktif dan permission yang boleh didelegasikan.
      * Paginasi menghitung kelompok; kelompok tampil bila pengguna, unit, atau salah satu izinnya cocok dengan pencarian.
      * Filter unit yang bukan UUID unit aktif jatuh kembali ke "all" agar query tidak membocorkan keberadaan unit nonaktif.
      *

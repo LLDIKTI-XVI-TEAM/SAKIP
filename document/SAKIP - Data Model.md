@@ -747,7 +747,7 @@ kegiatan:create
 kegiatan:update
 ```
 
-Form pemberian (satu atau beberapa izin sekaligus), kelola, dan pencabutan Grant Unit digerbangi `delegasi:update` (Perencanaan, Admin, Superadmin sesuai preset). Sejak Q61, Izin Unit ditampilkan per pasangan pengguna × unit dan dapat dikelola sekaligus (izin baru diberikan, izin yang dilepas dicabut) tanpa mengubah baris grant di tempat; audit tetap per izin. Grant tidak mengubah role dan tidak membuat/menghapus assignment `penanggung_jawab`.
+Form pemberian (satu atau beberapa izin sekaligus), kelola, dan pencabutan Grant Unit digerbangi `delegasi:update` (Perencanaan, Admin, Superadmin sesuai preset). Sejak Q62, Izin Unit ditampilkan per pasangan pengguna × unit dan dapat dikelola sekaligus (izin baru diberikan, izin yang dilepas dicabut) tanpa mengubah baris grant di tempat; audit tetap per izin. Grant tidak mengubah role dan tidak membuat/menghapus assignment `penanggung_jawab`.
 
 ### 2.8 `user_permission_denials`
 
