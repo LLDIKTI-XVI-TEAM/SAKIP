@@ -2596,6 +2596,12 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 > **Q41, Q42, Q46, Q49 (13 Oktober 2026):** kegiatan ditambahkan dari halaman Rencana Aksi per periode; aksi ini membuat kegiatan (per unit × periode) sekaligus klaimnya ke RA dengan `sumber_klaim = rencana_aksi` (Q42 §42.1 butir 2). Pengajuan RA mensyaratkan minimal satu kegiatan yang diklaim pada tahap RA, tetapi tidak setiap periode wajib berisi kegiatan (Q42 §42.1 butir 3). Kegiatan dapat disalin ke periode lain pada RA yang sama saat ditambahkan (Q49 §49.2), dan periode yang terkunci bagi PIC tidak dapat ditambah kegiatan (Q41 §41.2). Satu kegiatan tetap dapat diklaim ke lebih dari satu RA/IKU dalam unit yang sama, sedangkan klaim lintas unit tetap ditolak (Q42 §42.1 butir 4). Gerbang minimal satu kegiatan dikecualikan untuk periode lampau dan RA data awal 2026 (Q46 §46.1). Issue ini belum dikerjakan sehingga kontrak, AC, task, dan test diperbarui langsung.
 
+**Status implementasi (2026-10-15):** Diterapkan pada branch `feature/iss-06-02-klaim-kegiatan` (PR #111). Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT. Asumsi kerja berikut **disetujui PM** pada 16 Oktober 2026 ([review PM PR #111](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/111#issuecomment-6198491258)): (1) tambah/hapus klaim hanya saat RA `draft`/`dikembalikan`, penyelarasan PRD §16.5 dengan Q24/Q26; (2) hapus klaim oleh pembuat klaim atau Perencanaan sesuai PRD §16.5; (3) RA data awal 2026 dikenali dari pengajuan lewat jalur Perencanaan tanpa kolom penanda. Input anggaran belum tersedia (ISS-06.08), sehingga salinan kegiatan membawa anggaran kosong; AC-8 belum dicentang sampai salin dan ubah anggaran per kegiatan tersedia. Smoke browser desktop/mobile belum dilengkapi; item responsivitas, checklist UI, dan traceability belum dicentang.
+
+Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tujuan rencana kegiatan yang dibekukan terhadap versi sah untuk menjaga periode terkunci; perubahan status pelaksanaan saja tidak dianggap perubahan rencana. Tambah/hapus klaim tahap RA dan tambah/salin kegiatan dari RA menaikkan versi header sekali per transaksi berhasil, sehingga pengajuan memakai versi lama ditolak 409. Panel RA menampilkan komponen snapshot, arah dampak, dan catatan klaim bagi pembaca berizin. Perbaikan ini tidak mencentang penerimaan UI/UAT atau AC-8 yang masih tertunda.
+
+Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat target belum disimpan, mengikuti penahan tambah kegiatan; anjuran menyimpan draf yang selalu tampil pada kartu kesiapan dihapus. Pengecualian seluruh periode efektif lampau memakai definisi bersama khusus jadwal 2026 (Q46 §46.1); RA 2027 tanpa kegiatan tetap ditolak. Regresi frontend dan kontrol backend 2026/2027 ditambahkan. AC-8, QA browser, UAT, dan deployment tetap tidak dicentang.
+
 **Terkait User Story:** `US-06.02`  
 **Prioritas:** 🟡 P1 · Tahap 1 (Q46 §46.3)  
 **Story Points:** 5  
@@ -2620,60 +2626,60 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given kegiatan, RA, komponen opsional, arah dampak, dan catatan valid, When disimpan, Then klaim terbentuk.
-- [ ] **AC-2:** Given unit kegiatan berbeda dengan unit RA, When klaim dibuat, Then ditolak.
-- [ ] **AC-3:** Given klaim identik sudah ada, When dibuat ulang, Then duplikasi ditolak.
-- [ ] **AC-4:** Given klaim berhasil, Then nilai komponen/pengukuran **tidak** berubah otomatis.
-- [ ] **AC-5:** Given kegiatan batal/tidak terlaksana, Then klaim historis tetap dapat dipertahankan untuk menjelaskan kendala.
-- [ ] **AC-6:** Given halaman Rencana Aksi per periode, When PIC atau Perencanaan menambah kegiatan, Then kegiatan (per unit × periode) dan klaimnya ke RA dengan `sumber_klaim = rencana_aksi` dibuat dalam satu aksi. *(Q42 §42.1 butir 2)*
-- [ ] **AC-7:** Given RA diajukan tanpa satu pun kegiatan yang diklaim pada tahap RA, When submit, Then pengajuan ditolak; tidak setiap periode wajib berisi kegiatan. *(Q42 §42.1 butir 3)*
+- [x] **AC-1:** Given kegiatan, RA, komponen opsional, arah dampak, dan catatan valid, When disimpan, Then klaim terbentuk.
+- [x] **AC-2:** Given unit kegiatan berbeda dengan unit RA, When klaim dibuat, Then ditolak.
+- [x] **AC-3:** Given klaim identik sudah ada, When dibuat ulang, Then duplikasi ditolak.
+- [x] **AC-4:** Given klaim berhasil, Then nilai komponen/pengukuran **tidak** berubah otomatis.
+- [x] **AC-5:** Given kegiatan batal/tidak terlaksana, Then klaim historis tetap dapat dipertahankan untuk menjelaskan kendala.
+- [x] **AC-6:** Given halaman Rencana Aksi per periode, When PIC atau Perencanaan menambah kegiatan, Then kegiatan (per unit × periode) dan klaimnya ke RA dengan `sumber_klaim = rencana_aksi` dibuat dalam satu aksi. *(Q42 §42.1 butir 2)*
+- [x] **AC-7:** Given RA diajukan tanpa satu pun kegiatan yang diklaim pada tahap RA, When submit, Then pengajuan ditolak; tidak setiap periode wajib berisi kegiatan. *(Q42 §42.1 butir 3)*
 - [ ] **AC-8:** Given kegiatan ditambahkan dari halaman RA, When PIC menyalinnya ke satu atau lebih periode lain pada RA yang sama, Then setiap salinan menjadi kegiatan tersendiri per unit × periode dengan klaim `sumber_klaim = rencana_aksi` sendiri; nama, tujuan, dan anggaran ikut disalin dan dapat diubah per kegiatan, sedangkan berkas termasuk RAB tidak ikut disalin. *(Q49 §49.2 butir 1–3)*
-- [ ] **AC-9:** Given periode sudah terkunci bagi PIC, When PIC menambah atau menyalin kegiatan ke periode tersebut, Then ditolak. *(Q41 §41.2, Q49 §49.2 butir 4)*
-- [ ] **AC-10:** Given RA data awal 2026 atau periode lampau, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
+- [x] **AC-9:** Given periode sudah terkunci bagi PIC, When PIC menambah atau menyalin kegiatan ke periode tersebut, Then ditolak. *(Q41 §41.2, Q49 §49.2 butir 4)*
+- [x] **AC-10:** Given RA data awal 2026 atau periode lampau, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `klaim_kegiatan`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `klaim_kegiatan`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Sediakan aksi tambah kegiatan dari halaman RA per periode yang membuat `kegiatan` dan `klaim_kegiatan` (`sumber_klaim = rencana_aksi`) secara atomik; opsi salin ke periode lain membuat pasangan kegiatan + klaim per periode tujuan tanpa menyalin `berkas` (Q42 §42.1 butir 2, Q49 §49.2).
-- [ ] Tambahkan gerbang minimal satu kegiatan tahap RA pada `AjukanRencanaAksi`, dengan pengecualian periode lampau dan RA data awal 2026 (Q42 §42.1 butir 3, Q46 §46.1).
-- [ ] Pakai aturan kunci per periode ISS-05.07 (`JendelaTulisRencanaAksi`) untuk menolak penambahan atau salinan kegiatan ke periode yang terkunci bagi PIC.
-- [ ] Lengkapi pembekuan klaim tahap RA pada `rencana_aksi_versi` yang tertunda di ISS-05.03 AC-5 (Data Model §2.34).
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Sediakan aksi tambah kegiatan dari halaman RA per periode yang membuat `kegiatan` dan `klaim_kegiatan` (`sumber_klaim = rencana_aksi`) secara atomik; opsi salin ke periode lain membuat pasangan kegiatan + klaim per periode tujuan tanpa menyalin `berkas` (Q42 §42.1 butir 2, Q49 §49.2).
+- [x] Tambahkan gerbang minimal satu kegiatan tahap RA pada `AjukanRencanaAksi`, dengan pengecualian periode lampau dan RA data awal 2026 (Q42 §42.1 butir 3, Q46 §46.1).
+- [x] Pakai aturan kunci per periode ISS-05.07 (`JendelaTulisRencanaAksi`) untuk menolak penambahan atau salinan kegiatan ke periode yang terkunci bagi PIC.
+- [x] Lengkapi pembekuan klaim tahap RA pada `rencana_aksi_versi` yang tertunda di ISS-05.03 AC-5 (Data Model §2.34).
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update`/capability sumber dan kewenangan RA sesuai alur.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update`/capability sumber dan kewenangan RA sesuai alur.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Sediakan panel kegiatan per periode pada halaman Rencana Aksi (`resources/js/Pages/RencanaAksi/Show.tsx`) dengan aksi tambah dan salin ke periode lain; periode yang terkunci tampil baca-saja bagi PIC.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Klaim Keterkaitan Kegiatan terhadap Rencana Aksi/Komponen**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Sediakan panel kegiatan per periode pada halaman Rencana Aksi (`resources/js/Pages/RencanaAksi/Show.tsx`) dengan aksi tambah dan salin ke periode lain; periode yang terkunci tampil baca-saja bagi PIC.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan, RA, komponen opsional, arah dampak, dan catatan valid, When disimpan, Then klaim terbentuk.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given unit kegiatan berbeda dengan unit RA, When klaim dibuat, Then ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given klaim identik sudah ada, When dibuat ulang, Then duplikasi ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim berhasil, Then nilai komponen/pengukuran **tidak** berubah otomatis.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan batal/tidak terlaksana, Then klaim historis tetap dapat dipertahankan untuk menjelaskan kendala.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given halaman Rencana Aksi per periode, When PIC atau Perencanaan menambah kegiatan, Then kegiatan (per unit × periode) dan klaimnya ke RA dengan `sumber_klaim = rencana_aksi` dibuat dalam satu aksi (satu transaksi). *(Q42 §42.1 butir 2)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan tanpa satu pun kegiatan yang diklaim pada tahap RA, When submit, Then pengajuan ditolak; tidak setiap periode wajib berisi kegiatan. *(Q42 §42.1 butir 3)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan, RA, komponen opsional, arah dampak, dan catatan valid, When disimpan, Then klaim terbentuk.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given unit kegiatan berbeda dengan unit RA, When klaim dibuat, Then ditolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given klaim identik sudah ada, When dibuat ulang, Then duplikasi ditolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim berhasil, Then nilai komponen/pengukuran **tidak** berubah otomatis.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan batal/tidak terlaksana, Then klaim historis tetap dapat dipertahankan untuk menjelaskan kendala.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given halaman Rencana Aksi per periode, When PIC atau Perencanaan menambah kegiatan, Then kegiatan (per unit × periode) dan klaimnya ke RA dengan `sumber_klaim = rencana_aksi` dibuat dalam satu aksi (satu transaksi). *(Q42 §42.1 butir 2)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan tanpa satu pun kegiatan yang diklaim pada tahap RA, When submit, Then pengajuan ditolak; tidak setiap periode wajib berisi kegiatan. *(Q42 §42.1 butir 3)*
 - [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan ditambahkan dari halaman RA, When PIC menyalinnya ke satu atau lebih periode lain pada RA yang sama, Then setiap salinan menjadi kegiatan tersendiri per unit × periode dengan klaim `sumber_klaim = rencana_aksi` sendiri; nama, tujuan, dan anggaran ikut disalin dan dapat diubah per kegiatan, sedangkan berkas termasuk RAB tidak ikut disalin. *(Q49 §49.2 butir 1–3)*
-- [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given periode sudah terkunci bagi PIC, When PIC menambah atau menyalin kegiatan ke periode tersebut, Then ditolak sebagai validasi bisnis (422) dan diaudit, sedangkan Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2, Q49 §49.2 butir 4)*
-- [ ] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given RA data awal 2026 atau periode lampau, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
+- [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given periode sudah terkunci bagi PIC, When PIC menambah atau menyalin kegiatan ke periode tersebut, Then ditolak sebagai validasi bisnis (422) dan diaudit, sedangkan Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2, Q49 §49.2 butir 4)*
+- [x] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given RA data awal 2026 atau periode lampau, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
@@ -5362,7 +5368,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 > - `tests/Feature/Authorization/InertiaCapabilitiesTest` (`can.audit`);
 > - `tests/Frontend/AuditTrail.test.tsx` dan `tests/Frontend/GroupedSidebarNavigation.test.tsx`.
 >
-> AC-5 sisi penyimpanan bergantung pada allowlist payload di setiap modul penulis; test memeriksa payload modul yang dijalankan dalam test, dan halaman detail menyamarkan kunci yang menyerupai rahasia di server sebelum menjadi props. Membaca audit tidak diaudit karena PRD §25.1 tidak mencantumkannya. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
+> AC-5 sisi penyimpanan dijaga dua lapis: allowlist payload di setiap modul penulis (test memeriksa payload modul yang dijalankan dalam test), dan sejak Q58 (Issue #122) `WriteAuditLog` menyamarkan nilai di bawah kunci rahasia sebelum disimpan (`AuditTrailTest::test_penulisan_audit_menyamarkan_kunci_rahasia_pada_nilai_tersimpan`, `test_penulisan_audit_menyimpan_utuh_kunci_yang_hanya_mirip`). Halaman detail tetap menyamarkan kunci yang menyerupai rahasia di server sebelum menjadi props, termasuk baris yang tersimpan sebelum Q58. Membaca audit tidak diaudit karena PRD §25.1 tidak mencantumkannya. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 

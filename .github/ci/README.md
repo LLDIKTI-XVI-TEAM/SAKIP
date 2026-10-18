@@ -19,6 +19,11 @@ Vitest memakai paralelisme bawaannya dan PHPStan tidak diberi batas memori
 internal. Kapasitas runner/mesin tetap berlaku; timeout tetap menghentikan proses
 macet. Cache unduhan Composer/Bun tetap dipakai dengan install sesuai lockfile.
 
+Backend Tests memiliki batas waktu 30 menit untuk seluruh job, termasuk setup
+PostgreSQL, instalasi dependency, dan suite Unit/Feature/Integration yang berjalan
+berurutan. Batas 15 menit sebelumnya menghentikan suite yang masih membuat progres.
+Seluruh test dan assertion tetap dijalankan; batas waktu job lain tidak berubah.
+
 ## Jalur dokumen saja
 
 Job `CI Scope` memakai Node 24.19.0 dengan cache package manager nonaktif. Job ini

@@ -25,7 +25,9 @@ const a = { id: 'unit-a', nama: 'Unit A' };
 const b = { id: 'unit-b', nama: 'Unit B' };
 const period = { id: 'p1', nama: 'Triwulan I' };
 const item = { id: 'k1', unit_id: a.id, periode_id: period.id, nama: 'Kegiatan audit', tujuan: 'Sintetis', tahun: 2026, status: 'rencana', tanggal_rencana: null, unit: a, periode: period, can: { update: true }, version_token: 'v1' };
-const indexProps = { kegiatan: { data: [item], links: [], from: 1, to: 1, total: 1 }, filters: { tahun: '2026', unit_id: '', periode_id: '', status: '' }, unitOptions: [a, b], periodeOptions: [period], creatableUnitOptions: [a], editableUnitOptions: [a, b], activePeriodeOptions: [period], tahunDefault: 2026, can: { create: true } };
+const rencana = { id: 'k1', unit_id: a.id, tahun: 2026, periode_id: period.id, nama: 'Kegiatan audit', tujuan: null, sasaran_peserta: null,
+    keterangan_peserta: null, lokasi: null, tanggal_rencana: null, status: 'rencana', version_token: 'v1' };
+const indexProps = { kegiatan: { data: [item], links: [], from: 1, to: 1, total: 1 }, filters: { tahun: '2026', unit_id: '', periode_id: '', status: '' }, unitOptions: [a, b], periodeOptions: [period], creatableUnitOptions: [a], activePeriodeOptions: [period], tahunDefault: 2026, can: { create: true } };
 
 it('mempertahankan draft dan error ketika opsi server berubah setelah validasi', async () => {
     const props = { isOpen: true, onClose: vi.fn(), kegiatan: null, tahunDefault: 2026, periodeOptions: [period], unitOptions: [a, b] };
@@ -38,11 +40,10 @@ it('mempertahankan draft dan error ketika opsi server berubah setelah validasi',
     expect(screen.getByText('Tujuan wajib diisi.')).toBeTruthy();
 });
 
-it('memakai opsi update yang berbeda dari create ketika edit lewat tombol aksi', () => {
+it('aksi ubah menautkan ke halaman ubah kegiatan beserta klaim RA, bukan tombol modal', () => {
     render(<Index {...indexProps} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit kegiatan Kegiatan audit' }));
-    const dialog = within(screen.getByRole('dialog', { name: 'Edit rencana kegiatan' }));
-    expect(dialog.queryByRole('option', { name: 'Unit B' })).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Kegiatan audit' }).getAttribute('href')).toBe('/kegiatan/k1/edit');
+    expect(screen.queryByRole('button', { name: /Edit kegiatan/ })).toBeNull();
 });
 
 it('tidak mengganti opsi periode aktif kosong dengan opsi baca nonaktif', () => {
@@ -67,7 +68,7 @@ it('mempertahankan draft dan menahan dismissal setelah hasil network belum pasti
 
 it('mengirim field rencana tanpa anggaran, menahan pending dan menutup sesudah sukses', async () => {
     const onClose = vi.fn();
-    render(<KegiatanModal isOpen onClose={onClose} kegiatan={null} tahunDefault={2026} unitOptions={[a]} periodeOptions={[period]} />);
+    render(<KegiatanModal isOpen onClose={onClose} tahunDefault={2026} unitOptions={[a]} periodeOptions={[period]} />);
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Rencana baru' } });
     fireEvent.change(screen.getByLabelText(/Tujuan/), { target: { value: 'Layanan unit' } });
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
@@ -85,7 +86,7 @@ it('mengirim field rencana tanpa anggaran, menahan pending dan menutup sesudah s
 
 it.each([401, 403, 419, 500])('menahan dismissal dan menyediakan recovery eksplisit sesudah HTTP %s', async (status) => {
     const onClose = vi.fn();
-    render(<KegiatanModal isOpen onClose={onClose} kegiatan={null} tahunDefault={2026} unitOptions={[a]} periodeOptions={[period]} />);
+    render(<KegiatanModal isOpen onClose={onClose} tahunDefault={2026} unitOptions={[a]} periodeOptions={[period]} />);
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Draft sesi' } });
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
     await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onHttpException?.({ status, data: {} } as never); });
@@ -99,23 +100,9 @@ it.each([401, 403, 419, 500])('menahan dismissal dan menyediakan recovery ekspli
     else expect(screen.getByRole('link', { name: 'Muat ulang data kegiatan' })).toBeTruthy();
 });
 
-it('edit mempertahankan token awal saat props record yang sama berubah dan reset saat identitas berganti', () => {
-    const props = { isOpen: true, onClose: vi.fn(), kegiatan: item, tahunDefault: 2026, unitOptions: [a, b], periodeOptions: [period] };
-    const { rerender } = render(<KegiatanModal {...props} />);
-    fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Koreksi lokal' } });
-    fireEvent.change(screen.getByLabelText(/Unit/), { target: { value: b.id } });
-    rerender(<KegiatanModal {...props} kegiatan={{ ...item, nama: 'Perubahan pengguna lain', version_token: 'v2' }} />);
-    fireEvent.submit(screen.getByRole('button', { name: 'Simpan perubahan' }).closest('form')!);
-    expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual([
-        '/kegiatan/k1', expect.objectContaining({ nama: 'Koreksi lokal', unit_id: b.id, expected_state: 'v1' }),
-    ]);
-    rerender(<KegiatanModal {...props} kegiatan={{ ...item, id: 'k2', nama: 'Record kedua', version_token: 'v3' }} />);
-    expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Record kedua');
-});
-
 it.each(['page', 'modal'])('tidak membuka replay %s setelah request dibatalkan tanpa konfirmasi', async (mode) => {
-    const props = { kegiatan: null, tahunDefault: 2026, unitOptions: [a], periodeOptions: [period] };
-    render(mode === 'page' ? <Form {...props} /> : <KegiatanModal {...props} isOpen onClose={vi.fn()} />);
+    const props = { tahunDefault: 2026, unitOptions: [a], periodeOptions: [period] };
+    render(mode === 'page' ? <Form {...props} kegiatan={rencana} /> : <KegiatanModal {...props} isOpen onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Draft pembatalan' } });
     const form = screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!;
     fireEvent.submit(form);
@@ -125,13 +112,17 @@ it.each(['page', 'modal'])('tidak membuka replay %s setelah request dibatalkan t
     expect(router.post).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Draft pembatalan');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan kegiatan' }).disabled).toBe(true);
-    expect(screen.getByRole('link', { name: mode === 'page' ? 'Muat ulang form' : 'Muat ulang data kegiatan' })).toBeTruthy();
+    const reload = screen.getByRole('link', { name: mode === 'page' ? 'Muat ulang form' : 'Muat ulang data kegiatan' });
+    expect(reload.getAttribute('href')).toBe(mode === 'page' ? '/kegiatan/k1/edit' : '/kegiatan');
 });
 
 it('menerima nama hingga 500 karakter dan tujuan opsional, termasuk saat mengedit tujuan kosong', () => {
-    render(<KegiatanModal isOpen onClose={vi.fn()} kegiatan={{ ...item, tujuan: null }} tahunDefault={2026} periodeOptions={[period]} unitOptions={[a]} />);
+    render(<KegiatanModal isOpen onClose={vi.fn()} tahunDefault={2026} periodeOptions={[period]} unitOptions={[a]} />);
     expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).maxLength).toBe(500);
-    const tujuan = screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/);
-    expect(tujuan.required).toBe(false);
-    expect(tujuan.value).toBe('');
+    expect(screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/).required).toBe(false);
+    cleanup();
+
+    render(<Form kegiatan={rencana} unitOptions={[a]} periodeOptions={[period]} />);
+    expect(screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/).value).toBe('');
+    expect(screen.getByRole('link', { name: 'Kembali ke daftar' }).getAttribute('href')).toBe('/kegiatan');
 });

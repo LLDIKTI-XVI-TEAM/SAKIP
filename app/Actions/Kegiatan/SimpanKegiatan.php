@@ -6,6 +6,7 @@ use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\Periode;
+use App\Models\RencanaAksi;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\KegiatanPolicy;
@@ -57,6 +58,11 @@ class SimpanKegiatan
                 }
                 // Selaras writer periode: aktor/ACL sebelum konfigurasi, lalu objek domain.
                 Periode::lockConfiguration();
+                // Nama/tujuan ikut snapshot klaim RA; header dikunci sebelum jadwal dan kegiatan, searah gerbang klaim dan pengajuan RA.
+                $headerKlaim = fn (): array => $id ? KlaimKegiatan::where('kegiatan_id', $id)->where('sumber_klaim', 'rencana_aksi')
+                    ->distinct()->orderBy('rencana_aksi_id')->pluck('rencana_aksi_id')->map(fn ($v): string => (string) $v)->all() : [];
+                $headerIds = $headerKlaim();
+                RencanaAksi::whereIn('id', $headerIds)->orderBy('id')->lockForUpdate()->get();
                 // Jadwal dikunci sebelum kegiatan, searah pengajuan pengukuran; tahun lama hanya kandidat dan dicek ulang setelah kegiatan terkunci.
                 $tahunLama = $id ? Kegiatan::whereKey($id)->value('tahun') : null;
                 $tahun = array_values(array_unique([(int) $data['tahun'], (int) ($tahunLama ?? $data['tahun'])]));
@@ -100,7 +106,16 @@ class SimpanKegiatan
                 $before = $kegiatan?->rencanaAttributes();
                 $values = Arr::only($data, Kegiatan::RENCANA_FIELDS);
                 if ($kegiatan) {
-                    $kegiatan->fill($values)->save();
+                    // Klaim baru wajib mengunci kegiatan; selisih hanya mungkin sebelum lock di atas.
+                    if ($headerKlaim() !== $headerIds) {
+                        throw ValidationException::withMessages(['expected_state' => 'Kegiatan telah berubah. Muat ulang sebelum menyimpan.']);
+                    }
+                    $kegiatan->fill($values);
+                    if ($kegiatan->isDirty(['nama', 'tujuan'])) {
+                        // Token expected_versi RA terbuka harus basi agar pengajuan tidak membekukan atribut yang belum dilihat pengaju.
+                        RencanaAksi::whereIn('id', $headerIds)->increment('versi');
+                    }
+                    $kegiatan->save();
                 } else {
                     $kegiatan = Kegiatan::create($values + ['status' => 'rencana', 'created_by' => $currentActor->id]);
                 }

@@ -15,11 +15,12 @@ import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import type { ReviewProps, StatusReview } from './review-types';
+import { statusKegiatanConfig } from '@/types/kegiatan';
 import { rencanaAksiStatusPerhitungan } from './types';
 
 type Decision = 'verifikasi' | 'kembalikan' | 'sahkan' | 'buka_kembali';
 const konteksTidakLengkap = 'Konteks versi belum lengkap';
-// Sama dengan filter status DaftarReviewRencanaAksi agar RA yang baru diproses tetap terlihat.
+// Sama dengan filter status DaftarRencanaAksi agar RA yang baru diproses tetap terlihat di daftar.
 const statusDaftar: readonly StatusReview[] = ['diajukan', 'diverifikasi', 'dikembalikan', 'disahkan'];
 const statusHasil: Record<Decision, string> = { verifikasi: 'diverifikasi', kembalikan: 'dikembalikan', sahkan: 'disahkan', buka_kembali: 'dikembalikan' };
 const judulTidakTersedia: Record<Decision, string> = {
@@ -44,7 +45,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
     const recovery = useAuthRecovery();
     const form = useForm({ expected_versi: rencanaAksi.expected_versi, versi_pengajuan_id: versi.id, alasan: '' });
     const blocked = Boolean(message || recovery.recovery);
-    const hrefDaftar = statusDaftar.includes(rencanaAksi.status_alur) ? `/rencana-aksi/review?status=${rencanaAksi.status_alur}` : '/rencana-aksi/review';
+    const hrefDaftar = statusDaftar.includes(rencanaAksi.status_alur) ? `/rencana-aksi?status=${rencanaAksi.status_alur}` : '/rencana-aksi';
 
     const buka = (aksi: Decision): void => {
         if (form.processing || !rencanaAksi.can[aksi]) return;
@@ -118,7 +119,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
             <Head title={`Review Rencana Aksi ${rencanaAksi.indikator.kode}`} />
             <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href={hrefDaftar} className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar review</Link>
+                    <Link href={hrefDaftar} className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar rencana aksi</Link>
                     <div className="flex flex-wrap gap-2">
                         {rencanaAksi.can.kembalikan && <Button type="button" variant="outline" size="sm" disabled={form.processing || blocked} onClick={() => buka('kembalikan')}><Undo2 className="h-3.5 w-3.5" aria-hidden="true" />Kembalikan untuk revisi</Button>}
                         {rencanaAksi.can.verifikasi && <Button type="button" size="sm" disabled={form.processing || blocked} onClick={() => buka('verifikasi')}><CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />Verifikasi</Button>}
@@ -187,6 +188,18 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                         </TableBody>
                     </Table>
                 </Card>
+                {rencanaAksi.can.kegiatan && <Card>
+                    <CardHeader><CardTitle>Kegiatan yang diklaim pada versi {versi.nomor}</CardTitle></CardHeader>
+                    <CardContent>
+                        {rencanaAksi.klaim === null ? <p className="text-sm text-muted">Versi ini dibentuk sebelum daftar kegiatan ikut dibekukan.</p>
+                            : rencanaAksi.klaim.length === 0 ? <p className="text-sm text-muted">Tidak ada kegiatan yang diklaim pada versi ini.</p>
+                                : <ul className="divide-y divide-border">{rencanaAksi.klaim.map((item) => <li key={item.id} className="space-y-1 py-2">
+                                    <p className="break-words text-sm font-semibold text-ink">{item.nama}</p>
+                                    <p className="text-xs text-muted">{item.periode_nama} · {item.komponen ?? 'Tanpa komponen tertentu'} · {item.arah_dampak === 'mengurangi' ? 'Mengurangi' : 'Menambah'}{item.status ? ` · ${statusKegiatanConfig[item.status]?.label ?? item.status}` : ''}</p>
+                                    {item.catatan && <p className="break-words text-xs text-muted">{item.catatan}</p>}
+                                </li>)}</ul>}
+                    </CardContent>
+                </Card>}
                 {rencanaAksi.can.evidence && <Card>
                     <CardHeader><CardTitle>Bukti dukung pada versi {versi.nomor}</CardTitle></CardHeader>
                     <CardContent>{rencanaAksi.bukti_dukungs.length === 0 ? <p className="text-sm text-muted">Tidak ada bukti dukung pada versi ini.</p> : <ul className="space-y-3">{rencanaAksi.bukti_dukungs.map((bukti) => <BerkasLampiranItem key={bukti.id} berkas={{ ...bukti, mime: null, ukuran_bytes: null }} meta={bukti.mode === 'file' && !bukti.download_url ? 'Berkas ini sudah tidak berlaku pada rencana aksi; unduhan tidak tersedia.' : undefined} />)}</ul>}</CardContent>

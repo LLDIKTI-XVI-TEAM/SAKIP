@@ -5,7 +5,6 @@ import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import Review from '@/Pages/RencanaAksi/Review';
-import ReviewIndex from '@/Pages/RencanaAksi/ReviewIndex';
 import type { ReviewRencanaAksi } from '@/Pages/RencanaAksi/review-types';
 
 vi.mock('@inertiajs/react', async (importOriginal) => ({
@@ -43,8 +42,9 @@ const rencanaAksi: ReviewRencanaAksi = {
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
     target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
+    klaim: [{ id: 'klaim-1', periode_nama: 'Triwulan I', nama: 'Bimtek beku', status: 'rencana', komponen: null, arah_dampak: 'menambah', catatan: 'Catatan beku' }],
     bukti_dukungs: [{ id: 'bukti-1', mode: 'file', nama_asli: 'versi-dua.pdf', tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/versi/versi-2/bukti/bukti-1/unduh' }],
-    can: { verifikasi: true, kembalikan: true, sahkan: false, buka_kembali: false, evidence: true }, businessErrors: { verifikasi: [], kembalikan: [], sahkan: [], buka_kembali: [] }, pengesahan: null,
+    can: { verifikasi: true, kembalikan: true, sahkan: false, buka_kembali: false, evidence: true, kegiatan: true }, businessErrors: { verifikasi: [], kembalikan: [], sahkan: [], buka_kembali: [] }, pengesahan: null,
     dibuka_kembali: false,
     histori: [{ id: 'versi-1', nomor: 1, diajukan_at: '2026-09-01T01:00:00Z', jalur_pengajuan: 'pic' }, { id: 'versi-2', nomor: 2, diajukan_at: '2026-10-01T01:00:00Z', jalur_pengajuan: 'pic' }], pagination,
 };
@@ -70,7 +70,14 @@ describe('Review Rencana Aksi', () => {
         expect(screen.getByText('10,25 %')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Lihat versi' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/review?versi=versi-1');
         expect(screen.getByRole('link', { name: 'Unduh file' }).getAttribute('href')).toBe(rencanaAksi.bukti_dukungs[0].download_url);
+        expect(screen.getByText('Bimtek beku')).toBeTruthy();
+        expect(screen.getByText('Catatan beku')).toBeTruthy();
         expect(screen.queryByRole('textbox')).toBeNull();
+    });
+    it('menyembunyikan klaim beku bila aktor tidak boleh membaca kegiatan unit', () => {
+        renderReview({ klaim: null, can: { ...rencanaAksi.can, kegiatan: false } });
+        expect(screen.queryByText(/Kegiatan yang diklaim pada versi/)).toBeNull();
+        expect(screen.queryByText('Bimtek beku')).toBeNull();
     });
     it('memformat target dan komponen sesuai desimal dan satuan indikator beku', () => {
         renderReview({ target_periode: [
@@ -85,7 +92,7 @@ describe('Review Rencana Aksi', () => {
     });
 
     it('capability server menyembunyikan aksi/bukti dan alasan bisnis tetap terbaca', () => {
-        renderReview({ can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: false, evidence: false }, businessErrors: { verifikasi: ['Indikator telah diarsipkan.'], kembalikan: ['Unit konteks rencana aksi nonaktif.'], sahkan: [], buka_kembali: [] } });
+        renderReview({ can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: false, evidence: false, kegiatan: true }, businessErrors: { verifikasi: ['Indikator telah diarsipkan.'], kembalikan: ['Unit konteks rencana aksi nonaktif.'], sahkan: [], buka_kembali: [] } });
         expect(screen.queryByRole('button', { name: 'Verifikasi' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Kembalikan untuk revisi' })).toBeNull();
         expect(screen.queryByRole('link', { name: 'Unduh file' })).toBeNull();
@@ -107,7 +114,7 @@ describe('Review Rencana Aksi', () => {
 
     it('pengesahan memakai konfirmasi dan mengirim token header serta versi pengajuan', async () => {
         const user = userEvent.setup();
-        renderReview({ status_alur: 'diverifikasi', can: { verifikasi: false, kembalikan: true, sahkan: true, buka_kembali: false, evidence: true } });
+        renderReview({ status_alur: 'diverifikasi', can: { verifikasi: false, kembalikan: true, sahkan: true, buka_kembali: false, evidence: true, kegiatan: true } });
         expect(screen.queryByRole('button', { name: 'Verifikasi' })).toBeNull();
         await user.click(screen.getByRole('button', { name: 'Sahkan' }));
         const dialog = screen.getByRole('dialog', { name: 'Sahkan rencana aksi' });
@@ -119,15 +126,15 @@ describe('Review Rencana Aksi', () => {
 
     it('tautan kembali membawa filter status rencana aksi yang ditinjau', () => {
         const { unmount } = renderReview({ status_alur: 'disahkan' });
-        expect(screen.getByRole('link', { name: 'Kembali ke daftar review' }).getAttribute('href')).toBe('/rencana-aksi/review?status=disahkan');
+        expect(screen.getByRole('link', { name: 'Kembali ke daftar rencana aksi' }).getAttribute('href')).toBe('/rencana-aksi?status=disahkan');
         unmount();
 
         renderReview({ status_alur: 'diajukan' });
-        expect(screen.getByRole('link', { name: 'Kembali ke daftar review' }).getAttribute('href')).toBe('/rencana-aksi/review?status=diajukan');
+        expect(screen.getByRole('link', { name: 'Kembali ke daftar rencana aksi' }).getAttribute('href')).toBe('/rencana-aksi?status=diajukan');
     });
 
     it('menampilkan pengesah dan penanda self-approval pada versi yang disahkan', () => {
-        renderReview({ status_alur: 'disahkan', can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: false, evidence: true },
+        renderReview({ status_alur: 'disahkan', can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: false, evidence: true, kegiatan: true },
             pengesahan: { oleh: 'Perencana Pengesah', pada: '2026-10-12T05:00:00Z', self_approval: true } });
         expect(screen.getByText(/Disahkan oleh Perencana Pengesah/)).toBeTruthy();
         expect(screen.getByText(/self-approval/)).toBeTruthy();
@@ -259,21 +266,5 @@ describe('Review Rencana Aksi', () => {
         expect(screen.getByText(/Koneksi terputus/)).toBeTruthy();
         expect(screen.getByRole('dialog')).toBeTruthy();
         expect(router.post).toHaveBeenCalledTimes(1);
-    });
-});
-
-describe('Antrean review rencana aksi', () => {
-    it('filter status berupa GET server dan tautan menuju versi review', async () => {
-        const user = userEvent.setup();
-        render(<ReviewIndex daftar={[{ id: 'ra-1', tahun: 2026, status_alur: 'diajukan', nomor_pengajuan: 2, indikator: rencanaAksi.indikator, unit_nama: 'Unit A' }]} pagination={pagination} filters={{ status: 'diajukan' }} />);
-        expect(screen.getByRole('link', { name: 'Review IKU-1 2026' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/review');
-        await user.selectOptions(screen.getByLabelText('Status rencana aksi'), 'dikembalikan');
-        expect(router.get).toHaveBeenCalledWith('/rencana-aksi/review', { status: 'dikembalikan' }, { preserveScroll: true });
-        expect(router.post).not.toHaveBeenCalled();
-    });
-
-    it('antrean kosong menyajikan pesan yang jelas', () => {
-        render(<ReviewIndex daftar={[]} pagination={{ ...pagination, total: 0 }} filters={{ status: 'diajukan' }} />);
-        expect(screen.getByText('Belum ada rencana aksi pada status yang dipilih untuk unit yang dapat Anda akses.')).toBeTruthy();
     });
 });

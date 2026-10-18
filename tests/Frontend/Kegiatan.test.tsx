@@ -19,7 +19,8 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
 
 const unitOptions = [{ id: 'unit-a', nama: 'Unit A' }];
 const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV' }];
-const props = { kegiatan: null, tahunDefault: 2026, unitOptions, periodeOptions };
+const rencana = { id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: '', tujuan: null, sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, status: 'rencana', version_token: 'v1' };
+const props = { kegiatan: rencana, unitOptions, periodeOptions };
 
 beforeEach(() => { mockPengaturan = {}; vi.spyOn(router, 'post').mockImplementation(() => undefined); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -32,8 +33,8 @@ it('mengirim field rencana melalui submit keyboard tanpa anggaran atau status', 
     fireEvent.change(screen.getByLabelText(/Tujuan/), { target: { value: 'Meningkatkan layanan' } });
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
     const [url, data] = vi.mocked(router.post).mock.calls[0];
-    expect(url).toBe('/kegiatan');
-    expect(data).toMatchObject({ unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null });
+    expect(url).toBe('/kegiatan/kegiatan-1');
+    expect(data).toMatchObject({ unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, expected_state: 'v1' });
     expect(data).not.toHaveProperty('anggaran');
     expect(data).not.toHaveProperty('status');
 });
@@ -66,7 +67,7 @@ it('mempertahankan input dan menawarkan pemulihan sesi tanpa replay otomatis', a
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Rencana belum dikonfirmasi' } });
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
     const options = vi.mocked(router.post).mock.calls[0][2];
-    await act(async () => { options?.onHttpException?.({ status: 401, data: { recovery: { reason: 'authentication_required', rejected: { method: 'POST', path: '/kegiatan', before_action: true } } }, headers: {} }); });
+    await act(async () => { options?.onHttpException?.({ status: 401, data: { recovery: { reason: 'authentication_required', rejected: { method: 'POST', path: '/kegiatan/kegiatan-1', before_action: true } } }, headers: {} }); });
     expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Rencana belum dikonfirmasi');
     expect(screen.getByRole('link', { name: 'Masuk ulang' }).getAttribute('href')).toBe('/login?recovery=1');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan kegiatan' }).disabled).toBe(true);
@@ -106,7 +107,7 @@ it('menampilkan tanggal rencana sesuai preferensi tampilan pada tabel berlabel',
     expect(screen.queryByText('2026-10-11')).toBeNull();
 });
 
-it('menyediakan tombol buat dan edit sesuai capability dengan modal pop-up', () => {
+it('menyediakan buat lewat modal pop-up dan ubah lewat halaman ubah sesuai capability', () => {
     render(<Index {...indexProps} />);
     const createBtn = screen.getByRole('button', { name: 'Buat kegiatan' });
     expect(createBtn).toBeTruthy();
@@ -115,8 +116,7 @@ it('menyediakan tombol buat dan edit sesuai capability dengan modal pop-up', () 
 
     fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit kegiatan Fasilitasi unit' }));
-    expect(screen.getByRole('dialog', { name: 'Edit rencana kegiatan' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Fasilitasi unit' }).getAttribute('href')).toBe('/kegiatan/kegiatan-1/edit');
 });
 it('menginisialisasi filter tahun dengan nilai default serta menyediakan placeholder', () => {
     const getSpy = vi.spyOn(router, 'get').mockImplementation(() => undefined);
@@ -140,4 +140,17 @@ it('menyinkronkan input filter dengan filters server setelah redirect simpan yan
 it('menjelaskan daftar kosong mengikuti unit yang dapat diakses', () => {
     render(<Index {...indexProps} kegiatan={{ data: [], links: [], from: null, to: null, total: 0 }} />);
     expect(screen.getByText('Belum ada rencana kegiatan pada unit yang dapat Anda akses.')).toBeTruthy();
+});
+
+it('menempatkan tooltip aksi ubah di atas dan menonaktifkan tooltip bawaan unit dengan durasi dipercepat', () => {
+    render(<Index {...indexProps} />);
+    const linkUbah = screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Fasilitasi unit' });
+    const tooltip = linkUbah.closest('.relative')?.querySelector('[role="tooltip"]');
+    expect(tooltip?.className).toContain('bottom-full');
+    expect(tooltip?.textContent).toContain('Edit Kegiatan & Klaim RA');
+
+    const unitCell = screen.getByRole('cell', { name: 'Unit A' });
+    const scrollContainer = unitCell.querySelector('.hover-scroll-text');
+    expect(scrollContainer?.getAttribute('title')).toBeNull();
+    expect(scrollContainer?.getAttribute('style')).toContain('--hover-scroll-duration: 0.8s');
 });

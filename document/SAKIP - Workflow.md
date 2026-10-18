@@ -990,7 +990,7 @@ stateDiagram-v2
 
 ## 9. Alur Klaim Kegiatan
 
-> **Q41, Q42, Q49 (13 Oktober 2026):** klaim tahap RA kini terbentuk saat kegiatan ditambahkan dari halaman Rencana Aksi per periode (Q42 §42.1 butir 2), termasuk setiap salinan kegiatan (Q49 §49.2), dan pengajuan RA mensyaratkan minimal satu klaim tahap RA (Q42 §42.1 butir 3). Kegiatan lanjutan dari kegiatan yang ditunda diklaim pada tahap pengukuran (Q41 §41.4). Satu kegiatan tetap dapat diklaim lebih dari satu RA/IKU dalam unit yang sama — ditandai "kegiatan bersama" — dan klaim lintas unit tetap ditolak (Q42 §42.1 butir 4, §42.2 butir 4). Status implementasi: belum (US/ISS-06.02).
+> **Q41, Q42, Q49 (13 Oktober 2026):** klaim tahap RA kini terbentuk saat kegiatan ditambahkan dari halaman Rencana Aksi per periode (Q42 §42.1 butir 2), termasuk setiap salinan kegiatan (Q49 §49.2), dan pengajuan RA mensyaratkan minimal satu klaim tahap RA (Q42 §42.1 butir 3). Kegiatan lanjutan dari kegiatan yang ditunda diklaim pada tahap pengukuran (Q41 §41.4). Satu kegiatan tetap dapat diklaim lebih dari satu RA/IKU dalam unit yang sama — ditandai "kegiatan bersama" — dan klaim lintas unit tetap ditolak (Q42 §42.1 butir 4, §42.2 butir 4). Status implementasi: klaim tahap RA, tambah dan salin kegiatan dari halaman RA, serta gerbang minimal satu kegiatan diterapkan oleh US/ISS-06.02; klaim tahap pengukuran dan koreksi berbasis versi mengikuti ISS-06.06.
 
 Klaim menyatakan **kegiatan mana yang mendukung rencana aksi/indikator dan berdampak pada komponen mana** — bukan mekanisme penghitungan otomatis.
 
@@ -1032,8 +1032,9 @@ Klaim menyatakan **kegiatan mana yang mendukung rencana aksi/indikator dan berda
         §7)
 
 🎯 Penanggung Jawab (pembuat klaim) / 📋 Perencanaan
-  7. Dapat menghapus klaim selama rencana aksi induknya belum disahkan dan, bagi PIC, periode
-     kegiatannya belum terkunci (Q41 §41.2); penghapusan tercatat audit_log
+  7. Dapat menghapus klaim selama rencana aksi induknya berstatus draf atau dikembalikan
+     (klaim ikut dibekukan saat pengajuan; keputusan PM 16 Oktober 2026 pada PR #111) dan,
+     bagi PIC, periode kegiatannya belum terkunci (Q41 §41.2); penghapusan tercatat audit_log
 ```
 
 ```mermaid
