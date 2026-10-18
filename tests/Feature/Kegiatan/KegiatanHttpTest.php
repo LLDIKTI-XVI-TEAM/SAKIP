@@ -203,8 +203,7 @@ class KegiatanHttpTest extends TestCase
             UserPermissionGrant::create(['user_id' => $admin->id, 'permission_id' => Permission::where('kode', $code)->value('id'), 'unit_id' => $this->unit->id, 'alasan' => 'Grant tanpa izin baca', 'diberikan_oleh' => $this->perencanaan->id]);
         }
         $token = $this->editToken($kegiatan);
-        $this->actingAs($admin)->get('/kegiatan/buat')->assertForbidden();
-        $this->post('/kegiatan', $this->payload())->assertForbidden();
+        $this->actingAs($admin)->post('/kegiatan', $this->payload())->assertForbidden();
         $this->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
         $this->post("/kegiatan/{$kegiatan->id}", $this->payload() + ['expected_state' => $token])->assertForbidden();
         foreach (['kegiatan.form_ditolak', 'kegiatan.buat_ditolak', 'kegiatan.ubah_ditolak'] as $event) {
@@ -213,19 +212,22 @@ class KegiatanHttpTest extends TestCase
 
         // Deny baca pada unit tulis menutup tombol, form, dan simpan pada unit itu.
         $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
-        $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->where('can.create', false)->has('creatableUnitOptions', 0)->has('editableUnitOptions', 0));
-        $this->get('/kegiatan/buat')->assertForbidden();
+        $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page->where('can.create', false)->has('creatableUnitOptions', 0));
         $this->post('/kegiatan', $this->payload())->assertForbidden();
         $this->assertDatabaseCount('kegiatan', 1);
         $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
     }
 
-    public function test_form_hanya_memberikan_unit_yang_boleh_ditulis_tanpa_izin_unit_read(): void
+    public function test_form_ubah_hanya_memberikan_unit_yang_boleh_diubah_dan_halaman_buat_tidak_tersedia(): void
     {
-        $this->actingAs($this->pegawai)->get('/kegiatan/buat')->assertInertia(fn (Assert $page) => $page->component('Kegiatan/Form')
-            ->where('unitOptions.0.id', $this->unit->id)->has('unitOptions', 1)->where('periodeOptions.0.id', $this->periode->id)->missing('kegiatan.anggaran'));
-        $this->actingAs($this->user('pegawai'))->get('/kegiatan/buat')->assertForbidden();
+        $kegiatan = $this->kegiatan();
+        UserPermissionGrant::create(['user_id' => $this->pegawai->id, 'permission_id' => Permission::where('kode', 'kegiatan:update')->value('id'), 'unit_id' => $this->unitLain->id, 'alasan' => 'Izin update unit B', 'diberikan_oleh' => $this->perencanaan->id]);
+        $this->actingAs($this->pegawai)->get("/kegiatan/{$kegiatan->id}/edit")->assertInertia(fn (Assert $page) => $page->component('Kegiatan/Form')
+            ->where('kegiatan.id', $kegiatan->id)->has('unitOptions', 2)->where('unitOptions.1.id', $this->unitLain->id)->where('periodeOptions.0.id', $this->periode->id)->missing('kegiatan.anggaran')->missing('tahunDefault'));
+        $this->actingAs($this->user('pegawai'))->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
         $this->actingAs($this->pegawai)->get('/kegiatan/bukan-uuid/edit')->assertNotFound();
+        // Buat kegiatan hanya lewat modal daftar dan POST /kegiatan.
+        $this->get('/kegiatan/buat')->assertNotFound();
     }
 
     public function test_stale_edit_tidak_menimpa_data_terbaru(): void
@@ -314,66 +316,21 @@ class KegiatanHttpTest extends TestCase
         $this->assertDatabaseCount('kegiatan', 0);
     }
 
-    public function test_get_form_create_dan_update_yang_tanpa_izin_diaudit_tanpa_mutasi(): void
+    public function test_get_form_ubah_tanpa_izin_diaudit_tanpa_mutasi(): void
     {
         $kegiatan = $this->kegiatan();
         $this->deny($this->pegawai, 'kegiatan:update', $this->unit->id);
         $this->actingAs($this->pegawai)->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
         $this->assertSame('kegiatan:update', AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole()->dasar_izin['permission']);
-        $this->actingAs($this->user('pegawai'))->get('/kegiatan/buat')->assertForbidden();
-        $this->assertSame(2, AuditLog::where('tindakan', 'kegiatan.form_ditolak')->count());
         $this->assertDatabaseCount('kegiatan', 1);
     }
 
-    public function test_form_tanpa_unit_tulis_mengaudit_provenance_keputusan_per_unit(): void
-    {
-        // Deny global: seluruh unit aktif ditolak oleh deny yang sama.
-        $this->deny($this->perencanaan, 'kegiatan:create', null);
-        $this->actingAs($this->perencanaan)->get('/kegiatan/buat')->assertForbidden();
-        $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->sole()->dasar_izin;
-        $this->assertSame('explicit_deny', $basis['alasan']);
-        $this->assertSame(UserPermissionDeny::where('user_id', $this->perencanaan->id)->pluck('id')->all(), $basis['deny']);
-        $this->assertSame(['kegiatan:create', ['kegiatan:create']], [$basis['permission'], $basis['izin_unit']]);
-
-        // Alasan campuran: deny di unit A, tanpa allow di unit B; ID deny dan grant tetap tercatat.
-        $this->deny($this->pegawai, 'kegiatan:create', $this->unit->id);
-        $this->actingAs($this->pegawai)->get('/kegiatan/buat')->assertForbidden();
-        $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->where('actor_id', $this->pegawai->id)->sole()->dasar_izin;
-        $this->assertSame('no_active_writable_unit', $basis['alasan']);
-        $this->assertEqualsCanonicalizing(['explicit_deny', 'no_allow'], $basis['alasan_unit']);
-        $this->assertSame(UserPermissionDeny::where('user_id', $this->pegawai->id)->pluck('id')->all(), $basis['deny']);
-        $this->assertSame(['kegiatan:create', ['kegiatan:create']], [$basis['permission'], $basis['izin_unit']]);
-        $this->assertNotEmpty($basis['sumber_allow']['grants']);
-        $this->assertDatabaseCount('kegiatan', 0);
-    }
-
-    public function test_form_buat_mengaudit_izin_yang_sebenarnya_menolak(): void
-    {
-        // Seluruh unit lolos izin tulis tetapi ditolak izin baca: label audit memakai kegiatan:read.
-        $perencanaan = $this->user('perencanaan');
-        foreach ([$this->unit, $this->unitLain] as $unit) {
-            $this->deny($perencanaan, 'kegiatan:read', $unit->id);
-        }
-        $this->actingAs($perencanaan)->get('/kegiatan/buat')->assertForbidden();
-        $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->where('actor_id', $perencanaan->id)->sole()->dasar_izin;
-        $this->assertSame(['kegiatan:read', 'explicit_deny', ['kegiatan:read']], [$basis['permission'], $basis['alasan'], $basis['izin_unit']]);
-        $this->assertEqualsCanonicalizing(UserPermissionDeny::where('user_id', $perencanaan->id)->pluck('id')->all(), $basis['deny']);
-        // Campuran: Unit A ditolak deny baca, Unit B tanpa grant tulis.
-        $this->deny($this->pegawai, 'kegiatan:read', $this->unit->id);
-        $this->actingAs($this->pegawai)->get('/kegiatan/buat')->assertForbidden();
-        $basis = AuditLog::where('tindakan', 'kegiatan.form_ditolak')->where('actor_id', $this->pegawai->id)->sole()->dasar_izin;
-        $this->assertSame(['kegiatan:create', 'no_active_writable_unit'], [$basis['permission'], $basis['alasan']]);
-        $this->assertEqualsCanonicalizing(['kegiatan:read', 'kegiatan:create'], $basis['izin_unit']);
-        $this->assertSame(UserPermissionDeny::where('user_id', $this->pegawai->id)->pluck('id')->all(), $basis['deny']);
-    }
-
-    public function test_opsi_modal_create_dan_update_terpisah_dan_periode_nonaktif_tidak_ditawarkan(): void
+    public function test_opsi_modal_buat_hanya_unit_tulis_dan_periode_nonaktif_tidak_ditawarkan(): void
     {
         UserPermissionGrant::create(['user_id' => $this->pegawai->id, 'permission_id' => Permission::where('kode', 'kegiatan:update')->value('id'), 'unit_id' => $this->unitLain->id, 'alasan' => 'Izin update unit B', 'diberikan_oleh' => $this->perencanaan->id]);
         $this->periode->update(['aktif' => false]);
         $this->actingAs($this->pegawai)->get('/kegiatan')->assertInertia(fn (Assert $page) => $page
-            ->has('creatableUnitOptions', 1)->where('creatableUnitOptions.0.id', $this->unit->id)
-            ->has('editableUnitOptions', 2)->where('editableUnitOptions.1.id', $this->unitLain->id)
+            ->has('creatableUnitOptions', 1)->where('creatableUnitOptions.0.id', $this->unit->id)->missing('editableUnitOptions')
             ->has('activePeriodeOptions', 0)->has('periodeOptions', 1));
     }
 

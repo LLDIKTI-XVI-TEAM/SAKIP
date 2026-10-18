@@ -14,32 +14,33 @@ import type { KegiatanFormProps } from '@/types/kegiatan';
 import { BerkasPerencanaanPanel } from './Partials/BerkasPerencanaanPanel';
 import { KlaimPanel } from './Partials/KlaimPanel';
 
-export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptions, klaim, berkasPerencanaan }: KegiatanFormProps) {
+export default function Form({ kegiatan, unitOptions, periodeOptions, klaim, berkasPerencanaan }: KegiatanFormProps) {
     const form = useForm({
-        unit_id: kegiatan?.unit_id ?? unitOptions[0]?.id ?? '',
-        tahun: String(kegiatan?.tahun ?? tahunDefault),
-        periode_id: kegiatan?.periode_id ?? periodeOptions[0]?.id ?? '',
-        nama: kegiatan?.nama ?? '', tujuan: kegiatan?.tujuan ?? '',
-        sasaran_peserta: kegiatan?.sasaran_peserta == null ? '' : String(kegiatan.sasaran_peserta),
-        keterangan_peserta: kegiatan?.keterangan_peserta ?? '', lokasi: kegiatan?.lokasi ?? '',
-        tanggal_rencana: kegiatan?.tanggal_rencana ?? '', anggaran: kegiatan?.anggaran ?? '', expected_state: kegiatan?.version_token ?? '',
+        unit_id: kegiatan.unit_id,
+        tahun: String(kegiatan.tahun),
+        periode_id: kegiatan.periode_id,
+        nama: kegiatan.nama, tujuan: kegiatan.tujuan ?? '',
+        sasaran_peserta: kegiatan.sasaran_peserta == null ? '' : String(kegiatan.sasaran_peserta),
+        keterangan_peserta: kegiatan.keterangan_peserta ?? '', lokasi: kegiatan.lokasi ?? '',
+        tanggal_rencana: kegiatan.tanggal_rencana ?? '', anggaran: kegiatan.anggaran ?? '', expected_state: kegiatan.version_token,
     });
+    const path = `/kegiatan/${kegiatan.id}`;
     const submitting = useRef(false);
     const summary = useRef<HTMLDivElement>(null);
     const [failure, setFailure] = useState('');
     const recovery = useAuthRecovery();
     const blocked = Boolean(failure || recovery.recovery);
-    const title = kegiatan ? 'Ubah rencana kegiatan' : 'Buat rencana kegiatan';
+    const title = 'Ubah rencana kegiatan';
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (submitting.current || blocked) return;
         submitting.current = true;
         form.transform((data) => ({ ...data, tahun: Number(data.tahun), sasaran_peserta: data.sasaran_peserta === '' ? null : Number(data.sasaran_peserta), anggaran: data.anggaran === '' ? null : data.anggaran }));
-        form.post(kegiatan ? `/kegiatan/${kegiatan.id}` : '/kegiatan', {
+        form.post(path, {
             preserveScroll: true,
             onError: () => requestAnimationFrame(() => summary.current?.focus()),
             onHttpException: (response) => {
-                if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path: kegiatan ? `/kegiatan/${kegiatan.id}` : '/kegiatan', mutation: true })) {
+                if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path, mutation: true })) {
                     setFailure(response.status === 403 ? 'Hasil penyimpanan belum terkonfirmasi karena akses ditolak. Periksa izin dan data terbaru sebelum mencoba kembali.' : 'Hasil penyimpanan belum terkonfirmasi. Periksa data terbaru sebelum mencoba kembali.');
                 }
                 return false;
@@ -59,7 +60,7 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
             <Card>
                 <CardContent className="p-4 sm:p-6">
                     <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
-                    <p className="mb-6 text-sm text-muted">Catat rencana kegiatan untuk unit dan periode aktif. Kegiatan baru berstatus Rencana.</p>
+                    <p className="mb-6 text-sm text-muted">Catat rencana kegiatan untuk unit dan periode aktif.</p>
                     <form onSubmit={submit} className="space-y-5">
                         {(form.hasErrors || failure) && <div ref={summary} tabIndex={-1} role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger-dark focus:outline-none focus:ring-2 focus:ring-danger/30">
                             {failure || form.errors.expected_state || 'Periksa kembali isian yang ditandai sebelum menyimpan.'}
@@ -71,20 +72,20 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
                             <Input label="Tanggal rencana" type="date" value={form.data.tanggal_rencana} onChange={(e) => form.setData('tanggal_rencana', e.target.value)} error={form.errors.tanggal_rencana} />
                             <div className="sm:col-span-2"><Input label="Nama kegiatan" required maxLength={500} placeholder="Contoh: Rapat Koordinasi Penyusunan Laporan Kinerja" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} error={form.errors.nama} /></div>
                             <div className="sm:col-span-2"><Textarea label="Tujuan" maxLength={10000} placeholder="Jelaskan tujuan pelaksanaan kegiatan secara ringkas..." value={form.data.tujuan} onChange={(e) => form.setData('tujuan', e.target.value)} error={form.errors.tujuan} /></div>
-                            <Input id="anggaran" label="Anggaran (Rp)" type="number" inputMode="numeric" min={0} step={1} placeholder="Contoh: 5000000" value={form.data.anggaran} onChange={(e) => form.setData('anggaran', e.target.value)} error={form.errors.anggaran} helperText={kegiatan && kegiatan.anggaran === null && form.data.anggaran === '' ? 'Belum diisi. ' + bantuanAnggaran('') : bantuanAnggaran(form.data.anggaran)} />
+                            <Input id="anggaran" label="Anggaran (Rp)" type="number" inputMode="numeric" min={0} step={1} placeholder="Contoh: 5000000" value={form.data.anggaran} onChange={(e) => form.setData('anggaran', e.target.value)} error={form.errors.anggaran} helperText={kegiatan.anggaran === null && form.data.anggaran === '' ? 'Belum diisi. ' + bantuanAnggaran('') : bantuanAnggaran(form.data.anggaran)} />
                             <Input label="Sasaran peserta" type="number" min={0} max={2147483647} placeholder="Contoh: 30" value={form.data.sasaran_peserta} onChange={(e) => form.setData('sasaran_peserta', e.target.value)} error={form.errors.sasaran_peserta} />
                             <Input label="Keterangan peserta" maxLength={255} placeholder="Contoh: Tim Pokja dan perwakilan pimpinan perguruan tinggi" value={form.data.keterangan_peserta} onChange={(e) => form.setData('keterangan_peserta', e.target.value)} error={form.errors.keterangan_peserta} />
                             <div className="sm:col-span-2"><Input label="Lokasi" maxLength={255} placeholder="Contoh: Ruang Rapat LLDIKTI XVI / Daring via Zoom" value={form.data.lokasi} onChange={(e) => form.setData('lokasi', e.target.value)} error={form.errors.lokasi} /></div>
                         </fieldset>
                         <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
                             <Button type="submit" disabled={blocked} isLoading={form.processing}>{form.processing ? 'Menyimpan…' : 'Simpan kegiatan'}</Button>
-                            {failure && <Link href={kegiatan ? `/kegiatan/${kegiatan.id}/edit` : '/kegiatan/buat'} className="text-sm text-primary underline">Muat ulang form</Link>}
+                            {failure && <Link href={`${path}/edit`} className="text-sm text-primary underline">Muat ulang form</Link>}
                         </div>
                     </form>
                 </CardContent>
             </Card>
-            {kegiatan && klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
-            {kegiatan && berkasPerencanaan && <BerkasPerencanaanPanel kegiatanId={kegiatan.id} berkas={berkasPerencanaan} />}
+            {klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
+            {berkasPerencanaan && <BerkasPerencanaanPanel kegiatanId={kegiatan.id} berkas={berkasPerencanaan} />}
         </div>
     </AuthenticatedLayout>;
 }

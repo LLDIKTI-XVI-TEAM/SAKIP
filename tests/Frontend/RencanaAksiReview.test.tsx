@@ -5,7 +5,6 @@ import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import Review from '@/Pages/RencanaAksi/Review';
-import ReviewIndex from '@/Pages/RencanaAksi/ReviewIndex';
 import type { ReviewRencanaAksi } from '@/Pages/RencanaAksi/review-types';
 
 vi.mock('@inertiajs/react', async (importOriginal) => ({
@@ -127,11 +126,11 @@ describe('Review Rencana Aksi', () => {
 
     it('tautan kembali membawa filter status rencana aksi yang ditinjau', () => {
         const { unmount } = renderReview({ status_alur: 'disahkan' });
-        expect(screen.getByRole('link', { name: 'Kembali ke daftar review' }).getAttribute('href')).toBe('/rencana-aksi/review?status=disahkan');
+        expect(screen.getByRole('link', { name: 'Kembali ke daftar rencana aksi' }).getAttribute('href')).toBe('/rencana-aksi?status=disahkan');
         unmount();
 
         renderReview({ status_alur: 'diajukan' });
-        expect(screen.getByRole('link', { name: 'Kembali ke daftar review' }).getAttribute('href')).toBe('/rencana-aksi/review?status=diajukan');
+        expect(screen.getByRole('link', { name: 'Kembali ke daftar rencana aksi' }).getAttribute('href')).toBe('/rencana-aksi?status=diajukan');
     });
 
     it('menampilkan pengesah dan penanda self-approval pada versi yang disahkan', () => {
@@ -267,21 +266,5 @@ describe('Review Rencana Aksi', () => {
         expect(screen.getByText(/Koneksi terputus/)).toBeTruthy();
         expect(screen.getByRole('dialog')).toBeTruthy();
         expect(router.post).toHaveBeenCalledTimes(1);
-    });
-});
-
-describe('Antrean review rencana aksi', () => {
-    it('filter status berupa GET server dan tautan menuju versi review', async () => {
-        const user = userEvent.setup();
-        render(<ReviewIndex daftar={[{ id: 'ra-1', tahun: 2026, status_alur: 'diajukan', nomor_pengajuan: 2, indikator: rencanaAksi.indikator, unit_nama: 'Unit A' }]} pagination={pagination} filters={{ status: 'diajukan' }} />);
-        expect(screen.getByRole('link', { name: 'Review IKU-1 2026' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/review');
-        await user.selectOptions(screen.getByLabelText('Status rencana aksi'), 'dikembalikan');
-        expect(router.get).toHaveBeenCalledWith('/rencana-aksi/review', { status: 'dikembalikan' }, { preserveScroll: true });
-        expect(router.post).not.toHaveBeenCalled();
-    });
-
-    it('antrean kosong menyajikan pesan yang jelas', () => {
-        render(<ReviewIndex daftar={[]} pagination={{ ...pagination, total: 0 }} filters={{ status: 'diajukan' }} />);
-        expect(screen.getByText('Belum ada rencana aksi pada status yang dipilih untuk unit yang dapat Anda akses.')).toBeTruthy();
     });
 });

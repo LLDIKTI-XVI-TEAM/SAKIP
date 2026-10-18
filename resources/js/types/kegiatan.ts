@@ -24,12 +24,11 @@ export interface RencanaKegiatan {
 }
 
 export interface KegiatanFormProps {
-    kegiatan: RencanaKegiatan | null;
+    kegiatan: RencanaKegiatan;
     /** Panel klaim tahap RA; hanya ada pada halaman ubah. */
     klaim?: KlaimKegiatanPanel | null;
-    /** Panel berkas tahap perencanaan kegiatan (Q42 §42.3); hanya ada pada halaman ubah. */
+    /** Panel berkas tahap perencanaan kegiatan (Q42 §42.3). */
     berkasPerencanaan?: BerkasPerencanaanKegiatan | null;
-    tahunDefault: number;
     unitOptions: KegiatanOption[];
     periodeOptions: KegiatanOption[];
 }
@@ -64,7 +63,6 @@ export interface KegiatanIndexProps {
     unitOptions: KegiatanOption[];
     periodeOptions: KegiatanOption[];
     creatableUnitOptions?: KegiatanOption[];
-    editableUnitOptions?: KegiatanOption[];
     activePeriodeOptions?: KegiatanOption[];
     tahunDefault?: number;
     can: { create: boolean };

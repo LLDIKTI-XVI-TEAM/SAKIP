@@ -19,7 +19,8 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
 
 const unitOptions = [{ id: 'unit-a', nama: 'Unit A' }];
 const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV' }];
-const props = { kegiatan: null, tahunDefault: 2026, unitOptions, periodeOptions };
+const rencana = { id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: '', tujuan: null, sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: null, status: 'rencana', version_token: 'v1' };
+const props = { kegiatan: rencana, unitOptions, periodeOptions };
 
 beforeEach(() => { mockPengaturan = {}; vi.spyOn(router, 'post').mockImplementation(() => undefined); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -33,8 +34,8 @@ it('mengirim field rencana beserta anggaran rupiah melalui submit keyboard tanpa
     fireEvent.change(screen.getByLabelText(/Tujuan/), { target: { value: 'Meningkatkan layanan' } });
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
     const [url, data] = vi.mocked(router.post).mock.calls[0];
-    expect(url).toBe('/kegiatan');
-    expect(data).toMatchObject({ unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, anggaran: '5000000' });
+    expect(url).toBe('/kegiatan/kegiatan-1');
+    expect(data).toMatchObject({ unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, expected_state: 'v1', anggaran: '5000000' });
     expect(data).not.toHaveProperty('status');
 });
 
@@ -66,7 +67,7 @@ it('mempertahankan input dan menawarkan pemulihan sesi tanpa replay otomatis', a
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Rencana belum dikonfirmasi' } });
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
     const options = vi.mocked(router.post).mock.calls[0][2];
-    await act(async () => { options?.onHttpException?.({ status: 401, data: { recovery: { reason: 'authentication_required', rejected: { method: 'POST', path: '/kegiatan', before_action: true } } }, headers: {} }); });
+    await act(async () => { options?.onHttpException?.({ status: 401, data: { recovery: { reason: 'authentication_required', rejected: { method: 'POST', path: '/kegiatan/kegiatan-1', before_action: true } } }, headers: {} }); });
     expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Rencana belum dikonfirmasi');
     expect(screen.getByRole('link', { name: 'Masuk ulang' }).getAttribute('href')).toBe('/login?recovery=1');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan kegiatan' }).disabled).toBe(true);

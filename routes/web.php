@@ -63,7 +63,6 @@ use App\Http\Controllers\RencanaAksi\DaftarRencanaAksi;
 use App\Http\Controllers\RencanaAksi\DestroyBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\DownloadBuktiRencanaAksi;
 use App\Http\Controllers\RencanaAksi\DownloadBuktiVersiRencanaAksi;
-use App\Http\Controllers\RencanaAksi\IndexReviewRencanaAksi;
 use App\Http\Controllers\RencanaAksi\KembalikanRencanaAksi;
 use App\Http\Controllers\RencanaAksi\PreviewRencanaAksiTarget;
 use App\Http\Controllers\RencanaAksi\SahkanRencanaAksi;
@@ -200,7 +199,6 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Rencana kegiatan unit.
     Route::get('/kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
-    Route::get('/kegiatan/buat', [KegiatanController::class, 'create'])->name('kegiatan.create');
     Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
     Route::post('/kegiatan/{kegiatan}/berkas', [BerkasKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.berkas.store');
     Route::delete('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'destroy'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.destroy');
@@ -287,7 +285,8 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Rencana Aksi — penyusunan target per periode
     Route::get('/rencana-aksi', DaftarRencanaAksi::class)->name('rencana-aksi.index');
-    Route::get('/rencana-aksi/review', IndexReviewRencanaAksi::class)->name('rencana-aksi.review.index');
+    // Antrean review menyatu dengan daftar (filter `status`) sejak Q59; URL lama dipertahankan sebagai redirect.
+    Route::redirect('/rencana-aksi/review', '/rencana-aksi');
     Route::get('/rencana-aksi/{rencanaAksi}/review', ShowReviewRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.review');
     Route::get('/rencana-aksi/{rencanaAksi}/versi/{versi}/bukti/{bukti}/unduh', DownloadBuktiVersiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('versi')->whereUuid('bukti')->name('rencana-aksi.versi.bukti.download');
     Route::get('/rencana-aksi/{rencanaAksi}', ShowRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.show');
