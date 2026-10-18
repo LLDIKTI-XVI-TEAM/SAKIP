@@ -2195,7 +2195,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
 - [x] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan. *(Dicatat modul masing-masing; ditampilkan di halaman Jejak Audit.)*
 - [x] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
-- [x] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan. *(Allowlist payload di modul penulis; detail audit menyamarkan kunci rahasia di server.)*
+- [x] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan. *(Allowlist payload di modul penulis; sejak Q58 `WriteAuditLog` menyamarkan kunci rahasia sebelum disimpan, dan detail audit menyamarkan lagi baris yang tersimpan sebelum Q58 di server.)*
 
 ### US-13.04 · Konfigurasi Operasional Notifikasi Eksternal
 
