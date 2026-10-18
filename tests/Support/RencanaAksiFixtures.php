@@ -8,6 +8,8 @@ use App\Models\JadwalSnapshot;
 use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
 use App\Models\JenisBerkas;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
@@ -164,8 +166,14 @@ trait RencanaAksiFixtures
             'indikator_id' => $fixture['indikator']->id,
             'tahun' => 2026,
         ])->assertSessionHasNoErrors();
+        $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        // RA lengkap memerlukan minimal satu kegiatan tahap RA (Q42 §42.1 butir 3); disisipkan langsung agar versi header tidak berubah.
+        $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $fixture['periode1']->id,
+            'nama' => 'Kegiatan pendukung', 'created_by' => $fixture['pic']->id]);
+        KlaimKegiatan::create(['rencana_aksi_id' => $header->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
+            'sumber_klaim' => 'rencana_aksi', 'created_by' => $fixture['pic']->id, 'created_at' => now()]);
 
-        return RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
+        return $header;
     }
 
     /**

@@ -12,15 +12,18 @@ import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import type { IndikatorArah, IndikatorTipePerhitungan } from '@/types/sasaran-indikator';
 import AjukanPanel from './AjukanPanel';
 import BuktiPanel from './BuktiPanel';
+import KegiatanPanel from './KegiatanPanel';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
-import type { RencanaAksiBukti, RencanaAksiShow } from './types';
+import type { RencanaAksiBukti, RencanaAksiKegiatan, RencanaAksiShow } from './types';
 import { dapatDisuntingPeriode, kunciSel, tanpaNolBelakang } from './types';
 
 interface ShowProps {
     rencanaAksi: RencanaAksiShow;
     /** Null bila aktor tidak berhak melihat bukti; panel disembunyikan. */
     bukti?: RencanaAksiBukti | null;
+    /** Null bila aktor tidak boleh membaca kegiatan unit ini; panel disembunyikan. */
+    kegiatan?: RencanaAksiKegiatan | null;
 }
 
 export default function RencanaAksiShow(props: ShowProps) {
@@ -39,7 +42,7 @@ export default function RencanaAksiShow(props: ShowProps) {
     return <RencanaAksiForm key={`${props.rencanaAksi.id}::${props.rencanaAksi.versi}::${props.rencanaAksi.expected_snapshot_id}::${props.rencanaAksi.expected_snapshot_versi}::${koreksiKey}::terkunci:${terkunciKey}`} {...props} />;
 }
 
-function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
+function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const manual = rencanaAksi.tipe_perhitungan === 'manual';
@@ -503,6 +506,21 @@ function RencanaAksiForm({ rencanaAksi, bukti }: ShowProps) {
                         canSubmit={rencanaAksi.can.submit}
                         kotor={kotor}
                         onMuatUlang={muatUlang}
+                    />
+                )}
+
+                {/* Di luar form target agar form modal kegiatan tidak bersarang. */}
+                {kegiatan && (
+                    <KegiatanPanel
+                        rencanaAksiId={rencanaAksi.id}
+                        periode={rencanaAksi.periode.filter((item) => item.efektif)}
+                        komponen={rencanaAksi.komponen}
+                        // Selaras matriks target: dalam sesi koreksi hanya periode lingkup koreksi yang dapat diubah.
+                        terkunci={rencanaAksi.periode
+                            .filter((item) => item.efektif && ((rencanaAksi.periode_terkunci ?? []).includes(item.id) || !dapatDisuntingPeriode(rencanaAksi.koreksi, item.id)))
+                            .map((item) => item.id)}
+                        kegiatan={kegiatan}
+                        kotor={kotor}
                     />
                 )}
 

@@ -7,12 +7,11 @@ import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import type { KegiatanIndexItem, KegiatanOption } from '@/types/kegiatan';
+import type { KegiatanOption } from '@/types/kegiatan';
 
 export interface KegiatanModalProps {
     isOpen: boolean;
     onClose: () => void;
-    kegiatan: KegiatanIndexItem | null;
     unitOptions: KegiatanOption[];
     periodeOptions: KegiatanOption[];
     tahunDefault?: number;
@@ -21,17 +20,13 @@ export interface KegiatanModalProps {
 export function KegiatanModal({
     isOpen,
     onClose,
-    kegiatan,
     unitOptions,
     periodeOptions,
     tahunDefault = new Date().getFullYear(),
 }: KegiatanModalProps) {
-    const isEdit = Boolean(kegiatan);
-    const title = isEdit ? 'Edit rencana kegiatan' : 'Buat rencana kegiatan';
-
     const initialUnitId = unitOptions[0]?.id ?? '';
     const initialPeriodeId = periodeOptions[0]?.id ?? '';
-    const initializedRecord = useRef<string | null>(null);
+    const initialized = useRef(false);
 
     const {
         data,
@@ -52,7 +47,6 @@ export function KegiatanModal({
         keterangan_peserta: '',
         lokasi: '',
         tanggal_rencana: '',
-        expected_state: '',
     });
 
     const [failure, setFailure] = useState('');
@@ -63,45 +57,27 @@ export function KegiatanModal({
 
     useEffect(() => {
         if (!isOpen) {
-            initializedRecord.current = null;
+            initialized.current = false;
             return;
         }
-        const record = kegiatan?.id ?? 'create';
         // Refresh opsi/validasi bukan sesi form baru: koreksi dan error pengguna tetap utuh.
-        if (initializedRecord.current === record) return;
-        initializedRecord.current = record;
+        if (initialized.current) return;
+        initialized.current = true;
 
         setFailure('');
         clearErrors();
-
-        if (kegiatan) {
-            setData({
-                unit_id: kegiatan.unit_id ?? kegiatan.unit?.id ?? '',
-                tahun: String(kegiatan.tahun),
-                periode_id: kegiatan.periode_id ?? kegiatan.periode?.id ?? '',
-                nama: kegiatan.nama,
-                tujuan: kegiatan.tujuan ?? '',
-                sasaran_peserta: kegiatan.sasaran_peserta == null ? '' : String(kegiatan.sasaran_peserta),
-                keterangan_peserta: kegiatan.keterangan_peserta ?? '',
-                lokasi: kegiatan.lokasi ?? '',
-                tanggal_rencana: kegiatan.tanggal_rencana ?? '',
-                expected_state: kegiatan.version_token ?? '',
-            });
-        } else {
-            setData({
-                unit_id: initialUnitId,
-                tahun: String(tahunDefault),
-                periode_id: initialPeriodeId,
-                nama: '',
-                tujuan: '',
-                sasaran_peserta: '',
-                keterangan_peserta: '',
-                lokasi: '',
-                tanggal_rencana: '',
-                expected_state: '',
-            });
-        }
-    }, [isOpen, kegiatan, initialUnitId, initialPeriodeId, tahunDefault, setData, clearErrors]);
+        setData({
+            unit_id: initialUnitId,
+            tahun: String(tahunDefault),
+            periode_id: initialPeriodeId,
+            nama: '',
+            tujuan: '',
+            sasaran_peserta: '',
+            keterangan_peserta: '',
+            lokasi: '',
+            tanggal_rencana: '',
+        });
+    }, [isOpen, initialUnitId, initialPeriodeId, tahunDefault, setData, clearErrors]);
 
     const handleClose = () => {
         if (processing || blocked) return;
@@ -121,7 +97,7 @@ export function KegiatanModal({
             sasaran_peserta: formData.sasaran_peserta === '' ? null : Number(formData.sasaran_peserta),
         }));
 
-        const endpoint = isEdit ? `/kegiatan/${kegiatan?.id}` : '/kegiatan';
+        const endpoint = '/kegiatan';
 
         post(endpoint, {
             preserveScroll: true,
@@ -161,7 +137,7 @@ export function KegiatanModal({
         <Modal
             isOpen={isOpen}
             onClose={handleClose}
-            title={title}
+            title="Buat rencana kegiatan"
             size="2xl"
             bodyClassName="p-4 sm:p-6"
             showCloseButton={!processing && !blocked}
@@ -176,7 +152,7 @@ export function KegiatanModal({
                         role="alert"
                         className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger-dark focus:outline-none focus:ring-2 focus:ring-danger/30"
                     >
-                         {failure || errors.expected_state || 'Periksa kembali isian yang ditandai sebelum menyimpan.'}
+                         {failure || 'Periksa kembali isian yang ditandai sebelum menyimpan.'}
                          {failure && <Link href="/kegiatan" className="mt-2 block font-medium underline">Muat ulang data kegiatan</Link>}
                     </div>
                 )}
@@ -304,7 +280,7 @@ export function KegiatanModal({
                         disabled={blocked}
                         isLoading={processing}
                     >
-                        {processing ? 'Menyimpan…' : isEdit ? 'Simpan perubahan' : 'Simpan kegiatan'}
+                        {processing ? 'Menyimpan…' : 'Simpan kegiatan'}
                     </Button>
                 </div>
             </form>

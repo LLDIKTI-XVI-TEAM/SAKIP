@@ -63,7 +63,7 @@ class RencanaAksiAjukanTest extends TestCase
         // JSONB tidak mempertahankan urutan key objek, maka objek dibandingkan tanpa urutan.
         $snapshot = $versi->snapshot;
         $this->assertEqualsCanonicalizing(
-            ['indikator', 'unit_kerja', 'pic', 'uraian', 'alasan_deviasi_pk', 'deviasi_pk', 'target_periode', 'persyaratan_bukti', 'bukti_dukungs'],
+            ['indikator', 'unit_kerja', 'pic', 'uraian', 'alasan_deviasi_pk', 'deviasi_pk', 'target_periode', 'klaim', 'persyaratan_bukti', 'bukti_dukungs'],
             array_keys($snapshot),
         );
         $this->assertEquals(['kode' => $fixture['indikator']->kode, 'nama' => 'Indikator Manual Uji'], $snapshot['indikator']);

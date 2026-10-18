@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Kegiatan;
 
 use App\Actions\Kegiatan\DaftarKegiatan;
+use App\Actions\Kegiatan\DaftarKlaimKegiatan;
 use App\Actions\Kegiatan\FormKegiatan;
 use App\Actions\Kegiatan\SimpanKegiatan;
 use App\Http\Controllers\Controller;
@@ -21,14 +22,12 @@ class KegiatanController extends Controller
         return Inertia::render('Kegiatan/Index', $action->handle($request->user(), $request->validated()));
     }
 
-    public function create(Request $request, FormKegiatan $action): Response
+    public function edit(Request $request, Kegiatan $kegiatan, FormKegiatan $action, DaftarKlaimKegiatan $klaim): Response
     {
-        return Inertia::render('Kegiatan/Form', $action->handle($request->user()));
-    }
+        // Form dievaluasi lebih dulu agar penolakan akses tetap dijawab FormKegiatan.
+        $props = $action->handle($request->user(), $kegiatan);
 
-    public function edit(Request $request, Kegiatan $kegiatan, FormKegiatan $action): Response
-    {
-        return Inertia::render('Kegiatan/Form', $action->handle($request->user(), $kegiatan));
+        return Inertia::render('Kegiatan/Form', $props + ['klaim' => $klaim->handle($request->user(), $kegiatan)]);
     }
 
     public function store(SimpanKegiatanRequest $request, SimpanKegiatan $action): RedirectResponse

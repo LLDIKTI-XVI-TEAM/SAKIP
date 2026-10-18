@@ -1,20 +1,6 @@
 import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
 
 export type StatusReview = 'draft' | 'diajukan' | 'diverifikasi' | 'dikembalikan' | 'disahkan';
-export type FilterReview = Exclude<StatusReview, 'draft'> | 'semua';
-
-export interface ReviewIndexProps {
-    daftar: {
-        id: string;
-        tahun: number;
-        status_alur: StatusReview;
-        nomor_pengajuan: number;
-        indikator: { kode: string; nama: string };
-        unit_nama: string | null;
-    }[];
-    pagination: PengukuranPagination;
-    filters: { status: FilterReview };
-}
 
 export interface ReviewRencanaAksi {
     id: string;
@@ -42,6 +28,16 @@ export interface ReviewRencanaAksi {
         keterangan: string | null;
         komponen: { komponen_id: string; kode: string; label: string; nilai: string | null; keterangan: string | null }[];
     }[];
+    /** Klaim tahap RA yang dibekukan pada versi; null untuk versi sebelum klaim dibekukan atau tanpa izin baca kegiatan. */
+    klaim: {
+        id: string;
+        periode_nama: string;
+        nama: string;
+        status: string | null;
+        komponen: string | null;
+        arah_dampak: 'menambah' | 'mengurangi' | null;
+        catatan: string | null;
+    }[] | null;
     bukti_dukungs: {
         id: string;
         mode: 'file' | 'tautan' | 'teks';
@@ -50,7 +46,7 @@ export interface ReviewRencanaAksi {
         isi_teks: string | null;
         download_url: string | null;
     }[];
-    can: { verifikasi: boolean; kembalikan: boolean; sahkan: boolean; buka_kembali: boolean; evidence: boolean };
+    can: { verifikasi: boolean; kembalikan: boolean; sahkan: boolean; buka_kembali: boolean; evidence: boolean; kegiatan: boolean };
     businessErrors: { verifikasi: string[]; kembalikan: string[]; sahkan: string[]; buka_kembali: string[] };
     /** Metadata pengesahan versi yang ditampilkan; null bila versi ini belum disahkan. */
     pengesahan: { oleh: string; pada: string | null; self_approval: boolean } | null;

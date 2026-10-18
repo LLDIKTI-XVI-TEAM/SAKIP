@@ -1,3 +1,32 @@
+import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
+
+/**
+ * Kontrak halaman daftar Rencana Aksi (`DaftarRencanaAksi`): daftar indikator
+ * × tahun sekaligus antrean review lewat filter status (Q59).
+ */
+
+/** `belum_dibuat` = indikator tanpa header rencana aksi; `semua` = tanpa saringan. */
+export type FilterStatusRencanaAksi = 'semua' | 'belum_dibuat' | 'draft' | 'diajukan' | 'diverifikasi' | 'dikembalikan' | 'disahkan';
+
+export interface BarisRencanaAksi {
+    indikator_id: string;
+    kode: string;
+    nama: string;
+    unit_nama: string | null;
+    tahun: number;
+    pj_nama: string | null;
+    milik_saya: boolean;
+    rencana_aksi: { id: string; status_alur: string } | null;
+    /** Capability server: `create` sudah memuat PJ efektif, izin unit, unit snapshot, dan jendela; `review` mengikuti policy `view` dan status non-draft. */
+    can: { create: boolean; review: boolean };
+}
+
+export interface RencanaAksiIndexProps {
+    daftar: BarisRencanaAksi[];
+    pagination: PengukuranPagination;
+    filters: { status: FilterStatusRencanaAksi };
+}
+
 /**
  * Kontrak props halaman RencanaAksi/Show.
  *
@@ -216,4 +245,21 @@ export interface RencanaAksiPreviewPeriode {
 export interface RencanaAksiPreview {
     periode: RencanaAksiPreviewPeriode[];
     deviasi_pk: RencanaAksiDeviasiPk;
+}
+
+/** Kegiatan yang diklaim tahap RA (`sumber_klaim = rencana_aksi`) per periode. */
+export interface KegiatanRencanaAksiItem {
+    id: string;
+    kegiatan_id: string;
+    periode_id: string;
+    nama: string;
+    status: string;
+    komponen_id: string | null;
+    arah_dampak: 'menambah' | 'mengurangi';
+    catatan: string | null;
+}
+
+export interface RencanaAksiKegiatan {
+    daftar: KegiatanRencanaAksiItem[];
+    can: { tambah: boolean; kelola: boolean };
 }

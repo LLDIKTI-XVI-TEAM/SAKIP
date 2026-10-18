@@ -3,6 +3,7 @@
 namespace App\Actions\Audit;
 
 use App\Models\AuditLog;
+use App\Services\Audit\AuditLogPresenter;
 use App\Support\AuditReason;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -62,10 +63,11 @@ class WriteAuditLog
             'tindakan' => $event,
             'objek_tipe' => $attributes['objek_tipe'],
             'objek_id' => $attributes['objek_id'],
-            'nilai_lama' => $attributes['nilai_lama'] ?? null,
-            'nilai_baru' => $attributes['nilai_baru'] ?? null,
+            // Q58: pengaman terakhir bila producer keliru mencatat rahasia; pemilihan field tetap di producer.
+            'nilai_lama' => AuditLogPresenter::samarkan($attributes['nilai_lama'] ?? null),
+            'nilai_baru' => AuditLogPresenter::samarkan($attributes['nilai_baru'] ?? null),
             'alasan' => $reason,
-            'dasar_izin' => $attributes['dasar_izin'] ?? null,
+            'dasar_izin' => AuditLogPresenter::samarkan($attributes['dasar_izin'] ?? null),
         ]);
     }
 }
