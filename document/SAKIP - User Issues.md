@@ -285,7 +285,7 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanju
 
 > **Q43 (13 Oktober 2026):** alasan pemberian grant menjadi opsional; bila dikosongkan, server mengisi alasan baku sehingga kolom `alasan` tetap `NOT NULL` (Q43 §43.3 butir 1, pola Q37 §37.2). Pencabutan grant tetap wajib alasan (Q43 §43.2 butir 4). Butir "alasan" pada AC dan task di bawah dipertahankan sebagai histori implementasi; perubahan dikerjakan pada ISS-13.05.
 
-> **Q60 (18 Oktober 2026):** daftar Izin Unit satu baris per pengguna × unit dengan halaman detail dan aksi Kelola izin (tambah dan cabut sekaligus, alasan wajib bila ada pencabutan, ditolak bila data berubah sejak dibuka). Form pemberian dapat memberi beberapa izin sekaligus. Audit tetap per izin.
+> **Q61 (18 Oktober 2026):** daftar Izin Unit satu baris per pengguna × unit dengan halaman detail dan aksi Kelola izin (tambah dan cabut sekaligus, alasan wajib bila ada pencabutan, ditolak bila data berubah sejak dibuka). Form pemberian dapat memberi beberapa izin sekaligus. Audit tetap per izin.
 
 **Terkait User Story:** `US-01.04`  
 **Prioritas:** 🟡 P1  

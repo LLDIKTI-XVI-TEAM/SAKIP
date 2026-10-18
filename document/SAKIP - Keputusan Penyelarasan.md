@@ -1681,11 +1681,11 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
-# Keputusan Q60 — Izin Unit per Pengguna-Unit, Halaman Detail, dan Kelola Izin
+# Keputusan Q61 — Izin Unit per Pengguna-Unit, Halaman Detail, dan Kelola Izin
 
-**Keputusan PM: 18 Oktober 2026 (WITA), dalam perapian halaman Izin Unit (branch `fix/ui-izin-unit`).** Keputusan ini menambah operasi kelola pada kontrak "Form create/revoke Grant Unit" (Data Model §2.7) dan **bukan** ratifikasi UAT, merge, maupun deployment.
+**Keputusan PM: 18 Oktober 2026 (WITA), dalam perapian halaman Izin Unit (branch `fix/ui-izin-unit`).** Keputusan ini menambah operasi kelola pada kontrak "Form create/revoke Grant Unit" (Data Model §2.7) dan **bukan** ratifikasi UAT, merge, maupun deployment. Nomor Q60 telah dipakai keputusan perubahan target Renstra tanpa alasan (ISS-02.10), sehingga keputusan ini bernomor Q61.
 
-## 60.1 Aturan
+## 61.1 Aturan
 
 1. Daftar Izin Unit menampilkan satu baris per pasangan pengguna × unit dengan kolom Pengguna, Unit, Izin dimiliki, Status, dan Aksi. Kolom Izin dimiliki berisi jumlah izin katalog aktif yang dimiliki dari seluruh izin yang dapat diberikan (mis. "3 dari 7") dengan tanda "Lengkap" bila semuanya dimiliki; daftar izin berlabel singkat ada di halaman detail dan modal Kelola izin. Paginasi, pencarian, dan filter unit bekerja per pasangan; pasangan tampil bila pengguna, unit, atau salah satu izinnya cocok.
 2. Pasangan berstatus "Tidak berlaku" bila akun atau unit nonaktif; izin nonaktif ditandai per butir. Kriterianya sama dengan resolver izin.
@@ -1700,9 +1700,9 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 11. Endpoint pemberian (`POST /akses/grant`) dan pencabutan per izin (`DELETE /akses/grant/{id}`) tetap tersedia.
 12. Halaman Penanggung Jawab indikator menampilkan tombol "Beri izin unit" bagi pemegang `delegasi:update` bila PJ efektif dan unitnya aktif. Tombol membuka form Beri izin unit dengan PJ dan unit itu sudah terisi; izin tetap dipilih dan disimpan secara eksplisit, sehingga Q32 §32.2 (penugasan PJ tidak memberi izin) tidak berubah.
 
-## 60.2 Dampak dan traceability
+## 61.2 Dampak dan traceability
 
-- Diselaraskan: Data Model §2.7 (pemberian, kelola, dan pencabutan) dan User Issues ISS-01.04 (catatan Q60).
+- Diselaraskan: Data Model §2.7 (pemberian, kelola, dan pencabutan) dan User Issues ISS-01.04 (catatan Q61).
 - Test: `GrantIzinTambahanUnitTest` (daftar per pasangan, detail, kelola, pemberian banyak izin), `MutationConcurrencyTest` (kelola menunggu lock aktor), serta test frontend `GrantIndex`, `GrantDetail`, dan `GrantMutationException`.
 - Status keputusan: baseline UI dan kontrak kelola. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
 

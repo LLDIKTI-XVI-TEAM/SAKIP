@@ -7,7 +7,7 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import type { KelompokIzinUnit } from '@/types/izinUnit';
 
 /**
- * Cabut seluruh izin satu pengguna pada satu unit lewat endpoint Kelola dengan daftar akhir kosong (Q60).
+ * Cabut seluruh izin satu pengguna pada satu unit lewat endpoint Kelola dengan daftar akhir kosong (Q61).
  * Tetap terpasang agar penutupan dialog native mengembalikan fokus ke tombol pemicu.
  */
 export function CabutSemuaIzinUnitModal({ kelompok, onClose }: { kelompok: KelompokIzinUnit | null; onClose: () => void }) {

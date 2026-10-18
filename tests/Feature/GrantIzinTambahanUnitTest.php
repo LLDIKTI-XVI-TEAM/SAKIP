@@ -1159,7 +1159,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Urutan kelompok pengguna-unit deterministik: pemberian terakhir desc, lalu user_id dan unit_id asc (Q60).
+     * Urutan kelompok pengguna-unit deterministik: pemberian terakhir desc, lalu user_id dan unit_id asc (Q61).
      */
     public function test_grant_index_pagination_order_is_deterministic(): void
     {
@@ -2033,7 +2033,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             ->has('grants.data', 0));
     }
 
-    /** Satu baris per pengguna × unit; izin terurut katalog dan paginasi dihitung per kelompok (Q60). */
+    /** Satu baris per pengguna × unit; izin terurut katalog dan paginasi dihitung per kelompok (Q61). */
     public function test_daftar_mengelompokkan_izin_per_pengguna_dan_unit(): void
     {
         $beri = fn (User $user, string $kode, Unit $unit) => UserPermissionGrant::create([

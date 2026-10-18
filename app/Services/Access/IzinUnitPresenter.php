@@ -9,7 +9,7 @@ use App\Services\Authorization\PermissionCatalog;
 use Illuminate\Support\Collection;
 
 /**
- * Bentuk tampilan Izin Unit per pengguna × unit (Q60), dipakai daftar dan halaman detail agar satu sumber.
+ * Bentuk tampilan Izin Unit per pengguna × unit (Q61), dipakai daftar dan halaman detail agar satu sumber.
  */
 final class IzinUnitPresenter
 {

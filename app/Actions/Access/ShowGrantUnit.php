@@ -9,7 +9,7 @@ use App\Services\Access\IzinUnitPresenter;
 class ShowGrantUnit
 {
     /**
-     * Rincian Izin Unit satu pengguna pada satu unit (Q60); pasangan tanpa izin unit dianggap tidak ada.
+     * Rincian Izin Unit satu pengguna pada satu unit (Q61); pasangan tanpa izin unit dianggap tidak ada.
      *
      * @return array<string, mixed>
      */

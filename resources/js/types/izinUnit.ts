@@ -1,4 +1,4 @@
-/** Kontrak Izin Unit per pengguna × unit (Q60), sama untuk daftar dan halaman detail. */
+/** Kontrak Izin Unit per pengguna × unit (Q61), sama untuk daftar dan halaman detail. */
 export interface IzinDalamKelompok {
     grant_id: string;
     permission_id: string;

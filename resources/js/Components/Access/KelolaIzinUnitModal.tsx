@@ -15,7 +15,7 @@ interface Props {
     onClose: () => void;
 }
 
-/** Modal "Kelola izin" (Q60): daftar akhir izin satu pengguna pada satu unit; server menurunkan pemberian dan pencabutan. */
+/** Modal "Kelola izin" (Q61): daftar akhir izin satu pengguna pada satu unit; server menurunkan pemberian dan pencabutan. */
 export function KelolaIzinUnitModal({ kelompok, options, onClose }: Props) {
     if (!kelompok) return null;
 
