@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-/** Validasi hanya data rencana; field anggaran dan pelaksanaan sengaja tidak menjadi input bisnis. */
+/** Validasi data rencana termasuk anggaran (Q42); wajibnya anggaran diperiksa Action karena bergantung periode dan jalur aktor. */
 class SimpanKegiatanRequest extends FormRequest
 {
     private ?PermissionDecision $keputusan = null;
@@ -63,6 +63,7 @@ class SimpanKegiatanRequest extends FormRequest
             'keterangan_peserta' => ['nullable', 'string', 'max:255', 'not_regex:/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u'],
             'lokasi' => ['nullable', 'string', 'max:255', 'not_regex:/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u'],
             'tanggal_rencana' => ['nullable', 'date_format:Y-m-d'],
+            'anggaran' => ['nullable', 'integer', 'between:0,999999999999999'],
             'expected_state' => [$this->route('kegiatan') ? 'required' : 'nullable', 'string', 'size:64'],
         ];
     }
@@ -73,6 +74,8 @@ class SimpanKegiatanRequest extends FormRequest
             'unit_id.exists' => 'Pilih unit yang masih aktif.',
             'periode_id.exists' => 'Pilih master periode yang masih aktif.',
             'nama.required' => 'Nama kegiatan wajib diisi.',
+            'anggaran.integer' => 'Anggaran harus berupa rupiah bulat tanpa sen.',
+            'anggaran.between' => 'Anggaran harus rupiah nonnegatif paling banyak 15 digit.',
             'sasaran_peserta.between' => 'Sasaran peserta harus berupa jumlah nonnegatif yang dapat disimpan.',
             'expected_state.required' => 'Muat ulang kegiatan sebelum menyimpan perubahan.',
             '*.not_regex' => 'Teks mengandung karakter kontrol yang tidak dapat disimpan.',

@@ -6,11 +6,13 @@ use App\Models\AuditLog;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\Periode;
+use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\Kegiatan\AnggaranKegiatan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -217,7 +219,7 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
     /** @return array<string, array{string, string}> */
     public static function atributRencanaKegiatan(): array
     {
-        return ['nama' => ['nama', 'Nama rencana diperbarui'], 'tujuan' => ['tujuan', 'Tujuan rencana diperbarui']];
+        return ['nama' => ['nama', 'Nama rencana diperbarui'], 'tujuan' => ['tujuan', 'Tujuan rencana diperbarui'], 'anggaran' => ['anggaran', '2500000']];
     }
 
     #[DataProvider('atributRencanaKegiatan')]
@@ -283,7 +285,7 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
             $aktorLain->delete("/kegiatan/{$klaim->kegiatan_id}/klaim/{$klaim->id}", ['alasan' => 'Klaim keliru'])->assertSessionHasNoErrors();
         } else {
             $aktorLain->post("/rencana-aksi/{$header->id}/kegiatan", ['periode_id' => $fixture['periode1']->id,
-                'salin_ke_periode_ids' => [$fixture['periode2']->id], 'nama' => 'Kegiatan dari RA', 'arah_dampak' => 'menambah'])->assertSessionHasNoErrors();
+                'salin_ke_periode_ids' => [$fixture['periode2']->id], 'nama' => 'Kegiatan dari RA', 'anggaran' => 0, 'arah_dampak' => 'menambah'])->assertSessionHasNoErrors();
         }
 
         $this->actingAs($fixture['pic'])->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => $versiLama])
@@ -296,21 +298,22 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         $this->assertDatabaseCount('rencana_aksi_versi', 1);
     }
 
-    /** @return array<string, array{string, bool}> */
+    /** @return array<string, array{string, string, bool}> */
     public static function atributKegiatanTerklaim(): array
     {
-        return ['nama' => ['nama', true], 'tujuan' => ['tujuan', true], 'lokasi di luar snapshot' => ['lokasi', false]];
+        return ['nama' => ['nama', 'Nilai yang diubah pengguna lain', true], 'tujuan' => ['tujuan', 'Nilai yang diubah pengguna lain', true],
+            'anggaran' => ['anggaran', '750000', true], 'lokasi di luar snapshot' => ['lokasi', 'Nilai yang diubah pengguna lain', false]];
     }
 
     #[DataProvider('atributKegiatanTerklaim')]
-    public function test_perubahan_atribut_beku_kegiatan_menolak_pengajuan_dengan_versi_lama(string $field, bool $beku): void
+    public function test_perubahan_atribut_beku_kegiatan_menolak_pengajuan_dengan_versi_lama(string $field, string $nilai, bool $beku): void
     {
         [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
         $kegiatan = Kegiatan::findOrFail($this->klaimKegiatan($fixture, $header, $fixture['periode1']->id, 'Kegiatan awal')->kegiatan_id);
         $versiLama = $header->fresh()->versi;
 
         $this->actingAs($fixture['perencanaan'])->post("/kegiatan/{$kegiatan->id}", [
-            ...$kegiatan->rencanaAttributes(), 'expected_state' => $kegiatan->versionToken(), $field => 'Nilai yang diubah pengguna lain',
+            ...$kegiatan->rencanaAttributes(), 'expected_state' => $kegiatan->versionToken(), $field => $nilai,
         ])->assertSessionHasNoErrors();
 
         $this->assertSame($versiLama + ($beku ? 1 : 0), $header->fresh()->versi);
@@ -319,6 +322,34 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
                 ->assertConflict()->assertJsonValidationErrors('expected_versi');
             $this->assertDatabaseCount('rencana_aksi_versi', 0);
         }
+    }
+
+    public function test_kegiatan_periode_lampau_boleh_tanpa_anggaran_sedangkan_periode_berjalan_wajib(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $fixture['jadwal']->update(['activated_at' => '2026-04-15 09:00:00']);
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-06-30', 'reviu_mulai' => '2026-07-01', 'reviu_selesai' => '2026-07-15']);
+        $this->grant($fixture['pic'], 'kegiatan:create', $fixture['unit']->id, $fixture['perencanaan']);
+        $kirim = fn (Periode $periode) => $this->actingAs($fixture['pic'])->post('/kegiatan', [
+            'unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $periode->id, 'nama' => 'Kegiatan tanpa anggaran', 'anggaran' => null,
+        ]);
+
+        $kirim($fixture['periode1'])->assertSessionHasNoErrors();
+        $this->assertNull(Kegiatan::sole()->anggaran);
+        $kirim($fixture['periode2'])->assertSessionHasErrors(['anggaran' => AnggaranKegiatan::PESAN_WAJIB]);
+        $this->assertDatabaseCount('kegiatan', 1);
+    }
+
+    public function test_pic_menambah_kegiatan_dari_ra_tanpa_anggaran_ditolak_tanpa_mutasi(): void
+    {
+        [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
+        $this->grant($fixture['pic'], 'kegiatan:create', $fixture['unit']->id, $fixture['perencanaan']);
+        $versi = $header->fresh()->versi;
+
+        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/kegiatan", ['periode_id' => $fixture['periode1']->id,
+            'nama' => 'Kegiatan tanpa anggaran', 'arah_dampak' => 'menambah'])->assertSessionHasErrors(['anggaran' => AnggaranKegiatan::PESAN_WAJIB]);
+        $this->assertFalse(Kegiatan::where('nama', 'Kegiatan tanpa anggaran')->exists());
+        $this->assertSame($versi, $header->fresh()->versi);
     }
 
     /**
@@ -340,7 +371,7 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
     /** @param array<string, mixed> $fixture */
     private function klaimKegiatan(array $fixture, RencanaAksi $header, string $periodeId, string $nama): KlaimKegiatan
     {
-        $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $periodeId, 'nama' => $nama, 'created_by' => $fixture['pic']->id]);
+        $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $periodeId, 'nama' => $nama, 'anggaran' => 0, 'created_by' => $fixture['pic']->id]);
 
         return KlaimKegiatan::create(['rencana_aksi_id' => $header->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
             'sumber_klaim' => 'rencana_aksi', 'created_by' => $fixture['pic']->id, 'created_at' => now()]);

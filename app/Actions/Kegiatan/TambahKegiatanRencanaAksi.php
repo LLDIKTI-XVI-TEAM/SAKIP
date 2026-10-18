@@ -8,7 +8,9 @@ use App\Models\Periode;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Kegiatan\AnggaranKegiatan;
 use App\Services\Kegiatan\GerbangKlaimKegiatan;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -26,13 +28,15 @@ use Throwable;
  */
 class TambahKegiatanRencanaAksi
 {
-    /** Atribut rencana yang ikut disalin; tanggal rencana melekat pada periode asal sehingga tidak disalin. */
-    private const FIELD_SALIN = ['nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi'];
+    /** Atribut rencana yang ikut disalin (anggaran: Q49 §49.2); tanggal rencana melekat pada periode asal sehingga tidak disalin. */
+    private const FIELD_SALIN = ['nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'anggaran'];
 
     public function __construct(
         private readonly GerbangKlaimKegiatan $gerbang,
         private readonly TambahKlaimKegiatan $klaim,
         private readonly AuditLogger $audit,
+        private readonly AnggaranKegiatan $anggaran,
+        private readonly JendelaTulisRencanaAksi $jendela,
     ) {}
 
     /**
@@ -54,6 +58,15 @@ class TambahKegiatanRencanaAksi
                 $aktif = Periode::whereIn('id', $periodeIds)->where('aktif', true)->sharedLock()->pluck('id')->map(fn ($id): string => (string) $id);
                 if ($aktif->count() !== count($periodeIds)) {
                     throw ValidationException::withMessages(['periode_id' => 'Master periode tidak tersedia atau sudah nonaktif.']);
+                }
+
+                if (($data['anggaran'] ?? null) === null) {
+                    $jalurPerencanaan = $this->jendela->jalurPerencanaan($konteks['ra']);
+                    foreach ($periodeIds as $periodeId) {
+                        if (! $this->anggaran->bolehKosong((int) $header->tahun, $periodeId, $jalurPerencanaan)) {
+                            throw ValidationException::withMessages(['anggaran' => AnggaranKegiatan::PESAN_WAJIB]);
+                        }
+                    }
                 }
 
                 $komponenId = isset($data['komponen_id']) ? strtolower((string) $data['komponen_id']) : null;
