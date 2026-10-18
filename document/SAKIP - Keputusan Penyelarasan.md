@@ -1687,7 +1687,7 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ## 60.1 Aturan
 
-1. Daftar Izin Unit menampilkan satu baris per pasangan pengguna × unit. Kolom Izin memuat seluruh izin unit pasangan itu dengan label singkat yang urut katalog. Paginasi, pencarian, dan filter unit bekerja per pasangan; pasangan tampil bila pengguna, unit, atau salah satu izinnya cocok.
+1. Daftar Izin Unit menampilkan satu baris per pasangan pengguna × unit dengan kolom Pengguna, Unit, Izin dimiliki, Status, dan Aksi. Kolom Izin dimiliki berisi jumlah izin katalog aktif yang dimiliki dari seluruh izin yang dapat diberikan (mis. "3 dari 7") dengan tanda "Lengkap" bila semuanya dimiliki; daftar izin berlabel singkat ada di halaman detail dan modal Kelola izin. Paginasi, pencarian, dan filter unit bekerja per pasangan; pasangan tampil bila pengguna, unit, atau salah satu izinnya cocok.
 2. Pasangan berstatus "Tidak berlaku" bila akun atau unit nonaktif; izin nonaktif ditandai per butir. Kriterianya sama dengan resolver izin.
 3. Halaman detail `/akses/grant/{pengguna}/{unit}` (gerbang `delegasi:update`) memuat identitas, status, dan rincian setiap izin: label, status izin, alasan pemberian, pemberi, dan waktu. Pasangan tanpa izin unit menghasilkan 404. Riwayat izin yang sudah dicabut tidak ditampilkan; tautan per izin ke Jejak Audit tampil hanya bila server memberi kemampuan baca audit.
 4. Aksi pada baris dan halaman detail: Detail, Kelola izin, dan Cabut semua. Kelola izin mengirim daftar akhir izin pasangan itu; server menurunkan pemberian (izin baru) dan pencabutan (izin yang dilepas) dalam satu transaksi. Cabut semua adalah Kelola izin dengan daftar akhir kosong.
@@ -1698,6 +1698,7 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 9. Kelola izin membawa daftar izin yang dilihat (`expected_permission_ids`). Bila berbeda dengan data tersimpan, permintaan ditolak dengan pesan muat ulang (pola `expected_*` modul Akses) tanpa perubahan. Simpan tanpa perubahan juga ditolak.
 10. Urutan lock: pengguna terurut, peran aktor, unit, permission, lalu grant pasangan itu. Otorisasi `delegasi:update` diulang di dalam transaksi dan penolakan diaudit di luar transaksi.
 11. Endpoint pemberian (`POST /akses/grant`) dan pencabutan per izin (`DELETE /akses/grant/{id}`) tetap tersedia.
+12. Halaman Penanggung Jawab indikator menampilkan tombol "Beri izin unit" bagi pemegang `delegasi:update` bila PJ efektif dan unitnya aktif. Tombol membuka form Beri izin unit dengan PJ dan unit itu sudah terisi; izin tetap dipilih dan disimpan secara eksplisit, sehingga Q32 §32.2 (penugasan PJ tidak memberi izin) tidak berubah.
 
 ## 60.2 Dampak dan traceability
 
