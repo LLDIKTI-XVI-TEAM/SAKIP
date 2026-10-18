@@ -1591,7 +1591,7 @@ Pencatatan append-only seluruh peristiwa penting sistem.
 
 **Catatan actor pada peristiwa otomatis:** baris yang mencatat pembuatan `jadwal_snapshot` beserta `jadwal_snapshot_komponen` (tindakan `jadwal.aktivasi`/`jadwal.buka_kembali`, lihat §2.17–§2.18) selalu memakai `actor_id` = pengguna Perencanaan/Superadmin yang menjalankan aksi aktivasinya, bukan nilai sistem/null — meski proses pembuatan barisnya sendiri berjalan otomatis di dalam transaksi yang sama. Perubahan pada tabel `pengaturan` (§2.22) mengikuti pola yang sama: `actor_id` = pengguna Superadmin yang mengubah nilai setelan.
 
-**Target Renstra (§2.35):** perubahan tercatat dengan `tindakan` `target_renstra.simpan` (objek `target_renstra`; `nilai_lama`/`nilai_baru` berisi `indikator_id`, `tahun`, `nilai`) dan penolakan dengan `target_renstra.simpan_ditolak` (objek `indikator`); `target_renstra.simpan` menjadi sumber riwayat revisi target Renstra (Q40 §40.2 butir 3).
+**Target Renstra (§2.35):** perubahan tercatat dengan `tindakan` `target_renstra.simpan` (objek `target_renstra`; `nilai_lama`/`nilai_baru` berisi `indikator_id`, `tahun`, `nilai`, dengan `nilai_lama` kosong pada pengisian pertama) dan penolakan dengan `target_renstra.simpan_ditolak` (objek `indikator`); `target_renstra.simpan` menjadi sumber riwayat revisi target Renstra (Q40 §40.2 butir 3).
 
 **Peristiwa rancangan Q39–Q51 (belum diimplementasikan):** perubahan `indikator.dinilai_tahunan` (Q47 §47.1), pembentukan versi PK (Q40, §2.36), dan unggahan arsip dokumen resmi (Q48 §48.2, §2.30) tercatat di tabel ini dengan `nilai_lama`/`nilai_baru`; kode `tindakan`-nya ditetapkan saat implementasi.
 

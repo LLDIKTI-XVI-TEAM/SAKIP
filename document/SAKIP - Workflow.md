@@ -11,7 +11,7 @@
 
 ## 1. Alur Penggunaan Utama End-to-End (Fase Awal)
 
-> **Q39–Q51 (13 Oktober 2026):** alur di bawah diselaraskan dengan Q39–Q51: target Renstra diisi di Sasaran & Indikator sebagai pembanding, sedangkan baseline dan target PK diisi di halaman PK (Q39); PK dapat direvisi sebagai versi baru (Q40, tahap 3); Rencana Aksi disusun sejak jadwal aktif sampai penutupan tanpa jendela penyusunan, dengan kunci per triwulan bagi PIC (Q41); kegiatan beranggaran ditambahkan dari halaman Rencana Aksi dan RAB wajib untuk anggaran lebih dari 0 (Q42); kewajiban alasan dipersempit (Q43); saklar unggahan dan penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44); narasi pengukuran wajib dan Rekomendasi Pimpinan diisi Pimpinan (Q45); TW III 2026 menjadi periode lampau (Q46); indikator dinilai tahunan boleh tanpa target periode dan realisasi dapat berstatus "belum dapat diukur" (Q47, §24); Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat dari SAKIP lalu PDF bertanda tangannya diunggah kembali (Q48, §25); nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain (Q49); nomor PK opsional, target PK bernilai penuh, dan kode indikator mengikuti PK (Q50); Rekomendasi Pimpinan disusun sebagai draf oleh Perencanaan dan berlaku setelah disetujui Pimpinan (Q51, §17). Langkah yang berubah diberi rujukan Q-nya. Status implementasi Q39–Q51: belum, kecuali bagian ISS-02.10 (target Renstra, lampiran revisi, dan riwayat revisi target Renstra) yang sudah.
+> **Q39–Q51 (13 Oktober 2026):** alur di bawah diselaraskan dengan Q39–Q51: target Renstra diisi di Sasaran & Indikator sebagai pembanding, sedangkan baseline dan target PK diisi di halaman PK (Q39); PK dapat direvisi sebagai versi baru (Q40, tahap 3); Rencana Aksi disusun sejak jadwal aktif sampai penutupan tanpa jendela penyusunan, dengan kunci per triwulan bagi PIC (Q41); kegiatan beranggaran ditambahkan dari halaman Rencana Aksi dan RAB wajib untuk anggaran lebih dari 0 (Q42); kewajiban alasan dipersempit (Q43); saklar unggahan dan penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44); narasi pengukuran wajib dan Rekomendasi Pimpinan diisi Pimpinan (Q45); TW III 2026 menjadi periode lampau (Q46); indikator dinilai tahunan boleh tanpa target periode dan realisasi dapat berstatus "belum dapat diukur" (Q47, §24); Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat dari SAKIP lalu PDF bertanda tangannya diunggah kembali (Q48, §25); nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain (Q49); nomor PK opsional, target PK bernilai penuh, dan kode indikator mengikuti PK (Q50); Rekomendasi Pimpinan disusun sebagai draf oleh Perencanaan dan berlaku setelah disetujui Pimpinan (Q51, §17). Langkah yang berubah diberi rujukan Q-nya. Status implementasi Q39–Q51: bagian ISS-02.10 (target Renstra, lampiran revisi, dan riwayat revisi target Renstra) sudah; bagian lain mengikuti status per issue di User Issues.
 
 Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate, termasuk pengelolaan dokumen dasar (`regulasi` beserta lampirannya, lampiran Renstra dan Perjanjian Kinerja), tahap penyusunan rencana aksi, kegiatan, klaim kegiatan, bukti dukung tiga mode (file/tautan/teks) pada tiap induk lampiran, dan pengukuran berbasis komponen yang disisip di antara penugasan Penanggung Jawab dan pengisian pengukuran.
 
@@ -321,9 +321,9 @@ flowchart TD
   5. Renstra berstatus aktif siap dirujuk oleh Jadwal Tahunan (lanjut ke alur §5)
   5a. Selama Renstra aktif: lampiran revisi boleh ditambahkan (lampiran yang sudah ada tetap
       tidak dapat dihapus), dan perubahan target Renstra tercatat di audit dengan nilai lama dan
-      baru sebagai riwayat revisi target Renstra (Q40, §14) — lampiran baru hanya untuk Renstra berstatus
-      draft atau aktif; Renstra nonaktif atau diarsipkan tidak menerima lampiran baru (Q40
-      §40.2 butir 5)
+      baru sebagai riwayat revisi target Renstra (Q40, §14) — lampiran baru hanya untuk Renstra
+      berstatus draft atau aktif; Renstra nonaktif atau diarsipkan tidak menerima lampiran baru
+      (Q40 §40.2 butir 5)
   6. Sewaktu-waktu bisa menonaktifkan Renstra
      → Sistem cek: masih ada jadwal_tahunan berstatus aktif yang merujuk Renstra ini?
        Ya: Nonaktifkan DITOLAK — tutup dulu seluruh jadwal aktif terkait (lihat §13)
@@ -1584,7 +1584,7 @@ stateDiagram-v2
 
 ## 14. Alur Perubahan Kepmen IKU & Revisi Renstra
 
-> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; keputusan PM 17 Oktober 2026; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 sudah; revisi PK berversi (ISS-02.12) belum.
+> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; keputusan PM 17 Oktober 2026; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 sudah; ISS-02.11 dan revisi PK berversi (ISS-02.12) belum.
 
 Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yang wajib diukur. Alur berikut menegaskan bagaimana perubahan itu direfleksikan ke sistem tanpa kehilangan riwayat data yang sudah ada.
 
