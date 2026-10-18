@@ -85,6 +85,7 @@ export default function SasaranIndikatorIndex({
     const [annualTarget, setAnnualTarget] = useState<{ id: string; year: number } | null>(null);
     const [annualMessage, setAnnualMessage] = useState('');
     const [tab, setTab] = useState<'indikator' | 'target'>('indikator');
+    const [targetDibuka, setTargetDibuka] = useState(false);
     const editorLoader = useIndikatorEditorLoader();
 
     const toggleCollapse = (id: string) => {
@@ -228,15 +229,19 @@ export default function SasaranIndikatorIndex({
                 {selectedRenstra && (
                     <div className="flex gap-2">
                         <Button type="button" size="sm" variant={tab === 'indikator' ? 'primary' : 'outline'} aria-pressed={tab === 'indikator'} onClick={() => setTab('indikator')}>Indikator</Button>
-                        <Button type="button" size="sm" variant={tab === 'target' ? 'primary' : 'outline'} aria-pressed={tab === 'target'} onClick={() => setTab('target')}>Target Renstra</Button>
+                        <Button type="button" size="sm" variant={tab === 'target' ? 'primary' : 'outline'} aria-pressed={tab === 'target'} onClick={() => { setTab('target'); setTargetDibuka(true); }}>Target Renstra</Button>
                     </div>
                 )}
 
                 {/* Sasaran and Indikator Hierarchy List */}
-                {tab === 'target' && selectedRenstra ? (
+                {targetDibuka && selectedRenstra && (
+                    // Tetap terpasang setelah dibuka: pindah tab tidak memuat data terbaru, jadi blokir hasil simpan ambigu tidak boleh hilang.
                     // key: preserveState saat ganti Renstra tidak boleh membawa baris edit Renstra lama.
-                    <TargetRenstraTable key={selectedRenstra.id} renstra={selectedRenstra} sasarans={sasarans} canEdit={Boolean(can.indikator_read && can.target_update)} onSaved={setAnnualMessage} />
-                ) : sasarans.map((sasaran) => {
+                    <div hidden={tab !== 'target'}>
+                        <TargetRenstraTable key={selectedRenstra.id} renstra={selectedRenstra} sasarans={sasarans} canEdit={Boolean(can.indikator_read && can.target_update)} onSaved={setAnnualMessage} />
+                    </div>
+                )}
+                {(tab !== 'target' || !selectedRenstra) && sasarans.map((sasaran) => {
                     const isCollapsed = Boolean(collapsedMap[sasaran.id]);
 
                     return (

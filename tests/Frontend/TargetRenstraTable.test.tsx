@@ -116,8 +116,12 @@ it('hasil simpan ambigu memblokir simpan ulang dan menawarkan muat ulang', () =>
     expect(screen.queryByRole('button', { name: 'Muat ulang' })).toBeNull();
     expect(input(2026)!.value).toBe('9');
     // Edit baru tidak dapat disimpan sampai masuk ulang, jadi tombol Ubah tidak ditawarkan.
-    fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+    const batal = screen.getByRole('button', { name: 'Batal' });
+    batal.focus();
+    fireEvent.click(batal);
     expect(screen.queryByRole('button', { name: 'Ubah target Renstra IKU-1' })).toBeNull();
+    // Tanpa tombol Ubah, fokus tetap di baris yang sama lewat tombol Riwayat.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Riwayat target Renstra IKU-1' }));
 });
 
 it('membuka ulang edit setelah hasil ambigu tetap terblokir sampai data dimuat ulang', () => {

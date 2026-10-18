@@ -45,15 +45,17 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
         const nilai = Object.fromEntries(years.filter((tahun) => tahun >= ind.tahun_mulai_berlaku).map((tahun) => [tahun, nilaiTersimpan(ind, tahun)]));
         form.setData({ nilai, expected_state: ind.target_renstra_state ?? '' });
         form.clearErrors();
-        // Kegagalan ambigu tidak dihapus di sini: props bisa basi, jadi hanya Muat ulang yang melepas blokir simpan.
+        // Kegagalan ambigu tidak dihapus di sini: props bisa basi, jadi blokir simpan baru lepas setelah data terbaru dimuat (Muat ulang atau ganti Renstra).
         setEditing(ind.id);
     };
 
-    // Tombol yang sedang fokus hilang saat keluar edit; fokus dikembalikan ke tombol Ubah baris itu.
+    // Tombol yang sedang fokus hilang saat keluar edit; fokus dikembalikan ke tombol Ubah baris itu,
+    // atau ke Riwayat bila Ubah disembunyikan karena sesi perlu masuk ulang.
     const selesai = (id: string) => { kembaliFokus.current = id; setEditing(null); };
     useEffect(() => {
         if (editing !== null || kembaliFokus.current === null) return;
-        root.current?.querySelector<HTMLButtonElement>(`[data-ubah="${kembaliFokus.current}"]`)?.focus();
+        const tombol = (atribut: string) => root.current?.querySelector<HTMLButtonElement>(`[${atribut}="${kembaliFokus.current}"]`);
+        (tombol('data-ubah') ?? tombol('data-riwayat'))?.focus();
         kembaliFokus.current = null;
     }, [editing]);
 
@@ -140,7 +142,7 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
                             })}
                             <TableCell className="col-span-2 p-0 md:px-4 md:py-3.5 md:text-right">
                                 <div className="flex flex-wrap gap-2 md:justify-end">
-                                    <Button type="button" size="sm" variant="outline" className="w-9 px-0" aria-label={`Riwayat target Renstra ${ind.kode}`} title="Riwayat" onClick={() => setRiwayat(ind)}>
+                                    <Button type="button" size="sm" variant="outline" className="w-9 px-0" aria-label={`Riwayat target Renstra ${ind.kode}`} title="Riwayat" data-riwayat={ind.id} onClick={() => setRiwayat(ind)}>
                                         <History className="h-4 w-4" aria-hidden="true" />
                                     </Button>
                                     {aktif ? <>
