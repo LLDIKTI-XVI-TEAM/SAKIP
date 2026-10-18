@@ -1681,6 +1681,32 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
+# Keputusan Q60 — Izin Unit per Pengguna-Unit, Halaman Detail, dan Kelola Izin
+
+**Keputusan PM: 18 Oktober 2026 (WITA), dalam perapian halaman Izin Unit (branch `fix/ui-izin-unit`).** Keputusan ini menambah operasi kelola pada kontrak "Form create/revoke Grant Unit" (Data Model §2.7) dan **bukan** ratifikasi UAT, merge, maupun deployment.
+
+## 60.1 Aturan
+
+1. Daftar Izin Unit menampilkan satu baris per pasangan pengguna × unit. Kolom Izin memuat seluruh izin unit pasangan itu dengan label singkat yang urut katalog. Paginasi, pencarian, dan filter unit bekerja per pasangan; pasangan tampil bila pengguna, unit, atau salah satu izinnya cocok.
+2. Pasangan berstatus "Tidak berlaku" bila akun atau unit nonaktif; izin nonaktif ditandai per butir. Kriterianya sama dengan resolver izin.
+3. Halaman detail `/akses/grant/{pengguna}/{unit}` (gerbang `delegasi:update`) memuat identitas, status, dan rincian setiap izin: label, status izin, alasan pemberian, pemberi, dan waktu. Pasangan tanpa izin unit menghasilkan 404. Riwayat izin yang sudah dicabut tidak ditampilkan; tautan per izin ke Jejak Audit tampil hanya bila server memberi kemampuan baca audit.
+4. Aksi pada baris dan halaman detail: Detail, Kelola izin, dan Cabut semua. Kelola izin mengirim daftar akhir izin pasangan itu; server menurunkan pemberian (izin baru) dan pencabutan (izin yang dilepas) dalam satu transaksi. Cabut semua adalah Kelola izin dengan daftar akhir kosong.
+5. Form pemberian dapat memberi beberapa izin sekaligus untuk satu pasangan. Semua atau tidak sama sekali: bila salah satu izin sudah dimiliki, seluruh pilihan ditolak dan izin yang sudah ada disebutkan.
+6. Audit tetap per izin dengan tindakan `user_permission_granted.tambah` dan `user_permission_granted.hapus`; tidak ada tindakan "ubah" dan baris grant tidak diubah di tempat.
+7. Alasan: bila hanya menambah, alasan opsional dan server mengisi alasan baku (Q43 §43.3 butir 1); bila ada pencabutan, alasan wajib (Q43 §43.2 butir 4). Satu alasan berlaku untuk seluruh perubahan dalam satu simpan.
+8. Penambahan mensyaratkan akun aktif, unit aktif, dan izin katalog yang aktif; pencabutan tetap boleh pada referensi nonaktif untuk pembersihan.
+9. Kelola izin membawa daftar izin yang dilihat (`expected_permission_ids`). Bila berbeda dengan data tersimpan, permintaan ditolak dengan pesan muat ulang (pola `expected_*` modul Akses) tanpa perubahan. Simpan tanpa perubahan juga ditolak.
+10. Urutan lock: pengguna terurut, peran aktor, unit, permission, lalu grant pasangan itu. Otorisasi `delegasi:update` diulang di dalam transaksi dan penolakan diaudit di luar transaksi.
+11. Endpoint pemberian (`POST /akses/grant`) dan pencabutan per izin (`DELETE /akses/grant/{id}`) tetap tersedia.
+
+## 60.2 Dampak dan traceability
+
+- Diselaraskan: Data Model §2.7 (pemberian, kelola, dan pencabutan) dan User Issues ISS-01.04 (catatan Q60).
+- Test: `GrantIzinTambahanUnitTest` (daftar per pasangan, detail, kelola, pemberian banyak izin), `MutationConcurrencyTest` (kelola menunggu lock aktor), serta test frontend `GrantIndex`, `GrantDetail`, dan `GrantMutationException`.
+- Status keputusan: baseline UI dan kontrak kelola. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
+
+---
+
 # Bukti aritmetika IKU 3
 
 Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `54c9489`, SHA-256 `66840a50d3048e9aa0a1c10c6d7b8158b80b95d006d2df9feefd209fdc09054b`. Workbook/transkrip sudah dihapus PM dari development melalui `17761d8`; keduanya tidak dipulihkan oleh penyelarasan ini.
