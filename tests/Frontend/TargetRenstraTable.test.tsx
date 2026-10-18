@@ -111,15 +111,42 @@ it('hasil simpan ambigu memblokir simpan ulang dan menawarkan muat ulang', () =>
     fireEvent.change(input(2026)!, { target: { value: '9' } });
     simpan();
     act(() => { callbacks(2).onHttpException({ status: 401, headers: {}, data: '' } as unknown as HttpExceptionResponse); });
+    expect(screen.getByText('Autentikasi diperlukan')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Muat ulang' })).toBeNull();
     expect(input(2026)!.value).toBe('9');
+    // Edit baru tidak dapat disimpan sampai masuk ulang, jadi tombol Ubah tidak ditawarkan.
+    fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+    expect(screen.queryByRole('button', { name: 'Ubah target Renstra IKU-1' })).toBeNull();
+});
+
+it('membuka ulang edit setelah hasil ambigu tetap terblokir sampai data dimuat ulang', () => {
+    tampilkan();
+    ubah();
+    fireEvent.change(input(2026)!, { target: { value: '5' } });
+    simpan();
+    act(() => { callbacks().onNetworkError(); });
+    fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+    ubah();
+    expect(screen.getByText(GAGAL)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(true);
+    simpan();
+    expect(put).toHaveBeenCalledTimes(1);
+
+    const reload = vi.spyOn(router, 'reload').mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Muat ulang' }));
+    act(() => { reload.mock.calls[0][0]?.onSuccess?.({} as Page); });
+    ubah();
+    expect(screen.queryByText(GAGAL)).toBeNull();
+    expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(false);
 });
 
 it.each(['draft', 'aktif'] as const)('%s menyimpan seluruh tahun berlaku langsung tanpa dialog', (status) => {
     tampilkan({ status });
     ubah();
     expect(input(2025)).toBeNull();
+    // Sel "Belum berlaku" saat edit tidak berisi isian berlabel; label tahunnya harus tetap terbaca.
+    expect(screen.getAllByText('2025').filter((el) => el.closest('[aria-hidden="true"]'))).toHaveLength(0);
     fireEvent.change(input(2026)!, { target: { value: '5' } });
     fireEvent.change(input(2027)!, { target: { value: '75,5' } });
     simpan();

@@ -45,7 +45,7 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
         const nilai = Object.fromEntries(years.filter((tahun) => tahun >= ind.tahun_mulai_berlaku).map((tahun) => [tahun, nilaiTersimpan(ind, tahun)]));
         form.setData({ nilai, expected_state: ind.target_renstra_state ?? '' });
         form.clearErrors();
-        setFailure('');
+        // Kegagalan ambigu tidak dihapus di sini: props bisa basi, jadi hanya Muat ulang yang melepas blokir simpan.
         setEditing(ind.id);
     };
 
@@ -108,7 +108,7 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
                 <TableBody className="block md:table-row-group">
                     {sasaran.indikator_kinerjas.map((ind) => {
                         const aktif = editing === ind.id;
-                        const bisaUbah = canEdit && renstraEditable && ind.status === 'aktif' && editing === null;
+                        const bisaUbah = canEdit && renstraEditable && ind.status === 'aktif' && editing === null && !recovery.recovery;
                         const pesanBaris = errors.nilai ?? errors.expected_state ?? failure;
                         return <TableRow key={ind.id} className="grid grid-cols-2 gap-3 p-4 md:table-row md:align-top">
                             <TableHead scope="row" className="h-auto p-0 font-mono text-sm normal-case tracking-normal md:px-4 md:py-3.5">{ind.kode}</TableHead>
