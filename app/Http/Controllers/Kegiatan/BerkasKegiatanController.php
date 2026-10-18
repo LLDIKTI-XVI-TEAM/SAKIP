@@ -8,9 +8,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Kegiatan\DestroyBerkasKegiatanRequest;
 use App\Http\Requests\Kegiatan\StoreBerkasKegiatanRequest;
 use App\Models\Kegiatan;
+use App\Services\Kegiatan\GerbangBerkasKegiatan;
 use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -31,11 +33,17 @@ class BerkasKegiatanController extends Controller
         return back()->with('success', 'Berkas perencanaan kegiatan berhasil dihapus.');
     }
 
-    /** Anggaran dan RAB mengikuti akses detail kegiatan unit (Q42 §42.5, Q54); berkas lain dijawab 404. */
-    public function download(Kegiatan $kegiatan, string $berkas): StreamedResponse
+    /**
+     * Anggaran dan RAB mengikuti akses detail kegiatan unit (Q42 §42.5, Q54);
+     * deny `berkas:read` menang. Hanya berkas tahap perencanaan kegiatan;
+     * berkas lain kegiatan (mis. bukti pelaksanaan) dijawab 404.
+     */
+    public function download(Request $request, Kegiatan $kegiatan, string $berkas, GerbangBerkasKegiatan $gerbang): StreamedResponse
     {
         Gate::authorize('view', $kegiatan);
-        $bukti = PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $kegiatan->id)->whereKey($berkas)->where('mode', 'file')->first();
+        abort_if($gerbang->bacaTertutup($request->user(), $kegiatan), 403);
+        $bukti = PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $kegiatan->id)->whereKey($berkas)->where('mode', 'file')
+            ->whereHas('jenisBerkas', fn ($query) => $query->where('tahap', PersyaratanPerencanaanKegiatan::TAHAP))->first();
         abort_unless($bukti && is_string($bukti->path) && Storage::disk('local')->exists($bukti->path), 404);
 
         /** @var FilesystemAdapter $disk */

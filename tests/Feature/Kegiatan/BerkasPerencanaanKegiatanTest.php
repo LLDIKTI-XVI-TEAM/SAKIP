@@ -8,11 +8,14 @@ use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
+use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
 
@@ -133,6 +136,33 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $this->actingAs($this->fixture['perencanaan'])->get("/kegiatan/{$this->kegiatan->id}/berkas/{$berkas->id}")->assertOk()->assertDownload('rab.pdf');
         $pimpinan = $this->penggunaDenganPeran('pimpinan');
         $this->actingAs($pimpinan)->get("/kegiatan/{$this->kegiatan->id}/berkas/{$berkas->id}")->assertOk();
+    }
+
+    public function test_unduhan_hanya_untuk_berkas_tahap_perencanaan_dan_deny_baca_berkas_menang(): void
+    {
+        $this->unggah()->assertSessionHasNoErrors();
+        $rab = BuktiDukung::where('berkasable_type', 'kegiatan')->sole();
+        Storage::disk('local')->put('berkas/kegiatan/spj.pdf', 'spj');
+        $spj = BuktiDukung::create(['berkasable_type' => 'kegiatan', 'berkasable_id' => $this->kegiatan->id,
+            'jenis_berkas_id' => $this->persyaratan(['nama' => 'Laporan pelaksanaan', 'tahap' => 'kegiatan'])->id, 'mode' => 'file',
+            'path' => 'berkas/kegiatan/spj.pdf', 'nama_asli' => 'spj.pdf', 'uploaded_by' => $this->fixture['pic']->id, 'created_at' => now()]);
+        Storage::disk('local')->put('berkas/kegiatan/bebas.pdf', 'bebas');
+        $bebas = BuktiDukung::create(['berkasable_type' => 'kegiatan', 'berkasable_id' => $this->kegiatan->id, 'mode' => 'file',
+            'path' => 'berkas/kegiatan/bebas.pdf', 'nama_asli' => 'bebas.pdf', 'uploaded_by' => $this->fixture['pic']->id, 'created_at' => now()]);
+        $perencanaan = $this->fixture['perencanaan'];
+
+        // Route RAB bukan jalur unduh bukti pelaksanaan maupun lampiran bebas.
+        $this->actingAs($perencanaan)->get("/kegiatan/{$this->kegiatan->id}/berkas/{$spj->id}")->assertNotFound();
+        $this->actingAs($perencanaan)->get("/kegiatan/{$this->kegiatan->id}/berkas/{$bebas->id}")->assertNotFound();
+        $this->actingAs($perencanaan)->get("/kegiatan/{$this->kegiatan->id}/berkas/{$rab->id}")->assertOk();
+
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $perencanaan->id,
+            'permission_id' => Permission::where('kode', 'berkas:read')->value('id'), 'unit_id' => $this->fixture['unit']->id,
+            'alasan' => 'Pengujian deny baca berkas', 'ditetapkan_oleh' => $perencanaan->id, 'created_at' => now()]);
+        $this->actingAs($perencanaan)->get("/kegiatan/{$this->kegiatan->id}/berkas/{$rab->id}")->assertForbidden();
+        $this->actingAs($perencanaan)->get("/kegiatan/{$this->kegiatan->id}/edit")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('berkasPerencanaan.persyaratan.0.berkas', [])
+                ->where('berkasPerencanaan.persyaratan.0.pemenuhan.terpenuhi', true));
     }
 
     private function unggah(?UploadedFile $file = null, ?JenisBerkas $persyaratan = null)

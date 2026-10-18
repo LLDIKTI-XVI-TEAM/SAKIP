@@ -52,6 +52,14 @@ class GerbangBerkasKegiatan
         return ['induk' => $induk, 'tolak' => in_array($berkas->basis['alasan'] ?? null, GerbangBuktiRencanaAksi::ALASAN_TERTUTUP, true) ? $berkas : null];
     }
 
+    /** Deny `berkas:read` pada unit kegiatan menutup baca/unduh berkas meski detail kegiatan terbuka (Q32.3, pola `viewEvidence`). */
+    public function bacaTertutup(User $user, Kegiatan $kegiatan): bool
+    {
+        $baca = $this->resolver->resolve($user, PermissionCodes::BERKAS_READ, (string) $kegiatan->unit_id);
+
+        return in_array($baca->basis['alasan'] ?? null, GerbangBuktiRencanaAksi::ALASAN_TERTUTUP, true);
+    }
+
     /**
      * @param  Collection<int, RencanaAksi>  $pengklaim  Header RA dengan klaim tahap RA atas kegiatan ini.
      * @return array{0: string, 1: string}|null

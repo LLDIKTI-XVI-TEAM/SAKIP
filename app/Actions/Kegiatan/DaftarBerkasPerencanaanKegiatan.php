@@ -32,13 +32,14 @@ class DaftarBerkasPerencanaanKegiatan
         $contoh = BuktiDukung::where('berkasable_type', 'jenis_berkas')->whereIn('berkasable_id', array_column($evaluasi, 'id'))->current()
             ->orderBy('created_at')->get()->groupBy('berkasable_id');
         $ditutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
+        $bacaTertutup = $this->gerbang->bacaTertutup($actor, $kegiatan);
         $alasan = fn (string $izin, bool $hapus): ?string => $this->gerbang->periksaIzin($actor, $kegiatan, $izin)['tolak'] !== null
             ? 'Izin mengubah berkas kegiatan tidak tersedia.'
             : $this->gerbang->pelanggaranBisnis($kegiatan, $pengklaim, $hapus, $ditutup)[1] ?? null;
 
         return [
             'persyaratan' => array_map(fn (array $item): array => $item + [
-                'berkas' => $bukti->where('jenis_berkas_id', $item['id'])->map(fn (BuktiDukung $b): array => [
+                'berkas' => $bacaTertutup ? [] : $bukti->where('jenis_berkas_id', $item['id'])->map(fn (BuktiDukung $b): array => [
                     ...$b->only(['id', 'mode', 'nama_asli', 'ukuran_bytes', 'tautan', 'isi_teks', 'menggantikan_id']), 'created_at' => $b->created_at?->toIso8601String(),
                 ])->values()->all(),
                 'contoh' => ($contoh[$item['id']] ?? collect())->map(fn (BuktiDukung $b): array => $b->only(['id', 'nama_asli']))->values()->all(),

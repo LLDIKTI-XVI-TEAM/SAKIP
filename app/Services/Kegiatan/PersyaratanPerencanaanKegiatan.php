@@ -14,7 +14,8 @@ use Illuminate\Support\Collection;
  * persyaratan global ditambah persyaratan khusus indikator yang diminta,
  * dinilai dengan evaluator bukti bersama. Persyaratan bertanda
  * `hanya_kegiatan_beranggaran` hanya berlaku bila anggaran lebih dari 0;
- * anggaran kosong tetap mewajibkannya karena belum terbukti nol.
+ * anggaran kosong (belum diisi) tidak memenuhi syarat itu, dan gerbang
+ * pengajuan menolaknya lewat pesan anggaran belum diisi.
  */
 class PersyaratanPerencanaanKegiatan
 {
@@ -37,10 +38,10 @@ class PersyaratanPerencanaanKegiatan
             ->flatMap(fn (string $indikatorId): array => $this->evidence->untuk(self::TAHAP, $indikatorId, $bukti))
             ->unique('id')->values();
         $khususBeranggaran = JenisBerkas::whereIn('id', $hasil->pluck('id'))->where('hanya_kegiatan_beranggaran', true)->pluck('id')->all();
-        // Cast decimal:0 menormalkan nol menjadi "0".
-        $tanpaAnggaran = $kegiatan->anggaran === '0';
+        // Cast decimal:0 menormalkan nol menjadi "0" dan CHECK menolak negatif; null berarti belum diisi.
+        $beranggaran = $kegiatan->anggaran !== null && $kegiatan->anggaran !== '0';
 
-        return $hasil->reject(fn (array $item): bool => $tanpaAnggaran && in_array($item['id'], $khususBeranggaran, true))
+        return $hasil->reject(fn (array $item): bool => ! $beranggaran && in_array($item['id'], $khususBeranggaran, true))
             ->map(fn (array $item): array => $item + ['hanya_kegiatan_beranggaran' => in_array($item['id'], $khususBeranggaran, true)])
             ->values()->all();
     }

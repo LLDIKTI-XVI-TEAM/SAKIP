@@ -86,9 +86,10 @@ class RencanaAksiPerencanaanKegiatanTest extends TestCase
     public function test_kegiatan_lama_tanpa_anggaran_menolak_pengajuan(): void
     {
         $this->kegiatan->update(['anggaran' => null]);
-        $this->berkas($this->rab);
 
-        $this->ajukan($this->fixture['pic'])->assertSessionHasErrors(['pengajuan' => 'Anggaran kegiatan "Bimtek penjaminan mutu" belum diisi.']);
+        // RAB hanya dituntut untuk anggaran lebih dari 0 (Q42 §42.3 butir 3); anggaran kosong cukup ditolak sebagai belum diisi.
+        $this->ajukan($this->fixture['pic'])->assertSessionHasErrors('pengajuan');
+        $this->assertSame(['Anggaran kegiatan "Bimtek penjaminan mutu" belum diisi.'], session('errors')->get('pengajuan'));
         $this->assertDatabaseCount('rencana_aksi_versi', 0);
     }
 
@@ -125,7 +126,9 @@ class RencanaAksiPerencanaanKegiatanTest extends TestCase
         $this->kegiatan->update(['anggaran' => null]);
 
         $this->ajukan($this->fixture['pic'])->assertSessionHasNoErrors();
-        $this->assertTrue(RencanaAksiVersi::sole()->snapshot['persyaratan_kegiatan'][0]['dikecualikan']);
+        $beku = RencanaAksiVersi::sole()->snapshot['persyaratan_kegiatan'][0];
+        $this->assertTrue($beku['dikecualikan']);
+        $this->assertSame([], $beku['persyaratan'], 'RAB tidak dinilai kurang selama anggaran belum diisi.');
     }
 
     public function test_tahap_pelaksanaan_kegiatan_tidak_tercampur_dengan_tahap_perencanaan(): void
