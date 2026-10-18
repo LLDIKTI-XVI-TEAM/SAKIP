@@ -171,6 +171,29 @@ it('hasil simpan target Renstra yang ambigu tetap terblokir setelah pindah tab',
     expect(put).toHaveBeenCalledTimes(1);
 });
 
+it('pilihan Renstra terkunci selama simpan target Renstra berjalan', () => {
+    // Ganti Renstra memasang ulang tabel; simpan yang dibatalkan browser tidak boleh kehilangan peringatan hasil ambigu.
+    const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);
+    render(<Index
+        renstras={[{ id: 'ren-1', kode: 'REN-2025', nama: 'Renstra 2025-2029', tahun_mulai: 2025, tahun_selesai: 2029, is_aktif: false, status: 'draft' }]}
+        selectedRenstraId="ren-1"
+        sasarans={[makeSasaran([makeIndikator()])]}
+        units={[{ id: 'unit-a', nama: 'Unit A' }]}
+        regulasis={[defaultRegulasi]}
+        can={{ ...defaultCan, target_update: true }}
+    />);
+    fireEvent.click(screen.getByRole('button', { name: 'Target Renstra' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ubah target Renstra IKU-01' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    const opsi = put.mock.calls[0][2] as { onStart: (visit: unknown) => void; onFinish: (visit: unknown) => void };
+    const pilihan = screen.getByLabelText('Periode Renstra') as HTMLSelectElement;
+
+    act(() => { opsi.onStart({}); });
+    expect(pilihan.disabled).toBe(true);
+    act(() => { opsi.onFinish({}); });
+    expect(pilihan.disabled).toBe(false);
+});
+
 it('aksi baseline tidak tersedia tanpa izin membaca indikator', () => {
     renderIndex([makeIndikator()], { ...defaultCan, indikator_read: false });
     const aksi = screen.queryByRole('button', { name: 'Aksi IKU-01' });

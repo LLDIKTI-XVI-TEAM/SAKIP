@@ -86,6 +86,8 @@ export default function SasaranIndikatorIndex({
     const [annualMessage, setAnnualMessage] = useState('');
     const [tab, setTab] = useState<'indikator' | 'target'>('indikator');
     const [targetDibuka, setTargetDibuka] = useState(false);
+    // Ganti Renstra memasang ulang tabel target; selama simpan berjalan pilihan dikunci agar peringatan hasil ambigu tidak hilang.
+    const [menyimpanTarget, setMenyimpanTarget] = useState(false);
     const editorLoader = useIndikatorEditorLoader();
 
     const toggleCollapse = (id: string) => {
@@ -165,6 +167,7 @@ export default function SasaranIndikatorIndex({
                                         id="renstra_filter"
                                         label="Periode Renstra"
                                         value={selectedRenstraId || ''}
+                                        disabled={menyimpanTarget}
                                         onChange={(e) => handleRenstraChange(e.target.value)}
                                     >
                                         {renstras.map((r) => (
@@ -238,7 +241,7 @@ export default function SasaranIndikatorIndex({
                     // Tetap terpasang setelah dibuka: pindah tab tidak memuat data terbaru, jadi blokir hasil simpan ambigu tidak boleh hilang.
                     // key: preserveState saat ganti Renstra tidak boleh membawa baris edit Renstra lama.
                     <div hidden={tab !== 'target'}>
-                        <TargetRenstraTable key={selectedRenstra.id} renstra={selectedRenstra} sasarans={sasarans} canEdit={Boolean(can.indikator_read && can.target_update)} onSaved={setAnnualMessage} />
+                        <TargetRenstraTable key={selectedRenstra.id} renstra={selectedRenstra} sasarans={sasarans} canEdit={Boolean(can.indikator_read && can.target_update)} onSaved={setAnnualMessage} onSaving={setMenyimpanTarget} />
                     </div>
                 )}
                 {(tab !== 'target' || !selectedRenstra) && sasarans.map((sasaran) => {

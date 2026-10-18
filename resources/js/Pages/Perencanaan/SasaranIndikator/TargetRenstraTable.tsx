@@ -17,11 +17,12 @@ const BELUM_PASTI = 'Hasil simpan belum dapat dipastikan. Muat data terbaru sebe
 type FormTarget = { nilai: Record<string, string | null>; expected_state: string };
 
 /** Tabel indikator × tahun Renstra. Nilai tetap string; normalisasi, perbandingan, dan otorisasi dimiliki server. */
-export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
+export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved, onSaving }: {
     renstra: RenstraOption;
     sasarans: SasaranStrategisItem[];
     canEdit: boolean;
     onSaved: (message: string) => void;
+    onSaving?: (saving: boolean) => void;
 }) {
     const formatNilai = useFormatNilai();
     const recovery = useAuthRecovery();
@@ -66,6 +67,8 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
         form.put(path, {
             preserveScroll: true,
             preserveState: true,
+            onStart: () => onSaving?.(true),
+            onFinish: () => onSaving?.(false),
             onSuccess: (page) => {
                 const hasil: unknown = page.flash.target_renstra;
                 // Flash milik indikator lain bukan bukti baris ini tersimpan.
