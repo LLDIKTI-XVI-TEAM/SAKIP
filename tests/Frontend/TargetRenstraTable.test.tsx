@@ -52,6 +52,7 @@ const input = (tahun: number) => screen.queryByRole('textbox', { name: `Target $
 const ubah = () => fireEvent.click(screen.getByRole('button', { name: 'Ubah target Renstra IKU-1' }));
 const simpan = () => fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 const callbacks = (index = 0) => put.mock.calls[index][2] as {
+    onStart: (visit: unknown) => void;
     onSuccess: (page: Page) => Promise<void> | void;
     onError: (errors: Record<string, string>) => void;
     onHttpException: (response: HttpExceptionResponse) => boolean | void;
@@ -69,6 +70,50 @@ it('menampilkan nol, kosong, dan tahun belum berlaku tanpa tombol ubah bagi pemb
     expect(screen.getAllByText('Belum berlaku')).toHaveLength(1);
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Ubah target Renstra IKU-1' })).toBeNull();
+    // Di HP header tahun disembunyikan; label tahun per sel harus tetap terbaca pembaca layar.
+    const labelTahun = screen.getAllByText('2027');
+    expect(labelTahun).toHaveLength(2);
+    expect(labelTahun.filter((el) => el.closest('[aria-hidden="true"]'))).toHaveLength(0);
+});
+
+it('isian terkunci selama simpan berjalan agar ketikan tidak hilang saat edit ditutup', () => {
+    tampilkan();
+    ubah();
+    simpan();
+    act(() => { callbacks().onStart({}); });
+    expect(input(2026)!.readOnly).toBe(true);
+    expect(input(2027)!.readOnly).toBe(true);
+});
+
+it('hasil simpan ambigu memblokir simpan ulang dan menawarkan muat ulang', () => {
+    const pertama = tampilkan();
+    ubah();
+    simpan();
+    act(() => { callbacks().onNetworkError(); });
+    expect(screen.getByText(GAGAL)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Muat ulang' })).toBeTruthy();
+    simpan();
+    expect(put).toHaveBeenCalledTimes(1);
+    pertama.unmount();
+
+    tampilkan();
+    ubah();
+    simpan();
+    act(() => { callbacks(1).onHttpException({ status: 403 } as HttpExceptionResponse); });
+    expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Muat ulang' })).toBeTruthy();
+    cleanup();
+
+    // Sesi berakhir: tindak lanjutnya masuk ulang lewat pemberitahuan pemulihan, bukan muat ulang baris.
+    tampilkan();
+    ubah();
+    fireEvent.change(input(2026)!, { target: { value: '9' } });
+    simpan();
+    act(() => { callbacks(2).onHttpException({ status: 401, headers: {}, data: '' } as unknown as HttpExceptionResponse); });
+    expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Muat ulang' })).toBeNull();
+    expect(input(2026)!.value).toBe('9');
 });
 
 it.each(['draft', 'aktif'] as const)('%s menyimpan seluruh tahun berlaku langsung tanpa dialog', (status) => {

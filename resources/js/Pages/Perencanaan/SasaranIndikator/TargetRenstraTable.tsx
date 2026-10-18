@@ -35,6 +35,8 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
     const years = Array.from({ length: renstra.tahun_selesai - renstra.tahun_mulai + 1 }, (_, i) => renstra.tahun_mulai + i);
     // Status absen berarti fail-closed; server tetap menolak Renstra nonaktif/diarsipkan.
     const renstraEditable = renstra.status === 'draft' || renstra.status === 'aktif';
+    // Hasil ambigu atau token basi: simpan ulang ditahan sampai data terbaru dimuat, seperti editor target PK.
+    const blocked = Boolean(failure || recovery.recovery || errors.expected_state);
 
     const nilaiTersimpan = (ind: IndikatorKinerjaItem, tahun: number) => ind.target_renstra?.find((t) => t.tahun === tahun)?.nilai ?? null;
 
@@ -117,7 +119,7 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
                             {years.map((tahun) => {
                                 const nilai = nilaiTersimpan(ind, tahun);
                                 return <TableCell key={tahun} className="min-w-0 p-0 tabular-nums md:px-4 md:py-3.5 md:text-right">
-                                    <span aria-hidden="true" className="mb-1 block text-xs text-muted md:hidden">{tahun}</span>
+                                    <span className="mb-1 block text-xs text-muted md:hidden">{tahun}</span>
                                     {tahun < ind.tahun_mulai_berlaku ? <Badge variant="muted" size="sm">Belum berlaku</Badge>
                                         : aktif ? <Input
                                             label={`Target ${tahun} ${ind.kode}`}
@@ -128,6 +130,7 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
                                             autoFocus={tahun === Math.max(renstra.tahun_mulai, ind.tahun_mulai_berlaku)}
                                             className="md:min-w-24 md:text-right"
                                             value={form.data.nilai[tahun] ?? ''}
+                                            readOnly={form.processing}
                                             onChange={(event) => form.setData('nilai', { ...form.data.nilai, [tahun]: event.target.value })}
                                             error={errors[`nilai.${tahun}`]}
                                         />
@@ -141,8 +144,8 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved }: {
                                         <History className="h-4 w-4" aria-hidden="true" />
                                     </Button>
                                     {aktif ? <>
-                                        {errors.expected_state && <Button type="button" size="sm" variant="outline" onClick={() => muatUlang(ind.id)}>Muat ulang</Button>}
-                                        <Button type="button" size="sm" onClick={() => simpan(ind)} isLoading={form.processing}>Simpan</Button>
+                                        {blocked && !recovery.recovery && <Button type="button" size="sm" variant="outline" onClick={() => muatUlang(ind.id)}>Muat ulang</Button>}
+                                        <Button type="button" size="sm" onClick={() => simpan(ind)} disabled={blocked} isLoading={form.processing}>Simpan</Button>
                                         <Button type="button" size="sm" variant="outline" onClick={() => selesai(ind.id)} disabled={form.processing}>Batal</Button>
                                     </> : bisaUbah && <Button type="button" size="sm" variant="outline" aria-label={`Ubah target Renstra ${ind.kode}`} data-ubah={ind.id} onClick={() => mulai(ind)}>Ubah</Button>}
                                 </div>
