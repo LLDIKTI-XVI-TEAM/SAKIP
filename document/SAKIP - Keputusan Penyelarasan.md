@@ -1575,6 +1575,8 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 1. Form buat dan ubah kegiatan, penyimpanan, serta tombol buat hanya tersedia pada unit yang juga dapat dibaca pengguna menurut §54.1.
 2. Penerima grant `kegiatan:create`/`kegiatan:update` tanpa `kegiatan:read` ditolak sejak membuka form, dan penolakannya diaudit. Ketentuan sementara PR #97 (grant tulis kegiatan hanya bagi pemegang `kegiatan:read`) kini ditegakkan sistem.
 
+> **Catatan Issue #123 (18 Oktober 2026):** form buat kegiatan berupa modal pada daftar Kegiatan, tanpa halaman tersendiri. Tombol buat dan pilihan unitnya mengikuti butir 1, sedangkan penolakan buat diaudit saat penyimpanan. Form ubah tetap ditolak dan diaudit saat dibuka. Aturan butir 1–2 tidak berubah.
+
 ## 54.4 Dampak dan traceability
 
 - Diselaraskan: PRD §7.2–§7.4 dan §15.1; Workflow §8 butir 9; Data Model §2.3; User Stories dan User Issues US/ISS-06.01.
@@ -1681,11 +1683,29 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
-# Keputusan Q61 — Izin Unit per Pengguna-Unit, Halaman Detail, dan Kelola Izin
+# Keputusan Q61 — Pembanding Peringatan Verifikasi Pengukuran
 
-**Keputusan PM: 18 Oktober 2026 (WITA), dalam perapian halaman Izin Unit (branch `fix/ui-izin-unit`).** Keputusan ini menambah operasi kelola pada kontrak "Form create/revoke Grant Unit" (Data Model §2.7) dan **bukan** ratifikasi UAT, merge, maupun deployment. Nomor Q60 telah dipakai keputusan perubahan target Renstra tanpa alasan (ISS-02.10), sehingga keputusan ini bernomor Q61.
+**Keputusan PM: 19 Oktober 2026 (WITA), [Keputusan PM — M1 pada PR #144](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/144#issuecomment-6252830027).** Memperjelas ketentuan pelengkap butir 2 pada pengantar Q47–Q51, PRD §19.1, dan US/ISS-08.01. Q60 digunakan PR #143; nomor keputusan perlu diperiksa kembali saat integrasi. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
 
-## 61.1 Aturan
+## 61.1 Aturan pembanding
+
+1. Periode pembanding adalah periode tepat sebelum periode pengukuran: urutan lebih kecil pada jadwal yang sama; untuk periode pertama, periode terakhir jadwal tahun sebelumnya berstatus `aktif`/`ditutup` yang juga mengukur indikator tersebut (Q51 §51.1 butir 4). Penentuannya memakai resolver yang sama dengan rekomendasi periode sebelumnya, bukan salinan logika.
+2. Data pembanding hanya versi sah terakhir (`disahkan_at` terisi) pada periode tersebut. Periode tanpa versi sah tidak dilompati; tampilkan bahwa pembanding belum tersedia. Untuk lintas tahun, gunakan tahun dan jadwal pembanding, bukan syarat jadwal sama dengan pengukuran sekarang.
+3. Narasi dianggap sama hanya jika `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut` semuanya terisi dan identik persis. `tindak_lanjut_rekomendasi` dan `catatan` tidak dibandingkan.
+4. Realisasi dibandingkan hanya jika konteks perhitungan sebanding; `0` berbeda dari `null`. Peringatan tidak memblokir keputusan. Data dan label pembanding tidak dibuka jika aktor tidak memiliki hak baca.
+
+## 61.2 Traceability dan verifikasi
+
+- GitHub #83 AC-7 / US-08.01 dan ISS-08.01 AC-6; Plan 5.6 dan 6.1.
+- Regresi mencakup periode pertama tahun N terhadap periode terakhir tahun N−1 yang sah, indikator tidak diukur tahun sebelumnya, periode tanpa versi sah tidak dilompati, dan kesamaan periode dengan resolver rekomendasi. Ketentuan snapshot, izin baca, angka/narasi, serta nonblocking tetap berlaku.
+
+---
+
+# Keputusan Q62 — Izin Unit per Pengguna-Unit, Halaman Detail, dan Kelola Izin
+
+**Keputusan PM: 18 Oktober 2026 (WITA), dalam perapian halaman Izin Unit (branch `fix/ui-izin-unit`).** Keputusan ini menambah operasi kelola pada kontrak "Form create/revoke Grant Unit" (Data Model §2.7) dan **bukan** ratifikasi UAT, merge, maupun deployment. Nomor Q60 (perubahan target Renstra tanpa alasan, ISS-02.10) dan Q61 (pembanding peringatan verifikasi pengukuran, ISS-08.01) telah dipakai, sehingga keputusan ini bernomor Q62.
+
+## 62.1 Aturan
 
 1. Daftar Izin Unit menampilkan satu baris per pasangan pengguna × unit dengan kolom Pengguna, Unit, Izin dimiliki, Status, dan Aksi. Kolom Izin dimiliki berisi jumlah izin katalog aktif yang dimiliki dari seluruh izin yang dapat diberikan (mis. "3 dari 7") dengan tanda "Lengkap" bila semuanya dimiliki; daftar izin berlabel singkat ada di halaman detail dan modal Kelola izin. Paginasi, pencarian, dan filter unit bekerja per pasangan; pasangan tampil bila pengguna, unit, atau salah satu izinnya cocok.
 2. Pasangan berstatus "Tidak berlaku" bila akun atau unit nonaktif; izin nonaktif ditandai per butir. Kriterianya sama dengan resolver izin.
@@ -1700,9 +1720,9 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 11. Endpoint pemberian (`POST /akses/grant`) dan pencabutan per izin (`DELETE /akses/grant/{id}`) tetap tersedia.
 12. Halaman Penanggung Jawab indikator menampilkan tombol "Beri izin unit" bagi pemegang `delegasi:update` bila PJ efektif dan unitnya aktif. Tombol membuka form Beri izin unit dengan PJ dan unit itu sudah terisi; izin tetap dipilih dan disimpan secara eksplisit, sehingga Q32 §32.2 (penugasan PJ tidak memberi izin) tidak berubah.
 
-## 61.2 Dampak dan traceability
+## 62.2 Dampak dan traceability
 
-- Diselaraskan: Data Model §2.7 (pemberian, kelola, dan pencabutan) dan User Issues ISS-01.04 (catatan Q61).
+- Diselaraskan: Data Model §2.7 (pemberian, kelola, dan pencabutan) dan User Issues ISS-01.04 (catatan Q62).
 - Test: `GrantIzinTambahanUnitTest` (daftar per pasangan, detail, kelola, pemberian banyak izin), `MutationConcurrencyTest` (kelola menunggu lock aktor), serta test frontend `GrantIndex`, `GrantDetail`, dan `GrantMutationException`.
 - Status keputusan: baseline UI dan kontrak kelola. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
 

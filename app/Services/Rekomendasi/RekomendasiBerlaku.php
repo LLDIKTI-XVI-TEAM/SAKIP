@@ -33,21 +33,34 @@ class RekomendasiBerlaku
      */
     public function sebelum(PengukuranKinerja $pengukuran, bool $kunci = false): ?RekomendasiPimpinan
     {
-        $sebelumnya = DB::table('jadwal_periode as jp')->join('periode as p', 'p.id', '=', 'jp.periode_id')->join('jadwal_tahunan as j', 'j.id', '=', 'jp.jadwal_id')
-            ->where(fn (Builder $q) => $q->where(fn (Builder $q) => $q->where('jp.jadwal_id', $pengukuran->jadwalSnapshot->jadwal_id)->where('p.urutan', '<', $pengukuran->periode->urutan))
-                ->orWhere(fn (Builder $q) => $q->where('j.tahun', $pengukuran->tahun - 1)->whereIn('j.status', ['aktif', 'ditutup'])
-                    ->whereExists(fn (Builder $s) => $s->from('jadwal_snapshot as s')->whereColumn('s.jadwal_id', 'j.id')->where('s.indikator_id', $pengukuran->indikator_id))))
-            ->orderByDesc('j.tahun')->orderByDesc('p.urutan')->select(['j.tahun', 'jp.periode_id'])->first();
+        $sebelumnya = $this->periodeSebelum($pengukuran);
 
         if (! $sebelumnya) {
             return null;
         }
         if ($kunci) {
             // Ambil lock lebih dulu agar SELECT berikutnya melihat commit penulis yang selesai selama menunggu.
-            $this->kunciKombinasi($pengukuran->indikator_id, (int) $sebelumnya->tahun, $sebelumnya->periode_id, bersama: true);
+            $this->kunciKombinasi($pengukuran->indikator_id, $sebelumnya['tahun'], $sebelumnya['periode_id'], bersama: true);
         }
 
-        return $this->untuk($pengukuran->indikator_id, (int) $sebelumnya->tahun, $sebelumnya->periode_id);
+        return $this->untuk($pengukuran->indikator_id, $sebelumnya['tahun'], $sebelumnya['periode_id']);
+    }
+
+    /**
+     * Kalender bersama rekomendasi dan peringatan; ketiadaan data pada periode terpilih tidak mengubah pembanding.
+     *
+     * @return array{jadwal_id: string, tahun: int, periode_id: string, nama: string}|null
+     */
+    public function periodeSebelum(PengukuranKinerja $pengukuran): ?array
+    {
+        $periode = DB::table('jadwal_periode as jp')->join('periode as p', 'p.id', '=', 'jp.periode_id')->join('jadwal_tahunan as j', 'j.id', '=', 'jp.jadwal_id')
+            ->where(fn (Builder $q) => $q->where(fn (Builder $q) => $q->where('jp.jadwal_id', $pengukuran->jadwalSnapshot->jadwal_id)->where('p.urutan', '<', $pengukuran->periode->urutan))
+                ->orWhere(fn (Builder $q) => $q->where('j.tahun', $pengukuran->tahun - 1)->whereIn('j.status', ['aktif', 'ditutup'])
+                    ->whereExists(fn (Builder $s) => $s->from('jadwal_snapshot as s')->whereColumn('s.jadwal_id', 'j.id')->where('s.indikator_id', $pengukuran->indikator_id))))
+            ->orderByDesc('j.tahun')->orderByDesc('p.urutan')->select(['jp.jadwal_id', 'j.tahun', 'jp.periode_id', 'p.nama'])->first();
+
+        return $periode ? ['jadwal_id' => $periode->jadwal_id, 'tahun' => (int) $periode->tahun,
+            'periode_id' => $periode->periode_id, 'nama' => $periode->nama] : null;
     }
 
     /**

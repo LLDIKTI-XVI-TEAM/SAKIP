@@ -136,7 +136,7 @@ class VerticalSlice1Test extends TestCase
         $reviewer = $this->userWithRole('perencanaan');
         $url = '/verifikasi/'.$this->pengukuran->id.'/kembalikan';
         $this->actingAs($reviewer)->post($url, ['versi' => 2])->assertSessionHasErrors('catatan');
-        $this->actingAs($reviewer)->post($url, ['versi' => 2, 'catatan' => 'Lengkapi penjelasan sumber.'])->assertRedirect('/verifikasi');
+        $this->actingAs($reviewer)->post($url, ['versi' => 2, 'catatan' => 'Lengkapi penjelasan sumber.'])->assertRedirect('/verifikasi?status=diajukan');
         $this->assertSame('dikembalikan', $this->pengukuran->fresh()->status_alur);
     }
 
@@ -147,7 +147,7 @@ class VerticalSlice1Test extends TestCase
         $reviewer = $this->userWithRole('perencanaan');
         $this->review($reviewer, 'sahkan')->assertSessionHasErrors('versi');
         $this->review($reviewer, 'verifikasi')->assertSessionHasNoErrors()->assertRedirect();
-        $this->review($reviewer, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi');
+        $this->review($reviewer, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi?status=diverifikasi');
         $version = $this->pengukuran->latestVersion;
         $this->assertSame('Indikator Uji', $version->snapshot['indikator']['nama']);
         $this->assertSame(85.0, (float) $version->snapshot['nilai']);

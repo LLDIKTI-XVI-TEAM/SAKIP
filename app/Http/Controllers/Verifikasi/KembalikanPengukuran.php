@@ -11,8 +11,8 @@ class KembalikanPengukuran extends Controller
 {
     public function __invoke(ReviewPengukuranRequest $request, string $id, ReturnPengukuran $action): RedirectResponse
     {
-        $action->handle($request->user(), $id, $request->validated());
+        $pengukuran = $action->handle($request->user(), $id, $request->validated());
 
-        return redirect()->route('verifikasi.index')->with('success', 'Pengukuran dikembalikan untuk perbaikan.');
+        return redirect()->route('verifikasi.index', ['status' => $pengukuran->getPrevious()['status_alur']])->with('success', 'Pengukuran dikembalikan untuk perbaikan.');
     }
 }

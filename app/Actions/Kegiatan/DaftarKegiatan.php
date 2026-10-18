@@ -55,9 +55,6 @@ class DaftarKegiatan
         $creatableUnits = $activeUnits
             ->filter(fn (Unit $unit) => $boleh($unit->id, 'kegiatan:create'))
             ->values();
-        $editableUnits = $activeUnits
-            ->filter(fn (Unit $unit) => $boleh($unit->id, 'kegiatan:update'))
-            ->values();
         // Aturan sama dengan SimpanKegiatan agar tombol ubah tidak ditawarkan untuk tahun yang pasti ditolak.
         $tahunDitutup = JadwalTahunan::whereIn('tahun', $page->getCollection()->pluck('tahun')->unique()->values())->where('status', '!=', 'draft')->get()
             ->filter(fn (JadwalTahunan $jadwal): bool => $jadwal->tahunDitutup())->pluck('tahun')->unique()->all();
@@ -88,7 +85,6 @@ class DaftarKegiatan
             'unitOptions' => $units->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
             'periodeOptions' => Periode::orderBy('urutan')->orderBy('id')->get(['id', 'nama'])->toArray(),
             'creatableUnitOptions' => $creatableUnits->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
-            'editableUnitOptions' => $editableUnits->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
             'activePeriodeOptions' => Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama'])->toArray(),
             'tahunDefault' => $tahunDefault,
             'can' => ['create' => $activeUnitIds->contains(fn (string $unitId) => $boleh($unitId, 'kegiatan:create'))],
