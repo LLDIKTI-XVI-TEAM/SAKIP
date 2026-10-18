@@ -225,24 +225,26 @@ class AuditTrailTest extends TestCase
     public function test_penulisan_audit_menyamarkan_kunci_rahasia_pada_nilai_tersimpan(): void
     {
         $d = AuditLogPresenter::DISAMARKAN;
+        // Objek biasa (stdClass) diterima cast `array`, jadi ikut diuji di tingkat teratas dan bertingkat.
         $audit = $this->audit($this->reader, 'pengaturan.ubah', '2031-01-01 00:00:00', [
-            'nilai_lama' => ['nama' => 'Lama', 'access_token' => 'canary-lama', 'kosong' => null],
+            'nilai_lama' => (object) ['nama' => 'Lama', 'access_token' => 'canary-lama', 'kosong' => null],
             'nilai_baru' => ['nama' => 'Baru', 'Authorization' => 'Bearer canary-bearer', 'password' => 'canary-password',
                 'API-Key' => 'canary-apikey', 'integrasi.api_key' => 'canary-bertitik',
                 'lampiran' => [['path' => 'berkas/canary-path.pdf', 'nama_asli' => 'surat.pdf', 'storage_path' => 'canary-storage']],
-                'koleksi' => collect(['client_secret' => 'canary-koleksi', 'nama' => 'x'])],
+                'koleksi' => collect(['client_secret' => 'canary-koleksi', 'nama' => 'x']),
+                'profil' => (object) ['refresh_token' => 'canary-objek', 'nama' => 'y']],
             'dasar_izin' => ['permission' => 'pengaturan:update', 'keputusan' => 'diizinkan', 'credentials' => ['user' => 'canary-credential']],
         ]);
 
         // Dibaca dari kolom jsonb mentah agar yang diuji nilai tersimpan, bukan hasil tampilan.
         $raw = DB::table('audit_log')->where('id', $audit->id)->sole(['nilai_lama', 'nilai_baru', 'dasar_izin']);
-        foreach (['canary-lama', 'canary-bearer', 'canary-password', 'canary-apikey', 'canary-bertitik', 'canary-path', 'canary-storage', 'canary-koleksi', 'canary-credential'] as $canary) {
+        foreach (['canary-lama', 'canary-bearer', 'canary-password', 'canary-apikey', 'canary-bertitik', 'canary-path', 'canary-storage', 'canary-koleksi', 'canary-objek', 'canary-credential'] as $canary) {
             $this->assertStringNotContainsString($canary, $raw->nilai_lama.$raw->nilai_baru.$raw->dasar_izin);
         }
         $this->assertEquals(['nama' => 'Lama', 'access_token' => $d, 'kosong' => null], json_decode($raw->nilai_lama, true));
         $this->assertEquals(['nama' => 'Baru', 'Authorization' => $d, 'password' => $d, 'API-Key' => $d, 'integrasi.api_key' => $d,
             'lampiran' => [['path' => $d, 'nama_asli' => 'surat.pdf', 'storage_path' => $d]],
-            'koleksi' => ['client_secret' => $d, 'nama' => 'x']], json_decode($raw->nilai_baru, true));
+            'koleksi' => ['client_secret' => $d, 'nama' => 'x'], 'profil' => ['refresh_token' => $d, 'nama' => 'y']], json_decode($raw->nilai_baru, true));
         $this->assertEquals(['permission' => 'pengaturan:update', 'keputusan' => 'diizinkan', 'credentials' => $d], json_decode($raw->dasar_izin, true));
     }
 

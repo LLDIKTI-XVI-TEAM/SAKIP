@@ -3,7 +3,6 @@
 namespace App\Services\Audit;
 
 use App\Models\AuditLog;
-use JsonSerializable;
 
 /**
  * Menyusun tampilan baca audit dengan allowlist kolom.
@@ -57,9 +56,10 @@ final class AuditLogPresenter
     /** Mengganti nilai di bawah kunci rahasia secara rekursif; kunci lain dan urutannya dipertahankan. */
     public static function samarkan(mixed $nilai): mixed
     {
-        // Objek seperti Collection ditelusuri dalam bentuk yang akan di-encode cast `array`.
-        if ($nilai instanceof JsonSerializable) {
-            $nilai = $nilai->jsonSerialize();
+        // Objek apa pun (Collection, stdClass, model) ditelusuri dalam bentuk JSON yang akan disimpan cast `array`.
+        // shortcut: objek kosong `{}` tersimpan sebagai `[]`; tangani terpisah bila ada producer yang membedakannya.
+        if (is_object($nilai)) {
+            $nilai = json_decode(json_encode($nilai, JSON_THROW_ON_ERROR), true);
         }
         if (! is_array($nilai)) {
             return $nilai;
