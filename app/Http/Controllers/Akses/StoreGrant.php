@@ -14,6 +14,6 @@ class StoreGrant extends Controller
         $result = $action->handle($request->user(), $request->validated());
 
         return redirect()->route('akses.grant.index')
-            ->with('success', "Izin unit pada {$result['unit_nama']} berhasil diberikan kepada {$result['target_nama']}.");
+            ->with('success', "{$result['jumlah']} izin unit pada {$result['unit_nama']} berhasil diberikan kepada {$result['target_nama']}.");
     }
 }

@@ -24,7 +24,7 @@ interface GrantItem {
     user_email: string;
     user_roles: string[];
     permission_kode: string;
-    permission_keterangan: string | null;
+    permission_label: string;
     unit_nama: string | null;
     alasan: string;
     diberikan_oleh_nama: string;
@@ -37,7 +37,7 @@ interface GrantIndexProps {
     grants: { data: GrantItem[]; links: PaginationLinkItem[]; from: number | null; to: number | null; total: number };
     filters: { search: string; unit_id: string };
     units: { id: string; nama: string }[];
-    unitPermissions: { id: string; kode: string; keterangan: string | null }[];
+    unitPermissions: { id: string; kode: string; label: string }[];
     can: { create_grant: boolean; revoke_grant: boolean };
 }
 
@@ -55,7 +55,7 @@ function pesanGagal(response: { status: number; data: unknown }): string {
 }
 
 const belumDiketahui = (aksi: string, sebab: string) => `${sebab} Hasil ${aksi} izin belum diketahui. Periksa daftar terbaru sebelum mencoba kembali.`;
-const namaIzin = (grant: GrantItem) => grant.permission_keterangan ?? grant.permission_kode;
+const checkboxClass = 'h-4 w-4 shrink-0 accent-primary';
 
 export default function GrantIndex({ grants, filters, units, unitPermissions, can }: GrantIndexProps) {
     const formatTanggal = useFormatTanggal();
@@ -67,9 +67,19 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
     const [grantToRevoke, setGrantToRevoke] = useState<GrantItem | null>(null);
     const [revokeFailure, setRevokeFailure] = useState<string | null>(null);
     const createTrigger = useRef<HTMLButtonElement | null>(null);
-    const createForm = useForm({ user_id: '', permission_id: '', unit_id: '', alasan: '' });
+    const createForm = useForm<{ user_id: string; permission_ids: string[]; unit_id: string; alasan: string }>({ user_id: '', permission_ids: [], unit_id: '', alasan: '' });
     const revokeForm = useForm({ alasan: '' });
     const hasFilter = filters.search !== '' || filters.unit_id !== 'all';
+    const dipilih = createForm.data.permission_ids;
+    const semuaDipilih = unitPermissions.length > 0 && unitPermissions.every((permission) => dipilih.includes(permission.id));
+    // Validasi per butir datang sebagai permission_ids.N; tampil di grup checkbox yang sama.
+    const createErrors = createForm.errors as Record<string, string | undefined>;
+    const izinError = createErrors.permission_ids ?? Object.entries(createErrors).find(([key]) => key.startsWith('permission_ids.'))?.[1];
+
+    // Urutan katalog dipertahankan agar daftar yang dikirim tidak bergantung pada urutan klik.
+    const toggleIzin = (id: string) => createForm.setData('permission_ids', unitPermissions
+        .map((permission) => permission.id)
+        .filter((pid) => (pid === id ? !dipilih.includes(id) : dipilih.includes(pid))));
 
     const filterBy = (nextSearch: string, nextUnitId: string) => {
         router.get('/akses/grant', {
@@ -221,7 +231,7 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                                 </TableCell>
                                 <TableCell className={`col-span-2 ${cellClass}`}>
                                     <span className={mobileLabel}>Izin</span>
-                                    <span className="break-words text-sm text-ink">{namaIzin(grant)}</span>
+                                    <span className="break-words text-sm text-ink">{grant.permission_label}</span>
                                 </TableCell>
                                 <TableCell className={cellClass}>
                                     <span className={mobileLabel}>Unit</span>
@@ -266,7 +276,7 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                 description="Pengguna mendapat hak isi pada unit yang dipilih tanpa mengubah peran utamanya."
                 footer={<>
                     <Button type="button" variant="outline" disabled={createForm.processing} onClick={closeCreate}>Batal</Button>
-                    <Button type="submit" form="grant-create-form" isLoading={createForm.processing} disabled={Boolean(recovery.recovery)}>Simpan</Button>
+                    <Button type="submit" form="grant-create-form" isLoading={createForm.processing} disabled={Boolean(recovery.recovery) || dipilih.length === 0}>Simpan</Button>
                 </>}
             >
                 <form id="grant-create-form" onSubmit={submitCreate} className="space-y-4" aria-busy={createForm.processing}>
@@ -279,18 +289,29 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                         disabled={createForm.processing}
                         error={createForm.errors.user_id}
                     />
-                    <Select id="grant-permission" label="Izin" required value={createForm.data.permission_id} onChange={(event) => createForm.setData('permission_id', event.target.value)} disabled={createForm.processing} error={createForm.errors.permission_id}>
-                        <option value="" disabled>Pilih izin</option>
-                        {unitPermissions.map((permission) => <option key={permission.id} value={permission.id}>{permission.keterangan ?? permission.kode}</option>)}
-                    </Select>
+                    <fieldset disabled={createForm.processing} aria-describedby={izinError ? 'grant-izin-error' : undefined}>
+                        <legend className="mb-1.5 text-sm font-semibold text-ink">Izin <span className="text-danger" aria-hidden="true">*</span></legend>
+                        <div className="rounded-lg border border-border p-3">
+                            <label className="flex items-center gap-2 border-b border-border pb-2 text-sm font-medium text-ink">
+                                <input type="checkbox" className={checkboxClass} checked={semuaDipilih} onChange={() => createForm.setData('permission_ids', semuaDipilih ? [] : unitPermissions.map((permission) => permission.id))} />
+                                Pilih semua izin
+                            </label>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                {unitPermissions.map((permission) => <label key={permission.id} className="flex items-center gap-2 text-sm text-ink">
+                                    <input type="checkbox" className={checkboxClass} checked={dipilih.includes(permission.id)} onChange={() => toggleIzin(permission.id)} />
+                                    {permission.label}
+                                </label>)}
+                            </div>
+                        </div>
+                        {izinError && <p id="grant-izin-error" role="alert" className="mt-1.5 text-xs font-medium text-danger">{izinError}</p>}
+                    </fieldset>
                     <Select id="grant-unit" label="Unit" required value={createForm.data.unit_id} onChange={(event) => createForm.setData('unit_id', event.target.value)} disabled={createForm.processing} error={createForm.errors.unit_id}>
                         <option value="" disabled>Pilih unit</option>
                         {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.nama}</option>)}
                     </Select>
                     <Textarea
                         id="grant-alasan"
-                        label="Alasan pemberian"
-                        required
+                        label="Alasan pemberian (opsional)"
                         maxLength={1000}
                         rows={3}
                         placeholder="Contoh: penugasan pengisian capaian lintas pokja sesuai SK."
@@ -298,7 +319,7 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                         onChange={(event) => createForm.setData('alasan', event.target.value)}
                         disabled={createForm.processing}
                         error={createForm.errors.alasan}
-                        helperText="Maksimal 1.000 karakter. Tercatat di jejak audit."
+                        helperText="Boleh dikosongkan. Maksimal 1.000 karakter. Tercatat di jejak audit."
                     />
                     <AuthRecoveryNotice recovery={recovery.recovery} pending={createForm.processing} />
                 </form>
@@ -308,7 +329,7 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
             <AuditReasonModal
                 open={grantToRevoke !== null}
                 title={`Cabut izin unit ${grantToRevoke?.user_name ?? ''}?`}
-                description={grantToRevoke ? `${namaIzin(grantToRevoke)} pada ${grantToRevoke.unit_nama ?? 'unit ini'}. Pengguna tidak lagi memakai izin ini pada unit tersebut.` : ''}
+                description={grantToRevoke ? `${grantToRevoke.permission_label} pada ${grantToRevoke.unit_nama ?? 'unit ini'}. Pengguna tidak lagi memakai izin ini pada unit tersebut.` : ''}
                 reason={revokeForm.data.alasan}
                 error={revokeForm.errors.alasan}
                 busy={revokeForm.processing}

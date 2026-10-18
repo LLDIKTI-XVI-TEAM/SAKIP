@@ -60,7 +60,7 @@ describe('Grant Mutation 403 Exception Handling', () => {
         user_roles: ['Pegawai'],
         permission_id: 'perm-1',
         permission_kode: 'pengukuran:create',
-        permission_keterangan: 'Input pengukuran unit',
+        permission_label: 'Mengisi pengukuran',
         unit_id: 'unit-1',
         unit_nama: 'Bagian Akademik',
         alasan: 'Alasan penugasan awal',
@@ -73,7 +73,7 @@ describe('Grant Mutation 403 Exception Handling', () => {
         grants: { data: [mockGrant], links: [], from: 1, to: 1, total: 1 },
         filters: { search: '', unit_id: 'all' },
         units: [{ id: 'unit-1', nama: 'Bagian Akademik' }],
-        unitPermissions: [{ id: 'perm-1', kode: 'pengukuran:create', keterangan: 'Input pengukuran unit' }],
+        unitPermissions: [{ id: 'perm-1', kode: 'pengukuran:create', label: 'Mengisi pengukuran' }],
         can: {
             create_grant: true,
             revoke_grant: true,
@@ -94,7 +94,7 @@ describe('Grant Mutation 403 Exception Handling', () => {
         const userOption = await screen.findByRole('option', { name: /Pegawai Test/i });
         await user.click(userOption);
 
-        await user.selectOptions(screen.getByLabelText(/^Izin/), 'perm-1');
+        await user.click(screen.getByRole('checkbox', { name: 'Mengisi pengukuran' }));
         await user.selectOptions(screen.getByLabelText(/^Unit/), 'unit-1');
         await user.type(screen.getByLabelText(/^Alasan pemberian/), 'Penugasan khusus input data triwulan');
 

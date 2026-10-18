@@ -30,14 +30,16 @@ class IndexGrant
             ->whereHas('permission', fn ($q) => $q->where('butuh_scope', Permission::SCOPE_UNIT));
 
         if ($search !== '') {
-            $grantsQuery->where(function ($q) use ($search) {
+            $kodeBerlabel = array_keys(array_filter(PermissionCatalog::LABEL_IZIN_UNIT, fn (string $label) => mb_stripos($label, $search) !== false));
+            $grantsQuery->where(function ($q) use ($search, $kodeBerlabel) {
                 $q->whereHas('user', function ($uq) use ($search) {
                     $uq->where('nama', 'ilike', "%{$search}%")
                         ->orWhere('email', 'ilike', "%{$search}%");
                 })
-                    ->orWhereHas('permission', function ($pq) use ($search) {
+                    ->orWhereHas('permission', function ($pq) use ($search, $kodeBerlabel) {
                         $pq->where('kode', 'ilike', "%{$search}%")
-                            ->orWhere('keterangan', 'ilike', "%{$search}%");
+                            ->orWhere('keterangan', 'ilike', "%{$search}%")
+                            ->orWhereIn('kode', $kodeBerlabel);
                     })
                     ->orWhereHas('unit', function ($uq) use ($search) {
                         $uq->where('nama', 'ilike', "%{$search}%");
@@ -66,7 +68,7 @@ class IndexGrant
                     'user_roles' => $grant->user?->roles->map(fn (Role $role) => $role->aktif ? $role->nama : "{$role->nama} (nonaktif)")->all() ?? [],
                     'permission_id' => $grant->permission_id,
                     'permission_kode' => $grant->permission?->kode,
-                    'permission_keterangan' => $grant->permission?->keterangan,
+                    'permission_label' => PermissionCatalog::LABEL_IZIN_UNIT[$grant->permission?->kode] ?? $grant->permission?->keterangan ?? $grant->permission?->kode,
                     'unit_id' => $grant->unit_id,
                     'unit_nama' => $grant->unit?->nama,
                     'alasan' => $grant->alasan,
@@ -89,13 +91,14 @@ class IndexGrant
         $unitPermissions = Permission::where('butuh_scope', Permission::SCOPE_UNIT)
             ->where('aktif', true)
             ->whereIn('kode', PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS)
-            ->select('id', 'kode', 'entitas', 'aksi', 'keterangan')
-            ->orderBy('kode')
+            ->select('id', 'kode')
             ->get()
+            ->sortBy(fn (Permission $p) => array_search($p->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true))
+            ->values()
             ->map(fn (Permission $p) => [
                 'id' => $p->id,
                 'kode' => $p->kode,
-                'keterangan' => $p->keterangan,
+                'label' => PermissionCatalog::LABEL_IZIN_UNIT[$p->kode],
             ]);
 
         return [

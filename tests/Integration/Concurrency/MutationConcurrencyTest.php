@@ -435,12 +435,13 @@ class MutationConcurrencyTest extends TestCase
         $grant = null;
         if (in_array($operation, ['grant-create', 'grant-revoke'], true)) {
             $target = User::factory()->create(['status' => 'aktif']);
-            $payload['data'] = [
-                'user_id' => $target->id, 'permission_id' => Permission::where('kode', 'pengukuran:create')->value('id'),
-                'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture',
-            ];
+            $izin = Permission::where('kode', 'pengukuran:create')->value('id');
+            $payload['data'] = ['user_id' => $target->id, 'permission_ids' => [$izin], 'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture'];
             if ($operation === 'grant-revoke') {
-                $grant = UserPermissionGrant::create([...$payload['data'], 'diberikan_oleh' => $actor->id]);
+                $grant = UserPermissionGrant::create([
+                    'user_id' => $target->id, 'permission_id' => $izin, 'unit_id' => $unit->id,
+                    'alasan' => 'Alasan grant fixture', 'diberikan_oleh' => $actor->id,
+                ]);
                 $payload['grant_id'] = $grant->id;
             }
         }
@@ -507,7 +508,7 @@ class MutationConcurrencyTest extends TestCase
         $results = $this->race('grant-create', $role->id, '', [[
             'actor_id' => $actor->id, 'permission' => $permission->kode,
             'data' => [
-                'user_id' => $target->id, 'permission_id' => Permission::where('kode', 'pengukuran:create')->value('id'),
+                'user_id' => $target->id, 'permission_ids' => [Permission::where('kode', 'pengukuran:create')->value('id')],
                 'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture role lock',
             ],
         ]], barrierTable: 'roles', assertBlocked: $revokeWhileBlocked);
