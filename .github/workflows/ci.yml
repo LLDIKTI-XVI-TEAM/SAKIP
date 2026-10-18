@@ -97,7 +97,8 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.run_app != 'false') }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Suite PHP penuh memakan ~14–16 menit pada runner; batas 15 menit membuat job terpotong walau semua test lulus.
+    timeout-minutes: 25
     env:
       APP_ENV: testing
       APP_KEY: base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
