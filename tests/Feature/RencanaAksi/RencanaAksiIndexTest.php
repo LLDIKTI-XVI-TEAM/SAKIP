@@ -344,6 +344,47 @@ class RencanaAksiIndexTest extends TestCase
     }
 
     /**
+     * Capability review tidak boleh membaca ACL per baris: keputusan izin
+     * dihitung sekali untuk semua unit yang tampil walau banyak header
+     * non-draft ada di halaman.
+     */
+    public function test_daftar_membaca_acl_review_sekali_per_halaman(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+
+        $this->actingAs($fixture['pic'])->post('/rencana-aksi/ensure-draft', [
+            'indikator_id' => $fixture['indikator']->id,
+            'tahun' => 2026,
+        ])->assertSessionHasNoErrors();
+        RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole()->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
+
+        $bacaAcl = function () use ($fixture): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $daftar = app(DaftarRencanaAksi::class)->handle($fixture['perencanaan'], []);
+            $jumlah = collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], '"role_permissions"')
+                || str_contains($query['query'], '"user_permission_granted"') || str_contains($query['query'], '"user_permission_denied"')
+                || str_contains($query['query'], 'from "permissions"'))->count();
+            DB::disableQueryLog();
+            $this->assertSame([true], collect($daftar['daftar'])->pluck('can.review')->unique()->all());
+
+            return $jumlah;
+        };
+
+        $satuBaris = $bacaAcl();
+        $this->assertGreaterThan(0, $satuBaris);
+        foreach (range(1, 4) as $nomor) {
+            $indikator = $this->tambahIndikatorTerjadwal($fixture, "A-REVIEW-{$nomor}");
+            RencanaAksi::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'unit_id' => $fixture['unit']->id,
+                'jadwal_tahunan_id' => $fixture['jadwal']->id, 'penanggung_jawab_id' => $fixture['pic']->id,
+                'status_alur' => RencanaAksi::STATUS_DIAJUKAN, 'versi' => 2, 'created_by' => $fixture['perencanaan']->id]);
+        }
+
+        $this->assertSame($satuBaris, $bacaAcl());
+    }
+
+    /**
      * Capability review mengikuti policy `view` dan status: draf tanpa versi
      * pengajuan tidak menawarkan Review, status pengajuan menawarkannya.
      */

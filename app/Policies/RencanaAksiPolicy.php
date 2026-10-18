@@ -45,12 +45,21 @@ class RencanaAksiPolicy
      */
     public function view(User $user, RencanaAksi $header): bool
     {
-        $terbaru = $header->relationLoaded('latestVersion') ? $header->getRelation('latestVersion') : $header->latestVersion()->first();
-        if (! $this->unitSnapshotSelaras($header, $terbaru instanceof RencanaAksiVersi ? $terbaru : null)) {
-            return false;
-        }
+        return $this->dapatDilihat($header, $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_READ, (string) $header->unit_id));
+    }
 
-        return $this->resolver->allows($user, PermissionCodes::RENCANA_AKSI_READ, (string) $header->unit_id);
+    /**
+     * Capability daftar lintas unit: keputusan izin unit sudah dihitung pemanggil
+     * sekali untuk semua unit yang tampil (`PermissionResolver::decideManyForUnits`)
+     * agar ACL tidak dibaca ulang per baris, sedangkan keselarasan unit snapshot
+     * versi terbaru tetap ditegakkan di sini supaya aturannya tidak terduplikasi
+     * di Action.
+     */
+    public function dapatDilihat(RencanaAksi $header, bool $unitDiizinkan): bool
+    {
+        $terbaru = $header->relationLoaded('latestVersion') ? $header->getRelation('latestVersion') : $header->latestVersion()->first();
+
+        return $this->unitSnapshotSelaras($header, $terbaru instanceof RencanaAksiVersi ? $terbaru : null) && $unitDiizinkan;
     }
 
     /** Versi yang dipilih juga dicek agar data beku unit lain tidak terbaca lewat versi historis (`?versi=`, unduhan bukti). */

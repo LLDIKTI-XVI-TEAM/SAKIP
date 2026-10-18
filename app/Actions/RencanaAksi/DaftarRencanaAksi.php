@@ -8,6 +8,7 @@ use App\Models\JadwalTahunan;
 use App\Models\PenugasanIndikator;
 use App\Models\RencanaAksi;
 use App\Models\User;
+use App\Policies\RencanaAksiPolicy;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\PermissionCodes;
@@ -22,6 +23,7 @@ class DaftarRencanaAksi
     public function __construct(
         private readonly PermissionResolver $resolver,
         private readonly JendelaTulisRencanaAksi $jendela,
+        private readonly RencanaAksiPolicy $policy,
     ) {}
 
     /**
@@ -49,10 +51,11 @@ class DaftarRencanaAksi
      * Filter `status` menyaring baris sebelum paginasi: `belum_dibuat` =
      * indikator tanpa header, `semua` = tanpa saringan (bawaan), selain itu
      * nilai `rencana_aksi.status_alur` yang dipilih. Capability `review`
-     * mengikuti policy kanonis `view` (unit berizin + keselarasan unit
-     * snapshot versi terbaru) dan status non-draft, cermin penyaringan
-     * antrean review lama sehingga tautan yang pasti ditolak tidak
-     * ditawarkan.
+     * mengikuti policy kanonis `dapatDilihat` (keselarasan unit snapshot versi
+     * terbaru) dan status non-draft, sedangkan keputusan izin bacanya dibaca
+     * sekali per halaman lewat `decideManyForUnits` agar tidak ada query ACL
+     * per baris. Ini cermin penyaringan antrean review lama sehingga tautan
+     * yang pasti ditolak tidak ditawarkan.
      *
      * @param  array<string, mixed>  $query  Query string halaman; `page` dan `status` tervalidasi diteruskan ke paginator dan filter.
      * @return array{daftar: list<array<string, mixed>>, filters: array{status: string}, pagination: array<string, mixed>}
@@ -91,18 +94,20 @@ class DaftarRencanaAksi
             ->withQueryString();
 
         // Header halaman ini dimuat sekali agar capability review memakai
-        // policy kanonis (unit berizin + keselarasan unit snapshot versi
-        // terbaru) tanpa N+1.
+        // policy kanonis (keselarasan unit snapshot versi terbaru) tanpa N+1.
         $idHeader = $halaman->getCollection()->pluck('rencana_aksi_id')->filter()->unique()->values()->all();
         $headerRencanaAksi = $idHeader === [] ? collect() : RencanaAksi::query()
             ->whereIn('id', $idHeader)
             ->with('latestVersion.jadwalSnapshot')
             ->get()
             ->keyBy('id');
+        // Keputusan izin baca dihitung sekali untuk semua unit yang tampil, bukan per baris.
+        $unitHeader = $headerRencanaAksi->pluck('unit_id')->map(fn ($unitId): string => (string) $unitId)->unique()->values()->all();
+        $keputusanBaca = $unitHeader === [] ? [] : $this->resolver->decideManyForUnits($actor, [PermissionCodes::RENCANA_AKSI_READ], $unitHeader);
 
         /** @var array<string, PermissionDecision> $izinBuat */
         $izinBuat = [];
-        $daftar = $halaman->getCollection()->map(function (IndikatorKinerja $baris) use ($actor, $jadwalTerbaca, $headerRencanaAksi, &$izinBuat): array {
+        $daftar = $halaman->getCollection()->map(function (IndikatorKinerja $baris) use ($actor, $jadwalTerbaca, $headerRencanaAksi, $keputusanBaca, &$izinBuat): array {
             $adaHeader = $baris->getAttribute('rencana_aksi_id') !== null;
             $buat = false;
             $unitBeku = (string) $baris->getAttribute('snap_unit_id');
@@ -121,7 +126,7 @@ class DaftarRencanaAksi
             // (status non-draft) dan headernya boleh dibaca aktor.
             $review = $header instanceof RencanaAksi
                 && $header->status_alur !== RencanaAksi::STATUS_DRAFT
-                && Gate::forUser($actor)->allows('view', $header);
+                && $this->policy->dapatDilihat($header, (bool) ($keputusanBaca[(string) $header->unit_id][PermissionCodes::RENCANA_AKSI_READ]['allowed'] ?? false));
 
             return [
                 'indikator_id' => $baris->id,
