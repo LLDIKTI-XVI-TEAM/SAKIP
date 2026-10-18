@@ -46,7 +46,7 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
     {
         [$fixture, $header] = $this->drafTanpaKegiatan('2026-02-15 09:00:00');
         $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $fixture['periode2']->id,
-            'nama' => 'Bimbingan teknis', 'tujuan' => 'Tujuan beku', 'created_by' => $fixture['pic']->id]);
+            'nama' => 'Bimbingan teknis', 'tujuan' => 'Tujuan beku', 'anggaran' => 0, 'created_by' => $fixture['pic']->id]);
         $klaim = KlaimKegiatan::create(['rencana_aksi_id' => $header->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'mengurangi',
             'catatan' => 'Catatan klaim', 'sumber_klaim' => 'rencana_aksi', 'created_by' => $fixture['pic']->id, 'created_at' => now()]);
 
@@ -56,7 +56,7 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         $this->assertEquals([[
             'id' => $klaim->id, 'kegiatan_id' => $kegiatan->id, 'komponen_id' => null, 'arah_dampak' => 'mengurangi', 'catatan' => 'Catatan klaim',
             'periode_id' => $fixture['periode2']->id,
-            'kegiatan' => ['nama' => 'Bimbingan teknis', 'tujuan' => 'Tujuan beku', 'anggaran' => null, 'status' => 'rencana'],
+            'kegiatan' => ['nama' => 'Bimbingan teknis', 'tujuan' => 'Tujuan beku', 'anggaran' => '0', 'status' => 'rencana'],
         ]], RencanaAksiVersi::sole()->snapshot['klaim']);
     }
 
@@ -279,7 +279,7 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         $aktorLain = $this->actingAs($fixture['perencanaan']);
         if ($mutasi === 'tambah') {
             $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $fixture['periode1']->id,
-                'nama' => 'Kegiatan baru', 'created_by' => $fixture['perencanaan']->id]);
+                'nama' => 'Kegiatan baru', 'anggaran' => 0, 'created_by' => $fixture['perencanaan']->id]);
             $aktorLain->post("/kegiatan/{$kegiatan->id}/klaim", ['rencana_aksi_id' => $header->id, 'arah_dampak' => 'menambah'])->assertSessionHasNoErrors();
         } elseif ($mutasi === 'hapus') {
             $aktorLain->delete("/kegiatan/{$klaim->kegiatan_id}/klaim/{$klaim->id}", ['alasan' => 'Klaim keliru'])->assertSessionHasNoErrors();
