@@ -167,7 +167,7 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
             expect(manajemenAkses.group.children.map((c) => c.label)).toEqual([
                 'Penetapan Peran',
                 'Peran & Izin',
-                'Izin Unit (Grant)',
+                'Izin Unit',
                 'Pembatasan Izin',
                 'Izin Pengguna',
             ]);
@@ -385,7 +385,7 @@ describe('Test E — No Role-Based Bypass', () => {
         render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
 
         const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
-        expect(within(nav).queryByRole('link', { name: 'Izin Unit (Grant)' })).toBeNull();
+        expect(within(nav).queryByRole('link', { name: 'Izin Unit' })).toBeNull();
         expect(within(nav).queryByRole('link', { name: 'Pembatasan Izin' })).toBeNull();
     });
 
