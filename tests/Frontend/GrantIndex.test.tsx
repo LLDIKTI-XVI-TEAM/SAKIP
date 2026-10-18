@@ -17,7 +17,7 @@ afterAll(() => methods.forEach((name, index) => {
     else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
 }));
 
-const currentPage = vi.hoisted(() => ({ props: { auth: { user: { id: 'admin-1' } }, errors: {} }, flash: {} }));
+const currentPage = vi.hoisted(() => ({ props: { auth: { user: { id: 'admin-1' }, can: { audit: false } }, errors: {} }, flash: {} }));
 
 vi.mock('@inertiajs/react', async (original) => ({
     ...await original<typeof import('@inertiajs/react')>(),
@@ -33,26 +33,22 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
     </main>,
 }));
 
-const grant = (override: Record<string, unknown> = {}) => ({
-    id: 'grant-1',
+const izin = (permission_id: string, label: string, aktif = true) => ({ grant_id: `grant-${permission_id}`, permission_id, label, aktif });
+const kelompok = (override: Record<string, unknown> = {}) => ({
+    key: 'user-2:unit-1',
     user_id: 'user-2',
     user_name: 'Pegawai Test',
     user_email: 'pegawai@example.test',
     user_roles: ['Pegawai'],
-    permission_id: 'perm-1',
-    permission_kode: 'pengukuran:create',
-    permission_label: 'Mengisi pengukuran',
     unit_id: 'unit-1',
     unit_nama: 'Bagian Akademik',
-    alasan: 'Penugasan pengisian triwulan',
-    diberikan_oleh_nama: 'Admin SAKIP',
-    created_at: '2026-03-20T10:00:00Z',
     tidak_berlaku: [] as string[],
+    izin: [izin('perm-1', 'Mengisi pengukuran'), izin('perm-2', 'Mengubah pengukuran')],
     ...override,
 });
 type Props = Parameters<typeof GrantIndex>[0];
 const props = (override: Partial<Props> = {}): Props => ({
-    grants: { data: [grant()], links: [], from: 1, to: 1, total: 1 },
+    grants: { data: [kelompok()], links: [], from: 1, to: 1, total: 1 },
     filters: { search: '', unit_id: 'all' },
     units: [{ id: 'unit-1', nama: 'Bagian Akademik' }],
     unitPermissions: [
@@ -60,7 +56,7 @@ const props = (override: Partial<Props> = {}): Props => ({
         { id: 'perm-2', kode: 'pengukuran:update', label: 'Mengubah pengukuran' },
         { id: 'perm-3', kode: 'kegiatan:create', label: 'Membuat kegiatan' },
     ],
-    can: { create_grant: true, revoke_grant: true },
+    can: { create_grant: true, kelola_grant: true, revoke_grant: true },
     ...override,
 });
 const tokenOnly = (html: string) => {
@@ -72,8 +68,9 @@ const tokenOnly = (html: string) => {
 beforeEach(() => {
     vi.spyOn(router, 'get').mockImplementation(() => undefined);
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    vi.spyOn(router, 'put').mockImplementation(() => undefined);
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
-        items: [{ id: 'user-2', nama: 'Pegawai Test', email: 'pegawai@example.test', status: 'aktif', roles: ['Pegawai'] }],
+        items: [{ id: 'user-9', nama: 'Pengguna Baru', email: 'baru@example.test', status: 'aktif', roles: ['Pegawai'] }],
         page: 1,
         hasMore: false,
     }), { status: 200 })));
@@ -85,14 +82,15 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-async function bukaDanIsiFormBeri(user: ReturnType<typeof userEvent.setup>, izin: string[] = ['Mengisi pengukuran'], alasan = 'Penugasan khusus input data triwulan') {
+async function bukaDanIsiFormBeri(user: ReturnType<typeof userEvent.setup>, pilihan: string[] = ['Mengisi pengukuran'], alasan = 'Penugasan khusus input data triwulan') {
     await user.click(screen.getByRole('button', { name: 'Beri izin unit' }));
-    await user.type(await screen.findByPlaceholderText(/Cari nama atau email pengguna/i), 'Pegawai');
-    await user.click(await screen.findByRole('option', { name: /Pegawai Test/i }));
-    for (const label of izin) await user.click(screen.getByRole('checkbox', { name: label }));
-    await user.selectOptions(screen.getByLabelText(/^Unit/), 'unit-1');
-    if (alasan !== '') await user.type(screen.getByLabelText(/^Alasan pemberian/), alasan);
-    await user.click(screen.getByRole('button', { name: 'Simpan' }));
+    await user.type(await screen.findByPlaceholderText(/Cari nama atau email pengguna/i), 'Peng');
+    await user.click(await screen.findByRole('option', { name: /Pengguna Baru/i }));
+    const dialog = screen.getByRole('dialog');
+    for (const label of pilihan) await user.click(within(dialog).getByRole('checkbox', { name: label }));
+    await user.selectOptions(within(dialog).getByLabelText(/^Unit/), 'unit-1');
+    if (alasan !== '') await user.type(within(dialog).getByLabelText(/^Alasan pemberian/), alasan);
+    await user.click(within(dialog).getByRole('button', { name: 'Simpan' }));
     return vi.mocked(router.post).mock.calls[0][2];
 }
 
@@ -103,24 +101,36 @@ describe('Halaman Izin Unit', () => {
         expect(screen.getByRole('navigation', { name: 'Breadcrumb' }).textContent).toBe('Izin Unit');
     });
 
-    it('menampilkan penerima, izin berbahasa Indonesia, unit, status berlaku dari server, dan pemberian', () => {
+    it('satu baris per pengguna dan unit memuat daftar izin, status dari server, dan tanpa kolom Pemberian', () => {
         render(<GrantIndex {...props({ grants: { data: [
-            grant(),
-            grant({ id: 'grant-2', user_name: 'Tanpa Peran', user_roles: [], unit_nama: 'Unit Lama', tidak_berlaku: ['Unit nonaktif', 'Akun nonaktif'] }),
+            kelompok(),
+            kelompok({ key: 'user-3:unit-2', user_id: 'user-3', user_name: 'Tanpa Peran', user_roles: [], unit_id: 'unit-2', unit_nama: 'Unit Lama', tidak_berlaku: ['Unit nonaktif', 'Akun nonaktif'], izin: [izin('perm-3', 'Membuat kegiatan', false)] }),
         ], links: [], from: 1, to: 2, total: 2 } })} />);
+        expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Pengguna', 'Unit', 'Izin', 'Status', 'Aksi']);
         const [, berlaku, tidakBerlaku] = screen.getAllByRole('row');
         expect(within(berlaku).getByText('Pegawai Test')).toBeTruthy();
-        expect(within(berlaku).getByText('Pegawai')).toBeTruthy();
-        expect(within(berlaku).getByText('Mengisi pengukuran')).toBeTruthy();
         expect(within(berlaku).getByText('Bagian Akademik')).toBeTruthy();
+        expect(within(within(berlaku).getByRole('list', { name: 'Izin Pegawai Test' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Mengisi pengukuran', 'Mengubah pengukuran']);
         expect(within(berlaku).getByText('Berlaku')).toBeTruthy();
-        expect(within(berlaku).getByText('Penugasan pengisian triwulan')).toBeTruthy();
-        expect(within(berlaku).getByText(/Admin SAKIP/)).toBeTruthy();
         expect(within(tidakBerlaku).getByText('Belum memiliki peran')).toBeTruthy();
         expect(within(tidakBerlaku).getByText('Tidak berlaku')).toBeTruthy();
         expect(within(tidakBerlaku).getByText('Unit nonaktif · Akun nonaktif')).toBeTruthy();
-        expect(screen.queryByText('pengukuran:create')).toBeNull();
-        expect(screen.queryByText('Semua Unit')).toBeNull();
+        expect(within(tidakBerlaku).getByText('Membuat kegiatan (nonaktif)')).toBeTruthy();
+        expect(screen.queryByText('Pemberian')).toBeNull();
+    });
+
+    it('aksi baris berisi detail, kelola, dan cabut semua sesuai capability server', () => {
+        const { unmount } = render(<GrantIndex {...props()} />);
+        expect(screen.getByRole('link', { name: 'Lihat detail izin unit Pegawai Test di Bagian Akademik' }).getAttribute('href')).toBe('/akses/grant/user-2/unit-1');
+        expect(screen.getByRole('button', { name: 'Kelola izin unit Pegawai Test di Bagian Akademik' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Cabut semua izin unit Pegawai Test di Bagian Akademik' })).toBeTruthy();
+        unmount();
+
+        render(<GrantIndex {...props({ can: { create_grant: false, kelola_grant: false, revoke_grant: false } })} />);
+        expect(screen.getByRole('link', { name: /Lihat detail izin unit/ })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Beri izin unit' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Kelola izin unit/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Cabut semua izin unit/ })).toBeNull();
     });
 
     it('tabel memakai grid HP tanpa scroll horizontal, dan halaman beserta form hanya memakai token design system', async () => {
@@ -153,20 +163,8 @@ describe('Halaman Izin Unit', () => {
         expect(screen.getByText('Belum ada izin unit')).toBeTruthy();
     });
 
-    it('aksi mengikuti capability server', () => {
-        const { unmount } = render(<GrantIndex {...props()} />);
-        expect(screen.getByRole('button', { name: 'Cabut izin unit Pegawai Test' })).toBeTruthy();
-        expect(screen.getByRole('columnheader', { name: 'Aksi' })).toBeTruthy();
-        unmount();
-        render(<GrantIndex {...props({ can: { create_grant: false, revoke_grant: false } })} />);
-        expect(screen.queryByRole('button', { name: 'Beri izin unit' })).toBeNull();
-        expect(screen.queryByRole('button', { name: /Cabut izin unit/ })).toBeNull();
-        expect(screen.queryByRole('columnheader', { name: 'Aksi' })).toBeNull();
-        expect(screen.queryByText('Tidak dapat dicabut')).toBeNull();
-    });
-
     it('paginasi memakai komponen bersama', () => {
-        render(<GrantIndex {...props({ grants: { data: [grant()], links: [
+        render(<GrantIndex {...props({ grants: { data: [kelompok()], links: [
             { url: null, label: '&laquo; Previous', active: false },
             { url: '/akses/grant?page=1', label: '1', active: true },
             { url: '/akses/grant?page=2', label: '2', active: false },
@@ -176,70 +174,98 @@ describe('Halaman Izin Unit', () => {
         expect(within(nav).getByRole('link', { name: 'Berikutnya ›' }).getAttribute('href')).toBe('/akses/grant?page=2');
     });
 
-    it('galat validasi tampil sekali di field, bukan juga di banner atas', async () => {
+    it('beri izin: beberapa izin terkirim urut katalog dan alasan boleh kosong', async () => {
         const user = userEvent.setup();
         render(<GrantIndex {...props()} />);
-        const options = await bukaDanIsiFormBeri(user);
-        const pesan = 'Alasan pemberian izin maksimal 1.000 karakter.';
-        await act(async () => { options?.onError?.({ alasan: pesan }); });
-        expect(screen.getAllByText(pesan)).toHaveLength(1);
-        expect(screen.getByLabelText(/^Alasan pemberian/).getAttribute('aria-invalid')).toBe('true');
+        await bukaDanIsiFormBeri(user, ['Membuat kegiatan', 'Mengisi pengukuran'], '');
+        expect(screen.getByLabelText<HTMLTextAreaElement>('Alasan pemberian (opsional)').required).toBe(false);
+        expect(router.post).toHaveBeenCalledWith('/akses/grant', expect.objectContaining({ permission_ids: ['perm-1', 'perm-3'], unit_id: 'unit-1', alasan: '' }), expect.anything());
     });
 
-    it('galat daftar izin dari server tampil sekali di grup checkbox, termasuk galat per butir', async () => {
+    it('beri izin: pilih semua dan Simpan menunggu minimal satu izin', async () => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props()} />);
+        await user.click(screen.getByRole('button', { name: 'Beri izin unit' }));
+        const dialog = screen.getByRole('dialog');
+        const simpan = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan' });
+        expect(simpan.disabled).toBe(true);
+        const semua = within(dialog).getByRole<HTMLInputElement>('checkbox', { name: 'Pilih semua izin' });
+        await user.click(semua);
+        expect(within(dialog).getAllByRole<HTMLInputElement>('checkbox').every((box) => box.checked)).toBe(true);
+        expect(simpan.disabled).toBe(false);
+        await user.click(semua);
+        expect(within(dialog).getAllByRole<HTMLInputElement>('checkbox').some((box) => box.checked)).toBe(false);
+    });
+
+    it('beri izin: galat validasi tampil sekali di field, galat koneksi di banner tanpa menandai field', async () => {
         const user = userEvent.setup();
         render(<GrantIndex {...props()} />);
         const options = await bukaDanIsiFormBeri(user);
         const sudahAda = 'Pengguna sudah memiliki izin ini pada unit tersebut: Mengisi pengukuran.';
         await act(async () => { options?.onError?.({ permission_ids: sudahAda }); });
-        const grup = screen.getByRole('group', { name: /^Izin/ });
-        expect(within(grup).getByRole('alert').textContent).toBe(sudahAda);
+        expect(within(screen.getByRole('group', { name: /^Izin/ })).getByRole('alert').textContent).toBe(sudahAda);
         expect(screen.getAllByText(sudahAda)).toHaveLength(1);
 
-        const perButir = 'Izin ini tidak dapat diberikan sebagai izin unit.';
-        await act(async () => { options?.onError?.({ 'permission_ids.0': perButir } as never); });
-        expect(within(grup).getByRole('alert').textContent).toBe(perButir);
-    });
-
-    it('memberi beberapa izin sekaligus mengirim daftar izin dengan urutan katalog', async () => {
-        const user = userEvent.setup();
-        render(<GrantIndex {...props()} />);
-        await bukaDanIsiFormBeri(user, ['Membuat kegiatan', 'Mengisi pengukuran']);
-        expect(router.post).toHaveBeenCalledWith('/akses/grant', expect.objectContaining({ permission_ids: ['perm-1', 'perm-3'], unit_id: 'unit-1' }), expect.anything());
-    });
-
-    it('pilih semua mencentang lalu mengosongkan seluruh izin, dan Simpan menunggu minimal satu izin', async () => {
-        const user = userEvent.setup();
-        render(<GrantIndex {...props()} />);
-        await user.click(screen.getByRole('button', { name: 'Beri izin unit' }));
-        const simpan = screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan' });
-        expect(simpan.disabled).toBe(true);
-        const semua = screen.getByRole<HTMLInputElement>('checkbox', { name: 'Pilih semua izin' });
-        await user.click(semua);
-        expect(screen.getAllByRole<HTMLInputElement>('checkbox').every((box) => box.checked)).toBe(true);
-        expect(simpan.disabled).toBe(false);
-        await user.click(semua);
-        expect(screen.getAllByRole<HTMLInputElement>('checkbox').some((box) => box.checked)).toBe(false);
-        expect(simpan.disabled).toBe(true);
-    });
-
-    it('alasan pemberian opsional: tanpa alasan tetap dapat dikirim', async () => {
-        const user = userEvent.setup();
-        render(<GrantIndex {...props()} />);
-        await bukaDanIsiFormBeri(user, ['Mengisi pengukuran'], '');
-        const alasan = screen.getByLabelText<HTMLTextAreaElement>('Alasan pemberian (opsional)');
-        expect(alasan.required).toBe(false);
-        expect(router.post).toHaveBeenCalledWith('/akses/grant', expect.objectContaining({ alasan: '', permission_ids: ['perm-1'] }), expect.anything());
-    });
-
-    it('koneksi terputus menyatakan hasil belum diketahui tanpa menandai field', async () => {
-        const user = userEvent.setup();
-        render(<GrantIndex {...props()} />);
-        const options = await bukaDanIsiFormBeri(user);
         let handled: unknown;
         await act(async () => { handled = options?.onNetworkError?.(new Error('offline') as never); });
         expect(handled).toBe(false);
-        expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Hasil pemberian izin belum diketahui');
+        expect(screen.getByText(/Hasil pemberian izin belum diketahui/)).toBeTruthy();
         expect(screen.getByLabelText(/^Alasan pemberian/).getAttribute('aria-invalid')).not.toBe('true');
+    });
+
+    it('kelola izin: izin dimiliki sudah tercentang, menambah dan mencabut terkirim dengan daftar yang dilihat', async () => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props()} />);
+        await user.click(screen.getByRole('button', { name: 'Kelola izin unit Pegawai Test di Bagian Akademik' }));
+        const dialog = screen.getByRole('dialog', { name: /Kelola izin unit/ });
+        const simpan = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' });
+        expect(within(dialog).getByRole<HTMLInputElement>('checkbox', { name: 'Mengisi pengukuran' }).checked).toBe(true);
+        expect(within(dialog).getByRole<HTMLInputElement>('checkbox', { name: 'Membuat kegiatan' }).checked).toBe(false);
+        expect(within(dialog).getByRole('status').textContent).toBe('Belum ada perubahan.');
+        expect(simpan.disabled).toBe(true);
+
+        await user.click(within(dialog).getByRole('checkbox', { name: 'Membuat kegiatan' }));
+        await user.click(within(dialog).getByRole('checkbox', { name: 'Mengubah pengukuran' }));
+        expect(within(dialog).getByRole('status').textContent).toBe('1 izin diberikan, 1 izin dicabut.');
+        const alasan = within(dialog).getByLabelText<HTMLTextAreaElement>(/^Alasan perubahan/);
+        expect(alasan.required).toBe(true);
+        expect(simpan.disabled).toBe(true);
+        await user.type(alasan, 'Penyesuaian tugas PJ');
+        await user.click(simpan);
+
+        expect(router.put).toHaveBeenCalledWith('/akses/grant/kelola', expect.objectContaining({
+            user_id: 'user-2', unit_id: 'unit-1', permission_ids: ['perm-1', 'perm-3'], expected_permission_ids: ['perm-1', 'perm-2'], alasan: 'Penyesuaian tugas PJ',
+        }), expect.anything());
+    });
+
+    it('kelola izin: hanya menambah membuat alasan opsional, dan konflik data meminta muat ulang', async () => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props()} />);
+        await user.click(screen.getByRole('button', { name: /Kelola izin unit Pegawai Test/ }));
+        const dialog = screen.getByRole('dialog', { name: /Kelola izin unit/ });
+        await user.click(within(dialog).getByRole('checkbox', { name: 'Membuat kegiatan' }));
+        expect(within(dialog).getByLabelText<HTMLTextAreaElement>('Alasan perubahan (opsional)').required).toBe(false);
+        await user.click(within(dialog).getByRole('button', { name: 'Simpan perubahan' }));
+
+        const options = vi.mocked(router.put).mock.calls[0][2];
+        const konflik = 'Izin unit pengguna ini telah berubah. Muat ulang data sebelum menyimpan.';
+        await act(async () => { options?.onError?.({ expected_permission_ids: konflik } as never); });
+        expect(within(dialog).getByRole('alert').textContent).toContain(konflik);
+        expect(within(dialog).getByRole('button', { name: 'Muat ulang data' })).toBeTruthy();
+    });
+
+    it('cabut semua memakai modal alasan audit dan mengirim daftar kosong', async () => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props()} />);
+        await user.click(screen.getByRole('button', { name: 'Cabut semua izin unit Pegawai Test di Bagian Akademik' }));
+        const dialog = screen.getByRole('dialog', { name: 'Cabut semua izin unit Pegawai Test?' });
+        const konfirmasi = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Cabut semua' });
+        expect(konfirmasi.disabled).toBe(true);
+        await user.type(within(dialog).getByRole('textbox'), 'Penugasan selesai');
+        await user.click(konfirmasi);
+
+        expect(router.put).toHaveBeenCalledWith('/akses/grant/kelola', {
+            user_id: 'user-2', unit_id: 'unit-1', permission_ids: [], expected_permission_ids: ['perm-1', 'perm-2'], alasan: 'Penugasan selesai',
+        }, expect.anything());
     });
 });

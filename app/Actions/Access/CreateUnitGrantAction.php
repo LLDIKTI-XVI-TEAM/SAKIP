@@ -23,7 +23,7 @@ class CreateUnitGrantAction
     /** Alasan baku server bila pemberi izin mengosongkan alasan (Q43 §43.3 butir 1). */
     public const ALASAN_BAKU = 'Pemberian izin unit tanpa alasan tambahan.';
 
-    private const IZIN_TIDAK_SAH = 'Izin tidak tersedia, sudah dinonaktifkan, atau tidak dapat diberikan sebagai izin unit.';
+    public const IZIN_TIDAK_SAH = 'Izin tidak tersedia, sudah dinonaktifkan, atau tidak dapat diberikan sebagai izin unit.';
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
@@ -217,15 +217,19 @@ class CreateUnitGrantAction
      */
     private function pastikanIzinSah(Collection $permissions, array $permissionIds): void
     {
-        $tidakSah = $permissions->count() !== count($permissionIds) || $permissions->contains(fn (Permission $p) => ! $p->aktif
-            || $p->butuh_scope !== Permission::SCOPE_UNIT
-            || ! in_array($p->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true));
-
-        if ($tidakSah) {
+        if ($permissions->count() !== count($permissionIds) || $permissions->contains(fn (Permission $p) => ! self::dapatDiberikan($p))) {
             throw ValidationException::withMessages([
                 'permission_ids' => self::IZIN_TIDAK_SAH,
             ]);
         }
+    }
+
+    /** Izin yang boleh diberikan baru: aktif, unit-scoped, dan termasuk 7 izin katalog. */
+    public static function dapatDiberikan(Permission $permission): bool
+    {
+        return $permission->aktif
+            && $permission->butuh_scope === Permission::SCOPE_UNIT
+            && in_array($permission->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true);
     }
 
     /**

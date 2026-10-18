@@ -38,7 +38,7 @@ afterAll(() => methods.forEach((name, index) => {
 describe('Grant Mutation 403 Exception Handling', () => {
     beforeEach(() => {
         vi.spyOn(router, 'post').mockImplementation(() => undefined);
-        vi.spyOn(router, 'delete').mockImplementation(() => undefined);
+        vi.spyOn(router, 'put').mockImplementation(() => undefined);
         vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
             items: [{ id: 'user-2', nama: 'Pegawai Test', email: 'pegawai@example.test', roles: ['pegawai'] }],
             page: 1,
@@ -52,30 +52,26 @@ describe('Grant Mutation 403 Exception Handling', () => {
         vi.unstubAllGlobals();
     });
 
-    const mockGrant = {
-        id: 'grant-1',
+    const mockKelompok = {
+        key: 'user-2:unit-1',
         user_id: 'user-2',
         user_name: 'Pegawai Test',
         user_email: 'pegawai@example.test',
         user_roles: ['Pegawai'],
-        permission_id: 'perm-1',
-        permission_kode: 'pengukuran:create',
-        permission_label: 'Mengisi pengukuran',
         unit_id: 'unit-1',
         unit_nama: 'Bagian Akademik',
-        alasan: 'Alasan penugasan awal',
-        diberikan_oleh_nama: 'Admin SAKIP',
-        created_at: '2026-03-20T10:00:00Z',
         tidak_berlaku: [],
+        izin: [{ grant_id: 'grant-1', permission_id: 'perm-1', label: 'Mengisi pengukuran', aktif: true }],
     };
 
     const mockProps = {
-        grants: { data: [mockGrant], links: [], from: 1, to: 1, total: 1 },
+        grants: { data: [mockKelompok], links: [], from: 1, to: 1, total: 1 },
         filters: { search: '', unit_id: 'all' },
         units: [{ id: 'unit-1', nama: 'Bagian Akademik' }],
         unitPermissions: [{ id: 'perm-1', kode: 'pengukuran:create', label: 'Mengisi pengukuran' }],
         can: {
             create_grant: true,
+            kelola_grant: true,
             revoke_grant: true,
         },
     };
@@ -131,25 +127,25 @@ describe('Grant Mutation 403 Exception Handling', () => {
         const user = userEvent.setup();
         render(<GrantIndex {...mockProps} />);
 
-        // Klik tombol cabut izin pada baris grant
-        await user.click(screen.getByRole('button', { name: 'Cabut izin unit Pegawai Test' }));
+        // Klik tombol cabut semua izin pada baris pengguna-unit
+        await user.click(screen.getByRole('button', { name: 'Cabut semua izin unit Pegawai Test di Bagian Akademik' }));
 
         // Modal alasan pencabutan terbuka dan tombol konfirmasi menunggu alasan
-        const dialog = screen.getByRole('dialog', { name: 'Cabut izin unit Pegawai Test?' });
-        const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Cabut izin' });
+        const dialog = screen.getByRole('dialog', { name: 'Cabut semua izin unit Pegawai Test?' });
+        const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Cabut semua' });
         expect(confirm.disabled).toBe(true);
 
         // Isi alasan pencabutan
         const alasanInput = within(dialog).getByRole<HTMLTextAreaElement>('textbox');
         await user.type(alasanInput, 'Masa penugasan triwulan telah berakhir');
 
-        // Submit pencabutan
+        // Submit pencabutan lewat endpoint Kelola dengan daftar akhir kosong
         await user.click(confirm);
 
-        expect(router.delete).toHaveBeenCalled();
-        const deleteCall = vi.mocked(router.delete).mock.calls[0];
-        expect(deleteCall[0]).toBe(`/akses/grant/${mockGrant.id}`);
-        const options = deleteCall[1];
+        expect(router.put).toHaveBeenCalled();
+        const putCall = vi.mocked(router.put).mock.calls[0];
+        expect(putCall[0]).toBe('/akses/grant/kelola');
+        const options = putCall[2];
 
         // Simulasikan server merespons 403 karena izin delegasi aktor telah dicabut
         const serverMessage = 'Anda tidak berwenang mengelola pencabutan izin unit.';
@@ -166,7 +162,7 @@ describe('Grant Mutation 403 Exception Handling', () => {
         expect(handledResult).toBe(false);
 
         // Modal tetap terbuka dengan alasan utuh dan tidak ditandai salah
-        expect(screen.getByRole('dialog', { name: 'Cabut izin unit Pegawai Test?' })).toBeTruthy();
+        expect(screen.getByRole('dialog', { name: 'Cabut semua izin unit Pegawai Test?' })).toBeTruthy();
         expect(alasanInput.value).toBe('Masa penugasan triwulan telah berakhir');
         expect(alasanInput.getAttribute('aria-invalid')).toBe('false');
 

@@ -433,11 +433,14 @@ class MutationConcurrencyTest extends TestCase
             'data' => ['nama' => 'Mutasi yang harus ditolak', 'status' => 'aktif', 'version_token' => $unit->getVersionToken(), 'expected_nama' => null, 'expected_status' => null, 'snapshot' => null],
         ];
         $grant = null;
-        if (in_array($operation, ['grant-create', 'grant-revoke'], true)) {
+        if (in_array($operation, ['grant-create', 'grant-revoke', 'grant-kelola'], true)) {
             $target = User::factory()->create(['status' => 'aktif']);
             $izin = Permission::where('kode', 'pengukuran:create')->value('id');
             $payload['data'] = ['user_id' => $target->id, 'permission_ids' => [$izin], 'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture'];
-            if ($operation === 'grant-revoke') {
+            if ($operation === 'grant-kelola') {
+                $payload['data'] = [...$payload['data'], 'permission_ids' => [], 'expected_permission_ids' => [$izin]];
+            }
+            if ($operation !== 'grant-create') {
                 $grant = UserPermissionGrant::create([
                     'user_id' => $target->id, 'permission_id' => $izin, 'unit_id' => $unit->id,
                     'alasan' => 'Alasan grant fixture', 'diberikan_oleh' => $actor->id,
@@ -485,6 +488,7 @@ class MutationConcurrencyTest extends TestCase
             ['unit-delete', 'unit:delete', 'unit.hapus_ditolak'],
             ['grant-create', 'delegasi:update', 'user_permission_granted.ditolak'],
             ['grant-revoke', 'delegasi:update', 'user_permission_granted.ditolak'],
+            ['grant-kelola', 'delegasi:update', 'user_permission_granted.ditolak'],
         ];
     }
 

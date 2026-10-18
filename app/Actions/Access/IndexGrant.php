@@ -3,29 +3,24 @@
 namespace App\Actions\Access;
 
 use App\Models\Permission;
-use App\Models\Role;
 use App\Models\Unit;
 use App\Models\UserPermissionGrant;
+use App\Services\Access\IzinUnitPresenter;
 use App\Services\Authorization\PermissionCatalog;
 use Illuminate\Support\Str;
 
 class IndexGrant
 {
     /**
-     * Daftar grant izin tambahan ber-unit beserta pilihan unit aktif dan permission yang boleh didelegasikan.
+     * Daftar Izin Unit satu baris per pengguna × unit (Q60) beserta pilihan unit aktif dan permission yang boleh didelegasikan.
+     * Paginasi menghitung kelompok; kelompok tampil bila pengguna, unit, atau salah satu izinnya cocok dengan pencarian.
      * Filter unit yang bukan UUID unit aktif jatuh kembali ke "all" agar query tidak membocorkan keberadaan unit nonaktif.
      *
      * @return array<string, mixed>
      */
     public function handle(string $search, mixed $unitId): array
     {
-        $grantsQuery = UserPermissionGrant::with([
-            'user:id,nama,email,status',
-            'user.roles:id,nama,kode,aktif',
-            'permission:id,kode,keterangan,butuh_scope,aktif',
-            'unit:id,nama,status',
-            'diberikanOleh:id,nama',
-        ])
+        $grantsQuery = UserPermissionGrant::query()
             ->whereNotNull('unit_id')
             ->whereHas('permission', fn ($q) => $q->where('butuh_scope', Permission::SCOPE_UNIT));
 
@@ -55,62 +50,45 @@ class IndexGrant
             }
         }
 
-        $grants = $grantsQuery->latest()
-            ->orderByDesc('id')
+        $kelompok = $grantsQuery->select('user_id', 'unit_id')
+            ->selectRaw('max(created_at) as terakhir')
+            ->groupBy('user_id', 'unit_id')
+            ->orderByDesc('terakhir')
+            ->orderBy('user_id')
+            ->orderBy('unit_id')
             ->paginate(15)
-            ->withQueryString()
-            ->through(function (UserPermissionGrant $grant) {
-                return [
-                    'id' => $grant->id,
-                    'user_id' => $grant->user_id,
-                    'user_name' => $grant->user?->nama ?? '-',
-                    'user_email' => $grant->user?->email ?? '-',
-                    'user_roles' => $grant->user?->roles->map(fn (Role $role) => $role->aktif ? $role->nama : "{$role->nama} (nonaktif)")->all() ?? [],
-                    'permission_id' => $grant->permission_id,
-                    'permission_kode' => $grant->permission?->kode,
-                    'permission_label' => PermissionCatalog::LABEL_IZIN_UNIT[$grant->permission?->kode] ?? $grant->permission?->keterangan ?? $grant->permission?->kode,
-                    'unit_id' => $grant->unit_id,
-                    'unit_nama' => $grant->unit?->nama,
-                    'alasan' => $grant->alasan,
-                    'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',
-                    'created_at' => $grant->created_at?->toISOString(),
-                    // Kriteria sama dengan PermissionResolver: akun, izin katalog, dan unit harus aktif agar grant berlaku.
-                    'tidak_berlaku' => array_keys(array_filter([
-                        'Akun nonaktif' => $grant->user?->status !== 'aktif',
-                        'Izin nonaktif' => ! $grant->permission?->aktif,
-                        'Unit nonaktif' => $grant->unit?->status !== 'aktif',
-                    ])),
-                ];
-            });
+            ->withQueryString();
+
+        // Seluruh izin kelompok di halaman ini dimuat sekali, termasuk izin yang tidak cocok dengan pencarian.
+        $pasangan = $kelompok->getCollection();
+        $grants = $pasangan->isEmpty() ? collect() : UserPermissionGrant::with(IzinUnitPresenter::RELASI)
+            ->whereHas('permission', fn ($q) => $q->where('butuh_scope', Permission::SCOPE_UNIT))
+            ->where(function ($q) use ($pasangan) {
+                foreach ($pasangan as $p) {
+                    $q->orWhere(fn ($w) => $w->where('user_id', $p->user_id)->where('unit_id', $p->unit_id));
+                }
+            })
+            ->get()
+            ->groupBy(fn (UserPermissionGrant $grant) => "{$grant->user_id}:{$grant->unit_id}");
+
+        $kelompok->through(fn (UserPermissionGrant $p) => IzinUnitPresenter::kelompok($grants["{$p->user_id}:{$p->unit_id}"]));
 
         $units = Unit::where('status', 'aktif')
             ->select('id', 'nama')
             ->orderBy('nama')
             ->get();
 
-        $unitPermissions = Permission::where('butuh_scope', Permission::SCOPE_UNIT)
-            ->where('aktif', true)
-            ->whereIn('kode', PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS)
-            ->select('id', 'kode')
-            ->get()
-            ->sortBy(fn (Permission $p) => array_search($p->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true))
-            ->values()
-            ->map(fn (Permission $p) => [
-                'id' => $p->id,
-                'kode' => $p->kode,
-                'label' => PermissionCatalog::LABEL_IZIN_UNIT[$p->kode],
-            ]);
-
         return [
-            'grants' => $grants,
+            'grants' => $kelompok,
             'filters' => [
                 'search' => $search,
                 'unit_id' => $unitId ?? 'all',
             ],
             'units' => $units,
-            'unitPermissions' => $unitPermissions,
+            'unitPermissions' => IzinUnitPresenter::pilihanIzin(),
             'can' => [
                 'create_grant' => true,
+                'kelola_grant' => true,
                 'revoke_grant' => true,
             ],
         ];
