@@ -7,6 +7,16 @@ import { COMPONENTS, definition, indicator, REVISION } from './indikatorFixtures
 import type { DefinitionEditor } from '@/Pages/Indikator/Komponen/definition';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+
+it('penanda dinilai tahunan dikirim sebagai metadata dan tidak mengubah formula', async () => {
+    const user = userEvent.setup();
+    const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);
+    render(<IndikatorModal {...common} indikator={indicator()} editor={definition()} onClose={vi.fn()} />);
+    await user.click(screen.getByRole('switch', { name: 'Dinilai tahunan' }));
+    await user.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    expect(put.mock.calls[0]?.[1]).toMatchObject({ dinilai_tahunan: true, tipe_perhitungan: 'rasio_persen' });
+    expect(put.mock.calls[0]?.[1]).not.toHaveProperty('komponen');
+});
 const can = { sasaran_create: false, sasaran_update: false, sasaran_delete: false, indikator_create: true, indikator_read: true, indikator_update: true, indikator_delete: false, komponen_read: true, komponen_create: true, komponen_update: true, komponen_delete: true };
 const common = { isOpen: true, sasarans: [{ id: 'sas-1', renstra_id: 'ren-1', kode: 'SS-01', deskripsi: 'Sasaran', urutan: 1, indikator_kinerjas: [] }], units: [{ id: 'unit-a', nama: 'Unit A' }], regulasis: [], can };
 it('membuat nonmanual bersama definisi dalam satu POST', async () => {
@@ -26,6 +36,16 @@ it('metadata repair menyertakan hanya child berubah dan token editor asal', asyn
     await user.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
     expect(put.mock.calls[0]?.[1]).toMatchObject({ expected_updated_at: REVISION, nama: 'Capaian kinerja revisi', komponen: [{ ...COMPONENTS[1], label: 'Total target repair' }] });
 });
+it('saklar catatan tidak tampil dan metadata edit mempertahankan nilai kolom yang tersimpan', async () => {
+    const user = userEvent.setup();
+    const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);
+    render(<IndikatorModal {...common} indikator={indicator({ wajib_catatan: true })} editor={definition()} onClose={vi.fn()} />);
+    expect(screen.queryByLabelText(/Wajib Melampirkan Catatan/)).toBeNull();
+    await user.type(screen.getByLabelText(/Nama Indikator Kinerja/), ' revisi');
+    await user.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    expect(put.mock.calls[0]?.[1]).toMatchObject({ wajib_catatan: true });
+});
+
 it('metadata-only tanpa child read tidak mengirim array kosong sebagai definisi', async () => {
     const user = userEvent.setup(); const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);
     const editor: DefinitionEditor = definition({ komponen: null });

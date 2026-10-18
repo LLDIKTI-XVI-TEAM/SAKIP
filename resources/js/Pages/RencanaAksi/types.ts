@@ -2,7 +2,7 @@ import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
 
 /**
  * Kontrak halaman daftar Rencana Aksi (`DaftarRencanaAksi`): daftar indikator
- * × tahun sekaligus antrean review lewat filter status (Q56).
+ * × tahun sekaligus antrean review lewat filter status (Q59).
  */
 
 /** `belum_dibuat` = indikator tanpa header rencana aksi; `semua` = tanpa saringan. */
@@ -211,6 +211,7 @@ export const rencanaAksiStatusPerhitungan: Record<string, string> = {
     belum_diisi: 'Belum diisi',
     terhitung: 'Terhitung',
     tidak_dapat_dihitung: 'Tidak dapat dihitung',
+    tidak_ditargetkan: 'Tidak ditargetkan',
 };
 
 /** Kunci sel matriks `periode_id::komponen_id` (`manual` untuk indikator manual). */

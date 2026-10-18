@@ -6,7 +6,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Memusatkan validasi aturan kalender yang digunakan bersama oleh Action
- * SaveJadwalDraft dan SavePeriode agar aturan keduanya konsisten.
+ * SaveJadwalDraft, SavePeriode, dan RevisiJendelaPic agar aturan ketiganya
+ * konsisten.
  *
  * Action tetap menangani use case secara utuh: otorisasi, pengambilan
  * data, locking, transaksi, penyimpanan, dan audit. Service ini hanya
@@ -26,6 +27,45 @@ class JadwalDraftRules
     public function validate(array $data, array $periodeMetadata): void
     {
         $this->validateSelectedMetadata($data, $periodeMetadata);
+        $errors = $this->kalenderErrors($data);
+        $year = (int) $data['tahun'];
+        foreach (['rencana_aksi_mulai', 'rencana_aksi_selesai'] as $field) {
+            if ((int) substr($data[$field], 0, 4) !== $year) {
+                $errors[$field] = 'Jendela Rencana Aksi harus berada pada tahun pelaporan.';
+            }
+        }
+        if ($data['rencana_aksi_mulai'] > $data['rencana_aksi_selesai']) {
+            $errors['rencana_aksi_selesai'] = 'Selesai Rencana Aksi harus sama dengan atau setelah tanggal mulai.';
+        }
+        if ($data['rencana_aksi_selesai'] >= min(array_column($data['periode'], 'pengisian_mulai'))) {
+            $errors['rencana_aksi_selesai'] = 'Rencana Aksi harus selesai sebelum pengisian pertama dimulai.';
+        }
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * Revisi jendela PIC pada jadwal aktif (Q18): aturan kalender yang sama tanpa jendela Rencana Aksi yang dihapus Q41.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, array{urutan: int}>  $periodeMetadata
+     */
+    public function validateJendela(array $data, array $periodeMetadata): void
+    {
+        $this->validateSelectedMetadata($data, $periodeMetadata);
+        $errors = $this->kalenderErrors($data);
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, string>
+     */
+    private function kalenderErrors(array $data): array
+    {
         $errors = [];
         $year = (int) $data['tahun'];
         foreach ($data['periode'] as $index => $window) {
@@ -46,17 +86,6 @@ class JadwalDraftRules
             }
             $previousEnd = max($previousEnd ?? $window['pengisian_selesai'], $window['pengisian_selesai']);
         }
-        foreach (['rencana_aksi_mulai', 'rencana_aksi_selesai'] as $field) {
-            if ((int) substr($data[$field], 0, 4) !== $year) {
-                $errors[$field] = 'Jendela Rencana Aksi harus berada pada tahun pelaporan.';
-            }
-        }
-        if ($data['rencana_aksi_mulai'] > $data['rencana_aksi_selesai']) {
-            $errors['rencana_aksi_selesai'] = 'Selesai Rencana Aksi harus sama dengan atau setelah tanggal mulai.';
-        }
-        if ($data['rencana_aksi_selesai'] >= min(array_column($windows, 'pengisian_mulai'))) {
-            $errors['rencana_aksi_selesai'] = 'Rencana Aksi harus selesai sebelum pengisian pertama dimulai.';
-        }
         $closeYear = (int) substr($data['penutupan'], 0, 4);
         if ($closeYear < $year || $closeYear > $year + 1) {
             $errors['penutupan'] = 'Penutupan harus berada pada tahun pelaporan atau tahun berikutnya.';
@@ -64,9 +93,8 @@ class JadwalDraftRules
         if ($data['penutupan'] <= max(array_column($windows, 'reviu_selesai'))) {
             $errors['penutupan'] = 'Penutupan paling cepat hari berikutnya setelah seluruh target selesai review.';
         }
-        if ($errors !== []) {
-            throw ValidationException::withMessages($errors);
-        }
+
+        return $errors;
     }
 
     /**

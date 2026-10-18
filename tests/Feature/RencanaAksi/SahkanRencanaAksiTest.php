@@ -129,7 +129,7 @@ class SahkanRencanaAksiTest extends TestCase
             ->component('RencanaAksi/Review')->where('rencanaAksi.status_alur', 'disahkan')
             ->where('rencanaAksi.pengesahan.oleh', $this->pengesah->nama)->where('rencanaAksi.pengesahan.self_approval', false)
             ->where('rencanaAksi.can.sahkan', false));
-        // Daftar disahkan untuk monitoring memakai filter status pada halaman daftar yang sama (Q56).
+        // Daftar disahkan untuk monitoring memakai filter status pada halaman daftar yang sama (Q59).
         $this->get('/rencana-aksi?status=disahkan')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('RencanaAksi/Index')->where('filters.status', 'disahkan')->has('daftar', 1)
             ->where('daftar.0.rencana_aksi.id', $this->rencanaAksi->id)->where('daftar.0.rencana_aksi.status_alur', 'disahkan'));

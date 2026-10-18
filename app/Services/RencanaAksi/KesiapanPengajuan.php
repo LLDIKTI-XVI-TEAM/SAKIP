@@ -58,7 +58,7 @@ class KesiapanPengajuan
      * @param  Collection<string, Collection<string, RencanaAksiTarget>>  $petaTarget
      * @return list<array{periode_id: string, periode_nama: ?string, periode_urutan: int, nilai: ?string, status_perhitungan: string, keterangan: ?string, komponen: list<array{komponen_id: string, kode: string, label: string, nilai: ?string, keterangan: ?string}>}>
      */
-    public function barisPeriode(string $tipe, int $presisi, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $petaTarget): array
+    public function barisPeriode(string $tipe, int $presisi, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $petaTarget, JadwalSnapshot $snapshot): array
     {
         $hasil = [];
         foreach ($jendela as $window) {
@@ -70,6 +70,7 @@ class KesiapanPengajuan
             $sel = $petaTarget->get($periodeId) ?? collect();
             if ($tipe === 'manual') {
                 $manual = $sel->get('manual');
+                $nilai = [$manual?->nilai];
                 $skor = $this->skor($tipe, $presisi, $definisi, ['manual' => $manual?->nilai]);
                 $keterangan = $manual?->keterangan;
                 $komponen = [];
@@ -85,8 +86,15 @@ class KesiapanPengajuan
                         'keterangan' => $row?->keterangan,
                     ];
                 })->values()->all();
-                $skor = $this->skor($tipe, $presisi, $definisi, array_column($komponen, 'nilai', 'komponen_id'));
+                $nilai = array_column($komponen, 'nilai', 'komponen_id');
+                $skor = $this->skor($tipe, $presisi, $definisi, $nilai);
                 $keterangan = null;
+            }
+
+            if ($skor['status_perhitungan'] === 'belum_diisi' && $nilai !== []
+                && array_filter($nilai, fn ($value): bool => $value !== null) === []
+                && PeriodeTanpaTarget::bolehTanpaTarget($snapshot, $window, $jendela)) {
+                $skor['status_perhitungan'] = 'tidak_ditargetkan';
             }
 
             $hasil[] = [
@@ -105,7 +113,7 @@ class KesiapanPengajuan
 
     /**
      * Alasan pengajuan ditolak dengan teks yang sama untuk kartu kesiapan dan
-     * gerbang server. Hanya `terhitung` yang lengkap: `belum_diisi` dan
+     * gerbang server. `terhitung` dan pengecualian `tidak_ditargetkan` lengkap; `belum_diisi` dan
      * `tidak_dapat_dihitung` (termasuk penyebut nol) menolak. Deviasi PK yang
      * tidak dapat dinilai (target PK null) tidak memerlukan alasan.
      *
@@ -123,7 +131,7 @@ class KesiapanPengajuan
         foreach ($baris as $row) {
             if ($row['status_perhitungan'] === 'belum_diisi') {
                 $alasan[] = "Target periode {$row['periode_nama']} belum lengkap.";
-            } elseif ($row['status_perhitungan'] !== 'terhitung') {
+            } elseif (! in_array($row['status_perhitungan'], ['terhitung', 'tidak_ditargetkan'], true)) {
                 $alasan[] = "Target periode {$row['periode_nama']} tidak dapat dihitung; perbaiki target sebelum mengajukan.";
             }
         }

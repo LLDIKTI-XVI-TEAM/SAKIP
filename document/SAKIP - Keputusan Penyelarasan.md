@@ -21,6 +21,10 @@ Basis commit sebelum pembaruan Q54: `fe79a3136d38382c9bb4e9ae6a20ed182cc68d2d`
 
 Basis commit sebelum pembaruan Q55: `32d54f628198d8a8f0e0bb1c3fe65fe27d332833`
 
+Basis commit sebelum pembaruan Q56: `7851d3035ebc8f069c2a123e2242f2c6faef91fb`
+
+Basis commit sebelum pembaruan Q57: `118bf003162217d30a77a732db723574174213e8`
+
 > Dokumen ini menjadi catatan keputusan penyelarasan lintas dokumen SAKIP. PRD menetapkan perilaku produk, Data Model menetapkan struktur dan integritas data, Workflow menetapkan alur, Plan Pengembangan menetapkan task/dependency/Definition of Done, User Stories dan User Issues menerjemahkan kontrak tersebut ke kebutuhan dan pekerjaan implementasi. Bila terdapat keputusan bisnis baru yang menggantikan baseline lama, perubahan harus terlebih dahulu dicatat di dokumen ini lalu diselaraskan ke seluruh sumber terdampak.
 
 ---
@@ -64,6 +68,10 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 16 Oktober 2026 (Q55)** menetapkan satu draf terbuka, token draf dan rekomendasi berlaku, persetujuan langsung oleh penyetuju cadangan, serta pembekuan dan token rekomendasi pada pengajuan pengukuran, melengkapi Q51.
 
+**Keputusan 17 Oktober 2026 (Q56)** menetapkan bahwa Admin tetap memegang `audit:read` bersama Superadmin, Perencanaan, dan Pimpinan, menyelaraskan PRD §25.4 dengan Plan Pengembangan, dan menerima secara sadar bahwa izin ini membuka payload audit lintas modul, termasuk draf.
+
+**Keputusan 17 Oktober 2026 (Q57)** menetapkan bahwa revisi resmi jendela PIC dapat ikut menyesuaikan jendela reviu periode yang sama dalam satu aksi beralasan dan teraudit, sedangkan penanda reviu terlambat yang sudah tercatat tetap beku, melengkapi Q18 dan Q41 §41.1 butir 3.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -83,7 +91,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q1 | PM mengelola baseline/catatan keputusan; Perencanaan mengesahkan domain dan UAT; teknis menetapkan implementasi. | Pembuka PRD; Plan P.4 |
 | Q2 | Pisahkan siap diuji, evaluasi/perbaikan, diterima, dan produksi. Target integrasi sebelum 9 November 2026 dan evaluasi/revisi 16–30 November berasal dari Q4 PM; tanggal penerimaan/go-live belum ditetapkan. | PRD pembuka, §28, §32; Plan P.4 |
 | Q3 | Tetapkan daftar penggunaan pertama: tahun/periode, indikator, unit/PIC, data awal dan arsip wajib; Perencanaan memverifikasi sebelum aktivasi. Input manual/backfill, tanpa menambah impor. | PRD pembuka, §12.6; Plan S.1/P.4 |
-| Q4 | In-app baseline MVP; WA/email sebelum 9 November 2026. Pembukaan jadwal, pengingat PIC H-7/H-3/H-1, rekap Perencanaan H-3/H-1, serta pengembalian berkas. | PRD §28; Workflow §22; Plan 14; Model pengaturan |
+| Q4 | In-app baseline MVP; WA/email sebelum 9 November 2026. Pembukaan jadwal, pengingat PIC H-7/H-3/H-1, rekap Perencanaan H-3/H-1, serta pengembalian berkas. **Tenggat WA/email digantikan Q46 §46.3 (17 Oktober 2026):** ISS-12.01–ISS-12.07 dan ISS-13.04 mengikuti rencana sprint setelah Tahap 2. | PRD §28; Workflow §22; Plan 14; Model pengaturan |
 | Q5 | IKU 3 lima input, masing-masing koefisien 0,5; subtotal SAKIP merupakan tampilan turunan. Mesin formula bertingkat generik tetap ditunda. | PRD §17.10–17.11; Plan 5.13/5.17 |
 | Q6 | Definisi pembilang/penyebut/satuan/waktu/sumber IKU 8 harus ditetapkan Perencanaan sebelum produksi. Tidak memilih jumlah PTS hanya karena contoh 84. | PRD §17.11.2 |
 | Q7 | Indikator manual punya satu target langsung per periode; nonmanual target komponen dan skor turunan; tanpa komponen semu. **Diperbarui Q47:** indikator dinilai tahunan boleh tanpa target pada periode sebelum periode nilai akhir. | PRD §14.3; Model rencana_aksi_target; Q47 |
@@ -97,7 +105,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q15 | F1/F2 berlaku untuk RA dan Pengukuran. Gunakan identitas/jalur pengaju yang dibekukan saat pengajuan, bukan pembuat draft atau role terkini; self-approval Perencanaan ditandai. | PRD §7.6; Workflow §20; Model versi |
 | Q16 | Jadwal normal mewajibkan jendela RA selesai sebelum pengisian pertama; indikator baru/revisi/backfill/pembukaan resmi memakai jalur pengecualian teraudit. **Digantikan Q41:** Rencana Aksi tidak lagi memakai jendela penyusunan; periode terkunci bagi PIC setelah jendela pengisiannya lewat. | PRD §12.3; Plan 3.4; Q41 |
 | Q17 | Perencanaan dapat menyelesaikan reviu sampai penutupan tahunan; lewat batas reviu diberi penanda terlambat. | PRD §12.3, §31 |
-| Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. **Q41:** berlaku untuk jendela pengisian pengukuran; jendela penyusunan RA sudah dihapus. | PRD §12.3; Plan 3.12; Q41 |
+| Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. **Q41:** berlaku untuk jendela pengisian pengukuran; jendela penyusunan RA sudah dihapus. **Dilengkapi Q57:** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama. | PRD §12.3; Plan 3.12; Q41; Q57 |
 | Q19 | Koreksi setelah penutupan memerlukan buka kembali dengan lingkup dan durasi eksplisit; tanggal penutupan asli dipertahankan. PIC memerlukan aksi pembukaan jendela terpisah Q18 dalam waktu/lingkup sesi koreksi, bukan otomatis dari buka tahun. | PRD §12.6, §19.5 |
 | Q20 | Indikator baru memiliki periode mulai berlaku; periode sebelumnya Tidak berlaku dan tidak menjadi target/missing/nol. | PRD §10.5, §14.7, §23 |
 | Q21 | Backfill dapat menerima skor historis final tanpa komponen, dengan sumber/alasan/penanda dan alur pengesahan; tidak mengubah tipe master atau membuat komponen rekaan. | PRD §12.6, §17.6 |
@@ -872,7 +880,7 @@ Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.
 
 [Keputusan D1 pada PR #93](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/93#issuecomment-6113303169), disahkan pemilik keputusan SAKIP pada 12 Oktober 2026:
 
-1. ISS-05.04 / PR #93 menjadi pemilik antrean `/rencana-aksi/review`, detail `/rencana-aksi/{id}/review`, `GerbangReviewRencanaAksi`, dan delegasi `RencanaAksiPolicy::businessErrors`. Antrean itu menyatu dengan daftar `/rencana-aksi` lewat filter status sejak Q56 (§56.1); kepemilikan gerbang, policy, dan detail review tidak berubah.
+1. ISS-05.04 / PR #93 menjadi pemilik antrean `/rencana-aksi/review`, detail `/rencana-aksi/{id}/review`, `GerbangReviewRencanaAksi`, dan delegasi `RencanaAksiPolicy::businessErrors`. Antrean itu menyatu dengan daftar `/rencana-aksi` lewat filter status sejak Q59 (§59.1); kepemilikan gerbang, policy, dan detail review tidak berubah.
 2. ISS-05.05 / PR #66 diselaraskan setelah #93 merged ke `development`: gunakan antrean, halaman review, dan guard yang sama, hapus implementasi paralel yang tumpang tindih, lalu tambahkan aksi Sahkan dan capability-nya pada surface tersebut.
 3. Pengesahan tetap memeriksa izin, F1/F2, versi terbaru, status, konteks dan audit pada mutation boundary; F2 tidak melewati business guard konteks. Hasil integrasi #66 perlu direview dan diuji ulang untuk konflik, method ganda, pengesahan, F1/F2, transaksi/audit dan concurrency.
 4. D1 menetapkan arah integrasi, bukan bukti #66 sudah diperbaiki atau persetujuan merge, QA/UAT, maupun deployment. Pengesahan dan buka-kembali tetap di luar scope #58; pengiriman in-app tetap ISS-12.02.
@@ -1249,11 +1257,13 @@ Tim Perencanaan meminta fondasi PK → Rencana Aksi → Kegiatan dimatangkan seb
 
 | Tahap | Batas | Cakupan |
 |---|---|---|
-| 1 | Sebelum integrasi 9 November 2026 (Q2) | Q38 (ISS-01.08); Q39 dan Q50 (ISS-02.10, ISS-02.11); lampiran revisi dan riwayat target Renstra (Q40 §40.2, ISS-02.10); Q41 dan Q47 (ISS-05.07, serta ISS-05.06 yang sedang berjalan); Q42 dan Q49 (ISS-06.01, ISS-06.02, ISS-06.08); Q43 (ISS-13.05); Q44 (ISS-13.06); pengecualian periode lampau (§46.1); di akhir tahap, penyiapan data awal 2026 (ISS-15.01) |
+| 1 | Sebelum integrasi 9 November 2026 (Q2) | Q38 (ISS-01.08); Q39 dan Q50 (ISS-02.10, ISS-02.11); lampiran revisi dan riwayat target Renstra (Q40 §40.2, ISS-02.10); Q41 dan Q47 (ISS-05.07, ISS-05.06); Q42 dan Q49 (ISS-06.01, ISS-06.02, ISS-06.08); Q43 (ISS-13.05); Q44 (ISS-13.06); pengecualian periode lampau (§46.1); di akhir tahap, penyiapan data awal 2026 (ISS-15.01) |
 | 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | Pengukuran inti: ISS-07.01, ISS-07.03 (dengan narasi Q45 §45.1 dan tampilan Q47), ISS-07.06, ISS-08.01, ISS-08.02; pelaksanaan kegiatan: ISS-06.03, ISS-06.04, ISS-06.05; Rekomendasi Pimpinan: ISS-09.01 (Q45, Q51); dashboard dan rekap: ISS-10.01, ISS-10.02; keluaran dokumen resmi: ISS-10.05 (Q48); penutupan jadwal: ISS-14.01 |
 | 3 | Sesudah tahap 2; revisi PK harus siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12 (revisi PK berversi); simulasi target; tampilan daftar berkas; versi penuh Renstra; ISS-13.03. ISS-09.01 dipindah ke tahap 2 (Q51) |
 
-Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
+Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku. Termasuk di dalamnya notifikasi ISS-12.01–ISS-12.07 dan ISS-13.04, sehingga tenggat WA/email "sebelum 9 November 2026" pada Q4 tidak lagi berlaku (ditetapkan PM 17 Oktober 2026); item notifikasi in-app yang dipindahkan Q37 tetap menunggu ISS-12.02.
+
+Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111); cakupan Tahap 1 lainnya belum dimulai.
 
 ## 46.4 Dampak dan traceability
 
@@ -1592,6 +1602,83 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Status keputusan: baseline kerja PM.
 - Q55 adalah keputusan teknis ISS-09.01; implementasinya dibawa PR untuk Issue #103.
 
+# Keputusan Q56 — Admin Memegang Izin Baca Jejak Audit
+
+**Keputusan PM, 17 Oktober 2026**, untuk [ISS-13.03 / Issue #87](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/87). Menyelesaikan perbedaan PRD §25.4 dengan katalog permission dan Plan 10.3 pada Plan Pengembangan.
+
+## 56.1 Aturan
+
+1. `audit:read` termasuk preset Superadmin, Admin, Perencanaan, dan Pimpinan. Preset ini sudah berlaku sejak fondasi akses dan tidak berubah; Pegawai tetap tidak memilikinya.
+2. Deny `audit:read` yang cocok tetap menolak akses halaman Jejak Audit bagi pemegang preset mana pun.
+3. `audit:read` berlaku global dan membuka seluruh isi peristiwa audit lintas modul dan unit, termasuk `nilai_lama`/`nilai_baru` dari draf (misalnya narasi dan tautan bukti pengukuran, serta isi draf Rekomendasi Pimpinan), tanpa memeriksa izin baca modul objeknya. Server hanya menyamarkan kunci yang menyerupai rahasia, dan membaca jejak audit tidak dicatat sebagai peristiwa audit. Konsekuensi ini diterima secara sadar untuk Admin sebagai pengelola akses.
+
+## 56.2 Dampak dan traceability
+
+- Diselaraskan: PRD §25.4. Katalog permission dan Plan 10.3 pada Plan Pengembangan, User Stories US-13.03, dan User Issues ISS-13.03 sudah sesuai; preset dan kode tidak berubah.
+- Butir 3 ditambahkan atas temuan M1 review PR #119: halaman Jejak Audit membuat `audit:read` efektif, sehingga Admin dapat membaca payload modul yang tidak tercakup izin baca perannya.
+- Status keputusan: baseline kerja PM.
+- Q56 menindaklanjuti review PR untuk Issue #87.
+
+---
+
+# Keputusan Q57 — Jendela Reviu dalam Revisi Resmi Jendela PIC
+
+**Keputusan PM, 17 Oktober 2026**, untuk [ISS-03.06 / Issue #90](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/90). Melengkapi Q18 dan Q41 §41.1 butir 3 atas temuan review PR #120.
+
+## 57.1 Aturan
+
+1. Revisi resmi jendela PIC (Q18, `jadwal:update`) pada jadwal `aktif` yang belum melewati `penutupan` dapat mengubah `pengisian_mulai`, `pengisian_selesai`, `reviu_mulai`, dan `reviu_selesai` setiap periode anggota jadwal dalam satu aksi beralasan. Jendela reviu ikut dapat disesuaikan karena urutan `pengisian_selesai ≤ reviu_mulai ≤ reviu_selesai` ditegakkan constraint basis data dan aturan kalender, sehingga perpanjangan jendela pengisian umumnya menggeser jendela reviu periode yang sama.
+2. Jendela reviu tetap jendela kerja Perencanaan (PRD §12.3); revisinya tidak memberi akses tambahan kepada PIC.
+3. Audit `jadwal.revisi_jendela` menyimpan alasan, `dasar_izin`, serta seluruh jendela sebelum dan sesudah revisi, termasuk jendela reviu.
+4. Penanda `reviu_terlambat` pada aksi reviu yang sudah terjadi tetap beku (Q17). Aksi reviu pengukuran sesudah revisi dinilai terhadap jendela reviu yang berlaku saat aksi tersebut: penanda terlambat dihitung dari `reviu_selesai` yang berlaku, dan reviu belum dapat dimulai sebelum `reviu_mulai` yang berlaku kecuali dalam sesi koreksi.
+
+## 57.2 Dampak dan traceability
+
+- Diselaraskan: PRD §12.3; User Stories US-03.06; User Issues ISS-03.06.
+- Kode tidak berubah: perilaku ini sudah ditegakkan `RevisiJendelaPic` dan dibuktikan `JadwalRevisiJendelaTest` serta `PengukuranRevisiJendelaTest` pada PR #120.
+- Status keputusan: baseline kerja PM.
+- Q57 menindaklanjuti review PR untuk Issue #90.
+
+---
+
+# Keputusan Q58 — Penyamaran Kunci Rahasia pada Penulisan Jejak Audit
+
+**Keputusan PM, 17 Oktober 2026**, untuk [Issue #122](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/122) (tindak lanjut review PR #119, ISS-13.03). Nomor Q57 yang semula dirujuk #122 telah dipakai oleh Keputusan Q57, sehingga keputusan ini bernomor Q58.
+
+## 58.1 Aturan
+
+1. `WriteAuditLog` menyamarkan nilai di bawah kunci yang cocok pola rahasia (token, password, secret, authorization, credential, api/access/private key, `path`) dengan penanda tersamar **sebelum** disimpan ke `nilai_lama`, `nilai_baru`, dan `dasar_izin`. Mutasi domain pemanggil tetap berjalan; penyamaran tidak pernah menggagalkan transaksi.
+2. Pola kunci rahasia memiliki **satu sumber** yang dipakai penulisan (`WriteAuditLog`) dan tampilan (`AuditLogPresenter`); penyamaran tampilan tetap ada sebagai lapisan kedua untuk baris yang tersimpan sebelum keputusan ini.
+3. Kunci yang hanya mirip (mis. `primary_key`, `jalur_pengajuan`) tidak disamarkan; pola dibuktikan test positif dan negatif terhadap nilai yang tersimpan di basis data, bukan hanya terhadap tampilan.
+4. Pemilihan field audit tetap tanggung jawab producer (Engineering Standards §7); penyamaran adalah pengaman terakhir, bukan izin mencatat rahasia.
+5. Baris audit yang sudah tersimpan tidak diubah (append-only).
+
+## 58.2 Dampak dan traceability
+
+- Diselaraskan pada PR implementasi: Data Model §2.32 (`audit_log`), PRD §25, Engineering Standards §7 (kontrak penulisan audit memuat penyamaran kunci rahasia).
+- Issue #122: judul, body, dan AC-1–AC-4 dirujuk ke Q58; alternatif "tolak saat menulis" ditolak karena menggagalkan mutasi pemanggil dan dapat menolak data sah, sedangkan "pertahankan kontrak" membiarkan risiko writer mendatang (mis. kredensial notifikasi US-13.04) menyimpan token permanen di tabel append-only.
+- Status keputusan: baseline kerja PM.
+
+---
+
+# Keputusan Q59 — Konsolidasi Antrean Review ke Halaman Rencana Aksi
+
+**Keputusan pemilik produk SAKIP: 16 Oktober 2026 (WITA), melalui permintaan konsolidasi UI pada sesi kerja agent (branch `fix/ui-rencana-aksi`).** Pencatatan ini menyelaraskan §37.5 butir 1 (permukaan antrean) dan **bukan** ratifikasi PM, UAT, merge, maupun deployment. Nomor Q56–Q58 telah dipakai keputusan lain pada 17 Oktober 2026, sehingga keputusan ini bernomor Q59.
+
+## 59.1 Aturan
+
+1. Antrean review Rencana Aksi tidak lagi halaman terpisah: daftar `/rencana-aksi` memuat filter `status` (Semua status, Belum dibuat, Draft, Diajukan, Diverifikasi, Dikembalikan, Disahkan) yang menyaring server-side sebelum paginasi. Antrean reviu berbasis status (AC-7 ISS-05.03; D1 §37.5) tetap tersedia — hanya berpindah permukaan UI.
+2. Halaman detail review tetap `/rencana-aksi/{id}/review` beserta gerbang, policy, dan seluruh aksi verifikasi/pengembalian/pengesahan/buka-kembali yang tidak berubah.
+3. URL lama `/rencana-aksi/review` dipertahankan sebagai redirect ke `/rencana-aksi` agar tautan lama tidak 404; controller dan action daftar antrean lama dihapus.
+4. Aksi per baris pada daftar disajikan satu menu titik-tiga (`ActionMenu`, komponen design system yang sama dengan daftar Sasaran & Indikator): "Buat Rencana Aksi" (capability `create` seperti semula), "Buka" untuk baris ber-header, dan "Review" hanya ketika server menandai capability-nya (status non-draft dan policy `view` mengizinkan — cermin penyaringan antrean lama atas keselarasan unit snapshot versi terbaru), sehingga tautan yang pasti ditolak tidak ditawarkan.
+5. Tidak ada perubahan pada permission, resolver, `GerbangReviewRencanaAksi`, `RencanaAksiPolicy::businessErrors`, maupun aturan mutasi/audit.
+
+## 59.2 Dampak dan traceability
+
+- Diselaraskan: §37.5 butir 1 (antrean pindah permukaan), User Issues ISS-05.04/ISS-05.05 (surface antrean dan detail review), dan Engineering Standards (capability server-side yang ditawarkan UI).
+- Test yang disesuaikan: `RencanaAksiIndexTest`, `ReviewRencanaAksiTest`, `RencanaAksiUnitBerizinTest`, `SahkanRencanaAksiTest`, serta test frontend `RencanaAksiIndex`/`RencanaAksiReview`.
+- Status keputusan: baseline UI. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
+
 ---
 
 # Bukti aritmetika IKU 3
@@ -1703,23 +1790,3 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 3. Pengajuan pengukuran selama RA dibuka kembali tetap ditahan sampai versi baru disahkan (PRD §14.9); banner tidak lagi menyatakan versi lama tetap berlaku.
 4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
 5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.
-
----
-
-# Keputusan Q56 — Konsolidasi Antrean Review ke Halaman Rencana Aksi
-
-**Keputusan pemilik produk SAKIP: 16 Oktober 2026 (WITA), melalui permintaan konsolidasi UI pada sesi kerja agent (branch `fix/ui-rencana-aksi`).** Pencatatan ini menyelaraskan §37.5 butir 1 (permukaan antrean) dan **bukan** ratifikasi PM, UAT, merge, maupun deployment.
-
-## 56.1 Aturan
-
-1. Antrean review Rencana Aksi tidak lagi halaman terpisah: daftar `/rencana-aksi` memuat filter `status` (Semua status, Belum dibuat, Draft, Diajukan, Diverifikasi, Dikembalikan, Disahkan) yang menyaring server-side sebelum paginasi. Antrean reviu berbasis status (AC-7 ISS-05.03; D1 §37.5) tetap tersedia — hanya berpindah permukaan UI.
-2. Halaman detail review tetap `/rencana-aksi/{id}/review` beserta gerbang, policy, dan seluruh aksi verifikasi/pengembalian/pengesahan/buka-kembali yang tidak berubah.
-3. URL lama `/rencana-aksi/review` dipertahankan sebagai redirect ke `/rencana-aksi` agar tautan lama tidak 404; controller dan action daftar antrean lama dihapus.
-4. Aksi per baris pada daftar disajikan satu menu titik-tiga (`ActionMenu`, komponen design system yang sama dengan daftar Sasaran & Indikator): "Buat Rencana Aksi" (capability `create` seperti semula), "Buka" untuk baris ber-header, dan "Review" hanya ketika server menandai capability-nya (status non-draft dan policy `view` mengizinkan — cermin penyaringan antrean lama atas keselarasan unit snapshot versi terbaru), sehingga tautan yang pasti ditolak tidak ditawarkan.
-5. Tidak ada perubahan pada permission, resolver, `GerbangReviewRencanaAksi`, `RencanaAksiPolicy::businessErrors`, maupun aturan mutasi/audit.
-
-## 56.2 Dampak dan traceability
-
-- Diselaraskan: §37.5 butir 1 (antrean pindah permukaan), User Issues ISS-05.04/ISS-05.05 (surface antrean dan detail review), dan Engineering Standards (capability server-side yang ditawarkan UI).
-- Test yang disesuaikan: `RencanaAksiIndexTest`, `ReviewRencanaAksiTest`, `RencanaAksiUnitBerizinTest`, `SahkanRencanaAksiTest`, serta test frontend `RencanaAksiIndex`/`RencanaAksiReview`.
-- Status keputusan: baseline UI. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.

@@ -48,6 +48,7 @@ function makeIndikator(overrides: Partial<IndikatorKinerjaItem> = {}): Indikator
         presisi: 2,
         desimal_tampilan: 2,
         wajib_catatan: false,
+        dinilai_tahunan: false,
         status: 'aktif',
         tahun_mulai_berlaku: 2025,
         ...overrides,

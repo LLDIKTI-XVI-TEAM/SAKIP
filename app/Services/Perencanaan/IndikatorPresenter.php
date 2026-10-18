@@ -92,6 +92,7 @@ class IndikatorPresenter
             'presisi' => $indikator->presisi,
             'desimal_tampilan' => $indikator->desimal_tampilan,
             'wajib_catatan' => $indikator->wajib_catatan,
+            'dinilai_tahunan' => $indikator->dinilai_tahunan,
             'jenis_agregasi' => $indikator->jenis_agregasi,
             'status' => $indikator->status,
             'tahun_mulai_berlaku' => $indikator->tahun_mulai_berlaku,

@@ -84,7 +84,7 @@ class RencanaAksiUnitBerizinTest extends TestCase
     private function assertTerbaca(User $user): void
     {
         $this->actingAs($user)->get('/rencana-aksi')->assertOk()->assertInertia(fn (Assert $p) => $p->has('daftar', 1)->where('daftar.0.rencana_aksi.id', $this->rencanaAksi->id));
-        // Q54 juga berlaku pada tampilan berfilter status (antrean review menyatu dengan daftar, Q56).
+        // Q54 juga berlaku pada tampilan berfilter status (antrean review menyatu dengan daftar, Q59).
         $this->get('/rencana-aksi?status=diajukan')->assertOk()->assertInertia(fn (Assert $p) => $p->has('daftar', 1)
             ->where('daftar.0.rencana_aksi.id', $this->rencanaAksi->id));
         $this->get("/rencana-aksi/{$this->rencanaAksi->id}")->assertOk();

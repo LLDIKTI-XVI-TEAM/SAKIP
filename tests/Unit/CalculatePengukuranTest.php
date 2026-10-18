@@ -7,6 +7,18 @@ use PHPUnit\Framework\TestCase;
 
 class CalculatePengukuranTest extends TestCase
 {
+    public function test_difference_from_pk_preserves_decimal_precision_null_and_zero(): void
+    {
+        $engine = new CalculatePengukuran;
+        $this->assertSame('-13.80', $engine->differenceFromPk('80.25', '94.05'));
+        $this->assertSame('13.80', $engine->differenceFromPk('94.05', '80.25'));
+        $this->assertSame('-70.05', $engine->differenceFromPk('0', '70.05'));
+        $this->assertSame('0.00', $engine->differenceFromPk('70.05', '70.05'));
+        $this->assertSame('1.123456789011', $engine->differenceFromPk('9007199254740993.123456789012', '9007199254740992.000000000001'));
+        $this->assertNull($engine->differenceFromPk(null, '70.05'));
+        $this->assertNull($engine->differenceFromPk('0', null));
+    }
+
     public function test_decimal_inputs_and_rounding_preserve_all_storable_digits(): void
     {
         $engine = new CalculatePengukuran;

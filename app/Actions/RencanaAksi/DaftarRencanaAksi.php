@@ -27,7 +27,7 @@ class DaftarRencanaAksi
     /**
      * Daftar indikator × tahun pada jadwal aktif atau ditutup (read-only)
      * sebagai titik masuk Rencana Aksi, sekaligus antrean review lewat
-     * filter `status` (Q56).
+     * filter `status` (Q59).
      *
      * Baris berasal dari snapshot jadwal tersebut, karena hanya indikator yang
      * dibekukan saat aktivasi yang dapat dibuatkan rencana aksi. Unit baris

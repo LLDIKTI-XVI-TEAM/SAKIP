@@ -86,7 +86,7 @@ export default function RencanaAksiIndex({ daftar, pagination, filters }: Rencan
             <Head title="Rencana Aksi" />
 
             <Card>
-                {/* Filter status mempersatukan daftar dan antrean review (Q56). */}
+                {/* Filter status mempersatukan daftar dan antrean review (Q59). */}
                 <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border p-4">
                     <div className="w-full sm:w-72">
                         <Select
@@ -109,7 +109,7 @@ export default function RencanaAksiIndex({ daftar, pagination, filters }: Rencan
                             <TableHead className="hidden xl:table-cell">Tahun</TableHead>
                             <TableHead className="hidden xl:table-cell">Penanggung Jawab</TableHead>
                             <TableHead className="hidden xl:table-cell">Status</TableHead>
-                            <TableHead className="w-24 text-right xl:w-auto">Aksi</TableHead>
+                            <TableHead className="w-20 text-right xl:w-auto">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

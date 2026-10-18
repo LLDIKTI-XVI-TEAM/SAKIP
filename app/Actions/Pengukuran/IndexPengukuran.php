@@ -86,7 +86,7 @@ class IndexPengukuran
                 // Metadata dari presenter (versi beku setelah diajukan) agar daftar sama dengan detail walau master berubah.
                 return [...$base, 'periode' => $summary['periode_jadwal'], 'indikator' => Arr::only($context['indikator_kinerja'], ['kode', 'nama', 'satuan', 'desimal_tampilan']),
                     'unit' => $context['unit_kerja'], 'pic' => $context['pic'], 'jenis' => 'existing', 'can' => ['create' => false],
-                    'pengukuran' => Arr::only($summary, ['id', 'status', 'nilai', 'status_perhitungan', 'target', 'bukti_count', 'self_approval', 'reviu_terlambat'])];
+                    'pengukuran' => Arr::only($summary, ['id', 'status', 'nilai', 'status_perhitungan', 'target', 'tanpa_target_periode', 'bukti_count', 'self_approval', 'reviu_terlambat'])];
             }
             $create = false;
             if ($row->berlaku) {
@@ -96,7 +96,8 @@ class IndexPengukuran
             }
 
             return [...$base, 'jenis' => 'absent', 'berlaku' => (bool) $row->berlaku, 'pengukuran' => null,
-                'target' => $row->berlaku ? $targets[$row->jadwal_id.':'.$row->indikator_id] : null, 'can' => ['create' => $create]];
+                'target' => $row->berlaku ? $targets[$row->jadwal_id.':'.$row->indikator_id]['target'] : null,
+                'tanpa_target_periode' => $row->berlaku && $targets[$row->jadwal_id.':'.$row->indikator_id]['tanpa_target_periode'], 'can' => ['create' => $create]];
         })->all();
 
         $selected = $filtered ? $schedules->only($periods->first()->jadwal_id) : $schedules;

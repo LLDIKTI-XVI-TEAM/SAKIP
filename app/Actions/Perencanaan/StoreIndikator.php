@@ -198,6 +198,7 @@ class StoreIndikator
                     'presisi' => $validated['presisi'] ?? 2,
                     'desimal_tampilan' => $validated['desimal_tampilan'] ?? 2,
                     'wajib_catatan' => (bool) ($validated['wajib_catatan'] ?? false),
+                    'dinilai_tahunan' => (bool) ($validated['dinilai_tahunan'] ?? false),
                     'status' => IndikatorKinerja::STATUS_AKTIF,
                     'tahun_mulai_berlaku' => (int) $tahunMulaiBerlaku,
                     'created_by' => $lockedActor->id,

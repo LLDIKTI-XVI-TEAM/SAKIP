@@ -97,7 +97,7 @@ class ChangeIndicatorFormula
                         $parent->$field = is_string($data[$field]) ? trim($data[$field]) : $data[$field];
                     }
                 }
-                foreach (['presisi', 'desimal_tampilan', 'wajib_catatan'] as $field) {
+                foreach (['presisi', 'desimal_tampilan', 'wajib_catatan', 'dinilai_tahunan'] as $field) {
                     if (isset($data[$field])) {
                         $parent->$field = $data[$field];
                     }

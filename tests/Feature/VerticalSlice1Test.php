@@ -118,6 +118,13 @@ class VerticalSlice1Test extends TestCase
         $this->assertSame($this->planVersion->id, $version->rencana_aksi_versi_id);
         $this->assertSame(2, $this->pengukuran->versi);
         $this->assertSame(1, $version->nomor);
+        $this->assertNotSame($this->pengukuran->created_by, $version->diajukan_by);
+        $this->assertNotNull($version->diajukan_at);
+        $this->assertSame($this->context->id, $version->jadwal_snapshot_id);
+        $this->assertNotEmpty($version->dasar_izin_pengajuan['grants']);
+        foreach (['nilai', 'komponen', 'status_perhitungan', 'target_pk', 'target', 'bukti_dukungs', 'klaim', 'persyaratan_bukti'] as $field) {
+            $this->assertArrayHasKey($field, $version->snapshot);
+        }
         $audit = AuditLog::where('tindakan', 'pengukuran.ajukan')->firstOrFail();
         $this->assertSame($version->id, $audit->nilai_baru['versi_pengajuan']['id']);
         $this->assertNotEmpty($audit->dasar_izin['grants']);
