@@ -199,7 +199,6 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Rencana kegiatan unit.
     Route::get('/kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
-    Route::get('/kegiatan/buat', [KegiatanController::class, 'create'])->name('kegiatan.create');
     Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');

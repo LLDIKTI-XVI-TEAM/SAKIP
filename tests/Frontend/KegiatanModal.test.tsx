@@ -25,7 +25,9 @@ const a = { id: 'unit-a', nama: 'Unit A' };
 const b = { id: 'unit-b', nama: 'Unit B' };
 const period = { id: 'p1', nama: 'Triwulan I' };
 const item = { id: 'k1', unit_id: a.id, periode_id: period.id, nama: 'Kegiatan audit', tujuan: 'Sintetis', tahun: 2026, status: 'rencana', tanggal_rencana: null, unit: a, periode: period, can: { update: true }, version_token: 'v1' };
-const indexProps = { kegiatan: { data: [item], links: [], from: 1, to: 1, total: 1 }, filters: { tahun: '2026', unit_id: '', periode_id: '', status: '' }, unitOptions: [a, b], periodeOptions: [period], creatableUnitOptions: [a], editableUnitOptions: [a, b], activePeriodeOptions: [period], tahunDefault: 2026, can: { create: true } };
+const rencana = { id: 'k1', unit_id: a.id, tahun: 2026, periode_id: period.id, nama: 'Kegiatan audit', tujuan: null, sasaran_peserta: null,
+    keterangan_peserta: null, lokasi: null, tanggal_rencana: null, status: 'rencana', version_token: 'v1' };
+const indexProps = { kegiatan: { data: [item], links: [], from: 1, to: 1, total: 1 }, filters: { tahun: '2026', unit_id: '', periode_id: '', status: '' }, unitOptions: [a, b], periodeOptions: [period], creatableUnitOptions: [a], activePeriodeOptions: [period], tahunDefault: 2026, can: { create: true } };
 
 it('mempertahankan draft dan error ketika opsi server berubah setelah validasi', async () => {
     const props = { isOpen: true, onClose: vi.fn(), kegiatan: null, tahunDefault: 2026, periodeOptions: [period], unitOptions: [a, b] };
@@ -99,8 +101,8 @@ it.each([401, 403, 419, 500])('menahan dismissal dan menyediakan recovery ekspli
 });
 
 it.each(['page', 'modal'])('tidak membuka replay %s setelah request dibatalkan tanpa konfirmasi', async (mode) => {
-    const props = { kegiatan: null, tahunDefault: 2026, unitOptions: [a], periodeOptions: [period] };
-    render(mode === 'page' ? <Form {...props} /> : <KegiatanModal {...props} isOpen onClose={vi.fn()} />);
+    const props = { tahunDefault: 2026, unitOptions: [a], periodeOptions: [period] };
+    render(mode === 'page' ? <Form {...props} kegiatan={rencana} /> : <KegiatanModal {...props} isOpen onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Draft pembatalan' } });
     const form = screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!;
     fireEvent.submit(form);
@@ -110,7 +112,8 @@ it.each(['page', 'modal'])('tidak membuka replay %s setelah request dibatalkan t
     expect(router.post).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Draft pembatalan');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan kegiatan' }).disabled).toBe(true);
-    expect(screen.getByRole('link', { name: mode === 'page' ? 'Muat ulang form' : 'Muat ulang data kegiatan' })).toBeTruthy();
+    const reload = screen.getByRole('link', { name: mode === 'page' ? 'Muat ulang form' : 'Muat ulang data kegiatan' });
+    expect(reload.getAttribute('href')).toBe(mode === 'page' ? '/kegiatan/k1/edit' : '/kegiatan');
 });
 
 it('menerima nama hingga 500 karakter dan tujuan opsional, termasuk saat mengedit tujuan kosong', () => {
@@ -119,9 +122,7 @@ it('menerima nama hingga 500 karakter dan tujuan opsional, termasuk saat mengedi
     expect(screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/).required).toBe(false);
     cleanup();
 
-    const rencana = { id: 'k1', unit_id: a.id, tahun: 2026, periode_id: period.id, nama: 'Kegiatan audit', tujuan: null, sasaran_peserta: null,
-        keterangan_peserta: null, lokasi: null, tanggal_rencana: null, status: 'rencana', version_token: 'v1' };
-    render(<Form kegiatan={rencana} tahunDefault={2026} unitOptions={[a]} periodeOptions={[period]} />);
+    render(<Form kegiatan={rencana} unitOptions={[a]} periodeOptions={[period]} />);
     expect(screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/).value).toBe('');
     expect(screen.getByRole('link', { name: 'Kembali ke daftar' }).getAttribute('href')).toBe('/kegiatan');
 });

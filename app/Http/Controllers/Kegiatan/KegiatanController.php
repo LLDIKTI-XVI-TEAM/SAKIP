@@ -22,11 +22,6 @@ class KegiatanController extends Controller
         return Inertia::render('Kegiatan/Index', $action->handle($request->user(), $request->validated()));
     }
 
-    public function create(Request $request, FormKegiatan $action): Response
-    {
-        return Inertia::render('Kegiatan/Form', $action->handle($request->user()));
-    }
-
     public function edit(Request $request, Kegiatan $kegiatan, FormKegiatan $action, DaftarKlaimKegiatan $klaim): Response
     {
         // Form dievaluasi lebih dulu agar penolakan akses tetap dijawab FormKegiatan.
