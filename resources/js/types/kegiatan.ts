@@ -23,6 +23,8 @@ export interface RencanaKegiatan {
 
 export interface KegiatanFormProps {
     kegiatan: RencanaKegiatan | null;
+    /** Panel klaim tahap RA; hanya ada pada halaman ubah. */
+    klaim?: KlaimKegiatanPanel | null;
     tahunDefault: number;
     unitOptions: KegiatanOption[];
     periodeOptions: KegiatanOption[];
@@ -79,3 +81,37 @@ export const statusKegiatanConfig: Record<string, { label: string; variant: Badg
     ditunda: { label: 'Ditunda', variant: 'warning' },
     batal: { label: 'Batal', variant: 'danger' },
 };
+
+export type ArahDampak = 'menambah' | 'mengurangi';
+
+export const ARAH_DAMPAK_OPTIONS: { value: ArahDampak; label: string }[] = [
+    { value: 'menambah', label: 'Menambah' },
+    { value: 'mengurangi', label: 'Mengurangi' },
+];
+
+export interface KlaimKegiatanItem {
+    id: string;
+    rencana_aksi_id: string;
+    rencana_aksi: string | null;
+    status_alur: string | null;
+    komponen_id: string | null;
+    komponen: string | null;
+    arah_dampak: ArahDampak;
+    catatan: string | null;
+    can: { hapus: boolean };
+}
+
+export interface OpsiRencanaAksi {
+    id: string;
+    label: string;
+    /** Komponen yang belum diklaim untuk RA ini. */
+    komponen: KegiatanOption[];
+    /** True bila klaim tanpa komponen tertentu ke RA ini belum ada. */
+    tanpa_komponen: boolean;
+}
+
+export interface KlaimKegiatanPanel {
+    daftar: KlaimKegiatanItem[];
+    opsiRencanaAksi: OpsiRencanaAksi[];
+    can: { tambah: boolean };
+}

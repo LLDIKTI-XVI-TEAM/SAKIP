@@ -20,6 +20,8 @@ use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Kegiatan\KegiatanController;
+use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
+use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\StoragePolicyController;
@@ -91,6 +93,7 @@ use App\Http\Controllers\Verifikasi\SahkanPengukuran;
 use App\Http\Controllers\Verifikasi\ShowVerifikasi;
 use App\Http\Controllers\Verifikasi\VerifyPengukuran;
 use App\Http\Middleware\EnsureKegiatanActorIsActive;
+use App\Http\Middleware\EnsureKlaimKegiatanActorIsActive;
 use App\Http\Middleware\EnsurePenanggungJawabActorIsActive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -118,6 +121,14 @@ Route::middleware(['auth', EnsurePenanggungJawabActorIsActive::class])->group(fu
 Route::middleware(['auth', EnsureKegiatanActorIsActive::class])->group(function () {
     Route::post('/kegiatan', [KegiatanController::class, 'store'])->name('kegiatan.store');
     Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
+});
+
+// Daftar kegiatan tahap RA: akun nonaktif dicatat sebagai percobaan klaim yang ditolak.
+Route::middleware(['auth', EnsureKlaimKegiatanActorIsActive::class])->group(function () {
+    Route::post('/kegiatan/{kegiatan}/klaim', [KlaimKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.klaim.store');
+    Route::delete('/kegiatan/{kegiatan}/klaim/{klaim}', [KlaimKegiatanController::class, 'destroy'])->whereUuid('kegiatan')->whereUuid('klaim')->name('kegiatan.klaim.destroy');
+    Route::post('/rencana-aksi/{rencanaAksi}/kegiatan', StoreKegiatanRencanaAksi::class)->whereUuid('rencanaAksi')
+        ->middleware('throttle:30,1,rencana-aksi-tulis')->name('rencana-aksi.kegiatan.store');
 });
 
 Route::middleware(['auth', 'active'])->group(function () {

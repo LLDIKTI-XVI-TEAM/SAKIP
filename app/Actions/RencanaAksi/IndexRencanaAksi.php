@@ -6,6 +6,8 @@ use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
@@ -123,6 +125,22 @@ class IndexRencanaAksi
             $deviasiBeku = $this->kesiapan->deviasi($barisBeku, $snapshot);
             $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $segel->buktiDukungs()->current()->get(['id', 'jenis_berkas_id', 'mode']));
             $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan);
+            // Gerbang kegiatan memakai aturan yang sama dengan pengajuan; jalur dinilai dari izin ajukan pembaca.
+            $klaim = KlaimKegiatan::where('rencana_aksi_id', $segel->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->get();
+            $kegiatanKlaim = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->get()->keyBy('id');
+            $alasanPengajuan = [...$alasanPengajuan, ...$this->kesiapan->alasanKlaim(
+                $klaim, $kegiatanKlaim, $segel, $efektifIds, $definisi->pluck('komponen_id')->all(),
+                $this->resolver->allows($actor, PermissionCodes::KEGIATAN_READ, (string) $segel->unit_id),
+            )];
+            $alasanKegiatan = $this->kesiapan->alasanKegiatan(
+                $klaim->count(),
+                (int) $segel->tahun,
+                $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id)),
+                $jadwal, $jendela, $efektifIds,
+            );
+            if ($alasanKegiatan !== null) {
+                $alasanPengajuan[] = $alasanKegiatan;
+            }
             // Jepit draf tertinggal dari snapshot koreksi terbaru: gerbang
             // pengajuan menolak 409 sampai target disimpan di konteks baru, jadi
             // halaman menunjukkan tindakannya alih-alih "siap" tanpa tombol.
@@ -207,7 +225,8 @@ class IndexRencanaAksi
                 'can' => [
                     'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
                     'update' => $this->bolehUbah($actor, $keputusanUbah, $segel, $indikator, $jadwal, $efektifIds, $koreksi, $terkunciIds),
-                    'submit' => $this->bolehAjukan($actor, $segel, $snapshot, $indikator, $jadwal, $efektifIds, $barisBeku),
+                    'submit' => $this->bolehAjukan($actor, $segel, $snapshot, $indikator, $jadwal, $efektifIds, $barisBeku,
+                        $this->kesiapan->klaimBeku($klaim->filter(fn (KlaimKegiatan $k): bool => $kegiatanKlaim->has($k->kegiatan_id)), $kegiatanKlaim)),
                 ],
             ];
         });
@@ -259,8 +278,9 @@ class IndexRencanaAksi
      *
      * @param  Collection<int, string>  $efektifIds
      * @param  list<array{periode_id: string, nilai: mixed, komponen: list<array{komponen_id: string, nilai: mixed}>}>  $barisBeku
+     * @param  list<array<string, mixed>>  $klaimBeku  Bentuk beku klaim saat ini, dinilai seperti gerbang pengajuan.
      */
-    private function bolehAjukan(User $actor, RencanaAksi $segel, JadwalSnapshot $snapshot, IndikatorKinerja $indikator, JadwalTahunan $jadwal, Collection $efektifIds, array $barisBeku): bool
+    private function bolehAjukan(User $actor, RencanaAksi $segel, JadwalSnapshot $snapshot, IndikatorKinerja $indikator, JadwalTahunan $jadwal, Collection $efektifIds, array $barisBeku, array $klaimBeku): bool
     {
         if (! in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
             || (string) $segel->snapshot_draf_id !== (string) $snapshot->id
@@ -274,7 +294,10 @@ class IndexRencanaAksi
             return false;
         }
 
-        $berubah = PerbandinganNilaiRencanaAksi::periodeBerubahVsVersiSah((string) $segel->id, $barisBeku);
+        $berubah = array_values(array_unique([
+            ...PerbandinganNilaiRencanaAksi::periodeBerubahVsVersiSah((string) $segel->id, $barisBeku),
+            ...PerbandinganNilaiRencanaAksi::periodeKlaimBerubahVsVersiSah((string) $segel->id, $klaimBeku),
+        ]));
 
         return $this->jendela->penilaian($actor, $keputusan, $indikator, $jadwal, 'pengajuan', $berubah)['pesan'] === null;
     }

@@ -1097,6 +1097,12 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 > **Q41, Q42, Q46, Q49 (13 Oktober 2026):** kegiatan kini ditambahkan dari halaman Rencana Aksi per periode, yang membuat kegiatan sekaligus klaimnya ke RA; pengajuan RA mensyaratkan minimal satu kegiatan yang diklaim pada tahap RA; kegiatan dapat disalin ke periode lain; dan periode yang terkunci bagi PIC tidak dapat ditambah kegiatan. AC-6 sampai AC-10 ditambahkan langsung karena story ini belum dikerjakan.
 
+**Status implementasi (2026-10-15):** Diterapkan pada branch `feature/iss-06-02-klaim-kegiatan` (PR #111). Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT. Asumsi kerja berikut **disetujui PM** pada 16 Oktober 2026 ([review PM PR #111](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/111#issuecomment-6198491258)): (1) tambah/hapus klaim hanya saat RA `draft`/`dikembalikan`, penyelarasan PRD §16.5 dengan Q24/Q26; (2) hapus klaim oleh pembuat klaim atau Perencanaan sesuai PRD §16.5; (3) RA data awal 2026 dikenali dari pengajuan lewat jalur Perencanaan tanpa kolom penanda. Input anggaran belum tersedia (ISS-06.08), sehingga salinan kegiatan membawa anggaran kosong; AC-8 belum dicentang sampai salin dan ubah anggaran per kegiatan tersedia. Smoke browser desktop/mobile belum dilengkapi; item responsivitas, checklist UI, dan traceability belum dicentang.
+
+Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tujuan rencana kegiatan yang dibekukan terhadap versi sah untuk menjaga periode terkunci; perubahan status pelaksanaan saja tidak dianggap perubahan rencana. Tambah/hapus klaim tahap RA dan tambah/salin kegiatan dari RA menaikkan versi header sekali per transaksi berhasil, sehingga pengajuan memakai versi lama ditolak 409. Panel RA menampilkan komponen snapshot, arah dampak, dan catatan klaim bagi pembaca berizin. Perbaikan ini tidak mencentang penerimaan UI/UAT atau AC-8 yang masih tertunda.
+
+Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat target belum disimpan, mengikuti penahan tambah kegiatan; anjuran menyimpan draf yang selalu tampil pada kartu kesiapan dihapus. Pengecualian seluruh periode efektif lampau memakai definisi bersama khusus jadwal 2026 (Q46 §46.1); RA 2027 tanpa kegiatan tetap ditolak. Regresi frontend dan kontrol backend 2026/2027 ditambahkan. AC-8, QA browser, UAT, dan deployment tetap tidak dicentang.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-06.02` |
@@ -1113,16 +1119,16 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given kegiatan, RA, komponen opsional, arah dampak, dan catatan valid, When disimpan, Then klaim terbentuk.
-- [ ] **AC-2:** Given unit kegiatan berbeda dengan unit RA, When klaim dibuat, Then ditolak.
-- [ ] **AC-3:** Given klaim identik sudah ada, When dibuat ulang, Then duplikasi ditolak.
-- [ ] **AC-4:** Given klaim berhasil, Then nilai komponen/pengukuran **tidak** berubah otomatis.
-- [ ] **AC-5:** Given kegiatan batal/tidak terlaksana, Then klaim historis tetap dapat dipertahankan untuk menjelaskan kendala.
-- [ ] **AC-6:** Given halaman Rencana Aksi per periode, When PIC atau Perencanaan menambah kegiatan, Then kegiatan (per unit × periode) dan klaimnya ke RA dengan `sumber_klaim = rencana_aksi` dibuat dalam satu aksi. *(Q42 §42.1 butir 2)*
-- [ ] **AC-7:** Given RA diajukan tanpa satu pun kegiatan yang diklaim pada tahap RA, When submit, Then pengajuan ditolak; tidak setiap periode wajib berisi kegiatan. *(Q42 §42.1 butir 3)*
+- [x] **AC-1:** Given kegiatan, RA, komponen opsional, arah dampak, dan catatan valid, When disimpan, Then klaim terbentuk.
+- [x] **AC-2:** Given unit kegiatan berbeda dengan unit RA, When klaim dibuat, Then ditolak.
+- [x] **AC-3:** Given klaim identik sudah ada, When dibuat ulang, Then duplikasi ditolak.
+- [x] **AC-4:** Given klaim berhasil, Then nilai komponen/pengukuran **tidak** berubah otomatis.
+- [x] **AC-5:** Given kegiatan batal/tidak terlaksana, Then klaim historis tetap dapat dipertahankan untuk menjelaskan kendala.
+- [x] **AC-6:** Given halaman Rencana Aksi per periode, When PIC atau Perencanaan menambah kegiatan, Then kegiatan (per unit × periode) dan klaimnya ke RA dengan `sumber_klaim = rencana_aksi` dibuat dalam satu aksi. *(Q42 §42.1 butir 2)*
+- [x] **AC-7:** Given RA diajukan tanpa satu pun kegiatan yang diklaim pada tahap RA, When submit, Then pengajuan ditolak; tidak setiap periode wajib berisi kegiatan. *(Q42 §42.1 butir 3)*
 - [ ] **AC-8:** Given kegiatan ditambahkan dari halaman RA, When PIC menyalinnya ke satu atau lebih periode lain pada RA yang sama, Then setiap salinan menjadi kegiatan tersendiri per unit × periode dengan klaim `sumber_klaim = rencana_aksi` sendiri; nama, tujuan, dan anggaran ikut disalin dan dapat diubah per kegiatan, sedangkan berkas termasuk RAB tidak ikut disalin. *(Q49 §49.2 butir 1–3)*
-- [ ] **AC-9:** Given periode sudah terkunci bagi PIC, When PIC menambah atau menyalin kegiatan ke periode tersebut, Then ditolak. *(Q41 §41.2, Q49 §49.2 butir 4)*
-- [ ] **AC-10:** Given RA data awal 2026 atau periode lampau, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
+- [x] **AC-9:** Given periode sudah terkunci bagi PIC, When PIC menambah atau menyalin kegiatan ke periode tersebut, Then ditolak. *(Q41 §41.2, Q49 §49.2 butir 4)*
+- [x] **AC-10:** Given RA data awal 2026 atau periode lampau, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
 
 **Business Rules / Catatan**
 

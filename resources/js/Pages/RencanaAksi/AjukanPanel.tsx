@@ -90,7 +90,6 @@ export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, c
                                     <li key={alasan}>{alasan}</li>
                                 ))}
                             </ul>
-                            <p className="mt-2">Simpan draf untuk memperbarui hasil.</p>
                         </div>
                     )}
 
