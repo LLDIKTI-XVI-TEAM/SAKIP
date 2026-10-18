@@ -8,6 +8,7 @@ import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
+import { bantuanAnggaran } from '@/lib/rupiah';
 import { ARAH_DAMPAK_OPTIONS, statusKegiatanConfig, type ArahDampak } from '@/types/kegiatan';
 import type { RencanaAksiKegiatan, RencanaAksiKomponen, RencanaAksiPeriode } from './types';
 
@@ -28,6 +29,7 @@ interface FormKegiatan {
     salin_ke_periode_ids: string[];
     nama: string;
     tujuan: string;
+    anggaran: string;
     sasaran_peserta: string;
     keterangan_peserta: string;
     lokasi: string;
@@ -38,7 +40,7 @@ interface FormKegiatan {
 }
 
 const KOSONG: FormKegiatan = {
-    periode_id: '', salin_ke_periode_ids: [], nama: '', tujuan: '', sasaran_peserta: '', keterangan_peserta: '',
+    periode_id: '', salin_ke_periode_ids: [], nama: '', tujuan: '', anggaran: '', sasaran_peserta: '', keterangan_peserta: '',
     lokasi: '', tanggal_rencana: '', komponen_id: '', arah_dampak: 'menambah', catatan: '',
 };
 
@@ -83,7 +85,11 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
         event.preventDefault();
         if (processing) return;
         setGalatKirim('');
-        transform((form) => ({ ...form, sasaran_peserta: form.sasaran_peserta === '' ? null : Number(form.sasaran_peserta) }));
+        transform((form) => ({
+            ...form,
+            sasaran_peserta: form.sasaran_peserta === '' ? null : Number(form.sasaran_peserta),
+            anggaran: form.anggaran === '' ? null : form.anggaran,
+        }));
         post(`/rencana-aksi/${rencanaAksiId}/kegiatan`, {
             preserveScroll: true,
             onSuccess: () => {
@@ -176,6 +182,8 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                     <Input id="kegiatan-ra-nama" label="Nama kegiatan" required maxLength={500} value={data.nama} onChange={(e) => setData('nama', e.target.value)} error={fieldErrors.nama} />
                     <Textarea id="kegiatan-ra-tujuan" label="Tujuan (opsional)" maxLength={10000} value={data.tujuan} onChange={(e) => setData('tujuan', e.target.value)} error={fieldErrors.tujuan} />
                     <div className="grid gap-4 sm:grid-cols-2">
+                        <Input id="kegiatan-ra-anggaran" label="Anggaran (Rp)" type="number" inputMode="numeric" min={0} step={1} value={data.anggaran}
+                            onChange={(e) => setData('anggaran', e.target.value)} error={fieldErrors.anggaran} helperText={bantuanAnggaran(data.anggaran)} />
                         <Input id="kegiatan-ra-sasaran" label="Sasaran peserta" type="number" min={0} max={2147483647} value={data.sasaran_peserta} onChange={(e) => setData('sasaran_peserta', e.target.value)} error={fieldErrors.sasaran_peserta} />
                         <Input id="kegiatan-ra-tanggal" label="Tanggal rencana" type="date" value={data.tanggal_rencana} onChange={(e) => setData('tanggal_rencana', e.target.value)} error={fieldErrors.tanggal_rencana} />
                         <Input id="kegiatan-ra-keterangan" label="Keterangan peserta" maxLength={255} value={data.keterangan_peserta} onChange={(e) => setData('keterangan_peserta', e.target.value)} error={fieldErrors.keterangan_peserta} />
@@ -188,7 +196,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                     {terbukaBagiAktor.length > 1 && (
                         <fieldset className="space-y-2">
                             <legend className="text-sm font-medium text-ink">Salin ke periode lain (opsional)</legend>
-                            <p className="text-xs text-muted">Setiap salinan menjadi kegiatan tersendiri. Tanggal rencana dan berkas tidak ikut disalin.</p>
+                            <p className="text-xs text-muted">Setiap salinan menjadi kegiatan tersendiri dengan anggaran yang sama dan dapat diubah. Tanggal rencana dan berkas tidak ikut disalin.</p>
                             <div className="flex flex-wrap gap-3">
                                 {terbukaBagiAktor.filter((item) => item.id !== data.periode_id).map((item) => (
                                     <label key={item.id} className="inline-flex items-center gap-2 text-sm text-ink">

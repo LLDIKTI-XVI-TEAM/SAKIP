@@ -9,10 +9,12 @@ import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { bantuanAnggaran } from '@/lib/rupiah';
 import type { KegiatanFormProps } from '@/types/kegiatan';
+import { BerkasPerencanaanPanel } from './Partials/BerkasPerencanaanPanel';
 import { KlaimPanel } from './Partials/KlaimPanel';
 
-export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptions, klaim }: KegiatanFormProps) {
+export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptions, klaim, berkasPerencanaan }: KegiatanFormProps) {
     const form = useForm({
         unit_id: kegiatan?.unit_id ?? unitOptions[0]?.id ?? '',
         tahun: String(kegiatan?.tahun ?? tahunDefault),
@@ -20,7 +22,7 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
         nama: kegiatan?.nama ?? '', tujuan: kegiatan?.tujuan ?? '',
         sasaran_peserta: kegiatan?.sasaran_peserta == null ? '' : String(kegiatan.sasaran_peserta),
         keterangan_peserta: kegiatan?.keterangan_peserta ?? '', lokasi: kegiatan?.lokasi ?? '',
-        tanggal_rencana: kegiatan?.tanggal_rencana ?? '', expected_state: kegiatan?.version_token ?? '',
+        tanggal_rencana: kegiatan?.tanggal_rencana ?? '', anggaran: kegiatan?.anggaran ?? '', expected_state: kegiatan?.version_token ?? '',
     });
     const submitting = useRef(false);
     const summary = useRef<HTMLDivElement>(null);
@@ -32,7 +34,7 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
         event.preventDefault();
         if (submitting.current || blocked) return;
         submitting.current = true;
-        form.transform((data) => ({ ...data, tahun: Number(data.tahun), sasaran_peserta: data.sasaran_peserta === '' ? null : Number(data.sasaran_peserta) }));
+        form.transform((data) => ({ ...data, tahun: Number(data.tahun), sasaran_peserta: data.sasaran_peserta === '' ? null : Number(data.sasaran_peserta), anggaran: data.anggaran === '' ? null : data.anggaran }));
         form.post(kegiatan ? `/kegiatan/${kegiatan.id}` : '/kegiatan', {
             preserveScroll: true,
             onError: () => requestAnimationFrame(() => summary.current?.focus()),
@@ -69,6 +71,7 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
                             <Input label="Tanggal rencana" type="date" value={form.data.tanggal_rencana} onChange={(e) => form.setData('tanggal_rencana', e.target.value)} error={form.errors.tanggal_rencana} />
                             <div className="sm:col-span-2"><Input label="Nama kegiatan" required maxLength={500} placeholder="Contoh: Rapat Koordinasi Penyusunan Laporan Kinerja" value={form.data.nama} onChange={(e) => form.setData('nama', e.target.value)} error={form.errors.nama} /></div>
                             <div className="sm:col-span-2"><Textarea label="Tujuan" maxLength={10000} placeholder="Jelaskan tujuan pelaksanaan kegiatan secara ringkas..." value={form.data.tujuan} onChange={(e) => form.setData('tujuan', e.target.value)} error={form.errors.tujuan} /></div>
+                            <Input id="anggaran" label="Anggaran (Rp)" type="number" inputMode="numeric" min={0} step={1} placeholder="Contoh: 5000000" value={form.data.anggaran} onChange={(e) => form.setData('anggaran', e.target.value)} error={form.errors.anggaran} helperText={kegiatan && kegiatan.anggaran === null && form.data.anggaran === '' ? 'Belum diisi. ' + bantuanAnggaran('') : bantuanAnggaran(form.data.anggaran)} />
                             <Input label="Sasaran peserta" type="number" min={0} max={2147483647} placeholder="Contoh: 30" value={form.data.sasaran_peserta} onChange={(e) => form.setData('sasaran_peserta', e.target.value)} error={form.errors.sasaran_peserta} />
                             <Input label="Keterangan peserta" maxLength={255} placeholder="Contoh: Tim Pokja dan perwakilan pimpinan perguruan tinggi" value={form.data.keterangan_peserta} onChange={(e) => form.setData('keterangan_peserta', e.target.value)} error={form.errors.keterangan_peserta} />
                             <div className="sm:col-span-2"><Input label="Lokasi" maxLength={255} placeholder="Contoh: Ruang Rapat LLDIKTI XVI / Daring via Zoom" value={form.data.lokasi} onChange={(e) => form.setData('lokasi', e.target.value)} error={form.errors.lokasi} /></div>
@@ -81,6 +84,7 @@ export default function Form({ kegiatan, tahunDefault, unitOptions, periodeOptio
                 </CardContent>
             </Card>
             {kegiatan && klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
+            {kegiatan && berkasPerencanaan && <BerkasPerencanaanPanel kegiatanId={kegiatan.id} berkas={berkasPerencanaan} />}
         </div>
     </AuthenticatedLayout>;
 }

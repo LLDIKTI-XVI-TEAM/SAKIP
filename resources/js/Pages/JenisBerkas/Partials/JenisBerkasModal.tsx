@@ -15,7 +15,7 @@ export interface IndikatorOption {
 export interface JenisBerkasFormData {
     id?: string;
     nama: string;
-    tahap: 'rencana_aksi' | 'pengukuran' | 'kegiatan';
+    tahap: 'rencana_aksi' | 'pengukuran' | 'kegiatan' | 'kegiatan_perencanaan';
     indikator_id: string | '' | null;
     wajib: boolean;
     keterangan: string;
@@ -23,6 +23,7 @@ export interface JenisBerkasFormData {
     izinkan_tautan: boolean;
     izinkan_teks: boolean;
     semua_mode_wajib: boolean;
+    hanya_kegiatan_beranggaran?: boolean;
     urutan: number;
     format_diizinkan: string;
     ukuran_maks_kb: number | '' | null;
@@ -137,8 +138,11 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         onChange={(e) => onChange('tahap', e.target.value)}
                         disabled={substantifDisabled}
                         error={errors.tahap}
-                        helperText="Saat ini hanya tahap Pengukuran Kinerja."
-                        options={[{ value: 'pengukuran', label: 'Pengukuran Kinerja' }]}
+                        helperText="Perencanaan Kegiatan diperiksa saat rencana aksi diajukan."
+                        options={[
+                            { value: 'pengukuran', label: 'Pengukuran Kinerja' },
+                            { value: 'kegiatan_perencanaan', label: 'Perencanaan Kegiatan' },
+                        ]}
                     />
 
                     <Select
@@ -203,6 +207,16 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         disabled={substantifDisabled}
                         onChange={(checked) => onChange('semua_mode_wajib', checked)}
                     />
+                    {data.tahap === 'kegiatan_perencanaan' && (
+                        <CheckboxField
+                            id="jb-hanya-beranggaran"
+                            label="Hanya kegiatan beranggaran"
+                            help="Tidak dituntut dari kegiatan dengan anggaran Rp0, misalnya RAB."
+                            checked={data.hanya_kegiatan_beranggaran === true}
+                            disabled={substantifDisabled}
+                            onChange={(checked) => onChange('hanya_kegiatan_beranggaran', checked)}
+                        />
+                    )}
                     {isEditing && (
                         <CheckboxField
                             id="jb-aktif"

@@ -15,11 +15,12 @@ import {
     JenisBerkasFormData,
     IndikatorOption
 } from './Partials/JenisBerkasModal';
+import { ContohBerkas, type ContohBerkasItem } from './Partials/ContohBerkas';
 
 export interface JenisBerkasItem {
     id: string;
     nama: string;
-    tahap: 'rencana_aksi' | 'pengukuran' | 'kegiatan';
+    tahap: 'rencana_aksi' | 'pengukuran' | 'kegiatan' | 'kegiatan_perencanaan';
     indikator_id: string | null;
     wajib: boolean;
     keterangan: string | null;
@@ -27,10 +28,12 @@ export interface JenisBerkasItem {
     izinkan_tautan: boolean;
     izinkan_teks: boolean;
     semua_mode_wajib: boolean;
+    hanya_kegiatan_beranggaran?: boolean;
     urutan: number;
     format_diizinkan: string | null;
     ukuran_maks_kb: number | null;
     aktif: boolean;
+    contoh_berkas?: ContohBerkasItem[];
     created_at?: string;
     updated_at?: string;
     indikator?: {
@@ -63,6 +66,7 @@ const defaultFormData: JenisBerkasFormData = {
     izinkan_tautan: false,
     izinkan_teks: false,
     semua_mode_wajib: false,
+    hanya_kegiatan_beranggaran: false,
     urutan: 0,
     format_diizinkan: '',
     ukuran_maks_kb: null,
@@ -73,6 +77,7 @@ const TAHAP: Record<JenisBerkasItem['tahap'], string> = {
     rencana_aksi: 'Rencana Aksi',
     pengukuran: 'Pengukuran',
     kegiatan: 'Kegiatan (SPJ)',
+    kegiatan_perencanaan: 'Perencanaan Kegiatan',
 };
 
 const modeBukti = (item: JenisBerkasItem) =>
@@ -102,8 +107,9 @@ export default function JenisBerkasIndex({
 
     // Modal Audit Reason State
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-    const [auditAction, setAuditAction] = useState<'update' | 'delete' | 'update-batas-teknis' | null>(null);
+    const [auditAction, setAuditAction] = useState<'update' | 'delete' | 'update-batas-teknis' | 'delete-contoh' | null>(null);
     const [targetItem, setTargetItem] = useState<JenisBerkasItem | null>(null);
+    const [targetContoh, setTargetContoh] = useState<ContohBerkasItem | null>(null);
     const [auditReason, setAuditReason] = useState<string>('');
     const [auditError, setAuditError] = useState<string | null>(null);
 
@@ -147,6 +153,7 @@ export default function JenisBerkasIndex({
             izinkan_tautan: item.izinkan_tautan,
             izinkan_teks: item.izinkan_teks,
             semua_mode_wajib: item.semua_mode_wajib,
+            hanya_kegiatan_beranggaran: item.hanya_kegiatan_beranggaran === true,
             urutan: item.urutan,
             format_diizinkan: item.format_diizinkan || '',
             ukuran_maks_kb: item.ukuran_maks_kb,
@@ -216,6 +223,15 @@ export default function JenisBerkasIndex({
     const handleOpenDelete = (item: JenisBerkasItem) => {
         setTargetItem(item);
         setAuditAction('delete');
+        setAuditReason('');
+        setAuditError(null);
+        setIsAuditModalOpen(true);
+    };
+
+    const handleOpenDeleteContoh = (item: JenisBerkasItem, contoh: ContohBerkasItem) => {
+        setTargetItem(item);
+        setTargetContoh(contoh);
+        setAuditAction('delete-contoh');
         setAuditReason('');
         setAuditError(null);
         setIsAuditModalOpen(true);
@@ -296,6 +312,19 @@ export default function JenisBerkasIndex({
                 onFinish: () => {
                     setIsSubmitting(false);
                 },
+            });
+        } else if (auditAction === 'delete-contoh' && targetItem && targetContoh) {
+            setIsSubmitting(true);
+            router.delete(`/jenis-berkas/${targetItem.id}/contoh/${targetContoh.id}`, {
+                data: { alasan: trimmed },
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsAuditModalOpen(false);
+                    setTargetContoh(null);
+                    setAuditReason('');
+                },
+                onError: (errs) => setAuditError(errs.alasan ?? 'Gagal menghapus contoh berkas.'),
+                onFinish: () => setIsSubmitting(false),
             });
         } else if (auditAction === 'delete' && targetItem) {
             setIsSubmitting(true);
@@ -405,6 +434,10 @@ export default function JenisBerkasIndex({
                                         {item.keterangan && (
                                             <p className="mt-0.5 line-clamp-2 break-words text-xs text-muted">{item.keterangan}</p>
                                         )}
+                                        {item.tahap === 'kegiatan_perencanaan' && (
+                                            <ContohBerkas jenisBerkasId={item.id} nama={item.nama} contoh={item.contoh_berkas ?? []} canUpdate={can.update}
+                                                onHapus={(contoh) => handleOpenDeleteContoh(item, contoh)} />
+                                        )}
                                     </TableCell>
                                     <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
                                         <span className="mr-2 text-muted md:hidden">Tahap</span>
@@ -427,6 +460,7 @@ export default function JenisBerkasIndex({
                                             {item.wajib ? 'Wajib' : 'Opsional'}
                                         </span>
                                         {item.semua_mode_wajib && <span className="text-muted"> · semua mode</span>}
+                                        {item.hanya_kegiatan_beranggaran && <span className="text-muted"> · hanya kegiatan beranggaran</span>}
                                         <p className="mt-0.5 text-ink">{modeBukti(item)}</p>
                                         {item.izinkan_file && <p className="mt-0.5 break-words text-muted">{batasFile(item)}</p>}
                                     </TableCell>
@@ -512,14 +546,18 @@ export default function JenisBerkasIndex({
             <AuditReasonModal
                 open={isAuditModalOpen}
                 title={
-                    auditAction === 'delete'
+                    auditAction === 'delete-contoh'
+                        ? `Hapus contoh ${targetContoh?.nama_asli ?? 'berkas'}?`
+                        : auditAction === 'delete'
                         ? `Hapus ${targetItem?.nama ?? 'persyaratan'}?`
                         : auditAction === 'update-batas-teknis'
                         ? 'Simpan perubahan batas teknis?'
                         : 'Simpan perubahan persyaratan?'
                 }
                 description={
-                    auditAction === 'delete'
+                    auditAction === 'delete-contoh'
+                        ? 'Contoh berkas tidak lagi dapat diunduh PIC. Masukkan alasan penghapusan untuk rekaman audit.'
+                        : auditAction === 'delete'
                         ? 'Penghapusan katalog jenis berkas bersifat sensitif. Persyaratan yang dihapus tidak lagi berlaku untuk pengajuan berikutnya. Masukkan alasan penghapusan untuk rekaman audit.'
                         : auditAction === 'update-batas-teknis'
                         ? 'Perubahan batas teknis format dan batas ukuran file akan dicatat pada audit trail dengan rekaman izin pengaturan. Masukkan alasan perubahan batas teknis.'
@@ -528,8 +566,8 @@ export default function JenisBerkasIndex({
                 reason={auditReason}
                 error={auditError || undefined}
                 busy={isSubmitting}
-                confirmLabel={auditAction === 'delete' ? 'Hapus persyaratan' : 'Simpan perubahan'}
-                destructive={auditAction === 'delete'}
+                confirmLabel={auditAction === 'delete-contoh' ? 'Hapus contoh' : auditAction === 'delete' ? 'Hapus persyaratan' : 'Simpan perubahan'}
+                destructive={auditAction === 'delete' || auditAction === 'delete-contoh'}
                 onReasonChange={setAuditReason}
                 onClose={() => {
                     if (!isSubmitting) {

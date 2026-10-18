@@ -17,6 +17,8 @@ export interface RencanaKegiatan {
     keterangan_peserta: string | null;
     lokasi: string | null;
     tanggal_rencana: string | null;
+    /** Rupiah bulat; null berarti belum diisi (data lama, data awal, periode lampau). */
+    anggaran: string | null;
     status: string;
     version_token: string;
 }
@@ -25,6 +27,8 @@ export interface KegiatanFormProps {
     kegiatan: RencanaKegiatan | null;
     /** Panel klaim tahap RA; hanya ada pada halaman ubah. */
     klaim?: KlaimKegiatanPanel | null;
+    /** Panel berkas tahap perencanaan kegiatan (Q42 §42.3); hanya ada pada halaman ubah. */
+    berkasPerencanaan?: BerkasPerencanaanKegiatan | null;
     tahunDefault: number;
     unitOptions: KegiatanOption[];
     periodeOptions: KegiatanOption[];
@@ -114,4 +118,40 @@ export interface KlaimKegiatanPanel {
     daftar: KlaimKegiatanItem[];
     opsiRencanaAksi: OpsiRencanaAksi[];
     can: { tambah: boolean };
+}
+
+export type BerkasKegiatanMode = 'file' | 'tautan' | 'teks';
+
+export interface BerkasKegiatanItem {
+    id: string;
+    mode: BerkasKegiatanMode;
+    nama_asli: string | null;
+    ukuran_bytes: number | null;
+    tautan: string | null;
+    isi_teks: string | null;
+    menggantikan_id: string | null;
+    created_at: string | null;
+}
+
+export interface PersyaratanPerencanaanKegiatan {
+    id: string;
+    nama: string;
+    keterangan: string | null;
+    wajib: boolean;
+    semua_mode_wajib: boolean;
+    izinkan_file: boolean;
+    izinkan_tautan: boolean;
+    izinkan_teks: boolean;
+    format_diizinkan: string;
+    ukuran_maks_kb: number;
+    hanya_kegiatan_beranggaran: boolean;
+    pemenuhan: { terpenuhi: boolean; mode_kurang: BerkasKegiatanMode[] };
+    berkas: BerkasKegiatanItem[];
+    contoh: { id: string; nama_asli: string | null }[];
+}
+
+export interface BerkasPerencanaanKegiatan {
+    persyaratan: PersyaratanPerencanaanKegiatan[];
+    alasan_tolak_unggah: string | null;
+    alasan_tolak_hapus: string | null;
 }

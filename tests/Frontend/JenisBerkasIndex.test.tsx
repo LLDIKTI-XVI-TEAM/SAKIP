@@ -169,3 +169,37 @@ it('hanya menawarkan ubah batas teknis untuk persyaratan yang menerima file', ()
     // Tanpa mode file semua isian batas teknis nonaktif; menyimpannya hanya menghasilkan catatan audit kosong.
     expect(screen.queryByRole('button', { name: 'Ubah batas teknis Kerangka Acuan Kerja' })).toBeNull();
 });
+
+it('persyaratan perencanaan kegiatan menampilkan penanda beranggaran serta mengunggah dan menghapus contoh beralasan', async () => {
+    const user = userEvent.setup();
+    const remove = vi.spyOn(router, 'delete').mockImplementation(() => undefined);
+    const rab = jb({ id: 'j3', nama: 'RAB', tahap: 'kegiatan_perencanaan', wajib: true, hanya_kegiatan_beranggaran: true,
+        contoh_berkas: [{ id: 'c1', nama_asli: 'contoh-rab.xlsx', ukuran_bytes: 2048 }] });
+    render(<JenisBerkasIndex jenisBerkasList={[...list, rab]} indikators={indikators} can={canAll} />);
+
+    expect(screen.getAllByText('Perencanaan Kegiatan').length).toBeGreaterThan(0);
+    expect(screen.getByText(/hanya kegiatan beranggaran/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'contoh-rab.xlsx' }).getAttribute('href')).toBe('/jenis-berkas/j3/contoh/c1');
+
+    await user.click(screen.getByRole('button', { name: 'Hapus contoh contoh-rab.xlsx' }));
+    await user.type(screen.getByRole('textbox', { name: /alasan/i }), 'Contoh usang');
+    await user.click(screen.getByRole('button', { name: 'Hapus contoh' }));
+    expect(remove).toHaveBeenCalledWith('/jenis-berkas/j3/contoh/c1', expect.objectContaining({ data: { alasan: 'Contoh usang' } }));
+
+    const file = new File(['isi'], 'rab-baru.xlsx');
+    await user.upload(screen.getByLabelText(/Unggah contoh/), file);
+    expect(router.post).toHaveBeenCalledWith('/jenis-berkas/j3/contoh', { file }, expect.objectContaining({ forceFormData: true }));
+});
+
+it('penanda hanya kegiatan beranggaran hanya ditawarkan pada tahap perencanaan kegiatan', async () => {
+    const user = userEvent.setup();
+    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    await user.click(screen.getByRole('button', { name: /Tambah persyaratan/ }));
+
+    expect(screen.queryByLabelText('Hanya kegiatan beranggaran')).toBeNull();
+    await user.selectOptions(document.getElementById('jb-tahap') as HTMLSelectElement, 'kegiatan_perencanaan');
+    await user.click(screen.getByLabelText('Hanya kegiatan beranggaran'));
+    await user.type(screen.getByLabelText(/Nama persyaratan/), 'RAB');
+    await user.click(screen.getByRole('button', { name: 'Simpan persyaratan' }));
+    expect(router.post).toHaveBeenCalledWith('/jenis-berkas', expect.objectContaining({ tahap: 'kegiatan_perencanaan', hanya_kegiatan_beranggaran: true }), expect.anything());
+});

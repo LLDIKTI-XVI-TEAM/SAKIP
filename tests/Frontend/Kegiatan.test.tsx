@@ -24,17 +24,17 @@ const props = { kegiatan: null, tahunDefault: 2026, unitOptions, periodeOptions 
 beforeEach(() => { mockPengaturan = {}; vi.spyOn(router, 'post').mockImplementation(() => undefined); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-it('mengirim field rencana melalui submit keyboard tanpa anggaran atau status', () => {
+it('mengirim field rencana beserta anggaran rupiah melalui submit keyboard tanpa status', () => {
     render(<Form {...props} />);
-    expect(screen.queryByLabelText(/anggaran/i)).toBeNull();
     expect(screen.queryByLabelText(/^status/i)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Anggaran/), { target: { value: '5000000' } });
+    expect(screen.getByText(/Rp\s5\.000\.000/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Fasilitasi unit' } });
     fireEvent.change(screen.getByLabelText(/Tujuan/), { target: { value: 'Meningkatkan layanan' } });
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
     const [url, data] = vi.mocked(router.post).mock.calls[0];
     expect(url).toBe('/kegiatan');
-    expect(data).toMatchObject({ unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null });
-    expect(data).not.toHaveProperty('anggaran');
+    expect(data).toMatchObject({ unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, anggaran: '5000000' });
     expect(data).not.toHaveProperty('status');
 });
 
