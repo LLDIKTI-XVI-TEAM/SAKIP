@@ -20,7 +20,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const labelUnit = useLabelUnit();
-    const { can } = pengukuran;
+    const { can, peringatan_verifikasi: peringatan } = pengukuran;
     const businessErrors = pengukuran.businessErrors ?? { verifikasi: [], sahkan: [], kembalikan: [] };
     const alasanGuard: string[] = [...new Set([
         ...(!can.verify ? (businessErrors.verifikasi ?? []) : []),
@@ -190,6 +190,17 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                     <CardContent><EvidenceList pengukuran={pengukuran} /></CardContent>
                 </Card>
                 <ClaimedActivities pengukuran={pengukuran} />
+
+                {peringatan && (peringatan.realisasi_sama || peringatan.narasi_sama || peringatan.keterangan) && (
+                    <section aria-labelledby="peringatan-verifikasi-title" className={`rounded-lg border p-4 text-sm ${peringatan.realisasi_sama || peringatan.narasi_sama ? 'border-warning/30 bg-warning/10' : 'border-border bg-soft'}`}>
+                        <h2 id="peringatan-verifikasi-title" className="font-semibold">{peringatan.realisasi_sama || peringatan.narasi_sama ? 'Data sama dengan periode sebelumnya' : 'Perbandingan antarperiode'}</h2>
+                        {peringatan.periode_pembanding && <p className="mt-1 text-xs">Pembanding resmi: {peringatan.periode_pembanding}.</p>}
+                        {peringatan.realisasi_sama && <p className="mt-2">Realisasi sama dengan periode pembanding.</p>}
+                        {peringatan.narasi_sama && <p className="mt-2">Ketiga narasi utama sama dengan periode pembanding.</p>}
+                        {peringatan.keterangan && <p className="mt-2">{peringatan.keterangan}</p>}
+                        {(peringatan.realisasi_sama || peringatan.narasi_sama) && <p className="mt-2 leading-relaxed">Periksa kewajaran data dan bukti dukung. Peringatan ini tidak menghalangi verifikasi.</p>}
+                    </section>
+                )}
 
                 {panelKeputusanTerlihat && (
                     <Card>

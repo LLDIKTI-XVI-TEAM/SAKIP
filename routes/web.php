@@ -201,6 +201,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Verifikasi & Pengesahan Kinerja
     Route::get('/verifikasi', IndexVerifikasi::class)->name('verifikasi.index');
+    Route::get('/verifikasi/pilihan', [IndexVerifikasi::class, 'pilihan'])->name('verifikasi.pilihan');
     Route::get('/verifikasi/{id}', ShowVerifikasi::class)->whereUuid('id')->name('verifikasi.show');
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
