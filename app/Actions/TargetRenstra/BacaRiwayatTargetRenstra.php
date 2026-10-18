@@ -14,7 +14,7 @@ use App\Policies\TargetKinerjaPolicy;
  */
 class BacaRiwayatTargetRenstra
 {
-    // ponytail: batas 100 entri terbaru; ganti ke pagination bila `terpotong` pernah terjadi.
+    // Batas 100 entri terbaru; ganti ke pagination bila `terpotong` pernah terjadi.
     private const BATAS = 100;
 
     public function __construct(private readonly TargetKinerjaPolicy $policy) {}
