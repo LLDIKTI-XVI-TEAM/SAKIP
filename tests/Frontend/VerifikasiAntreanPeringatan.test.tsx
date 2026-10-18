@@ -33,7 +33,7 @@ const selected_filters = { renstra_id: null, periode_id: null, unit_id: null };
 beforeEach(() => { vi.spyOn(router, 'get').mockImplementation(() => undefined); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-describe('Verifikasi issue 83', () => {
+describe('Antrean dan peringatan verifikasi pengukuran', () => {
     it.each([
         { realisasi_sama: true, narasi_sama: false, teks: 'Realisasi sama dengan periode pembanding.' },
         { realisasi_sama: false, narasi_sama: true, teks: 'Ketiga narasi utama sama dengan periode pembanding.' },

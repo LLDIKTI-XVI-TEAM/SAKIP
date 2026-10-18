@@ -105,7 +105,8 @@ export default function Filters({ filters, selected }: { filters: FilterVerifika
     return <form onSubmit={submit} aria-label="Filter antrean verifikasi" aria-busy={processing} className="space-y-4 border-b border-border p-4 sm:p-6">
         <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Select label="Status antrean" value={data.status} disabled={processing} error={errors.status} onChange={(event) => setData('status', event.target.value === 'diverifikasi' ? 'diverifikasi' : 'diajukan')}
-                options={[{ value: 'diajukan', label: 'Diajukan · menunggu verifikasi' }, { value: 'diverifikasi', label: 'Diverifikasi · siap disahkan' }]} />
+                options={[{ value: 'diajukan', label: 'Diajukan' }, { value: 'diverifikasi', label: 'Diverifikasi' }]}
+                helperText={data.status === 'diverifikasi' ? 'Siap disahkan.' : 'Menunggu verifikasi.'} />
             <FilterLookup jenis="renstra" label="Renstra" initialId={filters.renstra_id} initialOption={selected.renstra_id} disabled={processing} error={errors.renstra_id} onChange={(id) => setData('renstra_id', id)} />
             <Input label="Tahun" type="number" min={1} max={9999} value={data.tahun} disabled={processing} error={errors.tahun} placeholder="Semua tahun" onChange={(event) => setData('tahun', event.target.value)} />
             <FilterLookup jenis="periode" label="Periode" initialId={filters.periode_id} initialOption={selected.periode_id} disabled={processing} error={errors.periode_id} onChange={(id) => setData('periode_id', id)} />

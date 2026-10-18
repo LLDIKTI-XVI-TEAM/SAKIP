@@ -4,7 +4,6 @@ namespace App\Actions\Pengukuran;
 
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
-use App\Models\Periode;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
@@ -179,20 +178,18 @@ class PresentPengukuran
     {
         $hasil = ['periode_pembanding' => null, 'realisasi_sama' => false, 'narasi_sama' => false,
             'keterangan' => 'Pembanding periode sebelumnya belum tersedia.'];
-        $periode = Periode::query()->whereIn('id', DB::table('jadwal_periode')
-            ->where('jadwal_id', $p->jadwalSnapshot->jadwal_id)->select('periode_id'))
-            ->where('urutan', '<', $p->periode->urutan)->orderByDesc('urutan')->first();
+        $periode = $this->rekomendasi->periodeSebelum($p);
         if (! $periode) {
             return $hasil;
         }
         $sebelumnya = PengukuranKinerja::with(['jadwalSnapshot', 'ratifiedVersion'])
-            ->where('indikator_id', $p->indikator_id)->where('tahun', $p->tahun)->where('periode_id', $periode->id)
-            ->whereHas('jadwalSnapshot', fn ($query) => $query->where('jadwal_id', $p->jadwalSnapshot->jadwal_id))->first();
+            ->where('indikator_id', $p->indikator_id)->where('tahun', $periode['tahun'])->where('periode_id', $periode['periode_id'])
+            ->whereHas('jadwalSnapshot', fn ($query) => $query->where('jadwal_id', $periode['jadwal_id']))->first();
         if (! $sebelumnya || ! Gate::forUser($actor)->allows('view', $sebelumnya) || ! $sebelumnya->ratifiedVersion) {
             return $hasil;
         }
         $lama = $sebelumnya->ratifiedVersion->snapshot;
-        $hasil['periode_pembanding'] = ($lama['periode']['nama'] ?? $periode->nama).' '.$p->tahun;
+        $hasil['periode_pembanding'] = ($lama['periode']['nama'] ?? $periode['nama']).' '.$periode['tahun'];
         $hasil['keterangan'] = null;
         $sebanding = $this->konteksSebanding($frozen, $lama);
         if ($sebanding && ($frozen['status_perhitungan'] ?? null) === 'terhitung' && ($lama['status_perhitungan'] ?? null) === 'terhitung'
