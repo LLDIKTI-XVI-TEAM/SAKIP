@@ -18,12 +18,14 @@ export function CabutSemuaIzinUnitModal({ kelompok, onClose }: { kelompok: Kelom
     const [busy, setBusy] = useState(false);
     const [terakhir, setTerakhir] = useState<string | null>(null);
 
-    // Formulir dikosongkan setiap kali dibuka untuk kelompok lain.
+    // Formulir dikosongkan setiap kali dibuka, termasuk dibuka ulang untuk kelompok yang sama setelah ditutup.
     if (kelompok && kelompok.key !== terakhir) {
         setTerakhir(kelompok.key);
         setAlasan('');
         setError(undefined);
         setFailure(null);
+    } else if (!kelompok && terakhir !== null) {
+        setTerakhir(null);
     }
 
     const close = () => { if (!busy) onClose(); };

@@ -11,12 +11,15 @@ class KelolaGrant extends Controller
 {
     public function __invoke(KelolaIzinUnitRequest $request, KelolaIzinUnitAction $action): RedirectResponse
     {
-        $result = $action->handle($request->user(), $request->validated());
+        $data = $request->validated();
+        $result = $action->handle($request->user(), $data);
 
-        // Tanpa izin tersisa, halaman detail asal sudah tidak ada sehingga kembali ke daftar.
         if ($result['sisa'] === 0) {
-            return redirect()->route('akses.grant.index')
-                ->with('success', "Seluruh izin unit {$result['target_nama']} pada {$result['unit_nama']} dicabut.");
+            // Halaman detail asal sudah tidak ada; dari daftar kembali ke halaman asal agar filter tetap.
+            $detail = route('akses.grant.show', ['user' => $data['user_id'], 'unit' => $data['unit_id']], false);
+            $tujuan = parse_url(url()->previous(), PHP_URL_PATH) === $detail ? redirect()->route('akses.grant.index') : redirect()->back();
+
+            return $tujuan->with('success', "Seluruh izin unit {$result['target_nama']} pada {$result['unit_nama']} dicabut.");
         }
 
         return redirect()->back()

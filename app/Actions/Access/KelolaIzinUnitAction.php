@@ -106,33 +106,14 @@ class KelolaIzinUnitAction
                         objekTipe: 'user_permission_granted',
                         objekId: (string) $grant->id,
                         nilaiLama: null,
-                        nilaiBaru: [
-                            'user_id' => $target->id,
-                            'user_nama' => $target->nama,
-                            'permission_id' => $permission->id,
-                            'permission_kode' => $permission->kode,
-                            'unit_id' => $unit->id,
-                            'unit_nama' => $unit->nama,
-                            'alasan' => $grant->alasan,
-                            'diberikan_oleh' => $currentActor->id,
-                        ],
+                        nilaiBaru: CreateUnitGrantAction::nilaiBaruAudit($grant, $target, $permission, $unit),
                         alasan: $grant->alasan,
                         dasarIzin: $dasarIzin,
                     );
                 }
 
                 foreach ($cabut->sortBy(fn (UserPermissionGrant $grant) => $urutKatalog($grant->permission?->kode)) as $grant) {
-                    $nilaiLama = [
-                        'id' => $grant->id,
-                        'user_id' => $grant->user_id,
-                        'user_nama' => $target->nama,
-                        'permission_id' => $grant->permission_id,
-                        'permission_kode' => $grant->permission?->kode,
-                        'unit_id' => $grant->unit_id,
-                        'unit_nama' => $unit->nama,
-                        'alasan_pemberian' => $grant->alasan,
-                        'diberikan_oleh' => $grant->diberikan_oleh,
-                    ];
+                    $nilaiLama = RevokeUnitGrantAction::nilaiLamaAudit($grant, $target->nama, $unit->nama);
                     $grantId = (string) $grant->id;
                     $grant->delete();
                     $this->auditLogger->catat(
@@ -142,7 +123,7 @@ class KelolaIzinUnitAction
                         objekId: $grantId,
                         nilaiLama: $nilaiLama,
                         nilaiBaru: null,
-                        alasan: AlasanAudit::sanitasi($alasan, $alasan),
+                        alasan: $alasan,
                         dasarIzin: $dasarIzin,
                     );
                 }

@@ -163,6 +163,38 @@ describe('Halaman Izin Unit', () => {
         expect(screen.getByText('Belum ada izin unit')).toBeTruthy();
     });
 
+    it('halaman melewati halaman terakhir (mis. baris terakhirnya baru dicabut) menawarkan kembali ke halaman pertama dengan filter tetap', async () => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props({ grants: { data: [], links: [], from: null, to: null, total: 16 }, filters: { search: 'Peg', unit_id: 'unit-1' } })} />);
+        expect(screen.getByText('Tidak ada izin unit di halaman ini.')).toBeTruthy();
+        expect(screen.queryByText('Belum ada izin unit')).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Ke halaman pertama' }));
+        expect(router.get).toHaveBeenCalledWith('/akses/grant', { search: 'Peg', unit_id: 'unit-1' }, expect.objectContaining({ preserveState: true }));
+    });
+
+    it('membuka lagi Cabut semua untuk baris yang sama mengosongkan alasan dan galat sebelumnya', async () => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props()} />);
+        const tombol = screen.getByRole('button', { name: 'Cabut semua izin unit Pegawai Test di Bagian Akademik' });
+        await user.click(tombol);
+        let dialog = screen.getByRole('dialog', { name: 'Cabut semua izin unit Pegawai Test?' });
+        await user.type(within(dialog).getByRole('textbox'), 'Penugasan selesai');
+        await user.click(within(dialog).getByRole('button', { name: 'Cabut semua' }));
+        const options = vi.mocked(router.put).mock.calls[0][2];
+        // Inertia selalu memanggil onFinish setelah onHttpException; tanpa itu modal masih sibuk dan Batal diabaikan.
+        await act(async () => {
+            options?.onHttpException?.({ status: 403, data: { message: 'Izin tindakan ditolak.' }, headers: {} });
+            options?.onFinish?.({} as never);
+        });
+        expect(within(dialog).getByRole('alert').textContent).toContain('Izin tindakan ditolak.');
+
+        await user.click(within(dialog).getByRole('button', { name: 'Batal' }));
+        await user.click(tombol);
+        dialog = screen.getByRole('dialog', { name: 'Cabut semua izin unit Pegawai Test?' });
+        expect(within(dialog).getByRole<HTMLTextAreaElement>('textbox').value).toBe('');
+        expect(within(dialog).queryByRole('alert')).toBeNull();
+    });
+
     it('paginasi memakai komponen bersama', () => {
         render(<GrantIndex {...props({ grants: { data: [kelompok()], links: [
             { url: null, label: '&laquo; Previous', active: false },

@@ -151,16 +151,7 @@ class CreateUnitGrantAction
                         objekTipe: 'user_permission_granted',
                         objekId: (string) $grant->id,
                         nilaiLama: null,
-                        nilaiBaru: [
-                            'user_id' => $lockedTargetUser->id,
-                            'user_nama' => $lockedTargetUser->nama,
-                            'permission_id' => $lockedPermission->id,
-                            'permission_kode' => $lockedPermission->kode,
-                            'unit_id' => $lockedUnit->id,
-                            'unit_nama' => $lockedUnit->nama,
-                            'alasan' => $grant->alasan,
-                            'diberikan_oleh' => $currentActor->id,
-                        ],
+                        nilaiBaru: self::nilaiBaruAudit($grant, $lockedTargetUser, $lockedPermission, $lockedUnit),
                         alasan: $grant->alasan,
                         dasarIzin: $currentDecision->toAuditBasis(),
                     );
@@ -222,6 +213,25 @@ class CreateUnitGrantAction
                 'permission_ids' => self::IZIN_TIDAK_SAH,
             ]);
         }
+    }
+
+    /**
+     * Isi `nilai_baru` audit pemberian; dipakai juga Kelola izin agar peristiwa yang sama tercatat dengan bentuk sama.
+     *
+     * @return array<string, mixed>
+     */
+    public static function nilaiBaruAudit(UserPermissionGrant $grant, User $target, Permission $permission, Unit $unit): array
+    {
+        return [
+            'user_id' => $target->id,
+            'user_nama' => $target->nama,
+            'permission_id' => $permission->id,
+            'permission_kode' => $permission->kode,
+            'unit_id' => $unit->id,
+            'unit_nama' => $unit->nama,
+            'alasan' => $grant->alasan,
+            'diberikan_oleh' => $grant->diberikan_oleh,
+        ];
     }
 
     /** Izin yang boleh diberikan baru: aktif, unit-scoped, dan termasuk 7 izin katalog. */

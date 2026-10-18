@@ -151,8 +151,14 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, ca
                             {grants.data.length === 0 && <TableRow className="block md:table-row">
                                 <TableCell colSpan={5} className="block py-12 text-center md:table-cell">
                                     <KeyRound className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                    <p className="mt-2 text-sm font-semibold text-ink">{hasFilter ? 'Tidak ada izin unit yang sesuai' : 'Belum ada izin unit'}</p>
-                                    <p className="mt-1 text-xs text-muted">{hasFilter ? 'Coba kata kunci atau unit lain.' : 'Izin unit tampil di sini setelah diberikan kepada pengguna.'}</p>
+                                    {/* Halaman kosong padahal total > 0: nomor halaman melewati halaman terakhir, mis. baris terakhirnya baru dicabut. */}
+                                    {grants.total > 0 ? <>
+                                        <p className="mt-2 text-sm font-semibold text-ink">Tidak ada izin unit di halaman ini.</p>
+                                        <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => filterBy(filters.search, filters.unit_id)}>Ke halaman pertama</Button>
+                                    </> : <>
+                                        <p className="mt-2 text-sm font-semibold text-ink">{hasFilter ? 'Tidak ada izin unit yang sesuai' : 'Belum ada izin unit'}</p>
+                                        <p className="mt-1 text-xs text-muted">{hasFilter ? 'Coba kata kunci atau unit lain.' : 'Izin unit tampil di sini setelah diberikan kepada pengguna.'}</p>
+                                    </>}
                                 </TableCell>
                             </TableRow>}
                             {grants.data.map((kelompok) => {

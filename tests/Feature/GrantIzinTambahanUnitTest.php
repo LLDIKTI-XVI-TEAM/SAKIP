@@ -2238,6 +2238,48 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->assertDatabaseCount('user_permission_granted', 0);
     }
 
+    /** Request Kelola menerima akun dan izin nonaktif agar bisa dicabut; Action-lah satu-satunya penjaga penambahan. */
+    public function test_kelola_menambah_ke_akun_nonaktif_atau_izin_nonaktif_ditolak(): void
+    {
+        $ubah = Permission::where('kode', 'pengukuran:update')->firstOrFail();
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $payload = ['user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id, 'expected_permission_ids' => [$this->unitPermission->id], 'permission_ids' => [$this->unitPermission->id, $ubah->id]];
+
+        $ubah->update(['aktif' => false]);
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', $payload)
+            ->assertSessionHasErrors(['permission_ids' => CreateUnitGrantAction::IZIN_TIDAK_SAH]);
+
+        $ubah->update(['aktif' => true]);
+        $this->pegawaiUser->update(['status' => 'nonaktif']);
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', $payload)
+            ->assertSessionHasErrors(['user_id' => 'Akun pengguna nonaktif; izin baru tidak dapat ditambahkan.']);
+
+        $this->assertSame([$this->unitPermission->id], UserPermissionGrant::pluck('permission_id')->all());
+
+        // Kontrol: setelah akun aktif lagi, penambahan yang sama diterima.
+        $this->pegawaiUser->update(['status' => 'aktif']);
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', $payload)->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('user_permission_granted', 2);
+    }
+
+    /** Cabut semua dari daftar yang difilter kembali ke halaman asal; hanya dari halaman detail yang sudah tidak ada ke daftar polos. */
+    public function test_kelola_cabut_semua_dari_daftar_kembali_ke_halaman_asal(): void
+    {
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $asal = "/akses/grant?unit_id={$this->unitA->id}&page=2";
+
+        $this->actingAs($this->adminUser)->from($asal)->put('/akses/grant/kelola', [
+            'user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id,
+            'permission_ids' => [], 'expected_permission_ids' => [$this->unitPermission->id], 'alasan' => 'Penugasan selesai',
+        ])->assertRedirect($asal);
+    }
+
     /** Tanpa delegasi:update, Kelola ditolak 403 dengan audit penolakan dan tanpa perubahan. */
     public function test_kelola_ditolak_403_dengan_audit_penolakan(): void
     {
