@@ -12,7 +12,7 @@ class ProgresRencanaAksiDashboard
 
     /**
      * Hitungan Rencana Aksi per status alur dari daftar indikator snapshot jadwal terpilih, sehingga indikator yang
-     * belum memiliki RA terhitung "belum disusun"; indikator arsip tanpa RA bukan kewajiban baru.
+     * belum memiliki RA terhitung "belum disusun"; indikator arsip tidak dihitung.
      *
      * @param  array<string, mixed>  $konteks  hasil ResolveDashboardKonteks
      * @return array<string, int>
@@ -26,7 +26,7 @@ class ProgresRencanaAksiDashboard
                 ->orderBy('indikator_id')->orderByDesc('nomor_versi'), 'snap')
             ->join('indikator_kinerjas as i', 'i.id', '=', 'snap.indikator_id')
             ->leftJoin('rencana_aksi as ra', fn ($join) => $join->on('ra.indikator_id', '=', 'snap.indikator_id')->where('ra.tahun', $jadwal->tahun))
-            ->where(fn ($q) => $q->whereNotNull('ra.id')->orWhere('i.status', '!=', IndikatorKinerja::STATUS_ARSIP))
+            ->where('i.status', '!=', IndikatorKinerja::STATUS_ARSIP)
             ->whereNotIn('snap.unit_id', $konteks['unitDitolak'])
             ->when($konteks['filter']['sasaran_id'], fn ($q, $id) => $q->where('i.sasaran_strategis_id', $id))
             ->when($konteks['filter']['unit_id'], fn ($q, $id) => $q->where('snap.unit_id', $id))

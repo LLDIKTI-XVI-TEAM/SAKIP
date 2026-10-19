@@ -44,12 +44,12 @@ class DashboardRencanaAksiTest extends TestCase
         $this->assertSame(['belum_disusun' => 0, 'draft' => 1, 'diajukan' => 1, 'diverifikasi' => 1, 'dikembalikan' => 1, 'disahkan' => 1], $this->progres());
     }
 
-    public function test_indikator_arsip_tanpa_rencana_aksi_tidak_dihitung(): void
+    public function test_indikator_arsip_tidak_dihitung_walau_memiliki_rencana_aksi(): void
     {
         $dua = $this->indikatorBaru('I-DUA');
         IndikatorKinerja::whereIn('id', [$dua->indikator_id, $this->pengukuran->indikator_id])->update(['status' => IndikatorKinerja::STATUS_ARSIP]);
 
-        $this->assertSame(['belum_disusun' => 0, 'disahkan' => 1], array_intersect_key($this->progres(), ['belum_disusun' => 0, 'disahkan' => 0]));
+        $this->assertSame(['belum_disusun' => 0, 'disahkan' => 0], array_intersect_key($this->progres(), ['belum_disusun' => 0, 'disahkan' => 0]));
     }
 
     public function test_unit_ditolak_serta_filter_unit_dan_sasaran_menyaring(): void
