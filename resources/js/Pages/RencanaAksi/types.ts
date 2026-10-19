@@ -247,7 +247,7 @@ export interface RencanaAksiPreview {
     deviasi_pk: RencanaAksiDeviasiPk;
 }
 
-/** Kegiatan yang diklaim tahap RA (`sumber_klaim = rencana_aksi`) per periode. */
+/** Kegiatan yang diklaim RA (tahap RA atau pengukuran) per periode. */
 export interface KegiatanRencanaAksiItem {
     id: string;
     kegiatan_id: string;
@@ -257,9 +257,21 @@ export interface KegiatanRencanaAksiItem {
     komponen_id: string | null;
     arah_dampak: 'menambah' | 'mengurangi';
     catatan: string | null;
+    /** Rupiah bulat; null berarti belum diisi (Q42 §42.2 butir 2). */
+    anggaran: string | null;
+    sumber_klaim: 'rencana_aksi' | 'pengukuran';
+    /** Diklaim lebih dari satu IKU (Q42 §42.2 butir 4). */
+    kegiatan_bersama: boolean;
+}
+
+/** Total anggaran kegiatan unik; `belum_diisi` = jumlah kegiatan beranggaran kosong yang tidak ikut dihitung. */
+export interface TotalAnggaran {
+    total: string;
+    belum_diisi: number;
 }
 
 export interface RencanaAksiKegiatan {
     daftar: KegiatanRencanaAksiItem[];
+    total: TotalAnggaran & { per_periode: Record<string, TotalAnggaran> };
     can: { tambah: boolean; kelola: boolean };
 }

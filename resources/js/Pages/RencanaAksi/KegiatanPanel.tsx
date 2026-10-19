@@ -8,9 +8,9 @@ import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
-import { bantuanAnggaran } from '@/lib/rupiah';
+import { bantuanAnggaran, formatRupiah } from '@/lib/rupiah';
 import { ARAH_DAMPAK_OPTIONS, statusKegiatanConfig, type ArahDampak } from '@/types/kegiatan';
-import type { RencanaAksiKegiatan, RencanaAksiKomponen, RencanaAksiPeriode } from './types';
+import type { RencanaAksiKegiatan, RencanaAksiKomponen, RencanaAksiPeriode, TotalAnggaran } from './types';
 
 interface KegiatanPanelProps {
     rencanaAksiId: string;
@@ -45,6 +45,11 @@ const KOSONG: FormKegiatan = {
 };
 
 /** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
+/** Total anggaran beserta penanda kegiatan yang anggarannya belum diisi (Q42 §42.2 butir 2). */
+function teksTotal({ total, belum_diisi }: TotalAnggaran): string {
+    return belum_diisi > 0 ? `${formatRupiah(total)} (${belum_diisi} kegiatan belum diisi)` : formatRupiah(total);
+}
+
 function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
     return errs.status_alur ?? errs.jendela ?? errs.unit_id ?? errs.indikator_id;
 }
@@ -119,6 +124,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
             <CardHeader>
                 <CardTitle>Kegiatan per Periode</CardTitle>
                 <p className="text-sm text-muted">Kegiatan yang ditambahkan di sini langsung diklaim ke rencana aksi ini. Klaim menjelaskan dukungan kegiatan dan tidak mengubah nilai target atau pengukuran.</p>
+                <p className="text-sm text-ink">Total anggaran rencana aksi: <span className="font-semibold">{teksTotal(kegiatan.total)}</span></p>
             </CardHeader>
             <CardContent className="space-y-4">
                 {kotor && (kegiatan.can.tambah || kegiatan.can.kelola) && <p className="text-sm text-muted">Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.</p>}
@@ -126,6 +132,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                 {periode.map((item) => {
                     const daftar = kegiatan.daftar.filter((row) => row.periode_id === item.id);
                     const kunci = terkunci.includes(item.id);
+                    const totalPeriode = kegiatan.total.per_periode[item.id];
 
                     return (
                         <section key={item.id} aria-labelledby={`kegiatan-periode-${item.id}`} className="rounded-lg border border-border p-3">
@@ -134,6 +141,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                     {item.nama ?? 'Periode'}
                                     {kunci && <Badge variant="muted">Terkunci</Badge>}
                                 </h3>
+                                {totalPeriode && <p className="text-xs text-muted">Total {teksTotal(totalPeriode)}</p>}
                                 {kegiatan.can.tambah && !kunci && (
                                     <Button type="button" size="sm" variant="outline" disabled={kotor} onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
                                         <Plus className="h-4 w-4" aria-hidden="true" />
@@ -153,6 +161,13 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                             <li key={row.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
                                                 <div className="min-w-0 space-y-1">
                                                     <p className="break-words text-sm text-ink">{row.nama}</p>
+                                                    <p className="text-xs text-muted">Anggaran: {formatRupiah(row.anggaran)}</p>
+                                                    {(row.kegiatan_bersama || row.sumber_klaim === 'pengukuran') && (
+                                                        <span className="flex flex-wrap gap-1">
+                                                            {row.kegiatan_bersama && <Badge variant="info">Kegiatan bersama</Badge>}
+                                                            {row.sumber_klaim === 'pengukuran' && <Badge variant="muted">Klaim pengukuran</Badge>}
+                                                        </span>
+                                                    )}
                                                     <p className="text-xs text-muted">{komponenKlaim ? `${komponenKlaim.kode} — ${komponenKlaim.label}` : row.komponen_id === null ? 'Tanpa komponen tertentu' : 'Komponen tidak tersedia pada snapshot'}</p>
                                                     <Badge variant={row.arah_dampak === 'menambah' ? 'success' : 'warning'}>{row.arah_dampak === 'menambah' ? 'Menambah' : 'Mengurangi'}</Badge>
                                                     {row.catatan && <p className="break-words text-xs text-muted">{row.catatan}</p>}
