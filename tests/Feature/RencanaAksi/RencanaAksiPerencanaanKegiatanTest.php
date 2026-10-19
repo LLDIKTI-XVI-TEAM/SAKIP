@@ -9,6 +9,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\JenisBerkas;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
+use App\Models\Pengaturan;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
@@ -129,6 +130,16 @@ class RencanaAksiPerencanaanKegiatanTest extends TestCase
         $beku = RencanaAksiVersi::sole()->snapshot['persyaratan_kegiatan'][0];
         $this->assertTrue($beku['dikecualikan']);
         $this->assertSame([], $beku['persyaratan'], 'RAB tidak dinilai kurang selama anggaran belum diisi.');
+    }
+
+    public function test_rab_file_saja_tidak_dikecualikan_saat_unggahan_nonaktif(): void
+    {
+        // Q44 menghapus cabang anti-macet unggahan; gerbang tahap perencanaan kegiatan berlaku penuh.
+        $this->rab->update(['izinkan_file' => true, 'izinkan_tautan' => false, 'izinkan_teks' => false]);
+        Pengaturan::updateOrCreate(['kunci' => 'berkas.unggahan_aktif'], ['grup' => 'berkas', 'nilai' => 'false', 'tipe' => 'boolean']);
+
+        $this->ajukan($this->fixture['pic'])->assertSessionHasErrors(['pengajuan' => 'Kegiatan "Bimtek penjaminan mutu" belum memenuhi persyaratan perencanaan kegiatan: RAB.']);
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
     }
 
     public function test_tahap_pelaksanaan_kegiatan_tidak_tercampur_dengan_tahap_perencanaan(): void
