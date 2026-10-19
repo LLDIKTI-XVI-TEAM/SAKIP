@@ -1725,9 +1725,36 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
+# Keputusan Q62 — Izin Unit per Pengguna-Unit, Halaman Detail, dan Kelola Izin
+
+**Keputusan PM: 18 Oktober 2026 (WITA), dalam perapian halaman Izin Unit (branch `fix/ui-izin-unit`).** Keputusan ini menambah operasi kelola pada kontrak "Form create/revoke Grant Unit" (Data Model §2.7) dan **bukan** ratifikasi UAT, merge, maupun deployment. Nomor Q60 (perubahan target Renstra tanpa alasan, ISS-02.10) dan Q61 (pembanding peringatan verifikasi pengukuran, ISS-08.01) telah dipakai, sehingga keputusan ini bernomor Q62.
+
+## 62.1 Aturan
+
+1. Daftar Izin Unit menampilkan satu baris per pasangan pengguna × unit dengan kolom Pengguna, Unit, Izin dimiliki, Status, dan Aksi. Kolom Izin dimiliki berisi jumlah izin katalog aktif yang dimiliki dari seluruh izin yang dapat diberikan (mis. "3 dari 7") dengan tanda "Lengkap" bila semuanya dimiliki; daftar izin berlabel singkat ada di halaman detail dan modal Kelola izin. Paginasi, pencarian, dan filter unit bekerja per pasangan; pasangan tampil bila pengguna, unit, atau salah satu izinnya cocok.
+2. Pasangan berstatus "Tidak berlaku" bila akun atau unit nonaktif atau pengguna tidak memiliki peran resmi aktif; izin nonaktif ditandai per butir, dan izin yang terkena deny eksplisit ditandai di halaman detail. Status diturunkan dari resolver izin; daftar menilai peran seluruh pengguna di halaman dengan satu query, bukan per baris.
+3. Halaman detail `/akses/grant/{pengguna}/{unit}` (gerbang `delegasi:update`) memuat identitas, status, dan rincian setiap izin: label, status izin, alasan pemberian, pemberi, dan waktu. Pasangan tanpa izin unit menghasilkan 404. Riwayat izin yang sudah dicabut tidak ditampilkan; tautan per izin ke Jejak Audit tampil hanya bila server memberi kemampuan baca audit.
+4. Aksi pada baris dan halaman detail: Detail, Kelola izin, dan Cabut semua. Kelola izin mengirim daftar akhir izin pasangan itu; server menurunkan pemberian (izin baru) dan pencabutan (izin yang dilepas) dalam satu transaksi. Cabut semua adalah Kelola izin dengan daftar akhir kosong.
+5. Form pemberian dapat memberi beberapa izin sekaligus untuk satu pasangan. Semua atau tidak sama sekali: bila salah satu izin sudah dimiliki, seluruh pilihan ditolak dan izin yang sudah ada disebutkan.
+6. Audit tetap per izin dengan tindakan `user_permission_granted.tambah` dan `user_permission_granted.hapus`; tidak ada tindakan "ubah" dan baris grant tidak diubah di tempat.
+7. Alasan: bila hanya menambah, alasan opsional dan server mengisi alasan baku (Q43 §43.3 butir 1); bila ada pencabutan, alasan wajib (Q43 §43.2 butir 4). Satu alasan berlaku untuk seluruh perubahan dalam satu simpan.
+8. Penambahan mensyaratkan akun aktif, unit aktif, dan izin katalog yang aktif; pencabutan tetap boleh pada referensi nonaktif untuk pembersihan.
+9. Kelola izin membawa daftar izin yang dilihat (`expected_permission_ids`). Bila berbeda dengan data tersimpan, permintaan ditolak dengan pesan muat ulang (pola `expected_*` modul Akses) tanpa perubahan. Simpan tanpa perubahan juga ditolak.
+10. Urutan lock: pengguna terurut, peran aktor, unit, lock advisory pasangan pengguna × unit, permission, lalu grant pasangan itu. Otorisasi `delegasi:update` diulang di dalam transaksi dan penolakan diaudit di luar transaksi.
+11. Endpoint pemberian (`POST /akses/grant`) dan pencabutan per izin (`DELETE /akses/grant/{id}`) tetap tersedia.
+12. Halaman Penanggung Jawab indikator menampilkan tombol "Beri izin unit" bagi pemegang `delegasi:update` bila PJ efektif dan unitnya aktif. Tombol membuka form Beri izin unit dengan PJ dan unit itu sudah terisi; izin tetap dipilih dan disimpan secara eksplisit, sehingga Q32 §32.2 (penugasan PJ tidak memberi izin) tidak berubah.
+
+## 62.2 Dampak dan traceability
+
+- Diselaraskan: Data Model §2.7 (pemberian, kelola, dan pencabutan) dan User Issues ISS-01.04 (catatan Q62).
+- Test: `GrantIzinTambahanUnitTest` (daftar per pasangan, detail, kelola, pemberian banyak izin), `MutationConcurrencyTest` (kelola menunggu lock aktor), serta test frontend `GrantIndex`, `GrantDetail`, dan `GrantMutationException`.
+- Status keputusan: baseline UI dan kontrak kelola. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
+
+---
+
 # Keputusan Q63 — Pengecualian Gerbang Pengajuan Rencana Aksi pada Periode Lampau 2026
 
-**Keputusan PM: 19 Oktober 2026 (WITA), [Review PM — PR #146](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/146#issuecomment-6263698110).** Menjelaskan Q32.7, Q46 §46.1 butir 3, Workflow §15 butir 4–5, dan ISS-03.05 mengenai pengecualian gerbang pengajuan Rencana Aksi pada periode lampau 2026. Q62 disiapkan PR #145; nomor keputusan perlu diperiksa kembali saat integrasi. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+**Keputusan PM: 19 Oktober 2026 (WITA), [Review PM — PR #146](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/146#issuecomment-6263698110).** Menjelaskan Q32.7, Q46 §46.1 butir 3, Workflow §15 butir 4–5, dan ISS-03.05 mengenai pengecualian gerbang pengajuan Rencana Aksi pada periode lampau 2026. Nomor Q62 telah dipakai keputusan Izin Unit (PR #145), sehingga keputusan ini tetap bernomor Q63. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
 
 ## 63.1 Aturan
 

@@ -64,7 +64,7 @@ try {
         if (isset($assignment['test_now'])) {
             Carbon::setTestNow($assignment['test_now']);
         }
-        if (in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete', 'grant-create', 'grant-revoke', 'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical', 'storage-update', 'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment', 'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment'], true)) {
+        if (in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete', 'grant-create', 'grant-revoke', 'grant-kelola', 'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical', 'storage-update', 'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment', 'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment'], true)) {
             $actor = User::findOrFail($assignment['actor_id']);
             $initialDecision = app(PermissionResolver::class)->resolve($actor, $assignment['permission']);
             if (! $initialDecision->allowed) {
@@ -91,7 +91,7 @@ try {
             'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment' => performRegulasiMutation($argv[1], $assignment),
             'storage-update' => performStoragePolicyMutation($assignment),
             'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical' => performJenisBerkasMutation($argv[1], $assignment),
-            'grant-create', 'grant-revoke' => performGrantMutation($argv[1], $assignment),
+            'grant-create', 'grant-revoke', 'grant-kelola' => performGrantMutation($argv[1], $assignment),
             'unit-create' => app(CreateUnitAction::class)->handle($actor, $assignment['data'])->id,
             'unit-update' => app(UpdateUnitAction::class)->handle($actor, $assignment['unit_id'], $assignment['data']),
             'unit-delete' => app(DeleteUnitAction::class)->handle($actor, $assignment['unit_id'], 'Alasan penghapusan fixture', $initialDecision),
@@ -344,18 +344,23 @@ function performJenisBerkasMutation(string $operation, array $assignment): strin
 function performGrantMutation(string $operation, array $assignment): string
 {
     Auth::setUser(User::findOrFail($assignment['actor_id']));
-    $request = Request::create(
-        $operation === 'grant-create' ? '/akses/grant' : '/akses/grant/'.$assignment['grant_id'],
-        $operation === 'grant-create' ? 'POST' : 'DELETE',
-        $assignment['data'],
-    );
+    [$path, $method, $hasil] = match ($operation) {
+        'grant-create' => ['/akses/grant', 'POST', 'created'],
+        'grant-kelola' => ['/akses/grant/kelola', 'PUT', 'managed'],
+        default => ['/akses/grant/'.$assignment['grant_id'], 'DELETE', 'revoked'],
+    };
+    // Kelola memakai JSON agar galat validasi (422) terbedakan dari redirect sukses (302).
+    $request = Request::create($path, $method, $assignment['data'], server: $operation === 'grant-kelola' ? ['HTTP_ACCEPT' => 'application/json'] : []);
     $kernel = app(Illuminate\Contracts\Http\Kernel::class);
     $response = $kernel->handle($request);
     $kernel->terminate($request, $response);
 
     return match ($response->getStatusCode()) {
         403 => 'denied',
-        302 => $operation === 'grant-create' ? 'created' : 'revoked',
+        422 => isset(json_decode((string) $response->getContent(), true)['errors']['expected_permission_ids'])
+            ? 'stale'
+            : throw new RuntimeException('Validasi grant tidak sesuai: '.$response->getContent()),
+        302 => $hasil,
         default => throw new RuntimeException('Status mutasi grant tidak sesuai: '.$response->getStatusCode()),
     };
 }

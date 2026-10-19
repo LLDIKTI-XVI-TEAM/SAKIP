@@ -48,6 +48,24 @@ class PermissionResolver
     }
 
     /**
+     * Pengguna dari daftar yang memegang peran resmi aktif, dalam satu query; kriteria tunggal alasan `no_role`.
+     *
+     * @param  list<string>  $userIds
+     * @return list<string>
+     */
+    public function penggunaBerperanAktif(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        return DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
+            ->whereIn('user_roles.user_id', $userIds)->where('roles.aktif', true)
+            ->whereIn('roles.kode', RoleCatalog::codes())
+            ->distinct()->pluck('user_roles.user_id')->values()->all();
+    }
+
+    /**
      * Capability daftar/form lintas unit memakai evaluator yang sama dengan writer,
      * dengan satu pembacaan ACL per batch. Tidak disimpan di cache antar keputusan.
      *
@@ -69,9 +87,7 @@ class PermissionResolver
             return $batch;
         }
         $earlyReason = $user->status !== 'aktif' ? 'inactive_user' : null;
-        if ($earlyReason === null && ! DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
-            ->where('user_roles.user_id', $user->id)->where('roles.aktif', true)
-            ->whereIn('roles.kode', RoleCatalog::codes())->exists()) {
+        if ($earlyReason === null && $this->penggunaBerperanAktif([$user->id]) === []) {
             $earlyReason = 'no_role';
         }
         if ($earlyReason !== null) {

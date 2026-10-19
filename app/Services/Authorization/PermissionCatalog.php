@@ -45,6 +45,17 @@ final class PermissionCatalog
         'kegiatan:update',
     ];
 
+    /** Label singkat 7 izin unit untuk UI (Izin Unit, kesiapan kerja Penanggung Jawab), urut sama dengan GRANTABLE_UNIT_PERMISSIONS. */
+    public const LABEL_IZIN_UNIT = [
+        'pengukuran:create' => 'Mengisi pengukuran',
+        'pengukuran:update' => 'Mengubah pengukuran',
+        'rencana_aksi:create' => 'Menyusun rencana aksi',
+        'rencana_aksi:update' => 'Mengubah rencana aksi',
+        'rencana_aksi:ajukan' => 'Mengajukan rencana aksi',
+        'kegiatan:create' => 'Membuat kegiatan',
+        'kegiatan:update' => 'Mengubah kegiatan',
+    ];
+
     /** Izin baca global yang detailnya dibatasi unit berizin (Q12, Q54 §54.1). */
     public const BACA_UNIT_BERIZIN = ['rencana_aksi:read', 'kegiatan:read'];
 
