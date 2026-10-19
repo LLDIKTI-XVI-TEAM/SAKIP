@@ -34,7 +34,11 @@ export default function Show(props: AssignmentDetailProps) {
 function AssignmentDetail({ indicator, unit, renstra, effective, readiness, history, has_history, expected_state, tanggal_acuan, today, blocked_reason, can }: AssignmentDetailProps) {
     const formatTanggal = useFormatTanggal();
     // Halaman ini cukup penanggung_jawab:update; daftar & detail indikator butuh indikator:read (bisa dicabut eksplisit).
-    const bolehBacaIndikator = usePage<SharedPageProps>().props.auth.can.sasaranIndikator === true;
+    const { can: bolehAuth } = usePage<SharedPageProps>().props.auth;
+    const bolehBacaIndikator = bolehAuth.sasaranIndikator === true;
+    // Izin unit hanya dapat diberikan kepada akun aktif pada unit aktif; halaman Izin Unit digerbangi delegasi:update.
+    const pjAktif = effective?.pic?.status === 'aktif' ? effective.pic : null;
+    const hrefBeriIzin = bolehAuth.grant && pjAktif && unit?.status === 'aktif' ? `/akses/grant?beri_pengguna=${pjAktif.id}&beri_unit=${unit.id}` : null;
     const base = `/perencanaan/indikator/${indicator.id}/penanggung-jawab`;
     const form = useForm({ user_id: '', tanggal_mulai_berlaku: today, alasan: '', expected_state });
     const [reference, setReference] = useState(tanggal_acuan);
@@ -153,6 +157,7 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
                                 {effective?.pic && effective.pic.status !== 'aktif' && <Badge variant="muted" size="sm">Nonaktif</Badge>}
                             </p>
                             {effective && <p className="mt-0.5 text-sm text-muted">Mulai berlaku {formatTanggal(effective.tanggal_mulai_berlaku)}</p>}
+                            {hrefBeriIzin && pjAktif && <Link href={hrefBeriIzin} aria-label={`Beri izin unit kepada ${pjAktif.nama}`} className={`mt-3 ${pagerLink}`}>Beri izin unit</Link>}
                         </div>
                         <form className="flex items-end gap-2" onSubmit={(event) => {
                             event.preventDefault(); router.get(base, { tanggal_acuan: reference }, { preserveState: true, preserveScroll: true });

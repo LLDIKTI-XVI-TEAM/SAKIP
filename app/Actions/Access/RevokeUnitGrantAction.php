@@ -63,20 +63,10 @@ class RevokeUnitGrantAction
 
             // Endpoint Unit tidak mencabut grant global; referensi nonaktif tetap boleh dibersihkan.
             if ($grant->permission?->butuh_scope !== Permission::SCOPE_UNIT || $grant->unit_id === null) {
-                abort(422, 'Endpoint ini hanya dapat mencabut grant yang berscope unit.');
+                abort(422, 'Hanya izin unit yang dapat dicabut dari halaman ini.');
             }
 
-            $oldValues = [
-                'id' => $grant->id,
-                'user_id' => $grant->user_id,
-                'user_nama' => $lockedTargetUser->nama,
-                'permission_id' => $grant->permission_id,
-                'permission_kode' => $grant->permission?->kode,
-                'unit_id' => $grant->unit_id,
-                'unit_nama' => $grant->unit?->nama,
-                'alasan_pemberian' => $grant->alasan,
-                'diberikan_oleh' => $grant->diberikan_oleh,
-            ];
+            $oldValues = self::nilaiLamaAudit($grant, $lockedTargetUser->nama, $grant->unit?->nama);
 
             $grantId = $grant->id;
             $userName = $lockedTargetUser->nama;
@@ -118,5 +108,25 @@ class RevokeUnitGrantAction
         }
 
         return ['permName' => $result['permName'], 'userName' => $result['userName']];
+    }
+
+    /**
+     * Isi `nilai_lama` audit pencabutan; dipakai juga Kelola izin agar peristiwa yang sama tercatat dengan bentuk sama.
+     *
+     * @return array<string, mixed>
+     */
+    public static function nilaiLamaAudit(UserPermissionGrant $grant, string $userNama, ?string $unitNama): array
+    {
+        return [
+            'id' => $grant->id,
+            'user_id' => $grant->user_id,
+            'user_nama' => $userNama,
+            'permission_id' => $grant->permission_id,
+            'permission_kode' => $grant->permission?->kode,
+            'unit_id' => $grant->unit_id,
+            'unit_nama' => $unitNama,
+            'alasan_pemberian' => $grant->alasan,
+            'diberikan_oleh' => $grant->diberikan_oleh,
+        ];
     }
 }

@@ -14,6 +14,6 @@ class RevokeGrant extends Controller
         $result = $action->handle($request->user(), $id, $request->validated('alasan'));
 
         return redirect()->route('akses.grant.index')
-            ->with('success', "Izin '{$result['permName']}' untuk pengguna {$result['userName']} berhasil dicabut.");
+            ->with('success', "Izin unit milik {$result['userName']} berhasil dicabut.");
     }
 }

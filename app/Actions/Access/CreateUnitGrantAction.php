@@ -9,25 +9,34 @@ use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
+use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection as BaseCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CreateUnitGrantAction
 {
+    /** Alasan baku server bila pemberi izin mengosongkan alasan (Q43 §43.3 butir 1). */
+    public const ALASAN_BAKU = 'Pemberian izin unit tanpa alasan tambahan.';
+
+    public const IZIN_TIDAK_SAH = 'Izin tidak tersedia, sudah dinonaktifkan, atau tidak dapat diberikan sebagai izin unit.';
+
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly PermissionResolver $permissionResolver,
     ) {}
 
     /**
-     * Beri Grant Unit setelah izin aktor serta target, unit, dan permission diverifikasi ulang.
-     * Pengguna terurut dikunci sebelum role, unit, dan permission; mutasi dan audit sukses atomik.
+     * Beri satu atau beberapa Grant Unit kepada satu pengguna pada satu unit setelah izin aktor serta target, unit,
+     * dan permission diverifikasi ulang. Semua atau tidak sama sekali: pengguna terurut dikunci sebelum role, unit,
+     * dan permission; setiap grant beserta auditnya atomik dalam satu transaksi.
      *
-     * @param  array{user_id:string,permission_id:string,unit_id?:string|null,alasan:string}  $data
-     * @return array{permission_kode:string,unit_nama:string,target_nama:string}
+     * @param  array{user_id:string,permission_ids:list<string>,unit_id?:string|null,alasan?:string|null}  $data
+     * @return array{jumlah:int,unit_nama:string,target_nama:string}
      */
     public function handle(User $actor, array $data): array
     {
@@ -35,29 +44,19 @@ class CreateUnitGrantAction
         $targetUser = User::with('roles')->find($data['user_id']);
         if (! $targetUser || $targetUser->status !== 'aktif') {
             throw ValidationException::withMessages([
-                'user_id' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
+                'user_id' => 'Pengguna tidak ditemukan atau akunnya nonaktif.',
             ]);
         }
 
-        /** @var Permission $permission */
-        $permission = Permission::find($data['permission_id']);
-        if (! $permission || ! $permission->aktif || ! in_array($permission->kode, PermissionCatalog::UNIT_SCOPED, true)) {
-            throw ValidationException::withMessages([
-                'permission_id' => 'Permission tidak ditemukan dalam katalog atau sudah dinonaktifkan.',
-            ]);
-        }
-
-        // Grant Unit tidak memberikan permission global.
-        if ($permission->butuh_scope !== Permission::SCOPE_UNIT) {
-            throw ValidationException::withMessages([
-                'permission_id' => 'Hanya permission dengan cakupan unit (butuh_scope = unit) yang dapat diberikan melalui form ini.',
-            ]);
-        }
+        $permissionIds = array_values(array_unique($data['permission_ids']));
+        // Urutan id tetap menjadi urutan lock permission agar dua pemberian bersamaan tidak saling menunggu.
+        sort($permissionIds);
+        $this->pastikanIzinSah(Permission::whereKey($permissionIds)->get(), $permissionIds);
 
         // Permission unit wajib menyertakan unit target.
         if (empty($data['unit_id'])) {
             throw ValidationException::withMessages([
-                'unit_id' => 'Unit target wajib dipilih untuk permission berscope unit.',
+                'unit_id' => 'Unit wajib dipilih.',
             ]);
         }
 
@@ -66,24 +65,26 @@ class CreateUnitGrantAction
         $unit = Unit::find($data['unit_id']);
         if (! $unit || $unit->status !== 'aktif') {
             throw ValidationException::withMessages([
-                'unit_id' => 'Unit target tidak ditemukan atau berstatus nonaktif.',
+                'unit_id' => 'Unit tidak ditemukan atau berstatus nonaktif.',
             ]);
         }
 
         // Pemeriksaan awal duplikasi; indeks unik tetap menjadi penjaga terakhir.
-        $isDuplicate = UserPermissionGrant::where('user_id', $data['user_id'])
-            ->where('permission_id', $data['permission_id'])
+        $sudahAda = UserPermissionGrant::where('user_id', $targetUser->id)
             ->where('unit_id', $unit->id)
-            ->exists();
+            ->whereIn('permission_id', $permissionIds)
+            ->with('permission:id,kode')
+            ->get();
 
-        if ($isDuplicate) {
+        if ($sudahAda->isNotEmpty()) {
+            $label = $this->urutKatalog($sudahAda->pluck('permission'))->map(fn (Permission $p) => PermissionCatalog::LABEL_IZIN_UNIT[$p->kode])->implode(', ');
             throw ValidationException::withMessages([
-                'permission_id' => 'Pengguna sudah memiliki izin tambahan untuk unit ini.',
+                'permission_ids' => "Pengguna sudah memiliki izin ini pada unit tersebut: {$label}.",
             ]);
         }
 
         try {
-            $result = DB::transaction(function () use ($targetUser, $permission, $unit, $data, $actor) {
+            $result = DB::transaction(function () use ($targetUser, $permissionIds, $unit, $data, $actor) {
                 // Kunci pengguna dengan urutan ID konsisten untuk menghindari deadlock
                 $userIds = [$actor->id, $targetUser->id];
                 sort($userIds);
@@ -116,7 +117,7 @@ class CreateUnitGrantAction
                 // Validasi ulang status aktif pengguna target di dalam transaksi untuk mencegah TOCTOU
                 if ($lockedTargetUser->status !== 'aktif') {
                     throw ValidationException::withMessages([
-                        'user_id' => 'Pengguna target tidak ditemukan atau berstatus nonaktif.',
+                        'user_id' => 'Pengguna tidak ditemukan atau akunnya nonaktif.',
                     ]);
                 }
 
@@ -126,69 +127,52 @@ class CreateUnitGrantAction
                 $lockedUnit = Unit::whereKey($unit->id)->sharedLock()->firstOrFail();
                 if ($lockedUnit->status !== 'aktif') {
                     throw ValidationException::withMessages([
-                        'unit_id' => 'Unit target tidak ditemukan atau berstatus nonaktif.',
+                        'unit_id' => 'Unit tidak ditemukan atau berstatus nonaktif.',
                     ]);
                 }
 
                 // Kunci permission dengan sharedLock dan validasi ulang status aktif serta butuh_scope di dalam transaksi
-                /** @var Permission|null $lockedPermission */
-                $lockedPermission = Permission::whereKey($permission->id)->sharedLock()->first();
-                if (! $lockedPermission || ! $lockedPermission->aktif || ! in_array($lockedPermission->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true)) {
-                    throw ValidationException::withMessages([
-                        'permission_id' => 'Permission tidak ditemukan dalam katalog atau sudah dinonaktifkan.',
-                    ]);
-                }
+                $lockedPermissions = Permission::whereKey($permissionIds)->orderBy('id')->sharedLock()->get();
+                $this->pastikanIzinSah($lockedPermissions, $permissionIds);
 
-                if ($lockedPermission->butuh_scope !== Permission::SCOPE_UNIT) {
-                    throw ValidationException::withMessages([
-                        'permission_id' => 'Hanya permission dengan cakupan unit (butuh_scope = unit) yang dapat diberikan melalui form ini.',
-                    ]);
-                }
-
-                $grant = UserPermissionGrant::create([
-                    'user_id' => $lockedTargetUser->id,
-                    'permission_id' => $lockedPermission->id,
-                    'unit_id' => $lockedUnit->id,
-                    'alasan' => $data['alasan'],
-                    'diberikan_oleh' => $currentActor->id,
-                ]);
-
-                $this->auditLogger->catat(
-                    actor: $currentActor,
-                    tindakan: 'user_permission_granted.tambah',
-                    objekTipe: 'user_permission_granted',
-                    objekId: (string) $grant->id,
-                    nilaiLama: null,
-                    nilaiBaru: [
+                $alasan = AlasanAudit::sanitasi($data['alasan'] ?? null, self::ALASAN_BAKU);
+                foreach ($this->urutKatalog($lockedPermissions) as $lockedPermission) {
+                    $grant = UserPermissionGrant::create([
                         'user_id' => $lockedTargetUser->id,
-                        'user_nama' => $lockedTargetUser->nama,
                         'permission_id' => $lockedPermission->id,
-                        'permission_kode' => $lockedPermission->kode,
                         'unit_id' => $lockedUnit->id,
-                        'unit_nama' => $lockedUnit->nama,
-                        'alasan' => $grant->alasan,
+                        'alasan' => $alasan,
                         'diberikan_oleh' => $currentActor->id,
-                    ],
-                    alasan: $grant->alasan,
-                    dasarIzin: $currentDecision->toAuditBasis(),
-                );
+                    ]);
+
+                    $this->auditLogger->catat(
+                        actor: $currentActor,
+                        tindakan: 'user_permission_granted.tambah',
+                        objekTipe: 'user_permission_granted',
+                        objekId: (string) $grant->id,
+                        nilaiLama: null,
+                        nilaiBaru: self::nilaiBaruAudit($grant, $lockedTargetUser, $lockedPermission, $lockedUnit),
+                        alasan: $grant->alasan,
+                        dasarIzin: $currentDecision->toAuditBasis(),
+                    );
+                }
 
                 return [
                     'status' => 'created',
-                    'permission_kode' => $lockedPermission->kode,
+                    'jumlah' => $lockedPermissions->count(),
                     'unit_nama' => $lockedUnit->nama,
                     'target_nama' => $lockedTargetUser->nama,
                 ];
             });
         } catch (\InvalidArgumentException $exception) {
             throw ValidationException::withMessages([
-                'permission_id' => 'Permission tidak ditemukan, sudah dinonaktifkan, atau tidak memenuhi syarat grant.',
+                'permission_ids' => self::IZIN_TIDAK_SAH,
             ]);
         } catch (QueryException $exception) {
             if (($exception->errorInfo[0] ?? null) === '23505'
                 && str_contains($exception->errorInfo[2] ?? '', 'user_permission_granted')) {
                 throw ValidationException::withMessages([
-                    'permission_id' => 'Pengguna sudah memiliki izin tambahan untuk unit ini.',
+                    'permission_ids' => 'Pengguna sudah memiliki salah satu izin ini pada unit tersebut.',
                 ]);
             }
             throw $exception;
@@ -210,9 +194,60 @@ class CreateUnitGrantAction
         }
 
         return [
-            'permission_kode' => $result['permission_kode'],
+            'jumlah' => $result['jumlah'],
             'unit_nama' => $result['unit_nama'],
             'target_nama' => $result['target_nama'],
         ];
+    }
+
+    /**
+     * Grant Unit tidak memberikan permission global: setiap izin harus ada, aktif, unit-scoped, dan termasuk 7 izin katalog.
+     *
+     * @param  Collection<int, Permission>  $permissions
+     * @param  list<string>  $permissionIds
+     */
+    private function pastikanIzinSah(Collection $permissions, array $permissionIds): void
+    {
+        if ($permissions->count() !== count($permissionIds) || $permissions->contains(fn (Permission $p) => ! self::dapatDiberikan($p))) {
+            throw ValidationException::withMessages([
+                'permission_ids' => self::IZIN_TIDAK_SAH,
+            ]);
+        }
+    }
+
+    /**
+     * Isi `nilai_baru` audit pemberian; dipakai juga Kelola izin agar peristiwa yang sama tercatat dengan bentuk sama.
+     *
+     * @return array<string, mixed>
+     */
+    public static function nilaiBaruAudit(UserPermissionGrant $grant, User $target, Permission $permission, Unit $unit): array
+    {
+        return [
+            'user_id' => $target->id,
+            'user_nama' => $target->nama,
+            'permission_id' => $permission->id,
+            'permission_kode' => $permission->kode,
+            'unit_id' => $unit->id,
+            'unit_nama' => $unit->nama,
+            'alasan' => $grant->alasan,
+            'diberikan_oleh' => $grant->diberikan_oleh,
+        ];
+    }
+
+    /** Izin yang boleh diberikan baru: aktif, unit-scoped, dan termasuk 7 izin katalog. */
+    public static function dapatDiberikan(Permission $permission): bool
+    {
+        return $permission->aktif
+            && $permission->butuh_scope === Permission::SCOPE_UNIT
+            && in_array($permission->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true);
+    }
+
+    /**
+     * @param  BaseCollection<int, Permission>  $permissions
+     * @return BaseCollection<int, Permission>
+     */
+    private function urutKatalog(BaseCollection $permissions): BaseCollection
+    {
+        return $permissions->sortBy(fn (Permission $p) => array_search($p->kode, PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS, true))->values();
     }
 }
