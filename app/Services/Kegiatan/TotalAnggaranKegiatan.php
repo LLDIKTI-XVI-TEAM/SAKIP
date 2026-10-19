@@ -7,6 +7,7 @@ use App\Models\RencanaAksi;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 /**
  * Penjumlahan anggaran kegiatan (Q42 §42.2 butir 2, 4, 6) dari seluruh
@@ -14,7 +15,8 @@ use Illuminate\Support\Facades\DB;
  * tetapi menandai total lewat `belum_diisi`. Kegiatan bersama tampil penuh
  * per IKU, sedangkan total per unit/tahun memakai kegiatan unik. Kegiatan
  * asal `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung agar
- * anggarannya hanya terhitung pada lanjutan.
+ * anggarannya hanya terhitung pada lanjutan. Penjumlahan dilakukan di
+ * database agar tidak memuat seluruh kegiatan ke memori.
  */
 class TotalAnggaranKegiatan
 {
@@ -23,14 +25,13 @@ class TotalAnggaranKegiatan
      */
     public function perRencanaAksi(RencanaAksi $header): array
     {
-        $kegiatan = $this->terhitung()
-            ->whereIn('kegiatan.id', DB::table('klaim_kegiatan')->where('rencana_aksi_id', $header->id)->select('kegiatan_id'))
-            ->get(['kegiatan.id', 'kegiatan.periode_id', 'kegiatan.anggaran']);
+        $kegiatan = fn (): Builder => $this->terhitung()
+            ->whereIn('kegiatan.id', DB::table('klaim_kegiatan')->where('rencana_aksi_id', $header->id)->select('kegiatan_id'));
 
         return [
-            ...$this->ringkas($kegiatan),
-            'per_periode' => $kegiatan->groupBy(fn (Kegiatan $item): string => (string) $item->periode_id)
-                ->map(fn (Collection $item): array => $this->ringkas($item))->all(),
+            ...$this->ringkas($kegiatan()),
+            'per_periode' => $this->agregat($kegiatan(), 'kegiatan.periode_id')
+                ->mapWithKeys(fn (stdClass $baris): array => [(string) $baris->kelompok => $this->bentuk($baris)])->all(),
         ];
     }
 
@@ -39,16 +40,14 @@ class TotalAnggaranKegiatan
     {
         return $this->ringkas($this->terhitung()->where('kegiatan.tahun', $tahun)
             ->whereIn('kegiatan.id', DB::table('klaim_kegiatan')->join('rencana_aksi', 'rencana_aksi.id', '=', 'klaim_kegiatan.rencana_aksi_id')
-                ->where('rencana_aksi.indikator_id', $indikatorId)->select('klaim_kegiatan.kegiatan_id'))
-            ->get(['kegiatan.id', 'kegiatan.anggaran']));
+                ->where('rencana_aksi.indikator_id', $indikatorId)->select('klaim_kegiatan.kegiatan_id')));
     }
 
     /** @return array{total: string, belum_diisi: int} Kegiatan unik, sehingga kegiatan bersama dihitung sekali. */
     public function perUnitTahun(string $unitId, int $tahun): array
     {
         return $this->ringkas($this->terhitung()->where('kegiatan.unit_id', $unitId)->where('kegiatan.tahun', $tahun)
-            ->whereIn('kegiatan.id', DB::table('klaim_kegiatan')->select('kegiatan_id'))
-            ->get(['kegiatan.id', 'kegiatan.anggaran']));
+            ->whereIn('kegiatan.id', DB::table('klaim_kegiatan')->select('kegiatan_id')));
     }
 
     /**
@@ -79,15 +78,34 @@ class TotalAnggaranKegiatan
     }
 
     /**
-     * @param  Collection<int, Kegiatan>  $kegiatan  Sudah unik per kegiatan.
+     * @param  Builder<Kegiatan>  $kegiatan  Baris `kegiatan` sehingga setiap kegiatan terhitung sekali.
      * @return array{total: string, belum_diisi: int}
      */
-    private function ringkas(Collection $kegiatan): array
+    private function ringkas(Builder $kegiatan): array
     {
-        // Cast decimal:0 memberi string rupiah bulat; bcadd menghindari pembulatan float.
-        return [
-            'total' => $kegiatan->whereNotNull('anggaran')->reduce(fn (string $total, Kegiatan $item): string => bcadd($total, (string) $item->anggaran, 0), '0'),
-            'belum_diisi' => $kegiatan->whereNull('anggaran')->count(),
-        ];
+        $baris = $this->agregat($kegiatan)->first();
+
+        return $baris === null ? ['total' => '0', 'belum_diisi' => 0] : $this->bentuk($baris);
+    }
+
+    /**
+     * @param  Builder<Kegiatan>  $kegiatan
+     * @param  string|null  $kelompok  Kolom pengelompokan, dikembalikan sebagai `kelompok`.
+     * @return Collection<int, stdClass>
+     */
+    private function agregat(Builder $kegiatan, ?string $kelompok = null): Collection
+    {
+        // SUM numeric PostgreSQL presisi; anggaran kosong tidak dijumlahkan tetapi dihitung terpisah.
+        $query = $kegiatan->toBase()
+            ->selectRaw('COALESCE(SUM(kegiatan.anggaran), 0) AS total, COUNT(*) FILTER (WHERE kegiatan.anggaran IS NULL) AS belum_diisi');
+
+        return ($kelompok === null ? $query : $query->addSelect("{$kelompok} as kelompok")->groupBy($kelompok))->get();
+    }
+
+    /** @return array{total: string, belum_diisi: int} */
+    private function bentuk(stdClass $baris): array
+    {
+        // Kolom numeric(30,12) dibulatkan ke rupiah bulat seperti cast `decimal:0` Kegiatan.
+        return ['total' => bcadd((string) $baris->total, '0', 0), 'belum_diisi' => (int) $baris->belum_diisi];
     }
 }
