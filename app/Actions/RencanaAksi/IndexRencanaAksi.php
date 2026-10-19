@@ -138,7 +138,7 @@ class IndexRencanaAksi
                 : $versiPengajuan?->jalur_pengajuan === 'perencanaan';
             $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan, (int) $segel->tahun, $jalurPengecualian, $jadwal, $jendela, $efektifIds);
             // Status pengecualian dipakai bersama kartu kesiapan dan panel bukti.
-            $dikecualikan = $this->kesiapan->jalurLampauDikecualikan((int) $segel->tahun, $jalurPengecualian, $jadwal, $jendela, $efektifIds);
+            $dikecualikan = $this->kesiapan->jalurLampauDikecualikan((int) $segel->tahun, $jalurPengecualian);
             // Gerbang kegiatan memakai aturan yang sama dengan pengajuan.
             $klaim = KlaimKegiatan::where('rencana_aksi_id', $segel->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->get();
             $kegiatanKlaim = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->get()->keyBy('id');
@@ -155,7 +155,6 @@ class IndexRencanaAksi
                 $klaim->count(),
                 (int) $segel->tahun,
                 $jalurPengecualian,
-                $jadwal, $jendela, $efektifIds,
             );
             if ($alasanKegiatan !== null) {
                 $alasanPengajuan[] = $alasanKegiatan;

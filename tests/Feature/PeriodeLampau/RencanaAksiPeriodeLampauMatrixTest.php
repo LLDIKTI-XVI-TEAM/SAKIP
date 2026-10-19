@@ -220,7 +220,8 @@ class RencanaAksiPeriodeLampauMatrixTest extends TestCase
         $header->update(['tahun' => 2027]);
         $this->travelTo(now()->setDate(2027, 3, 10)->setTime(9, 0));
 
-        // Q63 §63.1: pengecualian seluruh-periode-lampau hanya untuk jadwal
+        // Q63 §63.1: penolakan berasal dari tahun RA (bukan 2026) dan
+        // `PeriodeTanpaTarget::isPeriodeLampau` yang juga mensyaratkan jadwal
         // 2026; RA 2027 tetap wajib kegiatan minimal dan bukti wajib.
         $this->ajukanDraf($fixture['perencanaan'], $header)
             ->assertSessionHasErrors(['pengajuan' => self::PESAN_KEGIATAN])

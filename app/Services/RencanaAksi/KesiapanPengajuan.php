@@ -129,13 +129,10 @@ class KesiapanPengajuan
      * hanya pada jalur Perencanaan lewat `jalurLampauDikecualikan` (Q63);
      * PIC tidak pernah dikecualikan. Kegiatan pada periode lampau tetap
      * dihitung bila ada.
-     *
-     * @param  Collection<int, PeriodeJadwal>  $jendela
-     * @param  Collection<int, string>  $periodeEfektif
      */
-    public function alasanKegiatan(int $jumlahKlaim, int $tahun, bool $jalurPerencanaan, JadwalTahunan $jadwal, Collection $jendela, Collection $periodeEfektif): ?string
+    public function alasanKegiatan(int $jumlahKlaim, int $tahun, bool $jalurPerencanaan): ?string
     {
-        if ($jumlahKlaim > 0 || $this->jalurLampauDikecualikan($tahun, $jalurPerencanaan, $jadwal, $jendela, $periodeEfektif)) {
+        if ($jumlahKlaim > 0 || $this->jalurLampauDikecualikan($tahun, $jalurPerencanaan)) {
             return null;
         }
 
@@ -143,35 +140,18 @@ class KesiapanPengajuan
     }
 
     /**
-     * Penanda jalur penerapan Q63 untuk gerbang pengajuan RA: hanya jalur
-     * Perencanaan yang dapat dikecualikan, baik untuk RA data awal 2026
-     * (tahun 2026 lewat jalur Perencanaan, tanpa kolom penanda) maupun RA
-     * yang seluruh periode efektifnya sudah lampau saat aktivasi jadwal 2026.
-     * PIC tidak pernah dikecualikan, termasuk pada RA seluruh-periode-lampau.
-     * Dipakai bersama gerbang bukti wajib, gerbang kegiatan minimal, dan
-     * props panel bukti halaman RA.
-     *
-     * @param  Collection<int, PeriodeJadwal>  $jendela
-     * @param  Collection<int, string>  $periodeEfektif
+     * Penanda jalur penerapan Q63 untuk gerbang pengajuan RA: hanya RA data
+     * awal 2026 (tahun 2026 lewat jalur Perencanaan, tanpa kolom penanda) yang
+     * dikecualikan. RA seluruh-periode-lampau jadwal 2026 tercakup oleh
+     * definisi ini; tahun lain tidak pernah dikecualikan (lihat juga
+     * `PeriodeTanpaTarget::isPeriodeLampau` yang mensyaratkan jadwal 2026).
+     * PIC tidak pernah dikecualikan karena jalur Perencanaan wajib. Dipakai
+     * bersama gerbang bukti wajib, gerbang kegiatan minimal, dan props panel
+     * bukti halaman RA.
      */
-    public function jalurLampauDikecualikan(int $tahun, bool $jalurPerencanaan, JadwalTahunan $jadwal, Collection $jendela, Collection $periodeEfektif): bool
+    public function jalurLampauDikecualikan(int $tahun, bool $jalurPerencanaan): bool
     {
-        if (! $jalurPerencanaan) {
-            return false;
-        }
-        if ($tahun === self::TAHUN_DATA_AWAL) {
-            return true;
-        }
-        $lampau = $jendela
-            ->filter(fn (PeriodeJadwal $row): bool => PeriodeTanpaTarget::isPeriodeLampau($jadwal, $row))
-            ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id);
-
-        // Q63 §63.1: pengecualian seluruh-periode-lampau hanya untuk jadwal
-        // 2026; tahun lain fail-closed walau seluruh periode sudah lewat.
-        return $tahun === self::TAHUN_DATA_AWAL
-            && $jadwal->tahun === self::TAHUN_DATA_AWAL
-            && $periodeEfektif->isNotEmpty()
-            && $periodeEfektif->diff($lampau)->isEmpty();
+        return $jalurPerencanaan && $tahun === self::TAHUN_DATA_AWAL;
     }
 
     /**
@@ -237,7 +217,7 @@ class KesiapanPengajuan
         if ($deviasi['status'] === DeviasiTargetPk::DEVIASI && trim((string) $alasanDeviasi) === '') {
             $alasan[] = 'Skor periode terakhir berbeda dari target PK; alasan deviasi wajib diisi.';
         }
-        if (! $this->jalurLampauDikecualikan($tahun, $jalurPerencanaan, $jadwal, $jendela, $periodeEfektif)) {
+        if (! $this->jalurLampauDikecualikan($tahun, $jalurPerencanaan)) {
             foreach ($persyaratan as $item) {
                 if ($item['wajib'] && ! $item['pemenuhan']['terpenuhi']) {
                     // Cermin SubmissionPrerequisites: persyaratan tanpa mode aktif

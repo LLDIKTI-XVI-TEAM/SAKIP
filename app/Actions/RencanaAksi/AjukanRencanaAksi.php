@@ -187,7 +187,7 @@ class AjukanRencanaAksi
                 $perencanaanKegiatan = $this->kesiapan->perencanaanKegiatan($kegiatan, (string) $indikator->id, (int) $header->tahun,
                     $jalurPerencanaan, $jadwal, $jendelaPeriode, $buktiKegiatan, $bacaKegiatan);
                 $alasan = [...$alasan, ...$perencanaanKegiatan['alasan']];
-                $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $jalurPerencanaan, $jadwal, $jendelaPeriode, $periodeEfektif);
+                $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $jalurPerencanaan);
                 if ($alasanKegiatan !== null) {
                     $alasan[] = $alasanKegiatan;
                 }
