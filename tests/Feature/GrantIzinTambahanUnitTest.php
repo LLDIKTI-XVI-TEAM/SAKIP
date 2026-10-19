@@ -1945,6 +1945,28 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->assertSame(['diizinkan'], $audits->pluck('dasar_izin.keputusan')->unique()->values()->all());
     }
 
+    /** Setelah Beri, daftar kembali dengan filter asal; isian dari halaman PJ dan nomor halaman tidak dibawa. */
+    public function test_beri_izin_kembali_ke_daftar_dengan_filter_asal_tanpa_isian_pj(): void
+    {
+        $asal = '/akses/grant?search=Uji&unit_id='.$this->unitA->id.'&page=2&beri_pengguna='.$this->pegawaiUser->id.'&beri_unit='.$this->unitA->id;
+        $this->actingAs($this->adminUser)->from($asal)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => [$this->unitPermission->id],
+            'unit_id' => $this->unitA->id,
+        ])->assertRedirect(route('akses.grant.index', ['search' => 'Uji', 'unit_id' => $this->unitA->id]));
+        $this->assertSame(1, UserPermissionGrant::where('user_id', $this->pegawaiUser->id)->count());
+    }
+
+    /** Filter asal yang bukan teks tidak dibawa ke pengalihan. */
+    public function test_beri_izin_mengabaikan_filter_asal_yang_bukan_teks(): void
+    {
+        $this->actingAs($this->adminUser)->from('/akses/grant?search[]=x&unit_id[]=y')->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => [$this->unitPermission->id],
+            'unit_id' => $this->unitA->id,
+        ])->assertRedirect('/akses/grant');
+    }
+
     /** Semua atau tidak sama sekali: satu izin yang sudah dimiliki menolak seluruh pilihan dan menyebut izinnya. */
     public function test_banyak_izin_ditolak_seluruhnya_bila_salah_satu_sudah_dimiliki(): void
     {
