@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 class TotalAnggaranKegiatan
 {
     /**
-     * @return array{total: string, belum_diisi: int, per_periode: array<string, array{total: string, belum_diisi: int}>, kegiatan_bersama: list<string>}
+     * @return array{total: string, belum_diisi: int, per_periode: array<string, array{total: string, belum_diisi: int}>}
      */
     public function perRencanaAksi(RencanaAksi $header): array
     {
@@ -31,7 +31,6 @@ class TotalAnggaranKegiatan
             ...$this->ringkas($kegiatan),
             'per_periode' => $kegiatan->groupBy(fn (Kegiatan $item): string => (string) $item->periode_id)
                 ->map(fn (Collection $item): array => $this->ringkas($item))->all(),
-            'kegiatan_bersama' => $this->kegiatanBersama($kegiatan->pluck('id')->map(fn ($id): string => (string) $id)->all()),
         ];
     }
 

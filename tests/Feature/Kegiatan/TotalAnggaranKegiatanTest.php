@@ -64,7 +64,6 @@ class TotalAnggaranKegiatanTest extends TestCase
         $this->assertSame(['total' => '1000000', 'belum_diisi' => 0], $this->total->perIku((string) $headerLain->indikator_id, 2026));
         $this->assertSame(['total' => '1250000', 'belum_diisi' => 0], $this->total->perUnitTahun((string) $this->fixture['unit']->id, 2026));
         $this->assertSame([(string) $bersama->id], $this->total->kegiatanBersama([(string) $bersama->id, (string) $tunggal->id]));
-        $this->assertSame([(string) $bersama->id], $this->total->perRencanaAksi($this->header)['kegiatan_bersama']);
     }
 
     public function test_kegiatan_asal_ditunda_dengan_lanjutan_tidak_dihitung(): void

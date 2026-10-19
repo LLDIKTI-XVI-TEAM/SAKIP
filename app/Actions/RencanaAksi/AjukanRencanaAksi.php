@@ -236,7 +236,7 @@ class AjukanRencanaAksi
                             ]))->values()->all(),
                         ], $perencanaanKegiatan['evaluasi']),
                         // Total anggaran saat pengajuan (Q42 §42.2 butir 6): tidak dihitung ulang meski anggaran kegiatan berubah kemudian.
-                        'anggaran_kegiatan' => array_diff_key($this->anggaran->perRencanaAksi($header), ['kegiatan_bersama' => true]),
+                        'anggaran_kegiatan' => $this->anggaran->perRencanaAksi($header),
                         'persyaratan_bukti' => $persyaratan,
                         // `path` privat hanya untuk unduhan beku di server; tidak pernah masuk props.
                         'bukti_dukungs' => $bukti->map(fn (BuktiDukung $item): array => $item->only([

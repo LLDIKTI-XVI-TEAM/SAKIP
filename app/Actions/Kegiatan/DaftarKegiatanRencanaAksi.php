@@ -63,7 +63,7 @@ class DaftarKegiatanRencanaAksi
                 'arah_dampak' => $klaim->arah_dampak,
                 'catatan' => $klaim->catatan,
             ])->values()->all(),
-            'total' => array_diff_key($this->anggaran->perRencanaAksi($header), ['kegiatan_bersama' => true]),
+            'total' => $this->anggaran->perRencanaAksi($header),
             'can' => [
                 'tambah' => $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE),
                 // Pengelolaan klaim per kegiatan berada di halaman Kegiatan; tautan hanya bila izin ubah kegiatan ada.
