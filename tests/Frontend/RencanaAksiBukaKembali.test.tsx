@@ -41,7 +41,7 @@ const disahkan: ReviewRencanaAksi = {
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
     target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: 'terhitung', keterangan: null, komponen: [] }],
-    klaim: null,
+    klaim: null, anggaran_kegiatan: null,
     bukti_dukungs: [],
     can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: true, evidence: true, kegiatan: true },
     businessErrors: { verifikasi: [], kembalikan: [], sahkan: [], buka_kembali: [] },

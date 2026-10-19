@@ -83,6 +83,30 @@ class RencanaAksiAnggaranKegiatanTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('kegiatan', null));
     }
 
+    public function test_total_dan_anggaran_klaim_dibekukan_pada_versi_dan_tidak_berubah_setelah_anggaran_diubah(): void
+    {
+        $this->rapat->update(['anggaran' => 250000]);
+        $this->actingAs($this->fixture['pic'])->post("/rencana-aksi/{$this->header->id}/ajukan", ['expected_versi' => $this->header->fresh()->versi])
+            ->assertSessionHasNoErrors();
+        $this->bimtek->update(['anggaran' => 9000000]);
+        $beku = ['total' => '1750000', 'belum_diisi' => 0, 'per_periode' => [
+            $this->fixture['periode1']->id => ['total' => '1500000', 'belum_diisi' => 0],
+            $this->fixture['periode2']->id => ['total' => '250000', 'belum_diisi' => 0],
+        ]];
+
+        $this->actingAs($this->fixture['perencanaan'])->get("/rencana-aksi/{$this->header->id}/review")->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.anggaran_kegiatan', $beku)
+            ->where('rencanaAksi.klaim', fn ($klaim) => collect($klaim)->pluck('anggaran', 'nama')->sortKeys()->all()
+                === ['Bimtek penjaminan mutu' => '1500000', 'Kegiatan pendukung' => '0', 'Rapat koordinasi' => '250000']));
+        // Halaman RA tetap menghitung dari data kegiatan saat ini.
+        $this->actingAs($this->fixture['perencanaan'])->get("/rencana-aksi/{$this->header->id}")
+            ->assertInertia(fn ($page) => $page->where('kegiatan.total.total', '9250000'));
+
+        $this->denyBacaKegiatan($this->fixture['perencanaan']);
+        $this->actingAs($this->fixture['perencanaan'])->get("/rencana-aksi/{$this->header->id}/review")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.anggaran_kegiatan', null)->where('rencanaAksi.klaim', null));
+    }
+
     private function kegiatan(string $nama, ?int $anggaran, Periode $periode, bool $klaimTahapRa = true): Kegiatan
     {
         $kegiatan = Kegiatan::create(['unit_id' => $this->fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $periode->id,

@@ -84,9 +84,12 @@ class BacaReviewRencanaAksi
                     'id' => $k['id'] ?? '', 'periode_nama' => $namaPeriode[$k['periode_id'] ?? ''] ?? 'Periode tidak tersedia',
                     'nama' => is_array($k['kegiatan'] ?? null) ? ($k['kegiatan']['nama'] ?? 'Konteks versi belum lengkap') : 'Konteks versi belum lengkap',
                     'status' => is_array($k['kegiatan'] ?? null) ? ($k['kegiatan']['status'] ?? null) : null,
+                    'anggaran' => is_array($k['kegiatan'] ?? null) && isset($k['kegiatan']['anggaran']) ? (string) $k['kegiatan']['anggaran'] : null,
                     'komponen' => isset($k['komponen_id']) ? ($labelKomponen[(string) $k['komponen_id']] ?? 'Komponen tidak tersedia') : null,
                     'arah_dampak' => $k['arah_dampak'] ?? null, 'catatan' => is_string($k['catatan'] ?? null) ? $k['catatan'] : null,
                 ], $this->baris($beku['klaim'])) : null,
+                // Total beku saat pengajuan (Q42 §42.2 butir 6); null untuk versi sebelum total dibekukan atau tanpa izin baca kegiatan.
+                'anggaran_kegiatan' => $kegiatanBoleh && is_array($beku['anggaran_kegiatan'] ?? null) ? $beku['anggaran_kegiatan'] : null,
                 'bukti_dukungs' => $buktiBoleh ? array_map(fn (array $b): array => [
                     'id' => $b['id'] ?? '', 'mode' => $b['mode'] ?? '', 'nama_asli' => $b['nama_asli'] ?? null,
                     'tautan' => $b['tautan'] ?? null, 'isi_teks' => $b['isi_teks'] ?? null,
