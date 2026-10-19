@@ -132,7 +132,8 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                 {periode.map((item) => {
                     const daftar = kegiatan.daftar.filter((row) => row.periode_id === item.id);
                     const kunci = terkunci.includes(item.id);
-                    const totalPeriode = kegiatan.total.per_periode[item.id];
+                    // Periode tanpa kegiatan tidak punya entri per_periode; totalnya Rp0.
+                    const totalPeriode = kegiatan.total.per_periode[item.id] ?? { total: '0', belum_diisi: 0 };
 
                     return (
                         <section key={item.id} aria-labelledby={`kegiatan-periode-${item.id}`} className="rounded-lg border border-border p-3">
@@ -141,7 +142,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                     {item.nama ?? 'Periode'}
                                     {kunci && <Badge variant="muted">Terkunci</Badge>}
                                 </h3>
-                                {totalPeriode && <p className="text-xs text-muted">Total {teksTotal(totalPeriode)}</p>}
+                                <p className="text-xs text-muted">Total {teksTotal(totalPeriode)}</p>
                                 {kegiatan.can.tambah && !kunci && (
                                     <Button type="button" size="sm" variant="outline" disabled={kotor} onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
                                         <Plus className="h-4 w-4" aria-hidden="true" />

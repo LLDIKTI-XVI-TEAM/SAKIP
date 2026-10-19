@@ -41,6 +41,18 @@ const periode = (id: string, nama: string): RencanaAksiPeriode => ({
 
 const TOTAL_KOSONG = { total: '0', belum_diisi: 0, per_periode: {} };
 
+it('panel RA menampilkan total presisi di atas batas Number dan total nol untuk periode tanpa kegiatan', () => {
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
+        kegiatan={{ daftar: [{ id: 'k1', periode_id: 'tw1', kegiatan_id: 'keg-1', nama: 'Besar', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null,
+            anggaran: '999999999999999', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
+        total: { total: '9999999999999991', belum_diisi: 0, per_periode: { tw1: { total: '9999999999999991', belum_diisi: 0 } } }, can: { tambah: false, kelola: false } }} />);
+
+    expect(screen.getByText(/^Total Rp\s?9\.999\.999\.999\.999\.991$/)).toBeTruthy();
+    const tw2 = within(screen.getByRole('region', { name: 'Triwulan II' }));
+    expect(tw2.getByText(/^Total Rp\s?0$/)).toBeTruthy();
+    expect(tw2.getByText('Belum ada kegiatan.')).toBeTruthy();
+});
+
 it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan klaim pengukuran, serta total yang menandai anggaran belum diisi', () => {
     const baris = { periode_id: 'tw1', status: 'rencana', komponen_id: null, arah_dampak: 'menambah' as const, catatan: null };
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
