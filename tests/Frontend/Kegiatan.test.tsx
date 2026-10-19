@@ -19,23 +19,23 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
 
 const unitOptions = [{ id: 'unit-a', nama: 'Unit A' }];
 const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV' }];
-const rencana = { id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: '', tujuan: null, sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, status: 'rencana', version_token: 'v1' };
+const rencana = { id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: '', tujuan: null, sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: null, status: 'rencana', version_token: 'v1' };
 const props = { kegiatan: rencana, unitOptions, periodeOptions };
 
 beforeEach(() => { mockPengaturan = {}; vi.spyOn(router, 'post').mockImplementation(() => undefined); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-it('mengirim field rencana melalui submit keyboard tanpa anggaran atau status', () => {
+it('mengirim field rencana beserta anggaran rupiah melalui submit keyboard tanpa status', () => {
     render(<Form {...props} />);
-    expect(screen.queryByLabelText(/anggaran/i)).toBeNull();
     expect(screen.queryByLabelText(/^status/i)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Anggaran/), { target: { value: '5000000' } });
+    expect(screen.getByText(/Rp\s5\.000\.000/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Fasilitasi unit' } });
     fireEvent.change(screen.getByLabelText(/Tujuan/), { target: { value: 'Meningkatkan layanan' } });
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
     const [url, data] = vi.mocked(router.post).mock.calls[0];
     expect(url).toBe('/kegiatan/kegiatan-1');
-    expect(data).toMatchObject({ unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, expected_state: 'v1' });
-    expect(data).not.toHaveProperty('anggaran');
+    expect(data).toMatchObject({ unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, expected_state: 'v1', anggaran: '5000000' });
     expect(data).not.toHaveProperty('status');
 });
 

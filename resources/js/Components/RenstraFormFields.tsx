@@ -18,7 +18,6 @@ interface RenstraFormFieldsProps {
     requireReason?: boolean;
     canReadRegulasi?: boolean;
     canUploadAttachment?: boolean;
-    attachmentLocked?: boolean;
     setField: SetRenstraField;
     setLampiran: (updater: (previous: LampiranDraft[]) => LampiranDraft[]) => void;
 }
@@ -38,7 +37,6 @@ export function RenstraFormFields({
     requireReason = false,
     canReadRegulasi = false,
     canUploadAttachment = true,
-    attachmentLocked = false,
     setField,
     setLampiran,
 }: RenstraFormFieldsProps) {
@@ -184,9 +182,7 @@ export function RenstraFormFields({
                 }}
                 emptyText="Belum ada lampiran naskah yang ditambahkan"
                 disabled={disabled}
-                blockedMessage={canUploadAttachment ? undefined : attachmentLocked
-                    ? 'Lampiran baru hanya dapat ditambahkan saat Renstra berstatus draft.'
-                    : 'Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'}
+                blockedMessage={canUploadAttachment ? undefined : 'Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'}
             />
         </div>
     );

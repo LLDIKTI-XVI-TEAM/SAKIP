@@ -116,7 +116,8 @@ final class PerbandinganNilaiRencanaAksi
      * Periode yang daftar klaim tahap RA-nya berubah dibanding versi sah
      * terakhir (Q41 §41.2: daftar kegiatan periode terkunci ikut dijaga).
      * Klaim dibandingkan per periode melalui kegiatan, komponen, arah dampak,
-     * catatan, serta nama/tujuan rencana yang dibekukan. Status pelaksanaan
+     * catatan, serta nama/tujuan/anggaran rencana yang dibekukan (anggaran
+     * kosong berbeda dari 0, Q42 §42.2 butir 2). Status pelaksanaan
      * tidak dibandingkan karena dapat berubah setelah pengesahan RA.
      * Versi sah tanpa key `klaim` (dibentuk sebelum klaim
      * dibekukan) dinilai daftar kosong, sehingga setiap periode klaim saat
@@ -132,11 +133,14 @@ final class PerbandinganNilaiRencanaAksi
             return [];
         }
         $dulu = is_array($versi->snapshot['klaim'] ?? null) ? $versi->snapshot['klaim'] : [];
+        // Versi lama menyimpan skala desimal kolom ("5.000000000000"); bandingkan nilainya, bukan skalanya.
+        $anggaran = fn (mixed $nilai): ?string => $nilai === null ? null
+            : (str_contains((string) $nilai, '.') ? rtrim(rtrim((string) $nilai, '0'), '.') : (string) $nilai);
         $peta = fn (array $rows) => collect($rows)->filter(fn ($k): bool => is_array($k))
             ->groupBy(fn (array $k): string => (string) ($k['periode_id'] ?? ''))
             ->map(fn ($grup) => $grup->map(fn (array $k): string => json_encode([
                 $k['kegiatan_id'] ?? '', $k['komponen_id'] ?? '', $k['arah_dampak'] ?? '', $k['catatan'] ?? '',
-                $k['kegiatan']['nama'] ?? '', $k['kegiatan']['tujuan'] ?? '',
+                $k['kegiatan']['nama'] ?? '', $k['kegiatan']['tujuan'] ?? '', $anggaran($k['kegiatan']['anggaran'] ?? null),
             ], JSON_THROW_ON_ERROR))->sort()->values()->all());
         $sah = $peta($dulu);
         $kini = $peta($klaimKini);

@@ -140,6 +140,12 @@ class IndikatorKinerja extends Model
         return $this->hasMany(TargetKinerja::class, 'indikator_kinerja_id');
     }
 
+    /** @return HasMany<TargetRenstra, $this> */
+    public function targetRenstra(): HasMany
+    {
+        return $this->hasMany(TargetRenstra::class, 'indikator_id');
+    }
+
     /** @return HasOne<TargetKinerja, $this> */
     public function targetTahun(int $tahun): HasOne
     {

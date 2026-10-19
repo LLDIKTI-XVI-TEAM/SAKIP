@@ -181,6 +181,12 @@ class AjukanRencanaAksi
                 // Snapshot koreksi dapat terbit setelah klaim dibuat; klaim yang tidak lagi cocok tidak boleh dibekukan.
                 $bacaKegiatan = $this->resolver->allows($pengunci, PermissionCodes::KEGIATAN_READ, (string) $header->unit_id);
                 $alasan = [...$alasan, ...$this->kesiapan->alasanKlaim($klaim, $kegiatan, $header, $periodeEfektif, $definisi->pluck('komponen_id')->all(), $bacaKegiatan)];
+                // Berkas kegiatan dikunci setelah kegiatan, searah writer berkas kegiatan, agar RAB yang dinilai sama dengan yang dibekukan.
+                $buktiKegiatan = BuktiDukung::where('berkasable_type', 'kegiatan')->whereIn('berkasable_id', $kegiatan->keys()->all())->current()
+                    ->orderBy('berkas.id')->sharedLock()->get()->groupBy(fn (BuktiDukung $item): string => (string) $item->berkasable_id);
+                $perencanaanKegiatan = $this->kesiapan->perencanaanKegiatan($kegiatan, (string) $indikator->id, (int) $header->tahun,
+                    $jalurPerencanaan, $jadwal, $jendelaPeriode, $buktiKegiatan, $bacaKegiatan);
+                $alasan = [...$alasan, ...$perencanaanKegiatan['alasan']];
                 $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $jalurPerencanaan, $jadwal, $jendelaPeriode, $periodeEfektif);
                 if ($alasanKegiatan !== null) {
                     $alasan[] = $alasanKegiatan;
@@ -222,6 +228,12 @@ class AjukanRencanaAksi
                         'deviasi_pk' => $deviasi,
                         'target_periode' => $baris,
                         'klaim' => $klaimBeku,
+                        // Evaluasi persyaratan tahap perencanaan kegiatan beserta berkasnya (Q42 §42.4); contoh berkas tidak ikut dibekukan.
+                        'persyaratan_kegiatan' => array_map(fn (array $item): array => $item + [
+                            'berkas' => $buktiKegiatan->get($item['kegiatan_id'], collect())->map(fn (BuktiDukung $berkas): array => $berkas->only([
+                                'id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks',
+                            ]))->values()->all(),
+                        ], $perencanaanKegiatan['evaluasi']),
                         'persyaratan_bukti' => $persyaratan,
                         // `path` privat hanya untuk unduhan beku di server; tidak pernah masuk props.
                         'bukti_dukungs' => $bukti->map(fn (BuktiDukung $item): array => $item->only([

@@ -7,6 +7,7 @@ use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\Perencanaan\IndikatorPresenter;
+use App\Support\TargetRenstraState;
 use Illuminate\Support\Str;
 
 class IndexSasaranIndikator
@@ -30,7 +31,7 @@ class IndexSasaranIndikator
 
         $renstras = Renstra::orderByDesc('is_aktif')
             ->orderByDesc('tahun_mulai')
-            ->get(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif']);
+            ->get(['id', 'kode', 'nama', 'tahun_mulai', 'tahun_selesai', 'is_aktif', 'status']);
 
         $selectedRenstra = null;
 
@@ -55,7 +56,7 @@ class IndexSasaranIndikator
                 ->orderBy('urutan')
                 ->orderBy('kode')
                 ->with([
-                    'indikatorKinerjas' => fn ($query) => $query->orderBy('kode')->with($this->presenter->indikatorRelations($can['regulasi_read'])),
+                    'indikatorKinerjas' => fn ($query) => $query->orderBy('kode')->with([...$this->presenter->indikatorRelations($can['regulasi_read']), 'targetRenstra:id,indikator_id,tahun,nilai']),
                 ])
                 ->get();
             $pjEfektif = $this->presenter->pjEfektif(
@@ -70,7 +71,10 @@ class IndexSasaranIndikator
                 'urutan' => $sasaran->urutan,
                 'updated_at' => $sasaran->updated_at?->toISOString(),
                 'indikator_kinerjas' => $sasaran->indikatorKinerjas->map(
-                    fn (IndikatorKinerja $indikator) => $this->presenter->presentIndikator($indikator, $can['regulasi_read'], $pjEfektif->get($indikator->id)?->pic),
+                    fn (IndikatorKinerja $indikator) => [
+                        ...$this->presenter->presentIndikator($indikator, $can['regulasi_read'], $pjEfektif->get($indikator->id)?->pic),
+                        ...$this->targetRenstra($indikator, $selectedRenstra),
+                    ],
                 ),
             ]);
         }
@@ -82,5 +86,22 @@ class IndexSasaranIndikator
             ...$this->presenter->formOptions($can['regulasi_read']),
             'can' => $can,
         ];
+    }
+
+    /**
+     * Hanya halaman daftar yang mengirim target Renstra, agar payload detail indikator tidak berubah. Token dihitung dengan
+     * values/token yang sama dengan Action simpan sehingga cocok selama state tidak berubah.
+     *
+     * @return array{target_renstra: list<array{tahun: int, nilai: ?string}>, target_renstra_state: string}
+     */
+    private function targetRenstra(IndikatorKinerja $indikator, Renstra $renstra): array
+    {
+        $values = TargetRenstraState::values($indikator->targetRenstra);
+        $rows = [];
+        foreach ($values as $tahun => $nilai) {
+            $rows[] = ['tahun' => $tahun, 'nilai' => $nilai];
+        }
+
+        return ['target_renstra' => $rows, 'target_renstra_state' => TargetRenstraState::token($indikator, $renstra, $values)];
     }
 }

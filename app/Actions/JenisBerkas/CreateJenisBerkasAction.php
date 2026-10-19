@@ -25,7 +25,7 @@ class CreateJenisBerkasAction
      *
      * @param array{
      *     nama: string,
-     *     tahap: 'pengukuran',
+     *     tahap: 'rencana_aksi'|'pengukuran'|'kegiatan_perencanaan',
      *     indikator_id?: string|null,
      *     wajib?: bool|0|1|'0'|'1',
      *     keterangan?: string|null,

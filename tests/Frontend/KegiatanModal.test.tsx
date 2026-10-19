@@ -26,7 +26,7 @@ const b = { id: 'unit-b', nama: 'Unit B' };
 const period = { id: 'p1', nama: 'Triwulan I' };
 const item = { id: 'k1', unit_id: a.id, periode_id: period.id, nama: 'Kegiatan audit', tujuan: 'Sintetis', tahun: 2026, status: 'rencana', tanggal_rencana: null, unit: a, periode: period, can: { update: true }, version_token: 'v1' };
 const rencana = { id: 'k1', unit_id: a.id, tahun: 2026, periode_id: period.id, nama: 'Kegiatan audit', tujuan: null, sasaran_peserta: null,
-    keterangan_peserta: null, lokasi: null, tanggal_rencana: null, status: 'rencana', version_token: 'v1' };
+    keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: '0', status: 'rencana', version_token: 'v1' };
 const indexProps = { kegiatan: { data: [item], links: [], from: 1, to: 1, total: 1 }, filters: { tahun: '2026', unit_id: '', periode_id: '', status: '' }, unitOptions: [a, b], periodeOptions: [period], creatableUnitOptions: [a], activePeriodeOptions: [period], tahunDefault: 2026, can: { create: true } };
 
 it('mempertahankan draft dan error ketika opsi server berubah setelah validasi', async () => {
@@ -66,7 +66,7 @@ it('mempertahankan draft dan menahan dismissal setelah hasil network belum pasti
     expect(screen.getByRole('link', { name: 'Muat ulang data kegiatan' }).getAttribute('href')).toBe('/kegiatan');
 });
 
-it('mengirim field rencana tanpa anggaran, menahan pending dan menutup sesudah sukses', async () => {
+it('mengirim anggaran kosong sebagai null, menahan pending dan menutup sesudah sukses', async () => {
     const onClose = vi.fn();
     render(<KegiatanModal isOpen onClose={onClose} tahunDefault={2026} unitOptions={[a]} periodeOptions={[period]} />);
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Rencana baru' } });
@@ -74,8 +74,7 @@ it('mengirim field rencana tanpa anggaran, menahan pending dan menutup sesudah s
     fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
     const [url, data, options] = vi.mocked(router.post).mock.calls[0];
     expect(url).toBe('/kegiatan');
-    expect(data).toMatchObject({ unit_id: a.id, periode_id: period.id, tahun: 2026, nama: 'Rencana baru', sasaran_peserta: null });
-    expect(data).not.toHaveProperty('anggaran');
+    expect(data).toMatchObject({ unit_id: a.id, periode_id: period.id, tahun: 2026, nama: 'Rencana baru', sasaran_peserta: null, anggaran: null });
     expect(data).not.toHaveProperty('status');
     await act(async () => { options?.onStart?.({} as never); });
     fireEvent.click(screen.getByRole('button', { name: 'Batal' }));

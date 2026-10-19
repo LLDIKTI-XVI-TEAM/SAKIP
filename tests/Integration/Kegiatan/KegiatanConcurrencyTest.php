@@ -105,7 +105,7 @@ class KegiatanConcurrencyTest extends TestCase
             UserPermissionGrant::create(['user_id' => $actor->id, 'permission_id' => Permission::where('kode', $code)->value('id'), 'unit_id' => $unit->id, 'alasan' => 'Fixture race', 'diberikan_oleh' => $admin->id]);
         }
 
-        return [$admin, $actor, ['unit_id' => $unit->id, 'tahun' => 2026, 'periode_id' => $periode->id, 'nama' => 'Rencana awal', 'tujuan' => 'Tujuan race', 'sasaran_peserta' => null, 'keterangan_peserta' => null, 'lokasi' => null, 'tanggal_rencana' => null]];
+        return [$admin, $actor, ['unit_id' => $unit->id, 'tahun' => 2026, 'periode_id' => $periode->id, 'nama' => 'Rencana awal', 'tujuan' => 'Tujuan race', 'sasaran_peserta' => null, 'keterangan_peserta' => null, 'lokasi' => null, 'tanggal_rencana' => null, 'anggaran' => 0]];
     }
 
     public function test_simpan_tidak_menahan_konfigurasi_periode_saat_menunggu_aktor_writer_periode(): void

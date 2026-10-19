@@ -31,20 +31,22 @@ class EvaluateEvidence
 
     /**
      * Waiver hanya mode file pada persyaratan wajib (Plan 13.7); mode nonfile tetap wajib sesuai kontrak persyaratan.
+     * Tahap `kegiatan_perencanaan` lahir setelah Q44 menghapus cabang anti-macet, sehingga tidak memakai waiver.
      *
-     * @param  'pengukuran'|'rencana_aksi'|'kegiatan'  $tahap
+     * @param  'pengukuran'|'rencana_aksi'|'kegiatan'|'kegiatan_perencanaan'  $tahap
      * @param  Collection<int, BuktiDukung>  $evidence  Bukti berlaku milik induk (sudah difilter `current`).
      * @return list<array<string, mixed>>
      */
     public function untuk(string $tahap, string $indikatorId, Collection $evidence): array
     {
         $settings = $this->settings();
+        $bolehWaiver = ! $settings['unggahan_aktif'] && $tahap !== 'kegiatan_perencanaan';
 
         return JenisBerkas::where('aktif', true)->where('tahap', $tahap)->where(fn ($q) => $q->whereNull('indikator_id')->orWhere('indikator_id', $indikatorId))
-            ->orderBy('urutan')->orderBy('id')->get()->map(function ($requirement) use ($settings, $evidence) {
+            ->orderBy('urutan')->orderBy('id')->get()->map(function ($requirement) use ($settings, $evidence, $bolehWaiver) {
                 $modes = array_values(array_filter(['file', 'tautan', 'teks'], fn ($mode) => $requirement->{'izinkan_'.$mode}));
                 $fulfilled = $evidence->where('jenis_berkas_id', $requirement->id)->pluck('mode')->unique()->intersect($modes)->values()->all();
-                $waived = $requirement->wajib && ! $settings['unggahan_aktif'] && in_array('file', $modes, true) && ! in_array('file', $fulfilled, true) ? ['file'] : [];
+                $waived = $requirement->wajib && $bolehWaiver && in_array('file', $modes, true) && ! in_array('file', $fulfilled, true) ? ['file'] : [];
                 $available = array_values(array_diff($modes, $waived));
                 $missing = array_values(array_diff($available, $fulfilled));
                 // Konfigurasi tanpa mode bukan waiver file-only yang memang diizinkan.

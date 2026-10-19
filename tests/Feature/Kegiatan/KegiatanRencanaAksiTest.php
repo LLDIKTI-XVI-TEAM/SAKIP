@@ -45,16 +45,24 @@ class KegiatanRencanaAksiTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'klaim_kegiatan.tambah')->where('objek_id', $klaim->id)->count());
     }
 
+    public function test_data_awal_2026_lewat_jalur_perencanaan_boleh_tanpa_anggaran(): void
+    {
+        $this->actingAs($this->actor)->post($this->url(), $this->payload(['anggaran' => null, 'salin_ke_periode_ids' => [$this->tw2->id]]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame([null, null], Kegiatan::pluck('anggaran')->all());
+    }
+
     public function test_salin_ke_periode_lain_membuat_pasangan_tersendiri_tanpa_berkas(): void
     {
         $this->actingAs($this->actor)->post($this->url(), $this->payload([
-            'tanggal_rencana' => '2026-03-20', 'tujuan' => 'Tujuan bersama', 'salin_ke_periode_ids' => [$this->tw2->id],
+            'tanggal_rencana' => '2026-03-20', 'tujuan' => 'Tujuan bersama', 'anggaran' => 2500000, 'salin_ke_periode_ids' => [$this->tw2->id],
         ]))->assertSessionHasNoErrors();
 
         $kegiatan = Kegiatan::orderBy('periode_id')->get()->keyBy('periode_id');
         $this->assertCount(2, $kegiatan);
         $salinan = $kegiatan[$this->tw2->id];
-        $this->assertSame(['Rapat koordinasi', 'Tujuan bersama'], [$salinan->nama, $salinan->tujuan]);
+        $this->assertSame(['Rapat koordinasi', 'Tujuan bersama', '2500000'], [$salinan->nama, $salinan->tujuan, $salinan->anggaran]);
         $this->assertNull($salinan->tanggal_rencana);
         $this->assertNotSame($kegiatan[$this->tw1->id]->id, $salinan->id);
         $this->assertSame(2, KlaimKegiatan::where('sumber_klaim', 'rencana_aksi')->distinct('kegiatan_id')->count('kegiatan_id'));
@@ -155,7 +163,7 @@ class KegiatanRencanaAksiTest extends TestCase
     /** @param array<string, mixed> $tambahan */
     private function payload(array $tambahan = []): array
     {
-        return array_replace(['periode_id' => $this->tw1->id, 'nama' => 'Rapat koordinasi', 'tujuan' => null, 'sasaran_peserta' => null,
+        return array_replace(['periode_id' => $this->tw1->id, 'nama' => 'Rapat koordinasi', 'anggaran' => 0, 'tujuan' => null, 'sasaran_peserta' => null,
             'keterangan_peserta' => null, 'lokasi' => null, 'tanggal_rencana' => null, 'komponen_id' => null, 'arah_dampak' => 'menambah', 'catatan' => null], $tambahan);
     }
 }
