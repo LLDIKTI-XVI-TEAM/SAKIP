@@ -41,7 +41,11 @@ class StatusIndikatorDashboard
         $rows = $jadwal === null || $dibuka->isEmpty() ? collect() : $this->kewajiban->query($dibuka->keys()->all(), $konteks['unitDitolak'], $today)
             ->when($konteks['filter']['sasaran_id'], fn ($q, $id) => $q->where('i.sasaran_strategis_id', $id))
             ->when($konteks['filter']['unit_id'], fn ($q, $id) => $q->where('cs.unit_id', $id))->get();
-        $headers = PengukuranKinerja::with('ratifiedVersion')->whereIn('id', $rows->pluck('pengukuran_id')->filter())->get()->keyBy('id');
+        $headers = PengukuranKinerja::with(['ratifiedVersion', 'latestVersion'])->whereIn('id', $rows->pluck('pengukuran_id')->filter())->get()->keyBy('id');
+        if ($headers->isNotEmpty()) {
+            // Penanda F2 dan reviu terlambat tetap tampil di dashboard (Workflow F2); dibaca sekaligus dari audit.
+            $this->present->prepareSummary($headers);
+        }
         $resmi = fn ($row): ?array => ($header = $headers->get($row->pengukuran_id ?? '')) && $header->status_alur === 'disahkan' ? $header->ratifiedVersion?->snapshot : null;
         $targetRows = $rows->filter(fn ($row) => $row->berlaku && $resmi($row) === null)->values();
         $targets = $targetRows->map(fn ($row) => $row->jadwal_snapshot_id.':'.$row->periode_id)->combine($this->present->periodTargets($targetRows->map(fn ($row) => [
@@ -69,6 +73,7 @@ class StatusIndikatorDashboard
                     'unit' => ['nama' => $versi['unit_kerja']['nama'] ?? $row->unit_nama],
                     'pic' => $picNama ? ['nama' => $picNama] : null,
                     'status' => $status, 'status_alur' => $header?->status_alur,
+                    ...($header ? $this->present->penanda($header) : ['self_approval' => false, 'reviu_terlambat' => false]),
                     'realisasi' => self::angka($versi['nilai'] ?? null), 'status_perhitungan' => $versi['status_perhitungan'] ?? null,
                     'target' => self::angka($target['target'] ?? null), 'tanpa_target_periode' => (bool) ($target['tanpa_target_periode'] ?? false),
                     'target_pk' => self::angka($versi === null ? $row->target_pk : ($versi['target_pk'] ?? null)),

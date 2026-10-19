@@ -129,4 +129,19 @@ class DashboardKegiatanTest extends TestCase
         $panel = $this->panel($pegawai);
         $this->assertSame([2, null], [$panel['terlambat_jumlah'], $panel['terlambat']]);
     }
+
+    public function test_unit_ditolak_dashboard_dikeluarkan_dari_panel_kegiatan(): void
+    {
+        $unitB = $this->unitBaru('Unit B');
+        $this->klaim($this->plan, $this->kegiatan(['nama' => 'Terlambat A', 'tanggal_rencana' => '2026-03-01']));
+        $kegiatanB = $this->kegiatan(['nama' => 'Terlambat B', 'unit_id' => $unitB->id, 'tanggal_rencana' => '2026-03-02']);
+        $this->klaim($this->rencanaAksiBaru('I-DUA'), $kegiatanB);
+        $ringkas = fn (array $panel) => [$panel['per_status']['rencana'], $panel['terlambat_jumlah'], array_column($panel['per_iku'], 'kode'), array_column($panel['terlambat'], 'nama')];
+
+        $this->assertSame([2, 2, ['I-DUA', 'I-UJI'], ['Terlambat A', 'Terlambat B']], $ringkas($this->panel()));
+
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id, 'permission_id' => Permission::where('kode', 'dashboard:read')->value('id'),
+            'unit_id' => $unitB->id, 'alasan' => 'Deny pengujian', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->assertSame([1, 1, ['I-UJI'], ['Terlambat A']], $ringkas($this->panel()));
+    }
 }

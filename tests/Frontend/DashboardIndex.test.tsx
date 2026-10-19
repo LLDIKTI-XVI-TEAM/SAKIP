@@ -60,16 +60,16 @@ const props = (overrides: Partial<DashboardProps> = {}): DashboardProps => ({
     statusIndikator: [
         {
             indikator: indikator('IK-01'), unit: { nama: 'Bagian Umum' }, pic: { nama: 'Ani' }, status: 'tanpa_target_periode', status_alur: 'disahkan',
-            realisasi: '65.5', status_perhitungan: 'terhitung', target: null, tanpa_target_periode: true, target_pk: '70', selisih: '-4.5',
+            self_approval: true, reviu_terlambat: true, realisasi: '65.5', status_perhitungan: 'terhitung', target: null, tanpa_target_periode: true, target_pk: '70', selisih: '-4.5',
             action: { href: '/pengukuran/u1', label: 'Lihat pengukuran' },
         },
         {
             indikator: indikator('IK-02'), unit: { nama: 'Bagian Umum' }, pic: null, status: 'belum_dapat_diukur', status_alur: 'disahkan',
-            realisasi: null, status_perhitungan: 'belum_dapat_diukur', target: '80', tanpa_target_periode: false, target_pk: '90', selisih: null, action: null,
+            self_approval: false, reviu_terlambat: false, realisasi: null, status_perhitungan: 'belum_dapat_diukur', target: '80', tanpa_target_periode: false, target_pk: '90', selisih: null, action: null,
         },
         {
             indikator: indikator('IK-03'), unit: { nama: 'Bagian Kelembagaan' }, pic: null, status: 'dalam_proses', status_alur: 'diverifikasi',
-            realisasi: null, status_perhitungan: null, target: '50', tanpa_target_periode: false, target_pk: '60', selisih: null, action: null,
+            self_approval: false, reviu_terlambat: false, realisasi: null, status_perhitungan: null, target: '50', tanpa_target_periode: false, target_pk: '60', selisih: null, action: null,
         },
     ],
     grafik: {
@@ -245,4 +245,21 @@ it('meng-escape satuan indikator pada nilai tooltip grafik target vs realisasi',
     // ApexCharts menulis nilai tooltip lewat innerHTML; satuan adalah input pengguna.
     const format = chartProps.get('line')!.options.tooltip?.y as { formatter: (value: number) => string };
     expect(format.formatter(40)).not.toMatch(/[<>]/);
+});
+
+it('menandai persetujuan sendiri dan reviu terlambat pada baris status', () => {
+    render(<Index {...props()} />);
+
+    expect(within(barisTabel('IK-01')).getByText('Persetujuan sendiri')).toBeTruthy();
+    expect(within(barisTabel('IK-01')).getByText('Reviu terlambat')).toBeTruthy();
+    expect(within(barisTabel('IK-02')).queryByText('Persetujuan sendiri')).toBeNull();
+    expect(within(barisTabel('IK-02')).queryByText('Reviu terlambat')).toBeNull();
+});
+
+it('panel progres rencana aksi tetap tampil sebelum jendela pengisian pertama dibuka', () => {
+    render(<Index {...props({ activePeriode: null, stats: zero, progresPeriode: [], statusIndikator: [] })} />);
+
+    expect(screen.getByRole('status').textContent).toContain('Jendela pengisian pertama Jadwal Tahunan 2026 belum dimulai.');
+    expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: /Status kegiatan/ })).toBeNull();
 });

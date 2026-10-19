@@ -72,7 +72,8 @@ class DashboardFilterTest extends TestCase
         $unitB = $this->tambahUnitDenganSnapshot('Unit B');
         $this->tolak('dashboard:read', $unitB->id);
 
-        $this->actingAs($this->actor)->get('/dashboard?unit_id='.$unitB->id)->assertSessionHasErrors('unit_id');
+        $this->actingAs($this->actor)->from('/dashboard?unit_id='.$unitB->id)->get('/dashboard?unit_id='.$unitB->id)
+            ->assertSessionHasErrors('unit_id')->assertRedirect('/dashboard');
         $this->get('/dashboard?unit_id='.$this->unit->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->where('filter.unit_id', $this->unit->id));
     }

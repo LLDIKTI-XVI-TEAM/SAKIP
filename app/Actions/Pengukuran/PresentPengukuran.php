@@ -77,6 +77,21 @@ class PresentPengukuran
         }, $contexts);
     }
 
+    /**
+     * Penanda persetujuan sendiri jalur Perencanaan (F2) dan reviu terlambat; atribut audit diisi prepareSummary().
+     *
+     * @return array{self_approval: bool, reviu_terlambat: bool}
+     */
+    public function penanda(PengukuranKinerja $p): array
+    {
+        $version = $p->latestVersion;
+
+        return [
+            'self_approval' => (bool) $p->getAttribute('self_verified') || $version && $version->jalur_pengajuan === 'perencanaan' && $version->disahkan_by === $version->diajukan_by,
+            'reviu_terlambat' => (bool) $p->getAttribute('late_review'),
+        ];
+    }
+
     public function handle(PengukuranKinerja $p, User $actor, bool $detail = false, bool $review = false): array
     {
         $p->loadMissing(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion']);
@@ -84,8 +99,7 @@ class PresentPengukuran
         $version = $p->latestVersion;
         $frozen = in_array($p->status_alur, ['diajukan', 'diverifikasi', 'disahkan'], true) ? $version?->snapshot : null;
         $data = ['id' => $p->id, 'versi' => $p->versi, 'status' => $p->status_alur, 'nomor_pengajuan' => $version?->nomor ?? 0, 'jalur_pengajuan' => $version?->jalur_pengajuan,
-            'self_approval' => (bool) $p->getAttribute('self_verified') || $version && $version->jalur_pengajuan === 'perencanaan' && $version->disahkan_by === $version->diajukan_by,
-            'reviu_terlambat' => (bool) $p->getAttribute('late_review'),
+            ...$this->penanda($p),
             'nilai' => $frozen ? $frozen['nilai'] : $p->nilai, 'status_perhitungan' => $frozen ? $frozen['status_perhitungan'] : $p->status_perhitungan,
             'sumber_nilai' => $p->sumber_nilai === 'historis' ? 'historis' : ($context->tipe_perhitungan === 'manual' ? 'manual' : 'komponen'),
             'target' => $frozen ? $frozen['target'] : $p->getAttribute('summary_target'), 'catatan' => $frozen ? $frozen['catatan'] : $p->catatan,

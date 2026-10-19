@@ -77,7 +77,11 @@ export default function DashboardIndex({
                             </div>
                         </div>
                     </Card>
-                ) : (
+                ) : null}
+
+                {!activePeriode && activeJadwal && <PanelRencanaAksi progres={progresRencanaAksi} tahun={activeJadwal.tahun} />}
+
+                {activePeriode && (
                     <>
                         <section aria-labelledby="status-capaian" className="space-y-3">
                             <div>

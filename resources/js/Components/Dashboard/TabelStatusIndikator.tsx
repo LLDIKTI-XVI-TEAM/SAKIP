@@ -60,6 +60,8 @@ export function TabelStatusIndikator({ rows, periodeNama }: { rows: BarisStatusI
                                 </Badge>
                                 {row.status === 'dalam_proses' && row.status_alur && <Badge status={row.status_alur} />}
                             </div>
+                            {row.self_approval && <p className="mt-1 text-xs font-medium text-info-dark">Persetujuan sendiri</p>}
+                            {row.reviu_terlambat && <p className="mt-1 text-xs font-medium text-warning-dark">Reviu terlambat</p>}
                         </TableCell>
                         <Sel label="Realisasi">
                             {row.realisasi !== null ? (

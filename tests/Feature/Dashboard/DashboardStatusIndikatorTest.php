@@ -161,4 +161,15 @@ class DashboardStatusIndikatorTest extends TestCase
         $this->assertSame(['I-DUA'], collect($this->props('?sasaran_id='.$sasaran->id)['statusIndikator'])->pluck('indikator.kode')->all());
         $this->assertSame(['I-UJI'], collect($this->props('?unit_id='.$this->unit->id)['statusIndikator'])->pluck('indikator.kode')->all());
     }
+
+    public function test_penanda_persetujuan_sendiri_dan_reviu_terlambat_tetap_tampil(): void
+    {
+        $this->indikatorBaru('I-DUA');
+        $this->sahkan($this->pengukuran, ['nilai' => '80']);
+
+        $props = $this->props();
+
+        $this->assertSame([true, false], [$this->baris($props, 'I-UJI')['self_approval'], $this->baris($props, 'I-UJI')['reviu_terlambat']]);
+        $this->assertSame([false, false], [$this->baris($props, 'I-DUA')['self_approval'], $this->baris($props, 'I-DUA')['reviu_terlambat']]);
+    }
 }

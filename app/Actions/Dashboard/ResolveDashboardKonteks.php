@@ -89,6 +89,6 @@ class ResolveDashboardKonteks
 
     private function tolak(string $key, string $message): never
     {
-        throw ValidationException::withMessages([$key => $message]);
+        throw ValidationException::withMessages([$key => $message])->redirectTo(route('dashboard'));
     }
 }

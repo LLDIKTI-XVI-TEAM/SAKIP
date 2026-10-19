@@ -47,6 +47,8 @@ export interface BarisStatusIndikator {
     pic: { nama: string } | null;
     status: StatusTampilan;
     status_alur: StatusAlur | null;
+    self_approval: boolean;
+    reviu_terlambat: boolean;
     realisasi: string | null;
     status_perhitungan: Pengukuran['status_perhitungan'] | null;
     target: string | null;
