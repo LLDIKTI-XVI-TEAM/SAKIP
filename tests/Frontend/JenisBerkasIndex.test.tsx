@@ -203,3 +203,17 @@ it('penanda hanya kegiatan beranggaran hanya ditawarkan pada tahap perencanaan k
     await user.click(screen.getByRole('button', { name: 'Simpan persyaratan' }));
     expect(router.post).toHaveBeenCalledWith('/jenis-berkas', expect.objectContaining({ tahap: 'kegiatan_perencanaan', hanya_kegiatan_beranggaran: true }), expect.anything());
 });
+
+it('menawarkan tahap Rencana Aksi di urutan pertama dan mengirimkannya sebagai rencana_aksi', async () => {
+    const user = userEvent.setup();
+    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    await user.click(screen.getByRole('button', { name: /Tambah persyaratan/ }));
+
+    const tahap = document.getElementById('jb-tahap') as HTMLSelectElement;
+    expect(Array.from(tahap.options).map((option) => option.value)).toEqual(['rencana_aksi', 'pengukuran', 'kegiatan_perencanaan']);
+    await user.selectOptions(tahap, 'rencana_aksi');
+    expect(screen.queryByLabelText('Hanya kegiatan beranggaran')).toBeNull();
+    await user.type(screen.getByLabelText(/Nama persyaratan/), 'Kerangka Acuan Kerja');
+    await user.click(screen.getByRole('button', { name: 'Simpan persyaratan' }));
+    expect(router.post).toHaveBeenCalledWith('/jenis-berkas', expect.objectContaining({ nama: 'Kerangka Acuan Kerja', tahap: 'rencana_aksi' }), expect.anything());
+});

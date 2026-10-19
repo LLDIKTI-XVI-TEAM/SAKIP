@@ -138,8 +138,9 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         onChange={(e) => onChange('tahap', e.target.value)}
                         disabled={substantifDisabled}
                         error={errors.tahap}
-                        helperText="Perencanaan Kegiatan diperiksa saat rencana aksi diajukan."
+                        helperText="Persyaratan Rencana Aksi dan Perencanaan Kegiatan diperiksa saat rencana aksi diajukan."
                         options={[
+                            { value: 'rencana_aksi', label: 'Rencana Aksi' },
                             { value: 'pengukuran', label: 'Pengukuran Kinerja' },
                             { value: 'kegiatan_perencanaan', label: 'Perencanaan Kegiatan' },
                         ]}
