@@ -29,38 +29,57 @@ vi.mock('apexcharts/features/legend', () => ({}));
 
 afterEach(cleanup);
 
-const zero = { total: 0, draft: 0, diajukan: 0, diverifikasi: 0, dikembalikan: 0, disahkan: 0 };
+const zero = { total: 0, belum_mengisi: 0, draft: 0, diajukan: 0, diverifikasi: 0, dikembalikan: 0, disahkan: 0 };
+const ringkasanKosong = {
+    belum_dibuka: 0, tidak_berlaku: 0, belum_mengisi: 0, tidak_mengisi: 0, dalam_proses: 0,
+    belum_dapat_diukur: 0, tanpa_target_periode: 0, tidak_dapat_dihitung: 0, belum_ditetapkan: 0,
+};
+const kegiatanKosong = { per_status: { rencana: 0, terlaksana: 0, tidak_terlaksana: 0, ditunda: 0, batal: 0 }, terlambat_jumlah: 0, per_iku: [], terlambat: [] };
+const indikator = (kode: string) => ({ id: kode, kode, nama: `Indikator ${kode}`, satuan: '%', desimal_tampilan: 2, arah: 'naik_baik' as const });
 
 const props = (overrides: Partial<DashboardProps> = {}): DashboardProps => ({
     tahun: 2026,
+    filter: { renstra_id: 'r1', tahun: 2026, periode_id: 'p2', sasaran_id: null, unit_id: null },
+    pilihan: {
+        renstra: [{ id: 'r1', nama: 'Renstra LLDIKTI XVI 2025–2029' }],
+        tahun: [2026],
+        periode: [{ id: 'p1', nama: 'Triwulan I' }, { id: 'p2', nama: 'Triwulan II' }],
+        sasaran: [],
+        unit: [{ id: 'u1', nama: 'Bagian Umum' }],
+    },
     activeRenstra: { id: 'r1', nama: 'Renstra LLDIKTI XVI 2025–2029', tahun_mulai: 2025, tahun_selesai: 2029 },
     activeJadwal: { tahun: 2026, status: 'aktif' },
     activePeriode: { id: 'p2', nama_periode: 'Triwulan II 2026', status: 'aktif' },
-    stats: { total: 200, draft: 0, diajukan: 0, diverifikasi: 1, dikembalikan: 0, disahkan: 199 },
+    stats: { ...zero, total: 200, diverifikasi: 1, disahkan: 199 },
     progresPeriode: [
-        { periode_id: 'p1', nama: 'Triwulan I', ...zero, total: 3, disahkan: 3 },
-        { periode_id: 'p2', nama: 'Triwulan II', ...zero, total: 200, diverifikasi: 1, disahkan: 199 },
+        { periode_id: 'p1', nama: 'Triwulan I', dibuka: true, ...zero, total: 3, disahkan: 3 },
+        { periode_id: 'p2', nama: 'Triwulan II', dibuka: true, ...zero, total: 200, diverifikasi: 1, disahkan: 199 },
     ],
-    pengukurans: [
+    ringkasanStatus: { ...ringkasanKosong, tanpa_target_periode: 4, belum_dapat_diukur: 2, dalam_proses: 7, tidak_berlaku: 1 },
+    statusIndikator: [
         {
-            id: 'u1',
-            status: 'diverifikasi',
-            self_approval: false,
-            reviu_terlambat: true,
-            nilai: null,
-            status_perhitungan: 'tidak_dapat_dihitung',
-            satuan: '%',
-            desimal_tampilan: 2,
-            indikator: { kode: 'IK-01', nama: 'Persentase PT terakreditasi' },
-            unit: { nama: 'Bagian Umum' },
-            pic: null,
+            indikator: indikator('IK-01'), unit: { nama: 'Bagian Umum' }, pic: { nama: 'Ani' }, status: 'tanpa_target_periode', status_alur: 'disahkan',
+            realisasi: '65.5', status_perhitungan: 'terhitung', target: null, tanpa_target_periode: true, target_pk: '70', selisih: '-4.5',
             action: { href: '/pengukuran/u1', label: 'Lihat pengukuran' },
         },
+        {
+            indikator: indikator('IK-02'), unit: { nama: 'Bagian Umum' }, pic: null, status: 'belum_dapat_diukur', status_alur: 'disahkan',
+            realisasi: null, status_perhitungan: 'belum_dapat_diukur', target: '80', tanpa_target_periode: false, target_pk: '90', selisih: null, action: null,
+        },
+        {
+            indikator: indikator('IK-03'), unit: { nama: 'Bagian Kelembagaan' }, pic: null, status: 'dalam_proses', status_alur: 'diverifikasi',
+            realisasi: null, status_perhitungan: null, target: '50', tanpa_target_periode: false, target_pk: '60', selisih: null, action: null,
+        },
     ],
+    grafik: { indikator: [], seri: {} },
+    progresRencanaAksi: { belum_disusun: 0, draft: 0, diajukan: 0, diverifikasi: 0, dikembalikan: 0, disahkan: 0 },
+    kegiatan: kegiatanKosong,
     ...overrides,
 });
 
-it('menampilkan ringkasan, grafik, dan pengukuran terbaru tanpa header dan kartu konteks', async () => {
+const barisTabel = (kode: string) => within(screen.getByRole('table', { name: /Status indikator Triwulan II 2026/ })).getByText(kode).closest('tr') as HTMLElement;
+
+it('menampilkan ringkasan, grafik, dan tabel status tanpa header dan kartu konteks', async () => {
     render(<Index {...props()} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeTruthy();
@@ -81,10 +100,46 @@ it('menampilkan ringkasan, grafik, dan pengukuran terbaru tanpa header dan kartu
     const progres = screen.getByRole('table', { name: /Progres pengukuran per periode/ });
     expect(within(progres).getByRole('row', { name: /Triwulan II 0 0 1 0 199 200/ })).toBeTruthy();
 
-    const terbaru = screen.getByRole('table', { name: /Pengukuran terbaru/ });
-    expect(within(terbaru).getByText('Tidak dapat dihitung')).toBeTruthy();
-    expect(within(terbaru).getByText('Reviu terlambat')).toBeTruthy();
-    expect(within(terbaru).getByRole('link', { name: 'Lihat pengukuran IK-01' }).getAttribute('href')).toBe('/pengukuran/u1');
+    expect(within(barisTabel('IK-01')).getByRole('link', { name: 'Lihat pengukuran IK-01' }).getAttribute('href')).toBe('/pengukuran/u1');
+    expect(within(barisTabel('IK-03')).getByText('Diverifikasi')).toBeTruthy();
+});
+
+it('menampilkan filter dan ringkasan status capaian periode terpilih', () => {
+    render(<Index {...props()} />);
+
+    for (const label of ['Renstra', 'Tahun', 'Periode', 'Sasaran', 'Unit']) expect(screen.getByLabelText(label)).toBeTruthy();
+    const ringkasan = screen.getByRole('region', { name: /Status capaian Triwulan II 2026/ });
+    expect(within(ringkasan).getByText('Tanpa target periode').closest('div[data-status]')?.textContent).toContain('4');
+    expect(within(ringkasan).getByText('Belum dapat diukur').closest('div[data-status]')?.textContent).toContain('2');
+    expect(within(ringkasan).getByText(/1 indikator belum berlaku/)).toBeTruthy();
+});
+
+it('baris tanpa target periode menampilkan realisasi, target PK, dan selisih', () => {
+    render(<Index {...props()} />);
+    const row = barisTabel('IK-01');
+
+    expect(within(row).getByText('Tanpa target periode')).toBeTruthy();
+    expect(within(row).getByText('65,50 %')).toBeTruthy();
+    expect(within(row).getByText('70,00 %')).toBeTruthy();
+    expect(within(row).getByText('−4,50 %')).toBeTruthy();
+    expect(within(row).getByText('di bawah target')).toBeTruthy();
+});
+
+it('baris belum dapat diukur tidak menampilkan realisasi nol', () => {
+    render(<Index {...props()} />);
+    const row = barisTabel('IK-02');
+
+    expect(within(row).getAllByText('Belum dapat diukur').length).toBeGreaterThan(0);
+    expect(within(row).queryByText('0,00 %')).toBeNull();
+    expect(within(row).getByText('90,00 %')).toBeTruthy();
+});
+
+it('tabel status memakai pola kartu di HP dan tidak memakai teks di bawah 12px', () => {
+    const { container } = render(<Index {...props()} />);
+
+    expect(screen.getByRole('table', { name: /Status indikator/ }).className).toContain('block md:table');
+    expect(container.querySelector('[class*="text-[11px]"]')).toBeNull();
+    expect(container.querySelector('[class*="text-[10px]"]')).toBeNull();
 });
 
 it('menampilkan keadaan kosong pada grafik dan tabel periode terakhir', async () => {
@@ -93,8 +148,9 @@ it('menampilkan keadaan kosong pada grafik dan tabel periode terakhir', async ()
             {...props({
                 activePeriode: { ...props().activePeriode!, status: 'terakhir' },
                 stats: zero,
-                progresPeriode: [{ periode_id: 'p2', nama: 'Triwulan II', ...zero }],
-                pengukurans: [],
+                progresPeriode: [{ periode_id: 'p2', nama: 'Triwulan II', dibuka: true, ...zero }],
+                ringkasanStatus: ringkasanKosong,
+                statusIndikator: [],
             })}
         />,
     );
@@ -102,11 +158,11 @@ it('menampilkan keadaan kosong pada grafik dan tabel periode terakhir', async ()
     expect(await screen.findByText('Belum ada pengukuran pada jadwal ini.')).toBeTruthy();
     expect(screen.getByText('Belum ada pengukuran pada periode ini.')).toBeTruthy();
     expect(screen.queryByTestId('chart-bar')).toBeNull();
-    expect(screen.getByText('Belum ada pengukuran')).toBeTruthy();
+    expect(screen.getByText('Belum ada indikator pada periode ini')).toBeTruthy();
 });
 
 it('menampilkan satu pemberitahuan dengan alasan bila belum ada periode', () => {
-    render(<Index {...props({ activeJadwal: null, activePeriode: null, stats: zero, progresPeriode: [], pengukurans: [] })} />);
+    render(<Index {...props({ activeJadwal: null, activePeriode: null, stats: zero, progresPeriode: [], statusIndikator: [] })} />);
 
     expect(screen.getByRole('status').textContent).toContain('Belum ada Jadwal Tahunan 2026 untuk Renstra aktif.');
     expect(screen.queryByText('Total')).toBeNull();
@@ -115,7 +171,7 @@ it('menampilkan satu pemberitahuan dengan alasan bila belum ada periode', () => 
 
 it('meng-escape nama periode pada judul tooltip grafik progres tanpa mengubah label sumbu', async () => {
     const payload = '<img src=x onerror=alert(1)>';
-    render(<Index {...props({ progresPeriode: [{ periode_id: 'p1', nama: payload, ...zero, total: 1, disahkan: 1 }] })} />);
+    render(<Index {...props({ progresPeriode: [{ periode_id: 'p1', nama: payload, dibuka: true, ...zero, total: 1, disahkan: 1 }] })} />);
     await screen.findByTestId('chart-bar');
 
     // ApexCharts menulis judul tooltip lewat innerHTML; hasil formatter harus berupa teks, bukan markup.
