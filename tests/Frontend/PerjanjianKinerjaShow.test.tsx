@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Show from '@/Pages/PerjanjianKinerja/Show';
 import type { RenstraPkSummary } from '@/types/perjanjian-kinerja';
@@ -9,7 +9,14 @@ vi.mock('@inertiajs/react', async (original) => ({
     Head: () => null,
     usePage: () => ({ props: { pengaturan: {} } }),
 }));
-vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
+vi.mock('@/Layouts/AuthenticatedLayout', () => ({
+    AuthenticatedLayout: ({ children, breadcrumbs }: { children: ReactNode; breadcrumbs?: { label: string }[] }) => (
+        <main>
+            <nav aria-label="Breadcrumb">{breadcrumbs?.map((item) => <span key={item.label}>{item.label}</span>)}</nav>
+            {children}
+        </main>
+    ),
+}));
 const originalShowModal = HTMLDialogElement.prototype.showModal;
 const originalClose = HTMLDialogElement.prototype.close;
 beforeEach(() => {
@@ -47,6 +54,19 @@ it('detail PK memakai pola detail bersama, menautkan unduhan ber-otorisasi, dan 
     expect(screen.queryByText(/lampiran yang ada tidak dapat dihapus/)).toBeNull();
 });
 
+it('lampiran berketerangan menampilkan keterangannya di daftar lampiran', () => {
+    const berkas = { ...pk.berkas![1], keterangan: 'PK perubahan anggaran' };
+    render(<Show pk={{ ...pk, berkas: [berkas] }} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true }} />);
+    expect(screen.getByText(/Keterangan: PK perubahan anggaran/)).toBeTruthy();
+});
+
+it('PK tanpa nomor memakai label cadangan PK {tahun} pada judul dan breadcrumb', () => {
+    const { container } = render(<Show pk={{ ...pk, nomor_pk: null }} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true }} />);
+    expect(screen.getByRole('heading', { name: 'PK 2026' })).toBeTruthy();
+    expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByText('PK 2026')).toBeTruthy();
+    expect(container.textContent).not.toContain('null');
+});
+
 it('jadwal aktif menampilkan penanda terkunci tanpa tombol hapus, dan tanpa izin baca berkas tidak ada tautan unduh', () => {
     render(<Show pk={pk} jadwal_status="aktif" is_jadwal_aktif can={{ update: false, delete_berkas: true, read_berkas: false }} />);
     expect(screen.getByText(/^Jadwal tahunan aktif: lampiran yang ada tidak dapat dihapus/)).toBeTruthy();
@@ -55,3 +75,4 @@ it('jadwal aktif menampilkan penanda terkunci tanpa tombol hapus, dan tanpa izin
     expect(screen.queryByRole('link', { name: 'Buka tautan' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Edit Perjanjian Kinerja/ })).toBeNull();
 });
+

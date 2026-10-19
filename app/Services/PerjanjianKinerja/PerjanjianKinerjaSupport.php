@@ -153,6 +153,16 @@ class PerjanjianKinerjaSupport
                     }
                 },
             ],
+            'lampiran.*.keterangan' => [
+                'nullable',
+                'string',
+                'max:1000',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! self::isValidIsiTeks($value)) {
+                        $fail('Keterangan lampiran tidak boleh mengandung karakter byte NUL dan harus berupa teks UTF-8 yang valid.');
+                    }
+                },
+            ],
             'lampiran.*.nama_asli' => ['nullable', 'string', 'max:255'],
         ];
     }

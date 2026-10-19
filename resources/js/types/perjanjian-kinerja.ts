@@ -6,6 +6,7 @@ export interface BerkasPk {
     id: string;
     mode: LampiranMode;
     nama_asli: string | null;
+    keterangan?: string | null;
     mime: string | null;
     ukuran_bytes: number | null;
     tautan: string | null;
@@ -31,7 +32,7 @@ export interface RenstraPkSummary {
     id: string;
     renstra_id: string;
     tahun: number;
-    nomor_pk: string;
+    nomor_pk: string | null;
     tanggal_pk: string | null;
     created_at: string;
     updated_at: string;

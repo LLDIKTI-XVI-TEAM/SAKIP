@@ -83,7 +83,7 @@ class StorePerjanjianKinerjaRequest extends FormRequest
         return [
             'renstra_id' => ['required', 'uuid', 'exists:renstras,id'],
             'tahun' => ['required', 'integer'],
-            'nomor_pk' => ['required', 'string', 'max:255'],
+            'nomor_pk' => ['nullable', 'string', 'max:255'],
             'tanggal_pk' => ['required', 'date'],
             ...PerjanjianKinerjaSupport::lampiranRules(),
         ];

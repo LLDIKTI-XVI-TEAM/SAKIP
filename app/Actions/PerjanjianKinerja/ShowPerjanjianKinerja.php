@@ -64,6 +64,7 @@ class ShowPerjanjianKinerja
                     'id' => $b->id,
                     'mode' => $b->mode,
                     'nama_asli' => $b->nama_asli,
+                    'keterangan' => $b->keterangan,
                     'mime' => $b->mime,
                     'ukuran_bytes' => $b->ukuran_bytes,
                     'created_at' => $b->dibuat_pada?->toISOString() ?? $b->created_at?->toISOString(),

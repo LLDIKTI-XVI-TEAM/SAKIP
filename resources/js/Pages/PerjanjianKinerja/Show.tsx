@@ -56,7 +56,7 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
             title="Detail Perjanjian Kinerja"
             breadcrumbs={[
                 { label: 'Perjanjian Kinerja (PK)', href: '/perjanjian-kinerja' },
-                { label: pk.nomor_pk },
+                { label: pk.nomor_pk ?? `PK ${pk.tahun}` },
             ]}
         >
             <Head title={`Perjanjian Kinerja (PK) Tahun ${pk.tahun}`} />
@@ -80,7 +80,7 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                 <Card>
                     <CardHeader className="items-start gap-4">
                         <div className="min-w-0">
-                            <CardTitle className="break-words">{pk.nomor_pk}</CardTitle>
+                            <CardTitle className="break-words">{pk.nomor_pk ?? `PK ${pk.tahun}`}</CardTitle>
                             <p className="mt-1 text-sm text-muted">Tahun {pk.tahun} · {pk.renstra?.nama}</p>
                         </div>
                         <StatusJadwalBadge status={pk.jadwal_tahunan?.status} className="shrink-0" />
@@ -128,8 +128,9 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                                                 tautan: dapatDibaca ? berkas.tautan : null,
                                                 download_url: dapatDibaca ? `/perjanjian-kinerja/${pk.id}/berkas/${berkas.id}/unduh` : null,
                                             }}
-                                            meta={(berkas.pengunggah || berkas.created_at) && (
+                                            meta={(berkas.keterangan || berkas.pengunggah || berkas.created_at) && (
                                                 <>
+                                                    {berkas.keterangan && <span className="block break-words text-ink">Keterangan: {berkas.keterangan}</span>}
                                                     {berkas.pengunggah && <>Diunggah oleh {berkas.pengunggah.nama}</>}
                                                     {berkas.pengunggah && berkas.created_at && ' · '}
                                                     {berkas.created_at && formatTanggal(berkas.created_at)}
