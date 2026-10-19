@@ -1009,7 +1009,7 @@ Sumber: rapat 13 Oktober 2026, menit 58:05–1:02:45, 1:06:49–1:07:32, 1:17:04
 
 - PRD §5.1, §8, §11, §12.4, §14.5, §31–§32; Data Model §2.13 dan entitas baru target Renstra; Workflow §1, §3.3, §5; Plan modul 2; System Architecture §9.
 - User Stories/Issues: US/ISS-02.07 dan 02.08 diberi catatan; issue baru **US/ISS-02.10** (target Renstra) dan **US/ISS-02.11** (input target PK di halaman PK beserta pembanding target Renstra).
-- Status implementasi: ISS-02.10 (target Renstra) sudah; ISS-02.11 belum. Editor target PK saat ini berada di halaman indikator (`/perencanaan/indikator/{id}/target-tahunan/{tahun}`).
+- Status implementasi: ISS-02.10 (target Renstra) dan ISS-02.11 sudah. Editor target PK berada di halaman PK (`/perjanjian-kinerja/{pk}/target/{indikator}`); route lama di halaman indikator (`/perencanaan/indikator/{id}/target-tahunan/{tahun}`) dihapus.
 
 ---
 
@@ -1168,7 +1168,7 @@ Kewajiban alasan dari keputusan sebelumnya yang tidak disebut pada §43.3 tetap 
 
 - Mengubah Q14 (alasan grant), PRD §4 prinsip 6, §7.5, §13, §25.1–§25.2; Data Model §2.7, §2.19, §2.32; Workflow §21–§22; Plan modul 10 (task 10.7); design system (pola modal alasan).
 - User Stories/Issues: US/ISS-01.04 dan 04.01 diberi catatan; issue baru **US/ISS-13.05** memuat rincian per request.
-- Status implementasi: belum.
+- Status implementasi: sebagian. §43.2 butir 5 untuk alasan target PK yang menyimpang dari target Renstra dan §43.3 butir 2 (perubahan target PK opsional, juga setelah snapshot terbentuk) diterapkan ISS-02.11 (Q63); sisanya ISS-13.05.
 
 ---
 
@@ -1402,7 +1402,7 @@ Sumber: Rencana Aksi 2026, Laporan Kinerja Triwulan I–II 2026, dan Perjanjian 
 - PRD §5.1, §7.2, §24, §30, §31; Data Model §2.30 (induk `berkas` baru `jadwal_tahunan` dan `jadwal_periode`) dan katalog permission (`laporan:unggah`); Workflow (alur buat, tanda tangan di luar aplikasi, dan unggah); Plan modul 8 (task 8.5) dan 13; System Architecture §14.
 - User Stories/Issues: issue baru **US/ISS-10.05**, tahap 2 (Q46 §46.3); US/ISS-10.02 dan 14.01 diberi catatan.
 - Bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR.
-- Status implementasi: belum.
+- Status implementasi: sebagian. Kolom `berkas.keterangan` sudah ada dan dipakai lampiran PK (ISS-02.11, Q63 §63.3); induk arsip `jadwal_tahunan`/`jadwal_periode`, `laporan:unggah`, dan pemakaian keterangan untuk induk lain belum (ISS-10.05).
 
 ---
 
@@ -1476,7 +1476,7 @@ Tidak ada validasi bahwa tanggal PK harus setelah tanggal penetapan Renstra.
 
 - PRD §8, §11, §14.10, glosarium; Data Model §2.10 (`nomor_pk` nullable), §2.11 dan §2.12 (kode), §2.13 (presisi); Workflow (penyusunan PK); Plan modul 2.
 - User Stories/Issues: US/ISS-02.11 (nomor PK opsional, nilai penuh, baseline); US/ISS-02.03 diberi catatan; ISS-15.01 (kode indikator, S4/IKU 4.1, nilai penuh).
-- Status implementasi: belum. `StorePerjanjianKinerjaRequest` dan `UpdatePerjanjianKinerjaRequest` masih mewajibkan `nomor_pk`.
+- Status implementasi: sebagian. ISS-02.11 menerapkan §50.1 (`nomor_pk` opsional pada kolom dan request), §50.2 (target PK tersimpan dan dibekukan bernilai penuh), §50.3 (baseline tampil sebagai data pendukung), keterangan "target Renstra belum ada" untuk §50.5, §50.6 (tanggal PK tidak divalidasi), dan §50.7 butir 1 (lampiran tambahan dengan keterangan). Kode indikator §50.4 dan data awal S4/IKU 4.1 mengikuti ISS-15.01.
 
 ---
 
@@ -1794,7 +1794,7 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - ADR-0008 Consequences: "Target PK tetap hanya berubah melalui revisi PK resmi" berlaku untuk target PK resmi pada snapshot.
 - PRD §4 prinsip 6, §11, §12.7, §14.5, §14.10, §25.2; Data Model §2.13, §2.30, §2.32, §2.35, dan ringkasan constraint; Workflow §3.3 dan §7; Plan modul 10; design system (Modal Alasan Wajib dan checklist); US/ISS-02.08 dan 02.11; ISS-13.05 merujuk Q63. Redaksi AC-8 ISS-02.11 tetap.
 - ISS-13.05 tidak berubah scope. Alasan deviasi terhadap target Renstra tetap wajib, tetapi diisi pada isian `alasan_deviasi_renstra` di editor target PK, bukan Modal Alasan Audit dan bukan field `alasan`.
-- Status implementasi: ISS-02.11 (belum).
+- Status implementasi: ISS-02.11 sudah (migrasi `2026_10_19_000002`–`2026_10_19_000004`).
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan mengikuti pengantar Q39–Q46.
 
 ---

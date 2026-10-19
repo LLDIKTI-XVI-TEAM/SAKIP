@@ -11,7 +11,7 @@
 
 ## 1. Alur Penggunaan Utama End-to-End (Fase Awal)
 
-> **Q39–Q51 (13 Oktober 2026):** alur di bawah diselaraskan dengan Q39–Q51: target Renstra diisi di Sasaran & Indikator sebagai pembanding, sedangkan baseline dan target PK diisi di halaman PK (Q39); PK dapat direvisi sebagai versi baru (Q40, tahap 3); Rencana Aksi disusun sejak jadwal aktif sampai penutupan tanpa jendela penyusunan, dengan kunci per triwulan bagi PIC (Q41); kegiatan beranggaran ditambahkan dari halaman Rencana Aksi dan RAB wajib untuk anggaran lebih dari 0 (Q42); kewajiban alasan dipersempit (Q43); saklar unggahan dan penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44); narasi pengukuran wajib dan Rekomendasi Pimpinan diisi Pimpinan (Q45); TW III 2026 menjadi periode lampau (Q46); indikator dinilai tahunan boleh tanpa target periode dan realisasi dapat berstatus "belum dapat diukur" (Q47, §24); Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat dari SAKIP lalu PDF bertanda tangannya diunggah kembali (Q48, §25); nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain (Q49); nomor PK opsional, target PK bernilai penuh, dan kode indikator mengikuti PK (Q50); Rekomendasi Pimpinan disusun sebagai draf oleh Perencanaan dan berlaku setelah disetujui Pimpinan (Q51, §17). Langkah yang berubah diberi rujukan Q-nya. Status implementasi Q39–Q51: bagian ISS-02.10 (target Renstra, lampiran revisi, dan riwayat revisi target Renstra) sudah; bagian lain mengikuti status per issue di User Issues.
+> **Q39–Q51 (13 Oktober 2026):** alur di bawah diselaraskan dengan Q39–Q51: target Renstra diisi di Sasaran & Indikator sebagai pembanding, sedangkan baseline dan target PK diisi di halaman PK (Q39); PK dapat direvisi sebagai versi baru (Q40, tahap 3); Rencana Aksi disusun sejak jadwal aktif sampai penutupan tanpa jendela penyusunan, dengan kunci per triwulan bagi PIC (Q41); kegiatan beranggaran ditambahkan dari halaman Rencana Aksi dan RAB wajib untuk anggaran lebih dari 0 (Q42); kewajiban alasan dipersempit (Q43); saklar unggahan dan penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44); narasi pengukuran wajib dan Rekomendasi Pimpinan diisi Pimpinan (Q45); TW III 2026 menjadi periode lampau (Q46); indikator dinilai tahunan boleh tanpa target periode dan realisasi dapat berstatus "belum dapat diukur" (Q47, §24); Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat dari SAKIP lalu PDF bertanda tangannya diunggah kembali (Q48, §25); nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain (Q49); nomor PK opsional, target PK bernilai penuh, dan kode indikator mengikuti PK (Q50); Rekomendasi Pimpinan disusun sebagai draf oleh Perencanaan dan berlaku setelah disetujui Pimpinan (Q51, §17). Langkah yang berubah diberi rujukan Q-nya. Status implementasi Q39–Q51: bagian ISS-02.10 (target Renstra, lampiran revisi, dan riwayat revisi target Renstra) dan ISS-02.11 (target PK di halaman PK, nomor PK opsional, keterangan lampiran PK; diselaraskan Q63) sudah; bagian lain mengikuti status per issue di User Issues.
 
 Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate, termasuk pengelolaan dokumen dasar (`regulasi` beserta lampirannya, lampiran Renstra dan Perjanjian Kinerja), tahap penyusunan rencana aksi, kegiatan, klaim kegiatan, bukti dukung tiga mode (file/tautan/teks) pada tiap induk lampiran, dan pengukuran berbasis komponen yang disisip di antara penugasan Penanggung Jawab dan pengisian pengukuran.
 
@@ -48,7 +48,8 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
      target_tahunan (Q39; lihat §3.3) — target PK bernilai penuh dan baseline tampil sebagai
      data pendukung, bukan isi dokumen PK (Q50 §50.2–§50.3)
      → Target PK di bawah target Renstra tahun yang sama (naik_baik; di atasnya untuk
-       turun_baik): sistem menampilkan PERINGATAN dan MEWAJIBKAN alasan — tidak memblokir
+       turun_baik): sistem menampilkan PERINGATAN dan MEWAJIBKAN alasan — nilai tidak ditolak,
+       penyimpanan tanpa alasan ditolak (Q63 §63.2)
   10. Melampirkan dokumen Perjanjian Kinerja (mode file/tautan/teks) pada renstra_pk tahun
       berjalan — lihat §3
   11. Mengaktifkan Renstra
@@ -411,7 +412,7 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
 
 ### 3.3 Lampiran dokumen Perjanjian Kinerja (gerbang keempat aktivasi jadwal)
 
-> **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: belum.
+> **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot, dan alasan deviasi terhadap target Renstra ditegakkan menurut arah indikator (Q63). Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
 
 ```
 📋 Perencanaan
@@ -434,10 +435,16 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
        (mis. IKU 4.1 pada sasaran S4 yang hanya ada di PK, Q50 §50.5) diberi keterangan
        "target Renstra belum ada" dan tetap dapat diberi target PK
      → Target PK di bawah target Renstra (naik_baik) atau di atasnya (turun_baik): PERINGATAN
-       dan alasan WAJIB, disimpan bersama target PK dan tercatat di audit — penyimpanan tidak
-       ditolak
+       dan alasan deviasi WAJIB pada isian di editor, disimpan bersama target PK dan tercatat
+       di audit — nilai tidak ditolak, penyimpanan tanpa alasan DITOLAK server (Q63 §63.2).
+       Nilai yang sama tidak menyimpang; target Renstra belum ada atau target PK kosong tidak
+       dinilai
      → Anjuran "minimal sama atau naik satu poin" tampil sebagai panduan, bukan aturan sistem
-     → Di luar alasan deviasi tersebut, alasan perubahan target PK opsional (Q43)
+     → Di luar alasan deviasi tersebut, alasan perubahan target PK opsional (Q43), juga
+       setelah snapshot terbentuk (Q63 §63.1)
+     → Setelah snapshot terbentuk, target PK tetap dapat diubah tetapi snapshot, rekonsiliasi
+       Rencana Aksi, dan pengukuran tahun tsb tetap membaca target beku; halaman PK dan editor
+       menampilkan pemberitahuannya (Q63 §63.1)
      → PJ dan PIC melihat target PK sebagai baca-saja
   2. Melampirkan dokumen Perjanjian Kinerja pada renstra_pk tsb (mode file/tautan/teks, minimal
      satu lampiran) — halaman Perjanjian Kinerja menampilkan lampiran ini beserta nomor_pk/
@@ -785,8 +792,9 @@ Rencana aksi adalah tahap yang disisipkan setelah penugasan Penanggung Jawab dan
      → GERBANG kunci per triwulan: perubahan target atau daftar kegiatan periode terkunci oleh
        PIC → DITOLAK sebagai validasi bisnis (422) dan diaudit (Q41)
      → PERINGATAN + ALASAN WAJIB: total target komponen periode terakhir tidak setara dengan
-       target PK tahunan indikator ini — target PK hanya berubah lewat revisi PK berversi (Q40,
-       §3.3); deviasi wajib terlihat dan tercatat, bukan disesuaikan diam-diam
+       target PK tahunan indikator ini — target PK resmi pada snapshot hanya berubah lewat
+       revisi PK berversi atau versi snapshot pengganti (Q40, Q35; Q63 §63.1; §3.3); deviasi
+       wajib terlihat dan tercatat, bukan disesuaikan diam-diam
      → [Digantikan Q41] Deadline jendela rencana_aksi_selesai yang MUTLAK bagi PIC tidak berlaku
        lagi — batas PIC kini kunci per triwulan (§4) dan jadwal_tahunan.penutupan
      → Gerbang kegiatan minimal dan RAB DIKECUALIKAN untuk RA 2026 data awal; gerbang baru
@@ -841,7 +849,7 @@ stateDiagram-v2
 
 **Revisi dari `dikembalikan`:** rencana aksi yang dikembalikan disunting di tempat lalu diajukan ulang langsung ke `diajukan` sebagai versi pengajuan baru, tanpa kembali ke `draft` — sama dengan pengukuran.
 
-**Rekonsiliasi dengan PK tahunan:** total target komponen periode terakhir seharusnya setara dengan target PK tahunan indikator. Bila tidak setara, sistem menampilkan peringatan dan mewajibkan alasan pada saat pengajuan — bukan memblokir — karena target PK hanya dapat diubah lewat revisi PK berversi (Q40 §40.1, §3.3), sementara target komponen per periode yang belum terkunci pada rencana aksi memang dapat direvisi lewat `rencana_aksi:buka_kembali` (alasan wajib, ter-audit; Q41 §41.4 butir 4). Untuk indikator dinilai tahunan, rekonsiliasi berlaku pada target periode nilai akhir, yang tetap wajib (Q47 §47.2 butir 1).
+**Rekonsiliasi dengan PK tahunan:** total target komponen periode terakhir seharusnya setara dengan target PK tahunan indikator. Bila tidak setara, sistem menampilkan peringatan dan mewajibkan alasan pada saat pengajuan — bukan memblokir — karena target PK resmi pada snapshot hanya dapat diubah lewat revisi PK berversi atau versi snapshot pengganti (Q40 §40.1, Q35; Q63 §63.1; §3.3), sementara target komponen per periode yang belum terkunci pada rencana aksi memang dapat direvisi lewat `rencana_aksi:buka_kembali` (alasan wajib, ter-audit; Q41 §41.4 butir 4). Untuk indikator dinilai tahunan, rekonsiliasi berlaku pada target periode nilai akhir, yang tetap wajib (Q47 §47.2 butir 1).
 
 **Penugasan PIC rencana aksi:** PIC rencana aksi = PIC indikator yang ditunjuk Perencanaan lewat `penanggung_jawab` (§ Alur Penugasan) — tidak ada penugasan terpisah. Bila PIC indikator berganti di tengah tahun, `rencana_aksi.penanggung_jawab_id` mencatat PIC yang berlaku saat penyusunan (jejak historis), sementara hak pengisian tetap mengikuti `penanggung_jawab` yang berlaku saat itu.
 
@@ -1585,7 +1593,7 @@ stateDiagram-v2
 
 ## 14. Alur Perubahan Kepmen IKU & Revisi Renstra
 
-> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; Q60; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 sudah; ISS-02.11 dan revisi PK berversi (ISS-02.12) belum.
+> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; Q60; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 dan ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
 
 Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yang wajib diukur. Alur berikut menegaskan bagaimana perubahan itu direfleksikan ke sistem tanpa kehilangan riwayat data yang sudah ada.
 
