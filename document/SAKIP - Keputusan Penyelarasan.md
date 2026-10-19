@@ -1725,6 +1725,30 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
+# Keputusan Q63 — Pengecualian Gerbang Pengajuan Rencana Aksi pada Periode Lampau 2026
+
+**Keputusan PM: 19 Oktober 2026 (WITA), [Review PM — PR #146](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/146#issuecomment-6263698110).** Menjelaskan Q32.7, Q46 §46.1 butir 3, Workflow §15 butir 4–5, dan ISS-03.05 mengenai pengecualian gerbang pengajuan Rencana Aksi pada periode lampau 2026. Q62 disiapkan PR #145; nomor keputusan perlu diperiksa kembali saat integrasi. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 63.1 Aturan
+
+1. Persyaratan **bukti wajib tahap `rencana_aksi`** dikecualikan **hanya pada jalur Perencanaan**, untuk RA data awal 2026 (RA tahun 2026 yang diajukan lewat jalur Perencanaan; penanda sama dengan kegiatan minimal/RAB, tanpa kolom penanda) dan RA yang seluruh periode efektifnya sudah lampau saat aktivasi jadwal 2026.
+2. **PIC tidak pernah dikecualikan**, baik untuk bukti wajib tahap `rencana_aksi` maupun gerbang **minimal satu kegiatan**, termasuk pada RA yang seluruh periode efektifnya lampau. Ketentuan ini menggantikan perilaku cabang "seluruh periode lampau" tanpa syarat jalur yang berlaku sejak #111.
+3. **Alasan deviasi target PK tetap wajib** di semua jalur (ADR-0008); tidak ada pengecualian periode lampau.
+4. Pengecualian per kegiatan pada periode lampau untuk RAB dan persyaratan tahap `kegiatan_perencanaan` (Q42) tidak berubah.
+
+## 63.2 Dasar
+
+Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian periode lampau, sedangkan Q46 §46.1 butir 3 hanya menyebut kegiatan minimal dan RAB untuk RA data awal. Keputusan ini menyatakan secara eksplisit bahwa bukti wajib tahap `rencana_aksi` termasuk pengecualian, karena RA data awal dicatat Perencanaan dari dokumen resmi 2026 yang belum tentu memiliki berkas tahap RA. Pengecualian dibatasi pada jalur Perencanaan karena Workflow §15 butir 5 menetapkan pengisian periode lampau dilakukan Perencanaan dan ISS-03.05 melarang bypass otomatis bagi user scoped. Konsekuensi yang diterima: RA 2026 yang diajukan Perencanaan kapan pun sebelum penutupan (termasuk setelah buka-kembali) tetap dikecualikan dari bukti wajib tahap `rencana_aksi`, sama dengan perlakuan kegiatan minimal/RAB.
+
+## 63.3 Dampak dan traceability
+
+- Kode: `KesiapanPengajuan::jalurLampauDikecualikan()` mensyaratkan jalur Perencanaan pada kedua cabang; dipakai bersama gerbang bukti dan gerbang kegiatan. Panel bukti halaman RA menandai persyaratan wajib sebagai "Dikecualikan (periode lampau/data awal)" bila pengecualian berlaku.
+- Dokumen: Q32.7, Q46 §46.1, Workflow §15 butir 4–5, ISS-03.05, dan US-03.05 merujuk Q63.
+- Verifikasi: matriks periode lampau sisi Rencana Aksi — sel PIC ditolak dan Perencanaan lolos untuk bukti wajib serta kegiatan minimal pada RA seluruh-periode-lampau; regresi pengajuan/pengesahan RA tetap hijau.
+- Status implementasi: PR #146 (bagian 1, verifikasi matriks).
+
+---
+
 # Bukti aritmetika IKU 3
 
 Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `54c9489`, SHA-256 `66840a50d3048e9aa0a1c10c6d7b8158b80b95d006d2df9feefd209fdc09054b`. Workbook/transkrip sudah dihapus PM dari development melalui `17761d8`; keduanya tidak dipulihkan oleh penyelarasan ini.

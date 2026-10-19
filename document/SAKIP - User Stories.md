@@ -728,6 +728,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 ### US-03.05 · Pengisian Periode Lampau 2026 oleh Perencanaan
 
 > **Q46, Q47 (13 Oktober 2026):** TW III 2026 ikut menjadi periode lampau yang diisi Perencanaan; TW IV 2026 menjadi triwulan pertama workflow normal PIC operasional dengan pelaporan awal Januari 2027 (Q46 §46.1 butir 2). Gerbang baru Q42–Q45 dikecualikan untuk periode lampau, target periode lampau boleh kosong, dan data awal diisi dari dokumen resmi 2026. AC di bawah diperbarui langsung karena story ini belum dikerjakan; rumusan semula (TW I–II) menjadi riwayat.
+>
+> **Q63 (19 Oktober 2026):** pengecualian bukti wajib tahap `rencana_aksi` hanya pada jalur Perencanaan; PIC tidak memperoleh bypass, termasuk untuk kegiatan minimal pada RA seluruh-periode-lampau; alasan deviasi PK tetap wajib.
 
 | Field | Detail |
 |---|---|

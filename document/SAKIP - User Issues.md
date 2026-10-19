@@ -1749,6 +1749,8 @@ kegiatan:update
 ### ISS-03.05 · [Feature] Pengisian Periode Lampau 2026 oleh Perencanaan
 
 > **Q46, Q47 (13 Oktober 2026):** TW III 2026 ikut menjadi periode lampau yang diisi Perencanaan; TW IV 2026 menjadi triwulan pertama workflow normal PIC operasional dengan pelaporan awal Januari 2027 (Q46 §46.1 butir 2). Gerbang baru Q42–Q45 dikecualikan untuk periode lampau; kunci per triwulan (Q41 §41.2) bukan bagian pengecualian karena periode lampau terkunci bagi PIC sejak aktivasi, sedangkan Perencanaan yang mengisinya tidak terikat kunci (Q46 §46.1 butir 1, dikoreksi 13 Oktober 2026). Target periode lampau boleh kosong (Q47 §47.2 butir 4). Issue ini belum dikerjakan sehingga scope, AC, dan test di bawah diperbarui langsung.
+>
+> **Q63 (19 Oktober 2026):** bukti wajib tahap `rencana_aksi` dikecualikan hanya pada jalur Perencanaan (RA data awal 2026 dan RA seluruh-periode-lampau); PIC tidak pernah dikecualikan, termasuk gerbang minimal satu kegiatan; alasan deviasi PK tetap wajib. Pengecualian kegiatan lampau untuk RAB/tahap `kegiatan_perencanaan` (Q42) tidak berubah.
 
 **Terkait User Story:** `US-03.05`  
 **Prioritas:** 🟡 P1 · Tahap 1, pengecualian periode lampau (Q46 §46.3)  
