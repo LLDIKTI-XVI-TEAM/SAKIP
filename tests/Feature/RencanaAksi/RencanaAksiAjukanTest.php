@@ -182,6 +182,8 @@ class RencanaAksiAjukanTest extends TestCase
     public function test_bukti_wajib_belum_terpenuhi_ditolak_dan_waiver_file_meloloskan(): void
     {
         $fixture = $this->buatFixtureManual();
+        // Aktivasi eksplisit non-lampau agar gerbang bukti dinilai di jalur normal (bukan pengecualian Q46).
+        $fixture['jadwal']->update(['activated_at' => '2026-02-15 09:00:00']);
         $jenis = $this->buatPersyaratanWajib($fixture);
         $header = $this->drafManual($fixture);
 
@@ -205,6 +207,8 @@ class RencanaAksiAjukanTest extends TestCase
 
         // Unggahan file dinonaktifkan: persyaratan file-only dikecualikan (anti-macet).
         $kedua = $this->buatFixtureManual();
+        // Aktivasi eksplisit non-lampau agar waiver dinilai di jalur normal (bukan pengecualian Q46).
+        $kedua['jadwal']->update(['activated_at' => '2026-02-15 09:00:00']);
         $jenisKedua = $this->buatPersyaratanWajib($kedua, ['izinkan_teks' => false]);
         Pengaturan::updateOrCreate(['kunci' => 'berkas.unggahan_aktif'], ['grup' => 'berkas', 'nilai' => 'false', 'tipe' => 'boolean']);
         $headerKedua = $this->drafManual($kedua);

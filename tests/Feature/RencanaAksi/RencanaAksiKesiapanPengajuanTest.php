@@ -36,6 +36,8 @@ class RencanaAksiKesiapanPengajuanTest extends TestCase
     public function test_show_siap_setelah_target_lengkap_dan_bukti_wajib_terpenuhi(): void
     {
         $fixture = $this->buatFixtureManual();
+        // Aktivasi eksplisit non-lampau agar gerbang bukti dinilai di jalur normal (bukan pengecualian Q46).
+        $fixture['jadwal']->update(['activated_at' => '2026-02-15 09:00:00']);
         $jenis = $this->buatPersyaratanWajib($fixture);
         $header = $this->drafManual($fixture);
 

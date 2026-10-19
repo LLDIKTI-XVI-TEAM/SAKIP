@@ -173,14 +173,15 @@ class AjukanRencanaAksi
                 }
                 $deviasi = $this->kesiapan->deviasi($baris, $snapshot);
                 $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $bukti);
-                $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan);
+                $jalurPerencanaan = $this->jendela->jalurPerencanaan($keputusan);
+                $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan, (int) $header->tahun, $jalurPerencanaan, $jadwal, $jendelaPeriode, $periodeEfektif);
                 // Urutan header → klaim → kegiatan sama dengan pengajuan Pengukuran; writer klaim juga mengunci header lebih dulu.
                 $klaim = KlaimKegiatan::where('rencana_aksi_id', $header->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->lockForUpdate()->get();
                 $kegiatan = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
                 // Snapshot koreksi dapat terbit setelah klaim dibuat; klaim yang tidak lagi cocok tidak boleh dibekukan.
                 $bacaKegiatan = $this->resolver->allows($pengunci, PermissionCodes::KEGIATAN_READ, (string) $header->unit_id);
                 $alasan = [...$alasan, ...$this->kesiapan->alasanKlaim($klaim, $kegiatan, $header, $periodeEfektif, $definisi->pluck('komponen_id')->all(), $bacaKegiatan)];
-                $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $this->jendela->jalurPerencanaan($keputusan), $jadwal, $jendelaPeriode, $periodeEfektif);
+                $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $jalurPerencanaan, $jadwal, $jendelaPeriode, $periodeEfektif);
                 if ($alasanKegiatan !== null) {
                     $alasan[] = $alasanKegiatan;
                 }
@@ -205,7 +206,7 @@ class AjukanRencanaAksi
                     'nomor' => (int) RencanaAksiVersi::where('rencana_aksi_id', $header->id)->max('nomor') + 1,
                     'diajukan_by' => $pengunci->id,
                     'diajukan_at' => $waktuAjukan,
-                    'jalur_pengajuan' => $this->jendela->jalurPerencanaan($keputusan) ? 'perencanaan' : 'pic',
+                    'jalur_pengajuan' => $jalurPerencanaan ? 'perencanaan' : 'pic',
                     'dasar_izin_pengajuan' => [
                         ...$keputusan->toAuditBasis(),
                         'unit_id' => (string) $header->unit_id,
