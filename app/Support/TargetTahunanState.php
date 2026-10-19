@@ -19,7 +19,7 @@ class TargetTahunanState
         $indikator = IndikatorKinerja::whereKey($indikatorId)->lock($writing ? true : 'for share')->firstOrFail();
         $sasaran = SasaranStrategis::whereKey($indikator->sasaran_strategis_id)->sharedLock()->firstOrFail();
         $renstra = Renstra::whereKey($sasaran->renstra_id)->sharedLock()->firstOrFail();
-        if ($tahun < $renstra->tahun_mulai || $tahun > $renstra->tahun_selesai || $tahun < $indikator->tahun_mulai_berlaku) {
+        if (! self::tahunBerlaku($indikator, $renstra, $tahun)) {
             throw ValidationException::withMessages(['tahun' => 'Tahun harus berada dalam rentang Renstra dan tidak sebelum indikator mulai berlaku.']);
         }
         $target = TargetKinerja::where('indikator_kinerja_id', $indikator->id)->where('tahun', $tahun)->lock($writing ? true : 'for share')->first();
@@ -28,6 +28,12 @@ class TargetTahunanState
             ->where('snapshot.indikator_id', $indikator->id)->where('jadwal.tahun', $tahun)->where('jadwal.renstra_id', $renstra->id)->exists();
 
         return ['indikator' => $indikator, 'sasaran' => $sasaran, 'renstra' => $renstra, 'target' => $target, 'tahun' => $tahun, 'has_snapshot' => $hasSnapshot];
+    }
+
+    /** Satu aturan tahun untuk target PK dan target Renstra: dalam rentang Renstra dan tidak sebelum indikator mulai berlaku. */
+    public static function tahunBerlaku(IndikatorKinerja $indikator, Renstra $renstra, int $tahun): bool
+    {
+        return $renstra->tahun_mulai <= $tahun && $tahun <= $renstra->tahun_selesai && $tahun >= $indikator->tahun_mulai_berlaku;
     }
 
     /** Nilai canonical menjaga null/0 serta tidak memperpendek baseline mengikuti presisi target. @return array{baseline: ?string, target_tahunan: ?string} */

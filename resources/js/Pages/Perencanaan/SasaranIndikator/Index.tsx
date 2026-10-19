@@ -36,6 +36,7 @@ import { FormulaModal } from './FormulaModal';
 import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
 import { TargetModal } from '@/Pages/TargetTahunan/TargetModal';
+import { TargetRenstraTable } from './TargetRenstraTable';
 import type {
     IndikatorKinerjaItem,
     IndikatorTipePerhitungan,
@@ -83,6 +84,10 @@ export default function SasaranIndikatorIndex({
     const [formulaTarget, setFormulaTarget] = useState<DefinitionEditor | null>(null);
     const [annualTarget, setAnnualTarget] = useState<{ id: string; year: number } | null>(null);
     const [annualMessage, setAnnualMessage] = useState('');
+    const [tab, setTab] = useState<'indikator' | 'target'>('indikator');
+    const [targetDibuka, setTargetDibuka] = useState(false);
+    // Ganti Renstra memasang ulang tabel target; selama simpan berjalan pilihan dikunci agar peringatan hasil ambigu tidak hilang.
+    const [menyimpanTarget, setMenyimpanTarget] = useState(false);
     const editorLoader = useIndikatorEditorLoader();
 
     const toggleCollapse = (id: string) => {
@@ -162,6 +167,7 @@ export default function SasaranIndikatorIndex({
                                         id="renstra_filter"
                                         label="Periode Renstra"
                                         value={selectedRenstraId || ''}
+                                        disabled={menyimpanTarget}
                                         onChange={(e) => handleRenstraChange(e.target.value)}
                                     >
                                         {renstras.map((r) => (
@@ -223,8 +229,22 @@ export default function SasaranIndikatorIndex({
                     </Card>
                 )}
 
+                {selectedRenstra && (
+                    <div className="flex gap-2">
+                        <Button type="button" size="sm" variant={tab === 'indikator' ? 'primary' : 'outline'} aria-pressed={tab === 'indikator'} onClick={() => setTab('indikator')}>Indikator</Button>
+                        <Button type="button" size="sm" variant={tab === 'target' ? 'primary' : 'outline'} aria-pressed={tab === 'target'} onClick={() => { setTab('target'); setTargetDibuka(true); }}>Target Renstra</Button>
+                    </div>
+                )}
+
                 {/* Sasaran and Indikator Hierarchy List */}
-                {sasarans.map((sasaran) => {
+                {targetDibuka && selectedRenstra && (
+                    // Tetap terpasang setelah dibuka: pindah tab tidak memuat data terbaru, jadi blokir hasil simpan ambigu tidak boleh hilang.
+                    // key: preserveState saat ganti Renstra tidak boleh membawa baris edit Renstra lama.
+                    <div hidden={tab !== 'target'}>
+                        <TargetRenstraTable key={selectedRenstra.id} renstra={selectedRenstra} sasarans={sasarans} canEdit={Boolean(can.indikator_read && can.target_update)} onSaved={setAnnualMessage} onSaving={setMenyimpanTarget} />
+                    </div>
+                )}
+                {(tab !== 'target' || !selectedRenstra) && sasarans.map((sasaran) => {
                     const isCollapsed = Boolean(collapsedMap[sasaran.id]);
 
                     return (

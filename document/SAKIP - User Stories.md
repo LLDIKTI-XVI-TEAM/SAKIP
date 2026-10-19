@@ -293,7 +293,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-02.03 · Aktivasi, Arsip, dan Revisi Renstra karena Perubahan Kebijakan
 
-> **Q40 (13 Oktober 2026):** atribut Renstra tetap direvisi in place dengan audit. Lampiran revisi kini boleh ditambahkan setelah Renstra aktif (penghapusan tetap dilarang), dan perubahan target Renstra saat Renstra aktif wajib beralasan serta tampil sebagai riwayat revisi; keduanya dikerjakan pada US-02.10. Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini; penggantian Renstra karena kebijakan kementerian memakai Renstra baru (Q40 §40.2 butir 4; backlog tahap 3, Q46 §46.3).
+> **Q40 (13 Oktober 2026):** atribut Renstra tetap direvisi in place dengan audit. Lampiran revisi kini boleh ditambahkan setelah Renstra aktif (penghapusan tetap dilarang), dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi (Q60); keduanya sudah dikerjakan pada US-02.10. Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini; penggantian Renstra karena kebijakan kementerian memakai Renstra baru (Q40 §40.2 butir 4; backlog tahap 3, Q46 §46.3).
 >
 > **Q50 (13 Oktober 2026):** sasaran S4 dan IKU 4.1 yang hanya ada di PK dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5), dan tanggal PK tidak divalidasi terhadap tanggal penetapan Renstra (Q50 §50.6). Keduanya ditangani pada US-02.11 dan data awal US-15.01.
 
@@ -503,8 +503,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
 | **Dependensi** | Renstra, sasaran, dan indikator tersedia (US-02.02–US-02.04). |
 | **Otorisasi** | Penyimpanan target Renstra: `target:update` yang sudah ada, tanpa permission baru (Q39 §39.3 butir 3); lampiran revisi: `renstra:update` dan capability berkas melalui kewenangan induk. |
-| **Dampak Data** | `target_renstra` (entitas baru per indikator per tahun Renstra; rancangan Data Model §2.35), `berkas` (induk `renstra`), `audit_log`. |
-| **Keputusan terkait** | Q39 §39.1 dan §39.3 butir 3, Q40 §40.2, Q43 §43.2 butir 3, Q50 §50.5, Q46 §46.3. |
+| **Dampak Data** | `target_renstra` (entitas baru per indikator per tahun Renstra; Data Model §2.35), `berkas` (induk `renstra`), `audit_log`. |
+| **Keputusan terkait** | Q39 §39.1 dan §39.3 butir 3, Q40 §40.2, Q43 §43.3 butir 5, Q60, Q50 §50.5, Q46 §46.3. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** mencatat target Renstra setiap indikator untuk setiap tahun dalam rentang Renstra, menambah lampiran revisi setelah Renstra aktif, dan melihat riwayat revisi target Renstra,  
@@ -512,18 +512,18 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator aktif pada Renstra dengan rentang tahun tertentu, When Perencanaan menyimpan target Renstra, Then tersimpan paling banyak satu nilai per indikator per tahun dalam rentang Renstra; tahun di luar rentang ditolak server. *(Q39 §39.1)*
-- [ ] **AC-2:** Given nilai target Renstra dikirim, When disimpan, Then berlaku domain nilai Q33: boleh kosong, bila diisi finite dan nonnegatif, `0` sah dan berbeda dari kosong, tanpa batas universal `100`. *(Q39 §39.1 butir 4)*
-- [ ] **AC-3:** Given halaman Sasaran & Indikator dibuka, Then target Renstra per tahun tampil bersama indikator sebagai pembanding dan tidak dipakai menghitung capaian. *(Q39 §39.1 butir 2, §39.4)*
-- [ ] **AC-4:** Given Renstra berstatus `aktif`, When target Renstra diubah tanpa alasan, Then perubahan ditolak; When diubah dengan alasan (dasar revisi), Then perubahan tersimpan dan audit mencatat aktor, waktu, nilai lama, nilai baru, dan alasan. Pada Renstra `draft` alasan tidak diwajibkan. *(Q40 §40.2 butir 3, Q43 §43.2 butir 3)*
-- [ ] **AC-5:** Given target Renstra pernah diubah saat Renstra `aktif`, When riwayat dibuka, Then sistem menampilkan riwayat revisi target Renstra (waktu, aktor, nilai lama/baru, alasan) yang dibaca dari audit. *(Q40 §40.2 butir 3)*
-- [ ] **AC-6:** Given Renstra berstatus `aktif`, When Perencanaan menambahkan lampiran revisi, Then lampiran baru tersimpan pada Renstra; When lampiran yang sudah ada dihapus, Then ditolak. *(Q40 §40.2 butir 2)*
-- [ ] **AC-7:** Given target Renstra suatu indikator atau tahun kosong, When jadwal tahun tersebut diaktifkan, Then kekosongan target Renstra tidak menjadi gerbang aktivasi. *(Q39 §39.1 butir 5)*
+- [x] **AC-1:** Given indikator aktif pada Renstra dengan rentang tahun tertentu, When Perencanaan menyimpan target Renstra, Then tersimpan paling banyak satu nilai per indikator per tahun dalam rentang Renstra; tahun di luar rentang ditolak server. *(Q39 §39.1)*
+- [x] **AC-2:** Given nilai target Renstra dikirim, When disimpan, Then berlaku domain nilai Q33: boleh kosong, bila diisi finite dan nonnegatif, `0` sah dan berbeda dari kosong, tanpa batas universal `100`. *(Q39 §39.1 butir 4)*
+- [x] **AC-3:** Given halaman Sasaran & Indikator dibuka, Then target Renstra per tahun tampil bersama indikator sebagai pembanding dan tidak dipakai menghitung capaian. *(Q39 §39.1 butir 2, §39.4)*
+- [x] **AC-4:** Given target Renstra pada Renstra `draft` atau `aktif`, When nilainya diisi, diubah, atau dikosongkan, Then perubahan tersimpan tanpa field alasan dan audit mencatat aktor, waktu, tindakan, nilai lama, dan nilai baru; nilai yang tidak berubah tidak diaudit. *(Q40 §40.2 butir 3, Q43 §43.1, Q60)*
+- [x] **AC-5:** Given target Renstra pernah diubah saat Renstra `aktif`, When riwayat dibuka, Then sistem menampilkan riwayat revisi target Renstra (waktu, aktor, tahun, nilai lama/baru) yang dibaca dari audit. *(Q40 §40.2 butir 3)*
+- [x] **AC-6:** Given Renstra berstatus `aktif`, When Perencanaan menambahkan lampiran revisi, Then lampiran baru tersimpan pada Renstra; When lampiran yang sudah ada dihapus, Then ditolak. *(Q40 §40.2 butir 2)*
+- [x] **AC-7:** Given target Renstra suatu indikator atau tahun kosong, When jadwal tahun tersebut diaktifkan, Then kekosongan target Renstra tidak menjadi gerbang aktivasi. *(Q39 §39.1 butir 5)*
 
 **Business Rules / Catatan**
 
 - Target Renstra terpisah dari target PK (`target_tahunan`, US-02.11); atribut Renstra lain tetap direvisi in place dengan audit (Q40 §40.2 butir 1).
-- Bila target terlampaui sebelum akhir periode Renstra, target tahun berikutnya dinaikkan melalui perubahan beralasan pada AC-4 (Q40 §40.2 butir 3).
+- Bila target terlampaui sebelum akhir periode Renstra, target tahun berikutnya dinaikkan melalui perubahan pada AC-4 (Q40 §40.2 butir 3).
 - Target Renstra disimpan dengan permission `target:update` yang sudah ada; tidak ada permission baru (Q39 §39.3 butir 3).
 - Indikator yang hanya ada di PK (mis. IKU 4.1 pada sasaran S4) dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5); kekosongan ini sah menurut AC-2.
 - Lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru (Q40 §40.2 butir 5).

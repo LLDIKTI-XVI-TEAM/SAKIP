@@ -43,7 +43,7 @@ const statusLabel: Record<RenstraStatus, string> = {
 };
 
 const transitions = {
-    activate: { path: 'aktifkan', label: 'Aktifkan Renstra', description: 'Aktifkan dokumen ini sebagai Renstra yang berlaku. Naskah lampiran akan terkunci.' },
+    activate: { path: 'aktifkan', label: 'Aktifkan Renstra', description: 'Aktifkan dokumen ini sebagai Renstra yang berlaku. Lampiran yang sudah ada tidak dapat dihapus.' },
     deactivate: { path: 'nonaktifkan', label: 'Nonaktifkan Renstra', description: '' },
     archive: { path: 'arsipkan', label: 'Arsipkan Renstra', description: 'Arsipkan dokumen nonaktif ini. Pengarsipan bersifat final; seluruh histori tetap terbaca.' },
 };
@@ -265,7 +265,7 @@ function RenstraDetailPage({ renstra, expected_state, lifecycle, can = {} }: Sho
                         {isAktif && (
                             <span className="inline-flex items-center gap-1.5 text-xs text-muted">
                                 <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                                Terkunci selama Renstra aktif
+                                Lampiran lama tidak dapat dihapus
                             </span>
                         )}
                     </CardHeader>

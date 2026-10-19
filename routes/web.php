@@ -82,6 +82,7 @@ use App\Http\Controllers\Renstra\IndexRenstra;
 use App\Http\Controllers\Renstra\ShowRenstra;
 use App\Http\Controllers\Renstra\StoreRenstra;
 use App\Http\Controllers\Renstra\UpdateRenstra;
+use App\Http\Controllers\TargetRenstra\TargetRenstraController;
 use App\Http\Controllers\TargetTahunan\TargetTahunanController;
 use App\Http\Controllers\Unit\DestroyUnit;
 use App\Http\Controllers\Unit\IndexUnit;
@@ -139,6 +140,8 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::get('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}/editor', [TargetTahunanController::class, 'editor'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.editor');
     Route::put('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}', [TargetTahunanController::class, 'update'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.update');
+    Route::put('/perencanaan/indikator/{indikator}/target-renstra', [TargetRenstraController::class, 'update'])->whereUuid('indikator')->name('target-renstra.update');
+    Route::get('/perencanaan/indikator/{indikator}/target-renstra/riwayat', [TargetRenstraController::class, 'riwayat'])->whereUuid('indikator')->name('target-renstra.riwayat');
     Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
     Route::get('/jadwal/create', [JadwalController::class, 'create'])->name('jadwal.create');
     Route::get('/jadwal/{jadwal}', [JadwalController::class, 'show'])->whereUuid('jadwal')->name('jadwal.show');

@@ -115,7 +115,6 @@ function EditRenstraForm({ renstra, expected_state, regulasiPilihan, can }: Edit
                             <RenstraFormFields data={form.data} errors={errors} regulasiOptions={regulasiPilihan}
                                 disabled={form.processing || Boolean(recovery.recovery)} isEdit={true}
                                 canReadRegulasi={can?.readRegulasi === true} canUploadAttachment={can?.uploadAttachment}
-                                attachmentLocked={renstra.status !== 'draft'}
                                 setField={(field, value) => form.setData((prev) => ({ ...prev, [field]: value }))}
                                 setLampiran={(updater) => form.setData((prev) => ({ ...prev, lampiran: updater(prev.lampiran) }))} />
                         </CardContent>

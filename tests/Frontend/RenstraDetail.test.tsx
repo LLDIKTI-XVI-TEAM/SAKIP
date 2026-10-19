@@ -49,12 +49,16 @@ const renstra: RenstraDetail = {
     updated_at: null,
 };
 
-it('form edit Renstra aktif tidak menawarkan lampiran baru', () => {
-    render(<Edit renstra={renstra} expected_state={'a'.repeat(64)} regulasiPilihan={[]} can={{ uploadAttachment: false }} />);
+it('form edit Renstra aktif hanya dibatasi izin lampiran', () => {
+    const { rerender } = render(<Edit renstra={renstra} expected_state={'a'.repeat(64)} regulasiPilihan={[]} can={{ uploadAttachment: false }} />);
 
     expect(screen.getByRole('link', { name: 'Kembali' }).getAttribute('href')).toBe('/renstra/renstra-test');
     expect(screen.queryByRole('button', { name: 'Tambah Lampiran' })).toBeNull();
-    expect(screen.getByText('Lampiran baru hanya dapat ditambahkan saat Renstra berstatus draft.')).toBeTruthy();
+    expect(screen.getByText('Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.')).toBeTruthy();
+    expect(screen.queryByText('Lampiran baru hanya dapat ditambahkan saat Renstra berstatus draft.')).toBeNull();
+
+    rerender(<Edit renstra={renstra} expected_state={'a'.repeat(64)} regulasiPilihan={[]} can={{ uploadAttachment: true }} />);
+    expect(screen.getByRole('button', { name: 'Tambah Lampiran' })).toBeTruthy();
 });
 
 it('form tambah mempertahankan perubahan field dan lampiran dalam satu batch', () => {

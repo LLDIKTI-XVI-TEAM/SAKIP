@@ -10,7 +10,8 @@ class EditRenstraForm
 {
     /**
      * Baseline editor Renstra: data saat ini, token state, pilihan regulasi aktif plus regulasi terpilih (meski nonaktif),
-     * dan capability unggah yang hanya berlaku pada draft.
+     * dan capability unggah lampiran. Edit Renstra nonaktif/diarsipkan sudah ditolak Policy, sehingga capability ini
+     * berlaku untuk draft maupun aktif (lampiran revisi).
      *
      * @return array<string, mixed>
      */
@@ -31,7 +32,7 @@ class EditRenstraForm
             $regulasiPilihan = [];
         }
 
-        $canUploadAttachment = $renstra->status === Renstra::STATUS_DRAFT && $user->can('uploadAttachment', $renstra);
+        $canUploadAttachment = $user->can('uploadAttachment', $renstra);
 
         return [
             'renstra' => [
