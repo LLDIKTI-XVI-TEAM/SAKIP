@@ -328,6 +328,23 @@ describe('Halaman Izin Unit', () => {
         expect(within(dialog).getByRole('button', { name: 'Muat ulang data' })).toBeTruthy();
     });
 
+    it.each([
+        ['user_id', 'Akun pengguna nonaktif; izin baru tidak dapat ditambahkan.'],
+        ['unit_id', 'Unit nonaktif; izin baru tidak dapat ditambahkan.'],
+    ])('kelola izin: galat %s dari server tampil di dialog dan Simpan tetap bisa dipakai untuk mencabut', async (field, pesan) => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props()} />);
+        await user.click(screen.getByRole('button', { name: /Kelola izin unit Pegawai Test/ }));
+        const dialog = screen.getByRole('dialog', { name: /Kelola izin unit/ });
+        await user.click(within(dialog).getByRole('checkbox', { name: 'Membuat kegiatan' }));
+        await user.click(within(dialog).getByRole('button', { name: 'Simpan perubahan' }));
+
+        const options = vi.mocked(router.put).mock.calls[0][2];
+        await act(async () => { options?.onError?.({ [field]: pesan } as never); });
+        expect(within(dialog).getByRole('alert').textContent).toContain(pesan);
+        expect(within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' }).disabled).toBe(false);
+    });
+
     it('cabut semua memakai modal alasan audit dan mengirim daftar kosong', async () => {
         const user = userEvent.setup();
         render(<GrantIndex {...props()} />);

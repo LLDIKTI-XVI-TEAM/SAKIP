@@ -44,6 +44,8 @@ function KelolaIzinUnitDialog({ kelompok, options, onClose }: Props & { kelompok
     const dicabut = dimiliki.filter((id) => !form.data.permission_ids.includes(id)).length;
     const errors = form.errors as Record<string, string | undefined>;
     const konflik = errors.expected_permission_ids;
+    // Akun atau unit nonaktif menolak penambahan (Q62 butir 8); tidak ada field target di dialog, jadi galatnya tampil sebagai banner.
+    const galatTarget = errors.user_id ?? errors.unit_id;
     const ringkasan = ditambah === 0 && dicabut === 0
         ? 'Belum ada perubahan.'
         : [ditambah > 0 && `${ditambah} izin diberikan`, dicabut > 0 && `${dicabut} izin dicabut`].filter(Boolean).join(', ') + '.';
@@ -83,6 +85,7 @@ function KelolaIzinUnitDialog({ kelompok, options, onClose }: Props & { kelompok
     >
         <form id="kelola-izin-unit-form" onSubmit={submit} className="space-y-4" aria-busy={form.processing}>
             {failure && <p role="alert" className={failureClass}>{failure}</p>}
+            {galatTarget && <p role="alert" className={failureClass}>{galatTarget}</p>}
             {konflik && <div role="alert" className={`space-y-2 ${failureClass}`}>
                 <p>{konflik}</p>
                 <Button type="button" variant="outline" size="sm" onClick={() => { onClose(); router.reload(); }}>Muat ulang data</Button>
