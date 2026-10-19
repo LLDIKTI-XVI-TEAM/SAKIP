@@ -1739,7 +1739,7 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ## 64.2 Progres Rencana Aksi dan kegiatan
 
-1. Panel progres Rencana Aksi (Plan 7.6) menghitung indikator snapshot jadwal terpilih; indikator yang belum memiliki Rencana Aksi tampil **"Belum disusun"**. Indikator arsip tanpa Rencana Aksi tidak dihitung.
+1. Panel progres Rencana Aksi (Plan 7.6) menghitung indikator snapshot jadwal terpilih; indikator yang belum memiliki Rencana Aksi tampil **"Belum disusun"**. Indikator arsip tidak dihitung.
 2. Hitungan kegiatan dan jumlah kegiatan yang melewati tanggal rencana mengikuti akses dashboard (Q54 §54.2 butir 2); daftar nama kegiatan yang terlambat hanya bagi pemegang `kegiatan:read` dan dibatasi unit berizin (Q54 §54.1), sejalan dengan Q42 §42.5 butir 1.
 
 ## 64.3 Dampak dan traceability
