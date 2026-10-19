@@ -44,7 +44,8 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, be
     const [dikelola, setDikelola] = useState<KelompokIzinUnit | null>(null);
     const [dicabut, setDicabut] = useState<KelompokIzinUnit | null>(null);
     const createTrigger = useRef<HTMLButtonElement | null>(null);
-    const createForm = useForm<{ user_id: string; permission_ids: string[]; unit_id: string; alasan: string }>({ user_id: beri?.user.id ?? '', permission_ids: [], unit_id: beri?.unit_id ?? '', alasan: '' });
+    const isianBeri = () => ({ user_id: beri?.user.id ?? '', permission_ids: [] as string[], unit_id: beri?.unit_id ?? '', alasan: '' });
+    const createForm = useForm<{ user_id: string; permission_ids: string[]; unit_id: string; alasan: string }>(isianBeri());
     const hasFilter = filters.search !== '' || filters.unit_id !== 'all';
 
     const filterBy = (nextSearch: string, nextUnitId: string) => {
@@ -67,7 +68,8 @@ export default function GrantIndex({ grants, filters, units, unitPermissions, be
 
     const openCreate = (event: MouseEvent<HTMLButtonElement>) => {
         createTrigger.current = event.currentTarget;
-        createForm.reset();
+        // Default useForm hanya dari render pertama; isian harus mengikuti prop beri saat ini agar PJ lama tidak terbawa setelah filter.
+        createForm.setData(isianBeri());
         createForm.clearErrors();
         setCreateFailure(null);
         setIsCreateOpen(true);

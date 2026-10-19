@@ -213,6 +213,30 @@ describe('Halaman Izin Unit', () => {
         expect(router.post).toHaveBeenCalledWith('/akses/grant', expect.objectContaining({ user_id: 'user-9', unit_id: 'unit-1', permission_ids: ['perm-1'] }), expect.anything());
     });
 
+    it('isian dari Penanggung Jawab tidak terbawa setelah filter: Beri izin unit generik mulai kosong', async () => {
+        const user = userEvent.setup();
+        const beri: Props['beri'] = { user: { id: 'user-9', nama: 'PJ Unit', email: 'pj@example.test', status: 'aktif', roles: ['Pegawai'] }, unit_id: 'unit-1' };
+        const { rerender } = render(<GrantIndex {...props({ beri })} />);
+        await user.click(within(screen.getByRole('dialog', { name: 'Beri izin unit' })).getByRole('button', { name: 'Batal' }));
+        // Kunjungan filter mempertahankan state komponen, tetapi server tidak lagi mengirim isian beri.
+        rerender(<GrantIndex {...props({ beri: null, filters: { search: 'abc', unit_id: 'all' } })} />);
+        await user.click(screen.getByRole('button', { name: /Beri izin unit/ }));
+        const dialog = screen.getByRole('dialog', { name: 'Beri izin unit' });
+        expect(dialog.querySelector<HTMLInputElement>('input[type="hidden"][name="user_id"]')?.value).toBe('');
+        expect(within(dialog).queryByText('PJ Unit')).toBeNull();
+        expect(within(dialog).getByLabelText<HTMLSelectElement>(/^Unit/).value).toBe('');
+    });
+
+    it('selama isian dari Penanggung Jawab masih berlaku, membuka ulang Beri izin unit menampilkan PJ yang sama', async () => {
+        const user = userEvent.setup();
+        render(<GrantIndex {...props({ beri: { user: { id: 'user-9', nama: 'PJ Unit', email: 'pj@example.test', status: 'aktif', roles: ['Pegawai'] }, unit_id: 'unit-1' } })} />);
+        await user.click(within(screen.getByRole('dialog', { name: 'Beri izin unit' })).getByRole('button', { name: 'Batal' }));
+        await user.click(screen.getByRole('button', { name: /Beri izin unit/ }));
+        const dialog = screen.getByRole('dialog', { name: 'Beri izin unit' });
+        expect(dialog.querySelector<HTMLInputElement>('input[type="hidden"][name="user_id"]')?.value).toBe('user-9');
+        expect(within(dialog).getByText('PJ Unit')).toBeTruthy();
+    });
+
     it('paginasi memakai komponen bersama', () => {
         render(<GrantIndex {...props({ grants: { data: [kelompok()], links: [
             { url: null, label: '&laquo; Previous', active: false },
