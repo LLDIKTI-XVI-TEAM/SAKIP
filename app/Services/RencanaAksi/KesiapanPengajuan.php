@@ -166,7 +166,12 @@ class KesiapanPengajuan
             ->filter(fn (PeriodeJadwal $row): bool => PeriodeTanpaTarget::isPeriodeLampau($jadwal, $row))
             ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id);
 
-        return $periodeEfektif->isNotEmpty() && $periodeEfektif->diff($lampau)->isEmpty();
+        // Q63 §63.1: pengecualian seluruh-periode-lampau hanya untuk jadwal
+        // 2026; tahun lain fail-closed walau seluruh periode sudah lewat.
+        return $tahun === self::TAHUN_DATA_AWAL
+            && $jadwal->tahun === self::TAHUN_DATA_AWAL
+            && $periodeEfektif->isNotEmpty()
+            && $periodeEfektif->diff($lampau)->isEmpty();
     }
 
     /**

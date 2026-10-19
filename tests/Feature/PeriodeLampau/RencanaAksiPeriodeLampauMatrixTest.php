@@ -205,6 +205,29 @@ class RencanaAksiPeriodeLampauMatrixTest extends TestCase
             ->where('bukti.dikecualikan', false));
     }
 
+    public function test_jadwal_2027_seluruh_periode_lampau_tetap_mewajibkan_gerbang_bagi_perencanaan(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $this->buatPersyaratanWajib($fixture);
+        $header = $this->drafManual($fixture);
+        KlaimKegiatan::where('rencana_aksi_id', $header->id)->delete();
+
+        // Jadwal 2027 diaktivasi setelah seluruh pengisian selesai.
+        $fixture['jadwal']->update(['tahun' => 2027, 'activated_at' => '2027-04-05 09:00:00',
+            'rencana_aksi_mulai' => '2027-03-01', 'rencana_aksi_selesai' => '2027-03-31', 'penutupan' => '2027-12-31']);
+        $fixture['jadwal']->periode()->update(['pengisian_mulai' => '2027-03-01', 'pengisian_selesai' => '2027-03-31',
+            'reviu_mulai' => '2027-04-01', 'reviu_selesai' => '2027-04-30']);
+        $header->update(['tahun' => 2027]);
+        $this->travelTo(now()->setDate(2027, 3, 10)->setTime(9, 0));
+
+        // Q63 §63.1: pengecualian seluruh-periode-lampau hanya untuk jadwal
+        // 2026; RA 2027 tetap wajib kegiatan minimal dan bukti wajib.
+        $this->ajukanDraf($fixture['perencanaan'], $header)
+            ->assertSessionHasErrors(['pengajuan' => self::PESAN_KEGIATAN])
+            ->assertSessionHasErrors(['pengajuan' => self::PESAN_BUKTI]);
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
+    }
+
     public function test_pengajuan_lampau_membekukan_versi_dan_mengaudit_aktor(): void
     {
         $fixture = $this->siapkanPeriodeLampau2026();
