@@ -2,29 +2,26 @@
 
 namespace App\Actions\Pengukuran;
 
-use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\PengukuranKinerja;
-use App\Models\PenugasanIndikator;
 use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Pengukuran\DaftarKewajibanPengukuran;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class IndexPengukuran
 {
-    public function __construct(private PresentPengukuran $present, private PermissionResolver $resolver, private PengukuranKinerjaPolicy $policy) {}
+    public function __construct(private PresentPengukuran $present, private PermissionResolver $resolver, private PengukuranKinerjaPolicy $policy, private DaftarKewajibanPengukuran $kewajiban) {}
 
     /**
      * Daftar kewajiban pengukuran: indikator snapshot × periode berjalan setiap jadwal aktif lalu jadwal ditutup sebagai baris
@@ -60,7 +57,7 @@ class IndexPengukuran
                 ->reject(fn ($period) => $period->pengisian_mulai->toDateString() > ($closedOn[$period->jadwal_id] ?? $today))
                 ->unique('jadwal_id')->keyBy('id');
 
-        $page = $this->obligations($periods->keys()->all(), $actor, $today)->paginate(20, page: $query['page'] ?? 1)->withQueryString();
+        $page = $this->kewajiban->query($periods->keys()->all(), $this->resolver->unitDitolak($actor, 'pengukuran:read'), $today)->paginate(20, page: $query['page'] ?? 1)->withQueryString();
         $items = collect($page->items());
         $headers = PengukuranKinerja::with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
             ->withCount(['buktiDukungs' => fn ($q) => $q->current()])->whereIn('id', $items->pluck('pengukuran_id')->filter())->get()->keyBy('id');
@@ -112,37 +109,6 @@ class IndexPengukuran
             'pengukurans' => $rows,
             'pagination' => ['links' => $page->linkCollection()->all(), 'from' => $page->firstItem(), 'to' => $page->lastItem(), 'total' => $page->total()],
         ];
-    }
-
-    /**
-     * Satu baris per jadwal × indikator snapshot pada periode jadwal terpilih. Versi efektif terbesar dipilih lebih dulu;
-     * tanpa versi efektif, versi terendah menjadi identitas "Tidak berlaku". Header dicari dengan identitas unik
-     * indikator × tahun × periode, lalu baris memakai snapshot yang dijepit header bila ada.
-     *
-     * @param  list<string>  $periodIds  id jadwal_periode terpilih, paling banyak satu per jadwal
-     */
-    private function obligations(array $periodIds, User $actor, string $today): Builder
-    {
-        $effective = 'pm.urutan <= pr.urutan';
-        $selected = DB::table('jadwal_snapshot as s')->join('jadwal_periode as jp', 'jp.jadwal_id', '=', 's.jadwal_id')
-            ->join('periode as pr', 'pr.id', '=', 'jp.periode_id')->join('periode as pm', 'pm.id', '=', 's.periode_mulai_id')
-            ->join('jadwal_tahunan as j', 'j.id', '=', 's.jadwal_id')->whereIn('jp.id', $periodIds)
-            ->selectRaw("DISTINCT ON (s.jadwal_id, s.indikator_id) s.jadwal_id, s.indikator_id, s.id as snapshot_id, jp.id as periode_jadwal_id, jp.periode_id, j.tahun, j.status, {$effective} as berlaku")
-            ->orderBy('s.jadwal_id')->orderBy('s.indikator_id')->orderByRaw("{$effective} DESC")
-            ->orderByRaw("CASE WHEN {$effective} THEN -s.nomor_versi ELSE s.nomor_versi END");
-
-        return DB::query()->fromSub($selected, 'k')
-            ->join('indikator_kinerjas as i', 'i.id', '=', 'k.indikator_id')
-            ->leftJoin('pengukuran_kinerjas as h', fn ($join) => $join->on('h.indikator_id', '=', 'k.indikator_id')->on('h.tahun', '=', 'k.tahun')->on('h.periode_id', '=', 'k.periode_id'))
-            ->join('jadwal_snapshot as cs', DB::raw('COALESCE(h.jadwal_snapshot_id, k.snapshot_id)'), '=', 'cs.id')
-            ->join('unit as u', 'u.id', '=', 'cs.unit_id')
-            ->leftJoinSub(PenugasanIndikator::effectiveOn($today)->select('indikator_id', 'user_id'), 'pic', 'pic.indikator_id', '=', 'k.indikator_id')
-            ->leftJoin('users as picu', 'picu.id', '=', 'pic.user_id')
-            ->where(fn ($q) => $q->whereNotNull('h.id')->orWhere('i.status', '!=', IndikatorKinerja::STATUS_ARSIP))
-            ->whereNotIn('cs.unit_id', $this->resolver->unitDitolak($actor, 'pengukuran:read'))
-            ->select(['k.jadwal_id', 'k.indikator_id', 'k.periode_jadwal_id', 'k.periode_id', 'k.tahun', 'k.berlaku', 'h.id as pengukuran_id', 'cs.id as jadwal_snapshot_id',
-                'cs.nama', 'cs.satuan', 'cs.desimal_tampilan', 'i.kode', 'u.id as unit_id', 'u.nama as unit_nama', 'pic.user_id as pic_id', 'picu.nama as pic_nama'])
-            ->orderByRaw("CASE WHEN k.status = 'aktif' THEN 0 ELSE 1 END")->orderBy('k.tahun')->orderBy('k.jadwal_id')->orderBy('i.kode')->orderBy('i.id');
     }
 
     /**
