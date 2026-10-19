@@ -9,6 +9,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Kegiatan\GerbangKlaimKegiatan;
 use App\Services\Kegiatan\TotalAnggaranKegiatan;
 use App\Support\PermissionCodes;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Props panel kegiatan per periode pada halaman Rencana Aksi (Q42 §42.1):
@@ -39,6 +40,20 @@ class DaftarKegiatanRencanaAksi
         if (! $this->resolver->allows($actor, PermissionCodes::KEGIATAN_READ, $unitId)) {
             return null;
         }
+
+        return DB::transaction(function () use ($actor, $header, $unitId): array {
+            // Daftar, penanda, dan total dibaca dari satu snapshot; bila dipanggil di dalam transaksi lain, isolasi milik caller.
+            if (DB::transactionLevel() === 1) {
+                DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
+            }
+
+            return $this->baca($actor, $header, $unitId);
+        });
+    }
+
+    /** @return array<string, mixed> */
+    private function baca(User $actor, RencanaAksi $header, string $unitId): array
+    {
         $daftar = KlaimKegiatan::query()
             ->join('kegiatan', 'kegiatan.id', '=', 'klaim_kegiatan.kegiatan_id')
             ->where('klaim_kegiatan.rencana_aksi_id', $header->id)
