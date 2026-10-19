@@ -185,6 +185,26 @@ class RencanaAksiPeriodeLampauMatrixTest extends TestCase
             ->where('bukti.dikecualikan', false));
     }
 
+    public function test_status_pengecualian_mengikuti_jalur_versi_beku_setelah_diajukan(): void
+    {
+        $fixture = $this->siapkanPeriodeLampau2026();
+        $this->buatPersyaratanWajib($fixture);
+        $header = $this->buatDrafLampau($fixture);
+        $this->simpanMatriks($fixture, $header, [$this->sel($fixture['periode1'], 25), $this->sel($fixture['periode2'], 50), $this->sel($fixture['periode3'], 75), $this->sel($fixture['periode4'], 100)], $fixture['perencanaan'])->assertSessionHasNoErrors();
+        $this->ajukanDraf($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
+
+        // Q63: RA yang sudah diajukan memakai jalur versi beku, bukan izin pembaca.
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.pengajuan.dikecualikan', true)
+            ->where('bukti.dikecualikan', true));
+
+        // Setelah dibuka kembali, status pengecualian kembali mengikuti jalur aktor.
+        $header->update(['status_alur' => RencanaAksi::STATUS_DIKEMBALIKAN]);
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.pengajuan.dikecualikan', false)
+            ->where('bukti.dikecualikan', false));
+    }
+
     public function test_pengajuan_lampau_membekukan_versi_dan_mengaudit_aktor(): void
     {
         $fixture = $this->siapkanPeriodeLampau2026();
