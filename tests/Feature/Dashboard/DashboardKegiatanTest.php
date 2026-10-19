@@ -1,0 +1,132 @@
+<?php
+
+namespace Tests\Feature\Dashboard;
+
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
+use App\Models\Permission;
+use App\Models\RencanaAksi;
+use App\Models\SasaranStrategis;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Tests\Concerns\CreatesDashboardFixture;
+use Tests\Concerns\CreatesPengukuranFixture;
+use Tests\TestCase;
+
+class DashboardKegiatanTest extends TestCase
+{
+    use CreatesDashboardFixture, CreatesPengukuranFixture, RefreshDatabase;
+
+    /** @return array<string, mixed> */
+    private function panel(?User $user = null, string $query = ''): array
+    {
+        return $this->actingAs($user ?? $this->actor)->get('/dashboard'.$query)->assertOk()->viewData('page')['props']['kegiatan'];
+    }
+
+    private function kegiatan(array $attributes = []): Kegiatan
+    {
+        return Kegiatan::create(['unit_id' => $this->unit->id, 'tahun' => 2026, 'periode_id' => $this->pengukuran->periode_id,
+            'nama' => 'Kegiatan '.Str::random(5), 'anggaran' => 0, 'created_by' => $this->actor->id, ...$attributes]);
+    }
+
+    private function klaim(RencanaAksi $rencanaAksi, Kegiatan $kegiatan): void
+    {
+        KlaimKegiatan::create(['rencana_aksi_id' => $rencanaAksi->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
+            'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->actor->id, 'created_at' => now()]);
+    }
+
+    private function rencanaAksiBaru(string $kode, array $indikator = []): RencanaAksi
+    {
+        $snapshot = $this->indikatorBaru($kode, $indikator);
+
+        return RencanaAksi::create([...$this->plan->only(['tahun', 'unit_id', 'jadwal_tahunan_id', 'penanggung_jawab_id', 'created_by']),
+            'indikator_id' => $snapshot->indikator_id, 'status_alur' => 'draft']);
+    }
+
+    public function test_hitungan_per_status_termasuk_batal_dan_tidak_terlaksana(): void
+    {
+        foreach (Kegiatan::STATUSES as $status) {
+            $this->kegiatan(['status' => $status, 'justifikasi' => 'Alasan pengujian', 'tanggal_realisasi' => $status === 'terlaksana' ? '2026-03-10' : null]);
+        }
+
+        $this->assertSame(['rencana' => 1, 'terlaksana' => 1, 'tidak_terlaksana' => 1, 'ditunda' => 1, 'batal' => 1], $this->panel()['per_status']);
+    }
+
+    public function test_kegiatan_lanjutan_dihitung_terpisah_dari_asal(): void
+    {
+        $asal = $this->kegiatan(['status' => 'ditunda', 'justifikasi' => 'Ditunda pengujian']);
+        $this->kegiatan(['kegiatan_asal_id' => $asal->id]);
+
+        $panel = $this->panel();
+
+        $this->assertSame([1, 1], [$panel['per_status']['ditunda'], $panel['per_status']['rencana']]);
+    }
+
+    public function test_kegiatan_lewat_tanggal_rencana_belum_terlaksana_diberi_peringatan(): void
+    {
+        $terlambat = $this->kegiatan(['nama' => 'Lewat tanggal', 'tanggal_rencana' => '2026-03-14']);
+        $this->kegiatan(['tanggal_rencana' => '2026-03-16']);
+        $this->kegiatan(['status' => 'terlaksana', 'tanggal_rencana' => '2026-03-14', 'tanggal_realisasi' => '2026-03-14']);
+
+        $panel = $this->panel();
+
+        $this->assertSame(1, $panel['terlambat_jumlah']);
+        $this->assertSame([['id' => $terlambat->id, 'nama' => 'Lewat tanggal', 'unit' => 'Unit Pengujian', 'tanggal_rencana' => '2026-03-14']], $panel['terlambat']);
+    }
+
+    public function test_perubahan_status_langsung_tercermin(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $this->assertSame(1, $this->panel()['per_status']['rencana']);
+
+        $kegiatan->update(['status' => 'terlaksana', 'tanggal_realisasi' => '2026-03-14']);
+
+        $this->assertSame([0, 1], [$this->panel()['per_status']['rencana'], $this->panel()['per_status']['terlaksana']]);
+    }
+
+    public function test_kegiatan_bersama_muncul_di_setiap_iku(): void
+    {
+        $bersama = $this->kegiatan();
+        $this->klaim($this->plan, $bersama);
+        $this->klaim($this->rencanaAksiBaru('I-DUA'), $bersama);
+
+        $panel = $this->panel();
+
+        $this->assertSame(1, $panel['per_status']['rencana']);
+        $this->assertSame(['I-DUA', 'I-UJI'], array_column($panel['per_iku'], 'kode'));
+        $this->assertSame([1, 1], array_map(fn ($iku) => $iku['jumlah']['rencana'], $panel['per_iku']));
+    }
+
+    public function test_filter_sasaran_lewat_klaim(): void
+    {
+        $sasaran = SasaranStrategis::create(['renstra_id' => $this->jadwal->renstra_id, 'kode' => 'S-DUA', 'deskripsi' => 'Sasaran Dua']);
+        $this->klaim($this->plan, $this->kegiatan());
+        $this->klaim($this->rencanaAksiBaru('I-DUA', ['sasaran_strategis_id' => $sasaran->id]), $this->kegiatan(['status' => 'batal', 'justifikasi' => 'Batal pengujian']));
+
+        $panel = $this->panel(query: '?sasaran_id='.$sasaran->id);
+
+        $this->assertSame([0, 1], [$panel['per_status']['rencana'], $panel['per_status']['batal']]);
+        $this->assertSame(['I-DUA'], array_column($panel['per_iku'], 'kode'));
+    }
+
+    public function test_nama_terlambat_mengikuti_unit_berizin_tetapi_jumlah_tetap(): void
+    {
+        $unitB = $this->unitBaru('Unit B');
+        $this->kegiatan(['nama' => 'Terlambat A', 'tanggal_rencana' => '2026-03-01']);
+        $this->kegiatan(['nama' => 'Terlambat B', 'unit_id' => $unitB->id, 'tanggal_rencana' => '2026-03-02']);
+        $pegawai = $this->userWithRole('pegawai');
+        $this->grant($pegawai, 'pengukuran:create');
+
+        $panel = $this->panel($pegawai);
+        $this->assertSame([2, ['Terlambat A']], [$panel['terlambat_jumlah'], array_column($panel['terlambat'], 'nama')]);
+
+        $this->assertSame(['Terlambat A', 'Terlambat B'], array_column($this->panel($this->userWithRole('pimpinan'))['terlambat'], 'nama'));
+
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $pegawai->id, 'permission_id' => Permission::where('kode', 'kegiatan:read')->value('id'),
+            'unit_id' => null, 'alasan' => 'Deny pengujian', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $panel = $this->panel($pegawai);
+        $this->assertSame([2, null], [$panel['terlambat_jumlah'], $panel['terlambat']]);
+    }
+}
