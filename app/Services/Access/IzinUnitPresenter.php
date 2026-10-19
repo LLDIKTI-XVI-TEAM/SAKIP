@@ -25,15 +25,17 @@ final class IzinUnitPresenter
 
     /**
      * @param  Collection<int, UserPermissionGrant>  $grants  seluruh grant unit milik satu pasangan pengguna-unit
+     * @param  list<string>  $berperanAktif  hasil PermissionResolver::penggunaBerperanAktif untuk pengguna di halaman
      * @return array<string, mixed>
      */
-    public static function kelompok(Collection $grants, bool $rinci = false): array
+    public static function kelompok(Collection $grants, array $berperanAktif, bool $rinci = false): array
     {
         /** @var UserPermissionGrant $pertama */
         $pertama = $grants->first();
         $user = $pertama->user;
         $unit = $pertama->unit;
-        $keputusan = $user ? app(PermissionResolver::class)->decideMany($user, $grants->pluck('permission.kode')->filter()->unique()->values()->all(), $pertama->unit_id) : [];
+        // Deny eksplisit dievaluasi resolver penuh hanya di detail (satu pasangan) agar daftar tidak memanggil resolver per baris.
+        $keputusan = $rinci && $user ? app(PermissionResolver::class)->decideMany($user, $grants->pluck('permission.kode')->filter()->unique()->values()->all(), $pertama->unit_id) : [];
 
         return [
             'key' => "{$pertama->user_id}:{$pertama->unit_id}",
@@ -43,10 +45,11 @@ final class IzinUnitPresenter
             'user_roles' => $user?->roles->map(fn (Role $role) => $role->aktif ? $role->nama : "{$role->nama} (nonaktif)")->all() ?? [],
             'unit_id' => $pertama->unit_id,
             'unit_nama' => $unit?->nama,
-            // Diturunkan dari PermissionResolver: akun nonaktif, tanpa peran aktif, dan unit nonaktif menggugurkan seluruh kelompok; izin nonaktif dan deny eksplisit ditandai per butir.
+            // Kriteria PermissionResolver: akun nonaktif, tanpa peran resmi aktif, dan unit nonaktif menggugurkan seluruh kelompok; izin nonaktif ditandai per butir.
             'tidak_berlaku' => array_keys(array_filter([
                 'Akun nonaktif' => $user?->status !== 'aktif',
-                'Tanpa peran aktif' => collect($keputusan)->contains('reason', 'no_role'),
+                // Resolver memeriksa akun nonaktif lebih dulu, sehingga alasan peran hanya untuk akun aktif.
+                'Tanpa peran aktif' => $user?->status === 'aktif' && ! in_array($pertama->user_id, $berperanAktif, true),
                 'Unit nonaktif' => $unit?->status !== 'aktif',
             ])),
             'izin' => $grants
@@ -57,8 +60,8 @@ final class IzinUnitPresenter
                     'permission_id' => $grant->permission_id,
                     'label' => PermissionCatalog::LABEL_IZIN_UNIT[$grant->permission?->kode] ?? $grant->permission?->keterangan ?? $grant->permission?->kode,
                     'aktif' => (bool) $grant->permission?->aktif,
-                    'ditolak' => ($keputusan[$grant->permission?->kode ?? '']['reason'] ?? null) === 'explicit_deny',
                     ...($rinci ? [
+                        'ditolak' => ($keputusan[$grant->permission?->kode ?? '']['reason'] ?? null) === 'explicit_deny',
                         'alasan' => $grant->alasan,
                         'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',
                         'created_at' => $grant->created_at?->toISOString(),

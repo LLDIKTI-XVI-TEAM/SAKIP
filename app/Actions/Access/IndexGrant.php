@@ -8,10 +8,13 @@ use App\Models\User;
 use App\Models\UserPermissionGrant;
 use App\Services\Access\IzinUnitPresenter;
 use App\Services\Authorization\PermissionCatalog;
+use App\Services\Authorization\PermissionResolver;
 use Illuminate\Support\Str;
 
 class IndexGrant
 {
+    public function __construct(private readonly PermissionResolver $permissionResolver) {}
+
     /**
      * Daftar Izin Unit satu baris per pengguna × unit (Q62) beserta pilihan unit aktif dan permission yang boleh didelegasikan.
      * Paginasi menghitung kelompok; kelompok tampil bila pengguna, unit, atau salah satu izinnya cocok dengan pencarian.
@@ -74,9 +77,11 @@ class IndexGrant
             ->get()
             ->groupBy(fn (UserPermissionGrant $grant) => "{$grant->user_id}:{$grant->unit_id}");
 
+        $berperanAktif = $this->permissionResolver->penggunaBerperanAktif($pasangan->pluck('user_id')->unique()->values()->all());
+
         // Pasangan yang dicabut di antara dua query dilewati; total paginasi boleh lebih satu sesaat.
         $kelompok->setCollection($pasangan->filter(fn (UserPermissionGrant $p) => $grants->has("{$p->user_id}:{$p->unit_id}"))
-            ->values()->map(fn (UserPermissionGrant $p) => IzinUnitPresenter::kelompok($grants["{$p->user_id}:{$p->unit_id}"])));
+            ->values()->map(fn (UserPermissionGrant $p) => IzinUnitPresenter::kelompok($grants["{$p->user_id}:{$p->unit_id}"], $berperanAktif)));
 
         $units = Unit::where('status', 'aktif')
             ->select('id', 'nama')

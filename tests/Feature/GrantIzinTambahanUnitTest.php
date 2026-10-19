@@ -2055,7 +2055,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->assertSame(['Mengisi pengukuran', 'Mengubah pengukuran', 'Membuat kegiatan'], collect($kelompok['izin'])->pluck('label')->all());
         $this->assertSame('Pegawai Staf', $kelompok['user_name']);
         $this->assertSame('Pokja Kelembagaan', $kelompok['unit_nama']);
-        $this->assertSame(['grant_id', 'permission_id', 'label', 'aktif', 'ditolak'], array_keys($kelompok['izin'][0]));
+        $this->assertSame(['grant_id', 'permission_id', 'label', 'aktif'], array_keys($kelompok['izin'][0]));
         $this->assertCount(1, $rows["{$this->pegawaiUser->id}:{$this->unitB->id}"]['izin']);
 
         // Paginasi menghitung kelompok, bukan baris izin.
@@ -2138,7 +2138,8 @@ class GrantIzinTambahanUnitTest extends TestCase
     public function test_daftar_menandai_pasangan_tanpa_peran_aktif_dari_resolver(): void
     {
         $tanpaPeran = User::factory()->create(['nama' => 'SSO Baru', 'email' => 'ssobaru@sakip.test', 'status' => 'aktif']);
-        foreach ([$tanpaPeran, $this->pegawaiUser] as $user) {
+        $nonaktifTanpaPeran = User::factory()->create(['nama' => 'Nonaktif Tanpa Peran', 'email' => 'nonaktiftanpaperan@sakip.test', 'status' => 'nonaktif']);
+        foreach ([$tanpaPeran, $nonaktifTanpaPeran, $this->pegawaiUser] as $user) {
             UserPermissionGrant::create([
                 'user_id' => $user->id, 'permission_id' => $this->unitPermission->id,
                 'unit_id' => $this->unitA->id, 'alasan' => 'Fixture status berlaku', 'diberikan_oleh' => $this->adminUser->id,
@@ -2148,7 +2149,11 @@ class GrantIzinTambahanUnitTest extends TestCase
         $rows = collect($this->actingAs($this->adminUser)->get('/akses/grant')->viewData('page')['props']['grants']['data'])->keyBy('key');
 
         $this->assertSame(['Tanpa peran aktif'], $rows["{$tanpaPeran->id}:{$this->unitA->id}"]['tidak_berlaku']);
+        // Resolver memeriksa akun nonaktif lebih dulu, sehingga alasan peran tidak ikut ditampilkan.
+        $this->assertSame(['Akun nonaktif'], $rows["{$nonaktifTanpaPeran->id}:{$this->unitA->id}"]['tidak_berlaku']);
         $this->assertSame([], $rows["{$this->pegawaiUser->id}:{$this->unitA->id}"]['tidak_berlaku']);
+        $this->get("/akses/grant/{$tanpaPeran->id}/{$this->unitA->id}")
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('kelompok.tidak_berlaku', ['Tanpa peran aktif']));
     }
 
     /** Deny eksplisit global atau pada unit yang sama menandai izin itu ditolak; deny pada unit lain tidak (Q62 butir 2). */
@@ -2185,6 +2190,40 @@ class GrantIzinTambahanUnitTest extends TestCase
             'deny unit sama' => ['unit sama', true],
             'deny unit lain' => ['unit lain', false],
         ];
+    }
+
+    /** Status daftar dihitung sekali per halaman, bukan per baris: jumlah query tidak bertambah dengan jumlah pasangan (Engineering Standards, hindari N+1). */
+    public function test_daftar_jumlah_query_tidak_bertambah_per_pasangan(): void
+    {
+        $tambahPasangan = function (int $jumlah): void {
+            for ($i = 0; $i < $jumlah; $i++) {
+                $user = User::factory()->create(['status' => 'aktif']);
+                $user->roles()->attach(Role::where('kode', 'pegawai')->value('id'), [
+                    'id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->adminUser->id, 'created_at' => now(),
+                ]);
+                UserPermissionGrant::create([
+                    'user_id' => $user->id, 'permission_id' => $this->unitPermission->id,
+                    'unit_id' => $this->unitA->id, 'alasan' => 'Fixture jumlah query', 'diberikan_oleh' => $this->adminUser->id,
+                ]);
+            }
+        };
+        $hitungQuery = function (): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->actingAs($this->adminUser)->get('/akses/grant')->assertOk();
+            DB::disableQueryLog();
+
+            return count(DB::getQueryLog());
+        };
+
+        $tambahPasangan(1);
+        $hitungQuery();
+        $satuPasangan = $hitungQuery();
+        $tambahPasangan(14);
+        $limaBelasPasangan = $hitungQuery();
+
+        $this->assertSame(15, count($this->get('/akses/grant')->viewData('page')['props']['grants']['data']));
+        $this->assertSame($satuPasangan, $limaBelasPasangan);
     }
 
     /** Pasangan yang grant terakhirnya dicabut di antara query paginasi dan query detail dilewati, bukan 500. */
