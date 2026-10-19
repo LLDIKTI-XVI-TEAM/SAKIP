@@ -41,18 +41,25 @@ class DaftarKegiatanRencanaAksi
             return null;
         }
 
-        return DB::transaction(function () use ($actor, $header, $unitId): array {
+        // Capability di luar snapshot READ ONLY: gerbang klaim mengambil row lock (`FOR SHARE`) yang ditolak transaksi read-only.
+        $can = [
+            'tambah' => $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE),
+            // Pengelolaan klaim per kegiatan berada di halaman Kegiatan; tautan hanya bila izin ubah kegiatan ada.
+            'kelola' => $this->resolver->allows($actor, PermissionCodes::KEGIATAN_UPDATE, $unitId),
+        ];
+
+        return DB::transaction(function () use ($header, $can): array {
             // Daftar, penanda, dan total dibaca dari satu snapshot; bila dipanggil di dalam transaksi lain, isolasi milik caller.
             if (DB::transactionLevel() === 1) {
                 DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
             }
 
-            return $this->baca($actor, $header, $unitId);
+            return [...$this->baca($header), 'can' => $can];
         });
     }
 
-    /** @return array<string, mixed> */
-    private function baca(User $actor, RencanaAksi $header, string $unitId): array
+    /** @return array{daftar: list<array<string, mixed>>, total: array<string, mixed>} */
+    private function baca(RencanaAksi $header): array
     {
         $daftar = KlaimKegiatan::query()
             ->join('kegiatan', 'kegiatan.id', '=', 'klaim_kegiatan.kegiatan_id')
@@ -79,11 +86,6 @@ class DaftarKegiatanRencanaAksi
                 'catatan' => $klaim->catatan,
             ])->values()->all(),
             'total' => $this->anggaran->perRencanaAksi($header),
-            'can' => [
-                'tambah' => $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE),
-                // Pengelolaan klaim per kegiatan berada di halaman Kegiatan; tautan hanya bila izin ubah kegiatan ada.
-                'kelola' => $this->resolver->allows($actor, PermissionCodes::KEGIATAN_UPDATE, $unitId),
-            ],
         ];
     }
 }
