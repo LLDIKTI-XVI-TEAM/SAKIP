@@ -20,7 +20,12 @@ const show = () => render(<TargetModal pkId={pkId} indikatorId={id} tahun={2026}
 const conflict = async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
     const options = vi.mocked(router.put).mock.calls.at(-1)?.[2];
-    await act(async () => { options?.onError?.({ expected_state: 'Data sudah berubah.' }); options?.onFinish?.({} as ActiveVisit); });
+    // useForm baru menyimpan error setelah efek mount Editor berjalan, padahal Editor dipasang setelah fetch di luar act.
+    await waitFor(() => {
+        options?.onError?.({ expected_state: 'Data sudah berubah.' });
+        expect(screen.getByRole('button', { name: 'Muat data terbaru' })).toBeTruthy();
+    });
+    await act(async () => { options?.onFinish?.({} as ActiveVisit); });
 };
 const shims = [
     ['showModal', function (this: HTMLDialogElement) { this.open = true; }],
