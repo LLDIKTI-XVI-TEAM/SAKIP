@@ -175,7 +175,8 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                 </div>
                                                 <span className="flex items-center gap-2">
                                                     <Badge variant={status.variant}>{status.label}</Badge>
-                                                    {kegiatan.can.kelola && (
+                                                    {/* Klaim pengukuran dikelola lewat siklus pengukuran, bukan halaman Kegiatan. */}
+                                                    {kegiatan.can.kelola && row.sumber_klaim === 'rencana_aksi' && (
                                                         <Link href={`/kegiatan/${row.kegiatan_id}/edit`} aria-disabled={kotor} onBefore={() => !kotor} className="rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">
                                                             Kelola klaim
                                                         </Link>

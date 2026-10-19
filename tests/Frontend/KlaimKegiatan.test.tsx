@@ -59,7 +59,7 @@ it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan kla
         kegiatan={{ daftar: [
             { ...baris, id: 'k1', kegiatan_id: 'keg-1', nama: 'Workshop', anggaran: '1500000', sumber_klaim: 'rencana_aksi', kegiatan_bersama: true },
             { ...baris, id: 'k2', kegiatan_id: 'keg-2', nama: 'Rapat', anggaran: null, sumber_klaim: 'pengukuran', kegiatan_bersama: false },
-        ], total: { total: '1500000', belum_diisi: 1, per_periode: { tw1: { total: '1500000', belum_diisi: 1 } } }, can: { tambah: false, kelola: false } }} />);
+        ], total: { total: '1500000', belum_diisi: 1, per_periode: { tw1: { total: '1500000', belum_diisi: 1 } } }, can: { tambah: false, kelola: true } }} />);
 
     const [workshop, rapat] = screen.getAllByRole('listitem').map((item) => within(item));
     expect(workshop.getByText(/Anggaran: Rp\s?1\.500\.000/)).toBeTruthy();
@@ -68,6 +68,9 @@ it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan kla
     expect(rapat.getByText('Anggaran: Belum diisi')).toBeTruthy();
     expect(rapat.getByText('Klaim pengukuran')).toBeTruthy();
     expect(rapat.queryByText('Kegiatan bersama')).toBeNull();
+    // Klaim pengukuran tidak dapat dikelola di halaman Kegiatan, sehingga tautannya tidak ditawarkan.
+    expect(workshop.getByRole('link', { name: 'Kelola klaim' })).toBeTruthy();
+    expect(rapat.queryByRole('link', { name: 'Kelola klaim' })).toBeNull();
     expect(screen.getByText(/Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)/)).toBeTruthy();
     expect(screen.getByText(/^Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
 });
