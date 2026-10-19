@@ -5,15 +5,23 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vite
 import { Editor } from '@/Pages/TargetTahunan/Editor';
 import type { TargetEditorData } from '@/Pages/TargetTahunan/types';
 
+// Editor selalu dirender di dalam halaman Inertia; format angka membaca setelan tampilan dari props bersama.
+vi.mock('@inertiajs/react', async (original) => ({
+    ...(await original<typeof import('@inertiajs/react')>()),
+    usePage: () => ({ props: { pengaturan: {} } }),
+}));
+
 const editor: TargetEditorData = {
     indikator_id: '11111111-1111-4111-8111-111111111111', tahun: 2026, baseline_year: 2025,
-    indikator: { id: '11111111-1111-4111-8111-111111111111', kode: 'IKU 3', nama: 'Indikator pengujian', satuan: 'nilai', presisi: 2, desimal_tampilan: 1, status: 'aktif', tahun_mulai_berlaku: 2025 },
+    indikator: { id: '11111111-1111-4111-8111-111111111111', kode: 'IKU 3', nama: 'Indikator pengujian', satuan: 'nilai', presisi: 2, desimal_tampilan: 1, status: 'aktif', tahun_mulai_berlaku: 2025, arah: 'naik_baik' },
     renstra: { id: '22222222-2222-4222-8222-222222222222', nama: 'Renstra pengujian', status: 'aktif', tahun_mulai: 2025, tahun_selesai: 2029 },
     baseline: '74.2345', target_tahunan: '76.25', has_snapshot: true, expected_state: 'a'.repeat(64), can: { update: true }, read_only_reason: null,
+    target_renstra: '75', alasan_deviasi_renstra: null, status_deviasi: 'sesuai',
 };
+const path = `/perjanjian-kinerja/44444444-4444-4444-8444-444444444444/target/${editor.indikator_id}`;
 const onClose = vi.fn(), onLoad = vi.fn(), onSaved = vi.fn();
-const EditorHost = () => <Editor editor={editor} onClose={onClose} onLoad={onLoad} onSaved={onSaved} />;
-const show = (changes: Partial<TargetEditorData> = {}) => render(<Editor editor={{ ...editor, ...changes }} onClose={onClose} onLoad={onLoad} onSaved={onSaved} />);
+const EditorHost = () => <Editor editor={editor} path={path} onClose={onClose} onLoad={onLoad} onSaved={onSaved} />;
+const show = (changes: Partial<TargetEditorData> = {}) => render(<Editor editor={{ ...editor, ...changes }} path={path} onClose={onClose} onLoad={onLoad} onSaved={onSaved} />);
 const submit = () => { fireEvent.click(screen.getByRole('button', { name: 'Simpan' })); return vi.mocked(router.put).mock.calls.at(-1)?.[2]; };
 const page = (outcome: unknown): Page => ({ component: 'Perencanaan/SasaranIndikator/Index', props: { errors: {} }, url: '/perencanaan/sasaran-indikator', version: null, clearHistory: false, encryptHistory: false, rescuedProps: [], rememberedState: {}, flash: { target_tahunan: outcome } });
 const payload = (index = -1) => {
@@ -48,7 +56,61 @@ it('menjaga angka historis tepat dan membedakan kosong dengan nol pada payload',
     expect(screen.getByLabelText<HTMLInputElement>('Target 2026').value).toBe('0');
     fireEvent.change(screen.getByLabelText('Baseline 2025'), { target: { value: '999999999999999999.123456789012' } });
     submit();
+    expect(vi.mocked(router.put).mock.calls[0][0]).toBe(path);
     expect(vi.mocked(router.put).mock.calls[0][1]).toMatchObject({ baseline: '999999999999999999.123456789012', target_tahunan: '0', expected_state: editor.expected_state });
+});
+
+it('setelah snapshot editor menjelaskan target beku tetap dipakai dan dasar perubahan opsional', () => {
+    show();
+    expect(screen.getByText(/Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun 2026/)).toBeTruthy();
+    expect(screen.getByText(/menunggu revisi PK berversi atau, sebelum itu tersedia, keputusan PM/)).toBeTruthy();
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Alasan perubahan (opsional)').required).toBe(false);
+    expect(screen.getByLabelText<HTMLInputElement>('Rujukan sumber (opsional)').required).toBe(false);
+    expect(screen.queryByText(/wajib jika nilai diubah/)).toBeNull();
+});
+
+it('target Renstra ada: pembanding, anjuran, penanda deviasi, dan isian alasan berisi alasan tersimpan', () => {
+    show({ target_tahunan: '79', target_renstra: '80', status_deviasi: 'menyimpang', alasan_deviasi_renstra: 'PK revisi menurunkan target' });
+    expect(screen.getByText('Target Renstra 2026')).toBeTruthy();
+    // Pembanding mengikuti desimal_tampilan seperti tabel halaman PK, bukan string kanonis server.
+    expect(screen.getByText('80,0')).toBeTruthy();
+    expect(screen.getByText(/minimal sama atau naik satu poin dari target Renstra/)).toBeTruthy();
+    expect(screen.getByText('Di bawah target Renstra')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLTextAreaElement>('Alasan deviasi terhadap target Renstra').value).toBe('PK revisi menurunkan target');
+});
+
+it('indikator turun_baik yang menyimpang ditandai di atas target Renstra', () => {
+    show({ indikator: { ...editor.indikator, arah: 'turun_baik' }, target_tahunan: '81', target_renstra: '80', status_deviasi: 'menyimpang' });
+    const badge = screen.getByText('Di atas target Renstra');
+    expect(badge.classList.contains('text-[11px]')).toBe(false);
+    expect(badge.classList.contains('text-xs')).toBe(true);
+});
+
+it('tanpa target Renstra: keterangan "Target Renstra belum ada" tanpa isian alasan deviasi', () => {
+    show({ target_renstra: null, status_deviasi: 'renstra_belum_ada' });
+    expect(screen.getByText('Target Renstra belum ada')).toBeTruthy();
+    expect(screen.queryByLabelText('Alasan deviasi terhadap target Renstra')).toBeNull();
+});
+
+it('galat server terikat ke isian alasan deviasi walau status awal sesuai', async () => {
+    show();
+    const options = submit();
+    await act(async () => { options?.onError?.({ alasan_deviasi_renstra: 'Target PK lebih rendah dari target Renstra tahun ini. Isi alasan deviasi untuk menyimpan.' }); options?.onFinish?.({} as ActiveVisit); });
+    const field = screen.getByLabelText<HTMLTextAreaElement>('Alasan deviasi terhadap target Renstra');
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toContain('Target PK lebih rendah dari target Renstra');
+});
+
+it('simpan baseline saja membawa alasan deviasi yang tersimpan', () => {
+    show({ target_tahunan: '79', target_renstra: '80', status_deviasi: 'menyimpang', alasan_deviasi_renstra: 'Alasan tersimpan' });
+    fireEvent.change(screen.getByLabelText('Baseline 2025'), { target: { value: '74' } });
+    submit();
+    expect(payload()).toMatchObject({ baseline: '74', alasan_deviasi_renstra: 'Alasan tersimpan' });
+});
+
+it('tanpa snapshot editor tidak menampilkan pemberitahuan target beku', () => {
+    show({ has_snapshot: false });
+    expect(screen.queryByText(/tidak mengubah target yang dipakai Rencana Aksi/)).toBeNull();
 });
 
 it('tidak membulatkan baseline ataupun target existing ketika presisi turun', () => {
@@ -107,21 +169,20 @@ it.each(['Batal', 'Muat data terbaru'])('hasil tidak cocok tetap melindungi draf
 
 it('no-op setelah snapshot tanpa metadata dan target_id null tetap hasil sah', async () => {
     show({ baseline: null, target_tahunan: null });
-    expect(screen.getByLabelText<HTMLInputElement>('Rujukan sumber').required).toBe(false);
+    expect(screen.getByLabelText<HTMLInputElement>('Rujukan sumber (opsional)').required).toBe(false);
     const options = submit();
     await act(async () => { options?.onSuccess?.(page(receipt())); });
     expect(onSaved).toHaveBeenCalledWith('Tidak ada perubahan.');
     expect(onClose).toHaveBeenCalledOnce();
 });
 
-it('pending menolak submit ganda, dismissal dan pergantian tahun', async () => {
+it('pending menolak submit ganda, dismissal dan navigasi', async () => {
     show(); const options = submit();
     await act(async () => { options?.onStart?.({} as PendingVisit); });
     fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
     fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.click(screen.getByRole('dialog'));
     fireEvent.click(screen.getByRole('button', { name: 'Tutup dialog' }));
-    fireEvent.change(screen.getByLabelText('Tahun'), { target: { value: '2027' } });
     const navigate = new CustomEvent('inertia:before', { cancelable: true, detail: { visit: { method: 'get', url: new URL('/dashboard', window.location.href), prefetch: false } } });
     document.dispatchEvent(navigate);
     expect(navigate.defaultPrevented).toBe(true);
@@ -180,15 +241,6 @@ it.each(['network', '419', '500'] as const)('%s mempertahankan input tanpa repla
     if (failure !== '419') expect(screen.getByText(/Hasil simpan belum dapat dipastikan/)).toBeTruthy();
 });
 
-it('dirty tahun membutuhkan persetujuan; hanya memuat pasangan baru setelah disetujui', () => {
-    show(); fireEvent.change(screen.getByLabelText('Baseline 2025'), { target: { value: '75' } });
-    fireEvent.change(screen.getByLabelText('Tahun'), { target: { value: '2027' } }); expect(onLoad).not.toHaveBeenCalled();
-    keepEditing();
-    expect(screen.getByLabelText<HTMLInputElement>('Baseline 2025').value).toBe('75');
-    fireEvent.change(screen.getByLabelText('Tahun'), { target: { value: '2027' } });
-    discardChanges(); expect(onLoad).toHaveBeenCalledWith(2027);
-});
-
 it.each(['Batal', 'Tutup dialog', 'Escape', 'backdrop'])('%s memakai konfirmasi aplikasi dan melanjutkan penutupan sekali', (action) => {
     show(); fireEvent.change(screen.getByLabelText('Baseline 2025'), { target: { value: '75' } });
     const requestClose = () => {
@@ -210,7 +262,7 @@ it.each(['Batal', 'Tutup dialog', 'Escape', 'backdrop'])('%s memakai konfirmasi 
 it('fokus, Escape dan keyboard dialog bertingkat tidak menutup editor atau mengirim form', async () => {
     show();
     // Tunggu fokus awal Modal sebelum menguji fokus konfirmasi yang berada di atasnya.
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Tahun')));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Baseline 2025')));
     fireEvent.change(screen.getByLabelText('Baseline 2025'), { target: { value: '75' } });
     const cancel = screen.getByRole('button', { name: 'Batal' });
     cancel.focus(); fireEvent.click(cancel);
@@ -232,13 +284,15 @@ it('fokus, Escape dan keyboard dialog bertingkat tidak menutup editor atau mengi
 
 it('konfirmasi tertunda mengunci aksi lain dan tidak menyimpan draft tanpa sengaja', () => {
     show(); fireEvent.change(screen.getByLabelText('Baseline 2025'), { target: { value: '75' } });
-    fireEvent.change(screen.getByLabelText('Tahun'), { target: { value: '2027' } });
-    fireEvent.change(screen.getByLabelText('Tahun'), { target: { value: '2028' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+    const navigate = new CustomEvent('inertia:before', { cancelable: true, detail: { visit: { method: 'get', url: new URL('/dashboard', window.location.href), prefetch: false } } });
+    document.dispatchEvent(navigate);
+    expect(navigate.defaultPrevented).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
     discardChanges();
-    expect(onLoad).toHaveBeenCalledExactlyOnceWith(2027);
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onLoad).not.toHaveBeenCalled();
     expect(router.put).not.toHaveBeenCalled();
 });
 
@@ -279,10 +333,10 @@ it.each(['get', 'post'] as const)('visit %s baru ditahan sebelum request, dibata
     expect(window.confirm).not.toHaveBeenCalled();
 });
 
-it('izin baca saja tetap melihat nilai, tahun dan alasan tanpa tombol simpan', () => {
+it('izin baca saja tetap melihat nilai dan alasan tanpa tombol simpan; tahun mengikuti PK tanpa pilihan', () => {
     show({ can: { update: false }, read_only_reason: 'Anda tidak memiliki izin mengubah target.' });
     expect(screen.getByLabelText<HTMLInputElement>('Target 2026').readOnly).toBe(true);
     expect(screen.queryByRole('button', { name: 'Simpan' })).toBeNull();
     expect(screen.getByText('Anda tidak memiliki izin mengubah target.')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Tahun'), { target: { value: '2027' } }); expect(onLoad).toHaveBeenCalledWith(2027);
+    expect(screen.queryByLabelText('Tahun')).toBeNull();
 });

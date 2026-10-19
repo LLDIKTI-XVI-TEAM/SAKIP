@@ -6,6 +6,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\TargetKinerja;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -14,10 +15,14 @@ use Illuminate\Validation\ValidationException;
 class TargetTahunanState
 {
     /** @return array{indikator: IndikatorKinerja, sasaran: SasaranStrategis, renstra: Renstra, target: ?TargetKinerja, tahun: int, has_snapshot: bool} */
-    public static function lock(string $indikatorId, int $tahun, bool $writing = false): array
+    public static function lock(string $indikatorId, int $tahun, bool $writing = false, ?string $renstraId = null): array
     {
         $indikator = IndikatorKinerja::whereKey($indikatorId)->lock($writing ? true : 'for share')->firstOrFail();
         $sasaran = SasaranStrategis::whereKey($indikator->sasaran_strategis_id)->sharedLock()->firstOrFail();
+        // Konteks PK: indikator Renstra lain diperlakukan tidak ada, sebelum aturan tahun dinilai.
+        if ($renstraId !== null && $sasaran->renstra_id !== $renstraId) {
+            throw (new ModelNotFoundException)->setModel(IndikatorKinerja::class, [$indikatorId]);
+        }
         $renstra = Renstra::whereKey($sasaran->renstra_id)->sharedLock()->firstOrFail();
         if (! self::tahunBerlaku($indikator, $renstra, $tahun)) {
             throw ValidationException::withMessages(['tahun' => 'Tahun harus berada dalam rentang Renstra dan tidak sebelum indikator mulai berlaku.']);

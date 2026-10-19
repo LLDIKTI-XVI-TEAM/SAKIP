@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\PerjanjianKinerja;
 
+use App\Models\IndikatorKinerja;
 use App\Models\Renstra;
+use App\Models\SasaranStrategis;
+use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\QueryException;
@@ -20,6 +23,8 @@ class MigrasiTargetPkDanLampiranTest extends TestCase
     private const MIGRASI_NOMOR_PK = '2026_10_19_000002_opsionalkan_nomor_pk_renstra_pk';
 
     private const MIGRASI_KETERANGAN = '2026_10_19_000003_tambah_keterangan_ke_berkas';
+
+    private const MIGRASI_ALASAN_DEVIASI = '2026_10_19_000004_tambah_alasan_deviasi_renstra_ke_target_kinerjas';
 
     private string $userId;
 
@@ -94,6 +99,44 @@ class MigrasiTargetPkDanLampiranTest extends TestCase
         $migrasi->up();
         $this->assertTrue(Schema::hasColumn('berkas', 'keterangan'));
         $this->assertSame(1, DB::table('berkas')->count());
+    }
+
+    public function test_rollback_alasan_deviasi_ditolak_bila_ada_alasan_tersimpan(): void
+    {
+        $this->sisipkanTarget('PK revisi menurunkan target');
+
+        try {
+            $this->migrasi(self::MIGRASI_ALASAN_DEVIASI)->down();
+            $this->fail('Rollback seharusnya ditolak selama masih ada alasan deviasi.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Rollback ditolak', $e->getMessage());
+        }
+
+        $this->assertTrue(Schema::hasColumn('target_kinerjas', 'alasan_deviasi_renstra'));
+        $this->assertSame('PK revisi menurunkan target', DB::table('target_kinerjas')->value('alasan_deviasi_renstra'));
+    }
+
+    public function test_rollback_lalu_migrasi_ulang_alasan_deviasi_saat_belum_ada_isi(): void
+    {
+        $this->sisipkanTarget(null);
+        $migrasi = $this->migrasi(self::MIGRASI_ALASAN_DEVIASI);
+
+        $migrasi->down();
+        $this->assertFalse(Schema::hasColumn('target_kinerjas', 'alasan_deviasi_renstra'));
+
+        $migrasi->up();
+        $this->assertTrue(Schema::hasColumn('target_kinerjas', 'alasan_deviasi_renstra'));
+        $this->assertSame(1, DB::table('target_kinerjas')->count());
+    }
+
+    private function sisipkanTarget(?string $alasan): void
+    {
+        $sasaran = SasaranStrategis::create(['renstra_id' => $this->renstraId, 'kode' => 'S1', 'deskripsi' => 'Sasaran fixture']);
+        $unit = Unit::create(['nama' => 'Unit fixture', 'status' => 'aktif', 'created_by' => $this->userId]);
+        $indikator = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaran->id, 'unit_id' => $unit->id, 'kode' => 'IKU-1', 'nama' => 'Indikator fixture',
+            'satuan' => 'nilai', 'presisi' => 2, 'tahun_mulai_berlaku' => 2026, 'created_by' => $this->userId, 'created_by_role' => 'perencanaan']);
+        DB::table('target_kinerjas')->insert(['id' => (string) Str::uuid(), 'indikator_kinerja_id' => $indikator->id, 'tahun' => 2026,
+            'target_tahunan' => '80', 'alasan_deviasi_renstra' => $alasan, 'created_at' => now(), 'updated_at' => now()]);
     }
 
     private function sisipkanBerkas(string $pkId, ?string $keterangan): void

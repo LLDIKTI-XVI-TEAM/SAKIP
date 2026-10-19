@@ -29,7 +29,6 @@ use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Component\Process\InputStream;
@@ -87,7 +86,7 @@ class JadwalActivationConcurrencyTest extends TestCase
         $this->assertSame('90.000000000000', JadwalSnapshot::sole()->getRawOriginal('target'));
     }
 
-    public function test_waiting_target_writer_sees_snapshot_and_correction_needs_metadata(): void
+    public function test_waiting_target_writer_sees_snapshot_and_change_after_snapshot_needs_no_metadata(): void
     {
         $this->readyJadwal();
         $indikator = IndikatorKinerja::sole();
@@ -101,13 +100,8 @@ class JadwalActivationConcurrencyTest extends TestCase
         $before = $this->snapshotFingerprint();
 
         $fresh = app(ShowTargetTahunan::class)->handle($writer, $indikator->id, 2026)['expected_state'];
-        try {
-            app(SaveTargetTahunan::class)->handle($writer, $indikator->id, 2026, [...$data, 'expected_state' => $fresh]);
-            $this->fail('Koreksi setelah snapshot wajib alasan dan rujukan.');
-        } catch (ValidationException $exception) {
-            $this->assertEqualsCanonicalizing(['alasan', 'rujukan_sumber'], array_keys($exception->errors()));
-        }
-        app(SaveTargetTahunan::class)->handle($writer, $indikator->id, 2026, [...$data, 'expected_state' => $fresh, 'alasan' => 'Koreksi PK', 'rujukan_sumber' => 'Nota fixture']);
+        // Q63 §63.1: perubahan target PK setelah snapshot tidak memerlukan alasan maupun rujukan.
+        $this->assertTrue(app(SaveTargetTahunan::class)->handle($writer, $indikator->id, 2026, [...$data, 'expected_state' => $fresh])['changed']);
         $this->assertSame('90.000000000000', DB::table('target_kinerjas')->where('indikator_kinerja_id', $indikator->id)->value('target_tahunan'));
         $this->assertSame($before, $this->snapshotFingerprint());
     }

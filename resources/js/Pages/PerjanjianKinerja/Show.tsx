@@ -7,12 +7,14 @@ import { Button } from '@/Components/Button';
 import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import type { BerkasPk, RenstraPkSummary, StorageSettings } from '@/types/perjanjian-kinerja';
+import type { BerkasPk, RenstraPkSummary, StorageSettings, TargetPkSasaran } from '@/types/perjanjian-kinerja';
 import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModal';
 import { PkLockNotice, StatusJadwalBadge } from './Partials/StatusJadwal';
+import { TargetPkTable } from './Partials/TargetPkTable';
 
 interface ShowProps {
     pk: RenstraPkSummary;
+    target_pk?: TargetPkSasaran[];
     jadwal_status?: string | null;
     is_jadwal_aktif: boolean;
     is_jadwal_terkunci?: boolean;
@@ -22,10 +24,11 @@ interface ShowProps {
         delete_berkas: boolean;
         read_berkas?: boolean;
         upload_berkas?: boolean;
+        update_target?: boolean;
     };
 }
 
-export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, storageSettings, can }: ShowProps) {
+export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, storageSettings, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -106,6 +109,8 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                         </dl>
                     </CardContent>
                 </Card>
+
+                <TargetPkTable pkId={pk.id} tahun={pk.tahun} sasaran={target_pk} canUpdate={can.update_target === true} jadwalStatus={jadwal_status} />
 
                 <Card>
                     <CardHeader>

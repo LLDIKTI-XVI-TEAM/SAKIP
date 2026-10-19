@@ -9,6 +9,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\Permission;
+use App\Models\RenstraPk;
 use App\Models\TargetKinerja;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
@@ -17,7 +18,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Inertia\Inertia;
+use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\TargetTahunanFixtures;
@@ -53,10 +54,10 @@ class TargetTahunanTest extends TestCase
     {
         $actor = $this->calendarActor(['indikator:read', 'target:update']);
         $indicator = $this->targetIndicator($actor);
-        $this->actingAs($actor)->getJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026/editor')
+        $this->actingAs($actor)->getJson($this->targetPkUrl($indicator, '/editor'))
             ->assertOk()->assertJsonPath('baseline_year', 2025)->assertJsonPath('can.update', true)
             ->assertJsonPath('baseline', null)->assertJsonMissingPath('actor');
-        $this->getJson('/perencanaan/indikator/not-uuid/target-tahunan/2026/editor')->assertNotFound();
+        $this->getJson('/perjanjian-kinerja/'.Str::uuid().'/target/not-uuid/editor')->assertNotFound();
     }
 
     #[DataProvider('permissions')]
@@ -87,7 +88,7 @@ class TargetTahunanTest extends TestCase
         $indicator = $this->targetIndicator($actor);
         $data = $this->payload($actor, $indicator);
         UserPermissionDeny::create(['user_id' => $actor->id, 'permission_id' => Permission::where('kode', $permission)->sole()->id, 'alasan' => 'Fixture penolakan', 'ditetapkan_oleh' => $actor->id]);
-        $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', $data)->assertForbidden();
+        $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), $data)->assertForbidden();
         $this->assertSame(0, TargetKinerja::count());
         $this->assertSame(0, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
     }
@@ -145,7 +146,7 @@ class TargetTahunanTest extends TestCase
         $this->assertSame(2, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
     }
 
-    public function test_post_snapshot_noop_needs_no_metadata_but_actual_change_does(): void
+    public function test_post_snapshot_change_needs_no_metadata_and_keeps_optional_metadata_in_audit(): void
     {
         $actor = $this->calendarActor(['indikator:read', 'target:update']);
         $indicator = $this->targetIndicator($actor);
@@ -153,29 +154,27 @@ class TargetTahunanTest extends TestCase
         $snapshot = $this->snapshot($indicator);
         $before = $snapshot->refresh()->getAttributes();
         $this->assertFalse($this->save($actor, $indicator, ['target_tahunan' => '76.2500'])['changed']);
-        try {
-            $this->save($actor, $indicator);
-            $this->fail('Pengosongan aktual harus memerlukan rujukan.');
-        } catch (ValidationException $exception) {
-            $this->assertSame(['Tuliskan alasan perubahan.'], $exception->errors()['alasan']);
-            $this->assertSame(['Cantumkan rujukan sumber perubahan.'], $exception->errors()['rujukan_sumber']);
-        }
+        // Q63 §63.1: perubahan target PK setelah snapshot bukan koreksi PK; alasan dan rujukan opsional.
+        $this->assertTrue($this->save($actor, $indicator)['changed']);
+        $tanpaAlasan = AuditLog::where('tindakan', 'target_tahunan.simpan')->whereNotNull('nilai_lama')->sole();
+        $this->assertSame('Pencatatan audit untuk tindakan target_tahunan.simpan.', $tanpaAlasan->alasan);
+        $this->assertSame('76.25', $tanpaAlasan->nilai_lama['target_tahunan']);
+        $this->assertNull($tanpaAlasan->nilai_baru['target_tahunan']);
         $this->save($actor, $indicator, ['baseline' => '74.2345', 'alasan' => 'Koreksi input', 'rujukan_sumber' => 'Dokumen fixture hal. 2']);
         $this->assertSame($before, $snapshot->fresh()->getAttributes());
         $audit = AuditLog::where('tindakan', 'target_tahunan.simpan')->where('alasan', 'Koreksi input')->sole();
-        $this->assertSame('76.25', $audit->nilai_lama['target_tahunan']);
-        $this->assertNull($audit->nilai_baru['target_tahunan']);
+        $this->assertSame('74.2345', $audit->nilai_baru['baseline']);
         $this->assertSame('Dokumen fixture hal. 2', $audit->nilai_baru['rujukan_sumber']);
     }
 
-    public function test_absent_snapshot_noop_is_allowed_and_initial_value_requires_metadata(): void
+    public function test_absent_snapshot_noop_is_allowed_and_initial_value_needs_no_metadata(): void
     {
         $actor = $this->calendarActor(['indikator:read', 'target:update']);
         $indicator = $this->targetIndicator($actor);
         $this->snapshot($indicator);
         $this->assertNull($this->save($actor, $indicator)['target_id']);
-        $this->expectException(ValidationException::class);
-        $this->save($actor, $indicator, ['target_tahunan' => '0']);
+        $this->assertTrue($this->save($actor, $indicator, ['target_tahunan' => '0'])['changed']);
+        $this->assertSame('0.000000000000', TargetKinerja::sole()->target_tahunan);
     }
 
     public function test_post_snapshot_correction_preserves_literal_zero_reason_in_audit(): void
@@ -187,7 +186,7 @@ class TargetTahunanTest extends TestCase
         $before = $snapshot->refresh()->getAttributes();
         $data = $this->payload($actor, $indicator, ['target_tahunan' => '77', 'alasan' => '0', 'rujukan_sumber' => 'Dokumen fixture hal. 3']);
 
-        $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', $data)
+        $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), $data)
             ->assertOk()->assertJsonPath('changed', true);
 
         $audit = AuditLog::where('tindakan', 'target_tahunan.simpan')->where('nilai_baru->target_tahunan', '77')->sole();
@@ -236,14 +235,20 @@ class TargetTahunanTest extends TestCase
         $indicator = $this->targetIndicator($actor);
         $data = $this->payload($actor, $indicator);
         foreach ([['expected_state' => str_repeat('a', 64)], ['alasan' => "bad\0text"], ['updated_by' => $actor->id], ['target_tahunan' => 0]] as $invalid) {
-            $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', [...$data, ...$invalid])->assertStatus(isset($invalid['expected_state']) ? 409 : 422);
+            $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), [...$data, ...$invalid])->assertStatus(isset($invalid['expected_state']) ? 409 : 422);
         }
+        // Route PK selalu memakai tahun PK; aturan rentang tahun tetap dijaga Action untuk pemanggil lain.
         foreach ([2025, 2030] as $year) {
-            $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/'.$year, $data)->assertUnprocessable();
+            try {
+                app(SaveTargetTahunan::class)->handle($actor, $indicator->id, $year, $data);
+                $this->fail('Tahun di luar rentang harus ditolak.');
+            } catch (ValidationException $e) {
+                $this->assertArrayHasKey('tahun', $e->errors());
+            }
         }
         $indicator->update(['status' => 'arsip']);
         $this->assertFalse($this->editor($actor, $indicator)['can']['update']);
-        $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', $data)->assertUnprocessable();
+        $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), $data)->assertUnprocessable();
         $this->assertSame(0, TargetKinerja::count());
     }
 
@@ -262,43 +267,40 @@ class TargetTahunanTest extends TestCase
         $this->assertSame(0, TargetKinerja::count());
     }
 
-    public function test_oversized_year_is_rejected_at_route_boundary(): void
-    {
-        $actor = $this->calendarActor(['indikator:read', 'target:update']);
-        $indicator = $this->targetIndicator($actor);
-        $this->actingAs($actor)->getJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/99999999999999999999999/editor')->assertNotFound();
-    }
-
     public function test_inertia_noop_redirect_preserves_correlated_nullable_outcome(): void
     {
         $actor = $this->calendarActor(['indikator:read', 'target:update']);
         $indicator = $this->targetIndicator($actor);
         $this->snapshot($indicator);
         $data = $this->payload($actor, $indicator);
-        $this->actingAs($actor)->withHeader('X-Inertia', 'true')->put('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', $data)
-            ->assertStatus(303)->assertRedirect(route('perencanaan.sasaran-indikator.index'))
+        $url = $this->targetPkUrl($indicator);
+        $show = route('perjanjian-kinerja.show', RenstraPk::sole());
+        $this->actingAs($actor)->withHeader('X-Inertia', 'true')->put($url, $data)
+            ->assertStatus(303)->assertRedirect($show)
             ->assertSessionHas('inertia.flash_data.target_tahunan', ['target_id' => null, 'indikator_id' => $indicator->id, 'tahun' => 2026, 'operation_id' => $data['operation_id'], 'changed' => false]);
         $this->assertSame(0, TargetKinerja::count());
         $this->assertSame(0, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
-        $this->from(route('perencanaan.sasaran-indikator.index'))->put('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', [...$data, 'target_tahunan' => '0'])
-            ->assertStatus(303)->assertSessionHasErrors(['alasan' => 'Tuliskan alasan perubahan.', 'rujukan_sumber' => 'Cantumkan rujukan sumber perubahan.']);
-        $this->from(route('perencanaan.sasaran-indikator.index'))->put('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', [...$data, 'expected_state' => str_repeat('a', 64)])
+        $this->from($show)->put($url, [...$data, 'operation_id' => (string) Str::uuid(), 'target_tahunan' => '0'])
+            ->assertStatus(303)->assertRedirect($show)->assertSessionHasNoErrors()
+            ->assertSessionHas('inertia.flash_data.target_tahunan.changed', true);
+        $this->from($show)->put($url, [...$data, 'expected_state' => str_repeat('a', 64)])
             ->assertStatus(303)->assertSessionHasErrors(['expected_state']);
     }
 
-    public function test_inertia_redirect_can_be_forbidden_after_target_and_audit_are_saved(): void
+    public function test_izin_baca_dicabut_setelah_simpan_menutup_editor_tetapi_halaman_pk_tetap_terbaca(): void
     {
         $actor = $this->calendarActor(['indikator:read', 'target:update']);
         $indicator = $this->targetIndicator($actor);
         $data = $this->payload($actor, $indicator, ['baseline' => '74.2', 'target_tahunan' => '76.25']);
         $response = $this->actingAs($actor)->withHeader('X-Inertia', 'true')
-            ->put('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', $data)
-            ->assertStatus(303)->assertRedirect(route('perencanaan.sasaran-indikator.index'));
+            ->put($this->targetPkUrl($indicator), $data)
+            ->assertStatus(303)->assertRedirect(route('perjanjian-kinerja.show', RenstraPk::sole()));
 
-        // Hak baca dapat dicabut sesudah PUT selesai, sebelum Inertia mengikuti GET redirect.
+        // Hak baca dapat dicabut sesudah PUT selesai, sebelum Inertia mengikuti GET redirect; halaman PK terbuka untuk semua peran.
         UserPermissionDeny::create(['user_id' => $actor->id, 'permission_id' => Permission::where('kode', 'indikator:read')->sole()->id, 'alasan' => 'Fixture penolakan setelah simpan', 'ditetapkan_oleh' => $actor->id]);
-        $this->withHeader('X-Inertia-Version', Inertia::getVersion())
-            ->get($response->headers->get('Location'))->assertForbidden();
+        $this->withoutHeader('X-Inertia')->get($response->headers->get('Location'))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('can.update_target', false));
+        $this->getJson($this->targetPkUrl($indicator, '/editor'))->assertForbidden();
 
         $target = TargetKinerja::sole();
         $this->assertSame('74.200000000000', $target->baseline);
@@ -344,7 +346,7 @@ class TargetTahunanTest extends TestCase
             if ($case[3] ?? false) {
                 unset($data[$field]);
             }
-            $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', $data)
+            $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), $data)
                 ->assertUnprocessable()->assertJsonPath('errors.'.$field.'.0', $message);
             try {
                 app(SaveTargetTahunan::class)->handle($actor, $indicator->id, 2026, $data);

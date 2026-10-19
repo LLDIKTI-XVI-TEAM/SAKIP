@@ -86,7 +86,6 @@ use App\Http\Controllers\Renstra\ShowRenstra;
 use App\Http\Controllers\Renstra\StoreRenstra;
 use App\Http\Controllers\Renstra\UpdateRenstra;
 use App\Http\Controllers\TargetRenstra\TargetRenstraController;
-use App\Http\Controllers\TargetTahunan\TargetTahunanController;
 use App\Http\Controllers\Unit\DestroyUnit;
 use App\Http\Controllers\Unit\IndexUnit;
 use App\Http\Controllers\Unit\StoreUnit;
@@ -140,9 +139,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/penanggung-jawab/opsi/pengguna', [PenanggungJawabController::class, 'users'])->name('penanggung-jawab.users');
     Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab', [PenanggungJawabController::class, 'show'])->whereUuid('indikator')->name('penanggung-jawab.show');
     Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab/hak-kerja', [PenanggungJawabController::class, 'readiness'])->whereUuid('indikator')->name('penanggung-jawab.readiness');
-
-    Route::get('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}/editor', [TargetTahunanController::class, 'editor'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.editor');
-    Route::put('/perencanaan/indikator/{indikator}/target-tahunan/{tahun}', [TargetTahunanController::class, 'update'])->whereUuid('indikator')->where('tahun', '[0-9]{1,4}')->name('target-tahunan.update');
     Route::put('/perencanaan/indikator/{indikator}/target-renstra', [TargetRenstraController::class, 'update'])->whereUuid('indikator')->name('target-renstra.update');
     Route::get('/perencanaan/indikator/{indikator}/target-renstra/riwayat', [TargetRenstraController::class, 'riwayat'])->whereUuid('indikator')->name('target-renstra.riwayat');
     Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
@@ -286,6 +282,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/perjanjian-kinerja/create', [PerjanjianKinerjaController::class, 'create'])->name('perjanjian-kinerja.create');
     Route::post('/perjanjian-kinerja', [PerjanjianKinerjaController::class, 'store'])->name('perjanjian-kinerja.store');
     Route::get('/perjanjian-kinerja/{perjanjian_kinerja}', [PerjanjianKinerjaController::class, 'show'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.show');
+    Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/target/{indikator}/editor', [PerjanjianKinerjaController::class, 'targetEditor'])->whereUuid('perjanjian_kinerja')->whereUuid('indikator')->name('perjanjian-kinerja.target.editor');
+    Route::put('/perjanjian-kinerja/{perjanjian_kinerja}/target/{indikator}', [PerjanjianKinerjaController::class, 'updateTarget'])->whereUuid('perjanjian_kinerja')->whereUuid('indikator')->name('perjanjian-kinerja.target.update');
     Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/edit', [PerjanjianKinerjaController::class, 'edit'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.edit');
     Route::put('/perjanjian-kinerja/{perjanjian_kinerja}', [PerjanjianKinerjaController::class, 'update'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.update');
     Route::delete('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}', [PerjanjianKinerjaController::class, 'destroyBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.destroy');

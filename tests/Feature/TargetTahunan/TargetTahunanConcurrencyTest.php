@@ -6,6 +6,7 @@ use App\Actions\Access\CreateDeny;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
 use App\Actions\Renstra\UpdateRenstraAction;
+use App\Actions\TargetRenstra\SimpanTargetRenstra;
 use App\Actions\TargetTahunan\SaveTargetTahunan;
 use App\Actions\TargetTahunan\ShowTargetTahunan;
 use App\Models\AuditLog;
@@ -14,6 +15,8 @@ use App\Models\Permission;
 use App\Models\Regulasi;
 use App\Models\SasaranStrategis;
 use App\Models\TargetKinerja;
+use App\Models\TargetRenstra;
+use App\Support\TargetRenstraState;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
@@ -184,6 +187,22 @@ class TargetTahunanConcurrencyTest extends TestCase
         $this->assertSame(1, TargetKinerja::count());
         $this->assertSame('76.250000000000', TargetKinerja::sole()->target_tahunan);
         $this->assertSame(1, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
+    }
+
+    public function test_target_renstra_yang_naik_bersamaan_dievaluasi_ulang_setelah_lock_indikator(): void
+    {
+        [$first, $second, $indicator, $data] = $this->runtimeFixture();
+        TargetRenstra::create(['indikator_id' => $indicator->id, 'tahun' => 2026, 'nilai' => '70', 'updated_by' => $first->id]);
+        $fresh = $indicator->fresh();
+        $token = TargetRenstraState::token($fresh, $fresh->sasaranStrategis->renstra, TargetRenstraState::values($fresh->targetRenstra));
+        DB::beginTransaction();
+        app(SimpanTargetRenstra::class)->handle($first, $indicator->id, ['nilai' => [2026 => '80'], 'expected_state' => $token]);
+        $worker = $this->start(['operation' => 'save', 'actor_id' => $second->id, 'indicator_id' => $indicator->id, 'year' => 2026, 'data' => $data]);
+        $this->go($worker);
+        $this->blockedBy($worker, (int) DB::selectOne('select pg_backend_pid() as pid')->pid);
+        DB::commit();
+        $this->assertSame(['outcome' => 'validation', 'fields' => ['alasan_deviasi_renstra'], 'status' => 422], $this->workerResult($worker));
+        $this->assertSame(0, TargetKinerja::count());
     }
 
     public function test_reader_waits_for_writer_and_returns_one_coherent_state(): void
