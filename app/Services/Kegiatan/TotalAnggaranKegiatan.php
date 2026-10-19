@@ -21,12 +21,13 @@ use stdClass;
 class TotalAnggaranKegiatan
 {
     /**
+     * @param  bool  $tahapRaSaja  Untuk total beku: hanya klaim tahap RA yang dikunci dan dibekukan saat pengajuan.
      * @return array{total: string, belum_diisi: int, per_periode: array<string, array{total: string, belum_diisi: int}>}
      */
-    public function perRencanaAksi(RencanaAksi $header): array
+    public function perRencanaAksi(RencanaAksi $header, bool $tahapRaSaja = false): array
     {
-        $kegiatan = fn (): Builder => $this->terhitung()
-            ->whereIn('kegiatan.id', DB::table('klaim_kegiatan')->where('rencana_aksi_id', $header->id)->select('kegiatan_id'));
+        $klaim = DB::table('klaim_kegiatan')->where('rencana_aksi_id', $header->id)->when($tahapRaSaja, fn ($query) => $query->where('sumber_klaim', 'rencana_aksi'));
+        $kegiatan = fn (): Builder => $this->terhitung()->whereIn('kegiatan.id', (clone $klaim)->select('kegiatan_id'));
 
         return [
             ...$this->ringkas($kegiatan()),

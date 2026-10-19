@@ -236,7 +236,8 @@ class AjukanRencanaAksi
                             ]))->values()->all(),
                         ], $perencanaanKegiatan['evaluasi']),
                         // Total anggaran saat pengajuan (Q42 §42.2 butir 6): tidak dihitung ulang meski anggaran kegiatan berubah kemudian.
-                        'anggaran_kegiatan' => $this->anggaran->perRencanaAksi($header),
+                        // Hanya klaim tahap RA, sama dengan `klaim` beku yang dikunci; klaim pengukuran tidak dikunci di sini.
+                        'anggaran_kegiatan' => $this->anggaran->perRencanaAksi($header, tahapRaSaja: true),
                         'persyaratan_bukti' => $persyaratan,
                         // `path` privat hanya untuk unduhan beku di server; tidak pernah masuk props.
                         'bukti_dukungs' => $bukti->map(fn (BuktiDukung $item): array => $item->only([
