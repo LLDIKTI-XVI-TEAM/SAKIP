@@ -3955,6 +3955,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-10.01 · [Feature] Dashboard Kinerja Eksekutif
 
+> **Status implementasi (GitHub #135):** filter Renstra/tahun/periode/sasaran/unit yang divalidasi server, status indikator × periode dari daftar kewajiban, angka resmi dari versi disahkan, selisih terhadap target PK, progres Rencana Aksi (Plan 7.6), dan panel kegiatan real-time telah terimplementasi dan diuji (PR menyusul). Status tampilan mengikuti Q64.
+
+> **Batas completion:** AC-8 dan AKSES ANGGARAN tetap terbuka sampai penjumlahan anggaran ISS-06.08 bagian kedua tersedia; dikerjakan pada PR lanjutan. Tercapai/Belum tercapai belum tampil karena status capaian belum dapat ditetapkan (Q64 §64.1 butir 4). Plan 7.8 belum dikerjakan. Test utama: DashboardFilterTest, DashboardAksesTest, DashboardStatusIndikatorTest, DashboardRencanaAksiTest, DashboardKegiatanTest, DaftarKewajibanPengukuranTest, StatusTampilanPengukuranTest, serta Vitest DashboardIndex, DashboardFilter, DashboardPanel, dan SelisihTargetPk. Checkbox AC menandai bukti lokal; persetujuan QA/UAT belum dinyatakan.
+
 > **Q42, Q45, Q47 (13 Oktober 2026):** dashboard menampilkan status kegiatan per periode secara real-time berlabel "belum diverifikasi" dengan peringatan bagi kegiatan yang melewati tanggal rencana (Q45 §45.3), total anggaran per IKU dengan drill-down sampai kegiatan (Q42 §42.2 butir 5), serta "Tanpa target periode", "Belum dapat diukur", dan selisih terhadap target PK; bila keduanya berlaku bersamaan, yang tampil "Belum dapat diukur" (Q47 §47.3–§47.4). Angka capaian resmi tetap hanya dari data yang disahkan (Q45 §45.3 butir 2). AC-7 sampai AC-10 ditambahkan karena issue ini belum dikerjakan.
 
 **Terkait User Story:** `US-10.01`  
@@ -3980,16 +3984,16 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
-- [ ] **AC-2:** Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
-- [ ] **AC-3:** Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
-- [ ] **AC-4:** Given indikator arsip, Then tidak menjadi kewajiban baru.
-- [ ] **AC-5:** Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
-- [ ] **AC-6 (Q31):** Given user ber-PIC operasional (bukan role), When mengakses dashboard, Then keputusan akses tetap berdasarkan `dashboard:read` efektif. Dokumen tidak mengasumsikan role PIC memiliki permission tersebut sampai preset PIC dikonfirmasi.
-- [ ] **AC-7:** Given kegiatan pada periode berjalan, Then dashboard menampilkan status kegiatan secara real-time dengan label "belum diverifikasi", dan kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. *(Q45 §45.3 butir 1)*
+- [x] **AC-1:** Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
+- [x] **AC-2:** Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
+- [x] **AC-3:** Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
+- [x] **AC-4:** Given indikator arsip, Then tidak menjadi kewajiban baru.
+- [x] **AC-5:** Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
+- [x] **AC-6 (Q31):** Given user ber-PIC operasional (bukan role), When mengakses dashboard, Then keputusan akses tetap berdasarkan `dashboard:read` efektif. Dokumen tidak mengasumsikan role PIC memiliki permission tersebut sampai preset PIC dikonfirmasi.
+- [x] **AC-7:** Given kegiatan pada periode berjalan, Then dashboard menampilkan status kegiatan secara real-time dengan label "belum diverifikasi", dan kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. *(Q45 §45.3 butir 1)*
 - [ ] **AC-8:** Given dashboard dibuka, Then total anggaran per IKU tampil dengan drill-down sampai kegiatan sesuai akses dashboard; kegiatan yang diklaim lebih dari satu IKU ditandai "kegiatan bersama". *(Q42 §42.2 butir 4–5, §42.5 butir 2)*
-- [ ] **AC-9:** Given periode tanpa target, Then dashboard menampilkannya sebagai "Tanpa target periode", bukan "Belum tercapai", beserta realisasi, target PK, dan selisih terhadap target PK. *(Q47 §47.3)*
-- [ ] **AC-10:** Given pengukuran berstatus `belum_dapat_diukur`, Then dashboard menampilkan "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0; bila periodenya juga tanpa target, yang tampil "Belum dapat diukur". *(Q47 §47.3 butir 3, §47.4 butir 3)*
+- [x] **AC-9:** Given periode tanpa target, Then dashboard menampilkannya sebagai "Tanpa target periode", bukan "Belum tercapai", beserta realisasi, target PK, dan selisih terhadap target PK. *(Q47 §47.3)*
+- [x] **AC-10:** Given pengukuran berstatus `belum_dapat_diukur`, Then dashboard menampilkan "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0; bila periodenya juga tanpa target, yang tampil "Belum dapat diukur". *(Q47 §47.3 butir 3, §47.4 butir 3)*
 
 #### Implementation Tasks
 
@@ -4014,17 +4018,17 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator arsip, Then tidak menjadi kewajiban baru.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator arsip, Then tidak menjadi kewajiban baru.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
 
-- [ ] TEST-6 (Q31): Uji user PIC operasional (bukan role) dengan dan tanpa `dashboard:read` efektif; hasil mengikuti resolver, bukan nama role.
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan pada periode berjalan, Then dashboard menampilkan status kegiatan secara real-time dengan label "belum diverifikasi", dan kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. *(Q45 §45.3 butir 1)*
+- [x] TEST-6 (Q31): Uji user PIC operasional (bukan role) dengan dan tanpa `dashboard:read` efektif; hasil mengikuti resolver, bukan nama role.
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan pada periode berjalan, Then dashboard menampilkan status kegiatan secara real-time dengan label "belum diverifikasi", dan kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. *(Q45 §45.3 butir 1)*
 - [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given dashboard dibuka, Then total anggaran per IKU tampil dengan drill-down sampai kegiatan sesuai akses dashboard; kegiatan yang diklaim lebih dari satu IKU ditandai "kegiatan bersama". *(Q42 §42.2 butir 4–5, §42.5 butir 2)*
-- [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then dashboard menampilkannya sebagai "Tanpa target periode", bukan "Belum tercapai", beserta realisasi, target PK, dan selisih terhadap target PK. *(Q47 §47.3)*
-- [ ] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, Then dashboard menampilkan "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0; bila periodenya juga tanpa target, yang tampil "Belum dapat diukur". *(Q47 §47.3 butir 3, §47.4 butir 3)*
+- [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then dashboard menampilkannya sebagai "Tanpa target periode", bukan "Belum tercapai", beserta realisasi, target PK, dan selisih terhadap target PK. *(Q47 §47.3)*
+- [x] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, Then dashboard menampilkan "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0; bila periodenya juga tanpa target, yang tampil "Belum dapat diukur". *(Q47 §47.3 butir 3, §47.4 butir 3)*
 - [ ] AKSES ANGGARAN: Uji anggaran per kegiatan pada drill-down tidak tampil bagi pengguna tanpa akses detail kegiatan unit tersebut (Q42 §42.5 butir 1).
 
 #### Definition of Done
