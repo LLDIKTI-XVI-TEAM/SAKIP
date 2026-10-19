@@ -235,3 +235,14 @@ it('menampilkan panel rencana aksi dan kegiatan', () => {
     expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ })).toBeTruthy();
     expect(screen.getByRole('region', { name: /Status kegiatan Triwulan II 2026/ })).toBeTruthy();
 });
+
+it('meng-escape satuan indikator pada nilai tooltip grafik target vs realisasi', async () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    const base = props();
+    render(<Index {...props({ grafik: { ...base.grafik, indikator: base.grafik.indikator.map((item) => ({ ...item, satuan: payload })) } })} />);
+    await screen.findByTestId('chart-line');
+
+    // ApexCharts menulis nilai tooltip lewat innerHTML; satuan adalah input pengguna.
+    const format = chartProps.get('line')!.options.tooltip?.y as { formatter: (value: number) => string };
+    expect(format.formatter(40)).not.toMatch(/[<>]/);
+});

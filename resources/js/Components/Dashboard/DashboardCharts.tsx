@@ -224,7 +224,8 @@ function GrafikTargetRealisasi({ grafik, base, tahun }: { grafik: DashboardProps
             shared: true,
             intersect: false,
             x: { formatter: (value) => escapeHtml(String(value)) },
-            y: { formatter: (value: number | null) => (value === null || value === undefined ? '—' : tampil(String(value))) },
+            // Nilai tooltip juga ditulis lewat innerHTML dan memuat satuan indikator (input pengguna).
+            y: { formatter: (value: number | null) => (value === null || value === undefined ? '—' : escapeHtml(tampil(String(value)))) },
         },
     };
 
