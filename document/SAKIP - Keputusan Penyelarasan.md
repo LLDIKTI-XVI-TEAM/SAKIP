@@ -1725,6 +1725,32 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 ---
 
+# Keputusan Q64 — Status Tampilan Dashboard Kinerja
+
+**Keputusan PM: 19 Oktober 2026 (WITA), saat perencanaan ISS-10.01 ([Issue #135](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/135)).** Melengkapi PRD §23 dan Plan 7.2, 7.6, 7.7. Q62 dan Q63 digunakan PR #145 dan PR #146; nomor keputusan perlu diperiksa kembali saat integrasi. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 64.1 Status indikator × periode
+
+1. Kewajiban dihitung dari indikator snapshot × periode jadwal yang jendela pengisiannya sudah dibuka pada tanggal bisnis (`pengisian_mulai` ≤ hari ini); pada jadwal ditutup, periode yang dimulai setelah penutupan tidak dihitung. Periode yang belum dibuka tidak dihitung dan tidak dapat dipilih pada filter.
+2. Pengukuran yang sudah dibuat tetapi belum disahkan (Draft dalam jendela, Diajukan, Diverifikasi, Dikembalikan) tampil **"Dalam proses"** beserta status alurnya, tanpa angka resmi.
+3. "Tidak mengisi" (Draft melewati `pengisian_selesai`) tidak berlaku pada periode lampau 2026, karena periode tersebut diisi Perencanaan setelah jendela lewat (Q46 §46.1 butir 2); Draft di sana tampil "Dalam proses".
+4. Selama status capaian (PRD §21) belum dapat ditetapkan di aplikasi, pengukuran disahkan tampil **"Belum ditetapkan"**, kecuali "Belum dapat diukur" dan "Tanpa target periode" (Q47 §47.3–§47.4) serta "Tidak dapat dihitung". Kategori Tercapai/Belum tercapai tampil setelah penetapan status capaian tersedia.
+5. "Tidak dapat dihitung" pada pengukuran disahkan di periode bertarget tampil tersendiri; pada periode tanpa target yang tampil "Tanpa target periode" (PRD §23).
+
+## 64.2 Progres Rencana Aksi dan kegiatan
+
+1. Panel progres Rencana Aksi (Plan 7.6) menghitung indikator snapshot jadwal terpilih; indikator yang belum memiliki Rencana Aksi tampil **"Belum disusun"**. Indikator arsip tanpa Rencana Aksi tidak dihitung.
+2. Hitungan kegiatan dan jumlah kegiatan yang melewati tanggal rencana mengikuti akses dashboard (Q54 §54.2 butir 2); daftar nama kegiatan yang terlambat hanya bagi pemegang `kegiatan:read` dan dibatasi unit berizin (Q54 §54.1), sejalan dengan Q42 §42.5 butir 1.
+
+## 64.3 Dampak dan traceability
+
+- PRD §23; Plan 7.2, 7.6, 7.7; design-system (status tampilan dashboard); US/ISS-10.01.
+- Selisih terhadap target PK tetap realisasi − target PK tanpa membalik tanda (Q47 §47.3 butir 1).
+- Status implementasi: ISS-10.01 (PR menyusul); AC-8 (anggaran per IKU) menunggu penjumlahan ISS-06.08 bagian kedua.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
 # Bukti aritmetika IKU 3
 
 Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `54c9489`, SHA-256 `66840a50d3048e9aa0a1c10c6d7b8158b80b95d006d2df9feefd209fdc09054b`. Workbook/transkrip sudah dihapus PM dari development melalui `17761d8`; keduanya tidak dipulihkan oleh penyelarasan ini.
