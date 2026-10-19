@@ -6,7 +6,7 @@ use App\Models\User;
 
 class GetDashboard
 {
-    public function __construct(private ResolveDashboardKonteks $konteks, private StatusIndikatorDashboard $status) {}
+    public function __construct(private ResolveDashboardKonteks $konteks, private StatusIndikatorDashboard $status, private ProgresRencanaAksiDashboard $rencanaAksi) {}
 
     /**
      * Ringkasan dibatasi unit yang boleh dibaca; nilai lintas satuan tidak dirata-ratakan.
@@ -31,6 +31,7 @@ class GetDashboard
                 'status' => $konteks['periodeAktif'] ? 'aktif' : 'terakhir',
             ] : null,
             ...$this->status->handle($actor, $konteks, $today),
+            'progresRencanaAksi' => $this->rencanaAksi->handle($konteks),
         ];
     }
 }
