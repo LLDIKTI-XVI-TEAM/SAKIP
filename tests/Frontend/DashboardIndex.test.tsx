@@ -24,6 +24,7 @@ vi.mock('react-apexcharts/core', () => ({
     },
 }));
 vi.mock('apexcharts/bar', () => ({}));
+vi.mock('apexcharts/line', () => ({}));
 vi.mock('apexcharts/donut', () => ({}));
 vi.mock('apexcharts/features/legend', () => ({}));
 
@@ -71,7 +72,22 @@ const props = (overrides: Partial<DashboardProps> = {}): DashboardProps => ({
             realisasi: null, status_perhitungan: null, target: '50', tanpa_target_periode: false, target_pk: '60', selisih: null, action: null,
         },
     ],
-    grafik: { indikator: [], seri: {} },
+    grafik: {
+        indikator: [
+            { id: 'IK-01', kode: 'IK-01', nama: 'Indikator IK-01', satuan: '%', desimal_tampilan: 2 },
+            { id: 'IK-02', kode: 'IK-02', nama: 'Indikator IK-02', satuan: '%', desimal_tampilan: 2 },
+        ],
+        seri: {
+            'IK-01': [
+                { periode_id: 'p1', nama: 'Triwulan I', target: null, tanpa_target: true, realisasi: '40', status: 'tanpa_target_periode' },
+                { periode_id: 'p2', nama: 'Triwulan II', target: null, tanpa_target: true, realisasi: '65.5', status: 'tanpa_target_periode' },
+            ],
+            'IK-02': [
+                { periode_id: 'p1', nama: 'Triwulan I', target: '70', tanpa_target: false, realisasi: '72', status: 'belum_ditetapkan' },
+                { periode_id: 'p2', nama: 'Triwulan II', target: '80', tanpa_target: false, realisasi: null, status: 'belum_dapat_diukur' },
+            ],
+        },
+    },
     progresRencanaAksi: { belum_disusun: 0, draft: 0, diajukan: 0, diverifikasi: 0, dikembalikan: 0, disahkan: 0 },
     kegiatan: kegiatanKosong,
     ...overrides,
@@ -92,13 +108,13 @@ it('menampilkan ringkasan, grafik, dan tabel status tanpa header dan kartu konte
 
     const bar = await screen.findByTestId('chart-bar');
     expect(JSON.parse(bar.dataset.series ?? '[]')).toContainEqual({ name: 'Disahkan', data: [3, 199] });
-    expect(JSON.parse(screen.getByTestId('chart-donut').dataset.series ?? '[]')).toEqual([0, 0, 1, 0, 199]);
+    expect(JSON.parse(screen.getByTestId('chart-donut').dataset.series ?? '[]')).toEqual([0, 0, 0, 1, 0, 199]);
     // Data grafik tersedia sebagai tabel yang terlihat setelah dibuka, tanpa bergantung pada warna atau pointer.
     const toggle = screen.getByText('Lihat data dalam tabel');
     fireEvent.click(toggle);
     expect(toggle.closest('details')?.open).toBe(true);
     const progres = screen.getByRole('table', { name: /Progres pengukuran per periode/ });
-    expect(within(progres).getByRole('row', { name: /Triwulan II 0 0 1 0 199 200/ })).toBeTruthy();
+    expect(within(progres).getByRole('row', { name: /Triwulan II 0 0 0 1 0 199 200/ })).toBeTruthy();
 
     expect(within(barisTabel('IK-01')).getByRole('link', { name: 'Lihat pengukuran IK-01' }).getAttribute('href')).toBe('/pengukuran/u1');
     expect(within(barisTabel('IK-03')).getByText('Diverifikasi')).toBeTruthy();
@@ -187,11 +203,35 @@ it('meng-escape nama periode pada judul tooltip grafik progres tanpa mengubah la
 
 it('mengambil warna seri grafik dari token design system', async () => {
     const root = document.documentElement;
-    for (const token of ['muted', 'warning', 'info', 'danger', 'success']) root.style.setProperty(`--color-${token}`, `token-${token}`);
+    for (const token of ['secondary', 'muted', 'warning', 'info', 'danger', 'success']) root.style.setProperty(`--color-${token}`, `token-${token}`);
     onTestFinished(() => root.removeAttribute('style'));
     render(<Index {...props()} />);
     await screen.findByTestId('chart-bar');
 
-    // Urutan seri mengikuti STATUS_ALUR: Draft, Diajukan, Diverifikasi, Dikembalikan, Disahkan.
-    expect(chartProps.get('bar')!.options.colors).toEqual(['token-muted', 'token-warning', 'token-info', 'token-danger', 'token-success']);
+    // Urutan seri: Belum mengisi, lalu STATUS_ALUR (Draft, Diajukan, Diverifikasi, Dikembalikan, Disahkan).
+    expect(chartProps.get('bar')!.options.colors).toEqual(['token-secondary', 'token-muted', 'token-warning', 'token-info', 'token-danger', 'token-success']);
+});
+
+it('grafik target vs realisasi tidak menggambar nol untuk tanpa target atau belum dapat diukur', async () => {
+    render(<Index {...props()} />);
+    const seri = async () => JSON.parse((await screen.findByTestId('chart-line')).dataset.series ?? '[]');
+
+    expect(await seri()).toEqual([
+        { name: 'Target', data: [null, null] },
+        { name: 'Realisasi', data: [40, 65.5] },
+    ]);
+    expect(screen.getByText(/Tanpa target periode: Triwulan I, Triwulan II/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Indikator'), { target: { value: 'IK-02' } });
+    expect(await seri()).toEqual([
+        { name: 'Target', data: [70, 80] },
+        { name: 'Realisasi', data: [72, null] },
+    ]);
+});
+
+it('menampilkan panel rencana aksi dan kegiatan', () => {
+    render(<Index {...props()} />);
+
+    expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ })).toBeTruthy();
+    expect(screen.getByRole('region', { name: /Status kegiatan Triwulan II 2026/ })).toBeTruthy();
 });

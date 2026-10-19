@@ -5,6 +5,8 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { Card } from '@/Components/Card';
 import { DashboardFilter } from '@/Components/Dashboard/DashboardFilter';
+import { PanelKegiatan } from '@/Components/Dashboard/PanelKegiatan';
+import { PanelRencanaAksi } from '@/Components/Dashboard/PanelRencanaAksi';
 import { STATUS_ALUR, persenDisahkan } from '@/Components/Dashboard/statusAlur';
 import { STATUS_DIHITUNG, STATUS_TAMPILAN } from '@/Components/Dashboard/statusTampilan';
 import { TabelStatusIndikator } from '@/Components/Dashboard/TabelStatusIndikator';
@@ -35,6 +37,9 @@ export default function DashboardIndex({
     progresPeriode,
     ringkasanStatus,
     statusIndikator,
+    grafik,
+    progresRencanaAksi,
+    kegiatan,
 }: DashboardProps) {
     const { auth, errors } = usePage<SharedPageProps & { errors?: Record<string, string> }>().props;
     const persen = persenDisahkan(stats.disahkan, stats.total);
@@ -142,8 +147,16 @@ export default function DashboardIndex({
                                 progres={progresPeriode}
                                 periodeNama={activePeriode.nama_periode}
                                 tahun={activeJadwal?.tahun ?? tahun}
+                                grafik={grafik}
                             />
                         </Suspense>
+
+                        <div className="grid gap-5 lg:grid-cols-3">
+                            <PanelRencanaAksi progres={progresRencanaAksi} tahun={activeJadwal?.tahun ?? tahun} />
+                            <div className="lg:col-span-2">
+                                <PanelKegiatan kegiatan={kegiatan} periodeNama={activePeriode.nama_periode} />
+                            </div>
+                        </div>
 
                         <Card>
                             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
