@@ -24,6 +24,10 @@ export default function DecisionDialog({ pengukuran, decision, onClose }: { peng
         element?.showModal();
         return () => element?.close();
     }, []);
+    useEffect(() => {
+        // Fokus setelah field kembali aktif; callback error masih dapat berjalan saat submit pending.
+        if (!processing && Object.keys(errors).length > 0) reason.current?.focus();
+    }, [errors, processing]);
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (processing || recovery.recovery || message) return;
@@ -31,7 +35,6 @@ export default function DecisionDialog({ pengukuran, decision, onClose }: { peng
         transform((values) => decision === 'kembalikan' ? values : { versi: values.versi });
         post(`/verifikasi/${pengukuran.id}/${decision}`, {
             preserveScroll: true,
-            onError: () => reason.current?.focus(),
             onSuccess: (page) => {
                 const updated = page.props.pengukuran;
                 if (page.component === 'Verifikasi/Index' || (updated && typeof updated === 'object'

@@ -293,7 +293,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-02.03 · Aktivasi, Arsip, dan Revisi Renstra karena Perubahan Kebijakan
 
-> **Q40 (13 Oktober 2026):** atribut Renstra tetap direvisi in place dengan audit. Lampiran revisi kini boleh ditambahkan setelah Renstra aktif (penghapusan tetap dilarang), dan perubahan target Renstra saat Renstra aktif wajib beralasan serta tampil sebagai riwayat revisi; keduanya dikerjakan pada US-02.10. Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini; penggantian Renstra karena kebijakan kementerian memakai Renstra baru (Q40 §40.2 butir 4; backlog tahap 3, Q46 §46.3).
+> **Q40 (13 Oktober 2026):** atribut Renstra tetap direvisi in place dengan audit. Lampiran revisi kini boleh ditambahkan setelah Renstra aktif (penghapusan tetap dilarang), dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi (Q60); keduanya sudah dikerjakan pada US-02.10. Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini; penggantian Renstra karena kebijakan kementerian memakai Renstra baru (Q40 §40.2 butir 4; backlog tahap 3, Q46 §46.3).
 >
 > **Q50 (13 Oktober 2026):** sasaran S4 dan IKU 4.1 yang hanya ada di PK dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5), dan tanggal PK tidak divalidasi terhadap tanggal penetapan Renstra (Q50 §50.6). Keduanya ditangani pada US-02.11 dan data awal US-15.01.
 
@@ -503,8 +503,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 | **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
 | **Dependensi** | Renstra, sasaran, dan indikator tersedia (US-02.02–US-02.04). |
 | **Otorisasi** | Penyimpanan target Renstra: `target:update` yang sudah ada, tanpa permission baru (Q39 §39.3 butir 3); lampiran revisi: `renstra:update` dan capability berkas melalui kewenangan induk. |
-| **Dampak Data** | `target_renstra` (entitas baru per indikator per tahun Renstra; rancangan Data Model §2.35), `berkas` (induk `renstra`), `audit_log`. |
-| **Keputusan terkait** | Q39 §39.1 dan §39.3 butir 3, Q40 §40.2, Q43 §43.2 butir 3, Q50 §50.5, Q46 §46.3. |
+| **Dampak Data** | `target_renstra` (entitas baru per indikator per tahun Renstra; Data Model §2.35), `berkas` (induk `renstra`), `audit_log`. |
+| **Keputusan terkait** | Q39 §39.1 dan §39.3 butir 3, Q40 §40.2, Q43 §43.3 butir 5, Q60, Q50 §50.5, Q46 §46.3. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** mencatat target Renstra setiap indikator untuk setiap tahun dalam rentang Renstra, menambah lampiran revisi setelah Renstra aktif, dan melihat riwayat revisi target Renstra,  
@@ -512,18 +512,18 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator aktif pada Renstra dengan rentang tahun tertentu, When Perencanaan menyimpan target Renstra, Then tersimpan paling banyak satu nilai per indikator per tahun dalam rentang Renstra; tahun di luar rentang ditolak server. *(Q39 §39.1)*
-- [ ] **AC-2:** Given nilai target Renstra dikirim, When disimpan, Then berlaku domain nilai Q33: boleh kosong, bila diisi finite dan nonnegatif, `0` sah dan berbeda dari kosong, tanpa batas universal `100`. *(Q39 §39.1 butir 4)*
-- [ ] **AC-3:** Given halaman Sasaran & Indikator dibuka, Then target Renstra per tahun tampil bersama indikator sebagai pembanding dan tidak dipakai menghitung capaian. *(Q39 §39.1 butir 2, §39.4)*
-- [ ] **AC-4:** Given Renstra berstatus `aktif`, When target Renstra diubah tanpa alasan, Then perubahan ditolak; When diubah dengan alasan (dasar revisi), Then perubahan tersimpan dan audit mencatat aktor, waktu, nilai lama, nilai baru, dan alasan. Pada Renstra `draft` alasan tidak diwajibkan. *(Q40 §40.2 butir 3, Q43 §43.2 butir 3)*
-- [ ] **AC-5:** Given target Renstra pernah diubah saat Renstra `aktif`, When riwayat dibuka, Then sistem menampilkan riwayat revisi target Renstra (waktu, aktor, nilai lama/baru, alasan) yang dibaca dari audit. *(Q40 §40.2 butir 3)*
-- [ ] **AC-6:** Given Renstra berstatus `aktif`, When Perencanaan menambahkan lampiran revisi, Then lampiran baru tersimpan pada Renstra; When lampiran yang sudah ada dihapus, Then ditolak. *(Q40 §40.2 butir 2)*
-- [ ] **AC-7:** Given target Renstra suatu indikator atau tahun kosong, When jadwal tahun tersebut diaktifkan, Then kekosongan target Renstra tidak menjadi gerbang aktivasi. *(Q39 §39.1 butir 5)*
+- [x] **AC-1:** Given indikator aktif pada Renstra dengan rentang tahun tertentu, When Perencanaan menyimpan target Renstra, Then tersimpan paling banyak satu nilai per indikator per tahun dalam rentang Renstra; tahun di luar rentang ditolak server. *(Q39 §39.1)*
+- [x] **AC-2:** Given nilai target Renstra dikirim, When disimpan, Then berlaku domain nilai Q33: boleh kosong, bila diisi finite dan nonnegatif, `0` sah dan berbeda dari kosong, tanpa batas universal `100`. *(Q39 §39.1 butir 4)*
+- [x] **AC-3:** Given halaman Sasaran & Indikator dibuka, Then target Renstra per tahun tampil bersama indikator sebagai pembanding dan tidak dipakai menghitung capaian. *(Q39 §39.1 butir 2, §39.4)*
+- [x] **AC-4:** Given target Renstra pada Renstra `draft` atau `aktif`, When nilainya diisi, diubah, atau dikosongkan, Then perubahan tersimpan tanpa field alasan dan audit mencatat aktor, waktu, tindakan, nilai lama, dan nilai baru; nilai yang tidak berubah tidak diaudit. *(Q40 §40.2 butir 3, Q43 §43.1, Q60)*
+- [x] **AC-5:** Given target Renstra pernah diubah saat Renstra `aktif`, When riwayat dibuka, Then sistem menampilkan riwayat revisi target Renstra (waktu, aktor, tahun, nilai lama/baru) yang dibaca dari audit. *(Q40 §40.2 butir 3)*
+- [x] **AC-6:** Given Renstra berstatus `aktif`, When Perencanaan menambahkan lampiran revisi, Then lampiran baru tersimpan pada Renstra; When lampiran yang sudah ada dihapus, Then ditolak. *(Q40 §40.2 butir 2)*
+- [x] **AC-7:** Given target Renstra suatu indikator atau tahun kosong, When jadwal tahun tersebut diaktifkan, Then kekosongan target Renstra tidak menjadi gerbang aktivasi. *(Q39 §39.1 butir 5)*
 
 **Business Rules / Catatan**
 
 - Target Renstra terpisah dari target PK (`target_tahunan`, US-02.11); atribut Renstra lain tetap direvisi in place dengan audit (Q40 §40.2 butir 1).
-- Bila target terlampaui sebelum akhir periode Renstra, target tahun berikutnya dinaikkan melalui perubahan beralasan pada AC-4 (Q40 §40.2 butir 3).
+- Bila target terlampaui sebelum akhir periode Renstra, target tahun berikutnya dinaikkan melalui perubahan pada AC-4 (Q40 §40.2 butir 3).
 - Target Renstra disimpan dengan permission `target:update` yang sudah ada; tidak ada permission baru (Q39 §39.3 butir 3).
 - Indikator yang hanya ada di PK (mis. IKU 4.1 pada sasaran S4) dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5); kekosongan ini sah menurut AC-2.
 - Lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru (Q40 §40.2 butir 5).
@@ -1497,6 +1497,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### US-08.01 · Verifikasi & Pengembalian Pengukuran dengan F1
 
+> **Status implementasi (GitHub #83):** Inti verifikasi/pengembalian, F1, alasan wajib, reviu terlambat, peringatan nonblocking, pembacaan narasi/justifikasi beku, filter antrean, serta revisi/pengajuan ulang telah terimplementasi dan diuji; lihat [PR #144](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/144) untuk baseline, cakupan test, CI, dan bukti browser. Kontrak pembanding peringatan mengikuti Q61, berdasarkan keputusan PM 19 Oktober 2026. Status ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+> **Batas completion:** AC-3 tetap terbuka untuk ketergantungan item notifikasi ISS-12.02; transisi pengembalian, alasan, audit, dan revisinya sudah teruji. Reader justifikasi versi beku teruji, sedangkan workflow perubahan status kegiatan tetap mengikuti ISS-06.04. Test utama: VerifikasiPengukuranTest, AntreanVerifikasiTest, VerticalSlice1Test, SahkanPengukuranTest, dan PengukuranWorkflow.
+
 > **Q47 dan ketentuan pelengkap Q47–Q51 (13 Oktober 2026):** saat verifikasi, sistem memperingatkan bila realisasi atau narasi sama persis dengan periode sebelumnya tanpa memblokir verifikasi, dan Perencanaan menilai alasan pengukuran berstatus `belum_dapat_diukur` (Q47 §47.4 butir 2). AC-6 dan AC-7 ditambahkan karena story ini belum dikerjakan.
 
 | Field | Detail |
@@ -1515,13 +1519,13 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
-- [ ] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
+- [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
+- [x] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
 - [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
-- [ ] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
-- [ ] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
-- [ ] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
-- [ ] **AC-7:** Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
+- [x] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
+- [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
+- [x] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
+- [x] **AC-7:** Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
 
 ### US-08.02 · Pengesahan Pengukuran & F1/F2
 
@@ -2203,7 +2207,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-2:** Given aksi permission sensitif, Then detail audit memuat `dasar_izin` sumber allow atau deny pemicu.
 - [x] **AC-3:** Given aksi ditolak karena gate/deny/F1, Then percobaan penting dapat dicatat dengan alasan penolakan. *(Dicatat modul masing-masing; ditampilkan di halaman Jejak Audit.)*
 - [x] **AC-4:** Given audit telah ditulis, Then tidak tersedia endpoint update/delete.
-- [x] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan. *(Allowlist payload di modul penulis; detail audit menyamarkan kunci rahasia di server.)*
+- [x] **AC-5:** Given payload audit memuat data sensitif, Then token, secret, password, atau credential tidak boleh disimpan. *(Allowlist payload di modul penulis; sejak Q58 `WriteAuditLog` menyamarkan kunci rahasia sebelum disimpan, dan detail audit menyamarkan lagi baris yang tersimpan sebelum Q58 di server.)*
 
 ### US-13.04 · Konfigurasi Operasional Notifikasi Eksternal
 

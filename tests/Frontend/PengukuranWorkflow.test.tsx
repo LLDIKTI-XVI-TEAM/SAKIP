@@ -337,6 +337,7 @@ describe('Alur pengukuran', () => {
     });
 
     it('mempertahankan catatan pengembalian dan modal pada validasi gagal', async () => {
+        vi.mocked(router.post).mockImplementationOnce((_url, _data, options) => { options?.onStart?.(visit); });
         const user = userEvent.setup();
         render(<VerifikasiShow pengukuran={{ ...measurement, status: 'diajukan', can: { ...measurement.can, update: false, submit: false, return: true } }} />);
         await user.click(screen.getByRole('button', { name: 'Kembalikan untuk revisi' }));
@@ -344,7 +345,12 @@ describe('Alur pengukuran', () => {
         await user.type(note, 'Perjelas rincian realisasi');
         await user.click(screen.getByRole('button', { name: 'Konfirmasi' }));
         expect(vi.mocked(router.post).mock.calls[0][1]).toEqual({ versi: 4, catatan: 'Perjelas rincian realisasi' });
-        await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ catatan: 'Catatan perlu diperjelas.' }); });
+        expect(note.disabled).toBe(true);
+        await act(async () => {
+            const options = vi.mocked(router.post).mock.calls[0][2];
+            options?.onError?.({ catatan: 'Catatan perlu diperjelas.' });
+            options?.onFinish?.(finishedVisit);
+        });
         expect(screen.getByRole('dialog')).toBeTruthy();
         expect(note.value).toBe('Perjelas rincian realisasi');
         expect(note.getAttribute('aria-invalid')).toBe('true');

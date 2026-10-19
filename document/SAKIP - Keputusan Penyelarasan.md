@@ -72,6 +72,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 17 Oktober 2026 (Q57)** menetapkan bahwa revisi resmi jendela PIC dapat ikut menyesuaikan jendela reviu periode yang sama dalam satu aksi beralasan dan teraudit, sedangkan penanda reviu terlambat yang sudah tercatat tetap beku, melengkapi Q18 dan Q41 §41.1 butir 3.
 
+**Keputusan 17 Oktober 2026 (Q60)** menetapkan bahwa target Renstra disimpan tanpa alasan pada Renstra `draft` maupun `aktif`, sedangkan audit tetap mencatat nilai lama dan baru per tahun, mengubah Q40 §40.2 butir 3 dan Q43 §43.2 butir 3.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -1005,7 +1007,7 @@ Sumber: rapat 13 Oktober 2026, menit 58:05–1:02:45, 1:06:49–1:07:32, 1:17:04
 
 - PRD §5.1, §8, §11, §12.4, §14.5, §31–§32; Data Model §2.13 dan entitas baru target Renstra; Workflow §1, §3.3, §5; Plan modul 2; System Architecture §9.
 - User Stories/Issues: US/ISS-02.07 dan 02.08 diberi catatan; issue baru **US/ISS-02.10** (target Renstra) dan **US/ISS-02.11** (input target PK di halaman PK beserta pembanding target Renstra).
-- Status implementasi: belum. Editor target saat ini berada di halaman indikator (`/perencanaan/indikator/{id}/target-tahunan/{tahun}`).
+- Status implementasi: ISS-02.10 (target Renstra) sudah; ISS-02.11 belum. Editor target PK saat ini berada di halaman indikator (`/perencanaan/indikator/{id}/target-tahunan/{tahun}`).
 
 ---
 
@@ -1029,7 +1031,7 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 
 1. Atribut Renstra tetap direvisi **in place** dengan audit (PRD §10.5).
 2. **Lampiran revisi boleh ditambahkan setelah Renstra aktif**; lampiran yang sudah ada tetap tidak dapat dihapus. Ini menyelaraskan implementasi, yang saat ini menolak penambahan lampiran pada Renstra bukan draf (`UpdateRenstraAction.php:127-131`), dengan PRD §10.6 yang hanya melarang penghapusan. (PM; menit 27:24)
-3. Perubahan target Renstra saat Renstra `aktif` wajib beralasan (dasar revisi) dan tercatat di audit dengan nilai lama dan baru; catatan tersebut ditampilkan sebagai riwayat revisi target Renstra. Bila target terlampaui sebelum akhir periode, target tahun-tahun berikutnya dinaikkan dengan cara ini. (PM; menit 1:28:16)
+3. Perubahan target Renstra saat Renstra `aktif` tidak memakai alasan (Q60) dan tercatat di audit dengan nilai lama dan baru; catatan tersebut ditampilkan sebagai riwayat revisi target Renstra. Bila target terlampaui sebelum akhir periode, target tahun-tahun berikutnya dinaikkan dengan cara ini. (PM; menit 1:28:16)
 4. Versi penuh Renstra, yaitu sasaran dan indikator ikut berversi, **tidak** dibangun saat ini. Penggantian Renstra karena kebijakan kementerian ditangani dengan Renstra baru, dan Renstra lama dinonaktifkan sesuai aturan yang berlaku. (PM)
 5. Lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru. (PM, saat penyelarasan Q47–Q51)
 
@@ -1038,7 +1040,7 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 - Menggantikan PRD §5.2 butir "Revisi target tahunan PK di tengah tahun", PRD §12.7, serta aturan Data Model §2.10 bahwa nomor dan tanggal surat Eselon I dicantumkan pada kolom `alasan`.
 - PRD §5.2, §10.5, §10.6, §12.7, §14.5, §14.10, §18.8; Data Model §2.9, §2.10 (rancangan versi PK), §2.13, §2.17, §2.30; Workflow §2, §3.3, §13, §14; Plan modul 2 dan 3.
 - User Stories/Issues: US/ISS-02.03, 02.08, dan 02.09 diberi catatan; ISS-03.03 menjadi prasyarat; issue baru **US/ISS-02.12** (revisi PK berversi); lampiran revisi dan riwayat target Renstra masuk **US/ISS-02.10**.
-- Status implementasi: belum.
+- Status implementasi: lampiran revisi dan riwayat target Renstra sudah (ISS-02.10); versi PK belum (ISS-02.12).
 
 ---
 
@@ -1146,7 +1148,7 @@ Alasan tidak diwajibkan pada setiap aksi. Setiap aksi tetap tercatat di audit (a
 
 1. Pengembalian dan buka-kembali (Rencana Aksi, pengukuran, jadwal).
 2. Penghapusan data atau berkas.
-3. Koreksi atau revisi data yang sudah sah: koreksi PK, revisi PK (Q40), revisi target Renstra saat Renstra aktif (Q40), dan koreksi snapshot (Q35).
+3. Koreksi atau revisi data yang sudah sah: koreksi PK, revisi PK (Q40), dan koreksi snapshot (Q35).
 4. Perubahan akses: penetapan dan pergantian peran, penonaktifan dan pengaktifan kembali akun (Q38), pembatasan izin dan pencabutannya, serta pencabutan grant.
 5. Justifikasi kegiatan `tidak_terlaksana`/`ditunda`/`batal`, alasan deviasi terhadap target PK (ADR-0008), dan alasan target PK di bawah target Renstra (Q39).
 
@@ -1156,6 +1158,7 @@ Alasan tidak diwajibkan pada setiap aksi. Setiap aksi tetap tercatat di audit (a
 2. Perubahan target PK, yang sudah opsional.
 3. Perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, dan perubahan PK sebelum PK dipakai jadwal aktif.
 4. Kolom alasan pada penetapan dan pergantian **Penanggung Jawab** dihapus dari form; kolom basis datanya sudah nullable. (menit 48:25–49:09)
+5. Perubahan target Renstra pada Renstra `draft` maupun `aktif` (Q60). Simpan target Renstra tidak memiliki field alasan sama sekali.
 
 Kewajiban alasan dari keputusan sebelumnya yang tidak disebut pada §43.3 tetap berlaku.
 
@@ -1680,6 +1683,45 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan: §37.5 butir 1 (antrean pindah permukaan), User Issues ISS-05.04/ISS-05.05 (surface antrean dan detail review), dan Engineering Standards (capability server-side yang ditawarkan UI).
 - Test yang disesuaikan: `RencanaAksiIndexTest`, `ReviewRencanaAksiTest`, `RencanaAksiUnitBerizinTest`, `SahkanRencanaAksiTest`, serta test frontend `RencanaAksiIndex`/`RencanaAksiReview`.
 - Status keputusan: baseline UI. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
+
+---
+
+# Keputusan Q60 — Perubahan Target Renstra Tanpa Alasan
+
+**Keputusan PM, 17 Oktober 2026**, untuk [ISS-02.10 / Issue #125](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/125#issuecomment-6250734629). Mengubah Q40 §40.2 butir 3 dan Q43 §43.2 butir 3.
+
+## 60.1 Aturan
+
+1. Pengisian, perubahan, dan pengosongan target Renstra pada Renstra `draft` maupun `aktif` tidak memakai alasan; server menolak field `alasan` pada simpan target Renstra.
+2. Audit tetap mencatat aktor, waktu, tindakan, nilai lama, nilai baru, dan `dasar_izin` untuk setiap tahun yang berubah; tahun yang nilainya tidak berubah tidak diaudit.
+3. Riwayat revisi target Renstra dibaca dari audit tersebut (waktu, aktor, tahun, nilai lama dan baru).
+4. Keputusan ini tidak mengubah alasan wajib untuk target PK di bawah target Renstra (Q43 §43.2 butir 5, ISS-02.11).
+
+## 60.2 Dampak dan traceability
+
+- Q40 §40.2 butir 3 dan Q43 §43.2 butir 3 diselaraskan; revisi target Renstra masuk Q43 §43.3 butir 5 (alasan tidak dipakai).
+- ISS-13.05 dan Plan 10.7 tidak lagi mencakup target Renstra karena butirnya keluar dari Q43 §43.2.
+- PRD, Data Model, Workflow, Plan Pengembangan, User Stories, dan User Issues merujuk Q60.
+- Status implementasi: ISS-02.10 (PR #143).
+- Status keputusan: baseline kerja PM.
+
+---
+
+# Keputusan Q61 — Pembanding Peringatan Verifikasi Pengukuran
+
+**Keputusan PM: 19 Oktober 2026 (WITA), [Keputusan PM — M1 pada PR #144](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/144#issuecomment-6252830027).** Memperjelas ketentuan pelengkap butir 2 pada pengantar Q47–Q51, PRD §19.1, dan US/ISS-08.01. Q60 digunakan PR #143; nomor keputusan perlu diperiksa kembali saat integrasi. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 61.1 Aturan pembanding
+
+1. Periode pembanding adalah periode tepat sebelum periode pengukuran: urutan lebih kecil pada jadwal yang sama; untuk periode pertama, periode terakhir jadwal tahun sebelumnya berstatus `aktif`/`ditutup` yang juga mengukur indikator tersebut (Q51 §51.1 butir 4). Penentuannya memakai resolver yang sama dengan rekomendasi periode sebelumnya, bukan salinan logika.
+2. Data pembanding hanya versi sah terakhir (`disahkan_at` terisi) pada periode tersebut. Periode tanpa versi sah tidak dilompati; tampilkan bahwa pembanding belum tersedia. Untuk lintas tahun, gunakan tahun dan jadwal pembanding, bukan syarat jadwal sama dengan pengukuran sekarang.
+3. Narasi dianggap sama hanya jika `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut` semuanya terisi dan identik persis. `tindak_lanjut_rekomendasi` dan `catatan` tidak dibandingkan.
+4. Realisasi dibandingkan hanya jika konteks perhitungan sebanding; `0` berbeda dari `null`. Peringatan tidak memblokir keputusan. Data dan label pembanding tidak dibuka jika aktor tidak memiliki hak baca.
+
+## 61.2 Traceability dan verifikasi
+
+- GitHub #83 AC-7 / US-08.01 dan ISS-08.01 AC-6; Plan 5.6 dan 6.1.
+- Regresi mencakup periode pertama tahun N terhadap periode terakhir tahun N−1 yang sah, indikator tidak diukur tahun sebelumnya, periode tanpa versi sah tidak dilompati, dan kesamaan periode dengan resolver rekomendasi. Ketentuan snapshot, izin baca, angka/narasi, serta nonblocking tetap berlaku.
 
 ---
 

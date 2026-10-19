@@ -96,7 +96,7 @@ class SahkanPengukuranTest extends TestCase
         $beku = $this->pengukuran->latestVersion->getRawOriginal('snapshot');
         $pengesah = $this->userWithRole('perencanaan');
 
-        $this->reviu($pengesah, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi');
+        $this->reviu($pengesah, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi?status=diverifikasi');
 
         $header = $this->pengukuran->fresh();
         $versi = $header->latestVersion;
@@ -118,7 +118,7 @@ class SahkanPengukuranTest extends TestCase
         $this->assertSame('perencanaan', $this->pengukuran->latestVersion->jalur_pengajuan);
 
         $this->reviu($perencana, 'verifikasi')->assertSessionHasNoErrors();
-        $this->reviu($perencana, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi');
+        $this->reviu($perencana, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi?status=diverifikasi');
 
         $this->assertSame('disahkan', $this->pengukuran->fresh()->status_alur);
         $audit = AuditLog::where('tindakan', 'pengukuran.sahkan')->sole();
@@ -234,7 +234,7 @@ class SahkanPengukuranTest extends TestCase
         // Pembuat draf (bukan pengaju) boleh mengesahkan dan berhasil; F1 memakai diajukan_by.
         $penelaah = $this->userWithRole('perencanaan');
         $this->reviu($penelaah, 'verifikasi')->assertSessionHasNoErrors();
-        $this->reviu($pembuat, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi');
+        $this->reviu($pembuat, 'sahkan')->assertSessionHasNoErrors()->assertRedirect('/verifikasi?status=diverifikasi');
 
         $this->assertSame('disahkan', $this->pengukuran->fresh()->status_alur);
         $audit = AuditLog::where('tindakan', 'pengukuran.sahkan')->sole();

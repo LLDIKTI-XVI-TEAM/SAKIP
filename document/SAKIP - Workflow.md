@@ -11,7 +11,7 @@
 
 ## 1. Alur Penggunaan Utama End-to-End (Fase Awal)
 
-> **Q39–Q51 (13 Oktober 2026):** alur di bawah diselaraskan dengan Q39–Q51: target Renstra diisi di Sasaran & Indikator sebagai pembanding, sedangkan baseline dan target PK diisi di halaman PK (Q39); PK dapat direvisi sebagai versi baru (Q40, tahap 3); Rencana Aksi disusun sejak jadwal aktif sampai penutupan tanpa jendela penyusunan, dengan kunci per triwulan bagi PIC (Q41); kegiatan beranggaran ditambahkan dari halaman Rencana Aksi dan RAB wajib untuk anggaran lebih dari 0 (Q42); kewajiban alasan dipersempit (Q43); saklar unggahan dan penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44); narasi pengukuran wajib dan Rekomendasi Pimpinan diisi Pimpinan (Q45); TW III 2026 menjadi periode lampau (Q46); indikator dinilai tahunan boleh tanpa target periode dan realisasi dapat berstatus "belum dapat diukur" (Q47, §24); Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat dari SAKIP lalu PDF bertanda tangannya diunggah kembali (Q48, §25); nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain (Q49); nomor PK opsional, target PK bernilai penuh, dan kode indikator mengikuti PK (Q50); Rekomendasi Pimpinan disusun sebagai draf oleh Perencanaan dan berlaku setelah disetujui Pimpinan (Q51, §17). Langkah yang berubah diberi rujukan Q-nya. Status implementasi Q39–Q51: belum.
+> **Q39–Q51 (13 Oktober 2026):** alur di bawah diselaraskan dengan Q39–Q51: target Renstra diisi di Sasaran & Indikator sebagai pembanding, sedangkan baseline dan target PK diisi di halaman PK (Q39); PK dapat direvisi sebagai versi baru (Q40, tahap 3); Rencana Aksi disusun sejak jadwal aktif sampai penutupan tanpa jendela penyusunan, dengan kunci per triwulan bagi PIC (Q41); kegiatan beranggaran ditambahkan dari halaman Rencana Aksi dan RAB wajib untuk anggaran lebih dari 0 (Q42); kewajiban alasan dipersempit (Q43); saklar unggahan dan penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44); narasi pengukuran wajib dan Rekomendasi Pimpinan diisi Pimpinan (Q45); TW III 2026 menjadi periode lampau (Q46); indikator dinilai tahunan boleh tanpa target periode dan realisasi dapat berstatus "belum dapat diukur" (Q47, §24); Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat dari SAKIP lalu PDF bertanda tangannya diunggah kembali (Q48, §25); nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain (Q49); nomor PK opsional, target PK bernilai penuh, dan kode indikator mengikuti PK (Q50); Rekomendasi Pimpinan disusun sebagai draf oleh Perencanaan dan berlaku setelah disetujui Pimpinan (Q51, §17). Langkah yang berubah diberi rujukan Q-nya. Status implementasi Q39–Q51: bagian ISS-02.10 (target Renstra, lampiran revisi, dan riwayat revisi target Renstra) sudah; bagian lain mengikuti status per issue di User Issues.
 
 Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate, termasuk pengelolaan dokumen dasar (`regulasi` beserta lampirannya, lampiran Renstra dan Perjanjian Kinerja), tahap penyusunan rencana aksi, kegiatan, klaim kegiatan, bukti dukung tiga mode (file/tautan/teks) pada tiap induk lampiran, dan pengukuran berbasis komponen yang disisip di antara penugasan Penanggung Jawab dan pengisian pengukuran.
 
@@ -320,10 +320,10 @@ flowchart TD
          Tidak: Status: aktif
   5. Renstra berstatus aktif siap dirujuk oleh Jadwal Tahunan (lanjut ke alur §5)
   5a. Selama Renstra aktif: lampiran revisi boleh ditambahkan (lampiran yang sudah ada tetap
-      tidak dapat dihapus), dan perubahan target Renstra wajib beralasan serta tercatat sebagai
-      riwayat revisi target Renstra (Q40, §14) — lampiran baru hanya untuk Renstra berstatus
-      draft atau aktif; Renstra nonaktif atau diarsipkan tidak menerima lampiran baru (Q40
-      §40.2 butir 5)
+      tidak dapat dihapus), dan perubahan target Renstra tercatat di audit dengan nilai lama dan
+      baru sebagai riwayat revisi target Renstra (Q40, §14) — lampiran baru hanya untuk Renstra
+      berstatus draft atau aktif; Renstra nonaktif atau diarsipkan tidak menerima lampiran baru
+      (Q40 §40.2 butir 5)
   6. Sewaktu-waktu bisa menonaktifkan Renstra
      → Sistem cek: masih ada jadwal_tahunan berstatus aktif yang merujuk Renstra ini?
        Ya: Nonaktifkan DITOLAK — tutup dulu seluruh jadwal aktif terkait (lihat §13)
@@ -344,7 +344,7 @@ flowchart TD
     H -- Tidak --> I[Status: aktif]
     G --> C
     I --> J[Renstra dapat dirujuk\noleh Jadwal Tahunan]
-    I --> I2[Selama aktif: tambah lampiran revisi,\nrevisi target Renstra beralasan - Q40]
+    I --> I2[Selama aktif: tambah lampiran revisi,\nrevisi target Renstra teraudit - Q40]
     I --> K{Aksi: nonaktifkan}
     K --> K2{Masih ada jadwal_tahunan\nberstatus aktif merujuk\nRenstra ini?}
     K2 -- Ya --> K3[Nonaktifkan DITOLAK\ntutup jadwal aktif dulu]
@@ -1585,7 +1585,7 @@ stateDiagram-v2
 
 ## 14. Alur Perubahan Kepmen IKU & Revisi Renstra
 
-> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif wajib beralasan serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: belum.
+> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; Q60; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 sudah; ISS-02.11 dan revisi PK berversi (ISS-02.12) belum.
 
 Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yang wajib diukur. Alur berikut menegaskan bagaimana perubahan itu direfleksikan ke sistem tanpa kehilangan riwayat data yang sudah ada.
 
@@ -1629,8 +1629,8 @@ Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yan
        diarsipkan DITOLAK menerima lampiran baru
 
   Kasus E — Revisi target Renstra saat Renstra aktif (Q40 §40.2 butir 3; ISS-02.10):
-  2e. Mengubah target Renstra indikator di Sasaran & Indikator dengan alasan WAJIB (dasar
-      revisi; Q43 §43.2 butir 3) — permission target:update (Q39 §39.3 butir 3)
+  2e. Mengubah target Renstra indikator di Sasaran & Indikator tanpa alasan (Q60)
+      — permission target:update (Q39 §39.3 butir 3)
   3e. Sistem mencatat audit_log nilai_lama/nilai_baru; catatan tsb tampil sebagai riwayat
       revisi target Renstra — mis. bila target terlampaui sebelum akhir periode Renstra,
       target tahun-tahun berikutnya dinaikkan dengan cara ini
@@ -1661,7 +1661,7 @@ flowchart TD
     M --> N[Indikator terukur mulai periode berikutnya\npada jadwal yang sama]
 
     B -- Lampiran revisi Renstra --> R1[Tambah lampiran revisi pada Renstra draft/aktif\nlampiran lama tidak dapat dihapus - Q40]
-    B -- Revisi target Renstra --> R2[Ubah target Renstra dengan alasan wajib\naudit nilai lama/baru, tampil sebagai\nriwayat revisi target Renstra - Q40]
+    B -- Revisi target Renstra --> R2[Ubah target Renstra tanpa alasan\naudit nilai lama/baru, tampil sebagai\nriwayat revisi target Renstra - Q40, Q60]
 ```
 
 **Konsekuensi desain yang disadari:** indikator baru yang dibuat setelah jadwal aktif **tanpa** melewati `jadwal:buka_kembali` tidak otomatis terukur pada tahun berjalan — baru terukur mulai jadwal tahun berikutnya diaktifkan. `jadwal:buka_kembali` (Kasus C langkah 5c) adalah satu-satunya jalur agar indikator baru dapat diukur pada sisa tahun berjalan yang sama, dan rencana aksinya tetap wajib disusun-disahkan sebelum pengukuran pertamanya dapat diajukan.

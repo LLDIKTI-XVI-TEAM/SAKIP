@@ -14,6 +14,9 @@ use Illuminate\Support\Collection;
 /**
  * Bagian payload yang dipakai bersama halaman daftar Sasaran & Indikator dan detail indikator,
  * agar kedua Action tidak saling bergantung namun tetap mengirim bentuk dan capability yang sama.
+ * Dipanggil IndexSasaranIndikator dan ShowIndikator. Capability hanya petunjuk UI dari resolver kanonis;
+ * otorisasi halaman tetap di controller dan otorisasi mutasi di Action pemilik use case. Hanya membaca:
+ * tidak membuka transaksi, mengunci, menyimpan, atau mencatat audit.
  */
 class IndikatorPresenter
 {
@@ -40,6 +43,7 @@ class IndikatorPresenter
             'komponen_create' => $this->resolver->resolve($user, 'komponen:create')->allowed,
             'komponen_update' => $this->resolver->resolve($user, 'komponen:update')->allowed,
             'komponen_delete' => $this->resolver->resolve($user, 'komponen:delete')->allowed,
+            'target_update' => $this->resolver->resolve($user, PermissionCodes::TARGET_UPDATE)->allowed,
         ];
     }
 

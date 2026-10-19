@@ -42,6 +42,12 @@ export interface Pengukuran {
     jalur_pengajuan: 'pic' | 'perencanaan' | null;
     self_approval: boolean;
     reviu_terlambat: boolean;
+    peringatan_verifikasi?: {
+        periode_pembanding: string | null;
+        realisasi_sama: boolean;
+        narasi_sama: boolean;
+        keterangan: string | null;
+    };
     status: 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikasi' | 'disahkan';
     target: string | number | null;
     tanpa_target_periode?: boolean;

@@ -689,7 +689,7 @@ kegiatan:update
 
 ### ISS-02.03 · [Feature] Aktivasi, Arsip, dan Revisi Renstra karena Perubahan Kebijakan
 
-> **Q40 (13 Oktober 2026):** atribut Renstra tetap direvisi in place dengan audit (Q40 §40.2 butir 1). Lampiran revisi kini boleh ditambahkan setelah Renstra aktif, sedangkan penghapusan lampiran tetap ditolak; perubahan target Renstra saat Renstra aktif wajib beralasan dan tampil sebagai riwayat revisi (Q40 §40.2 butir 2–3). Keduanya dikerjakan pada ISS-02.10; implementasi saat ini masih menolak penambahan lampiran pada Renstra bukan draf di `UpdateRenstraAction`. Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini; penggantian Renstra karena kebijakan kementerian memakai Renstra baru (Q40 §40.2 butir 4; backlog tahap 3, Q46 §46.3).
+> **Q40 (13 Oktober 2026):** atribut Renstra tetap direvisi in place dengan audit (Q40 §40.2 butir 1). Lampiran revisi kini boleh ditambahkan setelah Renstra aktif, sedangkan penghapusan lampiran tetap ditolak; perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru dan tampil sebagai riwayat revisi (Q40 §40.2 butir 2–3; Q60). Keduanya sudah dikerjakan pada ISS-02.10. Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini; penggantian Renstra karena kebijakan kementerian memakai Renstra baru (Q40 §40.2 butir 4; backlog tahap 3, Q46 §46.3).
 
 **Terkait User Story:** `US-02.03`  
 **Prioritas:** 🟡 P1  
@@ -1203,7 +1203,7 @@ kegiatan:update
 **Plan:** Modul 2: 2.21  
 **PRD:** §8, §10.5–10.6, §11  
 **Workflow:** §2, §14  
-**Data Model/Entitas:** `target_renstra` (Data Model §2.35, rancangan), `berkas` (induk `renstra`)
+**Data Model/Entitas:** `target_renstra` (Data Model §2.35), `berkas` (induk `renstra`)
 
 #### User Story
 
@@ -1216,66 +1216,66 @@ kegiatan:update
 - **Dependensi:** Renstra, sasaran, dan indikator tersedia (ISS-02.02–ISS-02.04).
 - **Otorisasi:** penyimpanan target Renstra: `target:update` (Q39 §39.3 butir 3; tidak ada permission baru); lampiran revisi: `renstra:update` dan capability berkas melalui kewenangan induk.
 - **Dampak Data:** entitas baru `target_renstra` per indikator per tahun Renstra, `berkas` (induk `renstra`), `audit_log`.
-- **Keputusan terkait:** Q39 §39.1 dan §39.3 butir 3, Q40 §40.2, Q43 §43.2 butir 3, Q46 §46.3.
+- **Keputusan terkait:** Q39 §39.1 dan §39.3 butir 3, Q40 §40.2, Q43 §43.3 butir 5, Q60, Q46 §46.3.
 - **Rule:** target Renstra terpisah dari target PK (`target_tahunan`, ISS-02.11) dan hanya menjadi pembanding; atribut Renstra lain tetap direvisi in place dengan audit (Q40 §40.2 butir 1).
-- **Rule:** bila target terlampaui sebelum akhir periode Renstra, target tahun berikutnya dinaikkan melalui perubahan beralasan pada AC-4 (Q40 §40.2 butir 3).
+- **Rule:** bila target terlampaui sebelum akhir periode Renstra, target tahun berikutnya dinaikkan melalui perubahan pada AC-4 (Q40 §40.2 butir 3).
 - **Rule:** lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru (Q40 §40.2 butir 5).
 - **Rule:** indikator yang hanya ada di PK (mis. IKU 4.1 pada sasaran S4) dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5); kekosongan ini sah menurut AC-2.
 - **Di luar cakupan:** versi penuh Renstra (Q40 §40.2 butir 4; tahap 3, Q46 §46.3), pembanding target PK terhadap target Renstra (ISS-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given indikator aktif pada Renstra dengan rentang tahun tertentu, When Perencanaan menyimpan target Renstra, Then tersimpan paling banyak satu nilai per indikator per tahun dalam rentang Renstra; tahun di luar rentang ditolak server. *(Q39 §39.1)*
-- [ ] **AC-2:** Given nilai target Renstra dikirim, When disimpan, Then berlaku domain nilai Q33: boleh kosong, bila diisi finite dan nonnegatif, `0` sah dan berbeda dari kosong, tanpa batas universal `100`. *(Q39 §39.1 butir 4)*
-- [ ] **AC-3:** Given halaman Sasaran & Indikator dibuka, Then target Renstra per tahun tampil bersama indikator sebagai pembanding dan tidak dipakai menghitung capaian. *(Q39 §39.1 butir 2, §39.4)*
-- [ ] **AC-4:** Given Renstra berstatus `aktif`, When target Renstra diubah tanpa alasan, Then perubahan ditolak; When diubah dengan alasan (dasar revisi), Then perubahan tersimpan dan audit mencatat aktor, waktu, nilai lama, nilai baru, dan alasan. Pada Renstra `draft` alasan tidak diwajibkan. *(Q40 §40.2 butir 3, Q43 §43.2 butir 3)*
-- [ ] **AC-5:** Given target Renstra pernah diubah saat Renstra `aktif`, When riwayat dibuka, Then sistem menampilkan riwayat revisi target Renstra (waktu, aktor, nilai lama/baru, alasan) yang dibaca dari audit. *(Q40 §40.2 butir 3)*
-- [ ] **AC-6:** Given Renstra berstatus `aktif`, When Perencanaan menambahkan lampiran revisi, Then lampiran baru tersimpan pada Renstra; When lampiran yang sudah ada dihapus, Then ditolak. *(Q40 §40.2 butir 2)*
-- [ ] **AC-7:** Given target Renstra suatu indikator atau tahun kosong, When jadwal tahun tersebut diaktifkan, Then kekosongan target Renstra tidak menjadi gerbang aktivasi. *(Q39 §39.1 butir 5)*
+- [x] **AC-1:** Given indikator aktif pada Renstra dengan rentang tahun tertentu, When Perencanaan menyimpan target Renstra, Then tersimpan paling banyak satu nilai per indikator per tahun dalam rentang Renstra; tahun di luar rentang ditolak server. *(Q39 §39.1)*
+- [x] **AC-2:** Given nilai target Renstra dikirim, When disimpan, Then berlaku domain nilai Q33: boleh kosong, bila diisi finite dan nonnegatif, `0` sah dan berbeda dari kosong, tanpa batas universal `100`. *(Q39 §39.1 butir 4)*
+- [x] **AC-3:** Given halaman Sasaran & Indikator dibuka, Then target Renstra per tahun tampil bersama indikator sebagai pembanding dan tidak dipakai menghitung capaian. *(Q39 §39.1 butir 2, §39.4)*
+- [x] **AC-4:** Given target Renstra pada Renstra `draft` atau `aktif`, When nilainya diisi, diubah, atau dikosongkan, Then perubahan tersimpan tanpa field alasan dan audit mencatat aktor, waktu, tindakan, nilai lama, dan nilai baru; nilai yang tidak berubah tidak diaudit. *(Q40 §40.2 butir 3, Q43 §43.1, Q60)*
+- [x] **AC-5:** Given target Renstra pernah diubah saat Renstra `aktif`, When riwayat dibuka, Then sistem menampilkan riwayat revisi target Renstra (waktu, aktor, tahun, nilai lama/baru) yang dibaca dari audit. *(Q40 §40.2 butir 3)*
+- [x] **AC-6:** Given Renstra berstatus `aktif`, When Perencanaan menambahkan lampiran revisi, Then lampiran baru tersimpan pada Renstra; When lampiran yang sudah ada dihapus, Then ditolak. *(Q40 §40.2 butir 2)*
+- [x] **AC-7:** Given target Renstra suatu indikator atau tahun kosong, When jadwal tahun tersebut diaktifkan, Then kekosongan target Renstra tidak menjadi gerbang aktivasi. *(Q39 §39.1 butir 5)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Buat migrasi dan model `target_renstra` sesuai Data Model §2.35: satu baris per (`indikator_id`, `tahun`) dengan constraint unik, nilai nullable, dan CHECK finite serta nonnegatif (domain Q33); tahun dalam rentang Renstra divalidasi server.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Buat migrasi dan model `target_renstra` sesuai Data Model §2.35: satu baris per (`indikator_id`, `tahun`) dengan constraint unik, nilai nullable, dan CHECK finite serta nonnegatif (domain Q33); tahun dalam rentang Renstra divalidasi server.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan action simpan target Renstra: domain nilai Q33, alasan wajib (dasar revisi) bila Renstra `aktif` dan tidak diwajibkan bila `draft`, serta audit nilai lama/baru dalam transaksi yang sama.
-- [ ] Sediakan pembacaan riwayat revisi target Renstra dari `audit_log` (waktu, aktor, nilai lama/baru, alasan).
-- [ ] Ubah `UpdateRenstraAction`, yang saat ini menolak penambahan lampiran pada Renstra bukan draf, agar lampiran revisi dapat ditambahkan pada Renstra `draft` atau `aktif` dan tetap ditolak pada Renstra `nonaktif`/diarsipkan (Q40 §40.2 butir 5); penghapusan lampiran yang sudah ada tetap ditolak (`DeleteRenstraAttachmentAction`).
-- [ ] Pastikan `JadwalActivationReadiness` dan `ActivateJadwal` tidak menjadikan target Renstra sebagai gerbang aktivasi.
+- [x] Implementasikan action simpan target Renstra: domain nilai Q33, tanpa field alasan, serta audit nilai lama/baru dalam transaksi yang sama.
+- [x] Sediakan pembacaan riwayat revisi target Renstra dari `audit_log` (waktu, aktor, tahun, nilai lama/baru).
+- [x] Ubah `UpdateRenstraAction`, yang saat ini menolak penambahan lampiran pada Renstra bukan draf, agar lampiran revisi dapat ditambahkan pada Renstra `draft` atau `aktif` dan tetap ditolak pada Renstra `nonaktif`/diarsipkan (Q40 §40.2 butir 5); penghapusan lampiran yang sudah ada tetap ditolak (`DeleteRenstraAttachmentAction`).
+- [x] Pastikan `JadwalActivationReadiness` dan `ActivateJadwal` tidak menjadikan target Renstra sebagai gerbang aktivasi.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side: `target:update` untuk target Renstra; `renstra:update` dan capability berkas induk untuk lampiran revisi.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; validasi alasan wajib di server dan simpan alasan bersama nilai lama/baru.
+- [x] Terapkan Policy/Gate/resolver server-side: `target:update` untuk target Renstra; `renstra:update` dan capability berkas induk untuk lampiran revisi.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; audit nilai lama/baru.
 
 **D. Frontend / UX**
-- [ ] Sediakan tampilan dan isian target Renstra per tahun rentang Renstra pada halaman Sasaran & Indikator (`resources/js/Pages/Perencanaan/SasaranIndikator/`) sebagai pembanding, beserta riwayat revisinya.
-- [ ] Gunakan pola **Modal Alasan Audit** saat target Renstra diubah pada Renstra `aktif`; validasi server tetap menjadi sumber kebenaran.
-- [ ] Aktifkan unggah lampiran revisi pada halaman Renstra (`resources/js/Pages/Renstra/`) untuk Renstra `aktif`, tanpa aksi hapus bagi lampiran yang sudah ada.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
+- [x] Sediakan tampilan dan isian target Renstra per tahun rentang Renstra pada halaman Sasaran & Indikator (`resources/js/Pages/Perencanaan/SasaranIndikator/`) sebagai pembanding, beserta riwayat revisinya.
+- [x] Simpan langsung tanpa Modal Alasan Audit (Q60); validasi server tetap menjadi sumber kebenaran.
+- [x] Aktifkan unggah lampiran revisi pada halaman Renstra (`resources/js/Pages/Renstra/`) untuk Renstra `aktif`, tanpa aksi hapus bagi lampiran yang sudah ada.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator aktif pada Renstra dengan rentang tahun tertentu, When Perencanaan menyimpan target Renstra, Then tersimpan paling banyak satu nilai per indikator per tahun dalam rentang Renstra; tahun di luar rentang ditolak server. *(Q39 §39.1)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given nilai target Renstra dikirim, When disimpan, Then berlaku domain nilai Q33: boleh kosong, bila diisi finite dan nonnegatif, `0` sah dan berbeda dari kosong, tanpa batas universal `100`. *(Q39 §39.1 butir 4)*
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given halaman Sasaran & Indikator dibuka, Then target Renstra per tahun tampil bersama indikator sebagai pembanding dan tidak dipakai menghitung capaian. *(Q39 §39.1 butir 2, §39.4)*
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given Renstra berstatus `aktif`, When target Renstra diubah tanpa alasan, Then perubahan ditolak; When diubah dengan alasan (dasar revisi), Then perubahan tersimpan dan audit mencatat aktor, waktu, nilai lama, nilai baru, dan alasan. Pada Renstra `draft` alasan tidak diwajibkan. *(Q40 §40.2 butir 3, Q43 §43.2 butir 3)*
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given target Renstra pernah diubah saat Renstra `aktif`, When riwayat dibuka, Then sistem menampilkan riwayat revisi target Renstra (waktu, aktor, nilai lama/baru, alasan) yang dibaca dari audit. *(Q40 §40.2 butir 3)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given Renstra berstatus `aktif`, When Perencanaan menambahkan lampiran revisi, Then lampiran baru tersimpan pada Renstra; When lampiran yang sudah ada dihapus, Then ditolak. *(Q40 §40.2 butir 2)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given target Renstra suatu indikator atau tahun kosong, When jadwal tahun tersebut diaktifkan, Then kekosongan target Renstra tidak menjadi gerbang aktivasi. *(Q39 §39.1 butir 5)*
-- [ ] STATUS RENSTRA: Uji penambahan lampiran revisi pada Renstra `nonaktif` atau diarsipkan ditolak, sedangkan pada Renstra `draft` dan `aktif` diterima (Q40 §40.2 butir 5).
-- [ ] SECURITY: Uji request langsung tanpa `target:update` (target Renstra) atau tanpa `renstra:update` (lampiran revisi), serta deny yang cocok, menghasilkan 403 meski tombol UI disembunyikan.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator aktif pada Renstra dengan rentang tahun tertentu, When Perencanaan menyimpan target Renstra, Then tersimpan paling banyak satu nilai per indikator per tahun dalam rentang Renstra; tahun di luar rentang ditolak server. *(Q39 §39.1)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given nilai target Renstra dikirim, When disimpan, Then berlaku domain nilai Q33: boleh kosong, bila diisi finite dan nonnegatif, `0` sah dan berbeda dari kosong, tanpa batas universal `100`. *(Q39 §39.1 butir 4)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given halaman Sasaran & Indikator dibuka, Then target Renstra per tahun tampil bersama indikator sebagai pembanding dan tidak dipakai menghitung capaian. *(Q39 §39.1 butir 2, §39.4)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given target Renstra pada Renstra `draft` atau `aktif`, When nilainya diisi, diubah, atau dikosongkan, Then perubahan tersimpan tanpa field alasan dan audit mencatat aktor, waktu, tindakan, nilai lama, dan nilai baru; nilai yang tidak berubah tidak diaudit. *(Q40 §40.2 butir 3, Q43 §43.1, Q60)*
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given target Renstra pernah diubah saat Renstra `aktif`, When riwayat dibuka, Then sistem menampilkan riwayat revisi target Renstra (waktu, aktor, tahun, nilai lama/baru) yang dibaca dari audit. *(Q40 §40.2 butir 3)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given Renstra berstatus `aktif`, When Perencanaan menambahkan lampiran revisi, Then lampiran baru tersimpan pada Renstra; When lampiran yang sudah ada dihapus, Then ditolak. *(Q40 §40.2 butir 2)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given target Renstra suatu indikator atau tahun kosong, When jadwal tahun tersebut diaktifkan, Then kekosongan target Renstra tidak menjadi gerbang aktivasi. *(Q39 §39.1 butir 5)*
+- [x] STATUS RENSTRA: Uji penambahan lampiran revisi pada Renstra `nonaktif` atau diarsipkan ditolak, sedangkan pada Renstra `draft` dan `aktif` diterima (Q40 §40.2 butir 5).
+- [x] SECURITY: Uji request langsung tanpa `target:update` (target Renstra) atau tanpa `renstra:update` (lampiran revisi), serta deny yang cocok, menghasilkan 403 meski tombol UI disembunyikan.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-02.11 · [Feature] Input Target PK di Halaman Perjanjian Kinerja dengan Pembanding Target Renstra
 
@@ -3550,6 +3550,12 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-08.01 · [Feature] Verifikasi & Pengembalian Pengukuran dengan F1
 
+> **Status implementasi (GitHub #83):** Inti verifikasi/pengembalian, F1, alasan wajib, reviu terlambat, peringatan nonblocking, pembacaan narasi/justifikasi beku, filter antrean, serta revisi/pengajuan ulang telah terimplementasi dan diuji; lihat [PR #144](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/144) untuk baseline, cakupan test, CI, dan bukti browser. Kontrak pembanding peringatan mengikuti Q61, berdasarkan keputusan PM 19 Oktober 2026. Status ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+> **Batas completion:** AC-3 tetap terbuka untuk ketergantungan item notifikasi ISS-12.02; transisi pengembalian, alasan, audit, dan revisinya sudah teruji. Reader justifikasi versi beku teruji, sedangkan workflow perubahan status kegiatan tetap mengikuti ISS-06.04. Test utama: VerifikasiPengukuranTest, AntreanVerifikasiTest, VerticalSlice1Test, SahkanPengukuranTest, dan PengukuranWorkflow.
+
+> **Pemetaan nomor:** GitHub #83 AC-7 bersesuaian dengan AC-6 dokumen ini; GitHub AC-8 dengan AC-7. GitHub AC-6 tentang izin/stale dilindungi regresi authorization dan optimistic locking. Checkbox AC menandai bukti lokal; persetujuan QA/UAT belum dinyatakan.
+
 > **Q41, Q47 dan ketentuan pelengkap Q47–Q51 (13 Oktober 2026):** saat verifikasi, sistem memperingatkan bila realisasi atau narasi sama persis dengan periode sebelumnya tanpa memblokir verifikasi, Perencanaan menilai alasan pengukuran berstatus `belum_dapat_diukur` (Q47 §47.4 butir 2), dan justifikasi kegiatan yang ditunda tampil sebagai catatan resmi (Q41 §41.4 butir 3). Pengembalian tetap wajib alasan (Q43 §43.2 butir 1). AC-6 dan AC-7 ditambahkan karena issue ini belum dikerjakan.
 
 **Terkait User Story:** `US-08.01`  
@@ -3575,57 +3581,57 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
-- [ ] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
+- [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
+- [x] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
 - [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
-- [ ] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
-- [ ] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
-- [ ] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
-- [ ] **AC-7:** Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
+- [x] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
+- [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
+- [x] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
+- [x] **AC-7:** Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`; penyimpanan/pengiriman notifikasi in-app menunggu ISS-12.02.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`; penyimpanan/pengiriman notifikasi in-app menunggu ISS-12.02.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] F1 wajib diterapkan pada **verifikasi** berdasarkan `pengukuran_versi.diajukan_by` untuk jalur PIC.
-- [ ] Kembalikan dari Diajukan/Diverifikasi memerlukan alasan dan tidak mengubah payload versi.
-- [ ] Bandingkan realisasi dan narasi pengukuran dengan versi periode sebelumnya pada indikator yang sama; bila sama persis, tampilkan peringatan tanpa memblokir verifikasi.
-- [ ] Tampilkan narasi alasan pengukuran `belum_dapat_diukur` untuk dinilai, serta justifikasi kegiatan `ditunda`/`tidak_terlaksana` yang diklaim sebagai catatan resmi verifikasi (Q47 §47.4 butir 2, Q41 §41.4 butir 3; ISS-06.04).
+- [x] F1 wajib diterapkan pada **verifikasi** berdasarkan `pengukuran_versi.diajukan_by` untuk jalur PIC.
+- [x] Kembalikan dari Diajukan/Diverifikasi memerlukan alasan dan tidak mengubah payload versi.
+- [x] Bandingkan realisasi dan narasi pengukuran dengan versi periode sebelumnya pada indikator yang sama; bila sama persis, tampilkan peringatan tanpa memblokir verifikasi.
+- [x] Tampilkan narasi alasan pengukuran `belum_dapat_diukur` untuk dinilai, serta justifikasi kegiatan `ditunda`/`tidak_terlaksana` yang diklaim sebagai catatan resmi verifikasi (Q47 §47.4 butir 2, Q41 §41.4 butir 3; ISS-06.04).
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:verifikasi`, `pengukuran:kembalikan`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:verifikasi`, `pengukuran:kembalikan`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Verifikasi & Pengembalian Pengukuran dengan F1**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Verifikasi & Pengembalian Pengukuran dengan F1**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; pengiriman notifikasi in-app diuji pada ISS-12.02.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengembalian tanpa alasan, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
-- [ ] JUSTIFIKASI KEGIATAN: Uji justifikasi kegiatan `ditunda` yang diklaim tampil sebagai catatan resmi saat verifikasi pengukuran (Q41 §41.4 butir 3).
-- [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; pengiriman notifikasi in-app diuji pada ISS-12.02.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengembalian tanpa alasan, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
+- [x] JUSTIFIKASI KEGIATAN: Uji justifikasi kegiatan `ditunda` yang diklaim tampil sebagai catatan resmi saat verifikasi pengukuran (Q41 §41.4 butir 3).
+- [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-08.02 · [Feature] Pengesahan Pengukuran & F1/F2
 
@@ -5364,7 +5370,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 > - `tests/Feature/Authorization/InertiaCapabilitiesTest` (`can.audit`);
 > - `tests/Frontend/AuditTrail.test.tsx` dan `tests/Frontend/GroupedSidebarNavigation.test.tsx`.
 >
-> AC-5 sisi penyimpanan bergantung pada allowlist payload di setiap modul penulis; test memeriksa payload modul yang dijalankan dalam test, dan halaman detail menyamarkan kunci yang menyerupai rahasia di server sebelum menjadi props. Membaca audit tidak diaudit karena PRD §25.1 tidak mencantumkannya. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
+> AC-5 sisi penyimpanan dijaga dua lapis: allowlist payload di setiap modul penulis (test memeriksa payload modul yang dijalankan dalam test), dan sejak Q58 (Issue #122) `WriteAuditLog` menyamarkan nilai di bawah kunci rahasia sebelum disimpan (`AuditTrailTest::test_penulisan_audit_menyamarkan_kunci_rahasia_pada_nilai_tersimpan`, `test_penulisan_audit_menyimpan_utuh_kunci_yang_hanya_mirip`). Halaman detail tetap menyamarkan kunci yang menyerupai rahasia di server sebelum menjadi props, termasuk baris yang tersimpan sebelum Q58. Membaca audit tidak diaudit karena PRD §25.1 tidak mencantumkannya. Responsivitas mobile belum diuji di browser dan menunggu smoke SSO.
 
 #### Implementation Tasks
 

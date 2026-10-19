@@ -10,6 +10,8 @@ use LogicException;
 
 /**
  * @property CarbonImmutable $waktu
+ * @property array<string, mixed>|null $nilai_lama
+ * @property array<string, mixed>|null $nilai_baru
  */
 class AuditLog extends Model
 {

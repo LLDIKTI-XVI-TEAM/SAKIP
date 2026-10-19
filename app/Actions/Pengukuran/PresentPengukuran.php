@@ -9,6 +9,7 @@ use App\Models\RencanaAksiVersi;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
 use App\Services\Rekomendasi\RekomendasiBerlaku;
+use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -76,7 +77,7 @@ class PresentPengukuran
         }, $contexts);
     }
 
-    public function handle(PengukuranKinerja $p, User $actor, bool $detail = false): array
+    public function handle(PengukuranKinerja $p, User $actor, bool $detail = false, bool $review = false): array
     {
         $p->loadMissing(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion']);
         $context = $p->jadwalSnapshot;
@@ -101,6 +102,9 @@ class PresentPengukuran
             'businessErrors' => ['verifikasi' => [], 'sahkan' => [], 'kembalikan' => []]];
         if (! $detail) {
             return $data;
+        }
+        if ($review && $frozen && in_array($p->status_alur, ['diajukan', 'diverifikasi'], true)) {
+            $data['peringatan_verifikasi'] = $this->peringatan($p, $actor, $frozen);
         }
         $can = [];
         foreach (['view' => 'view', 'update' => 'update', 'submit' => 'submit', 'verify' => 'verify', 'ratify' => 'ratify', 'return' => 'returnMeasurement', 'evidence' => 'viewEvidence', 'uploadEvidence' => 'uploadEvidence', 'viewClaims' => 'viewClaims', 'claimEvidence' => 'viewClaimEvidence'] as $key => $ability) {
@@ -167,5 +171,75 @@ class PresentPengukuran
         $data['snapshot'] = $ratified ? ['snapshot_hash' => hash('sha256', json_encode($ratified->snapshot, JSON_THROW_ON_ERROR)), 'nomor_pengajuan' => $ratified->nomor, 'disahkan_pada' => $ratified->disahkan_at->toIso8601String()] : null;
 
         return $data;
+    }
+
+    /** Pembanding dipilih dari kalender dahulu: periode kosong/belum sah tidak boleh dilewati. */
+    private function peringatan(PengukuranKinerja $p, User $actor, array $frozen): array
+    {
+        $hasil = ['periode_pembanding' => null, 'realisasi_sama' => false, 'narasi_sama' => false,
+            'keterangan' => 'Pembanding periode sebelumnya belum tersedia.'];
+        $periode = $this->rekomendasi->periodeSebelum($p);
+        if (! $periode) {
+            return $hasil;
+        }
+        $sebelumnya = PengukuranKinerja::with(['jadwalSnapshot', 'ratifiedVersion'])
+            ->where('indikator_id', $p->indikator_id)->where('tahun', $periode['tahun'])->where('periode_id', $periode['periode_id'])
+            ->whereHas('jadwalSnapshot', fn ($query) => $query->where('jadwal_id', $periode['jadwal_id']))->first();
+        if (! $sebelumnya || ! Gate::forUser($actor)->allows('view', $sebelumnya) || ! $sebelumnya->ratifiedVersion) {
+            return $hasil;
+        }
+        $lama = $sebelumnya->ratifiedVersion->snapshot;
+        $hasil['periode_pembanding'] = ($lama['periode']['nama'] ?? $periode['nama']).' '.$periode['tahun'];
+        $hasil['keterangan'] = null;
+        $sebanding = $this->konteksSebanding($frozen, $lama);
+        if ($sebanding && ($frozen['status_perhitungan'] ?? null) === 'terhitung' && ($lama['status_perhitungan'] ?? null) === 'terhitung'
+            && ($frozen['nilai'] ?? null) !== null && ($lama['nilai'] ?? null) !== null) {
+            $hasil['realisasi_sama'] = BigDecimal::of($frozen['nilai'])->isEqualTo(BigDecimal::of($lama['nilai']));
+        }
+        if (! $sebanding) {
+            $hasil['keterangan'] = 'Realisasi tidak dibandingkan karena konteks perhitungan berbeda atau belum lengkap.';
+        }
+        $hasil['narasi_sama'] = true;
+        foreach (['progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut'] as $key) {
+            if (! is_string($frozen[$key] ?? null) || trim($frozen[$key]) === '' || $frozen[$key] !== ($lama[$key] ?? null)) {
+                $hasil['narasi_sama'] = false;
+                break;
+            }
+        }
+
+        return $hasil;
+    }
+
+    private function konteksSebanding(array $baru, array $lama): bool
+    {
+        foreach (['satuan', 'tipe_perhitungan', 'presisi', 'definisi'] as $key) {
+            if (! array_key_exists($key, $baru['indikator'] ?? []) || ! array_key_exists($key, $lama['indikator'] ?? [])
+                || $baru['indikator'][$key] !== $lama['indikator'][$key]) {
+                return false;
+            }
+        }
+        // Nilai, label, dan urutan komponen bukan definisi formula.
+        $definisi = function (array $snapshot): ?array {
+            if (! array_key_exists('komponen', $snapshot)) {
+                return null;
+            }
+            $hasil = [];
+            foreach ($snapshot['komponen'] as $komponen) {
+                foreach (['komponen_id', 'peran', 'bobot'] as $key) {
+                    if (! array_key_exists($key, $komponen)) {
+                        return null;
+                    }
+                }
+                $hasil[$komponen['komponen_id']] = [$komponen['peran'],
+                    $komponen['bobot'] === null ? null : (string) BigDecimal::of($komponen['bobot'])->strippedOfTrailingZeros()];
+            }
+            ksort($hasil);
+
+            return $hasil;
+        };
+        $baru = $definisi($baru);
+        $lama = $definisi($lama);
+
+        return $baru !== null && $lama !== null && $baru === $lama;
     }
 }

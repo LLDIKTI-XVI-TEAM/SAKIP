@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { router } from '@inertiajs/react';
 import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
 import type {
     IndikatorKinerjaItem,
@@ -12,6 +13,7 @@ import type {
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()),
     Head: () => null,
+    usePage: () => ({ props: { pengaturan: {} } }),
 }));
 
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
@@ -114,6 +116,82 @@ it('aksi baseline tetap tersedia untuk pembaca dan membuka tahun mulai indikator
     fireEvent.click(screen.getByRole('menuitem', { name: 'Baseline & target IKU-01' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(fetchMock.mock.calls[0][0]).toBe('/perencanaan/indikator/ind-1/target-tahunan/2027/editor');
+});
+
+it('sakelar tab menampilkan tabel target Renstra', () => {
+    renderIndex();
+    const tabTarget = screen.getByRole('button', { name: 'Target Renstra' });
+    fireEvent.click(tabTarget);
+    expect(tabTarget.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('columnheader', { name: '2026' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Aksi IKU-01' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Indikator' }));
+    expect(screen.getByRole('button', { name: 'Aksi IKU-01' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: '2026' })).toBeNull();
+});
+
+it('mengganti Renstra saat sedang mengubah target tidak mengunci tombol Ubah', () => {
+    // preserveState mempertahankan state halaman saat Renstra diganti; baris edit Renstra lama tidak boleh terbawa.
+    const halaman = (id: string, kode: string) => <Index
+        renstras={[{ id, kode: `REN-${id}`, nama: `Renstra ${id}`, tahun_mulai: 2025, tahun_selesai: 2029, is_aktif: false, status: 'draft' }]}
+        selectedRenstraId={id}
+        sasarans={[makeSasaran([makeIndikator({ id: `ind-${id}`, kode })])]}
+        units={[{ id: 'unit-a', nama: 'Unit A' }]}
+        regulasis={[defaultRegulasi]}
+        can={{ ...defaultCan, target_update: true }}
+    />;
+    const { rerender } = render(halaman('ren-a', 'IKU-A'));
+    fireEvent.click(screen.getByRole('button', { name: 'Target Renstra' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ubah target Renstra IKU-A' }));
+    rerender(halaman('ren-b', 'IKU-B'));
+    expect(screen.getByRole('button', { name: 'Ubah target Renstra IKU-B' })).toBeTruthy();
+});
+
+it('hasil simpan target Renstra yang ambigu tetap terblokir setelah pindah tab', () => {
+    // Pindah tab tidak memuat data terbaru, jadi simpan ulang tetap menunggu Muat ulang.
+    const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);
+    render(<Index
+        renstras={[{ id: 'ren-1', kode: 'REN-2025', nama: 'Renstra 2025-2029', tahun_mulai: 2025, tahun_selesai: 2029, is_aktif: false, status: 'draft' }]}
+        selectedRenstraId="ren-1"
+        sasarans={[makeSasaran([makeIndikator()])]}
+        units={[{ id: 'unit-a', nama: 'Unit A' }]}
+        regulasis={[defaultRegulasi]}
+        can={{ ...defaultCan, target_update: true }}
+    />);
+    fireEvent.click(screen.getByRole('button', { name: 'Target Renstra' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ubah target Renstra IKU-01' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    act(() => { (put.mock.calls[0][2] as { onNetworkError: () => void }).onNetworkError(); });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Indikator' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Target Renstra' }));
+    expect(screen.getByText('Hasil simpan belum dapat dipastikan. Muat data terbaru sebelum mencoba lagi.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    expect(put).toHaveBeenCalledTimes(1);
+});
+
+it('pilihan Renstra terkunci selama simpan target Renstra berjalan', () => {
+    // Ganti Renstra memasang ulang tabel; simpan yang dibatalkan browser tidak boleh kehilangan peringatan hasil ambigu.
+    const put = vi.spyOn(router, 'put').mockImplementation(() => undefined);
+    render(<Index
+        renstras={[{ id: 'ren-1', kode: 'REN-2025', nama: 'Renstra 2025-2029', tahun_mulai: 2025, tahun_selesai: 2029, is_aktif: false, status: 'draft' }]}
+        selectedRenstraId="ren-1"
+        sasarans={[makeSasaran([makeIndikator()])]}
+        units={[{ id: 'unit-a', nama: 'Unit A' }]}
+        regulasis={[defaultRegulasi]}
+        can={{ ...defaultCan, target_update: true }}
+    />);
+    fireEvent.click(screen.getByRole('button', { name: 'Target Renstra' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ubah target Renstra IKU-01' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+    const opsi = put.mock.calls[0][2] as { onStart: (visit: unknown) => void; onFinish: (visit: unknown) => void };
+    const pilihan = screen.getByLabelText('Periode Renstra') as HTMLSelectElement;
+
+    act(() => { opsi.onStart({}); });
+    expect(pilihan.disabled).toBe(true);
+    act(() => { opsi.onFinish({}); });
+    expect(pilihan.disabled).toBe(false);
 });
 
 it('aksi baseline tidak tersedia tanpa izin membaca indikator', () => {
