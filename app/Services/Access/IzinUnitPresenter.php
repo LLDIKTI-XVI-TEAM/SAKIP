@@ -4,9 +4,9 @@ namespace App\Services\Access;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
 use App\Services\Authorization\PermissionCatalog;
-use App\Services\Authorization\PermissionResolver;
 use Illuminate\Support\Collection;
 
 /**
@@ -34,8 +34,9 @@ final class IzinUnitPresenter
         $pertama = $grants->first();
         $user = $pertama->user;
         $unit = $pertama->unit;
-        // Deny eksplisit dievaluasi resolver penuh hanya di detail (satu pasangan) agar daftar tidak memanggil resolver per baris.
-        $keputusan = $rinci && $user ? app(PermissionResolver::class)->decideMany($user, $grants->pluck('permission.kode')->filter()->unique()->values()->all(), $pertama->unit_id) : [];
+        // Deny dibaca langsung dengan kriteria resolver (global atau unit yang sama), karena resolver berhenti sebelum membaca deny untuk akun nonaktif, tanpa peran, atau izin nonaktif.
+        $ditolak = $rinci ? UserPermissionDeny::where('user_id', $pertama->user_id)->whereIn('permission_id', $grants->pluck('permission_id'))
+            ->where(fn ($query) => $query->whereNull('unit_id')->orWhere('unit_id', $pertama->unit_id))->pluck('permission_id')->all() : [];
 
         return [
             'key' => "{$pertama->user_id}:{$pertama->unit_id}",
@@ -61,7 +62,7 @@ final class IzinUnitPresenter
                     'label' => PermissionCatalog::LABEL_IZIN_UNIT[$grant->permission?->kode] ?? $grant->permission?->keterangan ?? $grant->permission?->kode,
                     'aktif' => (bool) $grant->permission?->aktif,
                     ...($rinci ? [
-                        'ditolak' => ($keputusan[$grant->permission?->kode ?? '']['reason'] ?? null) === 'explicit_deny',
+                        'ditolak' => in_array($grant->permission_id, $ditolak, true),
                         'alasan' => $grant->alasan,
                         'diberikan_oleh_nama' => $grant->diberikanOleh?->nama ?? '-',
                         'created_at' => $grant->created_at?->toISOString(),

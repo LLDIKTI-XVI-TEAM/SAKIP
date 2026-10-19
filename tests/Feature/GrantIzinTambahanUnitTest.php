@@ -2214,6 +2214,47 @@ class GrantIzinTambahanUnitTest extends TestCase
         ];
     }
 
+    /** Penanda deny tetap tampil walau resolver berhenti sebelum membaca deny (Q62 butir 2). */
+    #[DataProvider('resolverBerhentiLebihAwal')]
+    public function test_detail_menandai_deny_walau_resolver_berhenti_lebih_awal(string $keadaan, array $tidakBerlaku, bool $izinAktif): void
+    {
+        $kegiatan = Permission::where('kode', 'kegiatan:create')->firstOrFail();
+        foreach ([$this->unitPermission, $kegiatan] as $permission) {
+            UserPermissionGrant::create([
+                'user_id' => $this->pegawaiUser->id, 'permission_id' => $permission->id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Fixture deny', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+        UserPermissionDeny::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Deny fixture', 'ditetapkan_oleh' => $this->superadminUser->id,
+        ]);
+        [
+            'akun nonaktif' => fn () => $this->pegawaiUser->update(['status' => 'nonaktif']),
+            'tanpa peran aktif' => fn () => $this->pegawaiUser->roles()->detach(),
+            'izin nonaktif' => fn () => $this->unitPermission->update(['aktif' => false]),
+        ][$keadaan]();
+
+        $this->actingAs($this->adminUser)->get("/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('kelompok.tidak_berlaku', $tidakBerlaku)
+                ->where('kelompok.izin.0.label', 'Mengisi pengukuran')
+                ->where('kelompok.izin.0.aktif', $izinAktif)
+                ->where('kelompok.izin.0.ditolak', true)
+                ->where('kelompok.izin.1.label', 'Membuat kegiatan')
+                ->where('kelompok.izin.1.ditolak', false));
+    }
+
+    public static function resolverBerhentiLebihAwal(): array
+    {
+        return [
+            'akun nonaktif' => ['akun nonaktif', ['Akun nonaktif'], true],
+            'tanpa peran aktif' => ['tanpa peran aktif', ['Tanpa peran aktif'], true],
+            'izin katalog nonaktif' => ['izin nonaktif', [], false],
+        ];
+    }
+
     /** Status daftar dihitung sekali per halaman, bukan per baris: jumlah query tidak bertambah dengan jumlah pasangan (Engineering Standards, hindari N+1). */
     public function test_daftar_jumlah_query_tidak_bertambah_per_pasangan(): void
     {
