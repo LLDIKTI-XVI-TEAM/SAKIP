@@ -1894,7 +1894,7 @@ class JenisBerkasTest extends TestCase
     }
 
     /**
-     * TEST-38: Store jenis berkas menolak tahap selain 'pengukuran' karena belum memiliki gerbang bukti.
+     * TEST-38: Store jenis berkas menerima tahap 'rencana_aksi' (gerbang bukti RA sudah ada) dan menolak tahap 'kegiatan' (SPJ) yang gerbangnya belum ada.
      */
     public function test_store_jenis_berkas_rejects_unsupported_tahap(): void
     {
@@ -1904,7 +1904,8 @@ class JenisBerkasTest extends TestCase
             'izinkan_file' => true,
         ]);
 
-        $response->assertSessionHasErrors('tahap');
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('jenis_berkas', ['nama' => 'Persyaratan Tahap Rencana Aksi', 'tahap' => 'rencana_aksi']);
 
         $responseKegiatan = $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
             'nama' => 'Persyaratan Tahap Kegiatan',
@@ -1916,7 +1917,7 @@ class JenisBerkasTest extends TestCase
     }
 
     /**
-     * TEST-39: Update jenis berkas menolak tahap selain 'pengukuran'.
+     * TEST-39: Update jenis berkas ke tahap 'rencana_aksi' diterima lewat jalur ubah substantif (alasan + optimistic lock); tahap 'kegiatan' tetap ditolak.
      */
     public function test_update_jenis_berkas_rejects_unsupported_tahap(): void
     {
@@ -1935,7 +1936,20 @@ class JenisBerkasTest extends TestCase
             'expected_updated_at' => $jb->updated_at->toISOString(),
         ]);
 
-        $response->assertSessionHasErrors('tahap');
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('rencana_aksi', $jb->fresh()->tahap);
+
+        $jb->refresh();
+        $responseKegiatan = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => 'Ubah Ke Kegiatan',
+            'tahap' => 'kegiatan',
+            'izinkan_file' => true,
+            'alasan' => 'Mencoba memindahkan tahap',
+            'expected_updated_at' => $jb->updated_at->toISOString(),
+        ]);
+
+        $responseKegiatan->assertSessionHasErrors('tahap');
+        $this->assertSame('rencana_aksi', $jb->fresh()->tahap);
     }
 
     /**

@@ -20,10 +20,12 @@ use App\Models\UserPermissionGrant;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use Database\Seeders\AccessCatalogSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\TargetTahunanFixtures;
 use Tests\TestCase;
@@ -60,14 +62,14 @@ class KegiatanHttpTest extends TestCase
     public function test_pegawai_tanpa_pj_dan_jadwal_membuat_rencana_dengan_audit_dan_tanpa_input_fase_lanjut(): void
     {
         $this->actingAs($this->pegawai)->post('/kegiatan', array_replace($this->payload(), ['tanggal_rencana' => '2026-10-17']) + [
-            'anggaran' => ['bukan' => 'angka'], 'status' => 'terlaksana', 'created_by' => $this->perencanaan->id,
+            'status' => 'terlaksana', 'created_by' => $this->perencanaan->id,
             'tanggal_realisasi' => '2026-10-12', 'uraian_pelaksanaan' => 'Tidak boleh tersimpan',
         ])->assertRedirect('/kegiatan?tahun=2026')->assertSessionHasNoErrors();
 
         $kegiatan = Kegiatan::sole();
         $this->assertSame('rencana', $kegiatan->status);
         $this->assertSame($this->pegawai->id, $kegiatan->created_by);
-        $this->assertNull($kegiatan->anggaran);
+        $this->assertSame('1500000', $kegiatan->anggaran);
         $this->assertNull($kegiatan->tanggal_realisasi);
         $this->assertNull($kegiatan->uraian_pelaksanaan);
         $this->assertSame('2026-10-17', $kegiatan->tanggal_rencana->format('Y-m-d'));
@@ -79,18 +81,52 @@ class KegiatanHttpTest extends TestCase
         $this->assertDatabaseCount('jadwal_tahunan', 0);
     }
 
-    public function test_ubah_data_rencana_mempertahankan_status_anggaran_dan_data_pelaksanaan(): void
+    /** @return array<string, array{mixed}> */
+    public static function anggaranTidakSah(): array
+    {
+        return ['kosong' => [null], 'negatif' => [-1], 'pecahan sen' => ['1500.50'], 'bukan angka' => ['satu juta'], 'lebih dari 15 digit' => ['1000000000000000']];
+    }
+
+    #[DataProvider('anggaranTidakSah')]
+    public function test_anggaran_wajib_rupiah_bulat_nonnegatif(mixed $anggaran): void
+    {
+        $this->actingAs($this->pegawai)->post('/kegiatan', array_replace($this->payload(), ['anggaran' => $anggaran]))->assertSessionHasErrors('anggaran');
+        $this->assertDatabaseCount('kegiatan', 0);
+    }
+
+    public function test_basis_data_menolak_anggaran_negatif_di_luar_validasi_request(): void
+    {
+        $this->expectException(QueryException::class);
+        $this->kegiatan()->forceFill(['anggaran' => -1])->save();
+    }
+
+    public function test_anggaran_nol_sah_dan_kosong_hanya_untuk_data_awal_lewat_jalur_perencanaan(): void
+    {
+        $this->actingAs($this->pegawai)->post('/kegiatan', array_replace($this->payload(), ['anggaran' => 0]))->assertSessionHasNoErrors();
+        $kegiatan = Kegiatan::sole();
+        $this->assertSame('0', $kegiatan->anggaran);
+
+        $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), ['anggaran' => null, 'expected_state' => $this->editToken($kegiatan)]))
+            ->assertSessionHasErrors('anggaran');
+        $this->assertSame('0', $kegiatan->fresh()->anggaran);
+
+        $tanpaAnggaran = array_diff_key($this->payload(), ['anggaran' => true]);
+        $this->actingAs($this->perencanaan)->post('/kegiatan', $tanpaAnggaran)->assertSessionHasNoErrors();
+        $this->assertNull(Kegiatan::where('created_by', $this->perencanaan->id)->sole()->anggaran);
+        $this->actingAs($this->perencanaan)->post('/kegiatan', array_replace($tanpaAnggaran, ['tahun' => 2027]))->assertSessionHasErrors('anggaran');
+    }
+
+    public function test_ubah_data_rencana_mempertahankan_status_dan_data_pelaksanaan(): void
     {
         $kegiatan = $this->kegiatan();
-        $kegiatan->forceFill(['status' => 'terlaksana', 'anggaran' => '100.000000000000', 'uraian_pelaksanaan' => 'Narasi histori'])->save();
+        $kegiatan->forceFill(['status' => 'terlaksana', 'uraian_pelaksanaan' => 'Narasi histori'])->save();
         $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
             'nama' => 'Rencana diperbarui', 'expected_state' => $this->editToken($kegiatan),
-            'status' => 'batal', 'anggaran' => null, 'uraian_pelaksanaan' => 'Payload tidak dipercaya',
+            'status' => 'batal', 'uraian_pelaksanaan' => 'Payload tidak dipercaya',
         ]))->assertRedirect('/kegiatan?tahun=2026')->assertSessionHasNoErrors();
 
         $this->assertSame('Rencana diperbarui', $kegiatan->fresh()->nama);
         $this->assertSame('terlaksana', $kegiatan->fresh()->status);
-        $this->assertSame('100.000000000000', $kegiatan->fresh()->anggaran);
         $this->assertSame('Narasi histori', $kegiatan->fresh()->uraian_pelaksanaan);
         $audit = AuditLog::where('tindakan', 'kegiatan.ubah')->sole();
         $this->assertSame('Rencana awal', $audit->nilai_lama['nama']);
@@ -187,7 +223,7 @@ class KegiatanHttpTest extends TestCase
         $kegiatan = $this->kegiatan();
         UserPermissionGrant::create(['user_id' => $this->pegawai->id, 'permission_id' => Permission::where('kode', 'kegiatan:update')->value('id'), 'unit_id' => $this->unitLain->id, 'alasan' => 'Izin update unit B', 'diberikan_oleh' => $this->perencanaan->id]);
         $this->actingAs($this->pegawai)->get("/kegiatan/{$kegiatan->id}/edit")->assertInertia(fn (Assert $page) => $page->component('Kegiatan/Form')
-            ->where('kegiatan.id', $kegiatan->id)->has('unitOptions', 2)->where('unitOptions.1.id', $this->unitLain->id)->where('periodeOptions.0.id', $this->periode->id)->missing('kegiatan.anggaran')->missing('tahunDefault'));
+            ->where('kegiatan.id', $kegiatan->id)->has('unitOptions', 2)->where('unitOptions.1.id', $this->unitLain->id)->where('periodeOptions.0.id', $this->periode->id)->has('kegiatan.anggaran')->missing('tahunDefault'));
         $this->actingAs($this->user('pegawai'))->get("/kegiatan/{$kegiatan->id}/edit")->assertForbidden();
         $this->actingAs($this->pegawai)->get('/kegiatan/bukan-uuid/edit')->assertNotFound();
         // Buat kegiatan hanya lewat modal daftar dan POST /kegiatan.
@@ -481,7 +517,7 @@ class KegiatanHttpTest extends TestCase
 
     private function payload(): array
     {
-        return ['unit_id' => $this->unit->id, 'tahun' => 2026, 'periode_id' => $this->periode->id, 'nama' => 'Rencana baru', 'tujuan' => 'Mendukung kinerja unit', 'sasaran_peserta' => 0, 'keterangan_peserta' => null, 'lokasi' => null, 'tanggal_rencana' => null];
+        return ['unit_id' => $this->unit->id, 'tahun' => 2026, 'periode_id' => $this->periode->id, 'nama' => 'Rencana baru', 'tujuan' => 'Mendukung kinerja unit', 'sasaran_peserta' => 0, 'keterangan_peserta' => null, 'lokasi' => null, 'tanggal_rencana' => null, 'anggaran' => 1500000];
     }
 
     private function editToken(Kegiatan $kegiatan): string

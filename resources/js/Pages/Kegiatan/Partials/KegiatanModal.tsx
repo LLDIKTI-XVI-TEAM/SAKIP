@@ -7,6 +7,7 @@ import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { bantuanAnggaran } from '@/lib/rupiah';
 import type { KegiatanOption } from '@/types/kegiatan';
 
 export interface KegiatanModalProps {
@@ -47,6 +48,7 @@ export function KegiatanModal({
         keterangan_peserta: '',
         lokasi: '',
         tanggal_rencana: '',
+        anggaran: '',
     });
 
     const [failure, setFailure] = useState('');
@@ -76,6 +78,7 @@ export function KegiatanModal({
             keterangan_peserta: '',
             lokasi: '',
             tanggal_rencana: '',
+            anggaran: '',
         });
     }, [isOpen, initialUnitId, initialPeriodeId, tahunDefault, setData, clearErrors]);
 
@@ -95,6 +98,7 @@ export function KegiatanModal({
             ...formData,
             tahun: Number(formData.tahun),
             sasaran_peserta: formData.sasaran_peserta === '' ? null : Number(formData.sasaran_peserta),
+            anggaran: formData.anggaran === '' ? null : formData.anggaran,
         }));
 
         const endpoint = '/kegiatan';
@@ -230,6 +234,20 @@ export function KegiatanModal({
                             error={errors.tujuan}
                         />
                     </div>
+
+                    <Input
+                        id="modal_anggaran"
+                        label="Anggaran (Rp)"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step={1}
+                        placeholder="Contoh: 5000000"
+                        value={data.anggaran}
+                        onChange={(e) => setData('anggaran', e.target.value)}
+                        error={errors.anggaran}
+                        helperText={bantuanAnggaran(data.anggaran)}
+                    />
 
                     <Input
                         id="modal_sasaran_peserta"

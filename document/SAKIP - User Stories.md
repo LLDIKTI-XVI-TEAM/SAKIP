@@ -1101,7 +1101,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 Catatan perbaikan review (17 Oktober 2026): pengajuan membandingkan nama dan tujuan rencana kegiatan yang dibekukan terhadap versi sah untuk menjaga periode terkunci; perubahan status pelaksanaan saja tidak dianggap perubahan rencana. Tambah/hapus klaim tahap RA dan tambah/salin kegiatan dari RA menaikkan versi header sekali per transaksi berhasil, sehingga pengajuan memakai versi lama ditolak 409. Panel RA menampilkan komponen snapshot, arah dampak, dan catatan klaim bagi pembaca berizin. Perbaikan ini tidak mencentang penerimaan UI/UAT atau AC-8 yang masih tertunda.
 
-Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat target belum disimpan, mengikuti penahan tambah kegiatan; anjuran menyimpan draf yang selalu tampil pada kartu kesiapan dihapus. Pengecualian seluruh periode efektif lampau memakai definisi bersama khusus jadwal 2026 (Q46 §46.1); RA 2027 tanpa kegiatan tetap ditolak. Regresi frontend dan kontrol backend 2026/2027 ditambahkan. AC-8, QA browser, UAT, dan deployment tetap tidak dicentang.
+Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat target belum disimpan, mengikuti penahan tambah kegiatan; anjuran menyimpan draf yang selalu tampil pada kartu kesiapan dihapus. Pengecualian seluruh periode efektif lampau memakai definisi bersama khusus jadwal 2026 (Q46 §46.1); RA 2027 tanpa kegiatan tetap ditolak. Regresi frontend dan kontrol backend 2026/2027 ditambahkan. AC-8, QA browser, UAT, dan deployment tetap tidak dicentang. Pembaruan 18 Oktober 2026: ISS-06.08 menyediakan input anggaran, sehingga salinan kegiatan menyalin anggaran yang dapat diubah per kegiatan; AC-8 dicentang berdasarkan automated test.
 
 | Field | Detail |
 |---|---|
@@ -1126,7 +1126,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-5:** Given kegiatan batal/tidak terlaksana, Then klaim historis tetap dapat dipertahankan untuk menjelaskan kendala.
 - [x] **AC-6:** Given halaman Rencana Aksi per periode, When PIC atau Perencanaan menambah kegiatan, Then kegiatan (per unit × periode) dan klaimnya ke RA dengan `sumber_klaim = rencana_aksi` dibuat dalam satu aksi. *(Q42 §42.1 butir 2)*
 - [x] **AC-7:** Given RA diajukan tanpa satu pun kegiatan yang diklaim pada tahap RA, When submit, Then pengajuan ditolak; tidak setiap periode wajib berisi kegiatan. *(Q42 §42.1 butir 3)*
-- [ ] **AC-8:** Given kegiatan ditambahkan dari halaman RA, When PIC menyalinnya ke satu atau lebih periode lain pada RA yang sama, Then setiap salinan menjadi kegiatan tersendiri per unit × periode dengan klaim `sumber_klaim = rencana_aksi` sendiri; nama, tujuan, dan anggaran ikut disalin dan dapat diubah per kegiatan, sedangkan berkas termasuk RAB tidak ikut disalin. *(Q49 §49.2 butir 1–3)*
+- [x] **AC-8:** Given kegiatan ditambahkan dari halaman RA, When PIC menyalinnya ke satu atau lebih periode lain pada RA yang sama, Then setiap salinan menjadi kegiatan tersendiri per unit × periode dengan klaim `sumber_klaim = rencana_aksi` sendiri; nama, tujuan, dan anggaran ikut disalin dan dapat diubah per kegiatan, sedangkan berkas termasuk RAB tidak ikut disalin. *(Q49 §49.2 butir 1–3)*
 - [x] **AC-9:** Given periode sudah terkunci bagi PIC, When PIC menambah atau menyalin kegiatan ke periode tersebut, Then ditolak. *(Q41 §41.2, Q49 §49.2 butir 4)*
 - [x] **AC-10:** Given RA data awal 2026 atau periode lampau, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
 
@@ -1285,21 +1285,23 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 | **Dampak Data** | `kegiatan.anggaran`, `jenis_berkas.tahap` (+ `kegiatan_perencanaan`), `jenis_berkas.hanya_kegiatan_beranggaran` (Q42 §42.3 butir 3), `berkas` (induk `jenis_berkas` untuk contoh berkas; induk `kegiatan` untuk RAB), `klaim_kegiatan`, `audit_log`. |
 | **Keputusan terkait** | Q42 §42.2–§42.5, Q49 §49.1 butir 3, Q46 §46.1. |
 
+**Status implementasi (2026-10-18):** dikerjakan dalam dua PR (ISS-06.08). PR pertama ([#142](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/142)) menerapkan anggaran wajib, tahap `kegiatan_perencanaan` dengan penanda dan contoh berkas, berkas perencanaan pada halaman ubah kegiatan, gerbang pengajuan RA, dan imutabilitas berkas. Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT. Penjumlahan (AC-2 bagian total, AC-7) dan pembatasan anggaran per kegiatan (AC-8) menyusul pada PR kedua; AC-6 mengikuti US-06.03.
+
 > **Sebagai** PIC dan Tim Perencanaan,  
 > **Saya ingin** mencatat anggaran setiap kegiatan, mengunggah RAB untuk kegiatan beranggaran, dan menetapkan persyaratan dokumen tahap perencanaan kegiatan beserta contoh berkas,  
 > **Sehingga** anggaran per periode, per Rencana Aksi, dan per IKU dapat dijumlahkan tanpa hitung ganda.
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given kegiatan dibuat atau diubah, When `anggaran` kosong, Then ditolak; When diisi, Then harus rupiah nonnegatif; `0` sah dan kegiatan beranggaran nol tetap dapat diklaim. *(Q42 §42.2 butir 1–2)*
+- [x] **AC-1:** Given kegiatan dibuat atau diubah, When `anggaran` kosong, Then ditolak; When diisi, Then harus rupiah nonnegatif; `0` sah dan kegiatan beranggaran nol tetap dapat diklaim. *(Q42 §42.2 butir 1–2)*
 - [ ] **AC-2:** Given kegiatan lama dengan `anggaran` kosong, Then tampil "belum diisi" dan tidak dihitung sebagai 0; total menandai bila ada kegiatan yang anggarannya belum diisi. *(Q42 §42.2 butir 2)*
-- [ ] **AC-3:** Given Perencanaan menyimpan persyaratan berkas, Then tersedia tahap `kegiatan_perencanaan`; persyaratan dapat dilampiri contoh berkas yang dapat diunduh PIC. *(Q42 §42.3 butir 2, §42.4 butir 3)*
-- [ ] **AC-4:** Given RA diajukan, When ada kegiatan berklaim tahap RA yang belum memenuhi persyaratan wajib tahap `kegiatan_perencanaan`, termasuk RAB (Excel atau PDF) untuk kegiatan beranggaran lebih dari 0, Then pengajuan ditolak dengan daftar kegiatan dan persyaratan yang kurang. *(Q42 §42.3 butir 1, §42.4 butir 1)*
-- [ ] **AC-5:** Given kegiatan beranggaran 0, Then RAB tidak diwajibkan. *(Q42 §42.3 butir 1)*
+- [x] **AC-3:** Given Perencanaan menyimpan persyaratan berkas, Then tersedia tahap `kegiatan_perencanaan`; persyaratan dapat dilampiri contoh berkas yang dapat diunduh PIC. *(Q42 §42.3 butir 2, §42.4 butir 3)*
+- [x] **AC-4:** Given RA diajukan, When ada kegiatan berklaim tahap RA yang belum memenuhi persyaratan wajib tahap `kegiatan_perencanaan`, termasuk RAB (Excel atau PDF) untuk kegiatan beranggaran lebih dari 0, Then pengajuan ditolak dengan daftar kegiatan dan persyaratan yang kurang. *(Q42 §42.3 butir 1, §42.4 butir 1)*
+- [x] **AC-5:** Given kegiatan beranggaran 0, Then RAB tidak diwajibkan. *(Q42 §42.3 butir 1)*
 - [ ] **AC-6:** Given kegiatan ditandai `terlaksana`, Then persyaratan tahap `kegiatan` (pelaksanaan) tetap diperiksa sesuai PRD §15.6 dan Q22. *(Q42 §42.4 butir 2)*
 - [ ] **AC-7:** Given halaman RA, Then total anggaran tampil per periode dan per RA, dan total per IKU tersedia untuk dashboard; kegiatan yang diklaim lebih dari satu IKU tampil penuh di setiap IKU dengan penanda "kegiatan bersama", sedangkan total per unit dan per tahun dihitung dari kegiatan unik. *(Q42 §42.2 butir 4)*
 - [ ] **AC-8:** Given pengguna tanpa akses detail kegiatan unit tersebut, Then anggaran per kegiatan dan RAB tidak tampil; Perencanaan dan Pimpinan melihat seluruhnya. *(Q42 §42.5)*
-- [ ] **AC-9:** Given RA data awal 2026 atau periode lampau, Then gerbang RAB dan persyaratan tahap perencanaan kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
+- [x] **AC-9:** Given RA data awal 2026 atau periode lampau, Then gerbang RAB dan persyaratan tahap perencanaan kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
 
 **Business Rules / Catatan**
 

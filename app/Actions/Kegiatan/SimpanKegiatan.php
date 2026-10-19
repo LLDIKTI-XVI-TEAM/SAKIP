@@ -11,7 +11,10 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Policies\KegiatanPolicy;
 use App\Services\AuditLogger;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Services\Kegiatan\AnggaranKegiatan;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Arr;
@@ -21,7 +24,14 @@ use Illuminate\Validation\ValidationException;
 
 class SimpanKegiatan
 {
-    public function __construct(private readonly ResolveLockedActor $pengunci, private readonly KegiatanPolicy $policy, private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly ResolveLockedActor $pengunci,
+        private readonly KegiatanPolicy $policy,
+        private readonly AuditLogger $audit,
+        private readonly AnggaranKegiatan $anggaran,
+        private readonly PermissionResolver $resolver,
+        private readonly JendelaTulisRencanaAksi $jendela,
+    ) {}
 
     /** Audit penolakan awal memakai keputusan asli; target update dari binding, target create diverifikasi di DB. */
     public function catatPenolakan(User $actor, ?Kegiatan $kegiatan, mixed $unitId, string $alasan, ?PermissionDecision $decision = null): void
@@ -38,7 +48,7 @@ class SimpanKegiatan
 
     /**
      * Satu use case simpan rencana; aktor/ACL, objek dan master diperiksa ulang di bawah lock.
-     * Metadata rencana tidak mengubah status, anggaran, narasi pelaksanaan atau snapshot pengukuran.
+     * Metadata rencana termasuk anggaran (Q42); tidak mengubah status, narasi pelaksanaan atau snapshot pengukuran.
      *
      * @param  array<string, mixed>  $data
      */
@@ -47,6 +57,8 @@ class SimpanKegiatan
         // UUID PostgreSQL tidak peka huruf besar; perbandingan konteks harus konsisten.
         $data['unit_id'] = strtolower((string) $data['unit_id']);
         $data['periode_id'] = strtolower((string) $data['periode_id']);
+        // Anggaran tidak dikirim berarti dikosongkan, agar gerbang wajib anggaran tidak dapat dilewati.
+        $data['anggaran'] ??= null;
         $decision = null;
         try {
             return DB::transaction(function () use ($actor, $data, $id, &$decision): Kegiatan {
@@ -58,7 +70,7 @@ class SimpanKegiatan
                 }
                 // Selaras writer periode: aktor/ACL sebelum konfigurasi, lalu objek domain.
                 Periode::lockConfiguration();
-                // Nama/tujuan ikut snapshot klaim RA; header dikunci sebelum jadwal dan kegiatan, searah gerbang klaim dan pengajuan RA.
+                // Nama/tujuan/anggaran ikut snapshot klaim RA; header dikunci sebelum jadwal dan kegiatan, searah gerbang klaim dan pengajuan RA.
                 $headerKlaim = fn (): array => $id ? KlaimKegiatan::where('kegiatan_id', $id)->where('sumber_klaim', 'rencana_aksi')
                     ->distinct()->orderBy('rencana_aksi_id')->pluck('rencana_aksi_id')->map(fn ($v): string => (string) $v)->all() : [];
                 $headerIds = $headerKlaim();
@@ -103,6 +115,10 @@ class SimpanKegiatan
                         throw ValidationException::withMessages(array_fill_keys($changedContext, 'Konteks kegiatan yang sudah diklaim tidak dapat dipindahkan.'));
                     }
                 }
+                $jalurPerencanaan = $this->jendela->jalurPerencanaan($this->resolver->resolve($currentActor, $id ? 'kegiatan:update' : 'kegiatan:create', $unitId));
+                if ($data['anggaran'] === null && ! $this->anggaran->bolehKosong((int) $data['tahun'], $data['periode_id'], $jalurPerencanaan)) {
+                    throw ValidationException::withMessages(['anggaran' => AnggaranKegiatan::PESAN_WAJIB]);
+                }
                 $before = $kegiatan?->rencanaAttributes();
                 $values = Arr::only($data, Kegiatan::RENCANA_FIELDS);
                 if ($kegiatan) {
@@ -111,7 +127,7 @@ class SimpanKegiatan
                         throw ValidationException::withMessages(['expected_state' => 'Kegiatan telah berubah. Muat ulang sebelum menyimpan.']);
                     }
                     $kegiatan->fill($values);
-                    if ($kegiatan->isDirty(['nama', 'tujuan'])) {
+                    if ($kegiatan->isDirty(['nama', 'tujuan', 'anggaran'])) {
                         // Token expected_versi RA terbuka harus basi agar pengajuan tidak membekukan atribut yang belum dilihat pengaju.
                         RencanaAksi::whereIn('id', $headerIds)->increment('versi');
                     }

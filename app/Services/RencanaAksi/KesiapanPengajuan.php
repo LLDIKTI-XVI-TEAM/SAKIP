@@ -3,6 +3,7 @@
 namespace App\Services\RencanaAksi;
 
 use App\Actions\Pengukuran\CalculatePengukuran;
+use App\Models\BuktiDukung;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
@@ -10,6 +11,7 @@ use App\Models\KlaimKegiatan;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
+use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
 use App\Support\DeviasiTargetPk;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -36,7 +38,10 @@ class KesiapanPengajuan
     /** Tahun RA data awal yang dicatat Perencanaan (Q32.8, Q46 §46.1 butir 3). */
     public const TAHUN_DATA_AWAL = 2026;
 
-    public function __construct(private readonly CalculatePengukuran $calculator) {}
+    public function __construct(
+        private readonly CalculatePengukuran $calculator,
+        private readonly PersyaratanPerencanaanKegiatan $persyaratanKegiatan,
+    ) {}
 
     /**
      * Target tersimpan dikelompokkan per periode lalu per komponen
@@ -256,8 +261,9 @@ class KesiapanPengajuan
 
     /**
      * Bentuk beku klaim tahap RA (Data Model §2.34): data kegiatan disalin agar
-     * perubahan kegiatan setelah pengajuan tidak mengubah versi. Evaluator
-     * persyaratan tahap perencanaan kegiatan ditambahkan saat persyaratannya ada.
+     * perubahan kegiatan setelah pengajuan tidak mengubah versi. Evaluasi
+     * persyaratan tahap perencanaan kegiatan dibekukan terpisah
+     * (`perencanaanKegiatan`).
      *
      * @param  Collection<int, KlaimKegiatan>  $klaim
      * @param  Collection<string, Kegiatan>  $kegiatan
@@ -280,5 +286,49 @@ class KesiapanPengajuan
                 ],
             ];
         })->values()->all();
+    }
+
+    /**
+     * Gerbang perencanaan kegiatan saat RA diajukan (Q42 §42.2 butir 2,
+     * §42.3–§42.4): setiap kegiatan berklaim tahap RA wajib sudah beranggaran
+     * dan memenuhi persyaratan wajib tahap `kegiatan_perencanaan` (global +
+     * khusus indikator RA ini). Dikecualikan untuk RA data awal 2026 lewat
+     * jalur Perencanaan dan kegiatan pada periode lampau (Q46 §46.1). Tanpa
+     * izin baca kegiatan pada unit, nama kegiatan tidak disebut.
+     *
+     * @param  Collection<string, Kegiatan>  $kegiatan  Kegiatan berklaim tahap RA, diindeks ID.
+     * @param  Collection<int, PeriodeJadwal>  $jendela
+     * @param  Collection<string, Collection<int, BuktiDukung>>  $bukti  Bukti berlaku per ID kegiatan.
+     * @return array{alasan: list<string>, evaluasi: list<array{kegiatan_id: string, dikecualikan: bool, persyaratan: list<array<string, mixed>>}>}
+     */
+    public function perencanaanKegiatan(Collection $kegiatan, string $indikatorId, int $tahun, bool $jalurPerencanaan, JadwalTahunan $jadwal, Collection $jendela, Collection $bukti, bool $tampilNama): array
+    {
+        $dataAwal = $tahun === self::TAHUN_DATA_AWAL && $jalurPerencanaan;
+        $lampau = $jendela->filter(fn (PeriodeJadwal $row): bool => PeriodeTanpaTarget::isPeriodeLampau($jadwal, $row))
+            ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id)->all();
+        $alasan = [];
+        $evaluasi = [];
+        $bermasalah = 0;
+        foreach ($kegiatan->sortBy('id') as $item) {
+            $dikecualikan = $dataAwal || in_array((string) $item->periode_id, $lampau, true);
+            $hasil = $this->persyaratanKegiatan->evaluasi($item, [$indikatorId], $bukti->get((string) $item->id, collect()));
+            $evaluasi[] = ['kegiatan_id' => (string) $item->id, 'dikecualikan' => $dikecualikan, 'persyaratan' => $hasil];
+            if ($dikecualikan) {
+                continue;
+            }
+            $kurang = PersyaratanPerencanaanKegiatan::kurang($hasil);
+            if ($item->anggaran === null) {
+                $alasan[] = "Anggaran kegiatan \"{$item->nama}\" belum diisi.";
+            }
+            if ($kurang !== []) {
+                $alasan[] = "Kegiatan \"{$item->nama}\" belum memenuhi persyaratan perencanaan kegiatan: ".implode(', ', $kurang).'.';
+            }
+            $bermasalah += $item->anggaran === null || $kurang !== [] ? 1 : 0;
+        }
+        if (! $tampilNama && $bermasalah > 0) {
+            $alasan = ["{$bermasalah} kegiatan belum beranggaran atau belum memenuhi persyaratan perencanaan kegiatan."];
+        }
+
+        return ['alasan' => $alasan, 'evaluasi' => $evaluasi];
     }
 }

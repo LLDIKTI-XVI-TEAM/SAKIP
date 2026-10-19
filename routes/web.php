@@ -19,6 +19,7 @@ use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
+use App\Http\Controllers\Kegiatan\BerkasKegiatanController;
 use App\Http\Controllers\Kegiatan\KegiatanController;
 use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
 use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
@@ -202,6 +203,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Rencana kegiatan unit.
     Route::get('/kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
     Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
+    Route::post('/kegiatan/{kegiatan}/berkas', [BerkasKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.berkas.store');
+    Route::delete('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'destroy'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.destroy');
+    Route::get('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'download'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.download');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
     Route::post('/pengukuran/ensure-draft', EnsureDraftPengukuran::class)->name('pengukuran.ensure-draft');
@@ -243,6 +247,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/jenis-berkas/{id}', [JenisBerkasController::class, 'update'])->whereUuid('id')->name('jenis-berkas.update');
     Route::patch('/jenis-berkas/{id}/batas-teknis', [JenisBerkasController::class, 'updateBatasTeknis'])->whereUuid('id')->name('jenis-berkas.update-batas-teknis');
     Route::delete('/jenis-berkas/{id}', [JenisBerkasController::class, 'destroy'])->whereUuid('id')->name('jenis-berkas.destroy');
+    Route::post('/jenis-berkas/{id}/contoh', [JenisBerkasController::class, 'storeContoh'])->whereUuid('id')->name('jenis-berkas.contoh.store');
+    Route::delete('/jenis-berkas/{id}/contoh/{contoh}', [JenisBerkasController::class, 'destroyContoh'])->whereUuid(['id', 'contoh'])->name('jenis-berkas.contoh.destroy');
+    Route::get('/jenis-berkas/{id}/contoh/{contoh}', [JenisBerkasController::class, 'downloadContoh'])->whereUuid(['id', 'contoh'])->name('jenis-berkas.contoh.download');
 
     // Kebijakan Storage & Saklar Unggah Berkas
     Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');

@@ -3,6 +3,7 @@
 namespace App\Actions\RencanaAksi;
 
 use App\Actions\Pengukuran\EvaluateEvidence;
+use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
@@ -128,16 +129,17 @@ class IndexRencanaAksi
             // Gerbang kegiatan memakai aturan yang sama dengan pengajuan; jalur dinilai dari izin ajukan pembaca.
             $klaim = KlaimKegiatan::where('rencana_aksi_id', $segel->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->get();
             $kegiatanKlaim = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->get()->keyBy('id');
+            $bacaKegiatan = $this->resolver->allows($actor, PermissionCodes::KEGIATAN_READ, (string) $segel->unit_id);
+            $jalurPerencanaan = $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id));
             $alasanPengajuan = [...$alasanPengajuan, ...$this->kesiapan->alasanKlaim(
-                $klaim, $kegiatanKlaim, $segel, $efektifIds, $definisi->pluck('komponen_id')->all(),
-                $this->resolver->allows($actor, PermissionCodes::KEGIATAN_READ, (string) $segel->unit_id),
+                $klaim, $kegiatanKlaim, $segel, $efektifIds, $definisi->pluck('komponen_id')->all(), $bacaKegiatan,
             )];
-            $alasanKegiatan = $this->kesiapan->alasanKegiatan(
-                $klaim->count(),
-                (int) $segel->tahun,
-                $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id)),
-                $jadwal, $jendela, $efektifIds,
-            );
+            $buktiKegiatan = BuktiDukung::where('berkasable_type', 'kegiatan')->whereIn('berkasable_id', $kegiatanKlaim->keys()->all())->current()
+                ->get(['id', 'berkasable_id', 'jenis_berkas_id', 'mode'])->groupBy(fn (BuktiDukung $item): string => (string) $item->berkasable_id);
+            $alasanPengajuan = [...$alasanPengajuan, ...$this->kesiapan->perencanaanKegiatan(
+                $kegiatanKlaim, (string) $indikator->id, (int) $segel->tahun, $jalurPerencanaan, $jadwal, $jendela, $buktiKegiatan, $bacaKegiatan,
+            )['alasan']];
+            $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $segel->tahun, $jalurPerencanaan, $jadwal, $jendela, $efektifIds);
             if ($alasanKegiatan !== null) {
                 $alasanPengajuan[] = $alasanKegiatan;
             }

@@ -70,6 +70,12 @@ class DeleteJenisBerkasAction
             $alasan = $data['alasan'];
 
             $jb->delete();
+            // Contoh berkas melekat pada persyaratan sehingga ikut dihapus lunak; file fisik dipertahankan.
+            $contohIds = DB::table('berkas')->where('berkasable_type', 'jenis_berkas')->where('berkasable_id', $id)->whereNull('dihapus_pada')->pluck('id')->all();
+            DB::table('berkas')->whereIn('id', $contohIds)->update(['dihapus_pada' => now(), 'dihapus_oleh' => $actor->id]);
+            if ($contohIds !== []) {
+                $nilaiLama['contoh_berkas_ids'] = $contohIds;
+            }
 
             $this->auditLogger->catat(
                 actor: $actor,

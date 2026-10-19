@@ -12,13 +12,13 @@ class Kegiatan extends Model
 
     public const STATUSES = ['rencana', 'terlaksana', 'tidak_terlaksana', 'ditunda', 'batal'];
 
-    public const RENCANA_FIELDS = ['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana'];
+    public const RENCANA_FIELDS = ['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana', 'anggaran'];
 
     protected $table = 'kegiatan';
 
-    protected $fillable = ['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana', 'tanggal_realisasi', 'status', 'realisasi_peserta', 'justifikasi', 'kegiatan_asal_id', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut', 'created_by'];
+    protected $fillable = ['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana', 'anggaran', 'tanggal_realisasi', 'status', 'realisasi_peserta', 'justifikasi', 'kegiatan_asal_id', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut', 'created_by'];
 
-    protected $casts = ['tahun' => 'integer', 'sasaran_peserta' => 'integer', 'tanggal_rencana' => 'date', 'tanggal_realisasi' => 'date'];
+    protected $casts = ['tahun' => 'integer', 'sasaran_peserta' => 'integer', 'tanggal_rencana' => 'date', 'tanggal_realisasi' => 'date', 'anggaran' => 'decimal:0'];
 
     public function unit(): BelongsTo
     {

@@ -194,37 +194,51 @@ class JenisBerkasRequestValidationTest extends TestCase
         $request = new StoreJenisBerkasRequest;
         $validator = Validator::make([
             'nama' => 'Laporan Akuntabilitas',
-            'tahap' => 'rencana_aksi',
-            'izinkan_file' => true,
-        ], $request->rules(), $request->messages());
-
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('tahap', $validator->errors()->messages());
-        $this->assertSame('Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.', $validator->errors()->first('tahap'));
-
-        $validatorKegiatan = Validator::make([
-            'nama' => 'Laporan Akuntabilitas',
             'tahap' => 'kegiatan',
             'izinkan_file' => true,
         ], $request->rules(), $request->messages());
 
-        $this->assertTrue($validatorKegiatan->fails());
-        $this->assertArrayHasKey('tahap', $validatorKegiatan->errors()->messages());
+        $this->assertTrue($validator->fails());
+        $this->assertSame('Tahap Kegiatan (SPJ) belum didukung karena gerbang buktinya belum diimplementasikan.', $validator->errors()->first('tahap'));
+
+        $validatorRencanaAksi = Validator::make([
+            'nama' => 'Laporan Akuntabilitas',
+            'tahap' => 'rencana_aksi',
+            'izinkan_file' => true,
+        ], $request->rules(), $request->messages());
+
+        $this->assertArrayNotHasKey('tahap', $validatorRencanaAksi->errors()->messages());
+    }
+
+    public function test_tahap_perencanaan_kegiatan_diterima_dan_penanda_beranggaran_hanya_untuk_tahap_itu(): void
+    {
+        $request = new StoreJenisBerkasRequest;
+        $data = ['nama' => 'RAB', 'tahap' => 'kegiatan_perencanaan', 'izinkan_file' => true, 'hanya_kegiatan_beranggaran' => true];
+
+        $validator = Validator::make($data, $request->rules(), $request->messages());
+        $this->assertFalse($validator->fails());
+        $this->assertTrue($validator->validated()['hanya_kegiatan_beranggaran']);
+
+        $pengukuran = Validator::make(['tahap' => 'pengukuran'] + $data, $request->rules(), $request->messages());
+        $this->assertFalse($pengukuran->fails());
+        $this->assertArrayNotHasKey('hanya_kegiatan_beranggaran', $pengukuran->validated());
     }
 
     public function test_update_validation_rejects_unsupported_tahap(): void
     {
         $request = new UpdateJenisBerkasRequest;
-        $validator = Validator::make([
+        $data = [
             'nama' => 'Laporan Baru',
-            'tahap' => 'rencana_aksi',
             'izinkan_file' => true,
             'alasan' => 'Pembaruan alasan audit yang valid',
             'expected_updated_at' => now()->toISOString(),
-        ], $request->rules(), $request->messages());
+        ];
+        $validator = Validator::make(['tahap' => 'kegiatan'] + $data, $request->rules(), $request->messages());
 
         $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('tahap', $validator->errors()->messages());
-        $this->assertSame('Tahap saat ini hanya mendukung Pengukuran Kinerja karena gerbang bukti tahap lain belum diimplementasikan.', $validator->errors()->first('tahap'));
+        $this->assertSame('Tahap Kegiatan (SPJ) belum didukung karena gerbang buktinya belum diimplementasikan.', $validator->errors()->first('tahap'));
+
+        $validatorRencanaAksi = Validator::make(['tahap' => 'rencana_aksi'] + $data, $request->rules(), $request->messages());
+        $this->assertArrayNotHasKey('tahap', $validatorRencanaAksi->errors()->messages());
     }
 }
