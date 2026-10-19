@@ -3,6 +3,7 @@
 namespace Tests\Feature\PeriodeLampau;
 
 use App\Models\AuditLog;
+use App\Models\KlaimKegiatan;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
 use App\Models\RencanaAksiVersi;
@@ -11,19 +12,19 @@ use Tests\Support\PeriodeLampauFixtures;
 use Tests\TestCase;
 
 /**
- * Matriks periode lampau 2026 pada jalur Rencana Aksi (issue #131, US/ISS-03.05):
- * satu sel per gerbang × {periode lampau TW I–III / TW IV normal} ×
+ * Matriks periode lampau 2026 pada jalur Rencana Aksi (ISS-03.05): satu sel
+ * per gerbang × {periode lampau TW I–III / TW IV normal} ×
  * {Perencanaan / PIC}, dengan kontrol positif pada setiap penolakan.
- *
- * Sel yang bergantung pada gerbang yang belum ada di development (RAB,
- * persyaratan tahap `kegiatan_perencanaan` — ISS-06.08/PR #142) belum
- * dicakup di sini dan dicatat sebagai coverage tertunda pada issue.
+ * Pengecualian gerbang pengajuan mengikuti Q63: hanya jalur Perencanaan yang
+ * dikecualikan; PIC tidak pernah dikecualikan.
  */
 class RencanaAksiPeriodeLampauMatrixTest extends TestCase
 {
     use PeriodeLampauFixtures, RefreshDatabase;
 
     private const PESAN_BUKTI = 'Bukti wajib belum lengkap: KAK.';
+
+    private const PESAN_KEGIATAN = 'Rencana aksi wajib memiliki minimal satu kegiatan yang diklaim pada tahap rencana aksi.';
 
     private const PESAN_DEVIASI = 'Skor periode terakhir berbeda dari target PK; alasan deviasi wajib diisi.';
 
@@ -82,23 +83,45 @@ class RencanaAksiPeriodeLampauMatrixTest extends TestCase
         $header = $this->buatDrafLampau($fixture);
         $this->simpanMatriks($fixture, $header, [$this->sel($fixture['periode1'], 25), $this->sel($fixture['periode2'], 50), $this->sel($fixture['periode3'], 75), $this->sel($fixture['periode4'], 100)], $fixture['perencanaan'])->assertSessionHasNoErrors();
 
-        // Q32.7 dan Workflow §15 butir 4: "berkas wajib dikecualikan" pada
-        // jalur pengisian periode lampau/data awal 2026.
+        // Q63 butir 1: berkas wajib dikecualikan hanya pada jalur Perencanaan
+        // (Q32.7, Q46 §46.1, Workflow §15 butir 4).
         $this->ajukanDraf($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
         $this->assertSame('perencanaan', RencanaAksiVersi::sole()->jalur_pengajuan);
     }
 
-    public function test_bukti_wajib_dikecualikan_saat_seluruh_periode_efektif_lampau(): void
+    public function test_bukti_wajib_dikecualikan_bagi_perencanaan_saat_seluruh_periode_lampau(): void
     {
-        $fixture = $this->buatFixtureManual();
-        $fixture['jadwal']->update(['activated_at' => '2026-04-05 09:00:00']);
-        $this->buatPersyaratanWajib($fixture);
-        $header = $this->drafManual($fixture);
+        [$fixture, $header] = $this->drafLampauDenganBuktiWajib();
 
-        // Seluruh pengisian selesai 31 Maret, sebelum aktivasi 5 April:
-        // seluruh periode efektif lampau sehingga berkas wajib dikecualikan.
-        $this->ajukanDraf($fixture['pic'], $header)->assertSessionHasNoErrors();
-        $this->assertSame('pic', RencanaAksiVersi::sole()->jalur_pengajuan);
+        // Q63 butir 1: cabang seluruh-periode-lampau tetap memerlukan jalur Perencanaan.
+        $this->ajukanDraf($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
+        $this->assertSame('perencanaan', RencanaAksiVersi::sole()->jalur_pengajuan);
+    }
+
+    public function test_bukti_wajib_tetap_diwajibkan_bagi_pic_saat_seluruh_periode_lampau(): void
+    {
+        [$fixture, $header] = $this->drafLampauDenganBuktiWajib();
+
+        // Q63 butir 2: PIC tidak pernah dikecualikan dari bukti wajib.
+        $this->ajukanDraf($fixture['pic'], $header)->assertSessionHasErrors(['pengajuan' => self::PESAN_BUKTI]);
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
+    }
+
+    public function test_kegiatan_minimal_dikecualikan_bagi_perencanaan_saat_seluruh_periode_lampau(): void
+    {
+        [$fixture, $header] = $this->drafLampauTanpaKegiatan();
+
+        // Q63 butir 2: pengecualian kegiatan minimal hanya pada jalur Perencanaan.
+        $this->ajukanDraf($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
+        $this->assertSame('perencanaan', RencanaAksiVersi::sole()->jalur_pengajuan);
+    }
+
+    public function test_kegiatan_minimal_tetap_diwajibkan_bagi_pic_saat_seluruh_periode_lampau(): void
+    {
+        [$fixture, $header] = $this->drafLampauTanpaKegiatan();
+
+        $this->ajukanDraf($fixture['pic'], $header)->assertSessionHasErrors(['pengajuan' => self::PESAN_KEGIATAN]);
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
     }
 
     public function test_bukti_wajib_tetap_diwajibkan_pada_jalur_pic_non_lampau(): void
@@ -120,8 +143,7 @@ class RencanaAksiPeriodeLampauMatrixTest extends TestCase
         $targets = [$this->sel($fixture['periode1'], 25), $this->sel($fixture['periode2'], 50), $this->sel($fixture['periode3'], 75), $this->sel($fixture['periode4'], 90)];
         $this->simpanMatriks($fixture, $header, $targets, $fixture['perencanaan'])->assertSessionHasNoErrors();
 
-        // Keputusan 19 Oktober 2026: berkas wajib dikecualikan untuk lampau,
-        // tetapi rekonsiliasi target PK tetap wajib (ADR-0008, Q46).
+        // Q63 butir 3: rekonsiliasi target PK tetap wajib di semua jalur (ADR-0008).
         $this->ajukanDraf($fixture['perencanaan'], $header)->assertSessionHasErrors(['pengajuan' => self::PESAN_DEVIASI]);
 
         $this->simpanMatriks($fixture, $header, $targets, $fixture['perencanaan'], ['alasan_deviasi_pk' => 'Selisih mengikuti dokumen resmi 2026.'])->assertSessionHasNoErrors();
@@ -143,6 +165,26 @@ class RencanaAksiPeriodeLampauMatrixTest extends TestCase
         $this->assertSame('terhitung', $status[$fixture['periode4']->id]);
     }
 
+    public function test_halaman_menandai_gerbang_lampau_sebagai_dikecualikan_hanya_untuk_perencanaan(): void
+    {
+        $fixture = $this->siapkanPeriodeLampau2026();
+        $this->buatPersyaratanWajib($fixture);
+        $header = $this->buatDrafLampau($fixture);
+        $this->simpanMatriks($fixture, $header, [$this->sel($fixture['periode1'], 25), $this->sel($fixture['periode2'], 50), $this->sel($fixture['periode3'], 75), $this->sel($fixture['periode4'], 100)], $fixture['perencanaan'])->assertSessionHasNoErrors();
+
+        // Q63: kartu kesiapan dan panel bukti memakai status pengecualian yang sama.
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.pengajuan.siap', true)
+            ->where('rencanaAksi.pengajuan.dikecualikan', true)
+            ->where('bukti.dikecualikan', true)
+            ->where('bukti.ringkasan.lengkap', false));
+
+        // PIC pada RA yang sama tidak memperoleh pengecualian.
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.pengajuan.dikecualikan', false)
+            ->where('bukti.dikecualikan', false));
+    }
+
     public function test_pengajuan_lampau_membekukan_versi_dan_mengaudit_aktor(): void
     {
         $fixture = $this->siapkanPeriodeLampau2026();
@@ -158,5 +200,37 @@ class RencanaAksiPeriodeLampauMatrixTest extends TestCase
         $audit = AuditLog::where('tindakan', 'rencana_aksi.ajukan')->where('objek_id', $header->id)->sole();
         $this->assertSame($fixture['perencanaan']->id, $audit->actor_id);
         $this->assertSame(0, AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->where('objek_id', $header->id)->count());
+    }
+
+    /**
+     * Draf lengkap pada jadwal yang seluruh periodenya lampau saat aktivasi,
+     * dengan persyaratan bukti wajib tahap rencana aksi.
+     *
+     * @return array{0: array<string, mixed>, 1: RencanaAksi}
+     */
+    private function drafLampauDenganBuktiWajib(string $aktivasi = '2026-04-05 09:00:00'): array
+    {
+        $fixture = $this->buatFixtureManual();
+        $fixture['jadwal']->update(['activated_at' => $aktivasi]);
+        $this->buatPersyaratanWajib($fixture);
+        $header = $this->drafManual($fixture);
+
+        return [$fixture, $header];
+    }
+
+    /**
+     * Draf lengkap pada jadwal yang seluruh periodenya lampau saat aktivasi,
+     * tanpa klaim kegiatan tahap rencana aksi.
+     *
+     * @return array{0: array<string, mixed>, 1: RencanaAksi}
+     */
+    private function drafLampauTanpaKegiatan(string $aktivasi = '2026-04-05 09:00:00'): array
+    {
+        $fixture = $this->buatFixtureManual();
+        $fixture['jadwal']->update(['activated_at' => $aktivasi]);
+        $header = $this->drafManual($fixture);
+        KlaimKegiatan::where('rencana_aksi_id', $header->id)->delete();
+
+        return [$fixture, $header];
     }
 }

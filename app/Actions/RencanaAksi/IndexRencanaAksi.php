@@ -129,6 +129,8 @@ class IndexRencanaAksi
             // kegiatan agar pengecualian Q46 §46.1 dinilai dari sumber yang sama.
             $jalurPerencanaan = $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id));
             $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan, (int) $segel->tahun, $jalurPerencanaan, $jadwal, $jendela, $efektifIds);
+            // Q63: status pengecualian dipakai bersama kartu kesiapan dan panel bukti.
+            $dikecualikan = $this->kesiapan->jalurLampauDikecualikan((int) $segel->tahun, $jalurPerencanaan, $jadwal, $jendela, $efektifIds);
             // Gerbang kegiatan memakai aturan yang sama dengan pengajuan.
             $klaim = KlaimKegiatan::where('rencana_aksi_id', $segel->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->get();
             $kegiatanKlaim = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->get()->keyBy('id');
@@ -218,7 +220,7 @@ class IndexRencanaAksi
                 'koreksi' => $koreksi,
                 'deviasi_pk' => DeviasiTargetPk::props($deviasiBeku, $segel->alasan_deviasi_pk, $barisBeku === [] ? null : $barisBeku[array_key_last($barisBeku)]['periode_id']),
                 // Teks alasan berasal dari server; React hanya menampilkannya.
-                'pengajuan' => ['siap' => $alasanPengajuan === [], 'alasan' => $alasanPengajuan],
+                'pengajuan' => ['siap' => $alasanPengajuan === [], 'alasan' => $alasanPengajuan, 'dikecualikan' => $dikecualikan],
                 'versi_pengajuan' => $versiPengajuan === null ? null : [
                     'nomor' => (int) $versiPengajuan->nomor,
                     'diajukan_oleh' => $versiPengajuan->getAttribute('diajukan_oleh'),

@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 
 /**
- * Fixture bersama matriks periode lampau 2026 (issue #131): jadwal dengan
+ * Fixture bersama matriks periode lampau 2026 (ISS-03.05): jadwal dengan
  * TW I–III lampau saat aktivasi (pengisian selesai 31 Maret, aktivasi 5
  * April) dan TW IV normal (pengisian sampai 31 Desember), snapshot target
  * PK manual, PIC bergrant `rencana_aksi:create/update/ajukan` beserta

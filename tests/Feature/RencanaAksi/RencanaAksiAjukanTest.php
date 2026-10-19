@@ -7,6 +7,8 @@ use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\Pengaturan;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
@@ -387,6 +389,11 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertSame($fixture['perencanaan']->id, $header->created_by);
 
         $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 100)]);
+        // Q63: PIC tidak dikecualikan dari gerbang kegiatan; sertakan satu klaim tahap rencana aksi.
+        $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $fixture['periode1']->id,
+            'nama' => 'Kegiatan pendukung', 'created_by' => $fixture['pic']->id]);
+        KlaimKegiatan::create(['rencana_aksi_id' => $header->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
+            'sumber_klaim' => 'rencana_aksi', 'created_by' => $fixture['pic']->id, 'created_at' => now()]);
         $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
         $versi = RencanaAksiVersi::sole();
         $this->assertSame($fixture['pic']->id, $versi->diajukan_by);

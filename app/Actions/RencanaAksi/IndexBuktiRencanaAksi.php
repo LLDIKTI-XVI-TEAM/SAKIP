@@ -25,7 +25,7 @@ class IndexBuktiRencanaAksi
     /**
      * @return array<string, mixed>|null
      */
-    public function handle(User $actor, string $id): ?array
+    public function handle(User $actor, string $id, bool $dikecualikan = false): ?array
     {
         $header = RencanaAksi::findOrFail($id);
         if (! Gate::forUser($actor)->allows('viewEvidence', $header)) {
@@ -39,6 +39,9 @@ class IndexBuktiRencanaAksi
         $settings = $this->evaluator->settings();
 
         return [
+            // Q63: gerbang bukti wajib dikecualikan hanya pada jalur Perencanaan;
+            // panel menampilkan persyaratan wajib sebagai dikecualikan, bukan kurang.
+            'dikecualikan' => $dikecualikan,
             'persyaratan' => $persyaratan,
             'ringkasan' => $this->evaluator->ringkasan($persyaratan),
             // `path` tidak pernah dikirim; unduhan lewat route berizin.
