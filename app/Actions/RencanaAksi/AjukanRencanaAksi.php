@@ -173,7 +173,8 @@ class AjukanRencanaAksi
                 }
                 $deviasi = $this->kesiapan->deviasi($baris, $snapshot);
                 $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $bukti);
-                $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan);
+                $jalurPerencanaan = $this->jendela->jalurPerencanaan($keputusan);
+                $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan, (int) $header->tahun, $jalurPerencanaan);
                 // Urutan header → klaim → kegiatan sama dengan pengajuan Pengukuran; writer klaim juga mengunci header lebih dulu.
                 $klaim = KlaimKegiatan::where('rencana_aksi_id', $header->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->lockForUpdate()->get();
                 $kegiatan = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
@@ -184,9 +185,9 @@ class AjukanRencanaAksi
                 $buktiKegiatan = BuktiDukung::where('berkasable_type', 'kegiatan')->whereIn('berkasable_id', $kegiatan->keys()->all())->current()
                     ->orderBy('berkas.id')->sharedLock()->get()->groupBy(fn (BuktiDukung $item): string => (string) $item->berkasable_id);
                 $perencanaanKegiatan = $this->kesiapan->perencanaanKegiatan($kegiatan, (string) $indikator->id, (int) $header->tahun,
-                    $this->jendela->jalurPerencanaan($keputusan), $jadwal, $jendelaPeriode, $buktiKegiatan, $bacaKegiatan);
+                    $jalurPerencanaan, $jadwal, $jendelaPeriode, $buktiKegiatan, $bacaKegiatan);
                 $alasan = [...$alasan, ...$perencanaanKegiatan['alasan']];
-                $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $this->jendela->jalurPerencanaan($keputusan), $jadwal, $jendelaPeriode, $periodeEfektif);
+                $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $header->tahun, $jalurPerencanaan);
                 if ($alasanKegiatan !== null) {
                     $alasan[] = $alasanKegiatan;
                 }
@@ -211,7 +212,7 @@ class AjukanRencanaAksi
                     'nomor' => (int) RencanaAksiVersi::where('rencana_aksi_id', $header->id)->max('nomor') + 1,
                     'diajukan_by' => $pengunci->id,
                     'diajukan_at' => $waktuAjukan,
-                    'jalur_pengajuan' => $this->jendela->jalurPerencanaan($keputusan) ? 'perencanaan' : 'pic',
+                    'jalur_pengajuan' => $jalurPerencanaan ? 'perencanaan' : 'pic',
                     'dasar_izin_pengajuan' => [
                         ...$keputusan->toAuditBasis(),
                         'unit_id' => (string) $header->unit_id,
@@ -240,26 +241,6 @@ class AjukanRencanaAksi
                         ]))->values()->all(),
                     ],
                 ]);
-
-                // PRD §18.7: waiver file tercatat di audit_log bersama versi (format sama
-                // dengan pengajuan Pengukuran); kegagalan audit membatalkan pengajuan.
-                $pengecualian = collect($persyaratan)
-                    ->filter(fn (array $item): bool => $item['wajib'] && $item['pemenuhan']['mode_dikecualikan'] !== [])
-                    ->map(fn (array $item): array => ['jenis_berkas_id' => $item['id'], 'nama' => $item['nama'],
-                        'mode' => $item['pemenuhan']['mode_dikecualikan'], 'alasan' => $item['pemenuhan']['alasan_pengecualian']])
-                    ->values()
-                    ->all();
-                if ($pengecualian !== []) {
-                    $this->audit->catat(
-                        actor: $pengunci,
-                        tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
-                        objekTipe: 'rencana_aksi',
-                        objekId: (string) $header->id,
-                        nilaiBaru: ['versi_pengajuan_id' => $versi->id, 'nomor_pengajuan' => $versi->nomor, 'pengecualian' => $pengecualian],
-                        alasan: 'Kewajiban mode file dikecualikan karena unggahan dinonaktifkan.',
-                        dasarIzin: $dasarIzin,
-                    );
-                }
 
                 $header->status_alur = RencanaAksi::STATUS_DIAJUKAN;
                 $header->versi++;

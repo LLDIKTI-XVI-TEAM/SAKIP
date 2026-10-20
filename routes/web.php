@@ -27,7 +27,6 @@ use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
 use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
-use App\Http\Controllers\Pengaturan\StoragePolicyController;
 use App\Http\Controllers\Pengaturan\UpdatePengaturan;
 use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
 use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
@@ -245,15 +244,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/jenis-berkas', [JenisBerkasController::class, 'index'])->name('jenis-berkas.index');
     Route::post('/jenis-berkas', [JenisBerkasController::class, 'store'])->name('jenis-berkas.store');
     Route::put('/jenis-berkas/{id}', [JenisBerkasController::class, 'update'])->whereUuid('id')->name('jenis-berkas.update');
-    Route::patch('/jenis-berkas/{id}/batas-teknis', [JenisBerkasController::class, 'updateBatasTeknis'])->whereUuid('id')->name('jenis-berkas.update-batas-teknis');
     Route::delete('/jenis-berkas/{id}', [JenisBerkasController::class, 'destroy'])->whereUuid('id')->name('jenis-berkas.destroy');
     Route::post('/jenis-berkas/{id}/contoh', [JenisBerkasController::class, 'storeContoh'])->whereUuid('id')->name('jenis-berkas.contoh.store');
     Route::delete('/jenis-berkas/{id}/contoh/{contoh}', [JenisBerkasController::class, 'destroyContoh'])->whereUuid(['id', 'contoh'])->name('jenis-berkas.contoh.destroy');
     Route::get('/jenis-berkas/{id}/contoh/{contoh}', [JenisBerkasController::class, 'downloadContoh'])->whereUuid(['id', 'contoh'])->name('jenis-berkas.contoh.download');
-
-    // Kebijakan Storage & Saklar Unggah Berkas
-    Route::get('/pengaturan/storage', [StoragePolicyController::class, 'index'])->name('pengaturan.storage.index');
-    Route::put('/pengaturan/storage', [StoragePolicyController::class, 'update'])->name('pengaturan.storage.update');
 
     // Jejak audit append-only: hanya baca, tanpa rute ubah atau hapus.
     Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');

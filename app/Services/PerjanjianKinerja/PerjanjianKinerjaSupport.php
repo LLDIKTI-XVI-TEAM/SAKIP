@@ -2,10 +2,10 @@
 
 namespace App\Services\PerjanjianKinerja;
 
-use App\Models\Pengaturan;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Storage\UploadLimits;
 use App\Support\AuditReason;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
@@ -124,16 +124,7 @@ class PerjanjianKinerjaSupport
      */
     public static function lampiranRules(): array
     {
-        $settings = Pengaturan::where('grup', 'berkas')->pluck('nilai', 'kunci');
-        $rawActive = $settings->get('berkas.unggahan_aktif');
-        $isUploadActive = $rawActive === null ? true : filter_var($rawActive, FILTER_VALIDATE_BOOLEAN);
-        $maxKb = (int) ($settings->get('berkas.ukuran_maks_kb') ?? 10240);
-        $formats = (string) ($settings->get('berkas.format_diizinkan') ?? 'pdf,docx,xlsx,jpg,jpeg,png');
-        $formatsClean = str_replace(' ', '', $formats);
-
-        $fileRules = $isUploadActive
-            ? ['exclude_unless:lampiran.*.mode,file', 'required', 'file', 'mimes:'.$formatsClean, 'max:'.$maxKb]
-            : ['exclude_unless:lampiran.*.mode,file'];
+        $fileRules = ['exclude_unless:lampiran.*.mode,file', 'required', ...UploadLimits::fileRules()];
 
         return [
             'lampiran' => ['nullable', 'array'],
@@ -176,11 +167,6 @@ class PerjanjianKinerjaSupport
      */
     public static function validateLampiranItems(array $lampiran, array $files, Validator $validator): void
     {
-        $isUploadActive = filter_var(
-            Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai') ?? true,
-            FILTER_VALIDATE_BOOLEAN
-        );
-
         foreach ($lampiran as $index => $item) {
             if (! is_array($item)) {
                 continue;
@@ -189,9 +175,7 @@ class PerjanjianKinerjaSupport
             $mode = $item['mode'] ?? null;
             if ($mode === 'file') {
                 $file = $files[$index] ?? null;
-                if (! $isUploadActive) {
-                    $validator->errors()->add("lampiran.{$index}.file", 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.');
-                } elseif (! ($file instanceof UploadedFile)) {
+                if (! ($file instanceof UploadedFile)) {
                     $validator->errors()->add("lampiran.{$index}.file", 'Pilih file yang akan dilampirkan.');
                 } else {
                     if (mb_strlen($file->getClientOriginalName()) > 255) {

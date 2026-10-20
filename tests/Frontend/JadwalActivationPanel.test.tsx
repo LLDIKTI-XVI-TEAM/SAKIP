@@ -16,7 +16,7 @@ const readiness = (overrides: Partial<JadwalActivationReadiness> = {}): JadwalAc
         { key: 'G1', status: 'lolos', message: 'Perjanjian Kinerja tahun ini tersedia.', count: null },
         { key: 'G2', status: 'lolos', message: 'Seluruh indikator yang berlaku memiliki target tahunan.', count: 12 },
         { key: 'G3', status: 'lolos', message: 'Tahun jadwal berada dalam rentang Renstra.', count: null },
-        { key: 'G4', status: 'pengecualian', message: 'Unggahan berkas sedang dinonaktifkan; lampiran PK dikecualikan dan akan ditandai.', count: 0 },
+        { key: 'G4', status: 'lolos', message: 'Perjanjian Kinerja memiliki lampiran.', count: 1 },
     ],
     counts: { indikator_berlaku: 12, target_belum_terisi: 0, snapshot_existing: 0, snapshot_baru: 12, komponen_baru: 9 },
     periode_lampau_ids: ['periode-1'],
@@ -76,8 +76,8 @@ it('menampilkan empat gerbang, jumlah agregat, dan periode lampau dari server', 
     for (const label of ['Perjanjian Kinerja', 'Target tahunan', 'Tahun dalam Renstra', 'Lampiran PK']) {
         expect(screen.getByText(label)).toBeTruthy();
     }
-    expect(screen.getByText('Pengecualian')).toBeTruthy();
-    expect(screen.getAllByText('Lolos')).toHaveLength(3);
+    expect(screen.queryByText('Pengecualian')).toBeNull();
+    expect(screen.getAllByText('Lolos')).toHaveLength(4);
     // text-success (#16A34A) hanya 3.3:1 di atas surface; teks status wajib memakai token gelap ≥4.5:1.
     for (const el of [...screen.getAllByText('Lolos'), screen.getByText('Siap diaktifkan')]) {
         expect(el.className).toContain('text-success-dark');

@@ -200,10 +200,12 @@ export interface BuktiItem {
 
 /** Props panel bukti dari `IndexBuktiRencanaAksi`; null bila aktor tidak berhak melihat bukti. */
 export interface RencanaAksiBukti {
+    /** Q63: persyaratan wajib dikecualikan pada jalur Perencanaan (periode lampau/data awal). */
+    dikecualikan: boolean;
     persyaratan: BuktiPersyaratan[];
     ringkasan: { lengkap: boolean; total_wajib: number; terpenuhi_wajib: number };
     daftar: BuktiItem[];
-    unggahan: { unggahan_aktif: boolean; ukuran_maks_kb: number; format_diizinkan: string };
+    unggahan: { ukuran_maks_kb: number; format_diizinkan: string };
     can: { upload: boolean; delete: boolean };
 }
 

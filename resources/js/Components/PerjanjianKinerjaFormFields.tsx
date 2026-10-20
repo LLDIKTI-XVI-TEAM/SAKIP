@@ -172,9 +172,7 @@ export function PerjanjianKinerjaFormFields({
                 onChange={(update) => setField('lampiran', update(data.lampiran))}
                 title="Lampiran Dokumen"
                 modeDescriptions={{
-                    file: storageSettings?.unggahan_aktif === false
-                        ? 'Unggahan file sedang dinonaktifkan di pengaturan sistem. Gunakan tautan atau teks.'
-                        : `Format dokumen legal resmi (PDF, Word, atau gambar); maksimal ${maksMb} MB.`,
+                    file: `Format ${storageSettings?.format_diizinkan ?? 'pdf,docx,xlsx,jpg,jpeg,png'}; maksimal ${maksMb} MB.`,
                     tautan: 'Alamat berkas cloud atau portal resmi dengan tautan HTTPS.',
                     teks: 'Catatan ringkasan klausul atau komitmen Perjanjian Kinerja.',
                 }}
@@ -182,8 +180,7 @@ export function PerjanjianKinerjaFormFields({
                 emptyText="Belum ada lampiran yang ditambahkan"
                 accept={storageSettings?.format_diizinkan
                     ? storageSettings.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')
-                    : '.pdf,.doc,.docx,.jpg,.jpeg,.png'}
-                fileDisabled={storageSettings?.unggahan_aktif === false}
+                    : '.pdf,.docx,.xlsx,.jpg,.jpeg,.png'}
                 disabled={disabled}
                 blockedMessage={canUploadBerkas ? undefined : 'Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'}
                 renderItemFields={(index) => (

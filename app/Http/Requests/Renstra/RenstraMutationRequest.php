@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Renstra;
 
-use App\Models\Pengaturan;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Storage\UploadLimits;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Foundation\Http\FormRequest;
@@ -23,8 +23,6 @@ use Illuminate\Validation\Validator;
  */
 abstract class RenstraMutationRequest extends FormRequest
 {
-    protected ?bool $isUploadActiveCached = null;
-
     protected ?PermissionDecision $deniedRelatedDecision = null;
 
     protected ?string $deniedRelatedReason = null;
@@ -90,16 +88,7 @@ abstract class RenstraMutationRequest extends FormRequest
             }
         });
 
-        $settings = Pengaturan::where('grup', 'berkas')->pluck('nilai', 'kunci');
-        $isUploadActive = filter_var($settings->get('berkas.unggahan_aktif', 'true'), FILTER_VALIDATE_BOOLEAN);
-        $this->isUploadActiveCached = $isUploadActive;
-        $maxKb = (int) $settings->get('berkas.ukuran_maks_kb', 10240);
-        $formats = (string) $settings->get('berkas.format_diizinkan', 'pdf,docx,xlsx,jpg,jpeg,png');
-        $formatsClean = str_replace(' ', '', $formats);
-
-        $fileRules = $isUploadActive
-            ? ['exclude_unless:lampiran.*.mode,file', 'required', 'file', 'mimes:'.$formatsClean, 'max:'.$maxKb]
-            : ['exclude_unless:lampiran.*.mode,file'];
+        $fileRules = ['exclude_unless:lampiran.*.mode,file', 'required', ...UploadLimits::fileRules()];
 
         return [
             'kode' => ['sometimes', 'nullable', 'string', 'max:50', $uniqueKode],
@@ -134,16 +123,6 @@ abstract class RenstraMutationRequest extends FormRequest
                 $validator->errors()->add('tahun_selesai', $pesan);
             }
 
-            if ($this->isUploadActiveCached === false) {
-                $lampiran = $this->input('lampiran', []);
-                if (is_array($lampiran)) {
-                    foreach ($lampiran as $index => $item) {
-                        if (($item['mode'] ?? null) === 'file') {
-                            $validator->errors()->add("lampiran.{$index}.file", 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.');
-                        }
-                    }
-                }
-            }
         });
     }
 

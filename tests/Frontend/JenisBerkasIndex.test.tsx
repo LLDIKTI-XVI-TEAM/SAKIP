@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
@@ -50,7 +50,8 @@ const list = [
     jb({ id: 'j2', nama: 'Kerangka Acuan Kerja', tahap: 'rencana_aksi', izinkan_file: false, izinkan_teks: true, aktif: false }),
 ];
 const indikators = [{ id: 'i1', kode: 'IK-01', nama: 'Persentase PT terakreditasi' }];
-const canAll = { create: true, update: true, delete: true, pengaturan_update: true };
+const canAll = { create: true, update: true, delete: true };
+const batasUnggahan = { ukuran_maks_kb: 10240, format_diizinkan: 'pdf,docx,xlsx,jpg,jpeg,png', batas_atas_kb: 102400 };
 
 beforeEach(() => {
     vi.spyOn(router, 'post').mockImplementation(() => undefined);
@@ -64,7 +65,7 @@ afterEach(() => {
 
 it('menyaring persyaratan lewat pencarian dan tahap yang berlabel', async () => {
     const user = userEvent.setup();
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
 
     expect(screen.getByRole('button', { name: /Tambah persyaratan/ })).toBeTruthy();
     await user.selectOptions(screen.getByLabelText('Tahap'), 'rencana_aksi');
@@ -76,7 +77,7 @@ it('menyaring persyaratan lewat pencarian dan tahap yang berlabel', async () => 
 });
 
 it('merangkum ketentuan bukti dalam satu kolom', () => {
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
 
     expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Persyaratan', 'Tahap', 'Lingkup', 'Ketentuan bukti', 'Status', 'Aksi']);
     const laporan = screen.getByRole('row', { name: /Laporan Capaian Triwulan/ });
@@ -91,8 +92,8 @@ it('merangkum ketentuan bukti dalam satu kolom', () => {
     expect(within(kak).getByText('Nonaktif')).toBeTruthy();
 });
 
-it('kolom kosong mengikuti jumlah kolom saat pengguna hanya boleh mengubah batas teknis', () => {
-    render(<JenisBerkasIndex jenisBerkasList={[]} indikators={indikators} can={{ create: false, update: false, delete: false, pengaturan_update: true }} />);
+it('kolom kosong mengikuti jumlah kolom bagi pengguna baca saja', () => {
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={[]} indikators={indikators} can={{ create: false, update: false, delete: false }} />);
 
     const cell = screen.getByText('Belum ada persyaratan').closest('td');
     expect(cell?.colSpan).toBe(screen.getAllByRole('columnheader').length);
@@ -100,7 +101,7 @@ it('kolom kosong mengikuti jumlah kolom saat pengguna hanya boleh mengubah batas
 
 it('menyimpan persyaratan baru langsung tanpa alasan audit', async () => {
     const user = userEvent.setup();
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
 
     await user.click(screen.getByRole('button', { name: /Tambah persyaratan/ }));
     await user.type(screen.getByLabelText(/nama persyaratan/i), 'Surat Tugas');
@@ -113,61 +114,124 @@ it('menyimpan persyaratan baru langsung tanpa alasan audit', async () => {
     );
 });
 
-it('meminta alasan audit sebelum menyimpan perubahan persyaratan', async () => {
+it.each(['', 'OK', 'Penyesuaian format laporan'])('menyimpan perubahan dengan alasan opsional: %j', async (alasan) => {
     const user = userEvent.setup();
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
 
     await user.click(screen.getByRole('button', { name: 'Edit Laporan Capaian Triwulan' }));
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(/nama persyaratan/i)));
     await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
     expect(router.put).not.toHaveBeenCalled();
-    await user.type(screen.getByLabelText(/alasan perubahan/i), 'Penyesuaian format laporan');
+    const reason = screen.getByLabelText(/alasan perubahan/i);
+    expect(reason.getAttribute('aria-required')).toBe('false');
+    expect(screen.queryByText(/Perubahan katalog persyaratan bukti dukung bersifat sensitif/)).toBeNull();
+    expect(screen.queryByText(/Alasan, pengguna, waktu/)).toBeNull();
+    if (alasan) await user.type(reason, alasan);
     await user.click(screen.getByRole('button', { name: /simpan perubahan/i }));
 
     expect(router.put).toHaveBeenCalledWith(
         '/jenis-berkas/j1',
-        expect.objectContaining({ nama: 'Laporan Capaian Triwulan', alasan: 'Penyesuaian format laporan' }),
+        expect.objectContaining({ nama: 'Laporan Capaian Triwulan', alasan }),
         expect.anything(),
     );
 });
 
-it('mengosongkan batas teknis mengirim null saat hanya boleh mengubah batas teknis', async () => {
+it.each(['Batal', 'Escape'] as const)('menangguhkan form selama alasan audit terbuka dan mempertahankan draft setelah %s', async (dismiss) => {
     const user = userEvent.setup();
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={{ create: false, update: false, delete: false, pengaturan_update: true }} />);
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    await user.click(screen.getByRole('button', { name: 'Edit Laporan Capaian Triwulan' }));
+    await user.clear(screen.getByLabelText(/format file/i));
+    await user.type(screen.getByLabelText(/format file/i), 'pdf,xlsx');
+    await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
 
-    await user.click(screen.getByRole('button', { name: 'Ubah batas teknis Laporan Capaian Triwulan' }));
-    const formatInput = screen.getByLabelText(/format file/i);
-    // Polyfill dialog jsdom tidak mengisolasi fokus; tuntaskan autofocus form sebelum membuka konfirmasi audit.
-    await waitFor(() => expect(document.activeElement).toBe(formatInput));
-    await user.clear(formatInput);
+    expect(screen.queryByRole('dialog', { name: 'Edit persyaratan' })).toBeNull();
+    const audit = screen.getByRole('dialog', { name: 'Simpan perubahan persyaratan?' });
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(document.activeElement).toBe(within(audit).getByLabelText(/alasan perubahan/i));
+    await user.tab();
+    expect(document.activeElement).toBe(within(audit).getByRole('button', { name: 'Batal' }));
+    await user.tab();
+    expect(document.activeElement).toBe(within(audit).getByRole('button', { name: 'Simpan perubahan' }));
+
+    if (dismiss === 'Batal') {
+        await user.tab({ shift: true });
+        await user.keyboard('{Enter}');
+    } else {
+        // Native Escape memicu cancel; jsdom belum menerapkan perilaku dialog tersebut.
+        fireEvent(audit, new Event('cancel', { cancelable: true }));
+    }
+    expect(router.put).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Edit persyaratan' })).toBeTruthy();
+    expect((screen.getByLabelText(/format file/i) as HTMLInputElement).value).toBe('pdf,xlsx');
+    expect((screen.getByLabelText(/nama persyaratan/i) as HTMLInputElement).value).toBe('Laporan Capaian Triwulan');
+});
+
+it('Enter pada tombol simpan mengirim persyaratan dengan format dan ukuran yang dipilih', async () => {
+    const user = userEvent.setup();
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    await user.click(screen.getByRole('button', { name: /Tambah persyaratan/ }));
+    await user.type(screen.getByLabelText(/format file/i), 'pdf,xlsx');
+    await user.type(screen.getByLabelText(/Ukuran maksimum/i), '2048');
+    await user.type(screen.getByLabelText(/nama persyaratan/i), 'Rincian Kegiatan');
+    // user-event hanya mencari submit di subtree form; footer Modal memakai atribut form native.
+    screen.getByRole('button', { name: 'Simpan persyaratan' }).focus();
+    await user.keyboard('{Enter}');
+    expect(router.post).toHaveBeenCalledWith('/jenis-berkas', expect.objectContaining({
+        nama: 'Rincian Kegiatan', format_diizinkan: 'pdf,xlsx', ukuran_maks_kb: 2048,
+    }), expect.anything());
+});
+
+it('Perencanaan mengubah format dan mengosongkan batas lewat form persyaratan', async () => {
+    const user = userEvent.setup();
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    await user.click(screen.getByRole('button', { name: 'Edit Laporan Capaian Triwulan' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(/nama persyaratan/i)));
+    const format = screen.getByLabelText(/format file/i) as HTMLInputElement;
+    const ukuran = screen.getByLabelText(/Ukuran maksimum/i) as HTMLInputElement;
+    expect(format.disabled).toBe(false);
+    expect(ukuran.disabled).toBe(false);
+    expect(ukuran.max).toBe('102400');
+    expect(screen.getByText(/bawaan 10.240 KB/)).toBeTruthy();
+    await user.clear(format);
+    await user.clear(ukuran);
     await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
     await user.type(screen.getByLabelText(/alasan perubahan/i), 'Format mengikuti bawaan');
     await user.click(screen.getByRole('button', { name: /simpan perubahan/i }));
-
-    expect(router.patch).toHaveBeenCalledWith(
-        '/jenis-berkas/j1/batas-teknis',
-        { alasan: 'Format mengikuti bawaan', expected_updated_at: '2026-09-01T00:00:00Z', format_diizinkan: null, ukuran_maks_kb: 10240 },
-        expect.anything(),
-    );
+    expect(router.put).toHaveBeenCalledWith('/jenis-berkas/j1', expect.objectContaining({
+        alasan: 'Format mengikuti bawaan', expected_updated_at: '2026-09-01T00:00:00Z', format_diizinkan: null, ukuran_maks_kb: null,
+    }), expect.anything());
 });
 
-it('peringatan unggahan nonaktif tidak menampilkan kunci konfigurasi internal', async () => {
-    const user = userEvent.setup();
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} unggahanAktif={false} />);
+it('pengguna baca saja tidak mendapat aksi ubah batas teknis', () => {
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={{ create: false, update: false, delete: false }} />);
+    expect(screen.queryByRole('button', { name: /Ubah batas teknis|Edit |Tambah persyaratan/ })).toBeNull();
+});
 
+it('menampilkan batas efektif dari server tanpa peringatan saklar unggahan', async () => {
+    const user = userEvent.setup();
+    render(<JenisBerkasIndex batasUnggahan={{ ukuran_maks_kb: 2048, format_diizinkan: 'pdf,xlsx', batas_atas_kb: 51200 }} jenisBerkasList={list} indikators={indikators} can={canAll} />);
     await user.click(screen.getByRole('button', { name: /Tambah persyaratan/ }));
     await user.click(screen.getByLabelText(/bukti wajib/i));
-
-    expect(screen.getByText(/Unggahan file sedang dinonaktifkan/)).toBeTruthy();
-    expect(screen.queryByText(/berkas\.unggahan_aktif/)).toBeNull();
+    expect(screen.getByText(/bawaan: pdf, xlsx/)).toBeTruthy();
+    expect(screen.getByText(/bawaan 2.048 KB.*maksimal 51.200 KB/)).toBeTruthy();
+    expect(screen.getByLabelText(/Ukuran maksimum/i).getAttribute('max')).toBe('51200');
+    expect(screen.queryByText(/Unggahan file sedang dinonaktifkan/)).toBeNull();
 });
 
-it('hanya menawarkan ubah batas teknis untuk persyaratan yang menerima file', () => {
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={{ create: false, update: false, delete: false, pengaturan_update: true }} />);
-
-    expect(screen.getByRole('button', { name: 'Ubah batas teknis Laporan Capaian Triwulan' })).toBeTruthy();
-    // Tanpa mode file semua isian batas teknis nonaktif; menyimpannya hanya menghasilkan catatan audit kosong.
-    expect(screen.queryByRole('button', { name: 'Ubah batas teknis Kerangka Acuan Kerja' })).toBeNull();
+it('mempertahankan draft dan menampilkan galat field ketika perubahan ditolak server', async () => {
+    const user = userEvent.setup();
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    await user.click(screen.getByRole('button', { name: 'Edit Laporan Capaian Triwulan' }));
+    await user.clear(screen.getByLabelText(/format file/i));
+    await user.type(screen.getByLabelText(/format file/i), 'pdf,xlsx');
+    await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
+    await user.type(screen.getByLabelText(/alasan perubahan/i), 'Format disesuaikan');
+    await user.click(screen.getByRole('button', { name: /simpan perubahan/i }));
+    await act(async () => { vi.mocked(router.put).mock.calls[0][2]?.onError?.({ format_diizinkan: 'Format tidak valid.' }); });
+    expect(screen.getByRole('dialog', { name: 'Edit persyaratan' })).toBeTruthy();
+    expect((screen.getByLabelText(/format file/i) as HTMLInputElement).value).toBe('pdf,xlsx');
+    expect(screen.getByText('Format tidak valid.')).toBeTruthy();
+    expect(screen.getByLabelText(/format file/i).getAttribute('aria-invalid')).toBe('true');
 });
 
 it('persyaratan perencanaan kegiatan menampilkan penanda beranggaran serta mengunggah dan menghapus contoh beralasan', async () => {
@@ -175,7 +239,7 @@ it('persyaratan perencanaan kegiatan menampilkan penanda beranggaran serta mengu
     const remove = vi.spyOn(router, 'delete').mockImplementation(() => undefined);
     const rab = jb({ id: 'j3', nama: 'RAB', tahap: 'kegiatan_perencanaan', wajib: true, hanya_kegiatan_beranggaran: true,
         contoh_berkas: [{ id: 'c1', nama_asli: 'contoh-rab.xlsx', ukuran_bytes: 2048 }] });
-    render(<JenisBerkasIndex jenisBerkasList={[...list, rab]} indikators={indikators} can={canAll} />);
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={[...list, rab]} indikators={indikators} can={canAll} />);
 
     expect(screen.getAllByText('Perencanaan Kegiatan').length).toBeGreaterThan(0);
     expect(screen.getByText(/hanya kegiatan beranggaran/)).toBeTruthy();
@@ -193,7 +257,7 @@ it('persyaratan perencanaan kegiatan menampilkan penanda beranggaran serta mengu
 
 it('penanda hanya kegiatan beranggaran hanya ditawarkan pada tahap perencanaan kegiatan', async () => {
     const user = userEvent.setup();
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
     await user.click(screen.getByRole('button', { name: /Tambah persyaratan/ }));
 
     expect(screen.queryByLabelText('Hanya kegiatan beranggaran')).toBeNull();
@@ -206,7 +270,7 @@ it('penanda hanya kegiatan beranggaran hanya ditawarkan pada tahap perencanaan k
 
 it('menawarkan tahap Rencana Aksi di urutan pertama dan mengirimkannya sebagai rencana_aksi', async () => {
     const user = userEvent.setup();
-    render(<JenisBerkasIndex jenisBerkasList={list} indikators={indikators} can={canAll} />);
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
     await user.click(screen.getByRole('button', { name: /Tambah persyaratan/ }));
 
     const tahap = document.getElementById('jb-tahap') as HTMLSelectElement;

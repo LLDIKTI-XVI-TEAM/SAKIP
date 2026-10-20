@@ -4,24 +4,20 @@ namespace App\Actions\Pengukuran;
 
 use App\Models\BuktiDukung;
 use App\Models\JenisBerkas;
-use App\Models\Pengaturan;
 use App\Models\PengukuranKinerja;
+use App\Services\Storage\UploadLimits;
 use Illuminate\Support\Collection;
 
 /**
  * Gerbang kelengkapan bukti dukung bersama (Plan 13.4): satu evaluator untuk
- * tahap pengukuran dan rencana aksi agar aturan mode, `semua_mode_wajib`,
- * dan waiver anti-macet tidak diduplikasi per induk.
+ * tahap pengukuran dan rencana aksi agar aturan mode dan `semua_mode_wajib`
+ * tidak diduplikasi per induk.
  */
 class EvaluateEvidence
 {
     public function settings(): array
     {
-        $values = Pengaturan::where('grup', 'berkas')->pluck('nilai', 'kunci');
-
-        return ['unggahan_aktif' => filter_var($values['berkas.unggahan_aktif'] ?? true, FILTER_VALIDATE_BOOLEAN),
-            'ukuran_maks_kb' => (int) ($values['berkas.ukuran_maks_kb'] ?? 10240),
-            'format_diizinkan' => $values['berkas.format_diizinkan'] ?? 'pdf,docx,xlsx,jpg,jpeg,png'];
+        return UploadLimits::resolve();
     }
 
     public function handle(PengukuranKinerja $pengukuran): array
@@ -30,8 +26,7 @@ class EvaluateEvidence
     }
 
     /**
-     * Waiver hanya mode file pada persyaratan wajib (Plan 13.7); mode nonfile tetap wajib sesuai kontrak persyaratan.
-     * Tahap `kegiatan_perencanaan` lahir setelah Q44 menghapus cabang anti-macet, sehingga tidak memakai waiver.
+     * Evaluasi baru selalu memeriksa seluruh mode; pengecualian unggahan lama hanya dibaca dari histori.
      *
      * @param  'pengukuran'|'rencana_aksi'|'kegiatan'|'kegiatan_perencanaan'  $tahap
      * @param  Collection<int, BuktiDukung>  $evidence  Bukti berlaku milik induk (sudah difilter `current`).
@@ -39,26 +34,17 @@ class EvaluateEvidence
      */
     public function untuk(string $tahap, string $indikatorId, Collection $evidence): array
     {
-        $settings = $this->settings();
-        $bolehWaiver = ! $settings['unggahan_aktif'] && $tahap !== 'kegiatan_perencanaan';
-
         return JenisBerkas::where('aktif', true)->where('tahap', $tahap)->where(fn ($q) => $q->whereNull('indikator_id')->orWhere('indikator_id', $indikatorId))
-            ->orderBy('urutan')->orderBy('id')->get()->map(function ($requirement) use ($settings, $evidence, $bolehWaiver) {
+            ->orderBy('urutan')->orderBy('id')->get()->map(function ($requirement) use ($evidence) {
                 $modes = array_values(array_filter(['file', 'tautan', 'teks'], fn ($mode) => $requirement->{'izinkan_'.$mode}));
                 $fulfilled = $evidence->where('jenis_berkas_id', $requirement->id)->pluck('mode')->unique()->intersect($modes)->values()->all();
-                $waived = $requirement->wajib && $bolehWaiver && in_array('file', $modes, true) && ! in_array('file', $fulfilled, true) ? ['file'] : [];
-                $available = array_values(array_diff($modes, $waived));
-                $missing = array_values(array_diff($available, $fulfilled));
-                // Konfigurasi tanpa mode bukan waiver file-only yang memang diizinkan.
-                $complete = $modes !== [] && ($requirement->semua_mode_wajib ? $missing === [] : ($available === [] || array_intersect($available, $fulfilled) !== []));
+                $missing = array_values(array_diff($modes, $fulfilled));
+                $complete = $modes !== [] && ($requirement->semua_mode_wajib ? $missing === [] : $fulfilled !== []);
 
                 return [...$requirement->only(['id', 'nama', 'keterangan', 'wajib', 'semua_mode_wajib', 'izinkan_file', 'izinkan_tautan', 'izinkan_teks']),
-                    'format_diizinkan' => $requirement->format_diizinkan ?: $settings['format_diizinkan'],
-                    'ukuran_maks_kb' => $requirement->ukuran_maks_kb ?? $settings['ukuran_maks_kb'],
-                    'pemenuhan' => ['terpenuhi' => $complete, 'mode_terpenuhi' => $fulfilled, 'mode_kurang' => $missing, 'mode_dikecualikan' => $waived,
-                        // Penanda anti-macet §18.7: seluruh mode yang diizinkan ikut dikecualikan.
-                        'tidak_dapat_dipenuhi' => $waived !== [] && $available === [],
-                        'alasan_pengecualian' => $waived ? 'Unggahan file dinonaktifkan pada setelan aplikasi.' : null]];
+                    ...UploadLimits::resolve($requirement->ukuran_maks_kb, $requirement->format_diizinkan),
+                    'pemenuhan' => ['terpenuhi' => $complete, 'mode_terpenuhi' => $fulfilled, 'mode_kurang' => $missing,
+                        'mode_dikecualikan' => [], 'tidak_dapat_dipenuhi' => false, 'alasan_pengecualian' => null]];
             })->all();
     }
 

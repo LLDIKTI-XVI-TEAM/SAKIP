@@ -75,7 +75,6 @@ export interface RenstraPkSummary {
 }
 
 export interface StorageSettings {
-    unggahan_aktif: boolean;
     ukuran_maks_kb: number;
     format_diizinkan: string;
 }

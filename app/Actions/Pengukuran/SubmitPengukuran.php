@@ -47,15 +47,6 @@ class SubmitPengukuran
                     'jadwal_snapshot_id' => $snapshot->id, 'nomor' => (int) $p->versions()->max('nomor') + 1, 'diajukan_by' => $actor->id, 'diajukan_at' => now(),
                     'jalur_pengajuan' => $this->policy->usesPlanningPath($actor, $p) ? 'perencanaan' : 'pic', 'dasar_izin_pengajuan' => $provenance,
                     'snapshot' => $this->payload($p, $prerequisite, $rekomendasi)]);
-                $waivers = collect($prerequisite['persyaratan_bukti'])
-                    ->filter(fn ($requirement) => $requirement['wajib'] && $requirement['pemenuhan']['mode_dikecualikan'] !== [])
-                    ->map(fn ($requirement) => ['jenis_berkas_id' => $requirement['id'], 'nama' => $requirement['nama'],
-                        'mode' => $requirement['pemenuhan']['mode_dikecualikan'], 'alasan' => $requirement['pemenuhan']['alasan_pengecualian']])->values()->all();
-                if ($waivers !== []) {
-                    // Waiver dan versi harus berhasil bersama; kegagalan audit membatalkan pengajuan.
-                    $this->steps->writeAudit($actor, $p->id, 'berkas.tandai_tidak_dapat_dipenuhi', 'Kewajiban mode file dikecualikan karena unggahan dinonaktifkan.', $decision, null,
-                        ['versi_pengajuan_id' => $version->id, 'nomor_pengajuan' => $version->nomor, 'pengecualian' => $waivers]);
-                }
                 $p->status_alur = 'diajukan';
 
                 return $this->steps->finish($actor, $p, 'pengukuran.ajukan', 'Mengajukan pengukuran untuk reviu.', $decision, $before, ['self_approval' => false]);
