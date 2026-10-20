@@ -197,11 +197,9 @@ class KesiapanPengajuan
      * @param  list<array{periode_nama: ?string, status_perhitungan: string}>  $baris
      * @param  array{status: string}  $deviasi  Keluaran `DeviasiTargetPk::bandingkan`.
      * @param  list<array<string, mixed>>  $persyaratan  Keluaran `EvaluateEvidence::untuk`.
-     * @param  Collection<int, PeriodeJadwal>  $jendela
-     * @param  Collection<int, string>  $periodeEfektif
      * @return list<string>
      */
-    public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan, int $tahun, bool $jalurPerencanaan, JadwalTahunan $jadwal, Collection $jendela, Collection $periodeEfektif): array
+    public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan, int $tahun, bool $jalurPerencanaan): array
     {
         $alasan = [];
         if ($baris === []) {

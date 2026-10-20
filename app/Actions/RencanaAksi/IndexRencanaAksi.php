@@ -136,7 +136,7 @@ class IndexRencanaAksi
             $jalurPengecualian = in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
                 ? $jalurPerencanaan
                 : $versiPengajuan?->jalur_pengajuan === 'perencanaan';
-            $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan, (int) $segel->tahun, $jalurPengecualian, $jadwal, $jendela, $efektifIds);
+            $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan, (int) $segel->tahun, $jalurPengecualian);
             // Status pengecualian dipakai bersama kartu kesiapan dan panel bukti.
             $dikecualikan = $this->kesiapan->jalurLampauDikecualikan((int) $segel->tahun, $jalurPengecualian);
             // Gerbang kegiatan memakai aturan yang sama dengan pengajuan.

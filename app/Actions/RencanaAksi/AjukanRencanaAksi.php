@@ -174,7 +174,7 @@ class AjukanRencanaAksi
                 $deviasi = $this->kesiapan->deviasi($baris, $snapshot);
                 $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $bukti);
                 $jalurPerencanaan = $this->jendela->jalurPerencanaan($keputusan);
-                $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan, (int) $header->tahun, $jalurPerencanaan, $jadwal, $jendelaPeriode, $periodeEfektif);
+                $alasan = $this->kesiapan->alasanTolak($baris, $deviasi, $header->alasan_deviasi_pk, $persyaratan, (int) $header->tahun, $jalurPerencanaan);
                 // Urutan header → klaim → kegiatan sama dengan pengajuan Pengukuran; writer klaim juga mengunci header lebih dulu.
                 $klaim = KlaimKegiatan::where('rencana_aksi_id', $header->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->lockForUpdate()->get();
                 $kegiatan = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
