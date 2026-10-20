@@ -44,12 +44,12 @@ const KOSONG: FormKegiatan = {
     lokasi: '', tanggal_rencana: '', komponen_id: '', arah_dampak: 'menambah', catatan: '',
 };
 
-/** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
 /** Total anggaran beserta penanda kegiatan yang anggarannya belum diisi (Q42 §42.2 butir 2). */
 function teksTotal({ total, belum_diisi }: TotalAnggaran): string {
     return belum_diisi > 0 ? `${formatRupiah(total)} (${belum_diisi} kegiatan belum diisi)` : formatRupiah(total);
 }
 
+/** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
 function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
     return errs.status_alur ?? errs.jendela ?? errs.unit_id ?? errs.indikator_id;
 }
