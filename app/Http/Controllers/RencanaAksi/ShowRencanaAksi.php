@@ -15,9 +15,12 @@ class ShowRencanaAksi extends Controller
     public function __invoke(Request $request, string $rencanaAksi, IndexRencanaAksi $index, IndexBuktiRencanaAksi $bukti, DaftarKegiatanRencanaAksi $kegiatan): Response
     {
         // Payload utama dievaluasi lebih dulu sehingga 404/403 header tetap dijawab IndexRencanaAksi.
+        $payload = $index->handle($request->user(), $rencanaAksi);
+
         return Inertia::render('RencanaAksi/Show', [
-            'rencanaAksi' => $index->handle($request->user(), $rencanaAksi),
-            'bukti' => $bukti->handle($request->user(), $rencanaAksi),
+            'rencanaAksi' => $payload,
+            // Q63: panel bukti memakai status pengecualian yang sama dengan kartu kesiapan.
+            'bukti' => $bukti->handle($request->user(), $rencanaAksi, (bool) ($payload['pengajuan']['dikecualikan'] ?? false)),
             'kegiatan' => $kegiatan->handle($request->user(), $rencanaAksi),
         ]);
     }

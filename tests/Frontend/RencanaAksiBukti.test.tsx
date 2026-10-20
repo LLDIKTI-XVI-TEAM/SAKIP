@@ -61,6 +61,7 @@ afterEach(() => {
 });
 
 const bukti: RencanaAksiBukti = {
+    dikecualikan: false,
     persyaratan: [
         {
             id: 'jb-1',
@@ -302,5 +303,14 @@ describe('BuktiPanel rencana aksi', () => {
 
         act(() => { opsi.onError({ status_alur: 'Bukti hanya dapat diubah pada rencana aksi yang masih dapat disunting.' }); });
         expect(screen.getByText('Bukti hanya dapat diubah pada rencana aksi yang masih dapat disunting.')).toBeTruthy();
+    });
+
+    it('menandai persyaratan wajib sebagai dikecualikan saat gerbang periode lampau berlaku', () => {
+        renderPanel({ dikecualikan: true });
+
+        expect(screen.getByText('Dikecualikan (periode lampau/data awal)')).toBeTruthy();
+        // Persyaratan wajib yang belum terpenuhi tidak lagi tampil sebagai kekurangan.
+        expect(screen.queryByText(/Kurang: File, Teks/)).toBeNull();
+        expect(screen.getAllByText('Dikecualikan')).toHaveLength(1);
     });
 });

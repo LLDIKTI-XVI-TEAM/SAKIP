@@ -37,7 +37,7 @@ function modeTersedia(req: BuktiPersyaratan | undefined, unggahanAktif: boolean)
 
 /** Panel pemenuhan bukti tahap rencana aksi (PRD §18, Workflow §10.3) pada halaman kerja induknya. */
 export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
-    const { persyaratan, ringkasan, daftar, unggahan, can } = bukti;
+    const { persyaratan, ringkasan, daftar, unggahan, can, dikecualikan } = bukti;
     const formatTanggal = useFormatTanggal();
     const [modalTambah, setModalTambah] = useState(false);
     const [requestError, setRequestError] = useState('');
@@ -140,9 +140,13 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
             <CardHeader>
                 <CardTitle>Bukti dukung</CardTitle>
                 <div className="flex flex-wrap items-center gap-3">
-                    <Badge variant={ringkasan.lengkap ? 'success' : 'warning'} size="sm">
-                        {ringkasan.lengkap ? 'Lengkap' : 'Belum lengkap'} ({ringkasan.terpenuhi_wajib}/{ringkasan.total_wajib} wajib)
-                    </Badge>
+                    {dikecualikan ? (
+                        <Badge variant="info" size="sm">Dikecualikan (periode lampau/data awal)</Badge>
+                    ) : (
+                        <Badge variant={ringkasan.lengkap ? 'success' : 'warning'} size="sm">
+                            {ringkasan.lengkap ? 'Lengkap' : 'Belum lengkap'} ({ringkasan.terpenuhi_wajib}/{ringkasan.total_wajib} wajib)
+                        </Badge>
+                    )}
                     {can.upload && (
                         <Button type="button" variant="primary" size="sm" onClick={() => bukaTambah()}>
                             <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
@@ -176,7 +180,9 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                                         )}
                                     </div>
                                     <div className="flex shrink-0 items-center gap-3">
-                                        {req.pemenuhan.terpenuhi ? (
+                                        {dikecualikan && req.wajib && !req.pemenuhan.terpenuhi ? (
+                                            <Badge variant="info" size="sm">Dikecualikan</Badge>
+                                        ) : req.pemenuhan.terpenuhi ? (
                                             <Badge variant={req.pemenuhan.tidak_dapat_dipenuhi ? 'info' : 'success'} size="sm">
                                                 {req.pemenuhan.tidak_dapat_dipenuhi ? 'Dikecualikan' : 'Terpenuhi'}
                                             </Badge>
