@@ -243,16 +243,16 @@ export function GrantUserAutocomplete({
                                     {selectedUser.status === "nonaktif" && <span className="ml-2 text-muted">(nonaktif)</span>}
                                 </span>
                                 {selectedUser.roles && selectedUser.roles.length > 0 ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/5 text-primary border border-primary/20 shrink-0">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary/5 text-primary border border-primary/20 shrink-0">
                                         {selectedUser.roles.join(', ')}
                                     </span>
                                 ) : (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-soft text-muted shrink-0">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-soft text-muted shrink-0">
                                         Belum memiliki peran
                                     </span>
                                 )}
                             </div>
-                            <p className="text-[11px] text-muted truncate">{selectedUser.email}</p>
+                            <p className="text-xs text-muted truncate">{selectedUser.email}</p>
                         </div>
                     </div>
                     <button
@@ -362,16 +362,16 @@ export function GrantUserAutocomplete({
                                                 {user.status === "nonaktif" && <span className="ml-2 text-muted">(nonaktif)</span>}
                                             </span>
                                             {user.roles && user.roles.length > 0 ? (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/5 text-primary border border-primary/20 shrink-0">
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary/5 text-primary border border-primary/20 shrink-0">
                                                     {user.roles.join(', ')}
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-soft text-muted shrink-0">
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-soft text-muted shrink-0">
                                                     Belum memiliki peran
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-[11px] text-muted mt-0.5">{user.email}</p>
+                                        <p className="text-xs text-muted mt-0.5">{user.email}</p>
                                     </button>
                                 ))
                             )}

@@ -6,8 +6,10 @@ use App\Http\Controllers\Access\RoleAssignment;
 use App\Http\Controllers\Access\RolePermissionManagement;
 use App\Http\Controllers\Access\UserStatus;
 use App\Http\Controllers\Akses\IndexGrant;
+use App\Http\Controllers\Akses\KelolaGrant;
 use App\Http\Controllers\Akses\RevokeGrant;
 use App\Http\Controllers\Akses\SearchGrantUsers;
+use App\Http\Controllers\Akses\ShowGrant;
 use App\Http\Controllers\Akses\StoreGrant;
 use App\Http\Controllers\Audit\AuditLogController;
 use App\Http\Controllers\Auth\KeycloakCallback;
@@ -239,6 +241,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/akses/grant', IndexGrant::class)->name('akses.grant.index');
     Route::get('/akses/grant/opsi/pengguna', SearchGrantUsers::class)->name('akses.grant.users');
     Route::post('/akses/grant', StoreGrant::class)->name('akses.grant.store');
+    Route::put('/akses/grant/kelola', KelolaGrant::class)->name('akses.grant.kelola');
+    Route::get('/akses/grant/{user}/{unit}', ShowGrant::class)->whereUuid('user')->whereUuid('unit')->name('akses.grant.show');
     Route::delete('/akses/grant/{id}', RevokeGrant::class)->whereUuid('id')->name('akses.grant.destroy');
 
     // Konfigurasi Persyaratan Jenis Berkas (Alur Tim Perencanaan)

@@ -46,6 +46,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Models\UserPermissionGrant;
+use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RoleAssignmentReceipt;
 use Database\Seeders\AccessCatalogSeeder;
@@ -433,14 +434,18 @@ class MutationConcurrencyTest extends TestCase
             'data' => ['nama' => 'Mutasi yang harus ditolak', 'status' => 'aktif', 'version_token' => $unit->getVersionToken(), 'expected_nama' => null, 'expected_status' => null, 'snapshot' => null],
         ];
         $grant = null;
-        if (in_array($operation, ['grant-create', 'grant-revoke'], true)) {
+        if (in_array($operation, ['grant-create', 'grant-revoke', 'grant-kelola'], true)) {
             $target = User::factory()->create(['status' => 'aktif']);
-            $payload['data'] = [
-                'user_id' => $target->id, 'permission_id' => Permission::where('kode', 'pengukuran:create')->value('id'),
-                'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture',
-            ];
-            if ($operation === 'grant-revoke') {
-                $grant = UserPermissionGrant::create([...$payload['data'], 'diberikan_oleh' => $actor->id]);
+            $izin = Permission::where('kode', 'pengukuran:create')->value('id');
+            $payload['data'] = ['user_id' => $target->id, 'permission_ids' => [$izin], 'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture'];
+            if ($operation === 'grant-kelola') {
+                $payload['data'] = [...$payload['data'], 'permission_ids' => [], 'expected_permission_ids' => [$izin]];
+            }
+            if ($operation !== 'grant-create') {
+                $grant = UserPermissionGrant::create([
+                    'user_id' => $target->id, 'permission_id' => $izin, 'unit_id' => $unit->id,
+                    'alasan' => 'Alasan grant fixture', 'diberikan_oleh' => $actor->id,
+                ]);
                 $payload['grant_id'] = $grant->id;
             }
         }
@@ -484,6 +489,7 @@ class MutationConcurrencyTest extends TestCase
             ['unit-delete', 'unit:delete', 'unit.hapus_ditolak'],
             ['grant-create', 'delegasi:update', 'user_permission_granted.ditolak'],
             ['grant-revoke', 'delegasi:update', 'user_permission_granted.ditolak'],
+            ['grant-kelola', 'delegasi:update', 'user_permission_granted.ditolak'],
         ];
     }
 
@@ -507,7 +513,7 @@ class MutationConcurrencyTest extends TestCase
         $results = $this->race('grant-create', $role->id, '', [[
             'actor_id' => $actor->id, 'permission' => $permission->kode,
             'data' => [
-                'user_id' => $target->id, 'permission_id' => Permission::where('kode', 'pengukuran:create')->value('id'),
+                'user_id' => $target->id, 'permission_ids' => [Permission::where('kode', 'pengukuran:create')->value('id')],
                 'unit_id' => $unit->id, 'alasan' => 'Alasan grant fixture role lock',
             ],
         ]], barrierTable: 'roles', assertBlocked: $revokeWhileBlocked);
@@ -559,6 +565,42 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame(['revoked'], $results);
         $this->assertDatabaseMissing('user_permission_granted', ['id' => $grant->id]);
         $this->assertSame(1, AuditLog::where('tindakan', 'user_permission_granted.hapus')->where('objek_id', $grant->id)->count());
+    }
+
+    /** Dua Kelola dari daftar yang sama: satu tersimpan utuh, yang lain basi; tidak pernah gabungan keduanya (Q62 butir 9). */
+    #[DataProvider('kelolaPasanganSama')]
+    public function test_dua_kelola_pasangan_sama_satu_menang_satu_basi(array $awal, array $x, array $y): void
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $actor = User::factory()->create(['status' => 'aktif']);
+        $target = User::factory()->create(['status' => 'aktif']);
+        $actor->roles()->attach(Role::where('kode', 'admin')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $actor->id, 'created_at' => now()]);
+        $unit = Unit::create(['nama' => 'Unit kelola bersamaan', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $izin = Permission::whereIn('kode', PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS)->pluck('id', 'kode');
+        $ids = fn (array $indeks) => collect($indeks)->map(fn (int $i) => $izin[PermissionCatalog::GRANTABLE_UNIT_PERMISSIONS[$i]])->sort()->values()->all();
+        foreach ($ids($awal) as $permissionId) {
+            UserPermissionGrant::create(['user_id' => $target->id, 'permission_id' => $permissionId, 'unit_id' => $unit->id, 'alasan' => 'Grant awal fixture', 'diberikan_oleh' => $actor->id]);
+        }
+        $payload = fn (array $akhir) => [
+            'actor_id' => $actor->id, 'permission' => 'delegasi:update',
+            'data' => ['user_id' => $target->id, 'unit_id' => $unit->id, 'permission_ids' => $ids($akhir), 'expected_permission_ids' => $ids($awal)],
+        ];
+        $prepare = fn () => User::whereKey($target->id)->lockForUpdate()->firstOrFail();
+
+        $results = $this->race('grant-kelola', $target->id, '', [$payload($x), $payload($y)], $prepare);
+
+        $this->assertEqualsCanonicalizing(['managed', 'stale'], $results);
+        $tersimpan = DB::table('user_permission_granted')->where('user_id', $target->id)->where('unit_id', $unit->id)->pluck('permission_id')->sort()->values()->all();
+        $this->assertContains($tersimpan, [$ids($x), $ids($y)]);
+        $this->assertSame(1, DB::table('audit_log')->where('tindakan', 'user_permission_granted.tambah')->count());
+    }
+
+    public static function kelolaPasanganSama(): array
+    {
+        return [
+            'awal [A], X [A,B], Y [A,C]' => [[0], [0, 1], [0, 2]],
+            'awal kosong, X [B], Y [C]' => [[], [1], [2]],
+        ];
     }
 
     #[DataProvider('jenisBerkasMutations')]

@@ -285,6 +285,8 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanju
 
 > **Q43 (13 Oktober 2026):** alasan pemberian grant menjadi opsional; bila dikosongkan, server mengisi alasan baku sehingga kolom `alasan` tetap `NOT NULL` (Q43 §43.3 butir 1, pola Q37 §37.2). Pencabutan grant tetap wajib alasan (Q43 §43.2 butir 4). Butir "alasan" pada AC dan task di bawah dipertahankan sebagai histori implementasi; perubahan dikerjakan pada ISS-13.05.
 
+> **Q62 (18 Oktober 2026):** daftar Izin Unit satu baris per pengguna × unit dengan halaman detail dan aksi Kelola izin (tambah dan cabut sekaligus, alasan wajib bila ada pencabutan, ditolak bila data berubah sejak dibuka). Form pemberian dapat memberi beberapa izin sekaligus. Audit tetap per izin.
+
 **Terkait User Story:** `US-01.04`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
@@ -5505,7 +5507,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
+- [x] **AC-1:** Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
 - [ ] **AC-2:** Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
 - [ ] **AC-3:** Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
 - [ ] **AC-4:** Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
@@ -5541,7 +5543,7 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*

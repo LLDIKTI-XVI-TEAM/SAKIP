@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Access\CreateUnitGrantAction;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\PenugasanIndikator;
@@ -200,7 +201,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $this->actingAs($this->pegawaiUser)->call(
             $operation === 'create' ? 'POST' : 'DELETE',
             $operation === 'create' ? '/akses/grant' : '/akses/grant/'.$id,
-            ['user_id' => [], 'permission_id' => 'invalid', 'unit_id' => [], 'alasan' => []],
+            ['user_id' => [], 'permission_ids' => 'invalid', 'unit_id' => [], 'alasan' => []],
         )->assertForbidden();
 
         $audit = AuditLog::where('tindakan', 'user_permission_granted.ditolak')->sole();
@@ -233,7 +234,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             $this->actingAs($this->adminUser)->call(
                 $operation === 'create' ? 'POST' : 'DELETE',
                 $operation === 'create' ? '/akses/grant' : '/akses/grant/'.$grant->id,
-                ['user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id, 'unit_id' => $this->unitA->id, 'alasan' => 'Alasan mutasi grant fixture'],
+                ['user_id' => $this->pegawaiUser->id, 'permission_ids' => [$this->unitPermission->id], 'unit_id' => $this->unitA->id, 'alasan' => 'Alasan mutasi grant fixture'],
             );
             $this->fail('Kegagalan audit harus diteruskan.');
         } catch (RuntimeException $exception) {
@@ -280,7 +281,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $rolesBefore = DB::table('user_roles')->orderBy('id')->get()->toJson();
         $pjBefore = DB::table('penanggung_jawab')->orderBy('id')->get()->toJson();
         $deniesBefore = DB::table('user_permission_denied')->orderBy('id')->get()->toJson();
-        $payload = ['user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id, 'unit_id' => $this->unitA->id, 'alasan' => '  Alasan pemberian fixture  '];
+        $payload = ['user_id' => $this->pegawaiUser->id, 'permission_ids' => [$this->unitPermission->id], 'unit_id' => $this->unitA->id, 'alasan' => '  Alasan pemberian fixture  '];
         $this->actingAs($this->adminUser)->post('/akses/grant', $payload)->assertRedirect('/akses/grant');
         $grant = UserPermissionGrant::sole();
         $expected = [
@@ -319,13 +320,13 @@ class GrantIzinTambahanUnitTest extends TestCase
     {
         $response = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitB->id,
             'alasan' => 'Penugasan khusus bantuan penyusunan capaian Pokja Akademik',
         ]);
 
         $response->assertRedirect('/akses/grant');
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('success', '1 izin unit pada Pokja Akademik berhasil diberikan kepada Pegawai Staf.');
 
         $this->assertDatabaseHas('user_permission_granted', [
             'user_id' => $this->pegawaiUser->id,
@@ -358,12 +359,12 @@ class GrantIzinTambahanUnitTest extends TestCase
     {
         $response = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->globalPermission->id,
+            'permission_ids' => [$this->globalPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba memberi izin global via form unit',
         ]);
 
-        $response->assertSessionHasErrors('permission_id');
+        $response->assertSessionHasErrors(['permission_ids.0' => 'Izin ini tidak dapat diberikan sebagai izin unit.']);
         $this->assertDatabaseCount('user_permission_granted', 0);
     }
 
@@ -375,12 +376,12 @@ class GrantIzinTambahanUnitTest extends TestCase
     {
         $response = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => null,
             'alasan' => 'Mencoba submit tanpa unit',
         ]);
 
-        $response->assertSessionHasErrors('unit_id');
+        $response->assertSessionHasErrors(['unit_id' => 'Unit wajib dipilih.']);
         $this->assertDatabaseCount('user_permission_granted', 0);
     }
 
@@ -400,12 +401,12 @@ class GrantIzinTambahanUnitTest extends TestCase
 
         $response = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba duplikasi izin yang sama',
         ]);
 
-        $response->assertSessionHasErrors('permission_id');
+        $response->assertSessionHasErrors('permission_ids');
         $this->assertDatabaseCount('user_permission_granted', 1);
     }
 
@@ -417,7 +418,7 @@ class GrantIzinTambahanUnitTest extends TestCase
     {
         $response = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pimpinanUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Pimpinan didelegasikan izin pengisian unit perintis',
         ]);
@@ -449,7 +450,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         ]);
 
         $response->assertRedirect('/akses/grant');
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('success', 'Izin unit milik Pegawai Staf berhasil dicabut.');
 
         $this->assertDatabaseMissing('user_permission_granted', [
             'id' => $grant->id,
@@ -485,7 +486,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // Akses store ditolak 403
         $storeResponse = $this->actingAs($this->pegawaiUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba grant mandiri tanpa izin',
         ]);
@@ -525,7 +526,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // Admin mencoba memberi grant ke sesama Admin
         $responseAdmin = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->otherAdminUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba memberi izin ke sesama Admin',
         ]);
@@ -535,7 +536,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // Admin mencoba memberi grant ke Superadmin
         $responseSuperadmin = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->superadminUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba memberi izin ke Superadmin',
         ]);
@@ -601,7 +602,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // Superadmin memberi grant ke Admin
         $responseAdmin = $this->actingAs($this->superadminUser)->post('/akses/grant', [
             'user_id' => $this->adminUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Penugasan khusus unit oleh Superadmin untuk Admin',
         ]);
@@ -627,7 +628,7 @@ class GrantIzinTambahanUnitTest extends TestCase
 
         $responseSuper = $this->actingAs($this->superadminUser)->post('/akses/grant', [
             'user_id' => $anotherSuperadmin->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitB->id,
             'alasan' => 'Penugasan khusus unit untuk sesama Superadmin',
         ]);
@@ -714,11 +715,11 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Visibilitas Tombol Cabut: can_revoke bernilai true untuk semua grant karena Admin dan Superadmin dapat mencabut grant.
+     * Visibilitas Tombol Cabut mengikuti can.revoke_grant halaman; tidak ada penanda per baris yang selalu benar.
      */
     public function test_index_marks_can_revoke_appropriately(): void
     {
-        $adminGrant = UserPermissionGrant::create([
+        UserPermissionGrant::create([
             'user_id' => $this->otherAdminUser->id,
             'permission_id' => $this->unitPermission->id,
             'unit_id' => $this->unitA->id,
@@ -726,7 +727,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             'diberikan_oleh' => $this->superadminUser->id,
         ]);
 
-        $pegawaiGrant = UserPermissionGrant::create([
+        UserPermissionGrant::create([
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $this->unitPermission->id,
             'unit_id' => $this->unitB->id,
@@ -734,19 +735,65 @@ class GrantIzinTambahanUnitTest extends TestCase
             'diberikan_oleh' => $this->adminUser->id,
         ]);
 
-        // Aktor Admin: kedua grant bisa dicabut (can_revoke = true)
-        $adminIndex = $this->actingAs($this->adminUser)->get('/akses/grant');
-        $adminGrants = collect($adminIndex->viewData('page')['props']['grants']['data'] ?? $adminIndex->viewData('page')['props']['grants'])->keyBy('id');
+        foreach ([$this->adminUser, $this->superadminUser] as $actor) {
+            $this->actingAs($actor)->get('/akses/grant')->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('can.revoke_grant', true)
+                ->has('grants.data', 2)
+                ->missing('grants.data.0.can_revoke')
+                ->missing('grants.data.1.can_revoke'));
+        }
+    }
 
-        $this->assertTrue($adminGrants[$adminGrant->id]['can_revoke']);
-        $this->assertTrue($adminGrants[$pegawaiGrant->id]['can_revoke']);
+    /**
+     * Daftar menandai kelompok tidak berlaku (akun atau unit nonaktif, atau tanpa peran aktif) dan izin nonaktif per butir, mengikuti kriteria resolver, beserta peran penerima.
+     */
+    public function test_index_menandai_grant_tidak_berlaku_dan_peran_penerima(): void
+    {
+        $izinDimatikan = Permission::where('kode', 'pengukuran:update')->firstOrFail();
+        $tanpaPeran = User::factory()->create(['nama' => 'Tanpa Peran', 'email' => 'tanpaperan@sakip.test', 'status' => 'aktif']);
+        $beri = function (User $user, Permission $permission, Unit $unit): string {
+            UserPermissionGrant::create([
+                'user_id' => $user->id,
+                'permission_id' => $permission->id,
+                'unit_id' => $unit->id,
+                'alasan' => 'Penugasan fixture',
+                'diberikan_oleh' => $this->adminUser->id,
+            ]);
 
-        // Aktor Superadmin: kedua grant bisa dicabut (can_revoke = true)
-        $superIndex = $this->actingAs($this->superadminUser)->get('/akses/grant');
-        $superGrants = collect($superIndex->viewData('page')['props']['grants']['data'] ?? $superIndex->viewData('page')['props']['grants'])->keyBy('id');
+            return "{$user->id}:{$unit->id}";
+        };
+        $berlaku = $beri($this->pegawaiUser, $this->unitPermission, $this->unitA);
+        $unitNonaktif = $beri($tanpaPeran, $this->unitPermission, $this->unitB);
+        $akunNonaktif = $beri($this->aksesOnlyUser, $this->unitPermission, $this->unitA);
+        $izinNonaktif = $beri($this->pimpinanUser, $izinDimatikan, $this->unitA);
 
-        $this->assertTrue($superGrants[$adminGrant->id]['can_revoke']);
-        $this->assertTrue($superGrants[$pegawaiGrant->id]['can_revoke']);
+        $this->unitB->update(['status' => 'nonaktif']);
+        $this->aksesOnlyUser->update(['status' => 'nonaktif']);
+        $izinDimatikan->update(['aktif' => false]);
+        $pimpinanRole = Role::where('kode', 'pimpinan')->firstOrFail();
+        $pimpinanRole->update(['aktif' => false]);
+
+        $response = $this->actingAs($this->adminUser)->get('/akses/grant');
+        $response->assertInertia(fn (AssertableInertia $page) => $page->missing('users')->missing('is_superadmin'));
+        $rows = collect($response->viewData('page')['props']['grants']['data'])->keyBy('key');
+
+        $this->assertSame([], $rows[$berlaku]['tidak_berlaku']);
+        $this->assertTrue($rows[$berlaku]['izin'][0]['aktif']);
+        $this->assertSame(['Tanpa peran aktif', 'Unit nonaktif'], $rows[$unitNonaktif]['tidak_berlaku']);
+        $this->assertSame(['Akun nonaktif'], $rows[$akunNonaktif]['tidak_berlaku']);
+        // Satu-satunya peran pimpinan dinonaktifkan, sehingga resolver menolak seluruh izinnya.
+        $this->assertSame(['Tanpa peran aktif'], $rows[$izinNonaktif]['tidak_berlaku']);
+        $this->assertFalse($rows[$izinNonaktif]['izin'][0]['aktif']);
+        $this->assertSame(['Pegawai'], $rows[$berlaku]['user_roles']);
+        $this->assertSame([], $rows[$unitNonaktif]['user_roles']);
+        $this->assertSame([$pimpinanRole->nama.' (nonaktif)'], $rows[$izinNonaktif]['user_roles']);
+
+        // Kontrol: resolver memang menolak ketiga grant yang ditandai dan mengizinkan yang berlaku.
+        $resolver = app(PermissionResolver::class);
+        $this->assertTrue($resolver->allows($this->pegawaiUser, 'pengukuran:create', $this->unitA->id));
+        $this->assertFalse($resolver->allows($tanpaPeran, 'pengukuran:create', $this->unitB->id));
+        $this->assertFalse($resolver->allows($this->aksesOnlyUser->fresh(), 'pengukuran:create', $this->unitA->id));
+        $this->assertFalse($resolver->allows($this->pimpinanUser, 'pengukuran:update', $this->unitA->id));
     }
 
     /**
@@ -785,12 +832,12 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Mencoba memberikan izin yang nonaktif.',
             ]);
 
-        $response->assertSessionHasErrors('permission_id');
+        $response->assertSessionHasErrors('permission_ids.0');
         $this->assertDatabaseMissing('user_permission_granted', [
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $this->unitPermission->id,
@@ -815,12 +862,12 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Grant kedua dari request paralel',
             ]);
 
-        $response->assertSessionHasErrors('permission_id');
+        $response->assertSessionHasErrors('permission_ids');
     }
 
     /**
@@ -853,8 +900,9 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('Akses/GrantIndex')
             ->has('grants.data', 1)
-            ->where('grants.data.0.id', $unitGrant->id)
             ->where('grants.data.0.unit_id', $this->unitA->id)
+            ->has('grants.data.0.izin', 1)
+            ->where('grants.data.0.izin.0.grant_id', $unitGrant->id)
         );
     }
 
@@ -867,7 +915,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $responseUser = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => 'bukan-sebuah-uuid',
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Uji validasi UUID user_id',
             ]);
@@ -882,22 +930,22 @@ class GrantIzinTambahanUnitTest extends TestCase
         $responsePerm = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => 'invalid-uuid-perm',
+                'permission_ids' => ['invalid-uuid-perm'],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Uji validasi UUID permission_id',
             ]);
 
-        $responsePerm->assertSessionHasErrors('permission_id');
+        $responsePerm->assertSessionHasErrors('permission_ids.0');
         $this->assertEquals(
-            'Format ID permission tidak valid.',
-            session('errors')->first('permission_id')
+            'Format ID izin tidak valid.',
+            session('errors')->first('permission_ids.0')
         );
 
         // 3. Non-UUID unit_id
         $responseUnit = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => '12345-not-uuid',
                 'alasan' => 'Uji validasi UUID unit_id',
             ]);
@@ -923,7 +971,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $inactiveUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Mencoba memberikan izin ke akun nonaktif',
             ]);
@@ -948,7 +996,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $inactiveUnit->id,
                 'alasan' => 'Mencoba memberikan izin pada unit nonaktif',
             ]);
@@ -979,7 +1027,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $responseStore = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Percobaan store grant saat di-deny',
             ]);
@@ -1022,7 +1070,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $responseStore = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->otherAdminUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Admin memberi grant ke admin lain yang sah',
             ]);
@@ -1094,9 +1142,9 @@ class GrantIzinTambahanUnitTest extends TestCase
         $resSearch->assertInertia(fn ($page) => $page
             ->component('Akses/GrantIndex')
             ->has('grants.data', 1)
-            ->where('grants.data.0.id', $grant2->id)
+            ->where('grants.data.0.izin.0.grant_id', $grant2->id)
             ->where('filters.search', 'Budi')
-            ->where('grants.data.0.created_at', fn ($val) => is_string($val) && str_contains($val, 'T'))
+            ->where('grants.data.0.user_id', $pegawai2->id)
         );
 
         // 2. Filter unit A
@@ -1106,44 +1154,36 @@ class GrantIzinTambahanUnitTest extends TestCase
         $resUnit->assertInertia(fn ($page) => $page
             ->component('Akses/GrantIndex')
             ->has('grants.data', 1)
-            ->where('grants.data.0.id', $grant1->id)
+            ->where('grants.data.0.izin.0.grant_id', $grant1->id)
             ->where('filters.unit_id', $this->unitA->id)
         );
     }
 
     /**
-     * Review: Urutan pagination grant deterministik berdasarkan created_at desc dan id desc.
+     * Urutan kelompok pengguna-unit deterministik: pemberian terakhir desc, lalu user_id dan unit_id asc (Q62).
      */
     public function test_grant_index_pagination_order_is_deterministic(): void
     {
-        $fixedTime = now()->subMinutes(10);
-        $grantA = UserPermissionGrant::create([
-            'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->unitPermission->id,
-            'unit_id' => $this->unitA->id,
-            'alasan' => 'Grant A sama waktu',
-            'diberikan_oleh' => $this->adminUser->id,
-            'created_at' => $fixedTime,
-        ]);
-
-        $grantB = UserPermissionGrant::create([
-            'user_id' => $this->pimpinanUser->id,
-            'permission_id' => $this->unitPermission->id,
-            'unit_id' => $this->unitB->id,
-            'alasan' => 'Grant B sama waktu',
-            'diberikan_oleh' => $this->adminUser->id,
-            'created_at' => $fixedTime,
-        ]);
+        $fixedTime = now()->subMinutes(10)->startOfSecond();
+        // created_at tidak dapat diisi massal, jadi waktu fixture disetel lewat query update.
+        $beri = fn (User $user, string $kode, Unit $unit, $waktu) => UserPermissionGrant::whereKey(UserPermissionGrant::create([
+            'user_id' => $user->id, 'permission_id' => Permission::where('kode', $kode)->value('id'), 'unit_id' => $unit->id,
+            'alasan' => 'Fixture urutan', 'diberikan_oleh' => $this->adminUser->id,
+        ])->id)->update(['created_at' => $waktu]);
+        $beri($this->pegawaiUser, 'pengukuran:create', $this->unitA, $fixedTime);
+        $beri($this->pimpinanUser, 'pengukuran:create', $this->unitB, $fixedTime);
+        // Kelompok dengan pemberian lebih baru tampil paling atas walau grant lamanya lebih tua.
+        $beri($this->perencanaanUser, 'pengukuran:create', $this->unitA, $fixedTime->copy()->subDay());
+        $beri($this->perencanaanUser, 'kegiatan:create', $this->unitA, $fixedTime->copy()->addMinute());
 
         $response = $this->actingAs($this->adminUser)->get('/akses/grant');
         $response->assertOk();
 
-        // Mengingat kedua grant memiliki created_at yang identik, baris diurutkan secara deterministik dengan id DESC
-        $grantsData = $response->viewData('page')['props']['grants']['data'];
-        $ids = collect($grantsData)->whereIn('id', [$grantA->id, $grantB->id])->pluck('id')->values()->all();
-        $expectedOrder = collect([$grantA->id, $grantB->id])->sortDesc()->values()->all();
+        $keys = collect($response->viewData('page')['props']['grants']['data'])->pluck('key')->all();
+        $samaWaktu = collect([[$this->pegawaiUser->id, $this->unitA->id], [$this->pimpinanUser->id, $this->unitB->id]])
+            ->sortBy(fn (array $pasangan) => $pasangan[0])->map(fn (array $pasangan) => implode(':', $pasangan))->values()->all();
 
-        $this->assertEquals($expectedOrder, $ids);
+        $this->assertSame([$this->perencanaanUser->id.':'.$this->unitA->id, ...$samaWaktu], $keys);
     }
 
     /**
@@ -1171,7 +1211,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $userTarget->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Pemberian izin ke pengguna yang nonaktif',
             ]);
@@ -1191,7 +1231,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $responseUnit = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $unitNonaktif->id,
                 'alasan' => 'Pemberian izin ke unit yang dinonaktifkan',
             ]);
@@ -1218,26 +1258,29 @@ class GrantIzinTambahanUnitTest extends TestCase
     }
 
     /**
-     * Request dengan alasan hanya berisi spasi ditolak dengan validasi 422, bukan 500.
+     * Alasan pemberian opsional (Q43 §43.3 butir 1): kosong atau spasi diisi alasan baku server,
+     * sedangkan pencabutan tetap wajib beralasan (Q43 §43.2 butir 4) dan ditolak 422, bukan 500.
      */
-    public function test_grant_creation_and_revocation_rejects_whitespace_only_reason(): void
+    public function test_alasan_pemberian_opsional_tetapi_alasan_pencabutan_wajib(): void
     {
-        // 1. Store grant dengan alasan spasi saja
-        $responseStore = $this->actingAs($this->adminUser)
-            ->post('/akses/grant', [
-                'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
-                'unit_id' => $this->unitA->id,
-                'alasan' => '     ',
-            ]);
-
-        $responseStore->assertSessionHasErrors('alasan');
-        $this->assertDatabaseMissing('user_permission_granted', [
+        $alasanBaku = 'Pemberian izin unit tanpa alasan tambahan.';
+        $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
-        ]);
+            'alasan' => '     ',
+        ])->assertSessionHasNoErrors()->assertRedirect('/akses/grant');
+        $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => [Permission::where('kode', 'pengukuran:update')->value('id')],
+            'unit_id' => $this->unitA->id,
+        ])->assertSessionHasNoErrors()->assertRedirect('/akses/grant');
 
-        // 2. Revoke grant dengan alasan spasi saja
+        $this->assertSame([$alasanBaku, $alasanBaku], UserPermissionGrant::pluck('alasan')->all());
+        $this->assertSame([$alasanBaku, $alasanBaku], AuditLog::where('tindakan', 'user_permission_granted.tambah')->pluck('alasan')->all());
+        UserPermissionGrant::query()->delete();
+
+        // Revoke grant dengan alasan spasi saja
         $grant = UserPermissionGrant::create([
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $this->unitPermission->id,
@@ -1311,7 +1354,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Mencoba membuat grant saat izin dicabut',
             ]);
@@ -1339,12 +1382,12 @@ class GrantIzinTambahanUnitTest extends TestCase
         $response = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Mencoba memberi permission nonaktif',
             ]);
 
-        $response->assertSessionHasErrors('permission_id');
+        $response->assertSessionHasErrors('permission_ids.0');
         $this->assertDatabaseMissing('user_permission_granted', [
             'user_id' => $this->pegawaiUser->id,
             'permission_id' => $this->unitPermission->id,
@@ -1368,7 +1411,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         $responseStore = $this->actingAs($this->adminUser)
             ->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $this->unitPermission->id,
+                'permission_ids' => [$this->unitPermission->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => 'Admin mencoba memberi izin saat akses dicabut',
             ]);
@@ -1441,12 +1484,12 @@ class GrantIzinTambahanUnitTest extends TestCase
         // 2. StoreGrant menolak permission ini dengan validasi 422
         $responseStore = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $nonCatalogPermission->id,
+            'permission_ids' => [$nonCatalogPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba memberikan izin unit di luar katalog resmi',
         ]);
 
-        $responseStore->assertSessionHasErrors('permission_id');
+        $responseStore->assertSessionHasErrors('permission_ids.0');
         $this->assertDatabaseMissing('user_permission_granted', [
             'permission_id' => $nonCatalogPermission->id,
         ]);
@@ -1561,7 +1604,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // 1. StoreGrant berhasil dengan role locking aktif
         $responseStore = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitB->id,
             'alasan' => 'Pemberian izin dengan role locking aktif',
         ]);
@@ -1676,7 +1719,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // 3. Perencanaan dapat membuat grant unit baru
         $resStore = $this->actingAs($this->perencanaanUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Diberikan oleh Tim Perencanaan untuk pengisian TW III',
         ]);
@@ -1743,7 +1786,7 @@ class GrantIzinTambahanUnitTest extends TestCase
         // 3. StoreGrant ditolak 403
         $resStore = $this->actingAs($this->aksesOnlyUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $this->unitPermission->id,
+            'permission_ids' => [$this->unitPermission->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba membuat grant dengan izin akses:update saja',
         ]);
@@ -1785,20 +1828,20 @@ class GrantIzinTambahanUnitTest extends TestCase
         // 2. Mencoba kirim POST StoreGrant untuk rencana_aksi:read menghasilkan 422
         $resStoreRencana = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $rencanaAksiRead->id,
+            'permission_ids' => [$rencanaAksiRead->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba grant hak baca rencana aksi',
         ]);
-        $resStoreRencana->assertSessionHasErrors('permission_id');
+        $resStoreRencana->assertSessionHasErrors('permission_ids.0');
 
         // 3. Mencoba kirim POST StoreGrant untuk kegiatan:read menghasilkan 422
         $resStoreKegiatan = $this->actingAs($this->adminUser)->post('/akses/grant', [
             'user_id' => $this->pegawaiUser->id,
-            'permission_id' => $kegiatanRead->id,
+            'permission_ids' => [$kegiatanRead->id],
             'unit_id' => $this->unitA->id,
             'alasan' => 'Mencoba grant hak baca kegiatan',
         ]);
-        $resStoreKegiatan->assertSessionHasErrors('permission_id');
+        $resStoreKegiatan->assertSessionHasErrors('permission_ids.0');
     }
 
     /**
@@ -1827,7 +1870,7 @@ class GrantIzinTambahanUnitTest extends TestCase
             // Simpan grant
             $resStore = $this->actingAs($this->perencanaanUser)->post('/akses/grant', [
                 'user_id' => $this->pegawaiUser->id,
-                'permission_id' => $perm->id,
+                'permission_ids' => [$perm->id],
                 'unit_id' => $this->unitA->id,
                 'alasan' => "Penugasan izin operasional {$code} untuk unit",
             ]);
@@ -1876,5 +1919,620 @@ class GrantIzinTambahanUnitTest extends TestCase
         $decisionKegiatan = $resolver->decide($this->pegawaiUser, 'kegiatan:read');
         $this->assertTrue($decisionKegiatan['allowed']);
         $this->assertNotSame('invalid_scope', $decisionKegiatan['reason']);
+    }
+
+    /** Satu simpan dapat memberi beberapa izin pada satu unit; tiap izin tetap satu baris dan satu audit. */
+    public function test_beri_banyak_izin_sekaligus_membuat_satu_baris_dan_audit_per_izin(): void
+    {
+        $kode = ['pengukuran:create', 'pengukuran:update', 'kegiatan:create'];
+        $ids = Permission::whereIn('kode', $kode)->pluck('id')->all();
+
+        $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => $ids,
+            'unit_id' => $this->unitA->id,
+            'alasan' => 'Penugasan PJ unit Pokja Kelembagaan',
+        ])->assertSessionHasNoErrors()->assertRedirect('/akses/grant')
+            ->assertSessionHas('success', '3 izin unit pada Pokja Kelembagaan berhasil diberikan kepada Pegawai Staf.');
+
+        $grants = UserPermissionGrant::with('permission')->get();
+        $this->assertEqualsCanonicalizing($kode, $grants->pluck('permission.kode')->all());
+        $this->assertSame([$this->unitA->id], $grants->pluck('unit_id')->unique()->values()->all());
+        $audits = AuditLog::where('tindakan', 'user_permission_granted.tambah')->get();
+        $this->assertCount(3, $audits);
+        $this->assertEqualsCanonicalizing($grants->pluck('id')->all(), $audits->pluck('objek_id')->all());
+        $this->assertSame(['Penugasan PJ unit Pokja Kelembagaan'], $audits->pluck('alasan')->unique()->values()->all());
+        $this->assertSame(['diizinkan'], $audits->pluck('dasar_izin.keputusan')->unique()->values()->all());
+    }
+
+    /** Setelah Beri, daftar kembali dengan filter asal; isian dari halaman PJ dan nomor halaman tidak dibawa. */
+    public function test_beri_izin_kembali_ke_daftar_dengan_filter_asal_tanpa_isian_pj(): void
+    {
+        $asal = '/akses/grant?search=Uji&unit_id='.$this->unitA->id.'&page=2&beri_pengguna='.$this->pegawaiUser->id.'&beri_unit='.$this->unitA->id;
+        $this->actingAs($this->adminUser)->from($asal)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => [$this->unitPermission->id],
+            'unit_id' => $this->unitA->id,
+        ])->assertRedirect(route('akses.grant.index', ['search' => 'Uji', 'unit_id' => $this->unitA->id]));
+        $this->assertSame(1, UserPermissionGrant::where('user_id', $this->pegawaiUser->id)->count());
+    }
+
+    /** Filter asal yang bukan teks tidak dibawa ke pengalihan. */
+    public function test_beri_izin_mengabaikan_filter_asal_yang_bukan_teks(): void
+    {
+        $this->actingAs($this->adminUser)->from('/akses/grant?search[]=x&unit_id[]=y')->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => [$this->unitPermission->id],
+            'unit_id' => $this->unitA->id,
+        ])->assertRedirect('/akses/grant');
+    }
+
+    /** Semua atau tidak sama sekali: satu izin yang sudah dimiliki menolak seluruh pilihan dan menyebut izinnya. */
+    public function test_banyak_izin_ditolak_seluruhnya_bila_salah_satu_sudah_dimiliki(): void
+    {
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Izin yang sudah ada', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => [$this->unitPermission->id, Permission::where('kode', 'pengukuran:update')->value('id')],
+            'unit_id' => $this->unitA->id,
+        ])->assertSessionHasErrors(['permission_ids' => 'Pengguna sudah memiliki izin ini pada unit tersebut: Mengisi pengukuran.']);
+
+        $this->assertDatabaseCount('user_permission_granted', 1);
+        $this->assertSame(0, AuditLog::where('tindakan', 'user_permission_granted.tambah')->count());
+
+        // Kontrol: unit lain belum dimiliki sehingga pilihan yang sama diterima.
+        $this->actingAs($this->adminUser)->post('/akses/grant', [
+            'user_id' => $this->pegawaiUser->id,
+            'permission_ids' => [$this->unitPermission->id, Permission::where('kode', 'pengukuran:update')->value('id')],
+            'unit_id' => $this->unitB->id,
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('user_permission_granted', 3);
+    }
+
+    /** Daftar izin wajib berisi 1–7 izin berbeda. */
+    public function test_daftar_izin_wajib_terisi_dan_tanpa_duplikat(): void
+    {
+        $payload = ['user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id];
+
+        $this->actingAs($this->adminUser)->post('/akses/grant', [...$payload, 'permission_ids' => []])
+            ->assertSessionHasErrors(['permission_ids' => 'Pilih minimal satu izin.']);
+        $this->actingAs($this->adminUser)->post('/akses/grant', [...$payload, 'permission_ids' => [$this->unitPermission->id, $this->unitPermission->id]])
+            ->assertSessionHasErrors('permission_ids.1');
+        $this->assertDatabaseCount('user_permission_granted', 0);
+    }
+
+    /** Kegagalan audit pada izin kedua membatalkan seluruh izin dalam satu simpan. */
+    public function test_audit_gagal_di_tengah_membatalkan_seluruh_izin(): void
+    {
+        $panggilan = 0;
+        $this->mock(AuditLogger::class)->shouldReceive('catat')->twice()->andReturnUsing(function () use (&$panggilan): AuditLog {
+            if (++$panggilan === 2) {
+                throw new RuntimeException('Audit izin kedua gagal.');
+            }
+
+            return new AuditLog;
+        });
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->actingAs($this->adminUser)->post('/akses/grant', [
+                'user_id' => $this->pegawaiUser->id,
+                'permission_ids' => Permission::whereIn('kode', ['pengukuran:create', 'pengukuran:update'])->pluck('id')->all(),
+                'unit_id' => $this->unitA->id,
+            ]);
+            $this->fail('Kegagalan audit harus diteruskan.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Audit izin kedua gagal.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('user_permission_granted', 0);
+    }
+
+    /** Daftar dan pilihan memakai label izin singkat dari katalog; pencarian ikut mencocokkan label itu. */
+    public function test_index_memakai_label_izin_singkat_dan_pencarian_label(): void
+    {
+        $susun = Permission::where('kode', 'rencana_aksi:create')->firstOrFail();
+        foreach ([$this->unitPermission, $susun] as $permission) {
+            UserPermissionGrant::create([
+                'user_id' => $this->pegawaiUser->id, 'permission_id' => $permission->id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Fixture label', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+
+        $this->actingAs($this->adminUser)->get('/akses/grant')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('unitPermissions', fn ($options) => collect($options)->pluck('label')->all() === array_values(PermissionCatalog::LABEL_IZIN_UNIT))
+            ->has('grants.data', 1)
+            ->where('grants.data.0.izin', fn ($izin) => collect($izin)->pluck('label')->all() === ['Mengisi pengukuran', 'Menyusun rencana aksi']));
+
+        // Pencarian label menampilkan kelompok yang cocok beserta seluruh izinnya.
+        $this->actingAs($this->adminUser)->get('/akses/grant?search=Menyusun')->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('grants.data', 1)
+            ->has('grants.data.0.izin', 2));
+        $this->actingAs($this->adminUser)->get('/akses/grant?search=Mengajukan')->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('grants.data', 0));
+    }
+
+    /** Satu baris per pengguna × unit; izin terurut katalog dan paginasi dihitung per kelompok (Q62). */
+    public function test_daftar_mengelompokkan_izin_per_pengguna_dan_unit(): void
+    {
+        $beri = fn (User $user, string $kode, Unit $unit) => UserPermissionGrant::create([
+            'user_id' => $user->id, 'permission_id' => Permission::where('kode', $kode)->value('id'),
+            'unit_id' => $unit->id, 'alasan' => 'Fixture kelompok', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $beri($this->pegawaiUser, 'kegiatan:create', $this->unitA);
+        $beri($this->pegawaiUser, 'pengukuran:create', $this->unitA);
+        $beri($this->pegawaiUser, 'pengukuran:update', $this->unitA);
+        $beri($this->pegawaiUser, 'pengukuran:create', $this->unitB);
+        $beri($this->pimpinanUser, 'pengukuran:create', $this->unitA);
+
+        $response = $this->actingAs($this->adminUser)->get('/akses/grant');
+        $response->assertInertia(fn (AssertableInertia $page) => $page->has('grants.data', 3)->where('grants.total', 3));
+        $rows = collect($response->viewData('page')['props']['grants']['data'])->keyBy('key');
+        $kelompok = $rows["{$this->pegawaiUser->id}:{$this->unitA->id}"];
+
+        $this->assertSame(['Mengisi pengukuran', 'Mengubah pengukuran', 'Membuat kegiatan'], collect($kelompok['izin'])->pluck('label')->all());
+        $this->assertSame('Pegawai Staf', $kelompok['user_name']);
+        $this->assertSame('Pokja Kelembagaan', $kelompok['unit_nama']);
+        $this->assertSame(['grant_id', 'permission_id', 'label', 'aktif'], array_keys($kelompok['izin'][0]));
+        $this->assertCount(1, $rows["{$this->pegawaiUser->id}:{$this->unitB->id}"]['izin']);
+
+        // Paginasi menghitung kelompok, bukan baris izin.
+        foreach (range(1, 15) as $nomor) {
+            $user = User::factory()->create(['nama' => "Pengguna {$nomor}", 'status' => 'aktif']);
+            $beri($user, 'pengukuran:create', $this->unitA);
+            $beri($user, 'pengukuran:update', $this->unitA);
+        }
+        $this->actingAs($this->adminUser)->get('/akses/grant?page=2')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('grants.total', 18)
+            ->where('grants.current_page', 2)
+            ->has('grants.data', 3));
+    }
+
+    /** Tautan dari halaman Penanggung Jawab menyiapkan isian Beri izin unit; pengguna atau unit yang tidak sah diabaikan. */
+    public function test_index_menyiapkan_isian_beri_izin_dari_halaman_pj(): void
+    {
+        $this->actingAs($this->adminUser)->get("/akses/grant?beri_pengguna={$this->pegawaiUser->id}&beri_unit={$this->unitA->id}")
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('beri.user.id', $this->pegawaiUser->id)
+                ->where('beri.user.nama', 'Pegawai Staf')
+                ->where('beri.user.email', 'pegawai@sakip.test')
+                ->where('beri.user.status', 'aktif')
+                ->where('beri.user.roles', ['Pegawai'])
+                ->where('beri.unit_id', $this->unitA->id));
+
+        $this->unitB->update(['status' => 'nonaktif']);
+        $this->aksesOnlyUser->update(['status' => 'nonaktif']);
+        foreach ([
+            "beri_pengguna={$this->aksesOnlyUser->id}&beri_unit={$this->unitA->id}",
+            "beri_pengguna={$this->pegawaiUser->id}&beri_unit={$this->unitB->id}",
+            "beri_pengguna=bukan-uuid&beri_unit={$this->unitA->id}",
+            "beri_pengguna={$this->pegawaiUser->id}",
+            '',
+        ] as $query) {
+            $this->actingAs($this->adminUser)->get("/akses/grant?{$query}")
+                ->assertInertia(fn (AssertableInertia $page) => $page->where('beri', null));
+        }
+    }
+
+    /** Halaman detail memuat rincian setiap izin pengguna pada unit itu. */
+    public function test_detail_izin_unit_menampilkan_rincian_per_izin(): void
+    {
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => Permission::where('kode', 'kegiatan:create')->value('id'),
+            'unit_id' => $this->unitA->id, 'alasan' => 'Penugasan kegiatan', 'diberikan_oleh' => $this->superadminUser->id,
+        ]);
+        $grant = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Penugasan pengukuran', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id, 'alasan' => 'Unit lain tidak ikut', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $this->actingAs($this->adminUser)->get("/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Akses/GrantDetail')
+                ->where('kelompok.user_name', 'Pegawai Staf')
+                ->where('kelompok.user_email', 'pegawai@sakip.test')
+                ->where('kelompok.user_roles', ['Pegawai'])
+                ->where('kelompok.unit_nama', 'Pokja Kelembagaan')
+                ->where('kelompok.tidak_berlaku', [])
+                ->has('kelompok.izin', 2)
+                ->where('kelompok.izin.0.grant_id', $grant->id)
+                ->where('kelompok.izin.0.label', 'Mengisi pengukuran')
+                ->where('kelompok.izin.0.alasan', 'Penugasan pengukuran')
+                ->where('kelompok.izin.0.diberikan_oleh_nama', 'Admin Pengelola')
+                ->where('kelompok.izin.0.created_at', fn ($waktu) => is_string($waktu) && str_contains($waktu, 'T'))
+                ->where('kelompok.izin.1.label', 'Membuat kegiatan')
+                ->where('kelompok.izin.1.diberikan_oleh_nama', 'Superadmin Utama')
+                ->has('unitPermissions', 7)
+                ->where('can.kelola_grant', true)
+                ->where('can.revoke_grant', true));
+    }
+
+    /** Pengguna aktif tanpa peran resmi aktif ditolak resolver, sehingga pasangannya tidak berlaku (Q62 butir 2). */
+    public function test_daftar_menandai_pasangan_tanpa_peran_aktif_dari_resolver(): void
+    {
+        $tanpaPeran = User::factory()->create(['nama' => 'SSO Baru', 'email' => 'ssobaru@sakip.test', 'status' => 'aktif']);
+        $nonaktifTanpaPeran = User::factory()->create(['nama' => 'Nonaktif Tanpa Peran', 'email' => 'nonaktiftanpaperan@sakip.test', 'status' => 'nonaktif']);
+        foreach ([$tanpaPeran, $nonaktifTanpaPeran, $this->pegawaiUser] as $user) {
+            UserPermissionGrant::create([
+                'user_id' => $user->id, 'permission_id' => $this->unitPermission->id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Fixture status berlaku', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+
+        $rows = collect($this->actingAs($this->adminUser)->get('/akses/grant')->viewData('page')['props']['grants']['data'])->keyBy('key');
+
+        $this->assertSame(['Tanpa peran aktif'], $rows["{$tanpaPeran->id}:{$this->unitA->id}"]['tidak_berlaku']);
+        // Resolver memeriksa akun nonaktif lebih dulu, sehingga alasan peran tidak ikut ditampilkan.
+        $this->assertSame(['Akun nonaktif'], $rows["{$nonaktifTanpaPeran->id}:{$this->unitA->id}"]['tidak_berlaku']);
+        $this->assertSame([], $rows["{$this->pegawaiUser->id}:{$this->unitA->id}"]['tidak_berlaku']);
+        $this->get("/akses/grant/{$tanpaPeran->id}/{$this->unitA->id}")
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('kelompok.tidak_berlaku', ['Tanpa peran aktif']));
+    }
+
+    /** Deny eksplisit global atau pada unit yang sama menandai izin itu ditolak; deny pada unit lain tidak (Q62 butir 2). */
+    #[DataProvider('cakupanDenyIzinUnit')]
+    public function test_detail_menandai_izin_yang_terkena_deny_eksplisit(string $cakupan, bool $ditolak): void
+    {
+        $kegiatan = Permission::where('kode', 'kegiatan:create')->firstOrFail();
+        foreach ([$this->unitPermission, $kegiatan] as $permission) {
+            UserPermissionGrant::create([
+                'user_id' => $this->pegawaiUser->id, 'permission_id' => $permission->id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Fixture deny', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+        UserPermissionDeny::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => ['global' => null, 'unit sama' => $this->unitA->id, 'unit lain' => $this->unitB->id][$cakupan],
+            'alasan' => 'Deny fixture', 'ditetapkan_oleh' => $this->superadminUser->id,
+        ]);
+
+        $this->actingAs($this->adminUser)->get("/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('kelompok.tidak_berlaku', [])
+                ->where('kelompok.izin.0.label', 'Mengisi pengukuran')
+                ->where('kelompok.izin.0.ditolak', $ditolak)
+                ->where('kelompok.izin.1.label', 'Membuat kegiatan')
+                ->where('kelompok.izin.1.ditolak', false));
+    }
+
+    public static function cakupanDenyIzinUnit(): array
+    {
+        return [
+            'deny global' => ['global', true],
+            'deny unit sama' => ['unit sama', true],
+            'deny unit lain' => ['unit lain', false],
+        ];
+    }
+
+    /** Penanda deny tetap tampil walau resolver berhenti sebelum membaca deny (Q62 butir 2). */
+    #[DataProvider('resolverBerhentiLebihAwal')]
+    public function test_detail_menandai_deny_walau_resolver_berhenti_lebih_awal(string $keadaan, array $tidakBerlaku, bool $izinAktif): void
+    {
+        $kegiatan = Permission::where('kode', 'kegiatan:create')->firstOrFail();
+        foreach ([$this->unitPermission, $kegiatan] as $permission) {
+            UserPermissionGrant::create([
+                'user_id' => $this->pegawaiUser->id, 'permission_id' => $permission->id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Fixture deny', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+        UserPermissionDeny::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Deny fixture', 'ditetapkan_oleh' => $this->superadminUser->id,
+        ]);
+        [
+            'akun nonaktif' => fn () => $this->pegawaiUser->update(['status' => 'nonaktif']),
+            'tanpa peran aktif' => fn () => $this->pegawaiUser->roles()->detach(),
+            'izin nonaktif' => fn () => $this->unitPermission->update(['aktif' => false]),
+        ][$keadaan]();
+
+        $this->actingAs($this->adminUser)->get("/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}")
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('kelompok.tidak_berlaku', $tidakBerlaku)
+                ->where('kelompok.izin.0.label', 'Mengisi pengukuran')
+                ->where('kelompok.izin.0.aktif', $izinAktif)
+                ->where('kelompok.izin.0.ditolak', true)
+                ->where('kelompok.izin.1.label', 'Membuat kegiatan')
+                ->where('kelompok.izin.1.ditolak', false));
+    }
+
+    public static function resolverBerhentiLebihAwal(): array
+    {
+        return [
+            'akun nonaktif' => ['akun nonaktif', ['Akun nonaktif'], true],
+            'tanpa peran aktif' => ['tanpa peran aktif', ['Tanpa peran aktif'], true],
+            'izin katalog nonaktif' => ['izin nonaktif', [], false],
+        ];
+    }
+
+    /** Status daftar dihitung sekali per halaman, bukan per baris: jumlah query tidak bertambah dengan jumlah pasangan (Engineering Standards, hindari N+1). */
+    public function test_daftar_jumlah_query_tidak_bertambah_per_pasangan(): void
+    {
+        $tambahPasangan = function (int $jumlah): void {
+            for ($i = 0; $i < $jumlah; $i++) {
+                $user = User::factory()->create(['status' => 'aktif']);
+                $user->roles()->attach(Role::where('kode', 'pegawai')->value('id'), [
+                    'id' => (string) Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $this->adminUser->id, 'created_at' => now(),
+                ]);
+                UserPermissionGrant::create([
+                    'user_id' => $user->id, 'permission_id' => $this->unitPermission->id,
+                    'unit_id' => $this->unitA->id, 'alasan' => 'Fixture jumlah query', 'diberikan_oleh' => $this->adminUser->id,
+                ]);
+            }
+        };
+        $hitungQuery = function (): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->actingAs($this->adminUser)->get('/akses/grant')->assertOk();
+            DB::disableQueryLog();
+
+            return count(DB::getQueryLog());
+        };
+
+        $tambahPasangan(1);
+        $hitungQuery();
+        $satuPasangan = $hitungQuery();
+        $tambahPasangan(14);
+        $limaBelasPasangan = $hitungQuery();
+
+        $this->assertSame(15, count($this->get('/akses/grant')->viewData('page')['props']['grants']['data']));
+        $this->assertSame($satuPasangan, $limaBelasPasangan);
+    }
+
+    /** Pasangan yang grant terakhirnya dicabut di antara query paginasi dan query detail dilewati, bukan 500. */
+    public function test_daftar_melewati_pasangan_yang_hilang_di_antara_dua_query(): void
+    {
+        $hilang = UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Dicabut bersamaan', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitB->id, 'alasan' => 'Tetap ada', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $dicabut = false;
+        DB::listen(function ($query) use (&$dicabut, $hilang): void {
+            if ($dicabut || ! str_contains($query->sql, 'max(created_at)') || ! str_contains($query->sql, 'limit')) {
+                return;
+            }
+            $dicabut = true;
+            DB::table('user_permission_granted')->where('id', $hilang->id)->delete();
+        });
+
+        $response = $this->actingAs($this->adminUser)->get('/akses/grant')->assertOk();
+
+        $this->assertTrue($dicabut);
+        $this->assertSame(["{$this->pegawaiUser->id}:{$this->unitB->id}"], collect($response->viewData('page')['props']['grants']['data'])->pluck('key')->all());
+    }
+
+    /** Detail hanya untuk pemegang delegasi:update dan pasangan pengguna-unit yang memiliki izin unit. */
+    public function test_detail_izin_unit_403_tanpa_delegasi_dan_404_tanpa_izin(): void
+    {
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Fixture detail', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->globalPermission->id,
+            'unit_id' => null, 'alasan' => 'Grant global bukan izin unit', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $this->actingAs($this->pegawaiUser)->get("/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}")->assertForbidden();
+        $this->actingAs($this->adminUser)->get("/akses/grant/{$this->pegawaiUser->id}/{$this->unitB->id}")->assertNotFound();
+        $this->actingAs($this->adminUser)->get("/akses/grant/bukan-uuid/{$this->unitA->id}")->assertNotFound();
+        $this->actingAs($this->adminUser)->get("/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}")->assertOk();
+    }
+
+    /** Kelola izin menambah dan mencabut sekaligus dalam satu simpan; audit tetap per izin. */
+    public function test_kelola_menambah_dan_mencabut_sekaligus_dengan_audit_per_izin(): void
+    {
+        $ubah = Permission::where('kode', 'pengukuran:update')->firstOrFail();
+        $kegiatan = Permission::where('kode', 'kegiatan:create')->firstOrFail();
+        foreach ([$this->unitPermission, $ubah] as $permission) {
+            UserPermissionGrant::create([
+                'user_id' => $this->pegawaiUser->id, 'permission_id' => $permission->id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+        $detail = "/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}";
+
+        $this->actingAs($this->adminUser)->from($detail)->put('/akses/grant/kelola', [
+            'user_id' => $this->pegawaiUser->id,
+            'unit_id' => $this->unitA->id,
+            'permission_ids' => [$this->unitPermission->id, $kegiatan->id],
+            'expected_permission_ids' => [$ubah->id, $this->unitPermission->id],
+            'alasan' => 'Penyesuaian tugas PJ',
+        ])->assertSessionHasNoErrors()->assertRedirect($detail)
+            ->assertSessionHas('success', 'Izin unit Pegawai Staf pada Pokja Kelembagaan diperbarui: 1 diberikan, 1 dicabut.');
+
+        $this->assertEqualsCanonicalizing(
+            ['pengukuran:create', 'kegiatan:create'],
+            UserPermissionGrant::with('permission')->get()->pluck('permission.kode')->all(),
+        );
+        $tambah = AuditLog::where('tindakan', 'user_permission_granted.tambah')->sole();
+        $this->assertSame('kegiatan:create', $tambah->nilai_baru['permission_kode']);
+        $this->assertSame('Penyesuaian tugas PJ', $tambah->alasan);
+        $hapus = AuditLog::where('tindakan', 'user_permission_granted.hapus')->sole();
+        $this->assertSame('pengukuran:update', $hapus->nilai_lama['permission_kode']);
+        $this->assertSame('Pemberian awal', $hapus->nilai_lama['alasan_pemberian']);
+        $this->assertSame('Penyesuaian tugas PJ', $hapus->alasan);
+        $this->assertSame('diizinkan', $hapus->dasar_izin['keputusan']);
+    }
+
+    /** Pencabutan lewat Kelola wajib beralasan (Q43 §43.2 butir 4); hanya menambah boleh tanpa alasan. */
+    public function test_kelola_mencabut_wajib_alasan_dan_menambah_saja_boleh_tanpa_alasan(): void
+    {
+        $ubah = Permission::where('kode', 'pengukuran:update')->value('id');
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $payload = ['user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id, 'expected_permission_ids' => [$this->unitPermission->id]];
+
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', [...$payload, 'permission_ids' => [], 'alasan' => '   '])
+            ->assertSessionHasErrors(['alasan' => 'Alasan wajib diisi bila ada izin yang dicabut.']);
+        $this->assertDatabaseCount('user_permission_granted', 1);
+
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', [...$payload, 'permission_ids' => [$this->unitPermission->id, $ubah]])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(CreateUnitGrantAction::ALASAN_BAKU, UserPermissionGrant::where('permission_id', $ubah)->value('alasan'));
+    }
+
+    /** Daftar izin yang berubah sejak dibuka ditolak dengan pesan muat ulang (pola expected_* modul Akses); tanpa perubahan juga ditolak. */
+    public function test_kelola_ditolak_bila_data_berubah_atau_tanpa_perubahan(): void
+    {
+        $ubah = Permission::where('kode', 'pengukuran:update')->value('id');
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $payload = ['user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id, 'alasan' => 'Penyesuaian'];
+
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', [...$payload, 'permission_ids' => [$ubah], 'expected_permission_ids' => []])
+            ->assertSessionHasErrors(['expected_permission_ids' => 'Izin unit pengguna ini telah berubah. Muat ulang data sebelum menyimpan.']);
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', [...$payload, 'permission_ids' => [$this->unitPermission->id], 'expected_permission_ids' => [$this->unitPermission->id]])
+            ->assertSessionHasErrors(['permission_ids' => 'Tidak ada perubahan izin.']);
+
+        $this->assertSame([$this->unitPermission->id], UserPermissionGrant::pluck('permission_id')->all());
+        $this->assertSame(0, AuditLog::whereIn('tindakan', ['user_permission_granted.tambah', 'user_permission_granted.hapus'])->count());
+    }
+
+    /** Daftar akhir kosong mencabut seluruh izin pengguna pada unit itu dan kembali ke daftar karena detail tidak lagi ada. */
+    public function test_kelola_daftar_kosong_mencabut_semua_dan_kembali_ke_daftar(): void
+    {
+        $ids = Permission::whereIn('kode', ['pengukuran:create', 'pengukuran:update'])->pluck('id')->all();
+        foreach ($ids as $id) {
+            UserPermissionGrant::create([
+                'user_id' => $this->pegawaiUser->id, 'permission_id' => $id,
+                'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+            ]);
+        }
+
+        $this->actingAs($this->adminUser)->from("/akses/grant/{$this->pegawaiUser->id}/{$this->unitA->id}")->put('/akses/grant/kelola', [
+            'user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id,
+            'permission_ids' => [], 'expected_permission_ids' => $ids, 'alasan' => 'Penugasan selesai',
+        ])->assertRedirect('/akses/grant')
+            ->assertSessionHas('success', 'Seluruh izin unit Pegawai Staf pada Pokja Kelembagaan dicabut.');
+
+        $this->assertDatabaseCount('user_permission_granted', 0);
+        $this->assertSame(2, AuditLog::where('tindakan', 'user_permission_granted.hapus')->count());
+    }
+
+    /** Menambah butuh akun dan unit aktif; mencabut tetap boleh untuk membersihkan referensi nonaktif. */
+    public function test_kelola_menambah_ke_unit_nonaktif_ditolak_tetapi_mencabut_boleh(): void
+    {
+        $ubah = Permission::where('kode', 'pengukuran:update')->value('id');
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $this->unitA->update(['status' => 'nonaktif']);
+        $payload = ['user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id, 'expected_permission_ids' => [$this->unitPermission->id], 'alasan' => 'Pembersihan'];
+
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', [...$payload, 'permission_ids' => [$this->unitPermission->id, $ubah]])
+            ->assertSessionHasErrors(['unit_id' => 'Unit nonaktif; izin baru tidak dapat ditambahkan.']);
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', [...$payload, 'permission_ids' => []])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('user_permission_granted', 0);
+    }
+
+    /** Request Kelola menerima akun dan izin nonaktif agar bisa dicabut; Action-lah satu-satunya penjaga penambahan. */
+    public function test_kelola_menambah_ke_akun_nonaktif_atau_izin_nonaktif_ditolak(): void
+    {
+        $ubah = Permission::where('kode', 'pengukuran:update')->firstOrFail();
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $payload = ['user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id, 'expected_permission_ids' => [$this->unitPermission->id], 'permission_ids' => [$this->unitPermission->id, $ubah->id]];
+
+        $ubah->update(['aktif' => false]);
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', $payload)
+            ->assertSessionHasErrors(['permission_ids' => CreateUnitGrantAction::IZIN_TIDAK_SAH]);
+
+        $ubah->update(['aktif' => true]);
+        $this->pegawaiUser->update(['status' => 'nonaktif']);
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', $payload)
+            ->assertSessionHasErrors(['user_id' => 'Akun pengguna nonaktif; izin baru tidak dapat ditambahkan.']);
+
+        $this->assertSame([$this->unitPermission->id], UserPermissionGrant::pluck('permission_id')->all());
+
+        // Kontrol: setelah akun aktif lagi, penambahan yang sama diterima.
+        $this->pegawaiUser->update(['status' => 'aktif']);
+        $this->actingAs($this->adminUser)->put('/akses/grant/kelola', $payload)->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('user_permission_granted', 2);
+    }
+
+    /** Cabut semua dari daftar yang difilter kembali ke halaman asal; hanya dari halaman detail yang sudah tidak ada ke daftar polos. */
+    public function test_kelola_cabut_semua_dari_daftar_kembali_ke_halaman_asal(): void
+    {
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $asal = "/akses/grant?unit_id={$this->unitA->id}&page=2";
+
+        $this->actingAs($this->adminUser)->from($asal)->put('/akses/grant/kelola', [
+            'user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id,
+            'permission_ids' => [], 'expected_permission_ids' => [$this->unitPermission->id], 'alasan' => 'Penugasan selesai',
+        ])->assertRedirect($asal);
+    }
+
+    /** Tanpa delegasi:update, Kelola ditolak 403 dengan audit penolakan dan tanpa perubahan. */
+    public function test_kelola_ditolak_403_dengan_audit_penolakan(): void
+    {
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+
+        $this->actingAs($this->aksesOnlyUser)->put('/akses/grant/kelola', [
+            'user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id,
+            'permission_ids' => [], 'expected_permission_ids' => [$this->unitPermission->id], 'alasan' => 'Mencoba mencabut',
+        ])->assertForbidden();
+
+        $this->assertDatabaseCount('user_permission_granted', 1);
+        $this->assertSame($this->aksesOnlyUser->id, AuditLog::where('tindakan', 'user_permission_granted.ditolak')->sole()->actor_id);
+    }
+
+    /** Kegagalan audit di tengah Kelola membatalkan seluruh tambah dan cabut. */
+    public function test_kelola_audit_gagal_membatalkan_seluruh_perubahan(): void
+    {
+        $ubah = Permission::where('kode', 'pengukuran:update')->value('id');
+        UserPermissionGrant::create([
+            'user_id' => $this->pegawaiUser->id, 'permission_id' => $this->unitPermission->id,
+            'unit_id' => $this->unitA->id, 'alasan' => 'Pemberian awal', 'diberikan_oleh' => $this->adminUser->id,
+        ]);
+        $panggilan = 0;
+        $this->mock(AuditLogger::class)->shouldReceive('catat')->twice()->andReturnUsing(function () use (&$panggilan): AuditLog {
+            if (++$panggilan === 2) {
+                throw new RuntimeException('Audit kelola gagal.');
+            }
+
+            return new AuditLog;
+        });
+        $this->withoutExceptionHandling();
+
+        try {
+            $this->actingAs($this->adminUser)->put('/akses/grant/kelola', [
+                'user_id' => $this->pegawaiUser->id, 'unit_id' => $this->unitA->id,
+                'permission_ids' => [$ubah], 'expected_permission_ids' => [$this->unitPermission->id], 'alasan' => 'Tukar izin',
+            ]);
+            $this->fail('Kegagalan audit harus diteruskan.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Audit kelola gagal.', $exception->getMessage());
+        }
+
+        $this->assertSame([$this->unitPermission->id], UserPermissionGrant::pluck('permission_id')->all());
     }
 }
