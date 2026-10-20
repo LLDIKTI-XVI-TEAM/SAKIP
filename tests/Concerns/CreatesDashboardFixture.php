@@ -41,16 +41,28 @@ trait CreatesDashboardFixture
     /** Versi disahkan dengan isi beku yang dibaca dashboard; header ikut berstatus disahkan. */
     protected function sahkan(PengukuranKinerja $pengukuran, array $snapshot): KinerjaSnapshot
     {
+        return $this->versiPengajuan($pengukuran, $snapshot, 'disahkan');
+    }
+
+    /** Versi pengajuan yang belum disahkan (diajukan/diverifikasi); isinya beku sejak diajukan. */
+    protected function ajukan(PengukuranKinerja $pengukuran, array $snapshot, string $status = 'diajukan'): KinerjaSnapshot
+    {
+        return $this->versiPengajuan($pengukuran, $snapshot, $status);
+    }
+
+    private function versiPengajuan(PengukuranKinerja $pengukuran, array $snapshot, string $status): KinerjaSnapshot
+    {
+        $disahkan = $status === 'disahkan';
         $konteks = JadwalSnapshot::with('unit')->findOrFail($pengukuran->jadwal_snapshot_id);
         $versi = KinerjaSnapshot::create(['pengukuran_id' => $pengukuran->id, 'rencana_aksi_versi_id' => $this->planVersion->id, 'jadwal_snapshot_id' => $konteks->id,
             'nomor' => (int) KinerjaSnapshot::where('pengukuran_id', $pengukuran->id)->max('nomor') + 1, 'diajukan_by' => $this->actor->id, 'diajukan_at' => now(),
-            'jalur_pengajuan' => 'perencanaan', 'dasar_izin_pengajuan' => ['fixture' => 'sintetis'], 'disahkan_by' => $this->actor->id, 'disahkan_at' => now(),
+            'jalur_pengajuan' => 'perencanaan', 'dasar_izin_pengajuan' => ['fixture' => 'sintetis'], 'disahkan_by' => $disahkan ? $this->actor->id : null, 'disahkan_at' => $disahkan ? now() : null,
             'snapshot' => array_replace_recursive([
                 'nilai' => null, 'status_perhitungan' => 'terhitung', 'target' => '70', 'tanpa_target_periode' => false, 'target_pk' => '70',
                 'indikator' => [...Arr::only($konteks->toArray(), ['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $pengukuran->indikator->kode],
                 'unit_kerja' => ['id' => $konteks->unit_id, 'nama' => $konteks->unit->nama], 'pic' => null,
             ], $snapshot)]);
-        $pengukuran->forceFill(['status_alur' => 'disahkan'])->save();
+        $pengukuran->forceFill(['status_alur' => $status])->save();
 
         return $versi;
     }

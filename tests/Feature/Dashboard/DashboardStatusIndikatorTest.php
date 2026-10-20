@@ -3,6 +3,7 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Models\IndikatorKinerja;
+use App\Models\PenugasanIndikator;
 use App\Models\Permission;
 use App\Models\SasaranStrategis;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -171,5 +172,25 @@ class DashboardStatusIndikatorTest extends TestCase
 
         $this->assertSame([true, false], [$this->baris($props, 'I-UJI')['self_approval'], $this->baris($props, 'I-UJI')['reviu_terlambat']]);
         $this->assertSame([false, false], [$this->baris($props, 'I-DUA')['self_approval'], $this->baris($props, 'I-DUA')['reviu_terlambat']]);
+    }
+
+    public function test_pengajuan_yang_direviu_memakai_pic_beku_versi_pengajuan(): void
+    {
+        $diverifikasi = $this->headerUntuk($this->indikatorBaru('I-DUA'));
+        $draft = $this->headerUntuk($this->indikatorBaru('I-TIGA'));
+        $beku = ['pic' => ['id' => $this->actor->id, 'nama' => 'PIC Saat Diajukan']];
+        $this->ajukan($this->pengukuran, $beku);
+        $this->ajukan($diverifikasi, $beku, 'diverifikasi');
+        $picBaru = $this->userWithRole('pegawai');
+        foreach ([$this->pengukuran, $diverifikasi, $draft] as $header) {
+            PenugasanIndikator::create(['indikator_id' => $header->indikator_id, 'user_id' => $picBaru->id,
+                'tanggal_mulai_berlaku' => '2026-03-10', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        }
+
+        $props = $this->props();
+
+        $this->assertSame('PIC Saat Diajukan', $this->baris($props, 'I-UJI')['pic']['nama']);
+        $this->assertSame('PIC Saat Diajukan', $this->baris($props, 'I-DUA')['pic']['nama']);
+        $this->assertSame($picBaru->nama, $this->baris($props, 'I-TIGA')['pic']['nama']);
     }
 }

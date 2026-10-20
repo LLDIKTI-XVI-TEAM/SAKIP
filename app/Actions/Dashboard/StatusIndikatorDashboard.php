@@ -62,7 +62,9 @@ class StatusIndikatorDashboard
                 PeriodeTanpaTarget::isPeriodeLampau($jadwal, $periode), $versi);
             $target = $versi ?? $targets->get($row->jadwal_snapshot_id.':'.$row->periode_id, ['target' => null, 'tanpa_target_periode' => false]);
             $indikator = $versi['indikator'] ?? [];
-            $picNama = $versi === null ? $row->pic_nama : ($versi['pic']['nama'] ?? null);
+            // Pengajuan yang sedang direviu tetap atas nama PIC saat diajukan, sama dengan halaman Pengukuran.
+            $beku = $header && in_array($header->status_alur, PresentPengukuran::STATUS_BEKU, true) ? ($versi ?? $header->latestVersion?->snapshot) : null;
+            $picNama = $beku === null ? $row->pic_nama : ($beku['pic']['nama'] ?? null);
 
             return [
                 'periode_jadwal_id' => $row->periode_jadwal_id, 'periode_id' => $row->periode_id, 'alur' => $header?->status_alur,

@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Gate;
 
 class PresentPengukuran
 {
+    /** Status yang tampil dari versi pengajuan beku (PIC, unit, metadata) alih-alih data kerja. */
+    public const STATUS_BEKU = ['diajukan', 'diverifikasi', 'disahkan'];
+
     public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private CalculatePengukuran $calculator, private PengukuranKinerjaPolicy $policy, private RekomendasiBerlaku $rekomendasi) {}
 
     /**
@@ -97,7 +100,7 @@ class PresentPengukuran
         $p->loadMissing(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion']);
         $context = $p->jadwalSnapshot;
         $version = $p->latestVersion;
-        $frozen = in_array($p->status_alur, ['diajukan', 'diverifikasi', 'disahkan'], true) ? $version?->snapshot : null;
+        $frozen = in_array($p->status_alur, self::STATUS_BEKU, true) ? $version?->snapshot : null;
         $data = ['id' => $p->id, 'versi' => $p->versi, 'status' => $p->status_alur, 'nomor_pengajuan' => $version?->nomor ?? 0, 'jalur_pengajuan' => $version?->jalur_pengajuan,
             ...$this->penanda($p),
             'nilai' => $frozen ? $frozen['nilai'] : $p->nilai, 'status_perhitungan' => $frozen ? $frozen['status_perhitungan'] : $p->status_perhitungan,
