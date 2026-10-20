@@ -100,6 +100,7 @@ class DashboardKegiatanTest extends TestCase
         $this->assertSame(1, $panel['per_status']['rencana']);
         $this->assertSame(['I-DUA', 'I-UJI'], array_column($panel['per_iku'], 'kode'));
         $this->assertSame([1, 1], array_map(fn ($iku) => $iku['jumlah']['rencana'], $panel['per_iku']));
+        $this->assertSame($this->pengukuran->indikator_id, $panel['per_iku'][1]['id']);
     }
 
     public function test_filter_sasaran_lewat_klaim(): void
@@ -184,5 +185,17 @@ class DashboardKegiatanTest extends TestCase
 
         $this->assertSame([0, 0, [], []], [$panel['per_status']['rencana'], $panel['terlambat_jumlah'], $panel['terlambat'], $panel['per_iku']]);
         $this->assertSame(1, $this->panel(query: '?sasaran_id='.$this->pengukuran->indikator->sasaran_strategis_id)['per_status']['rencana']);
+    }
+
+    public function test_filter_unit_menyaring_panel_kegiatan(): void
+    {
+        $unitB = $this->unitBaru('Unit B');
+        $this->kegiatan(['nama' => 'K-A', 'tanggal_rencana' => '2026-03-01']);
+        $this->kegiatan(['nama' => 'K-B', 'unit_id' => $unitB->id, 'tanggal_rencana' => '2026-03-02']);
+        $this->indikatorBaru('I-B', indikator: ['unit_id' => $unitB->id], snapshot: ['unit_id' => $unitB->id]);
+
+        $panel = $this->panel(query: '?unit_id='.$unitB->id);
+
+        $this->assertSame([1, 1, ['K-B']], [$panel['per_status']['rencana'], $panel['terlambat_jumlah'], array_column($panel['terlambat'], 'nama')]);
     }
 }

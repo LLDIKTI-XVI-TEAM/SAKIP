@@ -48,23 +48,27 @@ class StatusIndikatorDashboard
             $this->present->prepareSummary($headers);
         }
         $resmi = fn ($row): ?array => ($header = $headers->get($row->pengukuran_id ?? '')) && $header->status_alur === 'disahkan' ? $header->ratifiedVersion?->snapshot : null;
-        $targetRows = $rows->filter(fn ($row) => $row->berlaku && $resmi($row) === null)->values();
+        $bekuDari = fn ($row): ?array => ($header = $headers->get($row->pengukuran_id ?? '')) && in_array($header->status_alur, PresentPengukuran::STATUS_BEKU, true)
+            ? ($resmi($row) ?? $header->latestVersion?->snapshot) : null;
+        $targetRows = $rows->filter(fn ($row) => $row->berlaku && $bekuDari($row) === null)->values();
         $targets = $targetRows->map(fn ($row) => $row->jadwal_snapshot_id.':'.$row->periode_id)->combine($this->present->periodTargets($targetRows->map(fn ($row) => [
             'indikator_id' => $row->indikator_id, 'tahun' => (int) $row->tahun, 'periode_id' => $row->periode_id, 'jadwal_snapshot_id' => $row->jadwal_snapshot_id, 'unit_id' => $row->unit_id,
         ])->all()));
         $canRead = $this->permissions->allows($actor, 'pengukuran:read');
         $readDenies = $this->permissions->unitDitolak($actor, 'pengukuran:read')->pluck('unit_id')->all();
 
-        $cells = $rows->map(function ($row) use ($jadwal, $dibuka, $headers, $resmi, $targets, $today, $canRead, $readDenies): array {
+        $batas = $konteks['batas'];
+        $cells = $rows->map(function ($row) use ($jadwal, $dibuka, $headers, $resmi, $bekuDari, $targets, $batas, $canRead, $readDenies): array {
             $periode = $dibuka[$row->periode_jadwal_id];
             $header = $headers->get($row->pengukuran_id ?? '');
             $versi = $resmi($row);
-            $status = Status::tentukan(true, (bool) $row->berlaku, $header?->status_alur, $today > $periode->pengisian_selesai->toDateString(),
+            // Jendela dinilai terhadap batas jadwal (tanggal penutupan bila sudah ditutup), bukan hari ini.
+            $status = Status::tentukan(true, (bool) $row->berlaku, $header?->status_alur, $batas > $periode->pengisian_selesai->toDateString(),
                 PeriodeTanpaTarget::isPeriodeLampau($jadwal, $periode), $versi);
-            $target = $versi ?? $targets->get($row->jadwal_snapshot_id.':'.$row->periode_id, ['target' => null, 'tanpa_target_periode' => false]);
+            // Pengajuan yang sedang direviu memakai PIC dan target beku saat diajukan, sama dengan halaman Pengukuran.
+            $beku = $bekuDari($row);
+            $target = $beku ?? $targets->get($row->jadwal_snapshot_id.':'.$row->periode_id, ['target' => null, 'tanpa_target_periode' => false]);
             $indikator = $versi['indikator'] ?? [];
-            // Pengajuan yang sedang direviu tetap atas nama PIC saat diajukan, sama dengan halaman Pengukuran.
-            $beku = $header && in_array($header->status_alur, PresentPengukuran::STATUS_BEKU, true) ? ($versi ?? $header->latestVersion?->snapshot) : null;
             $picNama = $beku === null ? $row->pic_nama : ($beku['pic']['nama'] ?? null);
 
             return [

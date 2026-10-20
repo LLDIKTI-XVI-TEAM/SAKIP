@@ -5,6 +5,7 @@ namespace Tests\Feature\Dashboard;
 use App\Models\IndikatorKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\Permission;
+use App\Models\RencanaAksiVersi;
 use App\Models\SasaranStrategis;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -208,5 +209,17 @@ class DashboardStatusIndikatorTest extends TestCase
         $this->assertNotSame($seri[0]['id'], $seri[1]['id']);
         $this->assertSame([$this->pengukuran->periode_id], array_column($grafik['seri'][$seri[0]['id']], 'periode_id'));
         $this->assertSame([$tw2->periode_id], array_column($grafik['seri'][$seri[1]['id']], 'periode_id'));
+    }
+
+    public function test_target_pengajuan_yang_direviu_beku_dari_versi_pengajuan(): void
+    {
+        $this->ajukan($this->pengukuran, ['target' => '65', 'tanpa_target_periode' => false], 'diverifikasi');
+        // Revisi target RA sesudah pengajuan: versi RA baru yang disahkan; versi lama beku.
+        RencanaAksiVersi::create([...$this->planVersion->only(['rencana_aksi_id', 'jadwal_snapshot_id', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),
+            'nomor' => 2, 'snapshot' => ['target_periode' => [['periode_id' => $this->pengukuran->periode_id, 'nilai' => null, 'status_perhitungan' => 'tidak_ditargetkan', 'komponen' => []]]]]);
+
+        $row = $this->baris($this->props(), 'I-UJI');
+
+        $this->assertSame(['dalam_proses', '65', false], [$row['status'], $row['target'], $row['tanpa_target_periode']]);
     }
 }

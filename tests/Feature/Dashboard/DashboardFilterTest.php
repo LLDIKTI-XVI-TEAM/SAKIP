@@ -94,8 +94,12 @@ class DashboardFilterTest extends TestCase
         JadwalTahunan::create([...$this->jadwal->only(['renstra_pk_id', 'penutupan']), 'renstra_id' => $renstra->id, 'tahun' => 2026, 'status' => 'draft']);
 
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('activeRenstra.id', $renstra->id)->where('activeJadwal', null)->where('activePeriode', null)->where('pilihan.tahun', []));
-        $this->get('/dashboard?renstra_id='.$renstra->id)->assertSessionHasErrors('renstra_id');
+            ->where('activeRenstra.id', $renstra->id)->where('activeJadwal', null)->where('activePeriode', null)->where('pilihan.tahun', [])
+            // Renstra yang sedang tampil selalu ada di pilihan agar pengguna dapat berpindah dari dan ke Renstra itu.
+            ->where('pilihan.renstra.0.id', $renstra->id)->where('pilihan.renstra.1.id', $this->jadwal->renstra_id));
+        $this->get('/dashboard?renstra_id='.$renstra->id)->assertOk();
+        $this->get('/dashboard?renstra_id='.$this->jadwal->renstra_id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('activeRenstra.tahun_mulai', 2025)->where('activeRenstra.tahun_selesai', 2029)->where('pilihan.tahun', [2026]));
     }
 
     public function test_periode_dibuka_tepat_pukul_nol_wita(): void
@@ -121,5 +125,26 @@ class DashboardFilterTest extends TestCase
             ->where('activeJadwal.status', 'ditutup')
             ->where('pilihan.periode', [['id' => $this->pengukuran->periode_id, 'nama' => 'Triwulan I']])
             ->where('filter.periode_id', $this->pengukuran->periode_id));
+    }
+
+    public function test_tahun_dan_sasaran_di_luar_pilihan_ditolak(): void
+    {
+        $this->actingAs($this->actor)->get('/dashboard?tahun=2025')->assertSessionHasErrors('tahun');
+        $this->get('/dashboard?sasaran_id='.Str::uuid())->assertSessionHasErrors('sasaran_id');
+        $this->get('/dashboard?tahun=2026&sasaran_id='.$this->pengukuran->indikator->sasaran_strategis_id)->assertOk();
+    }
+
+    public function test_jadwal_ditutup_tidak_memiliki_periode_aktif_dan_jendela_dinilai_pada_tanggal_penutupan(): void
+    {
+        // Ditutup di tengah jendela TW I (1–15 Maret): bukan "aktif", dan draft belum dianggap lewat jendela.
+        $this->jadwal->update(['status' => 'ditutup', 'closed_at' => Carbon::parse('2026-03-09 02:00:00', 'UTC')]);
+        $this->travelTo(now()->setDate(2026, 4, 1));
+        $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('activePeriode.status', 'terakhir')->where('statusIndikator.0.status', 'dalam_proses'));
+
+        // Ditutup setelah jendela berakhir: draft yang tertinggal adalah "Tidak mengisi".
+        $this->jadwal->update(['closed_at' => Carbon::parse('2026-03-20 02:00:00', 'UTC')]);
+        $this->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('activePeriode.status', 'terakhir')->where('statusIndikator.0.status', 'tidak_mengisi'));
     }
 }

@@ -49,7 +49,7 @@ class KegiatanDashboard
             ->when($sasaran, fn ($q, $id) => $q->where('i.sasaran_strategis_id', $id))
             ->selectRaw('i.id, i.kode, i.nama, kegiatan.status, count(distinct kegiatan.id) as total')
             ->groupBy('i.id', 'i.kode', 'i.nama', 'kegiatan.status')->orderBy('i.kode')->get()->groupBy('id')
-            ->map(fn ($rows) => ['kode' => $rows->first()->kode, 'nama' => $rows->first()->nama,
+            ->map(fn ($rows) => ['id' => $rows->first()->id, 'kode' => $rows->first()->kode, 'nama' => $rows->first()->nama,
                 'jumlah' => array_merge(array_fill_keys(Kegiatan::STATUSES, 0), $rows->mapWithKeys(fn ($row) => [$row->status => (int) $row->total])->all())])
             ->values()->all();
 

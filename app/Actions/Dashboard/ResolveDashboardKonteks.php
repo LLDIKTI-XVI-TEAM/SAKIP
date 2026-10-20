@@ -32,10 +32,15 @@ class ResolveDashboardKonteks
         $unitDitolak = $this->permissions->unitDitolak($actor, PermissionCodes::DASHBOARD_READ);
         $year = (int) substr($today, 0, 4);
         $renstraOptions = Renstra::whereIn('id', JadwalTahunan::whereIn('status', self::STATUS_JADWAL)->select('renstra_id'))
-            ->orderByDesc('tahun_mulai')->orderBy('id')->get(['id', 'nama']);
+            ->orderByDesc('tahun_mulai')->orderBy('id')->get(['id', 'nama', 'tahun_mulai', 'tahun_selesai']);
+        $renstraAktif = Renstra::where('is_aktif', true)->where('tahun_mulai', '<=', $year)->where('tahun_selesai', '>=', $year)->orderByDesc('tahun_mulai')->orderBy('id')->first();
+        // Renstra aktif tanpa jadwal aktif/ditutup tetap ditawarkan agar pengguna dapat berpindah dari dan ke Renstra itu.
+        if ($renstraAktif && ! $renstraOptions->contains('id', $renstraAktif->id)) {
+            $renstraOptions->prepend($renstraAktif);
+        }
         $renstra = isset($filter['renstra_id'])
-            ? $renstraOptions->firstWhere('id', strtolower($filter['renstra_id'])) ?? $this->tolak('renstra_id', 'Pilih Renstra yang memiliki jadwal aktif atau ditutup.')
-            : Renstra::where('is_aktif', true)->where('tahun_mulai', '<=', $year)->where('tahun_selesai', '>=', $year)->orderByDesc('tahun_mulai')->orderBy('id')->first();
+            ? $renstraOptions->firstWhere('id', strtolower($filter['renstra_id'])) ?? $this->tolak('renstra_id', 'Pilih Renstra yang tersedia.')
+            : $renstraAktif;
 
         $schedules = $renstra ? JadwalTahunan::where('renstra_id', $renstra->id)->whereIn('status', self::STATUS_JADWAL)
             ->orderByRaw("CASE WHEN status = 'aktif' THEN 0 ELSE 1 END")->orderBy('id')->get() : collect();
@@ -51,7 +56,8 @@ class ResolveDashboardKonteks
         $batas = $jadwal?->status === 'ditutup' && $jadwal->closed_at
             ? min($today, Carbon::parse($jadwal->closed_at)->timezone(config('app.business_timezone'))->toDateString()) : $today;
         $periodeDibuka = $semuaPeriode->filter(fn (PeriodeJadwal $p) => $p->pengisian_mulai->toDateString() <= $batas)->values();
-        $aktif = $periodeDibuka->first(fn (PeriodeJadwal $p) => $p->pengisian_selesai->toDateString() >= $today);
+        // Jadwal ditutup tidak lagi memiliki jendela pengisian yang berjalan.
+        $aktif = $jadwal?->status === 'ditutup' ? null : $periodeDibuka->first(fn (PeriodeJadwal $p) => $p->pengisian_selesai->toDateString() >= $today);
         $periodeJadwal = isset($filter['periode_id'])
             ? $periodeDibuka->firstWhere('periode_id', strtolower($filter['periode_id'])) ?? $this->tolak('periode_id', 'Pilih periode jadwal yang sudah dibuka.')
             : $aktif ?? $periodeDibuka->sortByDesc(fn (PeriodeJadwal $p) => $p->pengisian_mulai->toDateString())->first();
@@ -65,7 +71,7 @@ class ResolveDashboardKonteks
 
         return [
             'renstra' => $renstra, 'jadwal' => $jadwal, 'periodeJadwal' => $periodeJadwal, 'periodeAktif' => $periodeJadwal !== null && $periodeJadwal === $aktif,
-            'periodeDibuka' => $periodeDibuka, 'semuaPeriode' => $semuaPeriode, 'unitDitolak' => $unitDitolak, 'tahun' => $tahun ?? $year,
+            'periodeDibuka' => $periodeDibuka, 'semuaPeriode' => $semuaPeriode, 'unitDitolak' => $unitDitolak, 'tahun' => $tahun ?? $year, 'batas' => $batas,
             'filter' => ['renstra_id' => $renstra?->id, 'tahun' => $tahun, 'periode_id' => $periodeJadwal?->periode_id, 'sasaran_id' => $sasaranId, 'unit_id' => $unitId],
             'pilihan' => [
                 'renstra' => $renstraOptions->map->only(['id', 'nama'])->values()->all(),
