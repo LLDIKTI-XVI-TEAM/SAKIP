@@ -92,6 +92,19 @@ it('tanpa target Renstra: keterangan "Target Renstra belum ada" tanpa isian alas
     expect(screen.queryByLabelText('Alasan deviasi terhadap target Renstra')).toBeNull();
 });
 
+it('tanpa target Renstra saat dimuat: galat alasan deviasi dari server memunculkan isiannya tanpa memuat ulang', async () => {
+    // Target Renstra ditambahkan pengguna lain setelah editor dibuka; expected_state tidak berubah sehingga server menjawab galat field, bukan 409.
+    show({ target_renstra: null, status_deviasi: 'renstra_belum_ada' });
+    fireEvent.change(screen.getByLabelText('Target 2026'), { target: { value: '70' } });
+    const options = submit();
+    await act(async () => { options?.onError?.({ alasan_deviasi_renstra: 'Target PK lebih rendah dari target Renstra tahun ini. Isi alasan deviasi untuk menyimpan.' }); options?.onFinish?.({} as ActiveVisit); });
+    const field = screen.getByLabelText<HTMLTextAreaElement>('Alasan deviasi terhadap target Renstra');
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toContain('Isi alasan deviasi untuk menyimpan');
+    expect(screen.queryByText('Target Renstra belum ada')).toBeNull();
+    expect(screen.getByLabelText<HTMLInputElement>('Target 2026').value).toBe('70');
+});
+
 it('galat server terikat ke isian alasan deviasi walau status awal sesuai', async () => {
     show();
     const options = submit();

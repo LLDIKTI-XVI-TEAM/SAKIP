@@ -33,6 +33,8 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
     const busy = loading || form.processing;
     const blocked = Boolean(failure || loadError || recovery.recovery || form.errors.expected_state);
     const editable = editor.can.update && !editor.read_only_reason;
+    // Target Renstra bisa muncul setelah editor dimuat; galat field dari server membuka isiannya tanpa memuat ulang.
+    const mintaAlasan = editor.target_renstra !== null || Boolean(form.errors.alasan_deviasi_renstra);
     const requestDiscard = useCallback((action: () => void) => {
         if (busy || submitting.current || pendingDiscard.current) return;
         if (!form.isDirty) { action(); return; }
@@ -163,19 +165,19 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
             </div>
             <section aria-labelledby={`${id}-renstra`} className="space-y-3 rounded-lg border border-border p-4">
                 <h3 id={`${id}-renstra`} className="sr-only">Pembanding target Renstra</h3>
-                {editor.target_renstra === null
-                    ? <p className="text-sm text-muted">Target Renstra belum ada</p>
-                    : <>
-                        <dl className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                            <dt className="text-xs font-semibold text-muted">Target Renstra {editor.tahun}</dt>
-                            <dd className="font-mono tabular-nums text-ink">{formatNilai(editor.target_renstra, editor.indikator.desimal_tampilan)}</dd>
-                            {editor.status_deviasi === 'menyimpang' && <dd><Badge variant="warning">{labelDeviasi(editor.indikator.arah)}</Badge></dd>}
-                        </dl>
-                        <p className="text-xs text-muted">{ANJURAN_TARGET_RENSTRA}</p>
-                        <Textarea label="Alasan deviasi terhadap target Renstra" name="alasan_deviasi_renstra" autoComplete="off" rows={3} value={form.data.alasan_deviasi_renstra}
-                            onChange={(event) => form.setData('alasan_deviasi_renstra', event.target.value)} readOnly={!editable || busy} error={form.errors.alasan_deviasi_renstra} maxLength={1000}
-                            helperText={`Wajib diisi bila target PK ${editor.indikator.arah === 'turun_baik' ? 'di atas' : 'di bawah'} target Renstra; diperiksa saat disimpan.`} />
-                    </>}
+                {editor.target_renstra !== null && <>
+                    <dl className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                        <dt className="text-xs font-semibold text-muted">Target Renstra {editor.tahun}</dt>
+                        <dd className="font-mono tabular-nums text-ink">{formatNilai(editor.target_renstra, editor.indikator.desimal_tampilan)}</dd>
+                        {editor.status_deviasi === 'menyimpang' && <dd><Badge variant="warning">{labelDeviasi(editor.indikator.arah)}</Badge></dd>}
+                    </dl>
+                    <p className="text-xs text-muted">{ANJURAN_TARGET_RENSTRA}</p>
+                </>}
+                {mintaAlasan
+                    ? <Textarea label="Alasan deviasi terhadap target Renstra" name="alasan_deviasi_renstra" autoComplete="off" rows={3} value={form.data.alasan_deviasi_renstra}
+                        onChange={(event) => form.setData('alasan_deviasi_renstra', event.target.value)} readOnly={!editable || busy} error={form.errors.alasan_deviasi_renstra} maxLength={1000}
+                        helperText={`Wajib diisi bila target PK ${editor.indikator.arah === 'turun_baik' ? 'di atas' : 'di bawah'} target Renstra; diperiksa saat disimpan.`} />
+                    : <p className="text-sm text-muted">Target Renstra belum ada</p>}
             </section>
             {editor.has_snapshot && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">
                 Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun {editor.tahun}. Perubahan resmi yang mengubah target menunggu revisi PK berversi atau, sebelum itu tersedia, keputusan PM.
