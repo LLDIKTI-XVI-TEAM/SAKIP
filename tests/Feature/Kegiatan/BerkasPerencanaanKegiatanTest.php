@@ -217,6 +217,14 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $this->assertSame(1, BuktiDukung::where('berkasable_type', 'kegiatan')->count());
         $this->assertSame(1, AuditLog::where('tindakan', 'berkas.hapus_ditolak')->where('objek_id', $this->kegiatan->id)->count());
         $this->assertSame(1, AuditLog::where('tindakan', 'berkas.unggah_ditolak')->where('objek_id', $this->kegiatan->id)->count());
+
+        // Koreksi append-only tetap terbuka: unggahan baru tanpa `menggantikan_id`
+        // tidak mengakhiri keberlakuan berkas lama (Q25, pola Q36).
+        $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
+            'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-tambahan.pdf', 10),
+        ])->assertSessionHasNoErrors();
+        $this->assertNull($berkas->fresh()->dihapus_pada);
+        $this->assertSame(2, PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $this->kegiatan->id)->count());
     }
 
     public function test_tanpa_akses_detail_kegiatan_unit_mutasi_ditolak_dan_unduhan_tertutup(): void

@@ -21,6 +21,13 @@ class PembekuanPersyaratanBuktiTest extends TestCase
 {
     use RefreshDatabase, RencanaAksiFixtures;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Waktu beku eksplisit agar fixture manual dan draf berada pada jadwal aktif yang sama.
+        $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
+    }
+
     public function test_perubahan_master_jenis_berkas_setelah_submit_tidak_mengubah_versi(): void
     {
         $fixture = $this->buatFixtureManual();

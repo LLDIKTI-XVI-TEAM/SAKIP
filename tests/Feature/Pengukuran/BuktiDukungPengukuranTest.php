@@ -89,20 +89,30 @@ class BuktiDukungPengukuranTest extends TestCase
         Storage::fake('local');
         Storage::fake('public');
         $isiPrivat = 'ISI-PRIVAT-SINTETIS';
+        // Isi harus benar-benar PDF agar aturan `mimes:pdf` lolos karena isi
+        // berkas, bukan semata-mata karena ekstensi nama berkas.
+        $pdfPrivat = "%PDF-1.4\n% {$isiPrivat}\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+            ."2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\n"
+            ."trailer\n<< /Root 1 0 R /Size 3 >>\nstartxref\n0\n%%EOF\n";
 
         $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, [
             'versi' => 1,
             'action' => 'draft',
             'nilai' => 85,
-            'bukti' => ['mode' => 'file', 'file' => UploadedFile::fake()->createWithContent('bukti-privat.pdf', $isiPrivat)],
+            'bukti' => ['mode' => 'file', 'file' => UploadedFile::fake()->createWithContent('bukti-privat.pdf', $pdfPrivat)],
         ])->assertSessionHasNoErrors();
 
         $berkas = BuktiDukung::sole();
         $this->assertNotNull($berkas->path);
         $path = (string) $berkas->path;
-        $this->assertSame($isiPrivat, Storage::disk('local')->get($path));
+        $this->assertStringContainsString($isiPrivat, Storage::disk('local')->get($path));
         $this->assertFileDoesNotExist(public_path($path));
         $this->assertFileDoesNotExist(public_path('storage/'.$path));
+
+        // Tanpa sesi pun path privat harus tetap tertutup.
+        auth()->logout();
+        $this->app['auth']->forgetGuards();
+        $this->assertGuest();
 
         foreach (['/storage/'.$path, '/'.$path, '/storage/app/private/'.$path] as $url) {
             $response = $this->get($url);
