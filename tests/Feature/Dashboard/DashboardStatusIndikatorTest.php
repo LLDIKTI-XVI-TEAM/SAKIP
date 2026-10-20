@@ -222,4 +222,22 @@ class DashboardStatusIndikatorTest extends TestCase
 
         $this->assertSame(['dalam_proses', '65', false], [$row['status'], $row['target'], $row['tanpa_target_periode']]);
     }
+
+    public function test_pengajuan_yang_direviu_memakai_kode_dan_unit_beku_versi_pengajuan(): void
+    {
+        $diverifikasi = $this->headerUntuk($this->indikatorBaru('I-DUA'));
+        $draft = $this->headerUntuk($this->indikatorBaru('I-TIGA'));
+        $this->ajukan($this->pengukuran, []);
+        $this->ajukan($diverifikasi, [], 'diverifikasi');
+        // Master berubah setelah pengajuan; halaman Pengukuran menampilkan metadata versi pengajuan, dashboard harus sama.
+        IndikatorKinerja::whereIn('kode', ['I-UJI', 'I-DUA', 'I-TIGA'])->get()->each(fn ($i) => $i->update(['kode' => 'BARU-'.$i->kode]));
+        $this->unit->update(['nama' => 'Unit Nama Baru']);
+
+        $props = $this->props();
+
+        $baris = fn ($header) => collect($props['statusIndikator'])->firstWhere('indikator.id', $header->indikator_id);
+        $this->assertSame(['I-UJI', 'Unit Pengujian'], [$baris($this->pengukuran)['indikator']['kode'], $baris($this->pengukuran)['unit']['nama']]);
+        $this->assertSame(['I-DUA', 'Unit Pengujian'], [$baris($diverifikasi)['indikator']['kode'], $baris($diverifikasi)['unit']['nama']]);
+        $this->assertSame(['BARU-I-TIGA', 'Unit Nama Baru'], [$baris($draft)['indikator']['kode'], $baris($draft)['unit']['nama']]);
+    }
 }

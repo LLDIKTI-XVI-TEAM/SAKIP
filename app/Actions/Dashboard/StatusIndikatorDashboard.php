@@ -42,6 +42,7 @@ class StatusIndikatorDashboard
         $rows = $jadwal === null || $dibuka->isEmpty() ? collect() : $this->kewajiban->query($dibuka->keys()->all(), $konteks['unitDitolak'], $today)
             ->when($konteks['filter']['sasaran_id'], fn ($q, $id) => $q->where('i.sasaran_strategis_id', $id))
             ->when($konteks['filter']['unit_id'], fn ($q, $id) => $q->where('cs.unit_id', $id))->get();
+        // shortcut: versi semua header satu jadwal (≤ indikator × 12 periode) dimuat utuh, terukur < 1 ms (Plan 7.1); proyeksikan kolom snapshot bila versi per jadwal mencapai ribuan.
         $headers = PengukuranKinerja::with(['ratifiedVersion', 'latestVersion'])->whereIn('id', $rows->pluck('pengukuran_id')->filter())->get()->keyBy('id');
         if ($headers->isNotEmpty()) {
             // Penanda F2 dan reviu terlambat tetap tampil di dashboard (Workflow F2); dibaca sekaligus dari audit.
@@ -65,10 +66,10 @@ class StatusIndikatorDashboard
             // Jendela dinilai terhadap batas jadwal (tanggal penutupan bila sudah ditutup), bukan hari ini.
             $status = Status::tentukan(true, (bool) $row->berlaku, $header?->status_alur, $batas > $periode->pengisian_selesai->toDateString(),
                 PeriodeTanpaTarget::isPeriodeLampau($jadwal, $periode), $versi);
-            // Pengajuan yang sedang direviu memakai PIC dan target beku saat diajukan, sama dengan halaman Pengukuran.
+            // Pengajuan yang sedang direviu memakai metadata indikator, unit, PIC, dan target beku saat diajukan, sama dengan halaman Pengukuran.
             $beku = $bekuDari($row);
             $target = $beku ?? $targets->get($row->jadwal_snapshot_id.':'.$row->periode_id, ['target' => null, 'tanpa_target_periode' => false]);
-            $indikator = $versi['indikator'] ?? [];
+            $indikator = $beku['indikator'] ?? [];
             $picNama = $beku === null ? $row->pic_nama : ($beku['pic']['nama'] ?? null);
 
             return [
@@ -77,7 +78,7 @@ class StatusIndikatorDashboard
                     'indikator' => ['id' => $row->indikator_id, 'kode' => $indikator['kode'] ?? $row->kode, 'nama' => $indikator['nama'] ?? $row->nama,
                         'satuan' => $indikator['satuan'] ?? $row->satuan, 'desimal_tampilan' => (int) ($indikator['desimal_tampilan'] ?? $row->desimal_tampilan),
                         'arah' => $indikator['arah'] ?? $row->arah],
-                    'unit' => ['nama' => $versi['unit_kerja']['nama'] ?? $row->unit_nama],
+                    'unit' => ['nama' => $beku['unit_kerja']['nama'] ?? $row->unit_nama],
                     'pic' => $picNama ? ['nama' => $picNama] : null,
                     'status' => $status, 'status_alur' => $header?->status_alur,
                     ...($header ? $this->present->penanda($header) : ['self_approval' => false, 'reviu_terlambat' => false]),
