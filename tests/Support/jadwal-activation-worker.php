@@ -2,7 +2,6 @@
 
 use App\Actions\Jadwal\ActivateJadwal;
 use App\Actions\Jadwal\SaveJadwalDraft;
-use App\Actions\Pengaturan\UpdateStoragePolicyAction;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
 use App\Actions\Perencanaan\PindahUnitIndikator;
@@ -76,7 +75,6 @@ try {
         'delete_berkas' => app(DeleteBerkasPerjanjianKinerja::class)->handle(RenstraPk::findOrFail($payload['id']), Berkas::findOrFail($payload['berkas_id']), 'Hapus lampiran fixture konkurensi', $actor),
         'save_jadwal' => app(SaveJadwalDraft::class)->handle($actor, $data, (new JadwalTahunan)->forceFill(['id' => $payload['id']])),
         'save_periode' => app(SavePeriode::class)->handle($actor, $data, (new Periode)->forceFill(['id' => $payload['id']])),
-        'storage' => app(UpdateStoragePolicyAction::class)->handle($actor, $data),
     };
     $result = ['outcome' => 'changed', 'changed' => is_array($result) ? ($result['changed'] ?? null) : null];
 } catch (ValidationException $exception) {

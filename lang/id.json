@@ -1,4 +1,8 @@
 {
     "pagination.previous": "&laquo; Sebelumnya",
-    "pagination.next": "Berikutnya &raquo;"
+    "pagination.next": "Berikutnya &raquo;",
+    "validation.file": ":attribute harus berupa file yang valid.",
+    "validation.max.file": "Ukuran :attribute maksimal :max KB.",
+    "validation.mimes": "Format :attribute harus salah satu dari: :values.",
+    "validation.extensions": "Ekstensi :attribute harus salah satu dari: :values."
 }

@@ -31,7 +31,7 @@ it('pagination disembunyikan pada satu halaman dan menampilkan label teks tanpa 
     expect(screen.getByRole('link', { name: 'Berikutnya ›' }).getAttribute('href')).toBe('/regulasi?page=2');
 });
 
-function LampiranHarness({ fileDisabled = false, blockedMessage, errors = { lampiran: 'Maksimal lima lampiran.' } }: { fileDisabled?: boolean; blockedMessage?: string; errors?: Record<string, string> }) {
+function LampiranHarness({ blockedMessage, errors = { lampiran: 'Maksimal lima lampiran.' } }: { blockedMessage?: string; errors?: Record<string, string> }) {
     const [items, setItems] = useState<LampiranDraft[]>([]);
 
     return (
@@ -43,7 +43,6 @@ function LampiranHarness({ fileDisabled = false, blockedMessage, errors = { lamp
             modeDescriptions={{ file: 'Deskripsi file', tautan: 'Deskripsi tautan', teks: 'Deskripsi teks' }}
             placeholders={{ tautan: 'https://...', teks: 'Catatan...' }}
             emptyText="Belum ada lampiran"
-            fileDisabled={fileDisabled}
             blockedMessage={blockedMessage}
             renderExtraFields={(index) => <span>Field ekstra {index + 1}: {items[index]?.nama_asli ?? 'kosong'}</span>}
         />
@@ -52,13 +51,13 @@ function LampiranHarness({ fileDisabled = false, blockedMessage, errors = { lamp
 
 it('editor lampiran menambah, berganti mode, menampilkan field ekstra non-file, dan menghapus draf', async () => {
     const user = userEvent.setup();
-    render(<LampiranHarness fileDisabled />);
+    render(<LampiranHarness />);
 
     expect(screen.getByText('Maksimal lima lampiran.')).toBeTruthy();
     expect(screen.getByText('Belum ada lampiran')).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
-    expect(screen.getByLabelText<HTMLInputElement>('File lampiran 1').disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('File lampiran 1').disabled).toBe(false);
     expect(screen.queryByText(/Field ekstra/)).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Tautan' }));

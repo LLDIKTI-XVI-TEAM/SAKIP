@@ -242,26 +242,6 @@ class AjukanRencanaAksi
                     ],
                 ]);
 
-                // PRD §18.7: waiver file tercatat di audit_log bersama versi (format sama
-                // dengan pengajuan Pengukuran); kegagalan audit membatalkan pengajuan.
-                $pengecualian = collect($persyaratan)
-                    ->filter(fn (array $item): bool => $item['wajib'] && $item['pemenuhan']['mode_dikecualikan'] !== [])
-                    ->map(fn (array $item): array => ['jenis_berkas_id' => $item['id'], 'nama' => $item['nama'],
-                        'mode' => $item['pemenuhan']['mode_dikecualikan'], 'alasan' => $item['pemenuhan']['alasan_pengecualian']])
-                    ->values()
-                    ->all();
-                if ($pengecualian !== []) {
-                    $this->audit->catat(
-                        actor: $pengunci,
-                        tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
-                        objekTipe: 'rencana_aksi',
-                        objekId: (string) $header->id,
-                        nilaiBaru: ['versi_pengajuan_id' => $versi->id, 'nomor_pengajuan' => $versi->nomor, 'pengecualian' => $pengecualian],
-                        alasan: 'Kewajiban mode file dikecualikan karena unggahan dinonaktifkan.',
-                        dasarIzin: $dasarIzin,
-                    );
-                }
-
                 $header->status_alur = RencanaAksi::STATUS_DIAJUKAN;
                 $header->versi++;
                 $header->save();

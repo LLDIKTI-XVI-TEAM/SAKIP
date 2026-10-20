@@ -91,7 +91,7 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
     const tampilAlasan = !manual && statusAlasan === 'tidak_dapat_dihitung';
     const rekomendasi = pengukuran.rekomendasi_sebelumnya;
     const requirement = pengukuran.persyaratan_bukti.find((item) => item.id === data.jenis_berkas_id);
-    const modes = (['file', 'tautan', 'teks'] as const).filter((mode) => (!requirement || requirement[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
+    const modes = (['file', 'tautan', 'teks'] as const).filter((mode) => !requirement || requirement[`izinkan_${mode}`]);
     const bukti = data.lampiran[0];
     const activeMode = bukti && modes.includes(bukti.mode) ? bukti.mode : null;
     const lampiranErrors = { lampiran: fieldErrors.bukti, 'lampiran.0.mode': fieldErrors['bukti.mode'], 'lampiran.0.file': fieldErrors['bukti.file'], 'lampiran.0.tautan': fieldErrors['bukti.tautan'], 'lampiran.0.isi_teks': fieldErrors['bukti.isi_teks'] };
@@ -241,7 +241,7 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
                             renderItemFields={() => <>
                                 <Select id="jenis-bukti" label="Persyaratan yang dipenuhi" value={data.jenis_berkas_id} disabled={disabled} error={fieldErrors['bukti.jenis_berkas_id']} onChange={(event) => {
                                     const selected = pengukuran.persyaratan_bukti.find((item) => item.id === event.target.value);
-                                    const available = (['file', 'tautan', 'teks'] as const).filter((mode) => (!selected || selected[`izinkan_${mode}`]) && (mode !== 'file' || pengukuran.unggahan_aktif));
+                                    const available = (['file', 'tautan', 'teks'] as const).filter((mode) => !selected || selected[`izinkan_${mode}`]);
                                     setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '',
                                         lampiran: values.lampiran.map((item) => available.includes(item.mode) ? item : { ...item, mode: available[0] ?? item.mode, file: null, tautan: '', isi_teks: '' }) }));
                                 }}><option value="">Lampiran tambahan</option>{pengukuran.persyaratan_bukti.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</Select>

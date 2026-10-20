@@ -49,6 +49,25 @@ class JenisBerkasContohTest extends TestCase
         $this->assertFalse(JenisBerkas::where('tahap', 'pengukuran')->sole()->hanya_kegiatan_beranggaran);
     }
 
+    public function test_contoh_memakai_default_konfigurasi_tanpa_mengikuti_batas_persyaratan(): void
+    {
+        config(['uploads.default_max_kb' => 200, 'uploads.allowed_extensions' => 'pdf']);
+        $jenis = $this->persyaratan(['format_diizinkan' => 'xlsx', 'ukuran_maks_kb' => 1]);
+        $url = "/jenis-berkas/{$jenis->id}/contoh";
+
+        $this->actingAs($this->perencanaan)->post($url, ['file' => UploadedFile::fake()->create('contoh-besar.pdf', 201, 'application/pdf')])
+            ->assertSessionHasErrors('file');
+        $this->post($url, ['file' => UploadedFile::fake()->create('contoh.xlsx', 100)])->assertSessionHasErrors('file');
+        $this->assertSame(0, BuktiDukung::where('berkasable_type', 'jenis_berkas')->count());
+
+        $this->post($url, ['file' => UploadedFile::fake()->create('contoh.pdf', 200, 'application/pdf')])->assertSessionHasNoErrors();
+        $contoh = BuktiDukung::where('berkasable_type', 'jenis_berkas')->sole();
+        $this->assertSame($jenis->id, $contoh->berkasable_id);
+        $this->assertNull($contoh->jenis_berkas_id);
+        $this->assertSame('contoh.pdf', $contoh->nama_asli);
+        Storage::disk('local')->assertExists($contoh->path);
+    }
+
     public function test_contoh_berkas_diunggah_diganti_dan_dihapus_beralasan_serta_diunduh_pemegang_izin_baca(): void
     {
         $jenis = $this->persyaratan();

@@ -38,8 +38,6 @@ export interface SharedPageProps extends PageProps {
             viewRolePermissions: boolean;
             viewEffectivePermissions?: boolean;
             jenisBerkas?: boolean;
-            storagePolicy?: boolean;
-            storagePolicyUpdate?: boolean;
             audit?: boolean;
             sasaranIndikator?: boolean;
             pk?: boolean;

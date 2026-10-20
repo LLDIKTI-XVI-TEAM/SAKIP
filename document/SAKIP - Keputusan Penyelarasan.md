@@ -1202,7 +1202,7 @@ Sumber: rapat 13 Oktober 2026, menit 19:18–25:12 dan 1:52:36. Butir bertanda (
 
 - PRD §5.1, §8, §12.4, §14.10, §18.1–§18.2, §18.5–§18.7, §18.9, §25.1, §26; Data Model §2.15, §2.22, §2.29, §2.30, §2.32; Workflow §3.3, §5, §10, §18; Plan modul 3, 9 (task 9.10), 11, dan 13; design system (navigasi); System Architecture §14.1; Engineering Standards §7.
 - User Stories/Issues: US/ISS-03.02, 11.01, dan 13.02 diberi catatan; US/ISS-11.06 dibatalkan; issue baru **US/ISS-13.06**.
-- Status implementasi: belum.
+- Status implementasi: diterapkan secara lokal pada working diff ISS-13.06 (20 Oktober 2026), belum dirilis. AC-3/TEST-3 tetap parsial untuk lampiran bebas kegiatan Plan 13.8 yang belum memiliki endpoint; scope dan operasional konfigurasi dijelaskan pada [catatan rilis ISS-13.06](catatan-rilis-ISS-13.06.md). Kelulusan lokal bukan persetujuan UAT atau penyelesaian seluruh issue.
 
 ---
 

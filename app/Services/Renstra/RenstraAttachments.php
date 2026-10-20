@@ -3,15 +3,15 @@
 namespace App\Services\Renstra;
 
 use App\Models\Berkas;
-use App\Models\Pengaturan;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Storage\UploadLimits;
 use App\Support\PermissionDecision;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Validator;
 use RuntimeException;
 use Throwable;
 
@@ -39,39 +39,6 @@ class RenstraAttachments
             return;
         }
 
-        $adaFile = false;
-        foreach ($lampiran as $item) {
-            if (($item['mode'] ?? null) === 'file') {
-                $adaFile = true;
-                break;
-            }
-        }
-
-        $maxKb = 10240;
-        $allowedExtensions = [];
-        $allowedFormatsStr = '';
-
-        if ($adaFile) {
-            $pengaturan = Pengaturan::query()
-                ->whereIn('kunci', [
-                    'berkas.unggahan_aktif',
-                    'berkas.ukuran_maks_kb',
-                    'berkas.format_diizinkan',
-                ])
-                ->pluck('nilai', 'kunci');
-
-            $isUploadActive = filter_var($pengaturan->get('berkas.unggahan_aktif', 'true'), FILTER_VALIDATE_BOOLEAN);
-            if (! $isUploadActive) {
-                throw ValidationException::withMessages([
-                    'lampiran' => 'Unggahan file sedang dinonaktifkan pada setelan aplikasi. Gunakan mode tautan atau teks.',
-                ]);
-            }
-
-            $maxKb = (int) $pengaturan->get('berkas.ukuran_maks_kb', 10240);
-            $allowedFormatsStr = (string) $pengaturan->get('berkas.format_diizinkan', 'pdf,docx,xlsx,jpg,jpeg,png');
-            $allowedExtensions = array_values(array_filter(array_map('trim', explode(',', strtolower($allowedFormatsStr)))));
-        }
-
         foreach ($lampiran as $item) {
             $attributes = [
                 'jenis_berkas_id' => null,
@@ -86,18 +53,11 @@ class RenstraAttachments
                     throw new RuntimeException('Lampiran file tidak valid.');
                 }
 
-                if ($maxKb > 0 && ($file->getSize() > $maxKb * 1024)) {
-                    throw ValidationException::withMessages([
-                        'lampiran' => "Ukuran file lampiran ({$file->getClientOriginalName()}) melebihi batas maksimum yang diizinkan ({$maxKb} KB).",
-                    ]);
-                }
-
-                $ext = strtolower($file->getClientOriginalExtension());
-                if (! empty($allowedExtensions) && ! in_array($ext, $allowedExtensions, true)) {
-                    throw ValidationException::withMessages([
-                        'lampiran' => "Format file lampiran ({$file->getClientOriginalName()}) tidak diizinkan. Format yang diperbolehkan: {$allowedFormatsStr}.",
-                    ]);
-                }
+                Validator::make(['lampiran' => $file], ['lampiran' => UploadLimits::fileRules()], [
+                    'lampiran.max' => 'Ukuran file lampiran melebihi batas maksimum yang diizinkan.',
+                    'lampiran.mimes' => 'Format file lampiran tidak diizinkan.',
+                    'lampiran.extensions' => 'Ekstensi file lampiran tidak diizinkan.',
+                ])->validate();
 
                 $path = $file->store("berkas/renstra/{$renstra->id}", 'local');
 

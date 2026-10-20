@@ -115,8 +115,6 @@ class InertiaCapabilitiesTest extends TestCase
             'pengaturan:update' => $a('pengaturan:update'),
             'audit' => $a('audit:read'),
             'jenisBerkas' => $a('jenis_berkas:read'),
-            'storagePolicy' => $a('pengaturan:update') || $a('jenis_berkas:read'),
-            'storagePolicyUpdate' => $a('pengaturan:update'),
             'sasaranIndikator' => $a('indikator:read'),
             'rencanaAksi' => $user->can('viewAny', RencanaAksi::class),
             'pk' => $user->can('viewAny', RenstraPk::class),

@@ -14,7 +14,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AccessCatalogSeeder::class,
             PengaturanSeeder::class,
-            StoragePolicySeeder::class,
             PeriodeSeeder::class,
         ]);
     }

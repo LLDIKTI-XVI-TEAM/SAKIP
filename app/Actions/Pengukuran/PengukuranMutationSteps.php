@@ -16,6 +16,7 @@ use App\Models\RiwayatPengukuran;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Storage\UploadLimits;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -30,7 +31,7 @@ use Throwable;
 class PengukuranMutationSteps
 {
     public function __construct(private PermissionResolver $resolver, private WriteAuditLog $audit, private PengukuranKinerjaPolicy $policy,
-        private CalculatePengukuran $calculator, private EvaluateEvidence $evidence) {}
+        private CalculatePengukuran $calculator) {}
 
     /**
      * Urutan lock: aktor → role aktif (shared) → RA (khusus ajukan) → indikator (shared) → header → snapshot → jadwal → periode.
@@ -193,7 +194,6 @@ class PengukuranMutationSteps
             $denialDecision = $decision;
             throw new AuthorizationException('Izin unggah bukti telah dicabut.');
         }
-        $settings = $this->evidence->settings();
         $requirement = null;
         if (! empty($data['jenis_berkas_id'])) {
             $requirement = JenisBerkas::whereKey($data['jenis_berkas_id'])->where('aktif', true)->where('tahap', 'pengukuran')
@@ -219,12 +219,7 @@ class PengukuranMutationSteps
             'menggantikan_id' => $predecessor?->id, 'alasan_koreksi' => $correctionReason,
             'mode' => $data['mode'], 'uploaded_by' => $actor->id, 'created_at' => now()];
         if ($data['mode'] === 'file') {
-            if (! $settings['unggahan_aktif']) {
-                throw ValidationException::withMessages(['bukti.file' => 'Unggahan file sedang dinonaktifkan. Mode tautan/teks tetap mengikuti persyaratannya.']);
-            }
-            $max = $requirement?->ukuran_maks_kb ?? $settings['ukuran_maks_kb'];
-            $formats = $requirement?->format_diizinkan ?: $settings['format_diizinkan'];
-            Validator::make($data, ['file' => ['required', 'file', 'max:'.$max, 'mimes:'.$formats]])->validate();
+            Validator::make($data, ['file' => ['required', ...UploadLimits::fileRules($requirement?->ukuran_maks_kb, $requirement?->format_diizinkan)]])->validate();
             $file = $data['file'];
             $path = $file->store('berkas', 'local');
             if (! is_string($path)) {

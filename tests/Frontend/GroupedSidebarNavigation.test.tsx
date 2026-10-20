@@ -38,7 +38,6 @@ let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
     manageDeny: true,
     viewEffectivePermissions: true,
     pengaturan: true,
-    storagePolicy: true,
     audit: true,
 };
 let mockRole = 'superadmin';
@@ -106,7 +105,6 @@ afterEach(() => {
         manageDeny: true,
         viewEffectivePermissions: true,
         pengaturan: true,
-        storagePolicy: true,
         audit: true,
     };
 });
@@ -127,16 +125,16 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         if (perencanaan.type === 'group') {
             expect(perencanaan.group.label).toBe('Perencanaan Kinerja');
             expect(perencanaan.group.children.map((c) => c.label)).toEqual([
-                'Dasar Aturan',
                 'Master Renstra',
                 'Sasaran & Indikator',
                 'Perjanjian Kinerja',
+                'Persyaratan Berkas',
             ]);
             expect(perencanaan.group.children.map((c) => c.canKey)).toEqual([
-                'regulasi',
                 'renstra',
                 'sasaranIndikator',
                 'pk',
+                'jenisBerkas',
             ]);
         }
 
@@ -157,8 +155,8 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         expect(masterData.type).toBe('group');
         if (masterData.type === 'group') {
             expect(masterData.group.label).toBe('Master Data & Referensi');
-            expect(masterData.group.children.map((c) => c.label)).toEqual(['Master Unit', 'Persyaratan Berkas']);
-            expect(masterData.group.children.map((c) => c.canKey)).toEqual(['unit', 'jenisBerkas']);
+            expect(masterData.group.children.map((c) => c.label)).toEqual(['Master Unit', 'Dasar Aturan']);
+            expect(masterData.group.children.map((c) => c.canKey)).toEqual(['unit', 'regulasi']);
         }
 
         expect(manajemenAkses.type).toBe('group');
@@ -183,8 +181,8 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         expect(pengaturan.type).toBe('group');
         if (pengaturan.type === 'group') {
             expect(pengaturan.group.label).toBe('Pengaturan Sistem');
-            expect(pengaturan.group.children.map((c) => c.label)).toEqual(['Pengaturan', 'Kebijakan Storage', 'Jejak Audit']);
-            expect(pengaturan.group.children.map((c) => c.canKey)).toEqual(['pengaturan', 'storagePolicy', 'audit']);
+            expect(pengaturan.group.children.map((c) => c.label)).toEqual(['Pengaturan', 'Jejak Audit']);
+            expect(pengaturan.group.children.map((c) => c.canKey)).toEqual(['pengaturan', 'audit']);
         }
     });
 
@@ -205,7 +203,7 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
             hrefs.add(item.href);
         });
 
-        expect(allItems).toHaveLength(22); // 1 direct item + 21 submenus
+        expect(allItems).toHaveLength(21); // 1 direct item + 20 submenus
     });
 });
 
@@ -235,7 +233,7 @@ describe('Test B — Expand & Collapse Behavior', () => {
         fireEvent.click(perencanaanBtn);
         expect(perencanaanBtn.getAttribute('aria-expanded')).toBe('true');
         expect(submenuPanel?.hasAttribute('hidden')).toBe(false);
-        expect(within(submenuPanel!).getByRole('link', { name: 'Dasar Aturan' })).toBeTruthy();
+        expect(within(submenuPanel!).getByRole('link', { name: 'Persyaratan Berkas' })).toBeTruthy();
 
         // Klik kedua: collapse
         fireEvent.click(perencanaanBtn);
@@ -280,7 +278,7 @@ describe('Test C — Active Navigation & Nested Route Matching', () => {
         expect(renstraLink.getAttribute('aria-current')).toBe('page');
 
         // Submenu lain di grup yang sama tidak boleh memiliki aria-current=page
-        const aturanLink = within(nav).getByRole('link', { name: 'Dasar Aturan' });
+        const aturanLink = within(nav).getByRole('link', { name: 'Persyaratan Berkas' });
         expect(aturanLink.getAttribute('aria-current')).toBeNull();
     });
 
@@ -301,23 +299,12 @@ describe('Test C — Active Navigation & Nested Route Matching', () => {
         });
     });
 
-    it('mencegah false positive antara /pengaturan dan /pengaturan/storage', () => {
+    it('menu storage tidak ada dan navigasi pengaturan tetap mengenali rute turunannya', () => {
         const entries = getSidebarNavEntries(mockCan);
-
-        // Case 1: /pengaturan/storage
-        const activeStorage = findActiveNavigation(entries, '/pengaturan/storage');
-        expect(activeStorage.activeGroupId).toBe('pengaturan-sistem');
-        expect(activeStorage.activeItemId).toBe('storage-policy');
-
-        // Case 2: /pengaturan
-        const activePengaturan = findActiveNavigation(entries, '/pengaturan');
-        expect(activePengaturan.activeGroupId).toBe('pengaturan-sistem');
-        expect(activePengaturan.activeItemId).toBe('pengaturan');
-
-        // Case 3: /pengaturan/sistem/umum (sub-path dari pengaturan, bukan storage)
-        const activeSubPengaturan = findActiveNavigation(entries, '/pengaturan/sistem/umum');
-        expect(activeSubPengaturan.activeGroupId).toBe('pengaturan-sistem');
-        expect(activeSubPengaturan.activeItemId).toBe('pengaturan');
+        const items = SIDEBAR_NAVIGATION_SCHEMA.flatMap((entry) => entry.type === 'item' ? [entry.item] : entry.group.children);
+        expect(items.some((item) => item.href === '/pengaturan/storage')).toBe(false);
+        expect(findActiveNavigation(entries, '/pengaturan').activeItemId).toBe('pengaturan');
+        expect(findActiveNavigation(entries, '/pengaturan/sistem/umum').activeItemId).toBe('pengaturan');
     });
 
     it('menangani query parameters dan trailing slashes secara aman', () => {
@@ -331,7 +318,7 @@ describe('Test D — Permission & Capability Filtering', () => {
     it('grup tidak dirender sama sekali jika seluruh child memiliki capability false', () => {
         mockCan = {
             dashboard: true,
-            regulasi: false,
+            jenisBerkas: false,
             renstra: false,
             sasaranIndikator: false,
             pk: false,
@@ -345,7 +332,7 @@ describe('Test D — Permission & Capability Filtering', () => {
     it('grup dirender jika minimal satu child memiliki capability true', () => {
         mockCan = {
             dashboard: true,
-            regulasi: true,
+            jenisBerkas: true,
             renstra: false,
             sasaranIndikator: false,
             pk: false,
@@ -358,7 +345,7 @@ describe('Test D — Permission & Capability Filtering', () => {
 
         // Buka parent
         fireEvent.click(parentBtn);
-        expect(within(nav).getByRole('link', { name: 'Dasar Aturan' })).toBeTruthy();
+        expect(within(nav).getByRole('link', { name: 'Persyaratan Berkas' })).toBeTruthy();
         expect(within(nav).queryByRole('link', { name: 'Master Renstra' })).toBeNull();
         expect(within(nav).queryByRole('link', { name: 'Sasaran & Indikator' })).toBeNull();
         expect(within(nav).queryByRole('link', { name: 'Perjanjian Kinerja' })).toBeNull();
@@ -398,7 +385,7 @@ describe('Test E — No Role-Based Bypass', () => {
         render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
 
         const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
-        const parentBtn = within(nav).getByRole('button', { name: 'Perencanaan Kinerja' });
+        const parentBtn = within(nav).getByRole('button', { name: 'Master Data & Referensi' });
         expect(parentBtn).toBeTruthy();
         fireEvent.click(parentBtn);
         expect(within(nav).getByRole('link', { name: 'Dasar Aturan' })).toBeTruthy();
@@ -597,7 +584,7 @@ describe('M-02 — Drawer navigasi pada viewport mobile', () => {
         await user.click(parent);
         expect(parent.getAttribute('aria-expanded')).toBe('true');
         const submenu = document.getElementById(parent.getAttribute('aria-controls')!) as HTMLElement;
-        const childLink = within(submenu).getByRole('link', { name: 'Dasar Aturan' });
+        const childLink = within(submenu).getByRole('link', { name: 'Persyaratan Berkas' });
 
         await user.click(childLink);
 
@@ -650,10 +637,10 @@ describe('Q-02 — Pencocokan rute default dan khusus', () => {
         ['/renstra/?tab=arsip#bagian', 'renstra'],
         ['/pengaturan', 'pengaturan'],
         ['/pengaturan/', 'pengaturan'],
-        ['/pengaturan/storage', 'storage-policy'],
-        ['/pengaturan/storage/', 'storage-policy'],
-        ['/pengaturan/storage/riwayat', 'storage-policy'],
-        ['/pengaturan/storage?tab=format', 'storage-policy'],
+        ['/pengaturan/storage', 'pengaturan'],
+        ['/pengaturan/storage/', 'pengaturan'],
+        ['/pengaturan/storage/riwayat', 'pengaturan'],
+        ['/pengaturan/storage?tab=format', 'pengaturan'],
         ['/pengaturan/storage-lain', 'pengaturan'],
         ['/perencanaan/indikator/ind-1234/editor', 'sasaran-indikator'],
         ['/perencanaan/indikator/ind-1234/target-tahunan/2026/editor', 'sasaran-indikator'],

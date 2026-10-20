@@ -18,7 +18,7 @@ const tersimpan: Pengukuran = {
     jalur_pengajuan: 'pic', self_approval: false, reviu_terlambat: false, status: 'draft', target: 100,
     nilai: null, status_perhitungan: 'tidak_dapat_dihitung', sumber_nilai: 'komponen', catatan: '', alasan_tidak_dapat_dihitung: 'Penyebut nol',
     komponen: [{ komponen_id: 'a', kode: 'A', label: 'Komponen A', peran: 'pembilang', bobot: null, nilai: '5' }],
-    prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [], unggahan_aktif: true,
+    prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [],
     can: { view: true, evidence: true, uploadEvidence: true, update: true, submit: true, verify: false, ratify: false, return: false },
     penugasan_indikator: {
         indikator_kinerja: { kode: 'IKU-UJI', nama: 'Indikator Uji', satuan: '%', definisi_operasional: null, tipe_perhitungan: 'manual', arah: 'naik_baik', presisi: 4, desimal_tampilan: 2 },
@@ -35,6 +35,19 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 const bdd = () => screen.getByRole('switch', { name: 'Belum dapat diukur' });
 const komponenA = () => screen.getByRole<HTMLInputElement>('spinbutton', { name: /Komponen A/ });
+
+it('tetap menampilkan pengecualian file dari versi pengukuran historis yang dibekukan', () => {
+    render(<PengukuranEdit pengukuran={{ ...tersimpan, status: 'disahkan',
+        can: { ...tersimpan.can, update: false, submit: false, uploadEvidence: false },
+        persyaratan_bukti: [{ id: 'persyaratan-lama', nama: 'Laporan lama', wajib: true, semua_mode_wajib: false,
+            izinkan_file: true, izinkan_tautan: false, izinkan_teks: false, format_diizinkan: 'pdf', ukuran_maks_kb: 10240,
+            pemenuhan: { terpenuhi: true, mode_terpenuhi: [], mode_kurang: [], mode_dikecualikan: ['file'],
+                alasan_pengecualian: 'Unggahan file dinonaktifkan pada setelan aplikasi.' } }],
+    }} />);
+    expect(screen.getByText(/Dikecualikan: file/).textContent).toContain('Pengecualian bukan bukti terunggah.');
+    expect(screen.queryByRole('button', { name: 'Tambah Lampiran' })).toBeNull();
+});
+
 // Meniru Inertia untuk POST ditolak: redirect back men-swap props halaman tanpa remount (preserveState), lalu onError.
 const tolak = async (rerender: (ui: ReactNode) => void, berikutnya: Pengukuran, errors: Record<string, string>) => {
     rerender(<PengukuranEdit pengukuran={berikutnya} />);
