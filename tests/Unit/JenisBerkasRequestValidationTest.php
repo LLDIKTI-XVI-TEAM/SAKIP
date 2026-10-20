@@ -27,7 +27,7 @@ class JenisBerkasRequestValidationTest extends TestCase
         $this->assertArrayHasKey('modes', $validator->errors()->messages());
     }
 
-    public function test_update_validation_fails_without_alasan(): void
+    public function test_update_validation_accepts_empty_alasan(): void
     {
         $request = new UpdateJenisBerkasRequest;
         $validator = Validator::make([
@@ -40,8 +40,8 @@ class JenisBerkasRequestValidationTest extends TestCase
             'expected_updated_at' => now()->toISOString(),
         ], $request->rules());
 
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('alasan', $validator->errors()->messages());
+        $this->assertFalse($validator->fails());
+        $this->assertArrayNotHasKey('alasan', $validator->errors()->messages());
     }
 
     public function test_update_validation_fails_without_expected_updated_at(): void

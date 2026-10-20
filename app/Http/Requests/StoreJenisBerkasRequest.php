@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Storage\UploadLimits;
 use App\Support\AuditReason;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -92,7 +93,7 @@ class StoreJenisBerkasRequest extends FormRequest
             'semua_mode_wajib' => ['boolean'],
             'urutan' => ['integer', 'min:0', 'max:2147483647'],
             'format_diizinkan' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
-            'ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:2147483647'],
+            'ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:'.UploadLimits::maxKb()],
             'aktif' => ['sometimes', 'boolean'],
         ];
     }

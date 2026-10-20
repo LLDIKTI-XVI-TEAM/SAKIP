@@ -100,7 +100,7 @@ export interface JadwalActivationReadiness {
     checked_at: string;
     allowed: boolean;
     blockers: { code: string; message: string }[];
-    gates: { key: 'G1' | 'G2' | 'G3' | 'G4'; status: 'lolos' | 'gagal' | 'pengecualian'; message: string; count: number | null }[];
+    gates: { key: 'G1' | 'G2' | 'G3' | 'G4'; status: 'lolos' | 'gagal'; message: string; count: number | null }[];
     counts: {
         indikator_berlaku: number;
         target_belum_terisi: number;

@@ -181,7 +181,7 @@ class RencanaAksiAjukanTest extends TestCase
         );
     }
 
-    public function test_bukti_wajib_belum_terpenuhi_ditolak_dan_waiver_file_meloloskan(): void
+    public function test_bukti_wajib_tetap_diperiksa_meski_setting_unggahan_lama_nonaktif(): void
     {
         $fixture = $this->buatFixtureManual();
         // Aktivasi eksplisit non-lampau agar gerbang bukti dinilai di jalur normal (bukan pengecualian Q46).
@@ -207,29 +207,16 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertArrayHasKey('path', $snapshot['bukti_dukungs'][0]);
         $this->assertNull($snapshot['bukti_dukungs'][0]['path']);
 
-        // Unggahan file dinonaktifkan: persyaratan file-only dikecualikan (anti-macet).
+        // Setting lama tidak membebaskan persyaratan file wajib (Q44).
         $kedua = $this->buatFixtureManual();
-        // Aktivasi eksplisit non-lampau agar waiver dinilai di jalur normal (bukan pengecualian Q46).
+        // Aktivasi eksplisit non-lampau agar gerbang bukti dinilai di jalur normal.
         $kedua['jadwal']->update(['activated_at' => '2026-02-15 09:00:00']);
-        $jenisKedua = $this->buatPersyaratanWajib($kedua, ['izinkan_teks' => false]);
+        $this->buatPersyaratanWajib($kedua, ['izinkan_teks' => false]);
         Pengaturan::updateOrCreate(['kunci' => 'berkas.unggahan_aktif'], ['grup' => 'berkas', 'nilai' => 'false', 'tipe' => 'boolean']);
         $headerKedua = $this->drafManual($kedua);
-
-        $this->ajukan($kedua['pic'], $headerKedua, 2)->assertSessionHasNoErrors();
-
-        $versiKedua = RencanaAksiVersi::where('rencana_aksi_id', $headerKedua->id)->sole();
-        $pemenuhan = $versiKedua->snapshot['persyaratan_bukti'][0]['pemenuhan'];
-        $this->assertSame(['file'], $pemenuhan['mode_dikecualikan']);
-        $this->assertTrue($pemenuhan['tidak_dapat_dipenuhi']);
-
-        // PRD §18.7: penanda waiver tercatat di audit_log bersama versi, seperti pengajuan Pengukuran.
-        $waiver = AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->where('objek_tipe', 'rencana_aksi')->sole();
-        $this->assertSame($headerKedua->id, $waiver->objek_id);
-        $this->assertEquals([
-            'versi_pengajuan_id' => $versiKedua->id,
-            'nomor_pengajuan' => 1,
-            'pengecualian' => [['jenis_berkas_id' => $jenisKedua->id, 'nama' => 'KAK', 'mode' => ['file'], 'alasan' => 'Unggahan file dinonaktifkan pada setelan aplikasi.']],
-        ], $waiver->nilai_baru);
+        $this->ajukan($kedua['pic'], $headerKedua, 2)->assertSessionHasErrors('pengajuan');
+        $this->assertSame(0, RencanaAksiVersi::where('rencana_aksi_id', $headerKedua->id)->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->count());
     }
 
     /**

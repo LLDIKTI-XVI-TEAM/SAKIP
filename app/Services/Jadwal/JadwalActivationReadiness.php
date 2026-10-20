@@ -6,7 +6,6 @@ use App\Models\Berkas;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
-use App\Models\Pengaturan;
 use App\Models\PeriodeJadwal;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
@@ -37,7 +36,7 @@ class JadwalActivationReadiness
     public function __construct(private readonly JadwalDraftRules $rules, private readonly IndikatorPerhitunganService $perhitungan) {}
 
     /**
-     * @return array{jadwal: JadwalTahunan, renstra: Renstra, pk: ?RenstraPk, lampiran: int, unggahan_aktif: ?string,
+     * @return array{jadwal: JadwalTahunan, renstra: Renstra, pk: ?RenstraPk, lampiran: int,
      *     eligible: Collection<int, IndikatorKinerja>, targets: Collection<string, TargetKinerja>, snapshotted: list<string>, baru: Collection<int, IndikatorKinerja>}
      */
     public function context(JadwalTahunan $jadwal): array
@@ -60,7 +59,6 @@ class JadwalActivationReadiness
             'renstra' => $renstra,
             'pk' => $pk,
             'lampiran' => $pk ? Berkas::where('berkasable_id', $pk->id)->whereIn('berkasable_type', ['renstra_pk', RenstraPk::class, 'App\Models\PerjanjianKinerja'])->count() : 0,
-            'unggahan_aktif' => Pengaturan::where('kunci', 'berkas.unggahan_aktif')->value('nilai'),
             'eligible' => $eligible,
             'targets' => $targets,
             'snapshotted' => $snapshotted,
@@ -134,12 +132,6 @@ class JadwalActivationReadiness
         ];
     }
 
-    /** True bila G4 lolos melalui pengecualian unggahan nonaktif, bukan lampiran. @param array<string, mixed> $context */
-    public function usesAttachmentException(array $context): bool
-    {
-        return $context['pk'] !== null && $context['lampiran'] === 0 && $context['unggahan_aktif'] === 'false';
-    }
-
     /** @param array<string, mixed> $context @return list<array{key: string, status: string, message: string, count: ?int}> */
     private function gates(array $context, int $missing): array
     {
@@ -160,8 +152,6 @@ class JadwalActivationReadiness
             match (true) {
                 $context['pk'] === null => $gate('G4', 'gagal', 'Lampiran belum dapat dinilai karena Perjanjian Kinerja belum ada.', 0),
                 $context['lampiran'] > 0 => $gate('G4', 'lolos', 'Perjanjian Kinerja memiliki lampiran.', $context['lampiran']),
-                // Kunci absen memakai default canonical true; hanya nilai eksplisit false yang membuka pengecualian.
-                $this->usesAttachmentException($context) => $gate('G4', 'pengecualian', 'Unggahan berkas sedang dinonaktifkan; lampiran PK dikecualikan dan akan ditandai.', 0),
                 default => $gate('G4', 'gagal', 'Perjanjian Kinerja belum memiliki lampiran.', 0),
             },
         ];

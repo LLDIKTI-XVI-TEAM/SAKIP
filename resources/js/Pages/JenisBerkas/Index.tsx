@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Head, router } from '@inertiajs/react';
-import { FileText, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Head, useForm } from '@inertiajs/react';
+import { FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Badge } from '@/Components/Badge';
@@ -12,8 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip } from '@/Components/Tooltip';
 import {
     JenisBerkasModal,
-    JenisBerkasFormData,
-    IndikatorOption
+    type JenisBerkasFormData,
+    type IndikatorOption,
+    type BatasUnggahan,
 } from './Partials/JenisBerkasModal';
 import { ContohBerkas, type ContohBerkasItem } from './Partials/ContohBerkas';
 
@@ -51,9 +52,8 @@ interface IndexProps {
         create: boolean;
         update: boolean;
         delete: boolean;
-        pengaturan_update?: boolean;
     };
-    unggahanAktif?: boolean;
+    batasUnggahan: BatasUnggahan;
 }
 
 const defaultFormData: JenisBerkasFormData = {
@@ -92,25 +92,25 @@ export default function JenisBerkasIndex({
     jenisBerkasList = [],
     indikators = [],
     can = { create: false, update: false, delete: false },
-    unggahanAktif = true,
+    batasUnggahan,
 }: IndexProps) {
     const [selectedTahap, setSelectedTahap] = useState<'' | JenisBerkasItem['tahap']>('');
     const [searchQuery, setSearchQuery] = useState<string>('');
 
-    // Modal Form State
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [isBatasTeknisOnly, setIsBatasTeknisOnly] = useState(false);
-    const [formData, setFormData] = useState<JenisBerkasFormData>(defaultFormData);
-    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const form = useForm<JenisBerkasFormData>(defaultFormData);
+    const deleteForm = useForm({ alasan: '', expected_updated_at: '' });
+    const formData = form.data;
+    const [modeError, setModeError] = useState<string | null>(null);
+    const formErrors = { ...form.errors, ...(modeError ? { modes: modeError } : {}) };
+    const isSubmitting = form.processing || deleteForm.processing;
 
-    // Modal Audit Reason State
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-    const [auditAction, setAuditAction] = useState<'update' | 'delete' | 'update-batas-teknis' | 'delete-contoh' | null>(null);
+    const [auditAction, setAuditAction] = useState<'update' | 'delete' | 'delete-contoh' | null>(null);
     const [targetItem, setTargetItem] = useState<JenisBerkasItem | null>(null);
     const [targetContoh, setTargetContoh] = useState<ContohBerkasItem | null>(null);
-    const [auditReason, setAuditReason] = useState<string>('');
+    const [auditReason, setAuditReason] = useState('');
     const [auditError, setAuditError] = useState<string | null>(null);
 
     // Filter list
@@ -128,21 +128,20 @@ export default function JenisBerkasIndex({
         });
     }, [jenisBerkasList, selectedTahap, searchQuery]);
 
-    // Form handlers
     const handleOpenCreate = () => {
         setIsEditing(false);
-        setIsBatasTeknisOnly(false);
-        setFormData(defaultFormData);
-        setFormErrors({});
+        form.setDefaults(defaultFormData);
+        form.setData(defaultFormData);
+        form.clearErrors();
+        setModeError(null);
         setAuditReason('');
         setIsFormModalOpen(true);
     };
 
-    const handleOpenEdit = (item: JenisBerkasItem, batasTeknisOnly: boolean = false) => {
+    const handleOpenEdit = (item: JenisBerkasItem) => {
         setIsEditing(true);
-        setIsBatasTeknisOnly(batasTeknisOnly);
         setTargetItem(item);
-        setFormData({
+        const data: JenisBerkasFormData = {
             id: item.id,
             nama: item.nama,
             tahap: item.tahap,
@@ -158,66 +157,46 @@ export default function JenisBerkasIndex({
             format_diizinkan: item.format_diizinkan || '',
             ukuran_maks_kb: item.ukuran_maks_kb,
             aktif: item.aktif !== false,
-            expected_updated_at: item.updated_at || item.created_at || new Date().toISOString(),
-        });
-        setFormErrors({});
+            expected_updated_at: item.updated_at || item.created_at,
+        };
+        form.setDefaults(data);
+        form.setData(data);
+        form.clearErrors();
+        setModeError(null);
         setAuditReason('');
         setAuditError(null);
         setIsFormModalOpen(true);
     };
 
-    const handleFormChange = (field: keyof JenisBerkasFormData, value: any) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
-        if (formErrors[field]) {
-            setFormErrors((prev) => {
-                const next = { ...prev };
-                delete next[field];
-                return next;
-            });
-        }
+    const handleFormChange = <K extends keyof JenisBerkasFormData>(field: K, value: JenisBerkasFormData[K]) => {
+        form.setData((previous) => ({ ...previous, [field]: value }));
+        form.clearErrors(field);
+        setModeError(null);
     };
 
-    const handleFormSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (isBatasTeknisOnly) {
-            setAuditReason('');
-            setAuditError(null);
-            setIsAuditModalOpen(true);
-            setAuditAction('update-batas-teknis');
-            return;
-        }
-
-        // Validasi client-side minimal 1 mode
+    const handleFormSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
+        if (isSubmitting) return;
         if (!formData.izinkan_file && !formData.izinkan_tautan && !formData.izinkan_teks) {
-            setFormErrors((prev) => ({
-                ...prev,
-                modes: 'Minimal satu mode bukti (file, tautan, atau teks) harus diizinkan.',
-            }));
+            setModeError('Minimal satu mode bukti (file, tautan, atau teks) harus diizinkan.');
             return;
         }
-
         if (isEditing) {
-            // Edit bertanda sensitif: buka modal alasan audit
             setAuditReason('');
             setAuditError(null);
             setIsAuditModalOpen(true);
             setAuditAction('update');
-        } else {
-            // Create langsung simpan
-            setIsSubmitting(true);
-            router.post('/jenis-berkas', formData as any, {
-                onSuccess: () => {
-                    setIsFormModalOpen(false);
-                },
-                onError: (errs) => {
-                    setFormErrors(errs);
-                },
-                onFinish: () => {
-                    setIsSubmitting(false);
-                },
-            });
+            return;
         }
+        form.transform((data) => ({
+            ...data,
+            format_diizinkan: data.format_diizinkan.trim() || null,
+            ukuran_maks_kb: data.ukuran_maks_kb === '' ? null : data.ukuran_maks_kb,
+        }));
+        form.post('/jenis-berkas', {
+            preserveScroll: true,
+            onSuccess: () => setIsFormModalOpen(false),
+        });
     };
 
     const handleOpenDelete = (item: JenisBerkasItem) => {
@@ -238,8 +217,9 @@ export default function JenisBerkasIndex({
     };
 
     const handleConfirmAudit = () => {
+        if (isSubmitting) return;
         const trimmed = auditReason.trim();
-        if (trimmed.length < 5) {
+        if (auditAction !== 'update' && trimmed.length < 5) {
             setAuditError('Alasan perubahan wajib diisi minimal 5 karakter.');
             return;
         }
@@ -248,112 +228,50 @@ export default function JenisBerkasIndex({
             return;
         }
         setAuditError(null);
-        if (auditAction === 'update-batas-teknis' && formData.id) {
-            setIsSubmitting(true);
-            const patchPayload: Record<string, any> = {
+        if (auditAction === 'update' && formData.id) {
+            form.transform((data) => ({
+                ...data,
                 alasan: trimmed,
-                expected_updated_at: formData.expected_updated_at,
-            };
-
-            const trimmedFormat = (formData.format_diizinkan || '').trim();
-            const originalFormat = (targetItem?.format_diizinkan || '').trim();
-
-            if (trimmedFormat !== '') {
-                patchPayload.format_diizinkan = trimmedFormat;
-            } else if (originalFormat !== '') {
-                patchPayload.format_diizinkan = null;
-            }
-
-            if (formData.ukuran_maks_kb !== '' && formData.ukuran_maks_kb !== null && formData.ukuran_maks_kb !== undefined) {
-                patchPayload.ukuran_maks_kb = Number(formData.ukuran_maks_kb);
-            } else if (targetItem && targetItem.ukuran_maks_kb !== null && targetItem.ukuran_maks_kb !== undefined) {
-                patchPayload.ukuran_maks_kb = null;
-            }
-
-            router.patch(`/jenis-berkas/${formData.id}/batas-teknis`, patchPayload, {
-                onSuccess: () => {
-                    setIsAuditModalOpen(false);
-                    setIsFormModalOpen(false);
-                    setAuditReason('');
-                    setAuditError(null);
-                },
-                onError: (errs) => {
-                    if (errs.alasan || errs.konflik || errs.expected_updated_at) {
-                        setAuditError(errs.alasan || errs.konflik || errs.expected_updated_at);
-                    } else {
-                        setFormErrors(errs);
-                        setIsAuditModalOpen(false);
-                    }
-                },
-                onFinish: () => {
-                    setIsSubmitting(false);
-                },
-            });
-        } else if (auditAction === 'update' && formData.id) {
-            setIsSubmitting(true);
-            router.put(`/jenis-berkas/${formData.id}`, {
-                ...formData,
-                alasan: trimmed,
-            } as any, {
-                onSuccess: () => {
-                    setIsAuditModalOpen(false);
-                    setIsFormModalOpen(false);
-                    setAuditReason('');
-                    setAuditError(null);
-                },
-                onError: (errs) => {
-                    if (errs.alasan || errs.konflik) {
-                        setAuditError(errs.alasan || errs.konflik);
-                    } else {
-                        setFormErrors(errs);
-                        setIsAuditModalOpen(false);
-                    }
-                },
-                onFinish: () => {
-                    setIsSubmitting(false);
-                },
-            });
-        } else if (auditAction === 'delete-contoh' && targetItem && targetContoh) {
-            setIsSubmitting(true);
-            router.delete(`/jenis-berkas/${targetItem.id}/contoh/${targetContoh.id}`, {
-                data: { alasan: trimmed },
+                format_diizinkan: data.format_diizinkan.trim() || null,
+                ukuran_maks_kb: data.ukuran_maks_kb === '' ? null : data.ukuran_maks_kb,
+            }));
+            form.put(`/jenis-berkas/${formData.id}`, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
-                    setTargetContoh(null);
-                    setAuditReason('');
-                },
-                onError: (errs) => setAuditError(errs.alasan ?? 'Gagal menghapus contoh berkas.'),
-                onFinish: () => setIsSubmitting(false),
-            });
-        } else if (auditAction === 'delete' && targetItem) {
-            setIsSubmitting(true);
-            router.delete(`/jenis-berkas/${targetItem.id}`, {
-                data: {
-                    alasan: trimmed,
-                    expected_updated_at: targetItem.updated_at || targetItem.created_at,
-                },
-                onSuccess: () => {
-                    setIsAuditModalOpen(false);
-                    setTargetItem(null);
+                    setIsFormModalOpen(false);
                     setAuditReason('');
                     setAuditError(null);
                 },
-                onError: (errs) => {
-                    if (errs && (errs.alasan || errs.konflik || errs.expected_updated_at)) {
-                        setAuditError(errs.alasan || errs.konflik || errs.expected_updated_at);
+                onError: (errors) => {
+                    if (errors.alasan || errors.konflik || errors.expected_updated_at) {
+                        setAuditError(errors.alasan || errors.konflik || errors.expected_updated_at);
                     } else {
-                        setAuditError('Gagal menghapus persyaratan jenis berkas.');
+                        setIsAuditModalOpen(false);
                     }
                 },
-                onFinish: () => {
-                    setIsSubmitting(false);
+            });
+        } else if (targetItem && (auditAction === 'delete' || (auditAction === 'delete-contoh' && targetContoh))) {
+            const hapusContoh = auditAction === 'delete-contoh' && targetContoh;
+            deleteForm.transform(() => hapusContoh
+                ? { alasan: trimmed }
+                : { alasan: trimmed, expected_updated_at: targetItem.updated_at || targetItem.created_at });
+            const url = hapusContoh ? `/jenis-berkas/${targetItem.id}/contoh/${hapusContoh.id}` : `/jenis-berkas/${targetItem.id}`;
+            deleteForm.delete(url, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsAuditModalOpen(false);
+                    setTargetItem(null);
+                    setTargetContoh(null);
+                    setAuditReason('');
+                    setAuditError(null);
                 },
+                onError: (errors) => setAuditError(errors.alasan || errors.konflik || errors.expected_updated_at || 'Gagal menghapus berkas atau persyaratan.'),
             });
         }
     };
 
-    const showAksi = Boolean(can.update || can.delete || can.pengaturan_update);
+    const showAksi = can.update || can.delete;
     const tahapOptions = [
         { value: '', label: `Semua tahap (${jenisBerkasList.length})` },
         ...(Object.keys(TAHAP) as JenisBerkasItem['tahap'][]).map((tahap) => ({
@@ -383,6 +301,7 @@ export default function JenisBerkasIndex({
                         <Input
                             id="pencarian-jenis-berkas"
                             label="Cari persyaratan"
+                            labelClassName="sr-only"
                             placeholder="Cari nama, keterangan, atau indikator..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -390,6 +309,7 @@ export default function JenisBerkasIndex({
                         />
                         <Select
                             label="Tahap"
+                            labelClassName="sr-only"
                             value={selectedTahap}
                             onChange={(e) => setSelectedTahap(e.target.value as '' | JenisBerkasItem['tahap'])}
                             options={tahapOptions}
@@ -399,22 +319,30 @@ export default function JenisBerkasIndex({
 
                 <Card>
                     {/* Grid mobile: ketentuan bukti tampil di bawah nama tanpa scroll horizontal. */}
-                    <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                    <Table wrapperClassName="overflow-x-visible" className="block xl:table xl:table-fixed">
                         <caption className="sr-only">Persyaratan berkas</caption>
+                        <colgroup className="hidden xl:table-column-group">
+                            <col className="w-[32%]" />
+                            <col className="w-[15%]" />
+                            <col className="w-[14%]" />
+                            <col />
+                            <col className="w-24" />
+                            {showAksi && <col className="w-28" />}
+                        </colgroup>
                         {/* Di mobile header hanya disembunyikan visual (bukan hidden) agar pembaca layar tetap mendapat relasi header–sel. */}
-                        <TableHeader className="max-md:sr-only">
+                        <TableHeader className="max-xl:sr-only">
                             <TableRow>
                                 {['Persyaratan', 'Tahap', 'Lingkup', 'Ketentuan bukti', 'Status', ...(showAksi ? ['Aksi'] : [])].map((label) => (
-                                    <TableHead key={label} className={`whitespace-normal ${label === 'Aksi' ? 'text-right' : ''}`}>
+                                    <TableHead key={label} className="whitespace-normal text-left">
                                         {label}
                                     </TableHead>
                                 ))}
                             </TableRow>
                         </TableHeader>
-                        <TableBody className="block md:table-row-group">
+                        <TableBody className="block xl:table-row-group">
                             {filteredList.length === 0 && (
-                                <TableRow className="block md:table-row">
-                                    <TableCell colSpan={showAksi ? 6 : 5} className="block py-12 text-center md:table-cell">
+                                <TableRow className="block xl:table-row">
+                                    <TableCell colSpan={showAksi ? 6 : 5} className="block py-12 text-center xl:table-cell">
                                         <FileText className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
                                         <p className="mt-2 text-sm font-semibold text-ink">
                                             {jenisBerkasList.length === 0 ? 'Belum ada persyaratan' : 'Tidak ada persyaratan yang cocok'}
@@ -428,75 +356,61 @@ export default function JenisBerkasIndex({
                                 </TableRow>
                             )}
                             {filteredList.map((item) => (
-                                <TableRow key={item.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
-                                    <TableCell className="col-span-2 min-w-0 p-0 md:max-w-72 md:px-4 md:py-3.5">
-                                        <p className="break-words text-sm font-semibold text-ink">{item.nama}</p>
+                                <TableRow key={item.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 xl:table-row">
+                                    <TableCell className="col-span-2 min-w-0 p-0 xl:px-4 xl:py-4 xl:align-top">
+                                        <p className="break-words text-sm font-semibold leading-6 text-ink">{item.nama}</p>
                                         {item.keterangan && (
-                                            <p className="mt-0.5 line-clamp-2 break-words text-xs text-muted">{item.keterangan}</p>
+                                            <p title={item.keterangan} className="mt-1 line-clamp-2 break-words text-xs leading-5 text-muted">{item.keterangan}</p>
                                         )}
                                         {item.tahap === 'kegiatan_perencanaan' && (
                                             <ContohBerkas jenisBerkasId={item.id} nama={item.nama} contoh={item.contoh_berkas ?? []} canUpdate={can.update}
                                                 onHapus={(contoh) => handleOpenDeleteContoh(item, contoh)} />
                                         )}
                                     </TableCell>
-                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
-                                        <span className="mr-2 text-muted md:hidden">Tahap</span>
+                                    <TableCell className="min-w-0 break-words p-0 leading-5 xl:px-4 xl:py-4 xl:align-top">
+                                        <span className="mb-1 block text-muted xl:hidden">Tahap</span>
                                         {TAHAP[item.tahap] ?? item.tahap}
                                     </TableCell>
-                                    <TableCell className="min-w-0 p-0 md:max-w-56 md:px-4 md:py-3.5">
-                                        <span className="mr-2 text-muted md:hidden">Lingkup</span>
+                                    <TableCell className="min-w-0 break-words p-0 leading-5 xl:px-4 xl:py-4 xl:align-top">
+                                        <span className="mb-1 block text-muted xl:hidden">Lingkup</span>
                                         {item.indikator ? (
                                             <>
                                                 <span className="font-semibold text-primary">{item.indikator.kode}</span>
-                                                <span className="mt-0.5 line-clamp-1 text-muted">{item.indikator.nama}</span>
+                                                <span title={item.indikator.nama} className="mt-1 line-clamp-2 text-muted">{item.indikator.nama}</span>
                                             </>
                                         ) : (
                                             <span className="text-muted">Semua indikator</span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="col-span-2 min-w-0 p-0 md:px-4 md:py-3.5">
-                                        <span className="mr-2 text-muted md:hidden">Ketentuan</span>
+                                    <TableCell className="col-span-2 min-w-0 break-words p-0 leading-5 xl:px-4 xl:py-4 xl:align-top">
+                                        <span className="mb-1 block text-muted xl:hidden">Ketentuan</span>
                                         <span className={item.wajib ? 'font-semibold text-ink' : 'text-muted'}>
                                             {item.wajib ? 'Wajib' : 'Opsional'}
                                         </span>
-                                        {item.semua_mode_wajib && <span className="text-muted"> · semua mode</span>}
-                                        {item.hanya_kegiatan_beranggaran && <span className="text-muted"> · hanya kegiatan beranggaran</span>}
-                                        <p className="mt-0.5 text-ink">{modeBukti(item)}</p>
-                                        {item.izinkan_file && <p className="mt-0.5 break-words text-muted">{batasFile(item)}</p>}
+                                        {item.semua_mode_wajib && <p className="text-muted">semua mode</p>}
+                                        {item.hanya_kegiatan_beranggaran && <p className="text-muted">hanya kegiatan beranggaran</p>}
+                                        <p className="mt-1 text-ink">{modeBukti(item)}</p>
+                                        {item.izinkan_file && <p className="mt-1 break-words text-muted">{batasFile(item)}</p>}
                                     </TableCell>
-                                    <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5">
+                                    <TableCell className="min-w-0 p-0 xl:px-4 xl:py-4 xl:align-top">
                                         <Badge variant={item.aktif !== false ? 'success' : 'muted'}>
                                             {item.aktif !== false ? 'Aktif' : 'Nonaktif'}
                                         </Badge>
                                     </TableCell>
                                     {showAksi && (
-                                        <TableCell className="min-w-0 p-0 md:px-4 md:py-3.5 md:text-right">
-                                            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 md:flex-nowrap">
+                                        <TableCell className="min-w-0 p-0 xl:px-4 xl:py-4 xl:align-top xl:text-right">
+                                            <div className="flex min-w-0 items-center justify-end gap-2">
                                                 {can.update && (
                                                     <Tooltip content="Edit" align="right">
                                                         <Button
                                                             type="button"
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handleOpenEdit(item, false)}
+                                                            onClick={() => handleOpenEdit(item)}
                                                             aria-label={`Edit ${item.nama}`}
-                                                            className="h-8 w-8 p-0"
+                                                            className="h-11 w-11 shrink-0 p-0 xl:h-9 xl:w-9"
                                                         >
                                                             <Pencil className="h-4 w-4" aria-hidden="true" />
-                                                        </Button>
-                                                    </Tooltip>
-                                                )}
-                                                {!can.update && can.pengaturan_update && item.izinkan_file && (
-                                                    <Tooltip content="Ubah batas teknis" align="right">
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => handleOpenEdit(item, true)}
-                                                            aria-label={`Ubah batas teknis ${item.nama}`}
-                                                            className="h-8 w-8 p-0"
-                                                        >
-                                                            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                                                         </Button>
                                                     </Tooltip>
                                                 )}
@@ -508,7 +422,7 @@ export default function JenisBerkasIndex({
                                                             variant="outline"
                                                             onClick={() => handleOpenDelete(item)}
                                                             aria-label={`Hapus ${item.nama}`}
-                                                            className="h-8 w-8 border-danger/30 p-0 text-danger hover:bg-danger/10 focus:ring-danger/25"
+                                                            className="h-11 w-11 shrink-0 border-danger/30 p-0 text-danger hover:bg-danger/10 focus:ring-danger/25 xl:h-9 xl:w-9"
                                                         >
                                                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                                                         </Button>
@@ -526,15 +440,13 @@ export default function JenisBerkasIndex({
 
             {/* Modal Tambah / Ubah */}
             <JenisBerkasModal
-                isOpen={isFormModalOpen}
+                isOpen={isFormModalOpen && !isAuditModalOpen}
                 isEditing={isEditing}
-                isBatasTeknisOnly={isBatasTeknisOnly}
                 data={formData}
                 errors={formErrors}
                 indikators={indikators}
                 isLoading={isSubmitting}
-                unggahanAktif={unggahanAktif}
-                canManageSettings={can.pengaturan_update}
+                batasUnggahan={batasUnggahan}
                 onChange={handleFormChange}
                 onClose={() => {
                     if (!isSubmitting) setIsFormModalOpen(false);
@@ -542,7 +454,7 @@ export default function JenisBerkasIndex({
                 onSubmit={handleFormSubmit}
             />
 
-            {/* Modal Alasan Audit (Sensitif) */}
+            {/* Alasan perubahan opsional; penghapusan tetap wajib alasan (Q43). */}
             <AuditReasonModal
                 open={isAuditModalOpen}
                 title={
@@ -550,8 +462,6 @@ export default function JenisBerkasIndex({
                         ? `Hapus contoh ${targetContoh?.nama_asli ?? 'berkas'}?`
                         : auditAction === 'delete'
                         ? `Hapus ${targetItem?.nama ?? 'persyaratan'}?`
-                        : auditAction === 'update-batas-teknis'
-                        ? 'Simpan perubahan batas teknis?'
                         : 'Simpan perubahan persyaratan?'
                 }
                 description={
@@ -559,10 +469,12 @@ export default function JenisBerkasIndex({
                         ? 'Contoh berkas tidak lagi dapat diunduh PIC. Masukkan alasan penghapusan untuk rekaman audit.'
                         : auditAction === 'delete'
                         ? 'Penghapusan katalog jenis berkas bersifat sensitif. Persyaratan yang dihapus tidak lagi berlaku untuk pengajuan berikutnya. Masukkan alasan penghapusan untuk rekaman audit.'
-                        : auditAction === 'update-batas-teknis'
-                        ? 'Perubahan batas teknis format dan batas ukuran file akan dicatat pada audit trail dengan rekaman izin pengaturan. Masukkan alasan perubahan batas teknis.'
-                        : 'Perubahan katalog persyaratan bukti dukung bersifat sensitif dan akan dicatat pada audit trail dengan rekaman kondisi sebelum dan sesudah perubahan. Masukkan alasan perubahan.'
+                        : undefined
                 }
+                showIcon={auditAction !== 'update'}
+                showAuditHint={auditAction !== 'update'}
+                reasonRequired={auditAction !== 'update'}
+                placeholder={auditAction === 'update' ? 'Tambahkan alasan perubahan (opsional)…' : undefined}
                 reason={auditReason}
                 error={auditError || undefined}
                 busy={isSubmitting}

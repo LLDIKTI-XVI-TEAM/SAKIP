@@ -142,6 +142,9 @@ class KlaimKegiatanTest extends TestCase
     {
         $pic = $this->createPicPegawai();
         $this->actingAs($pic)->post($this->url(), $this->payload())->assertForbidden();
+        $auditTanpaIzin = AuditLog::where('tindakan', 'klaim_kegiatan.tambah_ditolak')->sole();
+        $this->assertSame('no_allow', $auditTanpaIzin->dasar_izin['alasan']);
+        $this->assertSame('kegiatan:update', $auditTanpaIzin->dasar_izin['permission']);
 
         $this->grantUnitPermission($pic, 'kegiatan:update');
         $this->denyPermission($pic, 'kegiatan:update', $this->unit->id);
@@ -150,7 +153,9 @@ class KlaimKegiatanTest extends TestCase
         $this->assertDatabaseCount('klaim_kegiatan', 0);
         $audits = AuditLog::where('tindakan', 'klaim_kegiatan.tambah_ditolak')->get();
         $this->assertCount(2, $audits);
-        $this->assertSame('explicit_deny', $audits->last()->dasar_izin['alasan']);
+        $auditDeny = $audits->where('id', '!=', $auditTanpaIzin->id)->sole();
+        $this->assertSame('explicit_deny', $auditDeny->dasar_izin['alasan']);
+        $this->assertSame('kegiatan:update', $auditDeny->dasar_izin['permission']);
     }
 
     public function test_grant_kegiatan_tanpa_kewenangan_ra_atau_pic_efektif_ditolak(): void

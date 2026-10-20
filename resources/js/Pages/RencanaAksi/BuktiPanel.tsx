@@ -26,10 +26,10 @@ function galatBisnis(errs: Record<string, string | undefined>): string | undefin
     return errs.status_alur ?? errs.jendela ?? errs.unit_id ?? errs.indikator_id;
 }
 
-/** Mode yang boleh dipilih di UI mengikuti persyaratan + saklar unggahan; server memvalidasi ulang. */
-function modeTersedia(req: BuktiPersyaratan | undefined, unggahanAktif: boolean): BuktiMode[] {
+/** Mode yang boleh dipilih di UI mengikuti persyaratan; server memvalidasi ulang. */
+function modeTersedia(req: BuktiPersyaratan | undefined): BuktiMode[] {
     return MODE.filter((mode) => {
-        if (mode === 'file') return (req ? req.izinkan_file : true) && unggahanAktif;
+        if (mode === 'file') return req ? req.izinkan_file : true;
         if (mode === 'tautan') return req ? req.izinkan_tautan : true;
         return req ? req.izinkan_teks : true;
     });
@@ -56,13 +56,13 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
 
     const fieldErrors = errors as Record<string, string | undefined>;
     const persyaratanAktif = persyaratan.find((item) => item.id === data.jenis_berkas_id);
-    const modeBoleh = modeTersedia(persyaratanAktif, unggahan.unggahan_aktif);
+    const modeBoleh = modeTersedia(persyaratanAktif);
 
     const bukaTambah = (jenisBerkasId = ''): void => {
         const req = persyaratan.find((item) => item.id === jenisBerkasId);
         clearErrors();
         setRequestError('');
-        setData({ jenis_berkas_id: jenisBerkasId, mode: modeTersedia(req, unggahan.unggahan_aktif)[0] ?? 'tautan', file: null, tautan: '', isi_teks: '' });
+        setData({ jenis_berkas_id: jenisBerkasId, mode: modeTersedia(req)[0] ?? 'tautan', file: null, tautan: '', isi_teks: '' });
         setModalTambah(true);
     };
 
@@ -73,7 +73,7 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
     };
 
     const gantiPersyaratan = (jenisBerkasId: string): void => {
-        const boleh = modeTersedia(persyaratan.find((item) => item.id === jenisBerkasId), unggahan.unggahan_aktif);
+        const boleh = modeTersedia(persyaratan.find((item) => item.id === jenisBerkasId));
         setData({ ...data, jenis_berkas_id: jenisBerkasId, mode: boleh.includes(data.mode) ? data.mode : (boleh[0] ?? 'tautan') });
     };
 
@@ -172,7 +172,7 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                                         </p>
                                         {req.keterangan && <p className="text-xs text-muted">{req.keterangan}</p>}
                                         <p className="text-xs text-muted">
-                                            Mode diizinkan: {MODE.filter((mode) => modeTersedia(req, true).includes(mode)).map((mode) => LABEL_MODE[mode]).join(', ')}
+                                            Mode diizinkan: {modeTersedia(req).map((mode) => LABEL_MODE[mode]).join(', ')}
                                             {req.izinkan_file && ` · ${req.format_diizinkan}, maks. ${req.ukuran_maks_kb} KB`}
                                         </p>
                                         {req.pemenuhan.tidak_dapat_dipenuhi && (
@@ -191,8 +191,8 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                                                 Kurang: {req.pemenuhan.mode_kurang.map((mode) => LABEL_MODE[mode]).join(', ')}
                                             </Badge>
                                         )}
-                                        {/* Tanpa mode yang tersedia (mis. file-only saat unggahan nonaktif) form pasti ditolak server. */}
-                                        {can.upload && modeTersedia(req, unggahan.unggahan_aktif).length > 0 && (
+                                        {/* Persyaratan tanpa mode yang diizinkan tidak dapat dipenuhi lewat form. */}
+                                        {can.upload && modeTersedia(req).length > 0 && (
                                             <Button type="button" variant="outline" size="sm" onClick={() => bukaTambah(req.id)}>
                                                 Penuhi
                                             </Button>
@@ -247,7 +247,7 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                     >
                         <option value="">Lampiran bebas (tanpa persyaratan)</option>
                         {persyaratan.map((req) => (
-                            <option key={req.id} value={req.id} disabled={modeTersedia(req, unggahan.unggahan_aktif).length === 0}>
+                            <option key={req.id} value={req.id} disabled={modeTersedia(req).length === 0}>
                                 {req.nama} ({req.wajib ? 'wajib' : 'opsional'})
                             </option>
                         ))}
@@ -270,9 +270,6 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
                                 </Button>
                             ))}
                         </div>
-                        {!unggahan.unggahan_aktif && (
-                            <p className="mt-1 text-xs text-muted">Unggahan file sedang dinonaktifkan pada setelan aplikasi; gunakan tautan atau teks.</p>
-                        )}
                         {fieldErrors.mode && <p className="mt-1 text-xs text-danger" role="alert">{fieldErrors.mode}</p>}
                     </div>
 

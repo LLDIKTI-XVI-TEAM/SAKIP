@@ -15,8 +15,6 @@ interface LampiranDraftFieldsProps {
     emptyText: string;
     disabled?: boolean;
     accept?: string;
-    /** Unggah file dimatikan (mis. oleh pengaturan storage); mode tautan/teks tetap dapat dipakai. */
-    fileDisabled?: boolean;
     /** Field khusus modul untuk mode tautan/teks, dirender di atas input utama. */
     renderExtraFields?: (index: number) => ReactNode;
     /** Bila diisi, penambahan lampiran ditutup dan pesan ini yang ditampilkan. */
@@ -53,7 +51,6 @@ export function LampiranDraftFields({
     emptyText,
     disabled = false,
     accept,
-    fileDisabled = false,
     renderExtraFields,
     blockedMessage,
     maxItems,
@@ -159,7 +156,7 @@ export function LampiranDraftFields({
                                                 aria-invalid={fileError ? true : undefined}
                                                 aria-describedby={fileError ? fileErrorId : undefined}
                                                 onChange={(event) => updateLampiran(index, 'file', event.target.files?.[0] ?? null)}
-                                                disabled={disabled || fileDisabled}
+                                                disabled={disabled}
                                                 className="block w-full text-xs text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20 focus:outline-none"
                                             />
                                             {fileError && <p id={fileErrorId} role="alert" className="mt-1 text-xs text-danger">{fileError}</p>}

@@ -1862,7 +1862,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-4:** Given pengguna meminta download, Then server mengevaluasi hak baca induk dan deny sebelum mengalirkan response.
 - [x] **AC-5:** Given token/credential/storage path sensitif dicatat audit, Then hanya metadata yang diperlukan yang boleh tampil; secret tidak boleh bocor.
 
-_Status implementasi: lihat ISS-11.02; dependency unggahan selalu aktif dimiliki ISS-13.06._
+_Status implementasi: lihat ISS-11.02; dependency unggahan selalu aktif telah diselesaikan oleh ISS-13.06 (PR #150)._
 
 ### US-11.03 · Bukti Mode Tautan atau Teks
 

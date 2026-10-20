@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Gate;
 
 class PresentPengukuran
 {
-    public function __construct(private SubmissionPrerequisites $prerequisites, private EvaluateEvidence $evidence, private CalculatePengukuran $calculator, private PengukuranKinerjaPolicy $policy, private RekomendasiBerlaku $rekomendasi) {}
+    public function __construct(private SubmissionPrerequisites $prerequisites, private CalculatePengukuran $calculator, private PengukuranKinerjaPolicy $policy, private RekomendasiBerlaku $rekomendasi) {}
 
     /**
      * Audit, target RA, dan PIC efektif dibaca sekaligus per halaman, tanpa query per baris.
@@ -97,7 +97,7 @@ class PresentPengukuran
             'periode_jadwal' => ['id' => $p->periode_id, 'nama_periode' => $frozen ? $frozen['periode']['nama'] : $p->periode->nama, 'urutan' => $p->periode->urutan, 'tahun' => $p->tahun,
                 'is_nilai_akhir' => (bool) ($frozen ? $frozen['periode']['is_nilai_akhir'] : $p->periode->is_nilai_akhir)],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
-            'prasyarat' => ['siap' => false, 'alasan' => []], 'unggahan_aktif' => false,
+            'prasyarat' => ['siap' => false, 'alasan' => []],
             'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false],
             'businessErrors' => ['verifikasi' => [], 'sahkan' => [], 'kembalikan' => []]];
         if (! $detail) {
@@ -141,7 +141,6 @@ class PresentPengukuran
 
             return [...array_intersect_key($claim, array_flip(['id', 'komponen_id', 'arah_dampak', 'catatan', 'sumber_klaim'])), 'kegiatan' => $activity];
         }, $frozen['klaim']) : [];
-        $data['unggahan_aktif'] = $this->evidence->settings()['unggahan_aktif'];
         $data['komponen'] = $frozen ? $frozen['komponen'] : $context->komponen->map(function ($c) use ($p) {
             $value = $p->komponen->firstWhere('komponen_id', $c->komponen_id)?->nilai;
 

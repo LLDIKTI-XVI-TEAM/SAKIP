@@ -123,6 +123,22 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $this->assertStringNotContainsString((string) $buktiFile->path, json_encode($auditFile->nilai_baru, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
     }
 
+    public function test_persyaratan_tanpa_batas_memakai_ukuran_dan_format_konfigurasi(): void
+    {
+        config(['uploads.default_max_kb' => 200, 'uploads.allowed_extensions' => 'pdf']);
+        $this->rab->update(['format_diizinkan' => null, 'ukuran_maks_kb' => null]);
+
+        $this->unggah(UploadedFile::fake()->create('rab-besar.pdf', 201, 'application/pdf'))->assertSessionHasErrors('file');
+        $this->unggah(UploadedFile::fake()->create('rab.xlsx', 100))->assertSessionHasErrors('file');
+        $this->assertSame(0, BuktiDukung::where('berkasable_type', 'kegiatan')->count());
+
+        $this->unggah(UploadedFile::fake()->create('rab.pdf', 200, 'application/pdf'))->assertSessionHasNoErrors();
+        $berkas = BuktiDukung::where('berkasable_type', 'kegiatan')->sole();
+        $this->assertSame($this->rab->id, $berkas->jenis_berkas_id);
+        $this->assertSame('rab.pdf', $berkas->nama_asli);
+        Storage::disk('local')->assertExists($berkas->path);
+    }
+
     public function test_persyaratan_global_dan_indikator_pengklaim_berlaku_sedangkan_indikator_lain_ditolak(): void
     {
         $lain = IndikatorKinerja::create([...$this->fixture['indikator']->only(['sasaran_strategis_id', 'unit_id', 'satuan', 'tipe_perhitungan', 'arah',

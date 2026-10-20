@@ -2,7 +2,6 @@
 
 namespace App\Actions\JenisBerkas;
 
-use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\BuktiDukung;
 use App\Models\JenisBerkas;
 use App\Models\Permission;
@@ -10,6 +9,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
+use App\Services\Storage\UploadLimits;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +28,6 @@ class UnggahContohBerkasAction
     public function __construct(
         private readonly PermissionResolver $resolver,
         private readonly AuditLogger $audit,
-        private readonly EvaluateEvidence $evidence,
     ) {}
 
     /**
@@ -57,13 +56,11 @@ class UnggahContohBerkasAction
                     ?? throw ValidationException::withMessages(['menggantikan_id' => 'Contoh berkas yang akan diganti tidak ditemukan.']);
             }
 
-            $settings = $this->evidence->settings();
-            if (! $settings['unggahan_aktif']) {
-                throw ValidationException::withMessages(['file' => 'Unggahan file sedang dinonaktifkan.']);
-            }
-            Validator::make($data, ['file' => ['required', 'file', "max:{$settings['ukuran_maks_kb']}", "mimes:{$settings['format_diizinkan']}"]], [
+            $settings = UploadLimits::resolve();
+            Validator::make($data, ['file' => ['required', ...UploadLimits::fileRules()]], [
                 'file.max' => "Ukuran berkas melebihi batas {$settings['ukuran_maks_kb']} KB.",
                 'file.mimes' => "Format berkas harus salah satu dari: {$settings['format_diizinkan']}.",
+                'file.extensions' => "Ekstensi berkas harus salah satu dari: {$settings['format_diizinkan']}.",
             ])->validate();
 
             /** @var UploadedFile $file */

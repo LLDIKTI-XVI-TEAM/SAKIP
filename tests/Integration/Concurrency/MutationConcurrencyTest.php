@@ -28,7 +28,6 @@ use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\JenisBerkas;
-use App\Models\Pengaturan;
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
@@ -613,7 +612,6 @@ class MutationConcurrencyTest extends TestCase
         foreach ([$actor, $manager] as $user) {
             $user->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
         }
-        $setting = Pengaturan::create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'true', 'tipe' => 'boolean', 'grup' => 'berkas']);
         $jenis = JenisBerkas::create([
             'nama' => 'Persyaratan sebelum pencabutan', 'tahap' => 'pengukuran', 'wajib' => false,
             'izinkan_file' => true, 'format_diizinkan' => 'pdf', 'ukuran_maks_kb' => 1024, 'created_by' => $actor->id,
@@ -627,16 +625,13 @@ class MutationConcurrencyTest extends TestCase
         ];
         if ($operation === 'jenis-update') {
             $payload['data'] += ['nama' => 'Persyaratan setelah pencabutan', 'tahap' => 'pengukuran', 'wajib' => false, 'izinkan_file' => true];
-        } elseif ($operation === 'jenis-technical') {
-            $payload['data']['ukuran_maks_kb'] = 2048;
         }
         if ($technicalOnly) {
             $payload['data'] += ['format_diizinkan' => 'pdf,docx', 'ukuran_maks_kb' => 2048];
         }
-        $prepare = function () use ($actor, $manager, $setting, $jenis): void {
+        $prepare = function () use ($actor, $manager, $jenis): void {
             // Writer deny mengunci kedua pengguna; urutan sama mencegah inversi fixture.
             User::whereIn('id', [$actor->id, $manager->id])->orderBy('id')->lockForUpdate()->get();
-            Pengaturan::whereKey($setting->id)->lockForUpdate()->firstOrFail();
             JenisBerkas::whereKey($jenis->id)->lockForUpdate()->firstOrFail();
         };
         $denyId = null;
@@ -652,8 +647,8 @@ class MutationConcurrencyTest extends TestCase
         if ($technicalOnly) {
             $this->assertSame(['mutated'], $results);
             $saved = JenisBerkas::where('nama', 'Persyaratan setelah pencabutan')->sole();
-            $this->assertSame($operation === 'jenis-create' ? null : 'pdf', $saved->format_diizinkan);
-            $this->assertSame($operation === 'jenis-create' ? null : 1024, $saved->ukuran_maks_kb);
+            $this->assertSame('pdf,docx', $saved->format_diizinkan);
+            $this->assertSame(2048, $saved->ukuran_maks_kb);
             $audit = AuditLog::where('tindakan', $operation === 'jenis-create' ? 'jenis_berkas.buat' : 'jenis_berkas.ubah')->sole();
             $this->assertSame($permission, $audit->dasar_izin['permission']);
             $this->assertTrue($audit->dasar_izin['allowed']);
@@ -679,50 +674,9 @@ class MutationConcurrencyTest extends TestCase
             'create' => ['jenis-create', 'jenis_berkas:create', 'jenis_berkas.buat_ditolak'],
             'update' => ['jenis-update', 'jenis_berkas:update', 'jenis_berkas.ubah_ditolak'],
             'delete' => ['jenis-delete', 'jenis_berkas:delete', 'jenis_berkas.hapus_ditolak'],
-            'technical' => ['jenis-technical', 'pengaturan:update', 'jenis_berkas.batas_teknis_ubah_ditolak'],
-            'create strips revoked technical fields' => ['jenis-create', 'jenis_berkas:create', 'jenis_berkas.buat_ditolak', true],
-            'update strips revoked technical fields' => ['jenis-update', 'jenis_berkas:update', 'jenis_berkas.ubah_ditolak', true],
+            'create keeps fields when unrelated setting permission is revoked' => ['jenis-create', 'jenis_berkas:create', 'jenis_berkas.buat_ditolak', true],
+            'update keeps fields when unrelated setting permission is revoked' => ['jenis-update', 'jenis_berkas:update', 'jenis_berkas.ubah_ditolak', true],
         ];
-    }
-
-    public function test_storage_policy_reauthorizes_when_deny_commits_before_mutation(): void
-    {
-        $this->seed(AccessCatalogSeeder::class);
-        $actor = User::factory()->create(['status' => 'aktif']);
-        $manager = User::factory()->create(['status' => 'aktif']);
-        $role = Role::where('kode', 'superadmin')->sole();
-        foreach ([$actor, $manager] as $user) {
-            $user->roles()->attach($role->id, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
-        }
-        // Tanpa default: penolakan setelah lock juga tidak boleh menginisialisasi pengaturan.
-        $payload = [
-            'actor_id' => $actor->id, 'permission' => 'pengaturan:update',
-            'data' => [
-                'berkas_unggahan_aktif' => false, 'berkas_ukuran_maks_kb' => 2048,
-                'berkas_format_diizinkan' => 'pdf', 'berkas_tautan_selalu_diizinkan' => true,
-                'expected_updated_at' => now()->toISOString(), 'expected_version' => 1,
-                'alasan' => 'Fixture pencabutan izin kebijakan storage',
-            ],
-        ];
-        $prepare = fn () => User::whereIn('id', [$actor->id, $manager->id])->orderBy('id')->lockForUpdate()->get();
-        $denyId = null;
-        $denyWhileBlocked = function (array $pids) use ($actor, $manager, &$denyId): void {
-            $query = DB::table('pg_stat_activity')->where('pid', $pids[0])->value('query');
-            $this->assertStringContainsString('users', $query);
-            $this->assertStringContainsString('for share', $query);
-            $denyId = app(CreateDeny::class)->handle($manager, $actor->id, Permission::where('kode', 'pengaturan:update')->value('id'), null, 'Pencabutan sah sebelum mutasi storage')->id;
-        };
-
-        $results = $this->race('storage-update', $actor->id, '', [$payload], $prepare, assertBlocked: $denyWhileBlocked);
-
-        $this->assertSame(['denied'], $results);
-        $this->assertDatabaseCount('pengaturan', 0);
-        $this->assertSame(0, AuditLog::whereIn('tindakan', ['pengaturan.ubah', 'berkas.tandai_tidak_dapat_dipenuhi', 'berkas.cabut_tidak_dapat_dipenuhi'])->count());
-        $audit = AuditLog::where('tindakan', 'pengaturan.ubah_ditolak')->sole();
-        $this->assertFalse($audit->dasar_izin['allowed']);
-        $this->assertSame('pengaturan:update', $audit->dasar_izin['permission']);
-        $this->assertSame('explicit_deny', $audit->dasar_izin['reason']);
-        $this->assertContains($denyId, $audit->dasar_izin['denies']);
     }
 
     #[DataProvider('regulasiMutations')]
