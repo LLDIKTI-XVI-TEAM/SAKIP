@@ -9,6 +9,7 @@ use App\Models\Periode;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\User;
+use App\Services\Kegiatan\GerbangKlaimKegiatan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -77,6 +78,25 @@ class RencanaAksiAnggaranKegiatanTest extends TestCase
         $this->denyBacaKegiatan($this->fixture['pic']);
         $this->actingAs($this->fixture['pic'])->get("/rencana-aksi/{$this->header->id}")->assertOk()
             ->assertInertia(fn ($page) => $page->where('kegiatan', null));
+    }
+
+    public function test_capability_kegiatan_dihitung_di_luar_transaksi_snapshot_read_only(): void
+    {
+        // Gerbang klaim mengambil row lock `FOR SHARE` yang ditolak transaksi READ ONLY. Di bawah RefreshDatabase isolasi itu
+        // tidak pernah aktif, sehingga posisinya dijaga lewat level transaksi saat gerbang dipanggil.
+        $level = null;
+        $this->partialMock(GerbangKlaimKegiatan::class, function ($mock) use (&$level): void {
+            $mock->shouldReceive('boleh')->once()->andReturnUsing(function () use (&$level): bool {
+                $level = DB::transactionLevel();
+
+                return true;
+            });
+        });
+        $sebelum = DB::transactionLevel();
+
+        $this->actingAs($this->fixture['pic'])->get("/rencana-aksi/{$this->header->id}")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('kegiatan.can.tambah', true));
+        $this->assertSame($sebelum, $level);
     }
 
     public function test_total_dan_anggaran_klaim_dibekukan_pada_versi_dan_tidak_berubah_setelah_anggaran_diubah(): void
