@@ -159,17 +159,17 @@ class RencanaAksiBuktiHttpTest extends TestCase
         $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
-    public function test_saklar_unggahan_nonaktif_menolak_file_namun_teks_tetap_diterima(): void
+    public function test_setting_lama_nonaktif_tetap_menerima_file_dan_teks(): void
     {
         Pengaturan::updateOrCreate(['kunci' => 'berkas.unggahan_aktif'], ['grup' => 'berkas', 'nilai' => 'false', 'tipe' => 'boolean']);
         $jb = $this->createJenisBerkas();
 
         $this->kirim($this->actor, ['jenis_berkas_id' => $jb->id, 'mode' => 'file', 'file' => UploadedFile::fake()->create('kak.pdf', 10, 'application/pdf')])
-            ->assertSessionHasErrors('file');
+            ->assertSessionHasNoErrors();
         $this->kirim($this->actor, ['jenis_berkas_id' => $jb->id, 'mode' => 'teks', 'isi_teks' => 'Keterangan pengganti unggahan.'])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(['teks'], $this->rencanaAksi->buktiDukungs()->pluck('mode')->all());
+        $this->assertEqualsCanonicalizing(['file', 'teks'], $this->rencanaAksi->buktiDukungs()->pluck('mode')->all());
     }
 
     public function test_pic_pegawai_dengan_grant_unit_dapat_memenuhi_bukti_tanpa_izin_berkas(): void

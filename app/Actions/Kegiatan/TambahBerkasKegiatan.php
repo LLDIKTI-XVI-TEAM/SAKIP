@@ -2,7 +2,6 @@
 
 namespace App\Actions\Kegiatan;
 
-use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\BuktiDukung;
 use App\Models\JenisBerkas;
 use App\Models\Kegiatan;
@@ -12,6 +11,7 @@ use App\Services\AuditLogger;
 use App\Services\Kegiatan\GerbangBerkasKegiatan;
 use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
 use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
+use App\Services\Storage\UploadLimits;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -35,7 +35,6 @@ class TambahBerkasKegiatan
 {
     public function __construct(
         private readonly GerbangBerkasKegiatan $gerbang,
-        private readonly EvaluateEvidence $evidence,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -76,15 +75,13 @@ class TambahBerkasKegiatan
                     'mode' => $mode, 'uploaded_by' => $pengunci->id, 'created_at' => now()];
                 $path = null;
                 if ($mode === 'file') {
-                    $settings = $this->evidence->settings();
-                    if (! $settings['unggahan_aktif']) {
-                        throw ValidationException::withMessages(['file' => 'Unggahan file sedang dinonaktifkan. Mode tautan/teks tetap mengikuti persyaratannya.']);
-                    }
-                    $max = $requirement->ukuran_maks_kb ?? $settings['ukuran_maks_kb'];
-                    $formats = $requirement->format_diizinkan ?: $settings['format_diizinkan'];
-                    Validator::make($data, ['file' => ['required', 'file', "max:{$max}", "mimes:{$formats}"]], [
+                    $limits = UploadLimits::resolve($requirement?->ukuran_maks_kb, $requirement?->format_diizinkan);
+                    $max = $limits['ukuran_maks_kb'];
+                    $formats = $limits['format_diizinkan'];
+                    Validator::make($data, ['file' => ['required', ...UploadLimits::fileRules($requirement?->ukuran_maks_kb, $requirement?->format_diizinkan)]], [
                         'file.max' => "Ukuran berkas melebihi batas {$max} KB.",
                         'file.mimes' => "Format berkas harus salah satu dari: {$formats}.",
+                        'file.extensions' => "Ekstensi berkas harus salah satu dari: {$formats}.",
                     ])->validate();
                     /** @var UploadedFile $file */
                     $file = $data['file'];

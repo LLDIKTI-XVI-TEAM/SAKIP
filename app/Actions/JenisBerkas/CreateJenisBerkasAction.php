@@ -3,13 +3,13 @@
 namespace App\Actions\JenisBerkas;
 
 use App\Models\JenisBerkas;
-use App\Models\Pengaturan;
 use App\Models\Permission;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\JenisBerkas\JenisBerkasWarnings;
+use App\Services\Storage\UploadLimits;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class CreateJenisBerkasAction
@@ -17,7 +17,6 @@ class CreateJenisBerkasAction
     public function __construct(
         private readonly PermissionResolver $resolver,
         private readonly AuditLogger $auditLogger,
-        private readonly JenisBerkasWarnings $warnings,
     ) {}
 
     /**
@@ -39,86 +38,25 @@ class CreateJenisBerkasAction
      *     aktif?: bool|0|1|'0'|'1',
      * } $data
      */
-    public function handle(User $actor, array $data): ?string
+    public function handle(User $actor, array $data): void
     {
-        $isUnggahanAktif = true;
-        $denied = DB::transaction(function () use (&$actor, $data, &$isUnggahanAktif): ?array {
-            // Selaras dengan writer akses: pengguna, role aktif, lalu permission berurutan UUID.
+        $denied = DB::transaction(function () use (&$actor, $data): ?array {
+            // Izin dievaluasi ulang setelah aktor, peran, dan permission terkunci.
             $actor = User::whereKey($actor->id)->sharedLock()->firstOrFail();
             $actor->lockActiveRoles();
-            Permission::whereIn('kode', ['jenis_berkas:create', 'pengaturan:update'])->orderBy('id')->sharedLock()->get();
+            Permission::where('kode', 'jenis_berkas:create')->sharedLock()->get();
             $decision = $this->resolver->decide($actor, 'jenis_berkas:create');
             if (! $decision['allowed']) {
                 return $decision;
             }
-
-            $settingsDecision = $this->resolver->decide($actor, 'pengaturan:update');
-            $hasBatasTeknis = array_key_exists('format_diizinkan', $data) || array_key_exists('ukuran_maks_kb', $data);
-            if (! $settingsDecision['allowed']) {
-                unset($data['format_diizinkan'], $data['ukuran_maks_kb']);
-                $hasBatasTeknis = false;
-            }
-            $dasarIzin = $hasBatasTeknis
-                ? ['jenis_berkas' => $decision, 'pengaturan' => $settingsDecision]
-                : $decision;
-
-            // Serialisasikan pembacaan saklar dengan sharedLock di dalam transaksi
-            // untuk mencegah race condition saat admin menonaktifkan unggahan global
-            $saklarRow = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->sharedLock()->first();
-            $isUnggahanAktif = filter_var($saklarRow?->nilai ?? true, FILTER_VALIDATE_BOOLEAN);
-
+            Validator::make($data, ['ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:'.UploadLimits::maxKb()]])->validate();
             $data['created_by'] = $actor->id;
-
             $jb = JenisBerkas::create($data);
-
             $this->auditLogger->catat(
-                actor: $actor,
-                tindakan: 'jenis_berkas.buat',
-                objekTipe: 'jenis_berkas',
-                objekId: $jb->id,
-                nilaiLama: null,
-                nilaiBaru: $jb->toArray(),
-                alasan: 'Penambahan persyaratan jenis berkas: '.$jb->nama,
-                dasarIzin: $dasarIzin
+                actor: $actor, tindakan: 'jenis_berkas.buat', objekTipe: 'jenis_berkas', objekId: $jb->id,
+                nilaiLama: null, nilaiBaru: $jb->toArray(), alasan: 'Penambahan persyaratan jenis berkas: '.$jb->nama,
+                dasarIzin: $decision,
             );
-
-            if (! $isUnggahanAktif) {
-                $isFileOnly = (bool) ($jb->aktif ?? true)
-                    && (bool) ($jb->wajib ?? false)
-                    && (bool) ($jb->izinkan_file ?? false)
-                    && ! (bool) ($jb->izinkan_tautan ?? false)
-                    && ! (bool) ($jb->izinkan_teks ?? false);
-
-                if ($isFileOnly) {
-                    $prevCount = DB::table('audit_log')
-                        ->where('objek_tipe', 'jenis_berkas')
-                        ->where('objek_id', $jb->id)
-                        ->where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')
-                        ->count();
-
-                    $this->auditLogger->catat(
-                        actor: $actor,
-                        tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
-                        objekTipe: 'jenis_berkas',
-                        objekId: $jb->id,
-                        nilaiLama: [
-                            'nama' => $jb->nama,
-                            'tahap' => $jb->tahap,
-                            'status_pemenuhan' => 'normal',
-                        ],
-                        nilaiBaru: [
-                            'nama' => $jb->nama,
-                            'tahap' => $jb->tahap,
-                            'status_pemenuhan' => 'tidak_dapat_dipenuhi',
-                            'sebab' => 'saklar_unggahan_global_nonaktif',
-                            'kunci_setelan' => 'berkas.unggahan_aktif',
-                            'siklus_penandaan' => $prevCount + 1,
-                        ],
-                        alasan: 'Penandaan otomatis saat persyaratan wajib file-only dibuat ketika saklar unggahan global dinonaktifkan.',
-                        dasarIzin: $dasarIzin
-                    );
-                }
-            }
 
             return null;
         });
@@ -130,7 +68,5 @@ class CreateJenisBerkasAction
             );
             abort(403);
         }
-
-        return $this->warnings->forUploadState($isUnggahanAktif, $data);
     }
 }

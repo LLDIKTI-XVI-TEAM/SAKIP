@@ -442,9 +442,10 @@ test('token state Renstra bergantung pada kunci server', function (): void {
     }
 });
 
-test('recheck setelan unggahan pada service mencatat satu denial setelah rollback', function (): void {
+test('validasi service memakai konfigurasi dan mencatat satu denial setelah rollback', function (): void {
     Pengaturan::query()->create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas']);
-    $file = UploadedFile::fake()->create('naskah.pdf', 1, 'application/pdf');
+    config(['uploads.default_max_kb' => 100]);
+    $file = UploadedFile::fake()->create('naskah.pdf', 101, 'application/pdf');
     expect(fn () => app(UpdateRenstraAction::class)->handle($this->actor, $this->renstra, payloadLifecycleRevision($this->renstra, [
         'lampiran' => [['mode' => 'file', 'file' => $file]],
     ])))->toThrow(ValidationException::class);

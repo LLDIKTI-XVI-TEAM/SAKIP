@@ -8,7 +8,6 @@ use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
-use App\Models\Pengaturan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\Renstra;
@@ -38,8 +37,8 @@ class ActivateJadwal
     public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit, private readonly JadwalActivationReadiness $readiness) {}
 
     /**
-     * Aktivasi pertama draft → aktif; snapshot baru, transisi, penanda pengecualian, dan audit atomik.
-     * Urutan lock (spec §5) mengikuti writer existing: konfigurasi periode shared → PK → setting unggahan shared
+     * Aktivasi pertama draft → aktif; snapshot baru, transisi, dan audit atomik.
+     * Urutan lock (spec §5) mengikuti writer existing: konfigurasi periode shared → PK
      * → seluruh indikator Renstra → Sasaran shared → Renstra → Jadwal → target dan komponen.
      *
      * @param  array<string, mixed>  $data
@@ -64,9 +63,6 @@ class ActivateJadwal
                     return $this->outcome($candidate, $data['operation_id'], changed: false, created: 0);
                 }
                 $pk = RenstraPk::where('renstra_id', $candidate->renstra_id)->where('tahun', $candidate->tahun)->lockForUpdate()->first();
-                // Nilai yang dipakai G4 hanya hasil baca terkunci ini: row absent tidak terkunci, sehingga nilai yang muncul
-                // belakangan tidak boleh mengaktifkan pengecualian (absent tetap default canonical true).
-                $unggahanAktif = Pengaturan::where('kunci', 'berkas.unggahan_aktif')->sharedLock()->value('nilai');
                 $indicatorIds = $this->indicatorIds($candidate->renstra_id, lock: true);
                 SasaranStrategis::where('renstra_id', $candidate->renstra_id)->orderBy('id')->sharedLock()->get(['id']);
                 Renstra::whereKey($candidate->renstra_id)->lockForUpdate()->firstOrFail();
@@ -87,7 +83,7 @@ class ActivateJadwal
 
                 // Satu waktu server sesudah seluruh lock; dipotong ke detik karena activated_at timestamp(0) membulatkan pecahan detik.
                 $at = CarbonImmutable::now()->startOfSecond();
-                $context = [...$this->readiness->context($jadwal), 'unggahan_aktif' => $unggahanAktif];
+                $context = $this->readiness->context($jadwal);
                 if ($context['pk']?->id !== $pk?->id) {
                     throw ValidationException::withMessages(['aktivasi' => self::STALE]);
                 }
@@ -109,16 +105,12 @@ class ActivateJadwal
                 $finalizedExisting = JadwalSnapshot::where('jadwal_id', $jadwal->id)
                     ->where('komposisi_final', false)
                     ->update(['komposisi_final' => true]);
-                $exception = $this->readiness->usesAttachmentException($context);
-                if ($exception) {
-                    $this->markAttachmentException($actor, $context['pk'], $data['alasan'], $basis);
-                }
                 $before = $jadwal->only(['status', 'revisi', 'renstra_pk_id', 'activated_at']);
                 $jadwal->forceFill(['status' => 'aktif', 'renstra_pk_id' => $context['pk']->id, 'activated_at' => $at->format('Y-m-d H:i:s'), 'revisi' => $jadwal->revisi + 1])->save();
                 $this->audit->catat(actor: $actor, tindakan: 'jadwal.aktivasi', objekTipe: 'jadwal', objekId: $jadwal->id, nilaiLama: $before,
                     nilaiBaru: [...$jadwal->only(['status', 'revisi', 'renstra_pk_id']), 'activated_at' => $at->toIso8601ZuluString(),
                         'snapshot_ids' => $snapshotIds, 'snapshot_created_count' => count($snapshotIds),
-                        'snapshot_finalized_existing_count' => $finalizedExisting, 'pengecualian_lampiran_pk' => $exception],
+                        'snapshot_finalized_existing_count' => $finalizedExisting],
                     alasan: $data['alasan'], dasarIzin: $basis);
 
                 return $this->outcome($jadwal, $data['operation_id'], changed: true, created: count($snapshotIds));
@@ -202,31 +194,6 @@ class ActivateJadwal
         }
 
         return $ids;
-    }
-
-    /**
-     * Penanda lifecycle existing berkas.tandai_tidak_dapat_dipenuhi untuk PK; tidak diduplikasi bila penanda aktif sudah ada.
-     * Pencabutan tetap milik UpdateStoragePolicyAction.
-     *
-     * @param  array<string, mixed>  $basis
-     */
-    private function markAttachmentException(User $actor, RenstraPk $pk, string $alasan, array $basis): void
-    {
-        $markers = DB::table('audit_log as a')->where('a.objek_tipe', 'renstra_pk')->where('a.objek_id', $pk->id)->where('a.tindakan', 'berkas.tandai_tidak_dapat_dipenuhi');
-        // Definisi "aktif" sama dengan UpdateStoragePolicyAction: belum ada pencabutan yang merujuk penanda tersebut.
-        $active = (clone $markers)->whereNotExists(fn ($query) => $query->select(DB::raw(1))->from('audit_log as a2')
-            ->whereColumn('a2.objek_id', 'a.objek_id')->whereColumn('a2.objek_tipe', 'a.objek_tipe')->where('a2.tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
-            ->where(fn ($match) => $match->whereRaw("(a2.nilai_lama->>'penanda_audit_id') = a.id::text")->orWhereRaw("(a2.nilai_baru->>'penanda_audit_id') = a.id::text")
-                ->orWhere(fn ($legacy) => $legacy->whereNull(DB::raw("a2.nilai_lama->>'penanda_audit_id'"))->whereNull(DB::raw("a2.nilai_baru->>'penanda_audit_id'"))
-                    ->whereColumn('a2.waktu', '>', 'a.waktu'))))->exists();
-        if ($active) {
-            return;
-        }
-        $this->audit->catat(actor: $actor, tindakan: 'berkas.tandai_tidak_dapat_dipenuhi', objekTipe: 'renstra_pk', objekId: $pk->id,
-            nilaiLama: ['nomor_pk' => $pk->nomor_pk, 'tahun' => $pk->tahun, 'status_gerbang' => 'normal'],
-            nilaiBaru: ['nomor_pk' => $pk->nomor_pk, 'tahun' => $pk->tahun, 'status_gerbang' => 'tidak_dapat_dipenuhi', 'gerbang' => 'lampiran_pk',
-                'sebab' => 'saklar_unggahan_global_nonaktif', 'kunci_setelan' => 'berkas.unggahan_aktif', 'siklus_penandaan' => $markers->count() + 1],
-            alasan: $alasan, dasarIzin: $basis);
     }
 
     /** @return array{operation_id: string, jadwal_id: string, status: string, activated_at: string, revisi: int, changed: bool, snapshot_created_count: int} */

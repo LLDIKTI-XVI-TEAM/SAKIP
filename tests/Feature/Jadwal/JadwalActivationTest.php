@@ -94,7 +94,8 @@ class JadwalActivationTest extends TestCase
         $audit = AuditLog::where('tindakan', 'jadwal.aktivasi')->sole();
         $this->assertSame([$actor->id, 'PK dan target tahunan sudah disahkan.'], [$audit->actor_id, $audit->alasan]);
         $this->assertSame(['draft', 2], [$audit->nilai_lama['status'], $audit->nilai_lama['revisi']]);
-        $this->assertSame(['aktif', 3, 2, false], [$audit->nilai_baru['status'], $audit->nilai_baru['revisi'], $audit->nilai_baru['snapshot_created_count'], $audit->nilai_baru['pengecualian_lampiran_pk']]);
+        $this->assertSame(['aktif', 3, 2], [$audit->nilai_baru['status'], $audit->nilai_baru['revisi'], $audit->nilai_baru['snapshot_created_count']]);
+        $this->assertArrayNotHasKey('pengecualian_lampiran_pk', $audit->nilai_baru);
         $this->assertEqualsCanonicalizing($rows->pluck('id')->all(), $audit->nilai_baru['snapshot_ids']);
         $this->assertSame(2, $this->audits('jadwal_snapshot.buat'));
         $this->assertSame(0, $this->audits('jadwal.aktivasi_ditolak'));
@@ -290,21 +291,21 @@ class JadwalActivationTest extends TestCase
         $this->assertSame(2, JadwalSnapshotKomponen::where('jadwal_snapshot_id', $snapshot->id)->count());
     }
 
-    public function test_attachment_exception_marks_pk_once_and_get_never_marks(): void
+    public function test_legacy_disabled_setting_never_bypasses_pk_attachment_gate(): void
     {
         $this->readyJadwal();
         Berkas::query()->delete();
         $this->uploadSetting('false');
         $actor = $this->activator();
         $marker = fn (): int => AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->where('objek_id', $this->ready['pk']->id)->count();
-        $this->actingAs($actor)->getJson('/jadwal/'.$this->ready['jadwal']->id.'/kesiapan-aktivasi')->assertJsonPath('gates.3.status', 'pengecualian');
+        $this->actingAs($actor)->getJson('/jadwal/'.$this->ready['jadwal']->id.'/kesiapan-aktivasi')->assertJsonPath('gates.3.status', 'gagal');
         $this->assertSame(0, $marker());
-        $this->activate($this->activationPayload())->assertSessionHasNoErrors();
-        $this->assertSame(1, $marker());
-        $this->assertTrue(AuditLog::where('tindakan', 'jadwal.aktivasi')->sole()->nilai_baru['pengecualian_lampiran_pk']);
+        $this->activate($this->activationPayload())->assertSessionHasErrors('aktivasi');
+        $this->assertSame(0, $marker());
+        $this->assertStillDraft();
     }
 
-    public function test_existing_active_marker_is_not_duplicated_and_invalid_setting_does_not_bypass(): void
+    public function test_existing_marker_and_legacy_settings_do_not_bypass_pk_gate(): void
     {
         $this->readyJadwal();
         Berkas::query()->delete();
@@ -316,14 +317,14 @@ class JadwalActivationTest extends TestCase
         $this->uploadSetting('false');
         app(AuditLogger::class)->catat(actor: $this->ready['owner'], tindakan: 'berkas.tandai_tidak_dapat_dipenuhi', objekTipe: 'renstra_pk', objekId: $this->ready['pk']->id,
             nilaiBaru: ['status_gerbang' => 'tidak_dapat_dipenuhi', 'gerbang' => 'lampiran_pk'], alasan: 'Fixture penanda');
-        $this->activate($this->activationPayload())->assertSessionHasNoErrors();
+        $this->activate($this->activationPayload())->assertSessionHasErrors('aktivasi');
         $this->assertSame(1, AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->count());
+        $this->assertStillDraft();
     }
 
     public function test_failure_in_child_or_success_audit_rolls_back_this_transaction_only(): void
     {
         $this->readyJadwal();
-        Berkas::query()->delete();
         $this->uploadSetting('false');
         $this->eligibleIndicator(tipe: 'penjumlahan', komponen: [['kode' => 'X', 'peran' => 'penjumlah']]);
         $kept = $this->eligibleIndicator();

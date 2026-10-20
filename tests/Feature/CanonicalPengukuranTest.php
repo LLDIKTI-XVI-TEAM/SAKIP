@@ -176,7 +176,7 @@ class CanonicalPengukuranTest extends TestCase
         $this->assertSame('50.000000000000', $this->pengukuran->fresh()->nilai);
     }
 
-    public function test_required_evidence_without_modes_blocks_submission_but_file_only_waiver_remains_valid(): void
+    public function test_required_evidence_without_modes_and_missing_file_blocks_submission(): void
     {
         $requirement = JenisBerkas::create(['nama' => 'Bukti wajib', 'tahap' => 'pengukuran', 'wajib' => true,
             'izinkan_file' => false, 'izinkan_tautan' => false, 'izinkan_teks' => false, 'created_by' => $this->actor->id]);
@@ -193,30 +193,26 @@ class CanonicalPengukuranTest extends TestCase
         $this->assertDatabaseCount('pengukuran_versi', 0);
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'berkas.tandai_tidak_dapat_dipenuhi']);
         $requirement->update(['izinkan_file' => true]);
-        $this->post($url, ['versi' => 2, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasNoErrors();
-        $this->assertSame(['file'], KinerjaSnapshot::sole()->snapshot['persyaratan_bukti'][0]['pemenuhan']['mode_dikecualikan']);
-        $this->assertSame(['file'], AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->sole()->nilai_baru['pengecualian'][0]['mode']);
+        $this->post($url, ['versi' => 2, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasErrors('pengajuan');
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'berkas.tandai_tidak_dapat_dipenuhi']);
     }
 
-    public function test_file_waiver_preserves_required_nonfile_modes_and_freezes_requirements(): void
+    public function test_required_modes_remain_mandatory_and_requirements_are_frozen(): void
     {
         $requirement = JenisBerkas::create(['nama' => 'Bukti wajib', 'tahap' => 'pengukuran', 'wajib' => true, 'izinkan_file' => true, 'izinkan_teks' => true, 'semua_mode_wajib' => true, 'created_by' => $this->actor->id, 'created_at' => now(), 'updated_at' => now()]);
         Pengaturan::create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]);
         $url = '/pengukuran/'.$this->pengukuran->id;
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasErrors('pengajuan');
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'berkas.tandai_tidak_dapat_dipenuhi']);
+        Storage::fake('local');
+        Storage::disk('local')->put('berkas/bukti.pdf', '%PDF-1.4 bukti sintetis');
+        $this->pengukuran->buktiDukungs()->create(['berkasable_type' => 'pengukuran', 'jenis_berkas_id' => $requirement->id, 'mode' => 'file', 'nama_asli' => 'bukti.pdf', 'path' => 'berkas/bukti.pdf', 'mime' => 'application/pdf', 'ukuran_bytes' => 1024, 'uploaded_by' => $this->actor->id, 'created_at' => now()]);
         $this->actingAs($this->actor)->post($url, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85, 'bukti' => ['jenis_berkas_id' => $requirement->id, 'mode' => 'teks', 'isi_teks' => 'Bukti sintetis memenuhi persyaratan.']])->assertSessionHasNoErrors();
         $requirement->update(['izinkan_teks' => false, 'semua_mode_wajib' => false]);
         $version = KinerjaSnapshot::firstOrFail();
-        $waiver = AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->sole();
-        $this->assertSame($this->actor->id, $waiver->actor_id);
-        $this->assertSame($this->pengukuran->id, $waiver->objek_id);
-        $this->assertSame($version->id, $waiver->nilai_baru['versi_pengajuan_id']);
-        $this->assertSame($requirement->id, $waiver->nilai_baru['pengecualian'][0]['jenis_berkas_id']);
-        $this->assertSame(['file'], $waiver->nilai_baru['pengecualian'][0]['mode']);
-        $this->assertNotEmpty($waiver->alasan);
-        $this->assertNotEmpty($waiver->dasar_izin);
-        $this->assertSame(['file'], $version->snapshot['persyaratan_bukti'][0]['pemenuhan']['mode_dikecualikan']);
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'berkas.tandai_tidak_dapat_dipenuhi']);
+        $this->assertSame([], $version->snapshot['persyaratan_bukti'][0]['pemenuhan']['mode_dikecualikan']);
         $this->assertTrue($version->snapshot['persyaratan_bukti'][0]['izinkan_teks']);
         $this->actingAs($this->actor)->post('/verifikasi/'.$this->pengukuran->id.'/verifikasi', ['versi' => 2])->assertSessionHasNoErrors();
     }

@@ -203,7 +203,7 @@ export interface RencanaAksiBukti {
     persyaratan: BuktiPersyaratan[];
     ringkasan: { lengkap: boolean; total_wajib: number; terpenuhi_wajib: number };
     daftar: BuktiItem[];
-    unggahan: { unggahan_aktif: boolean; ukuran_maks_kb: number; format_diizinkan: string };
+    unggahan: { ukuran_maks_kb: number; format_diizinkan: string };
     can: { upload: boolean; delete: boolean };
 }
 

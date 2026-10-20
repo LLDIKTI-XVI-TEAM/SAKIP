@@ -6,12 +6,10 @@ use App\Actions\Access\CreateDeny;
 use App\Actions\Audit\WriteAuditLog;
 use App\Actions\JenisBerkas\CreateJenisBerkasAction;
 use App\Actions\JenisBerkas\DeleteJenisBerkasAction;
-use App\Actions\JenisBerkas\UpdateBatasTeknisJenisBerkasAction;
 use App\Actions\JenisBerkas\UpdateJenisBerkasAction;
 use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Http\Requests\DeleteJenisBerkasRequest;
 use App\Http\Requests\StoreJenisBerkasRequest;
-use App\Http\Requests\UpdateBatasTeknisJenisBerkasRequest;
 use App\Http\Requests\UpdateJenisBerkasRequest;
 use App\Models\AuditLog;
 use App\Models\BuktiDukung;
@@ -31,7 +29,6 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
-use Carbon\Carbon;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -108,9 +105,6 @@ class JenisBerkasTest extends TestCase
         return $user;
     }
 
-    /**
-     * TEST-1: Create persyaratan valid tersimpan beserta dasar_izin audit.
-     */
     public function test_perencanaan_can_create_valid_jenis_berkas(): void
     {
         $payload = [
@@ -424,9 +418,6 @@ class JenisBerkasTest extends TestCase
             'expected_updated_at' => $jb->updated_at->toISOString(),
             'ukuran_maks_kb' => 2048,
         ];
-        if ($method === 'PATCH') {
-            unset($payload['nama'], $payload['tahap'], $payload['wajib'], $payload['izinkan_file']);
-        }
 
         try {
             $this->actingAs($actor)->call($method, '/jenis-berkas'.($method === 'POST' ? '' : '/'.$jb->id).$suffix, $payload);
@@ -446,7 +437,6 @@ class JenisBerkasTest extends TestCase
             'create' => ['POST', ''],
             'update' => ['PUT', ''],
             'delete' => ['DELETE', ''],
-            'technical' => ['PATCH', '/batas-teknis'],
         ];
     }
 
@@ -458,7 +448,6 @@ class JenisBerkasTest extends TestCase
             'POST' => 'jenis_berkas:create',
             'PUT' => 'jenis_berkas:update',
             'DELETE' => 'jenis_berkas:delete',
-            'PATCH' => 'pengaturan:update',
         };
         $this->assertTrue(app(PermissionResolver::class)->allows($actor, $permission));
         $deny = app(CreateDeny::class)->handle($this->admin, $actor->id, Permission::where('kode', $permission)->value('id'), null, 'Pencabutan sebelum pemanggilan Action');
@@ -470,7 +459,6 @@ class JenisBerkasTest extends TestCase
                 'POST' => app(CreateJenisBerkasAction::class)->handle($actor, ['nama' => 'Persyaratan baru', 'tahap' => 'pengukuran', 'izinkan_file' => true]),
                 'PUT' => app(UpdateJenisBerkasAction::class)->handle($actor, $jb->id, $data + ['nama' => 'Persyaratan baru', 'tahap' => 'pengukuran', 'izinkan_file' => true]),
                 'DELETE' => app(DeleteJenisBerkasAction::class)->handle($actor, $jb->id, $data),
-                'PATCH' => app(UpdateBatasTeknisJenisBerkasAction::class)->handle($actor, $jb->id, $data + ['ukuran_maks_kb' => 2048]),
             };
             $this->fail('Pemanggil langsung wajib diperiksa oleh Action.');
         } catch (HttpException $exception) {
@@ -483,41 +471,6 @@ class JenisBerkasTest extends TestCase
         $this->assertContains($deny->id, $audit->dasar_izin['denies']);
         $this->assertNotSame('', trim($audit->alasan));
         $this->assertStringNotContainsString("\x01", $audit->alasan);
-    }
-
-    #[DataProvider('markingMutationMethods')]
-    public function test_marking_failure_rolls_back_requirement_and_success_audit(string $method): void
-    {
-        Pengaturan::create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas']);
-        $jb = JenisBerkas::create(['nama' => 'Persyaratan awal', 'tahap' => 'pengukuran', 'wajib' => false, 'izinkan_file' => true, 'created_by' => $this->perencanaan->id]);
-        $before = $jb->fresh()->getAttributes();
-        $auditCount = AuditLog::count();
-        $writer = app(WriteAuditLog::class);
-        $this->mock(WriteAuditLog::class)->shouldReceive('handle')->andReturnUsing(function (array $data) use ($writer) {
-            if ($data['tindakan'] === 'berkas.tandai_tidak_dapat_dipenuhi') {
-                throw new RuntimeException('Penanda gagal ditulis');
-            }
-
-            return $writer->handle($data);
-        });
-        $this->withoutExceptionHandling();
-        try {
-            $this->actingAs($this->perencanaan)->call($method, '/jenis-berkas'.($method === 'POST' ? '' : '/'.$jb->id), [
-                'nama' => 'Persyaratan wajib file', 'tahap' => 'pengukuran', 'wajib' => true, 'aktif' => true, 'izinkan_file' => true,
-                'alasan' => 'Menguji rollback penanda', 'expected_updated_at' => $jb->updated_at->toISOString(),
-            ]);
-            $this->fail('Kegagalan penanda harus membatalkan seluruh transaksi.');
-        } catch (RuntimeException $exception) {
-            $this->assertSame('Penanda gagal ditulis', $exception->getMessage());
-        }
-        $this->assertDatabaseCount('jenis_berkas', 1);
-        $this->assertSame($before, $jb->fresh()->getAttributes());
-        $this->assertSame($auditCount, AuditLog::count());
-    }
-
-    public static function markingMutationMethods(): array
-    {
-        return [['POST'], ['PUT']];
     }
 
     #[DataProvider('requestDenials')]
@@ -550,7 +503,6 @@ class JenisBerkasTest extends TestCase
             [StoreJenisBerkasRequest::class, 'jenis_berkas:create'],
             [UpdateJenisBerkasRequest::class, 'jenis_berkas:update'],
             [DeleteJenisBerkasRequest::class, 'jenis_berkas:delete'],
-            [UpdateBatasTeknisJenisBerkasRequest::class, 'pengaturan:update'],
         ];
     }
 
@@ -580,7 +532,6 @@ class JenisBerkasTest extends TestCase
             'create UTF-8 rusak' => ['POST', '', ['alasan' => "Alasan\xFF lanjutan"], 'Alasan? lanjutan'],
             'update NUL' => ['PUT', '', ['alasan' => "Alasan\0 lanjutan"], 'Alasan lanjutan'],
             'delete terlalu panjang' => ['DELETE', '', ['alasan' => str_repeat('é', 1100)], str_repeat('é', 1000)],
-            'batas teknis hanya kontrol' => ['PATCH', '/batas-teknis', ['alasan' => "\x01\x7F"], 'Percobaan pembaruan batas teknis jenis berkas ditolak karena tidak memiliki izin pengaturan:update.'],
             'create nama mentah' => ['POST', '', ['nama' => "Bukti\0\xFF\x01".str_repeat('é', 300)], 'Percobaan penambahan persyaratan jenis berkas ditolak karena tidak memiliki izin. (Nama: Bukti?'.str_repeat('é', 249).')'],
         ];
     }
@@ -595,8 +546,6 @@ class JenisBerkasTest extends TestCase
         $payload = ['alasan' => str_repeat("\x01", 10), 'expected_updated_at' => $jb->updated_at->toISOString()];
         if ($method === 'PUT') {
             $payload += ['nama' => 'Persyaratan diubah', 'tahap' => 'pengukuran', 'izinkan_file' => true];
-        } elseif ($method === 'PATCH') {
-            $payload += ['ukuran_maks_kb' => 2048];
         }
 
         $this->actingAs($actor)->from('/jenis-berkas')->withHeader('X-Inertia', 'true')
@@ -609,7 +558,7 @@ class JenisBerkasTest extends TestCase
 
     public static function reasonRequiredMutations(): array
     {
-        return [['PUT', ''], ['PATCH', '/batas-teknis'], ['DELETE', '']];
+        return [['PUT', ''], ['DELETE', '']];
     }
 
     #[DataProvider('mutationMethods')]
@@ -628,7 +577,6 @@ class JenisBerkasTest extends TestCase
             'POST' => ['jenis_berkas:create', 'jenis_berkas.buat_ditolak'],
             'PUT' => ['jenis_berkas:update', 'jenis_berkas.ubah_ditolak'],
             'DELETE' => ['jenis_berkas:delete', 'jenis_berkas.hapus_ditolak'],
-            'PATCH' => ['pengaturan:update', 'jenis_berkas.batas_teknis_ubah_ditolak'],
         };
         $this->assertSame($permission, $audit->dasar_izin['permission']);
         $this->assertSame('no_allow', $audit->dasar_izin['reason']);
@@ -741,10 +689,7 @@ class JenisBerkasTest extends TestCase
         $this->assertDatabaseHas('jenis_berkas', ['id' => $jb->id]);
     }
 
-    /**
-     * TEST-10: Peringatan flash muncul saat persyaratan wajib file-only disimpan sementara unggahan nonaktif.
-     */
-    public function test_warning_flashed_when_mandatory_file_only_saved_while_uploads_disabled(): void
+    public function test_legacy_upload_setting_does_not_warn_when_file_only_requirement_is_created(): void
     {
         Pengaturan::create([
             'kunci' => 'berkas.unggahan_aktif',
@@ -765,7 +710,7 @@ class JenisBerkasTest extends TestCase
 
         $response = $this->actingAs($this->perencanaan)->post('/jenis-berkas', $payload);
         $response->assertRedirect('/jenis-berkas');
-        $response->assertSessionHas('warning');
+        $response->assertSessionMissing('warning');
         $this->assertDatabaseHas('jenis_berkas', ['nama' => 'Laporan Khusus File Dinonaktifkan']);
     }
 
@@ -961,10 +906,7 @@ class JenisBerkasTest extends TestCase
         $this->assertIsString($audit->alasan);
     }
 
-    /**
-     * TEST-16: Store memicu session flash warning saat mode file diwajibkan dan berkas.unggahan_aktif false.
-     */
-    public function test_store_flashes_warning_when_required_file_only_and_uploads_disabled(): void
+    public function test_store_does_not_warn_for_legacy_disabled_setting(): void
     {
         Pengaturan::updateOrCreate(
             ['kunci' => 'berkas.unggahan_aktif'],
@@ -986,7 +928,7 @@ class JenisBerkasTest extends TestCase
         ]);
 
         $response->assertRedirect('/jenis-berkas');
-        $response->assertSessionHas('warning');
+        $response->assertSessionMissing('warning');
     }
 
     /**
@@ -1054,10 +996,7 @@ class JenisBerkasTest extends TestCase
         $response->assertSessionHasErrors('expected_updated_at');
     }
 
-    /**
-     * TEST-20: Store dan update memicu session flash warning saat semua_mode_wajib mencakup file sementara unggahan nonaktif.
-     */
-    public function test_warning_flashed_when_semua_mode_wajib_with_file_and_uploads_disabled(): void
+    public function test_all_modes_create_and_update_ignore_legacy_disabled_setting(): void
     {
         Pengaturan::updateOrCreate(
             ['kunci' => 'berkas.unggahan_aktif'],
@@ -1081,7 +1020,7 @@ class JenisBerkasTest extends TestCase
         ]);
 
         $storeResponse->assertRedirect('/jenis-berkas');
-        $storeResponse->assertSessionHas('warning');
+        $storeResponse->assertSessionMissing('warning');
 
         $jb = JenisBerkas::where('nama', 'Semua Mode Saat Unggahan Mati')->firstOrFail();
 
@@ -1099,12 +1038,9 @@ class JenisBerkasTest extends TestCase
         ]);
 
         $updateResponse->assertRedirect('/jenis-berkas');
-        $updateResponse->assertSessionHas('warning');
+        $updateResponse->assertSessionMissing('warning');
     }
 
-    /**
-     * TEST-21: Evaluasi bukti membatalkan pemenuhan file draf jika format atau ukuran maksimum jenis berkas diperketat.
-     */
     public function test_evidence_evaluation_preserves_grandfathered_evidence_when_format_or_size_limits_are_tightened(): void
     {
         // Persyaratan awal: izinkan pdf dan docx, ukuran maksimum 1000 KB
@@ -1198,120 +1134,27 @@ class JenisBerkasTest extends TestCase
         $this->assertSame([], $evaluations[$jb->id]['pemenuhan']['mode_kurang']);
     }
 
-    /**
-     * TEST-22: Pemisahan kewenangan kebijakan teknis unggahan berkas (SAKIP - Workflow.md:1527-1529).
-     * Perencanaan (tanpa pengaturan:update) dilarang mengatur/mengubah format_diizinkan dan ukuran_maks_kb.
-     * Pengguna dengan izin pengaturan:update (Superadmin) diizinkan mengatur batas teknis tersebut.
-     */
-    public function test_technical_upload_limits_require_pengaturan_update_permission(): void
+    public function test_perencanaan_can_manage_format_and_size_with_jenis_berkas_permission(): void
     {
-        $superadmin = $this->userWithRole('superadmin');
-
-        // 1. Jalur Store: Perencanaan mengirim format & ukuran kustom -> nilainya diabaikan oleh controller (fallback ke null/default aplikasi)
-        $responsePerencanaanStore = $this->actingAs($this->perencanaan)->post(route('jenis-berkas.store'), [
-            'nama' => 'Syarat Perencanaan Tanpa Batas Teknis',
-            'tahap' => 'pengukuran',
-            'izinkan_file' => true,
-            'izinkan_tautan' => false,
-            'izinkan_teks' => false,
-            'format_diizinkan' => 'pdf,docx',
-            'ukuran_maks_kb' => 5000,
-        ]);
-        $responsePerencanaanStore->assertRedirect(route('jenis-berkas.index'));
-        $this->assertDatabaseHas('jenis_berkas', [
-            'nama' => 'Syarat Perencanaan Tanpa Batas Teknis',
-            'format_diizinkan' => null,
-            'ukuran_maks_kb' => null,
-        ]);
-
-        // 2. Jalur Store: Superadmin (memiliki pengaturan:update) mengirim format & ukuran kustom -> nilainya tersimpan
-        $responseSuperadminStore = $this->actingAs($superadmin)->post(route('jenis-berkas.store'), [
-            'nama' => 'Syarat Admin Dengan Batas Teknis',
-            'tahap' => 'pengukuran',
-            'izinkan_file' => true,
-            'izinkan_tautan' => false,
-            'izinkan_teks' => false,
-            'format_diizinkan' => 'pdf,docx,xlsx',
-            'ukuran_maks_kb' => 10240,
-        ]);
-        $responseSuperadminStore->assertRedirect(route('jenis-berkas.index'));
-        $this->assertDatabaseHas('jenis_berkas', [
-            'nama' => 'Syarat Admin Dengan Batas Teknis',
-            'format_diizinkan' => 'pdf,docx,xlsx',
-            'ukuran_maks_kb' => 10240,
-        ]);
-
-        // 3. Buat jenis berkas awal untuk pengujian update
-        $jb = JenisBerkas::create([
-            'nama' => 'Syarat Batas Teknis Awal',
-            'tahap' => 'pengukuran',
-            'indikator_id' => $this->indikator->id,
-            'izinkan_file' => true,
-            'izinkan_tautan' => false,
-            'izinkan_teks' => false,
-            'format_diizinkan' => 'pdf,docx',
-            'ukuran_maks_kb' => 5000,
-            'created_by' => $this->perencanaan->id,
-        ]);
-
-        // 2. Perencanaan (tanpa pengaturan:update) mencoba mengubah format_diizinkan / ukuran_maks_kb -> DITOLAK
-        $responseUpdateReject = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
-            'nama' => 'Syarat Legal Diubah',
-            'tahap' => 'pengukuran',
-            'izinkan_file' => true,
-            'izinkan_tautan' => false,
-            'izinkan_teks' => false,
-            'format_diizinkan' => 'pdf',
-            'ukuran_maks_kb' => 2000,
-            'alasan' => 'Mencoba mengubah format teknis tanpa izin pengaturan.',
-            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
-        ]);
-        $responseUpdateReject->assertSessionHasErrors(['format_diizinkan', 'ukuran_maks_kb']);
-
-        // 3. Perencanaan memperbarui kolom substantif dengan format & ukuran tetap sama -> BERHASIL
-        $responseUpdateOk = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
-            'nama' => 'Syarat Legal Diperbarui',
-            'tahap' => 'pengukuran',
-            'izinkan_file' => true,
-            'izinkan_tautan' => false,
-            'izinkan_teks' => false,
-            'format_diizinkan' => $jb->format_diizinkan,
-            'ukuran_maks_kb' => $jb->ukuran_maks_kb,
-            'alasan' => 'Pembaruan nama persyaratan oleh tim perencanaan.',
-            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
-        ]);
-        $responseUpdateOk->assertRedirect(route('jenis-berkas.index'));
-        $this->assertDatabaseHas('jenis_berkas', [
-            'id' => $jb->id,
-            'nama' => 'Syarat Legal Diperbarui',
-        ]);
-
-        // 4. Superadmin (memiliki jenis_berkas:update DAN pengaturan:update) dapat mengubah batas teknis -> BERHASIL
-        $superadmin = $this->userWithRole('superadmin');
-        $jbFresh = $jb->fresh();
-        $responseSuperadmin = $this->actingAs($superadmin)->put(route('jenis-berkas.update', $jb->id), [
-            'nama' => 'Syarat Legal Diperbarui',
-            'tahap' => 'pengukuran',
-            'izinkan_file' => true,
-            'izinkan_tautan' => false,
-            'izinkan_teks' => false,
-            'format_diizinkan' => 'pdf,png',
-            'ukuran_maks_kb' => 8192,
-            'alasan' => 'Admin menyesuaikan batas teknis penyimpanan berkas.',
-            'expected_updated_at' => ($jbFresh->updated_at ?? $jbFresh->created_at)->toISOString(),
-        ]);
-        $responseSuperadmin->assertRedirect(route('jenis-berkas.index'));
-        $this->assertDatabaseHas('jenis_berkas', [
-            'id' => $jb->id,
-            'format_diizinkan' => 'pdf,png',
-            'ukuran_maks_kb' => 8192,
-        ]);
+        $resolver = app(PermissionResolver::class);
+        $this->assertFalse($resolver->allows($this->perencanaan, 'pengaturan:update'));
+        $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
+            'nama' => 'Batas teknis Perencanaan', 'tahap' => 'pengukuran', 'izinkan_file' => true,
+            'format_diizinkan' => 'pdf,docx', 'ukuran_maks_kb' => 5000,
+        ])->assertRedirect('/jenis-berkas')->assertSessionHasNoErrors();
+        $jb = JenisBerkas::where('nama', 'Batas teknis Perencanaan')->sole();
+        $this->assertSame('pdf,docx', $jb->format_diizinkan);
+        $this->assertSame(5000, $jb->ukuran_maks_kb);
+        $this->actingAs($this->perencanaan)->put('/jenis-berkas/'.$jb->id, [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => true,
+            'format_diizinkan' => 'pdf', 'ukuran_maks_kb' => 2000,
+            'alasan' => 'Menyesuaikan persyaratan dokumen.', 'expected_updated_at' => $jb->updated_at->toISOString(),
+        ])->assertRedirect('/jenis-berkas')->assertSessionHasNoErrors();
+        $this->assertSame('pdf', $jb->fresh()->format_diizinkan);
+        $this->assertSame(2000, $jb->fresh()->ukuran_maks_kb);
     }
 
-    /**
-     * TEST-23: Admin (memiliki pengaturan:update, tanpa jenis_berkas:update) dapat memperbarui batas teknis via endpoint khusus.
-     */
-    public function test_admin_can_update_batas_teknis_via_dedicated_endpoint(): void
+    public function test_perencanaan_updates_technical_fields_through_requirement_form(): void
     {
         $jb = JenisBerkas::create([
             'nama' => 'Syarat Teknis Khusus',
@@ -1325,7 +1168,8 @@ class JenisBerkasTest extends TestCase
             'created_by' => $this->perencanaan->id,
         ]);
 
-        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        $response = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => 'pdf,docx,xlsx',
             'ukuran_maks_kb' => 10240,
             'alasan' => 'Admin memperbarui kuota ukuran berkas dan menambah format xlsx.',
@@ -1339,86 +1183,14 @@ class JenisBerkasTest extends TestCase
             'ukuran_maks_kb' => 10240,
         ]);
 
-        $audit = AuditLog::where('tindakan', 'jenis_berkas.batas_teknis_ubah')
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.ubah')
             ->where('objek_id', $jb->id)
             ->first();
         $this->assertNotNull($audit);
-        $this->assertSame('pengaturan:update', $audit->dasar_izin['permission'] ?? null);
+        $this->assertSame('jenis_berkas:update', $audit->dasar_izin['permission'] ?? null);
     }
 
-    /**
-     * TEST-24: Endpoint batas teknis menolak kolom substantif (nama, tahap, dll).
-     */
-    public function test_batas_teknis_endpoint_rejects_substantive_fields(): void
-    {
-        $jb = JenisBerkas::create([
-            'nama' => 'Syarat Substantif Kebal',
-            'tahap' => 'pengukuran',
-            'indikator_id' => $this->indikator->id,
-            'izinkan_file' => true,
-            'format_diizinkan' => 'pdf',
-            'ukuran_maks_kb' => 5000,
-            'created_by' => $this->perencanaan->id,
-        ]);
-
-        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
-            'nama' => 'Upaya Modifikasi Substantif',
-            'tahap' => 'evaluasi',
-            'wajib' => false,
-            'format_diizinkan' => 'pdf,docx',
-            'ukuran_maks_kb' => 10240,
-            'alasan' => 'Mencoba mengubah kolom substantif via jalur teknis.',
-            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
-        ]);
-
-        $response->assertSessionHasErrors(['nama', 'tahap', 'wajib']);
-        $this->assertSame(
-            'Kolom substantif bukan wewenang pembaruan batas teknis.',
-            session('errors')->first('nama')
-        );
-        $this->assertDatabaseHas('jenis_berkas', [
-            'id' => $jb->id,
-            'nama' => 'Syarat Substantif Kebal',
-            'tahap' => 'pengukuran',
-            'format_diizinkan' => 'pdf',
-            'ukuran_maks_kb' => 5000,
-        ]);
-    }
-
-    /**
-     * TEST-25: Pengguna tanpa izin pengaturan:update dilarang mengakses endpoint batas teknis dan dicatat pada audit log.
-     */
-    public function test_perencanaan_without_pengaturan_update_is_forbidden_on_batas_teknis_endpoint(): void
-    {
-        $jb = JenisBerkas::create([
-            'nama' => 'Syarat Terlindungi Izin',
-            'tahap' => 'pengukuran',
-            'izinkan_file' => true,
-            'format_diizinkan' => 'pdf',
-            'ukuran_maks_kb' => 5000,
-            'created_by' => $this->perencanaan->id,
-        ]);
-
-        $response = $this->actingAs($this->perencanaan)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
-            'format_diizinkan' => 'pdf,docx',
-            'ukuran_maks_kb' => 8192,
-            'alasan' => 'Percobaan pembaruan batas teknis tanpa izin pengaturan.',
-            'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
-        ]);
-
-        $response->assertForbidden();
-
-        $audit = AuditLog::where('tindakan', 'jenis_berkas.batas_teknis_ubah_ditolak')
-            ->where('objek_id', $jb->id)
-            ->first();
-        $this->assertNotNull($audit);
-        $this->assertSame($this->perencanaan->id, $audit->actor_id);
-    }
-
-    /**
-     * TEST-26: Penyempitan format diizinkan memicu peringatan grandfathering jika terdapat berkas bukti dukung lama.
-     */
-    public function test_format_narrowing_flashes_grandfathering_warning_when_old_files_exist(): void
+    public function test_format_narrowing_preserves_old_files_without_storage_warning(): void
     {
         $jb = JenisBerkas::create([
             'nama' => 'Laporan Format Sempit',
@@ -1443,8 +1215,9 @@ class JenisBerkasTest extends TestCase
             'created_at' => now(),
         ]);
 
-        // Admin mempersempit format menjadi hanya 'pdf,png' (docx tidak lagi tercakup)
-        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        // Perencanaan mempersempit format menjadi hanya 'pdf,png' (docx tidak lagi tercakup)
+        $response = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => 'pdf,png',
             'ukuran_maks_kb' => 5000,
             'alasan' => 'Penyempitan format yang diizinkan untuk keamanan berkas.',
@@ -1452,8 +1225,7 @@ class JenisBerkasTest extends TestCase
         ]);
 
         $response->assertRedirect(route('jenis-berkas.index'));
-        $response->assertSessionHas('warning');
-        $this->assertStringContainsString('grandfathered', session('warning'));
+        $response->assertSessionMissing('warning');
 
         // Bukti dukung lama tetap tersimpan (grandfathered)
         $this->assertDatabaseHas('berkas', [
@@ -1462,10 +1234,7 @@ class JenisBerkasTest extends TestCase
         ]);
     }
 
-    /**
-     * TEST-27: Pembaruan batas teknis pada jalur substantif oleh user dengan kedua izin mencatat dasar izin ganda.
-     */
-    public function test_substantive_update_records_dual_dasar_izin_when_batas_teknis_also_changed(): void
+    public function test_update_technical_fields_records_only_requirement_permission(): void
     {
         $superadmin = $this->userWithRole('superadmin');
         $jb = JenisBerkas::create([
@@ -1496,15 +1265,9 @@ class JenisBerkasTest extends TestCase
             ->first();
         $this->assertNotNull($audit);
         $this->assertIsArray($audit->dasar_izin);
-        $this->assertArrayHasKey('jenis_berkas', $audit->dasar_izin);
-        $this->assertArrayHasKey('pengaturan', $audit->dasar_izin);
-        $this->assertSame('jenis_berkas:update', $audit->dasar_izin['jenis_berkas']['permission']);
-        $this->assertSame('pengaturan:update', $audit->dasar_izin['pengaturan']['permission']);
+        $this->assertSame('jenis_berkas:update', $audit->dasar_izin['permission']);
     }
 
-    /**
-     * TEST-28: Pembaruan batas teknis mewajibkan kecocokan timestamp versi persis (menolak timestamp masa depan maupun usang).
-     */
     public function test_update_batas_teknis_requires_exact_version_timestamp_matching_optimistic_locking(): void
     {
         $jb = JenisBerkas::create([
@@ -1518,7 +1281,8 @@ class JenisBerkasTest extends TestCase
 
         // 1. Kirim timestamp masa depan -> ditolak dengan error 'konflik'
         $futureIso = now()->addDays(2)->toISOString();
-        $responseFuture = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        $responseFuture = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => 'pdf,docx',
             'ukuran_maks_kb' => 8192,
             'alasan' => 'Upaya pembaruan dengan timestamp masa depan.',
@@ -1528,7 +1292,8 @@ class JenisBerkasTest extends TestCase
 
         // 2. Kirim timestamp masa lalu yang tidak cocok -> ditolak dengan error 'konflik'
         $pastIso = now()->subDays(2)->toISOString();
-        $responsePast = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        $responsePast = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => 'pdf,docx',
             'ukuran_maks_kb' => 8192,
             'alasan' => 'Upaya pembaruan dengan timestamp usang.',
@@ -1538,7 +1303,8 @@ class JenisBerkasTest extends TestCase
 
         // 3. Kirim timestamp persis identik -> berhasil
         $exactIso = ($jb->updated_at ?? $jb->created_at)->toISOString();
-        $responseExact = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        $responseExact = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => 'pdf,docx',
             'ukuran_maks_kb' => 8192,
             'alasan' => 'Pembaruan batas teknis dengan versi timestamp identik.',
@@ -1552,10 +1318,7 @@ class JenisBerkasTest extends TestCase
         ]);
     }
 
-    /**
-     * TEST-29: Pembuatan jenis berkas baru oleh pengguna dengan izin pengaturan mencatat dasar izin komposit pada audit log.
-     */
-    public function test_store_records_dual_dasar_izin_when_batas_teknis_specified_by_superadmin(): void
+    public function test_store_technical_fields_records_only_requirement_permission(): void
     {
         $superadmin = $this->userWithRole('superadmin');
 
@@ -1576,15 +1339,9 @@ class JenisBerkasTest extends TestCase
             ->first();
         $this->assertNotNull($audit);
         $this->assertIsArray($audit->dasar_izin);
-        $this->assertArrayHasKey('jenis_berkas', $audit->dasar_izin);
-        $this->assertArrayHasKey('pengaturan', $audit->dasar_izin);
-        $this->assertSame('jenis_berkas:create', $audit->dasar_izin['jenis_berkas']['permission']);
-        $this->assertSame('pengaturan:update', $audit->dasar_izin['pengaturan']['permission']);
+        $this->assertSame('jenis_berkas:create', $audit->dasar_izin['permission']);
     }
 
-    /**
-     * TEST-30: Endpoint batas teknis menolak payload non-string (array) pada format_diizinkan dengan 422 tanpa TypeError 500.
-     */
     public function test_update_batas_teknis_rejects_non_string_format_gracefully(): void
     {
         $jb = JenisBerkas::create([
@@ -1596,7 +1353,8 @@ class JenisBerkasTest extends TestCase
             'created_by' => $this->perencanaan->id,
         ]);
 
-        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        $response = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => ['pdf', 'docx'],
             'ukuran_maks_kb' => 8192,
             'alasan' => 'Uji kirim format_diizinkan sebagai array.',
@@ -1607,9 +1365,6 @@ class JenisBerkasTest extends TestCase
         $this->assertNotSame(500, $response->getStatusCode());
     }
 
-    /**
-     * TEST-31: Perluasan format_diizinkan tidak memicu peringatan grandfathering meski ada berkas lama.
-     */
     public function test_format_expansion_does_not_trigger_grandfathering_warning(): void
     {
         $jb = JenisBerkas::create([
@@ -1635,9 +1390,10 @@ class JenisBerkasTest extends TestCase
             'created_at' => now(),
         ]);
 
-        // Admin memperluas format dari 'pdf' menjadi 'pdf,xlsx'
+        // Perencanaan memperluas format dari 'pdf' menjadi 'pdf,xlsx'
         // Format 'pdf' tetap ada, tidak ada format lama yang dihilangkan
-        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        $response = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => 'pdf,xlsx',
             'ukuran_maks_kb' => 5000,
             'alasan' => 'Memperluas format file yang diizinkan untuk menyertakan spreadsheet.',
@@ -1648,9 +1404,6 @@ class JenisBerkasTest extends TestCase
         $response->assertSessionMissing('warning');
     }
 
-    /**
-     * TEST-32: Pembuatan jenis berkas yang ditolak oleh larangan eksplisit (explicit deny) dicatat pada audit log.
-     */
     public function test_store_jenis_berkas_rejected_by_explicit_deny_is_logged_to_audit(): void
     {
         $permission = Permission::where('kode', 'jenis_berkas:create')->sole();
@@ -1689,9 +1442,6 @@ class JenisBerkasTest extends TestCase
         $this->assertSame('explicit_deny', $audit->dasar_izin['reason'] ?? null);
     }
 
-    /**
-     * TEST-33: Pembaruan batas teknis yang hanya mengubah ukuran_maks_kb (tanpa format_diizinkan) berhasil diproses.
-     */
     public function test_update_batas_teknis_supports_omitted_format_diizinkan(): void
     {
         $jb = JenisBerkas::create([
@@ -1704,7 +1454,8 @@ class JenisBerkasTest extends TestCase
             'created_by' => $this->perencanaan->id,
         ]);
 
-        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        $response = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'ukuran_maks_kb' => 8192,
             'alasan' => 'Hanya mengubah ukuran berkas maksimum tanpa mengirim format_diizinkan.',
             'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
@@ -1718,20 +1469,9 @@ class JenisBerkasTest extends TestCase
         ]);
     }
 
-    /**
-     * TEST-34: Penyempitan format dari default global (saat master null) memicu peringatan grandfathering bila ada bukti lama.
-     */
-    public function test_format_narrowing_from_global_fallback_triggers_warning_when_old_files_exist(): void
+    public function test_format_narrowing_from_default_preserves_old_files(): void
     {
-        Pengaturan::updateOrCreate(
-            ['kunci' => 'berkas.format_diizinkan'],
-            [
-                'nilai' => 'pdf,docx,xlsx,jpg,jpeg,png',
-                'tipe' => 'string',
-                'grup' => 'berkas',
-                'updated_at' => now(),
-            ]
-        );
+        config(['uploads.allowed_extensions' => 'pdf,docx,xlsx,jpg,jpeg,png']);
 
         $jb = JenisBerkas::create([
             'nama' => 'Syarat Format Global Default',
@@ -1756,20 +1496,18 @@ class JenisBerkasTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $response = $this->actingAs($this->admin)->patch(route('jenis-berkas.update-batas-teknis', $jb->id), [
+        $response = $this->actingAs($this->perencanaan)->put(route('jenis-berkas.update', $jb->id), [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => 'pdf,docx',
             'alasan' => 'Menetapkan format khusus dari default global yang lebih sempit.',
             'expected_updated_at' => ($jb->updated_at ?? $jb->created_at)->toISOString(),
         ]);
 
         $response->assertRedirect(route('jenis-berkas.index'));
-        $response->assertSessionHas('warning');
-        $this->assertStringContainsString('Format diizinkan dipersempit', session('warning'));
+        $response->assertSessionMissing('warning');
+        $this->assertDatabaseHas('berkas', ['jenis_berkas_id' => $jb->id, 'nama_asli' => 'tabel_kinerja.xlsx']);
     }
 
-    /**
-     * TEST-35: Update substantif tanpa atribut batas teknis hanya mencatat wewenang jenis_berkas:update.
-     */
     public function test_substantive_update_without_tech_fields_does_not_assert_pengaturan_permission(): void
     {
         $jb = JenisBerkas::create([
@@ -1865,10 +1603,7 @@ class JenisBerkasTest extends TestCase
         );
     }
 
-    /**
-     * TEST-37: Admin dapat mengubah hanya ukuran_maks_kb pada item dengan format_diizinkan default (null) tanpa error 422.
-     */
-    public function test_admin_can_update_only_ukuran_maks_kb_when_format_diizinkan_is_default_null(): void
+    public function test_perencanaan_can_update_only_size_with_default_format(): void
     {
         $jb = JenisBerkas::create([
             'nama' => 'Persyaratan Format Default',
@@ -1879,7 +1614,8 @@ class JenisBerkasTest extends TestCase
             'created_by' => $this->perencanaan->id,
         ]);
 
-        $response = $this->actingAs($this->admin)->patch("/jenis-berkas/{$jb->id}/batas-teknis", [
+        $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'ukuran_maks_kb' => 10240,
             'alasan' => 'Menaikkan batas ukuran berkas ke 10MB',
             'expected_updated_at' => $jb->updated_at->toISOString(),
@@ -1952,9 +1688,6 @@ class JenisBerkasTest extends TestCase
         $this->assertSame('rencana_aksi', $jb->fresh()->tahap);
     }
 
-    /**
-     * TEST-40: Optimistic locking menolak mutasi (update/delete/batas-teknis) jika timestamps record bernilai null.
-     */
     public function test_optimistic_lock_fails_safely_if_record_timestamp_is_null(): void
     {
         $jb = JenisBerkas::create([
@@ -1980,7 +1713,8 @@ class JenisBerkasTest extends TestCase
         $updateResponse->assertSessionHasErrors('konflik');
 
         // Uji Batas Teknis ditolak
-        $batasTeknisResponse = $this->actingAs($this->admin)->patch("/jenis-berkas/{$jb->id}/batas-teknis", [
+        $batasTeknisResponse = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'ukuran_maks_kb' => 8192,
             'alasan' => 'Alasan ubah batas teknis row tanpa timestamp',
             'expected_updated_at' => now()->toISOString(),
@@ -1995,18 +1729,12 @@ class JenisBerkasTest extends TestCase
         $deleteResponse->assertSessionHasErrors('konflik');
     }
 
-    /**
-     * TEST-41: Menghapus/mengosongkan override format_diizinkan memicu peringatan grandfathering jika fallback global lebih sempit dari berkas lama.
-     */
-    public function test_clearing_explicit_format_override_triggers_grandfathering_warning_when_old_files_exist(): void
+    public function test_clearing_format_override_preserves_old_files_without_warning(): void
     {
         $superadmin = $this->userWithRole('superadmin');
 
-        // Atur fallback global hanya mengizinkan pdf
-        Pengaturan::updateOrCreate(
-            ['kunci' => 'berkas.format_diizinkan'],
-            ['nilai' => 'pdf', 'tipe' => 'string', 'grup' => 'berkas', 'updated_at' => now()]
-        );
+        // Atur default konfigurasi hanya mengizinkan pdf
+        config(['uploads.allowed_extensions' => 'pdf']);
 
         $jb = JenisBerkas::create([
             'nama' => 'Laporan Khusus Override',
@@ -2016,7 +1744,7 @@ class JenisBerkasTest extends TestCase
             'created_by' => $superadmin->id,
         ]);
 
-        // Buat file bukti lama dengan ekstensi docx yang tidak tercakup dalam fallback global (pdf)
+        // Bukti lama tetap dipertahankan meski default konfigurasi hanya pdf.
         BuktiDukung::create([
             'jenis_berkas_id' => $jb->id,
             'berkasable_type' => 'pengukuran',
@@ -2030,7 +1758,7 @@ class JenisBerkasTest extends TestCase
             'created_at' => now(),
         ]);
 
-        // Superadmin mengosongkan format_diizinkan (override dihilangkan, aktifkan fallback global)
+        // Kosongkan override agar unggahan berikutnya memakai konfigurasi.
         $response = $this->actingAs($superadmin)->put("/jenis-berkas/{$jb->id}", [
             'nama' => 'Laporan Khusus Override',
             'tahap' => 'pengukuran',
@@ -2041,23 +1769,18 @@ class JenisBerkasTest extends TestCase
         ]);
 
         $response->assertRedirect('/jenis-berkas');
-        $response->assertSessionHas('warning', 'Peringatan: Format diizinkan dipersempit dan terdapat berkas bukti dukung lama yang formatnya tidak lagi tercakup dalam daftar baru. Bukti lama tetap sah (grandfathered), batas baru hanya berlaku untuk unggahan berikutnya.');
+        $response->assertSessionMissing('warning');
 
         $this->assertNull($jb->fresh()->format_diizinkan);
+        $this->assertDatabaseHas('berkas', ['jenis_berkas_id' => $jb->id, 'nama_asli' => 'arsip_lama.docx']);
     }
 
-    /**
-     * TEST-42: Mengosongkan override format_diizinkan tidak memicu peringatan jika fallback global mencakup seluruh ekstensi berkas lama.
-     */
     public function test_clearing_explicit_format_override_does_not_trigger_warning_when_fallback_covers_files(): void
     {
         $superadmin = $this->userWithRole('superadmin');
 
-        // Atur fallback global mencakup pdf, docx, xlsx
-        Pengaturan::updateOrCreate(
-            ['kunci' => 'berkas.format_diizinkan'],
-            ['nilai' => 'pdf,docx,xlsx', 'tipe' => 'string', 'grup' => 'berkas', 'updated_at' => now()]
-        );
+        // Atur default konfigurasi mencakup pdf, docx, xlsx
+        config(['uploads.allowed_extensions' => 'pdf,docx,xlsx']);
 
         $jb = JenisBerkas::create([
             'nama' => 'Laporan Multiformat',
@@ -2132,9 +1855,6 @@ class JenisBerkasTest extends TestCase
         $this->assertSame($initialAuditCount, AuditLog::where('objek_id', $jb->id)->count());
     }
 
-    /**
-     * TEST-44: Mutasi tanpa perubahan (no-op) pada batas teknis tidak mengubah updated_at dan tidak mencatat audit_log.
-     */
     public function test_noop_batas_teknis_update_does_not_bump_updated_at_or_record_audit_log(): void
     {
         $jb = JenisBerkas::create([
@@ -2149,7 +1869,8 @@ class JenisBerkasTest extends TestCase
         $originalUpdatedAt = $jb->fresh()->updated_at;
         $initialAuditCount = AuditLog::where('objek_id', $jb->id)->count();
 
-        $response = $this->actingAs($this->admin)->patch("/jenis-berkas/{$jb->id}/batas-teknis", [
+        $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+            'nama' => $jb->nama, 'tahap' => $jb->tahap, 'izinkan_file' => $jb->izinkan_file,
             'format_diizinkan' => 'pdf,docx',
             'ukuran_maks_kb' => 4096,
             'alasan' => 'Konfirmasi modal batas teknis tanpa ubah nilai',
@@ -2184,10 +1905,7 @@ class JenisBerkasTest extends TestCase
         $this->assertEquals($originalUpdatedAt->toISOString(), $refreshed->updated_at->toISOString());
     }
 
-    /**
-     * TEST-46: Pembuatan persyaratan wajib file-only saat saklar unggahan nonaktif mencatat audit berkas.tandai_tidak_dapat_dipenuhi.
-     */
-    public function test_store_file_only_requirement_when_upload_disabled_creates_marking_audit(): void
+    public function test_store_ignores_legacy_disabled_setting_without_marking_audit(): void
     {
         Pengaturan::updateOrCreate(
             ['kunci' => 'berkas.unggahan_aktif'],
@@ -2218,22 +1936,17 @@ class JenisBerkasTest extends TestCase
             ->where('objek_id', $jb->id)
             ->first();
 
-        $this->assertNotNull($markingAudit);
-        $this->assertSame('tidak_dapat_dipenuhi', $markingAudit->nilai_baru['status_pemenuhan']);
-        $this->assertSame('saklar_unggahan_global_nonaktif', $markingAudit->nilai_baru['sebab']);
+        $this->assertNull($markingAudit);
     }
 
-    /**
-     * TEST-47: Pembaruan persyaratan dari file-only ke multi-mode saat saklar nonaktif mencatat pencabutan penanda.
-     */
-    public function test_update_file_only_requirement_transitions_marking_when_upload_disabled(): void
+    public function test_requirement_update_preserves_old_marker_without_revocation(): void
     {
         Pengaturan::updateOrCreate(
             ['kunci' => 'berkas.unggahan_aktif'],
             ['nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]
         );
 
-        // Buat file-only (akan bertanda)
+        // Buat file-only dan siapkan marker historis secara eksplisit.
         $jb = JenisBerkas::create([
             'nama' => 'Persyaratan Transisi Mode',
             'tahap' => 'pengukuran',
@@ -2275,103 +1988,16 @@ class JenisBerkasTest extends TestCase
 
         $response->assertRedirect('/jenis-berkas');
 
-        // Harus tercatat pencabutan penanda
+        // Marker lama tetap tersimpan tanpa pencabutan otomatis (Q44).
         $revocationAudit = AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')
             ->where('objek_id', $jb->id)
             ->first();
 
-        $this->assertNotNull($revocationAudit);
-        $this->assertSame('normal', $revocationAudit->nilai_baru['status_pemenuhan']);
+        $this->assertNull($revocationAudit);
+        $this->assertSame(1, AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->where('objek_id', $jb->id)->count());
     }
 
     /**
      * TEST-48: Transisi berulang file-only -> multi-mode -> file-only -> multi-mode saat saklar mati dengan frozen clock.
      */
-    public function test_rapid_mode_transition_with_frozen_clock_correctly_tracks_lifecycle(): void
-    {
-        Carbon::setTestNow(now());
-
-        Pengaturan::updateOrCreate(
-            ['kunci' => 'berkas.unggahan_aktif'],
-            ['nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]
-        );
-
-        // 1. Buat file-only (marking 1)
-        $jb = JenisBerkas::create([
-            'nama' => 'Persyaratan Uji Siklus Cepat',
-            'tahap' => 'pengukuran',
-            'indikator_id' => $this->indikator->id,
-            'wajib' => true,
-            'aktif' => true,
-            'izinkan_file' => true,
-            'izinkan_tautan' => false,
-            'izinkan_teks' => false,
-            'semua_mode_wajib' => false,
-            'created_by' => $this->perencanaan->id,
-        ]);
-
-        $m1 = app(AuditLogger::class)->catat(
-            actor: $this->perencanaan,
-            tindakan: 'berkas.tandai_tidak_dapat_dipenuhi',
-            objekTipe: 'jenis_berkas',
-            objekId: $jb->id,
-            nilaiLama: ['status_pemenuhan' => 'normal'],
-            nilaiBaru: ['status_pemenuhan' => 'tidak_dapat_dipenuhi', 'siklus_penandaan' => 1],
-            alasan: 'Penandaan awal',
-        );
-
-        // 2. Ubah ke tautan (revocation 1)
-        $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
-            'nama' => 'Persyaratan Uji Siklus Cepat',
-            'tahap' => 'pengukuran',
-            'indikator_id' => $this->indikator->id,
-            'wajib' => true,
-            'aktif' => true,
-            'izinkan_file' => true,
-            'izinkan_tautan' => true,
-            'izinkan_teks' => false,
-            'semua_mode_wajib' => false,
-            'alasan' => 'Izinkan tautan 1',
-            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
-        ])->assertRedirect('/jenis-berkas');
-
-        $this->assertCount(1, AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->where('objek_id', $jb->id)->get());
-
-        // 3. Ubah kembali ke file-only (marking 2)
-        $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
-            'nama' => 'Persyaratan Uji Siklus Cepat',
-            'tahap' => 'pengukuran',
-            'indikator_id' => $this->indikator->id,
-            'wajib' => true,
-            'aktif' => true,
-            'izinkan_file' => true,
-            'izinkan_tautan' => false,
-            'izinkan_teks' => false,
-            'semua_mode_wajib' => false,
-            'alasan' => 'Kembali ke file only',
-            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
-        ])->assertRedirect('/jenis-berkas');
-
-        $this->assertCount(2, AuditLog::where('tindakan', 'berkas.tandai_tidak_dapat_dipenuhi')->where('objek_id', $jb->id)->get());
-
-        // 4. Ubah lagi ke tautan (revocation 2)
-        $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
-            'nama' => 'Persyaratan Uji Siklus Cepat',
-            'tahap' => 'pengukuran',
-            'indikator_id' => $this->indikator->id,
-            'wajib' => true,
-            'aktif' => true,
-            'izinkan_file' => true,
-            'izinkan_tautan' => true,
-            'izinkan_teks' => false,
-            'semua_mode_wajib' => false,
-            'alasan' => 'Izinkan tautan 2',
-            'expected_updated_at' => $jb->fresh()->updated_at->toISOString(),
-        ])->assertRedirect('/jenis-berkas');
-
-        // Total pencabutan harus 2 (tidak tertahan oleh timestamp yang identik)
-        $this->assertCount(2, AuditLog::where('tindakan', 'berkas.cabut_tidak_dapat_dipenuhi')->where('objek_id', $jb->id)->get());
-
-        Carbon::setTestNow(null);
-    }
 }

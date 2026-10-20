@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Head, router } from '@inertiajs/react';
-import { FileText, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Head, useForm } from '@inertiajs/react';
+import { FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Badge } from '@/Components/Badge';
@@ -12,8 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip } from '@/Components/Tooltip';
 import {
     JenisBerkasModal,
-    JenisBerkasFormData,
-    IndikatorOption
+    type JenisBerkasFormData,
+    type IndikatorOption,
+    type BatasUnggahan,
 } from './Partials/JenisBerkasModal';
 import { ContohBerkas, type ContohBerkasItem } from './Partials/ContohBerkas';
 
@@ -51,9 +52,8 @@ interface IndexProps {
         create: boolean;
         update: boolean;
         delete: boolean;
-        pengaturan_update?: boolean;
     };
-    unggahanAktif?: boolean;
+    batasUnggahan: BatasUnggahan;
 }
 
 const defaultFormData: JenisBerkasFormData = {
@@ -92,25 +92,25 @@ export default function JenisBerkasIndex({
     jenisBerkasList = [],
     indikators = [],
     can = { create: false, update: false, delete: false },
-    unggahanAktif = true,
+    batasUnggahan,
 }: IndexProps) {
     const [selectedTahap, setSelectedTahap] = useState<'' | JenisBerkasItem['tahap']>('');
     const [searchQuery, setSearchQuery] = useState<string>('');
 
-    // Modal Form State
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [isBatasTeknisOnly, setIsBatasTeknisOnly] = useState(false);
-    const [formData, setFormData] = useState<JenisBerkasFormData>(defaultFormData);
-    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const form = useForm<JenisBerkasFormData>(defaultFormData);
+    const deleteForm = useForm({ alasan: '', expected_updated_at: '' });
+    const formData = form.data;
+    const [modeError, setModeError] = useState<string | null>(null);
+    const formErrors = { ...form.errors, ...(modeError ? { modes: modeError } : {}) };
+    const isSubmitting = form.processing || deleteForm.processing;
 
-    // Modal Audit Reason State
     const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-    const [auditAction, setAuditAction] = useState<'update' | 'delete' | 'update-batas-teknis' | 'delete-contoh' | null>(null);
+    const [auditAction, setAuditAction] = useState<'update' | 'delete' | 'delete-contoh' | null>(null);
     const [targetItem, setTargetItem] = useState<JenisBerkasItem | null>(null);
     const [targetContoh, setTargetContoh] = useState<ContohBerkasItem | null>(null);
-    const [auditReason, setAuditReason] = useState<string>('');
+    const [auditReason, setAuditReason] = useState('');
     const [auditError, setAuditError] = useState<string | null>(null);
 
     // Filter list
@@ -128,21 +128,20 @@ export default function JenisBerkasIndex({
         });
     }, [jenisBerkasList, selectedTahap, searchQuery]);
 
-    // Form handlers
     const handleOpenCreate = () => {
         setIsEditing(false);
-        setIsBatasTeknisOnly(false);
-        setFormData(defaultFormData);
-        setFormErrors({});
+        form.setDefaults(defaultFormData);
+        form.setData(defaultFormData);
+        form.clearErrors();
+        setModeError(null);
         setAuditReason('');
         setIsFormModalOpen(true);
     };
 
-    const handleOpenEdit = (item: JenisBerkasItem, batasTeknisOnly: boolean = false) => {
+    const handleOpenEdit = (item: JenisBerkasItem) => {
         setIsEditing(true);
-        setIsBatasTeknisOnly(batasTeknisOnly);
         setTargetItem(item);
-        setFormData({
+        const data: JenisBerkasFormData = {
             id: item.id,
             nama: item.nama,
             tahap: item.tahap,
@@ -158,66 +157,46 @@ export default function JenisBerkasIndex({
             format_diizinkan: item.format_diizinkan || '',
             ukuran_maks_kb: item.ukuran_maks_kb,
             aktif: item.aktif !== false,
-            expected_updated_at: item.updated_at || item.created_at || new Date().toISOString(),
-        });
-        setFormErrors({});
+            expected_updated_at: item.updated_at || item.created_at,
+        };
+        form.setDefaults(data);
+        form.setData(data);
+        form.clearErrors();
+        setModeError(null);
         setAuditReason('');
         setAuditError(null);
         setIsFormModalOpen(true);
     };
 
-    const handleFormChange = (field: keyof JenisBerkasFormData, value: any) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
-        if (formErrors[field]) {
-            setFormErrors((prev) => {
-                const next = { ...prev };
-                delete next[field];
-                return next;
-            });
-        }
+    const handleFormChange = <K extends keyof JenisBerkasFormData>(field: K, value: JenisBerkasFormData[K]) => {
+        form.setData((previous) => ({ ...previous, [field]: value }));
+        form.clearErrors(field);
+        setModeError(null);
     };
 
-    const handleFormSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (isBatasTeknisOnly) {
-            setAuditReason('');
-            setAuditError(null);
-            setIsAuditModalOpen(true);
-            setAuditAction('update-batas-teknis');
-            return;
-        }
-
-        // Validasi client-side minimal 1 mode
+    const handleFormSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
+        if (isSubmitting) return;
         if (!formData.izinkan_file && !formData.izinkan_tautan && !formData.izinkan_teks) {
-            setFormErrors((prev) => ({
-                ...prev,
-                modes: 'Minimal satu mode bukti (file, tautan, atau teks) harus diizinkan.',
-            }));
+            setModeError('Minimal satu mode bukti (file, tautan, atau teks) harus diizinkan.');
             return;
         }
-
         if (isEditing) {
-            // Edit bertanda sensitif: buka modal alasan audit
             setAuditReason('');
             setAuditError(null);
             setIsAuditModalOpen(true);
             setAuditAction('update');
-        } else {
-            // Create langsung simpan
-            setIsSubmitting(true);
-            router.post('/jenis-berkas', formData as any, {
-                onSuccess: () => {
-                    setIsFormModalOpen(false);
-                },
-                onError: (errs) => {
-                    setFormErrors(errs);
-                },
-                onFinish: () => {
-                    setIsSubmitting(false);
-                },
-            });
+            return;
         }
+        form.transform((data) => ({
+            ...data,
+            format_diizinkan: data.format_diizinkan.trim() || null,
+            ukuran_maks_kb: data.ukuran_maks_kb === '' ? null : data.ukuran_maks_kb,
+        }));
+        form.post('/jenis-berkas', {
+            preserveScroll: true,
+            onSuccess: () => setIsFormModalOpen(false),
+        });
     };
 
     const handleOpenDelete = (item: JenisBerkasItem) => {
@@ -238,6 +217,7 @@ export default function JenisBerkasIndex({
     };
 
     const handleConfirmAudit = () => {
+        if (isSubmitting) return;
         const trimmed = auditReason.trim();
         if (trimmed.length < 5) {
             setAuditError('Alasan perubahan wajib diisi minimal 5 karakter.');
@@ -248,112 +228,50 @@ export default function JenisBerkasIndex({
             return;
         }
         setAuditError(null);
-        if (auditAction === 'update-batas-teknis' && formData.id) {
-            setIsSubmitting(true);
-            const patchPayload: Record<string, any> = {
+        if (auditAction === 'update' && formData.id) {
+            form.transform((data) => ({
+                ...data,
                 alasan: trimmed,
-                expected_updated_at: formData.expected_updated_at,
-            };
-
-            const trimmedFormat = (formData.format_diizinkan || '').trim();
-            const originalFormat = (targetItem?.format_diizinkan || '').trim();
-
-            if (trimmedFormat !== '') {
-                patchPayload.format_diizinkan = trimmedFormat;
-            } else if (originalFormat !== '') {
-                patchPayload.format_diizinkan = null;
-            }
-
-            if (formData.ukuran_maks_kb !== '' && formData.ukuran_maks_kb !== null && formData.ukuran_maks_kb !== undefined) {
-                patchPayload.ukuran_maks_kb = Number(formData.ukuran_maks_kb);
-            } else if (targetItem && targetItem.ukuran_maks_kb !== null && targetItem.ukuran_maks_kb !== undefined) {
-                patchPayload.ukuran_maks_kb = null;
-            }
-
-            router.patch(`/jenis-berkas/${formData.id}/batas-teknis`, patchPayload, {
-                onSuccess: () => {
-                    setIsAuditModalOpen(false);
-                    setIsFormModalOpen(false);
-                    setAuditReason('');
-                    setAuditError(null);
-                },
-                onError: (errs) => {
-                    if (errs.alasan || errs.konflik || errs.expected_updated_at) {
-                        setAuditError(errs.alasan || errs.konflik || errs.expected_updated_at);
-                    } else {
-                        setFormErrors(errs);
-                        setIsAuditModalOpen(false);
-                    }
-                },
-                onFinish: () => {
-                    setIsSubmitting(false);
-                },
-            });
-        } else if (auditAction === 'update' && formData.id) {
-            setIsSubmitting(true);
-            router.put(`/jenis-berkas/${formData.id}`, {
-                ...formData,
-                alasan: trimmed,
-            } as any, {
-                onSuccess: () => {
-                    setIsAuditModalOpen(false);
-                    setIsFormModalOpen(false);
-                    setAuditReason('');
-                    setAuditError(null);
-                },
-                onError: (errs) => {
-                    if (errs.alasan || errs.konflik) {
-                        setAuditError(errs.alasan || errs.konflik);
-                    } else {
-                        setFormErrors(errs);
-                        setIsAuditModalOpen(false);
-                    }
-                },
-                onFinish: () => {
-                    setIsSubmitting(false);
-                },
-            });
-        } else if (auditAction === 'delete-contoh' && targetItem && targetContoh) {
-            setIsSubmitting(true);
-            router.delete(`/jenis-berkas/${targetItem.id}/contoh/${targetContoh.id}`, {
-                data: { alasan: trimmed },
+                format_diizinkan: data.format_diizinkan.trim() || null,
+                ukuran_maks_kb: data.ukuran_maks_kb === '' ? null : data.ukuran_maks_kb,
+            }));
+            form.put(`/jenis-berkas/${formData.id}`, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setIsAuditModalOpen(false);
-                    setTargetContoh(null);
-                    setAuditReason('');
-                },
-                onError: (errs) => setAuditError(errs.alasan ?? 'Gagal menghapus contoh berkas.'),
-                onFinish: () => setIsSubmitting(false),
-            });
-        } else if (auditAction === 'delete' && targetItem) {
-            setIsSubmitting(true);
-            router.delete(`/jenis-berkas/${targetItem.id}`, {
-                data: {
-                    alasan: trimmed,
-                    expected_updated_at: targetItem.updated_at || targetItem.created_at,
-                },
-                onSuccess: () => {
-                    setIsAuditModalOpen(false);
-                    setTargetItem(null);
+                    setIsFormModalOpen(false);
                     setAuditReason('');
                     setAuditError(null);
                 },
-                onError: (errs) => {
-                    if (errs && (errs.alasan || errs.konflik || errs.expected_updated_at)) {
-                        setAuditError(errs.alasan || errs.konflik || errs.expected_updated_at);
+                onError: (errors) => {
+                    if (errors.alasan || errors.konflik || errors.expected_updated_at) {
+                        setAuditError(errors.alasan || errors.konflik || errors.expected_updated_at);
                     } else {
-                        setAuditError('Gagal menghapus persyaratan jenis berkas.');
+                        setIsAuditModalOpen(false);
                     }
                 },
-                onFinish: () => {
-                    setIsSubmitting(false);
+            });
+        } else if (targetItem && (auditAction === 'delete' || (auditAction === 'delete-contoh' && targetContoh))) {
+            const hapusContoh = auditAction === 'delete-contoh' && targetContoh;
+            deleteForm.transform(() => hapusContoh
+                ? { alasan: trimmed }
+                : { alasan: trimmed, expected_updated_at: targetItem.updated_at || targetItem.created_at });
+            const url = hapusContoh ? `/jenis-berkas/${targetItem.id}/contoh/${hapusContoh.id}` : `/jenis-berkas/${targetItem.id}`;
+            deleteForm.delete(url, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsAuditModalOpen(false);
+                    setTargetItem(null);
+                    setTargetContoh(null);
+                    setAuditReason('');
+                    setAuditError(null);
                 },
+                onError: (errors) => setAuditError(errors.alasan || errors.konflik || errors.expected_updated_at || 'Gagal menghapus berkas atau persyaratan.'),
             });
         }
     };
 
-    const showAksi = Boolean(can.update || can.delete || can.pengaturan_update);
+    const showAksi = can.update || can.delete;
     const tahapOptions = [
         { value: '', label: `Semua tahap (${jenisBerkasList.length})` },
         ...(Object.keys(TAHAP) as JenisBerkasItem['tahap'][]).map((tahap) => ({
@@ -478,25 +396,11 @@ export default function JenisBerkasIndex({
                                                             type="button"
                                                             size="sm"
                                                             variant="outline"
-                                                            onClick={() => handleOpenEdit(item, false)}
+                                                            onClick={() => handleOpenEdit(item)}
                                                             aria-label={`Edit ${item.nama}`}
                                                             className="h-8 w-8 p-0"
                                                         >
                                                             <Pencil className="h-4 w-4" aria-hidden="true" />
-                                                        </Button>
-                                                    </Tooltip>
-                                                )}
-                                                {!can.update && can.pengaturan_update && item.izinkan_file && (
-                                                    <Tooltip content="Ubah batas teknis" align="right">
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => handleOpenEdit(item, true)}
-                                                            aria-label={`Ubah batas teknis ${item.nama}`}
-                                                            className="h-8 w-8 p-0"
-                                                        >
-                                                            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                                                         </Button>
                                                     </Tooltip>
                                                 )}
@@ -526,15 +430,13 @@ export default function JenisBerkasIndex({
 
             {/* Modal Tambah / Ubah */}
             <JenisBerkasModal
-                isOpen={isFormModalOpen}
+                isOpen={isFormModalOpen && !isAuditModalOpen}
                 isEditing={isEditing}
-                isBatasTeknisOnly={isBatasTeknisOnly}
                 data={formData}
                 errors={formErrors}
                 indikators={indikators}
                 isLoading={isSubmitting}
-                unggahanAktif={unggahanAktif}
-                canManageSettings={can.pengaturan_update}
+                batasUnggahan={batasUnggahan}
                 onChange={handleFormChange}
                 onClose={() => {
                     if (!isSubmitting) setIsFormModalOpen(false);
@@ -550,8 +452,6 @@ export default function JenisBerkasIndex({
                         ? `Hapus contoh ${targetContoh?.nama_asli ?? 'berkas'}?`
                         : auditAction === 'delete'
                         ? `Hapus ${targetItem?.nama ?? 'persyaratan'}?`
-                        : auditAction === 'update-batas-teknis'
-                        ? 'Simpan perubahan batas teknis?'
                         : 'Simpan perubahan persyaratan?'
                 }
                 description={
@@ -559,8 +459,6 @@ export default function JenisBerkasIndex({
                         ? 'Contoh berkas tidak lagi dapat diunduh PIC. Masukkan alasan penghapusan untuk rekaman audit.'
                         : auditAction === 'delete'
                         ? 'Penghapusan katalog jenis berkas bersifat sensitif. Persyaratan yang dihapus tidak lagi berlaku untuk pengajuan berikutnya. Masukkan alasan penghapusan untuk rekaman audit.'
-                        : auditAction === 'update-batas-teknis'
-                        ? 'Perubahan batas teknis format dan batas ukuran file akan dicatat pada audit trail dengan rekaman izin pengaturan. Masukkan alasan perubahan batas teknis.'
                         : 'Perubahan katalog persyaratan bukti dukung bersifat sensitif dan akan dicatat pada audit trail dengan rekaman kondisi sebelum dan sesudah perubahan. Masukkan alasan perubahan.'
                 }
                 reason={auditReason}

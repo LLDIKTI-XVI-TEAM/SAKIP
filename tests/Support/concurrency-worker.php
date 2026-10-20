@@ -64,7 +64,7 @@ try {
         if (isset($assignment['test_now'])) {
             Carbon::setTestNow($assignment['test_now']);
         }
-        if (in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete', 'grant-create', 'grant-revoke', 'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical', 'storage-update', 'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment', 'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment'], true)) {
+        if (in_array($argv[1], ['unit-create', 'unit-update', 'unit-delete', 'grant-create', 'grant-revoke', 'jenis-create', 'jenis-update', 'jenis-delete', 'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment', 'renstra-create', 'renstra-update', 'renstra-delete', 'renstra-attachment'], true)) {
             $actor = User::findOrFail($assignment['actor_id']);
             $initialDecision = app(PermissionResolver::class)->resolve($actor, $assignment['permission']);
             if (! $initialDecision->allowed) {
@@ -89,8 +89,7 @@ try {
                 ? app(VerifikasiRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['id'], $assignment['data'])->status_alur
                 : app(KembalikanRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['id'], $assignment['data'])->status_alur,
             'regulasi-create', 'regulasi-update', 'regulasi-delete', 'regulasi-attachment' => performRegulasiMutation($argv[1], $assignment),
-            'storage-update' => performStoragePolicyMutation($assignment),
-            'jenis-create', 'jenis-update', 'jenis-delete', 'jenis-technical' => performJenisBerkasMutation($argv[1], $assignment),
+            'jenis-create', 'jenis-update', 'jenis-delete' => performJenisBerkasMutation($argv[1], $assignment),
             'grant-create', 'grant-revoke' => performGrantMutation($argv[1], $assignment),
             'unit-create' => app(CreateUnitAction::class)->handle($actor, $assignment['data'])->id,
             'unit-update' => app(UpdateUnitAction::class)->handle($actor, $assignment['unit_id'], $assignment['data']),
@@ -296,25 +295,6 @@ function performRegulasiMutation(string $operation, array $assignment): string
     return 'mutated';
 }
 
-/** Mutasi storage melewati middleware dan FormRequest yang sama dengan halaman aplikasi. */
-function performStoragePolicyMutation(array $assignment): string
-{
-    Auth::setUser(User::findOrFail($assignment['actor_id']));
-    $request = Request::create('/pengaturan/storage', 'PUT', $assignment['data']);
-    $kernel = app(Illuminate\Contracts\Http\Kernel::class);
-    $response = $kernel->handle($request);
-    $kernel->terminate($request, $response);
-
-    if ($response->getStatusCode() === 403) {
-        return 'denied';
-    }
-    if ($response->getStatusCode() !== 302 || $request->session()->has('errors') || ! $request->session()->has('success')) {
-        throw new RuntimeException('Mutasi storage tidak mencapai hasil sukses atau penolakan izin.');
-    }
-
-    return 'mutated';
-}
-
 /** Request nyata mempertahankan middleware, FormRequest, dan controller sebelum/sesudah ekstraksi. */
 function performJenisBerkasMutation(string $operation, array $assignment): string
 {
@@ -323,7 +303,6 @@ function performJenisBerkasMutation(string $operation, array $assignment): strin
         'jenis-create' => ['POST', '/jenis-berkas'],
         'jenis-update' => ['PUT', '/jenis-berkas/'.$assignment['jenis_id']],
         'jenis-delete' => ['DELETE', '/jenis-berkas/'.$assignment['jenis_id']],
-        'jenis-technical' => ['PATCH', '/jenis-berkas/'.$assignment['jenis_id'].'/batas-teknis'],
     };
     $request = Request::create($path, $method, $assignment['data']);
     $kernel = app(Illuminate\Contracts\Http\Kernel::class);

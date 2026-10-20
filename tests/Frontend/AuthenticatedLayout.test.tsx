@@ -238,39 +238,12 @@ describe('AuthenticatedLayout Logo Rendering', () => {
 });
 
 describe('AuthenticatedLayout Navigation Active State', () => {
-    it('hanya menandai Kebijakan Storage dan bukan Pengaturan ketika url adalah /pengaturan/storage', () => {
-        mockUrl = '/pengaturan/storage';
-        mockCan = { dashboard: true, pengaturan: true, storagePolicy: true };
-
-        render(
-            <AuthenticatedLayout title="Kebijakan Storage">
-                <div>Konten Storage</div>
-            </AuthenticatedLayout>
-        );
-
-        const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
-        const pengaturanLink = within(nav).getByRole('link', { name: 'Pengaturan' });
-        const storageLink = within(nav).getByRole('link', { name: 'Kebijakan Storage' });
-
-        expect(storageLink.getAttribute('aria-current')).toBe('page');
-        expect(pengaturanLink.getAttribute('aria-current')).toBeNull();
-    });
-
-    it('hanya menandai Pengaturan dan bukan Kebijakan Storage ketika url adalah /pengaturan', () => {
+    it('menandai Pengaturan dan tidak menawarkan menu Kebijakan Storage', () => {
         mockUrl = '/pengaturan';
-        mockCan = { dashboard: true, pengaturan: true, storagePolicy: true };
-
-        render(
-            <AuthenticatedLayout title="Pengaturan Sistem">
-                <div>Konten Pengaturan</div>
-            </AuthenticatedLayout>
-        );
-
+        mockCan = { dashboard: true, pengaturan: true };
+        render(<AuthenticatedLayout title="Pengaturan Sistem"><div>Konten Pengaturan</div></AuthenticatedLayout>);
         const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
-        const pengaturanLink = within(nav).getByRole('link', { name: 'Pengaturan' });
-        const storageLink = within(nav).getByRole('link', { name: 'Kebijakan Storage' });
-
-        expect(pengaturanLink.getAttribute('aria-current')).toBe('page');
-        expect(storageLink.getAttribute('aria-current')).toBeNull();
+        expect(within(nav).getByRole('link', { name: 'Pengaturan' }).getAttribute('aria-current')).toBe('page');
+        expect(within(nav).queryByRole('link', { name: 'Kebijakan Storage' })).toBeNull();
     });
 });

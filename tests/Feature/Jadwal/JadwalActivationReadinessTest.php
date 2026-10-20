@@ -117,8 +117,8 @@ class JadwalActivationReadinessTest extends TestCase
         $actor = $this->activator();
         $this->assertSame('gagal', $this->gateStatuses($this->actingAs($actor)->readiness()->json())['G4']);
         $this->uploadSetting('false');
-        $this->assertSame('pengecualian', $this->gateStatuses($this->readiness()->json())['G4']);
-        $this->assertTrue($this->readiness()->json('allowed'));
+        $this->assertSame('gagal', $this->gateStatuses($this->readiness()->json())['G4']);
+        $this->assertFalse($this->readiness()->json('allowed'));
         $this->uploadSetting('tidak');
         $this->assertSame('gagal', $this->gateStatuses($this->readiness()->json())['G4']);
         $this->uploadSetting('false');
