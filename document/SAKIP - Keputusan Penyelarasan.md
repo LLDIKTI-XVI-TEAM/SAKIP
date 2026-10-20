@@ -1106,6 +1106,9 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:05:23 dan 1:28:47–1:44:27. Bu
 4. Anggaran dijumlahkan otomatis per periode, per RA, dan per IKU. Kegiatan yang diklaim lebih dari satu IKU ditampilkan penuh di setiap IKU dengan penanda **"kegiatan bersama"**; total per unit dan per tahun dihitung dari **kegiatan unik** agar tidak terhitung ganda. (PM)
 5. Dashboard menampilkan total anggaran per IKU dengan drill-down sampai kegiatan. (menit 1:34:24–1:35:27)
 6. Kegiatan lanjutan (Q41 §41.4) menyalin anggaran kegiatan asal dan anggarannya dapat diubah. Kegiatan asal yang `ditunda` dan sudah memiliki kegiatan lanjutan tidak dihitung dalam total, sehingga anggarannya hanya terhitung pada kegiatan lanjutan. Total yang sudah dibekukan pada versi RA tidak berubah. (PM, saat penyelarasan Q47–Q51)
+7. Total pada halaman RA menghitung seluruh klaim, baik tahap RA maupun tahap pengukuran, karena butir 4 tidak membedakan tahap klaim; klaim tahap pengukuran tampil di halaman RA dengan label "Klaim pengukuran". (PM, 20 Oktober 2026, [review PR #148](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/148#issuecomment-6287372375))
+8. Total per IKU dan per unit/tahun cukup tersedia di layanan sampai tampilan dashboard (butir 5, ISS-10.01). (PM, 20 Oktober 2026, [review PR #148](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/148#issuecomment-6287372375))
+9. Total yang dibekukan pada versi RA (butir 6) hanya dihitung dari klaim tahap RA yang dikunci saat pengajuan, sehingga sama dengan daftar klaim beku; klaim tahap pengukuran tidak dikunci karena menguncinya berarti mengubah aturan versi RA lintas modul. Total pada review versi ("saat pengajuan") dan pada halaman RA dapat berbeda. (PM, 20 Oktober 2026, [review PR #148](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/148#issuecomment-6287372375))
 
 ## 42.3 RAB
 
