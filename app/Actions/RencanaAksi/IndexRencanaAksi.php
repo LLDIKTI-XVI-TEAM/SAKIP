@@ -125,21 +125,37 @@ class IndexRencanaAksi
             $barisBeku = $this->kesiapan->barisPeriode($tipe, $presisi, $definisi, $jendela, $efektifIds, $baris, $snapshot->setRelation('jadwal', $jadwal));
             $deviasiBeku = $this->kesiapan->deviasi($barisBeku, $snapshot);
             $persyaratan = $this->evaluator->untuk('rencana_aksi', (string) $indikator->id, $segel->buktiDukungs()->current()->get(['id', 'jenis_berkas_id', 'mode']));
-            $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan);
-            // Gerbang kegiatan memakai aturan yang sama dengan pengajuan; jalur dinilai dari izin ajukan pembaca.
+            // Q63: pengecualian mengikuti jalur pengajuan RA. Untuk draf dan
+            // dikembalikan, jalur dinilai dari izin pembaca (calon pengaju);
+            // untuk status yang sudah diajukan, jalur diambil dari versi beku.
+            $jalurPerencanaan = $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id));
+            // Hanya kolom ringkas; jsonb `snapshot` versi tidak dibutuhkan halaman.
+            $versiPengajuan = $segel->latestVersion()
+                ->leftJoin('users', 'users.id', '=', 'rencana_aksi_versi.diajukan_by')
+                ->first(['rencana_aksi_versi.nomor', 'rencana_aksi_versi.diajukan_at', 'rencana_aksi_versi.jalur_pengajuan', 'users.nama as diajukan_oleh']);
+            $jalurPengecualian = in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
+                ? $jalurPerencanaan
+                : $versiPengajuan?->jalur_pengajuan === 'perencanaan';
+            $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan, (int) $segel->tahun, $jalurPengecualian);
+            // Status pengecualian dipakai bersama kartu kesiapan dan panel bukti.
+            $dikecualikan = $this->kesiapan->jalurLampauDikecualikan((int) $segel->tahun, $jalurPengecualian);
+            // Gerbang kegiatan memakai aturan yang sama dengan pengajuan.
             $klaim = KlaimKegiatan::where('rencana_aksi_id', $segel->id)->where('sumber_klaim', 'rencana_aksi')->orderBy('id')->get();
             $kegiatanKlaim = Kegiatan::whereIn('id', $klaim->pluck('kegiatan_id'))->get()->keyBy('id');
             $bacaKegiatan = $this->resolver->allows($actor, PermissionCodes::KEGIATAN_READ, (string) $segel->unit_id);
-            $jalurPerencanaan = $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_AJUKAN, (string) $segel->unit_id));
             $alasanPengajuan = [...$alasanPengajuan, ...$this->kesiapan->alasanKlaim(
                 $klaim, $kegiatanKlaim, $segel, $efektifIds, $definisi->pluck('komponen_id')->all(), $bacaKegiatan,
             )];
             $buktiKegiatan = BuktiDukung::where('berkasable_type', 'kegiatan')->whereIn('berkasable_id', $kegiatanKlaim->keys()->all())->current()
                 ->get(['id', 'berkasable_id', 'jenis_berkas_id', 'mode'])->groupBy(fn (BuktiDukung $item): string => (string) $item->berkasable_id);
             $alasanPengajuan = [...$alasanPengajuan, ...$this->kesiapan->perencanaanKegiatan(
-                $kegiatanKlaim, (string) $indikator->id, (int) $segel->tahun, $jalurPerencanaan, $jadwal, $jendela, $buktiKegiatan, $bacaKegiatan,
+                $kegiatanKlaim, (string) $indikator->id, (int) $segel->tahun, $jalurPengecualian, $jadwal, $jendela, $buktiKegiatan, $bacaKegiatan,
             )['alasan']];
-            $alasanKegiatan = $this->kesiapan->alasanKegiatan($klaim->count(), (int) $segel->tahun, $jalurPerencanaan, $jadwal, $jendela, $efektifIds);
+            $alasanKegiatan = $this->kesiapan->alasanKegiatan(
+                $klaim->count(),
+                (int) $segel->tahun,
+                $jalurPengecualian,
+            );
             if ($alasanKegiatan !== null) {
                 $alasanPengajuan[] = $alasanKegiatan;
             }
@@ -162,10 +178,6 @@ class IndexRencanaAksi
             $terkunciIds = $this->jendela->jalurPerencanaan($keputusanUbah)
                 ? []
                 : array_column($this->jendela->rincianTerkunci($jadwal, $efektifIds->all(), $hariIni), 'id');
-            // Hanya kolom ringkas; jsonb `snapshot` versi tidak dibutuhkan halaman.
-            $versiPengajuan = $segel->latestVersion()
-                ->leftJoin('users', 'users.id', '=', 'rencana_aksi_versi.diajukan_by')
-                ->first(['rencana_aksi_versi.nomor', 'rencana_aksi_versi.diajukan_at', 'users.nama as diajukan_oleh']);
 
             // Metadata indikator (nama, satuan, arah, tipe,
             // presisi, desimal_tampilan) berasal dari jadwal_snapshot beku
@@ -211,7 +223,7 @@ class IndexRencanaAksi
                 'koreksi' => $koreksi,
                 'deviasi_pk' => DeviasiTargetPk::props($deviasiBeku, $segel->alasan_deviasi_pk, $barisBeku === [] ? null : $barisBeku[array_key_last($barisBeku)]['periode_id']),
                 // Teks alasan berasal dari server; React hanya menampilkannya.
-                'pengajuan' => ['siap' => $alasanPengajuan === [], 'alasan' => $alasanPengajuan],
+                'pengajuan' => ['siap' => $alasanPengajuan === [], 'alasan' => $alasanPengajuan, 'dikecualikan' => $dikecualikan],
                 'versi_pengajuan' => $versiPengajuan === null ? null : [
                     'nomor' => (int) $versiPengajuan->nomor,
                     'diajukan_oleh' => $versiPengajuan->getAttribute('diajukan_oleh'),

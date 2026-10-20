@@ -70,13 +70,16 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         $this->assertSame([], $versi->snapshot['klaim']);
     }
 
-    public function test_ra_dengan_seluruh_periode_efektif_lampau_dikecualikan(): void
+    public function test_ra_seluruh_periode_efektif_lampau_dikecualikan_hanya_bagi_perencanaan(): void
     {
-        // Seluruh pengisian selesai 31 Maret, sebelum aktivasi 5 April: semua periode lampau saat aktivasi.
+        // Q63: PIC tidak pernah dikecualikan; Perencanaan dikecualikan pada RA seluruh-periode-lampau.
         [$fixture, $header] = $this->drafTanpaKegiatan('2026-04-05 09:00:00');
 
-        $this->ajukan($fixture['pic'], $header)->assertSessionHasNoErrors();
-        $this->assertSame('pic', RencanaAksiVersi::sole()->jalur_pengajuan);
+        $this->ajukan($fixture['pic'], $header)->assertSessionHasErrors(['pengajuan' => self::PESAN]);
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
+
+        $this->ajukan($fixture['perencanaan'], $header)->assertSessionHasNoErrors();
+        $this->assertSame('perencanaan', RencanaAksiVersi::sole()->jalur_pengajuan);
     }
 
     public function test_ra_2027_dengan_seluruh_periode_efektif_lewat_tetap_memerlukan_kegiatan(): void

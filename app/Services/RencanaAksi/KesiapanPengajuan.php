@@ -126,32 +126,32 @@ class KesiapanPengajuan
     /**
      * Gerbang minimal satu kegiatan yang diklaim pada tahap RA (Q42 §42.1
      * butir 3); tidak setiap periode wajib berisi kegiatan. Dikecualikan
-     * untuk RA data awal 2026 yang diajukan lewat jalur Perencanaan (Q46
-     * §46.1 butir 3, Q32.8) dan RA yang seluruh periode efektifnya sudah
-     * lampau saat aktivasi jadwal 2026 (Q46 §46.1 butir 1). Kegiatan pada periode
-     * lampau tetap dihitung bila ada.
-     *
-     * @param  Collection<int, PeriodeJadwal>  $jendela
-     * @param  Collection<int, string>  $periodeEfektif
+     * hanya pada jalur Perencanaan lewat `jalurLampauDikecualikan` (Q63);
+     * PIC tidak pernah dikecualikan. Kegiatan pada periode lampau tetap
+     * dihitung bila ada.
      */
-    public function alasanKegiatan(int $jumlahKlaim, int $tahun, bool $jalurPerencanaan, JadwalTahunan $jadwal, Collection $jendela, Collection $periodeEfektif): ?string
+    public function alasanKegiatan(int $jumlahKlaim, int $tahun, bool $jalurPerencanaan): ?string
     {
-        if ($jumlahKlaim > 0) {
-            return null;
-        }
-        // Disetujui PM (PR #111): "data awal" dikenali dari tahun 2026 dan jalur Perencanaan, tanpa kolom penanda.
-        if ($tahun === self::TAHUN_DATA_AWAL && $jalurPerencanaan) {
-            return null;
-        }
-        // Pengecualian periode lampau memakai definisi bersama khusus jadwal 2026 (Q46).
-        $lampau = $jendela
-            ->filter(fn (PeriodeJadwal $row): bool => PeriodeTanpaTarget::isPeriodeLampau($jadwal, $row))
-            ->map(fn (PeriodeJadwal $row): string => (string) $row->periode_id);
-        if ($periodeEfektif->isNotEmpty() && $periodeEfektif->diff($lampau)->isEmpty()) {
+        if ($jumlahKlaim > 0 || $this->jalurLampauDikecualikan($tahun, $jalurPerencanaan)) {
             return null;
         }
 
         return 'Rencana aksi wajib memiliki minimal satu kegiatan yang diklaim pada tahap rencana aksi.';
+    }
+
+    /**
+     * Penanda jalur penerapan Q63 untuk gerbang pengajuan RA: hanya RA data
+     * awal 2026 (tahun 2026 lewat jalur Perencanaan, tanpa kolom penanda) yang
+     * dikecualikan. RA seluruh-periode-lampau jadwal 2026 tercakup oleh
+     * definisi ini; tahun lain tidak pernah dikecualikan (lihat juga
+     * `PeriodeTanpaTarget::isPeriodeLampau` yang mensyaratkan jadwal 2026).
+     * PIC tidak pernah dikecualikan karena jalur Perencanaan wajib. Dipakai
+     * bersama gerbang bukti wajib, gerbang kegiatan minimal, dan props panel
+     * bukti halaman RA.
+     */
+    public function jalurLampauDikecualikan(int $tahun, bool $jalurPerencanaan): bool
+    {
+        return $jalurPerencanaan && $tahun === self::TAHUN_DATA_AWAL;
     }
 
     /**
@@ -189,14 +189,17 @@ class KesiapanPengajuan
      * Alasan pengajuan ditolak dengan teks yang sama untuk kartu kesiapan dan
      * gerbang server. `terhitung` dan pengecualian `tidak_ditargetkan` lengkap; `belum_diisi` dan
      * `tidak_dapat_dihitung` (termasuk penyebut nol) menolak. Deviasi PK yang
-     * tidak dapat dinilai (target PK null) tidak memerlukan alasan.
+     * tidak dapat dinilai (target PK null) tidak memerlukan alasan. Bukti
+     * wajib dikecualikan hanya pada jalur Perencanaan (Q63; Q32.7, Q46 §46.1
+     * butir 1, Workflow §15 butir 4: "berkas wajib dikecualikan"),
+     * sementara rekonsiliasi target PK tetap berlaku di semua jalur.
      *
      * @param  list<array{periode_nama: ?string, status_perhitungan: string}>  $baris
      * @param  array{status: string}  $deviasi  Keluaran `DeviasiTargetPk::bandingkan`.
      * @param  list<array<string, mixed>>  $persyaratan  Keluaran `EvaluateEvidence::untuk`.
      * @return list<string>
      */
-    public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan): array
+    public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan, int $tahun, bool $jalurPerencanaan): array
     {
         $alasan = [];
         if ($baris === []) {
@@ -212,13 +215,15 @@ class KesiapanPengajuan
         if ($deviasi['status'] === DeviasiTargetPk::DEVIASI && trim((string) $alasanDeviasi) === '') {
             $alasan[] = 'Skor periode terakhir berbeda dari target PK; alasan deviasi wajib diisi.';
         }
-        foreach ($persyaratan as $item) {
-            if ($item['wajib'] && ! $item['pemenuhan']['terpenuhi']) {
-                // Cermin SubmissionPrerequisites: persyaratan tanpa mode aktif
-                // tidak dapat dipenuhi pengaju, jadi arahkan ke Tim Perencanaan.
-                $alasan[] = ! $item['izinkan_file'] && ! $item['izinkan_tautan'] && ! $item['izinkan_teks']
-                    ? 'Persyaratan bukti '.$item['nama'].' tidak memiliki mode aktif. Hubungi Tim Perencanaan.'
-                    : 'Bukti wajib belum lengkap: '.$item['nama'].'.';
+        if (! $this->jalurLampauDikecualikan($tahun, $jalurPerencanaan)) {
+            foreach ($persyaratan as $item) {
+                if ($item['wajib'] && ! $item['pemenuhan']['terpenuhi']) {
+                    // Cermin SubmissionPrerequisites: persyaratan tanpa mode aktif
+                    // tidak dapat dipenuhi pengaju, jadi arahkan ke Tim Perencanaan.
+                    $alasan[] = ! $item['izinkan_file'] && ! $item['izinkan_tautan'] && ! $item['izinkan_teks']
+                        ? 'Persyaratan bukti '.$item['nama'].' tidak memiliki mode aktif. Hubungi Tim Perencanaan.'
+                        : 'Bukti wajib belum lengkap: '.$item['nama'].'.';
+                }
             }
         }
 

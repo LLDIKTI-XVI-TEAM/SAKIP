@@ -611,6 +611,8 @@ Tombol keluar biasa tidak boleh otomatis mengakhiri sesi Keycloak karena realm d
 ## 32.7 Penggunaan Pertama: Jadwal 2026
 
 > **Diperbarui Q46 (13 Oktober 2026):** TW III 2026 ikut menjadi periode lampau yang diisi Perencanaan; TW IV 2026 menjadi triwulan pertama workflow normal PIC operasional. Gerbang baru Q42–Q45 juga dikecualikan untuk periode lampau, sedangkan kunci per triwulan (Q41) tetap berlaku bagi PIC (Q46 §46.1 butir 1). Diagram di bawah dipertahankan sebagai riwayat keputusan.
+>
+> **Diperjelas Q63 (19 Oktober 2026):** "berkas wajib dikecualikan" hanya berlaku pada jalur Perencanaan; PIC tidak pernah dikecualikan, termasuk dari gerbang minimal satu kegiatan (lihat §63.1).
 
 Penggunaan pertama SAKIP adalah **Jadwal Tahunan 2026**.
 
@@ -1245,6 +1247,8 @@ Sumber: rapat 13 Oktober 2026, menit 1:25:19–1:26:59, 1:29:56–1:30:52, dan 1
 
 ## 46.1 Periode lampau 2026 (PM)
 
+> **Diperjelas Q63 (19 Oktober 2026):** bukti wajib tahap `rencana_aksi` termasuk pengecualian, hanya pada jalur Perencanaan; PIC tidak pernah dikecualikan (§63.1).
+
 1. Gerbang baru Q42–Q45 — RA minimal satu kegiatan, RAB, persyaratan tahap perencanaan kegiatan, narasi wajib, dan tindak lanjut rekomendasi — **dikecualikan untuk periode lampau**, sama seperti gerbang lain pada Q32.7. Kunci per triwulan (Q41 §41.2) bukan bagian pengecualian ini: periode lampau terkunci bagi PIC sejak aktivasi, sedangkan Perencanaan yang mengisinya memang tidak terikat kunci (Q41 §41.2 butir 3–4). *(Dikoreksi 13 Oktober 2026 saat penyelarasan Q47–Q51; semula kunci per triwulan ikut disebut sebagai gerbang yang dikecualikan.)*
 2. Dengan pola pelaporan pada minggu pertama bulan setelah triwulan (menit 1:25:19), **TW III 2026** menjadi periode lampau yang diisi Perencanaan; **TW IV 2026** menjadi triwulan pertama workflow normal PIC operasional, dengan pelaporan awal Januari 2027. Status periode lampau tetap dihitung dari jendela pengisian terhadap waktu aktivasi, tanpa `is_backfill`.
 3. RA 2026 yang dicatat Perencanaan sebagai data awal (Q32.8) dikecualikan dari gerbang kegiatan minimal dan RAB; kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan. Kegiatan data awal dan kegiatan pada periode lampau boleh tanpa anggaran (tercatat belum diisi, Q42 §42.2 butir 2), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output. (Ketentuan anggaran ditambahkan PM saat penyelarasan Q47–Q51) *(Catatan 16 Oktober 2026: RA data awal 2026 dikenali dari tahun 2026 yang diajukan lewat jalur Perencanaan, tanpa kolom penanda (keputusan PM 16 Oktober 2026, PR #111).)*
@@ -1749,6 +1753,30 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 - Diselaraskan: Data Model §2.7 (pemberian, kelola, dan pencabutan) dan User Issues ISS-01.04 (catatan Q62).
 - Test: `GrantIzinTambahanUnitTest` (daftar per pasangan, detail, kelola, pemberian banyak izin), `MutationConcurrencyTest` (kelola menunggu lock aktor), serta test frontend `GrantIndex`, `GrantDetail`, dan `GrantMutationException`.
 - Status keputusan: baseline UI dan kontrak kelola. Implementasi pada branch ini belum berarti merge, UAT, atau deployment.
+
+---
+
+# Keputusan Q63 — Pengecualian Gerbang Pengajuan Rencana Aksi pada Periode Lampau 2026
+
+**Keputusan PM: 19 Oktober 2026 (WITA), [Review PM — PR #146](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/146#issuecomment-6263698110).** Menjelaskan Q32.7, Q46 §46.1 butir 3, Workflow §15 butir 4–5, dan ISS-03.05 mengenai pengecualian gerbang pengajuan Rencana Aksi pada periode lampau 2026. Nomor Q62 telah dipakai keputusan Izin Unit (PR #145), sehingga keputusan ini tetap bernomor Q63. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 63.1 Aturan
+
+1. Persyaratan **bukti wajib tahap `rencana_aksi`** dikecualikan **hanya pada jalur Perencanaan**, untuk RA data awal 2026 (RA tahun 2026 yang diajukan lewat jalur Perencanaan; penanda sama dengan kegiatan minimal/RAB, tanpa kolom penanda) dan RA yang seluruh periode efektifnya sudah lampau saat aktivasi jadwal 2026.
+2. **PIC tidak pernah dikecualikan**, baik untuk bukti wajib tahap `rencana_aksi` maupun gerbang **minimal satu kegiatan**, termasuk pada RA yang seluruh periode efektifnya lampau. Ketentuan ini menggantikan perilaku cabang "seluruh periode lampau" tanpa syarat jalur yang berlaku sejak #111.
+3. **Alasan deviasi target PK tetap wajib** di semua jalur (ADR-0008); tidak ada pengecualian periode lampau.
+4. Pengecualian per kegiatan pada periode lampau untuk RAB dan persyaratan tahap `kegiatan_perencanaan` (Q42) tidak berubah.
+
+## 63.2 Dasar
+
+Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian periode lampau, sedangkan Q46 §46.1 butir 3 hanya menyebut kegiatan minimal dan RAB untuk RA data awal. Keputusan ini menyatakan secara eksplisit bahwa bukti wajib tahap `rencana_aksi` termasuk pengecualian, karena RA data awal dicatat Perencanaan dari dokumen resmi 2026 yang belum tentu memiliki berkas tahap RA. Pengecualian dibatasi pada jalur Perencanaan karena Workflow §15 butir 5 menetapkan pengisian periode lampau dilakukan Perencanaan dan ISS-03.05 melarang bypass otomatis bagi user scoped. Konsekuensi yang diterima: RA 2026 yang diajukan Perencanaan kapan pun sebelum penutupan (termasuk setelah buka-kembali) tetap dikecualikan dari bukti wajib tahap `rencana_aksi`, sama dengan perlakuan kegiatan minimal/RAB.
+
+## 63.3 Dampak dan traceability
+
+- Kode: `KesiapanPengajuan::jalurLampauDikecualikan()` mengembalikan true hanya untuk RA tahun 2026 pada jalur Perencanaan (RA seluruh-periode-lampau 2026 tercakup definisi ini); dipakai bersama gerbang bukti dan gerbang kegiatan. Panel bukti halaman RA menandai persyaratan wajib sebagai "Dikecualikan (periode lampau/data awal)" bila pengecualian berlaku.
+- Dokumen: Q32.7, Q46 §46.1, Workflow §15 butir 4–5, ISS-03.05, dan US-03.05 merujuk Q63.
+- Verifikasi: matriks periode lampau sisi Rencana Aksi — sel PIC ditolak dan Perencanaan lolos untuk bukti wajib serta kegiatan minimal pada RA seluruh-periode-lampau; regresi pengajuan/pengesahan RA tetap hijau.
+- Status implementasi: PR #146 (bagian 1, verifikasi matriks).
 
 ---
 

@@ -7,6 +7,8 @@ use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\Pengaturan;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
@@ -179,9 +181,11 @@ class RencanaAksiAjukanTest extends TestCase
         );
     }
 
-    public function test_bukti_wajib_belum_terpenuhi_ditolak_dan_waiver_file_meloloskan(): void
+    public function test_bukti_wajib_tetap_diperiksa_meski_setting_unggahan_lama_nonaktif(): void
     {
         $fixture = $this->buatFixtureManual();
+        // Aktivasi eksplisit non-lampau agar gerbang bukti dinilai di jalur normal (bukan pengecualian Q46).
+        $fixture['jadwal']->update(['activated_at' => '2026-02-15 09:00:00']);
         $jenis = $this->buatPersyaratanWajib($fixture);
         $header = $this->drafManual($fixture);
 
@@ -205,6 +209,8 @@ class RencanaAksiAjukanTest extends TestCase
 
         // Setting lama tidak membebaskan persyaratan file wajib (Q44).
         $kedua = $this->buatFixtureManual();
+        // Aktivasi eksplisit non-lampau agar gerbang bukti dinilai di jalur normal.
+        $kedua['jadwal']->update(['activated_at' => '2026-02-15 09:00:00']);
         $this->buatPersyaratanWajib($kedua, ['izinkan_teks' => false]);
         Pengaturan::updateOrCreate(['kunci' => 'berkas.unggahan_aktif'], ['grup' => 'berkas', 'nilai' => 'false', 'tipe' => 'boolean']);
         $headerKedua = $this->drafManual($kedua);
@@ -370,6 +376,11 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertSame($fixture['perencanaan']->id, $header->created_by);
 
         $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode1'], 100), $this->manual($fixture['periode2'], 100)]);
+        // Q63: PIC tidak dikecualikan dari gerbang kegiatan; sertakan satu klaim tahap rencana aksi.
+        $kegiatan = Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $fixture['periode1']->id,
+            'nama' => 'Kegiatan pendukung', 'created_by' => $fixture['pic']->id]);
+        KlaimKegiatan::create(['rencana_aksi_id' => $header->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
+            'sumber_klaim' => 'rencana_aksi', 'created_by' => $fixture['pic']->id, 'created_at' => now()]);
         $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
         $versi = RencanaAksiVersi::sole();
         $this->assertSame($fixture['pic']->id, $versi->diajukan_by);
