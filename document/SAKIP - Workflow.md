@@ -1671,6 +1671,8 @@ flowchart TD
 ## 15. Alur Periode Lampau 2026 dan Data Awal
 
 > **Q46, Q47, Q50 (13 Oktober 2026):** dengan pola pelaporan pada minggu pertama bulan setelah triwulan, **TW III 2026** ikut menjadi periode lampau yang diisi Perencanaan, dan **TW IV 2026** menjadi triwulan pertama workflow normal PIC operasional dengan pelaporan awal Januari 2027 (Q46 §46.1 butir 2). Gerbang baru Q42–Q45 dikecualikan untuk periode lampau, sedangkan kunci per triwulan (Q41) bukan bagian pengecualian itu (Q46 §46.1 butir 1, dikoreksi 13 Oktober 2026). Data awal 2026 diisi Perencanaan dari dokumen resmi 2026, dengan target TW I–III dicatat kosong (Q46 §46.1 butir 6, Q47 §47.2 butir 4). Semula TW I–II periode lampau dan TW III–IV normal (Q32.7) — diperbarui Q46. Status implementasi: belum (US/ISS-03.05, 07.05, 15.01).
+>
+> **Q63 (19 Oktober 2026):** bukti wajib tahap `rencana_aksi` dikecualikan pada jalur Perencanaan untuk RA data awal 2026 dan RA seluruh-periode-lampau; PIC tidak pernah dikecualikan, termasuk gerbang minimal satu kegiatan (lihat butir 4–6).
 
 Penggunaan pertama SAKIP memakai Jadwal Tahunan 2026, bukan mekanisme backfill generik.
 
