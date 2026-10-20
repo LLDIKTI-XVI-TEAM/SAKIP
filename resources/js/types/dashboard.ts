@@ -70,7 +70,7 @@ export interface TitikGrafik {
 export interface DashboardKegiatan {
     per_status: Record<StatusKegiatan, number>;
     terlambat_jumlah: number;
-    per_iku: { kode: string; nama: string; jumlah: Record<StatusKegiatan, number> }[];
+    per_iku: { id: string; kode: string; nama: string; jumlah: Record<StatusKegiatan, number> }[];
     terlambat: { id: string; nama: string; unit: string; tanggal_rencana: string | null }[] | null;
 }
 

@@ -14,7 +14,7 @@ afterEach(cleanup);
 const kegiatan = (overrides: Partial<DashboardKegiatan> = {}): DashboardKegiatan => ({
     per_status: { rencana: 3, terlaksana: 5, tidak_terlaksana: 1, ditunda: 0, batal: 2 },
     terlambat_jumlah: 2,
-    per_iku: [{ kode: 'IKU 1.1', nama: 'Persentase PT terakreditasi', jumlah: { rencana: 2, terlaksana: 1, tidak_terlaksana: 0, ditunda: 0, batal: 1 } }],
+    per_iku: [{ id: 'i1', kode: 'IKU 1.1', nama: 'Persentase PT terakreditasi', jumlah: { rencana: 2, terlaksana: 1, tidak_terlaksana: 0, ditunda: 0, batal: 1 } }],
     terlambat: [{ id: 'k1', nama: 'Bimtek akreditasi', unit: 'Bagian Kelembagaan', tanggal_rencana: '2026-03-01' }],
     ...overrides,
 });
@@ -53,4 +53,17 @@ it('panel rencana aksi menampilkan indikator belum disusun', () => {
     const panel = screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ });
     expect(panel.querySelector('[data-status="belum_disusun"]')?.textContent).toBe('Belum disusun15');
     expect(panel.querySelector('[data-status="disahkan"]')?.textContent).toBe('Disahkan5');
+});
+
+it('dua IKU berkode sama tetap tampil sebagai dua baris', () => {
+    const jumlah = { rencana: 1, terlaksana: 0, tidak_terlaksana: 0, ditunda: 0, batal: 0 };
+    const errors: unknown[] = [];
+    const asli = console.error;
+    console.error = (...args: unknown[]) => errors.push(args);
+    render(<PanelKegiatan kegiatan={kegiatan({ per_iku: [{ id: 'i1', kode: 'IKU 1.1', nama: 'Lama', jumlah }, { id: 'i2', kode: 'IKU 1.1', nama: 'Baru', jumlah }] })} periodeNama="Triwulan I 2026" />);
+    console.error = asli;
+
+    expect(screen.getByText('Lama')).toBeTruthy();
+    expect(screen.getByText('Baru')).toBeTruthy();
+    expect(errors.some((e) => String(e).includes('same key'))).toBe(false);
 });

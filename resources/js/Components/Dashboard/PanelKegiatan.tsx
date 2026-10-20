@@ -87,7 +87,7 @@ export function PanelKegiatan({ kegiatan, periodeNama }: { kegiatan: DashboardKe
                                         </TableRow>
                                     )}
                                     {kegiatan.per_iku.map((iku) => (
-                                        <TableRow key={iku.kode} className="grid min-w-0 grid-cols-2 gap-2 p-4 md:table-row">
+                                        <TableRow key={iku.id} className="grid min-w-0 grid-cols-2 gap-2 p-4 md:table-row">
                                             <TableCell className="col-span-2 min-w-0 p-0 md:max-w-sm md:px-4 md:py-3">
                                                 <p className="text-xs font-semibold text-ink">{iku.kode}</p>
                                                 <p className="mt-0.5 break-words text-xs text-muted">{iku.nama}</p>

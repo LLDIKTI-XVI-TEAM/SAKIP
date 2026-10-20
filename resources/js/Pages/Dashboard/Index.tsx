@@ -167,7 +167,7 @@ export default function DashboardIndex({
                                 <div className="min-w-0">
                                     <h2 className="text-base font-semibold tracking-tight text-ink">Status per indikator</h2>
                                     <p className="mt-0.5 text-xs text-muted">
-                                        {activePeriode.nama_periode}. Realisasi, target PK, dan selisih hanya dari pengukuran yang disahkan.
+                                        {activePeriode.nama_periode}. Realisasi dan selisih hanya dari pengukuran yang disahkan; target PK dari snapshot jadwal.
                                     </p>
                                 </div>
                                 {auth.can.pengukuran && (

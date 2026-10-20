@@ -16,9 +16,11 @@ export function SelisihTargetPk({ selisih, arah, satuan, desimal }: SelisihTarge
     const formatNilai = useFormatNilai();
     if (selisih === null) return <span className="text-muted">—</span>;
 
-    const negatif = selisih.trim().startsWith('-');
-    const nol = Number(selisih) === 0;
-    const mutlak = negatif ? selisih.trim().slice(1) : selisih.trim();
+    // Tanda dan nol dinilai dari nilai yang dibulatkan ke presisi tampilan agar tidak muncul "−0,00".
+    const dibulatkan = Number(Number(selisih).toFixed(desimal));
+    const negatif = dibulatkan < 0;
+    const nol = dibulatkan === 0;
+    const mutlak = String(Math.abs(dibulatkan));
     const tanda = nol ? '' : negatif ? '−' : '+';
     const baik = !nol && negatif === (arah === 'turun_baik');
     const warna = nol ? 'text-muted' : baik ? 'text-success-dark' : 'text-danger-dark';

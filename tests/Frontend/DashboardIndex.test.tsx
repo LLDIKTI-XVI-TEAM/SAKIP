@@ -286,3 +286,9 @@ it('pilihan indikator grafik menyebut satuan bila satu indikator memiliki lebih 
     fireEvent.change(screen.getByLabelText('Indikator'), { target: { value: 'IK-01:%:1' } });
     expect(JSON.parse((await screen.findByTestId('chart-line')).dataset.series ?? '[]')[1]).toEqual({ name: 'Realisasi', data: [65.5] });
 });
+
+it('keterangan tabel status menyebut realisasi dan selisih dari pengukuran disahkan, target PK dari snapshot jadwal', () => {
+    render(<Index {...props()} />);
+
+    expect(screen.getByText(/Realisasi dan selisih hanya dari pengukuran yang disahkan; target PK dari snapshot jadwal\./)).toBeTruthy();
+});

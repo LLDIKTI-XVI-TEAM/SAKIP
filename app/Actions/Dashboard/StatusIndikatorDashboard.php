@@ -28,8 +28,8 @@ class StatusIndikatorDashboard
     ) {}
 
     /**
-     * Status indikator × periode dari daftar kewajiban periode yang sudah dibuka. Angka resmi (realisasi, target, target PK,
-     * selisih) hanya dari isi versi disahkan; baris lain hanya membawa status dan target dari RA disahkan.
+     * Status indikator × periode dari daftar kewajiban periode yang sudah dibuka. Realisasi dan selisih hanya dari isi versi
+     * disahkan; target periode dari versi pengajuan beku atau RA disahkan; target PK dari snapshot jadwal bila belum disahkan.
      *
      * @param  array<string, mixed>  $konteks  hasil ResolveDashboardKonteks
      * @return array<string, mixed>

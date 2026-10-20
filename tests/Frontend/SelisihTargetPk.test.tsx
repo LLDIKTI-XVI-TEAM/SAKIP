@@ -40,3 +40,11 @@ it('selisih nol dan kosong', () => {
     expect(screen.getByText('—')).toBeTruthy();
     expect(screen.queryByText(/target/)).toBeNull();
 });
+
+it('selisih yang membulat ke nol tampil sebagai sama dengan target, bukan −0,00', () => {
+    render(<SelisihTargetPk selisih="-0.004" arah="naik_baik" satuan="poin" desimal={2} />);
+
+    expect(screen.getByText('0,00 poin').className).toContain('text-muted');
+    expect(screen.getByText('sama dengan target')).toBeTruthy();
+    expect(screen.queryByText(/−/)).toBeNull();
+});
