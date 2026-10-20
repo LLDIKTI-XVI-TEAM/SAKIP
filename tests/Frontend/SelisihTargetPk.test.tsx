@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { SelisihTargetPk } from '@/Components/Pengukuran/SelisihTargetPk';
+import { formatNilai } from '@/Pages/Pengukuran/formatNilai';
 
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()),
@@ -47,4 +48,14 @@ it('selisih yang membulat ke nol tampil sebagai sama dengan target, bukan −0,0
     expect(screen.getByText('0,00 poin').className).toContain('text-muted');
     expect(screen.getByText('sama dengan target')).toBeTruthy();
     expect(screen.queryByText(/−/)).toBeNull();
+});
+
+it('selisih pada batas pembulatan desimal dibulatkan seperti halaman Pengukuran, tanpa konversi Number', () => {
+    const { rerender } = render(<SelisihTargetPk selisih="1.005" arah="naik_baik" satuan="poin" desimal={2} />);
+    expect(screen.getByText(`+${formatNilai('1.005', 2)} poin`)).toBeTruthy();
+    expect(screen.getByText('+1,01 poin')).toBeTruthy();
+
+    rerender(<SelisihTargetPk selisih="-2.675" arah="naik_baik" satuan="poin" desimal={2} />);
+    expect(screen.getByText('−2,68 poin')).toBeTruthy();
+    expect(screen.getByText('di bawah target')).toBeTruthy();
 });
