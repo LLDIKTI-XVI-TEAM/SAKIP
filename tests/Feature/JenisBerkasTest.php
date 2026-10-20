@@ -284,9 +284,10 @@ class JenisBerkasTest extends TestCase
     }
 
     /**
-     * TEST-4: Perubahan substantif wajib menyertakan alasan dan mencatat dasar_izin audit before/after.
+     * Q43: alasan perubahan opsional, sedangkan audit sebelum/sesudah dan dasar izin tetap wajib.
      */
-    public function test_update_and_delete_require_audit_reason_and_records_audit_trail(): void
+    #[DataProvider('optionalUpdateReasons')]
+    public function test_update_with_optional_reason_keeps_audit_trail(array $reason): void
     {
         $jb = JenisBerkas::create([
             'nama' => 'Laporan Awal',
@@ -298,17 +299,37 @@ class JenisBerkasTest extends TestCase
             'created_by' => $this->perencanaan->id,
         ]);
 
-        // Update tanpa alasan ditolak
-        $failUpdate = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [
+        $response = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", $reason + [
             'nama' => 'Laporan Diperbarui',
             'tahap' => 'pengukuran',
             'izinkan_file' => true,
             'izinkan_tautan' => false,
             'izinkan_teks' => false,
-            'alasan' => '',
             'expected_updated_at' => $jb->updated_at->toISOString(),
         ]);
-        $failUpdate->assertSessionHasErrors('alasan');
+        $response->assertSessionHasNoErrors()->assertRedirect('/jenis-berkas');
+        $this->assertSame('Laporan Diperbarui', $jb->fresh()->nama);
+        $audit = AuditLog::where('tindakan', 'jenis_berkas.ubah')->where('objek_id', $jb->id)->sole();
+        $expectedReason = trim((string) ($reason['alasan'] ?? ''));
+        $this->assertSame($expectedReason !== '' ? $expectedReason : 'Perubahan persyaratan berkas tanpa alasan tambahan.', $audit->alasan);
+        $this->assertSame('Laporan Awal', $audit->nilai_lama['nama']);
+        $this->assertSame('Laporan Diperbarui', $audit->nilai_baru['nama']);
+        $this->assertSame($this->perencanaan->id, $audit->actor_id);
+        $this->assertNotNull($audit->waktu);
+        $this->assertSame('jenis_berkas:update', $audit->dasar_izin['permission']);
+    }
+
+    public static function optionalUpdateReasons(): array
+    {
+        return ['tanpa field' => [[]], 'null' => [['alasan' => null]], 'kosong' => [['alasan' => '']], 'singkat' => [['alasan' => 'OK']]];
+    }
+
+    public function test_update_and_delete_record_user_reason_and_audit_trail(): void
+    {
+        $jb = JenisBerkas::create([
+            'nama' => 'Laporan Awal', 'tahap' => 'pengukuran', 'izinkan_file' => true,
+            'created_by' => $this->perencanaan->id,
+        ]);
 
         // Update dengan alasan berhasil dan tercatat di audit_log beserta dasar_izin
         $successUpdate = $this->actingAs($this->perencanaan)->put("/jenis-berkas/{$jb->id}", [

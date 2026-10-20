@@ -38,7 +38,7 @@ class UpdateJenisBerkasAction
      *     format_diizinkan?: string|null,
      *     ukuran_maks_kb?: int|numeric-string|null,
      *     aktif?: bool|0|1|'0'|'1',
-     *     alasan: string,
+     *     alasan?: string|null,
      *     expected_updated_at: string,
      * } $data
      */
@@ -74,7 +74,10 @@ class UpdateJenisBerkasAction
 
             Validator::make($data, ['ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:'.UploadLimits::maxKb()]])->validate();
             $nilaiLama = $jb->toArray();
-            $alasan = $data['alasan'];
+            $alasan = AuditReason::sanitize($data['alasan'] ?? null);
+            if (trim($alasan) === '') {
+                $alasan = 'Perubahan persyaratan berkas tanpa alasan tambahan.';
+            }
             unset($data['alasan'], $data['expected_updated_at']);
             $jb->fill($data);
             if (! $jb->isDirty()) {
@@ -90,7 +93,7 @@ class UpdateJenisBerkasAction
         });
 
         if ($denied !== null) {
-            $alasan = AuditReason::sanitize($data['alasan']);
+            $alasan = AuditReason::sanitize($data['alasan'] ?? null);
             $this->auditLogger->catat(
                 actor: $actor, tindakan: 'jenis_berkas.ubah_ditolak', objekTipe: 'jenis_berkas', objekId: $id,
                 alasan: trim($alasan) !== '' ? $alasan : 'Percobaan pembaruan persyaratan jenis berkas ditolak karena tidak memiliki izin.', dasarIzin: $denied,

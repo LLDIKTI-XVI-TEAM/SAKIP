@@ -114,7 +114,7 @@ it('menyimpan persyaratan baru langsung tanpa alasan audit', async () => {
     );
 });
 
-it('meminta alasan audit sebelum menyimpan perubahan persyaratan', async () => {
+it.each(['', 'OK', 'Penyesuaian format laporan'])('menyimpan perubahan dengan alasan opsional: %j', async (alasan) => {
     const user = userEvent.setup();
     render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
 
@@ -122,12 +122,16 @@ it('meminta alasan audit sebelum menyimpan perubahan persyaratan', async () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(/nama persyaratan/i)));
     await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
     expect(router.put).not.toHaveBeenCalled();
-    await user.type(screen.getByLabelText(/alasan perubahan/i), 'Penyesuaian format laporan');
+    const reason = screen.getByLabelText(/alasan perubahan/i);
+    expect(reason.getAttribute('aria-required')).toBe('false');
+    expect(screen.queryByText(/Perubahan katalog persyaratan bukti dukung bersifat sensitif/)).toBeNull();
+    expect(screen.queryByText(/Alasan, pengguna, waktu/)).toBeNull();
+    if (alasan) await user.type(reason, alasan);
     await user.click(screen.getByRole('button', { name: /simpan perubahan/i }));
 
     expect(router.put).toHaveBeenCalledWith(
         '/jenis-berkas/j1',
-        expect.objectContaining({ nama: 'Laporan Capaian Triwulan', alasan: 'Penyesuaian format laporan' }),
+        expect.objectContaining({ nama: 'Laporan Capaian Triwulan', alasan }),
         expect.anything(),
     );
 });
