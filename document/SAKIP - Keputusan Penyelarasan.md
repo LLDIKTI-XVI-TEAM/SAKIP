@@ -1797,6 +1797,7 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 1. Panel progres Rencana Aksi (Plan 7.6) menghitung indikator snapshot jadwal terpilih; indikator yang belum memiliki Rencana Aksi tampil **"Belum disusun"**. Indikator arsip tidak dihitung.
 2. Hitungan kegiatan dan jumlah kegiatan yang melewati tanggal rencana mengikuti akses dashboard (Q54 §54.2 butir 2); daftar nama kegiatan yang terlambat hanya bagi pemegang `kegiatan:read` dan dibatasi unit berizin (Q54 §54.1), sejalan dengan Q42 §42.5 butir 1.
 3. Kegiatan tidak bertaut langsung ke jadwal. Panel kegiatan menghitung kegiatan yang diklaim Rencana Aksi jadwal terpilih **ditambah** kegiatan yang belum diklaim; kegiatan yang hanya diklaim Rencana Aksi jadwal lain tidak dihitung, dan hitungan per IKU hanya dari Rencana Aksi jadwal terpilih. (Keputusan PM 20 Oktober 2026, tindak lanjut review PR #147.)
+4. Pilihan unit pada filter dashboard terdiri dari unit penanggung jawab indikator snapshot jadwal terpilih **ditambah** unit pemilik kegiatan dalam cakupan butir 3 pada tahun jadwal, dikurangi unit yang ditolak untuk `dashboard:read`, agar setiap unit yang masuk agregat dapat disaring; unit tanpa indikator menampilkan tabel status dan panel Rencana Aksi kosong. (Keputusan PM 21 Oktober 2026, tindak lanjut review PR #147.)
 
 ## 64.3 Dampak dan traceability
 

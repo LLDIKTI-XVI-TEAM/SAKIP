@@ -4,6 +4,7 @@ namespace App\Actions\Dashboard;
 
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\Kegiatan;
 use App\Models\PeriodeJadwal;
 use App\Models\Renstra;
 use App\Models\SasaranStrategis;
@@ -65,7 +66,9 @@ class ResolveDashboardKonteks
         $snapshot = JadwalSnapshot::where('jadwal_id', $jadwal?->id);
         $sasaranOptions = $jadwal ? SasaranStrategis::whereIn('id', (clone $snapshot)->join('indikator_kinerjas as i', 'i.id', '=', 'jadwal_snapshot.indikator_id')
             ->select('i.sasaran_strategis_id'))->orderBy('urutan')->orderBy('kode')->get(['id', 'kode', 'deskripsi']) : collect();
-        $unitOptions = $jadwal ? Unit::whereIn('id', (clone $snapshot)->select('unit_id'))->whereNotIn('id', $unitDitolak)->orderBy('nama')->get(['id', 'nama']) : collect();
+        // Unit pemilik kegiatan dalam cakupan jadwal ikut ditawarkan agar agregat panel kegiatan dapat disaring (Q64 §64.2 butir 4).
+        $unitOptions = $jadwal ? Unit::where(fn ($q) => $q->whereIn('id', (clone $snapshot)->select('unit_id'))->orWhereIn('id', Kegiatan::dalamCakupanJadwal($jadwal)->select('unit_id')))
+            ->whereNotIn('id', $unitDitolak)->orderBy('nama')->get(['id', 'nama']) : collect();
         $sasaranId = $this->pilih($filter, 'sasaran_id', $sasaranOptions->pluck('id')->all(), 'Pilih sasaran pada jadwal terpilih.');
         $unitId = $this->pilih($filter, 'unit_id', $unitOptions->pluck('id')->all(), 'Pilih unit yang dapat Anda lihat pada jadwal terpilih.');
 

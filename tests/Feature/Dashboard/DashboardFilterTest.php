@@ -5,9 +5,12 @@ namespace Tests\Feature\Dashboard;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\Permission;
+use App\Models\RencanaAksi;
 use App\Models\Renstra;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,12 +18,13 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\CreatesDashboardFixture;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
 
 class DashboardFilterTest extends TestCase
 {
-    use CreatesPengukuranFixture, RefreshDatabase;
+    use CreatesDashboardFixture, CreatesPengukuranFixture, RefreshDatabase;
 
     private function tambahTw2(): PeriodeJadwal
     {
@@ -146,5 +150,29 @@ class DashboardFilterTest extends TestCase
         $this->jadwal->update(['closed_at' => Carbon::parse('2026-03-20 02:00:00', 'UTC')]);
         $this->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->where('activePeriode.status', 'terakhir')->where('statusIndikator.0.status', 'tidak_mengisi'));
+    }
+
+    public function test_pilihan_unit_memuat_unit_kegiatan_dalam_cakupan_jadwal_walau_tanpa_snapshot(): void
+    {
+        $kegiatan = fn (Unit $unit) => Kegiatan::create(['unit_id' => $unit->id, 'tahun' => 2026, 'periode_id' => $this->pengukuran->periode_id,
+            'nama' => 'Kegiatan '.$unit->nama, 'anggaran' => 0, 'created_by' => $this->actor->id]);
+        $unitBebas = $this->unitBaru('Unit Kegiatan Bebas');
+        $kegiatan($unitBebas);
+        $unitDitolak = $this->unitBaru('Unit Ditolak');
+        $kegiatan($unitDitolak);
+        $this->tolak('dashboard:read', $unitDitolak->id);
+        // Kegiatan yang hanya diklaim Rencana Aksi jadwal lain tidak masuk panel (Q64 §64.2 butir 3); unitnya pun tidak ditawarkan.
+        $renstraLama = Renstra::create([...Renstra::findOrFail($this->jadwal->renstra_id)->only(['nama', 'tahun_mulai', 'tahun_selesai', 'created_by']), 'kode' => 'REN-LAMA', 'status' => 'nonaktif']);
+        $jadwalLama = JadwalTahunan::create([...$this->jadwal->only(['tahun', 'penutupan']), 'renstra_id' => $renstraLama->id, 'status' => 'ditutup']);
+        $unitLama = $this->unitBaru('Unit Jadwal Lama');
+        $raLama = RencanaAksi::create([...$this->plan->only(['tahun', 'penanggung_jawab_id', 'created_by']), 'unit_id' => $unitLama->id, 'jadwal_tahunan_id' => $jadwalLama->id,
+            'indikator_id' => $this->indikatorBaru('I-LAMA', snapshot: ['jadwal_id' => $jadwalLama->id])->indikator_id, 'status_alur' => 'draft']);
+        KlaimKegiatan::create(['rencana_aksi_id' => $raLama->id, 'kegiatan_id' => $kegiatan($unitLama)->id, 'arah_dampak' => 'menambah',
+            'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->actor->id, 'created_at' => now()]);
+
+        $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('pilihan.unit', [['id' => $unitBebas->id, 'nama' => 'Unit Kegiatan Bebas'], ['id' => $this->unit->id, 'nama' => 'Unit Pengujian']]));
+        $this->get('/dashboard?unit_id='.$unitBebas->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('filter.unit_id', $unitBebas->id)->where('kegiatan.per_status.rencana', 1)->where('statusIndikator', []));
     }
 }

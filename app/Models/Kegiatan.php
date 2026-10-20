@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +29,15 @@ class Kegiatan extends Model
     public function periode(): BelongsTo
     {
         return $this->belongsTo(Periode::class);
+    }
+
+    /** Kegiatan tidak bertaut jadwal: cakupan jadwal = diklaim Rencana Aksi jadwal itu atau belum diklaim sama sekali (Q64 §64.2 butir 3). */
+    public function scopeDalamCakupanJadwal(Builder $query, JadwalTahunan $jadwal): Builder
+    {
+        return $query->where('kegiatan.tahun', $jadwal->tahun)->where(fn (Builder $q) => $q
+            ->whereExists(fn ($sub) => $sub->from('klaim_kegiatan as kk')->join('rencana_aksi as ra', 'ra.id', '=', 'kk.rencana_aksi_id')
+                ->whereColumn('kk.kegiatan_id', 'kegiatan.id')->where('ra.jadwal_tahunan_id', $jadwal->id))
+            ->orWhereNotExists(fn ($sub) => $sub->from('klaim_kegiatan as kk')->whereColumn('kk.kegiatan_id', 'kegiatan.id')));
     }
 
     /** Proyeksi rencana untuk form dan audit; tidak mengekspos data pelaksanaan. */

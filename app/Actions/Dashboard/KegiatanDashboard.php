@@ -30,12 +30,8 @@ class KegiatanDashboard
             return ['per_status' => array_fill_keys(Kegiatan::STATUSES, 0), 'terlambat_jumlah' => 0, 'per_iku' => [], 'terlambat' => $bolehBaca ? [] : null];
         }
         $sasaran = $konteks['filter']['sasaran_id'];
-        $base = Kegiatan::query()->where('kegiatan.tahun', $jadwal->tahun)->where('kegiatan.periode_id', $periode->periode_id)
+        $base = Kegiatan::dalamCakupanJadwal($jadwal)->where('kegiatan.periode_id', $periode->periode_id)
             ->whereNotIn('kegiatan.unit_id', $konteks['unitDitolak'])
-            // Kegiatan tidak bertaut jadwal; diklaim RA jadwal terpilih atau belum diklaim sama sekali (Q64 §64.2 butir 3).
-            ->where(fn (Builder $q) => $q->whereExists(fn ($sub) => $sub->from('klaim_kegiatan as kk')->join('rencana_aksi as ra', 'ra.id', '=', 'kk.rencana_aksi_id')
-                ->whereColumn('kk.kegiatan_id', 'kegiatan.id')->where('ra.jadwal_tahunan_id', $jadwal->id))
-                ->orWhereNotExists(fn ($sub) => $sub->from('klaim_kegiatan as kk')->whereColumn('kk.kegiatan_id', 'kegiatan.id')))
             ->when($konteks['filter']['unit_id'], fn (Builder $q, $id) => $q->where('kegiatan.unit_id', $id))
             ->when($sasaran, fn (Builder $q, $id) => $q->whereExists(fn ($sub) => $sub->from('klaim_kegiatan as kk')
                 ->join('rencana_aksi as ra', 'ra.id', '=', 'kk.rencana_aksi_id')->join('indikator_kinerjas as i', 'i.id', '=', 'ra.indikator_id')
