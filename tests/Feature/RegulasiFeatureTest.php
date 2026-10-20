@@ -157,6 +157,48 @@ test('create regulasi menyimpan tiga mode lampiran dan audit', function (): void
         ->and($auditTeks->nilai_baru)->not->toHaveKey('isi_teks');
 });
 
+test('lampiran regulasi mode tautan menyimpan nilai dan audit hanya metadata', function (): void {
+    Storage::fake('local');
+    $tautan = 'https://jdih.example.test/kepmen-tautan-2026/dokumen';
+
+    $response = $this->actingAs($this->perencanaan)->post('/regulasi', [
+        'jenis' => 'kepmen',
+        'nomor' => 'TAUTAN-2026',
+        'tahun' => 2026,
+        'tentang' => 'Regulasi dengan lampiran tautan resmi.',
+        'aktif' => true,
+        'lampiran' => [[
+            'mode' => 'tautan',
+            'tautan' => $tautan,
+        ]],
+    ]);
+
+    $response->assertRedirect(route('regulasi.index'));
+
+    $regulasi = Regulasi::query()->where('nomor', 'TAUTAN-2026')->firstOrFail();
+    $berkas = $regulasi->berkas()->sole();
+    expect($berkas->mode)->toBe('tautan')
+        ->and($berkas->tautan)->toBe($tautan)
+        ->and($berkas->path)->toBeNull()
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+
+    $audit = AuditLog::query()
+        ->where('tindakan', 'berkas.unggah')
+        ->where('objek_tipe', 'berkas')
+        ->where('objek_id', $berkas->id)
+        ->sole();
+
+    expect($audit->nilai_baru['id'])->toBe($berkas->id)
+        ->and($audit->nilai_baru['mode'])->toBe('tautan')
+        ->and($audit->nilai_baru['jenis_berkas_id'])->toBeNull()
+        ->and($audit->nilai_baru['tautan'])->toBe($tautan)
+        ->and($audit->nilai_baru)->not->toHaveKey('path')
+        ->and($audit->nilai_baru)->not->toHaveKey('nama_asli')
+        ->and($audit->nilai_baru)->not->toHaveKey('mime')
+        ->and($audit->nilai_baru)->not->toHaveKey('ukuran_bytes')
+        ->and($audit->nilai_baru)->not->toHaveKey('isi_teks');
+});
+
 test('validasi lampiran mengabaikan nilai dari mode yang tidak aktif', function (): void {
     $response = $this->actingAs($this->perencanaan)->post('/regulasi', [
         'jenis' => 'kepmen',
@@ -610,6 +652,30 @@ test('download file privat memerlukan permission read', function (): void {
         ->get("/regulasi/{$regulasi->id}/berkas/{$berkas->id}/download")
         ->assertOk()
         ->assertDownload('aturan.pdf');
+});
+
+test('download lampiran regulasi ditolak tanpa regulasi:read', function (): void {
+    Storage::fake('local');
+    $regulasi = buatRegulasi($this->perencanaan);
+    $path = "berkas/regulasi/{$regulasi->id}/rahasia.pdf";
+    Storage::disk('local')->put($path, 'isi-pdf-tidak-boleh-terkirim');
+    $berkas = $regulasi->berkas()->create([
+        'jenis_berkas_id' => null,
+        'mode' => 'file',
+        'nama_asli' => 'rahasia.pdf',
+        'path' => $path,
+        'mime' => 'application/pdf',
+        'ukuran_bytes' => 28,
+        'uploaded_by' => $this->perencanaan->id,
+    ]);
+    tolakIzin($this->pembaca, PermissionCodes::REGULASI_READ);
+
+    $response = $this->actingAs($this->pembaca)
+        ->get("/regulasi/{$regulasi->id}/berkas/{$berkas->id}/download");
+
+    $response->assertForbidden()
+        ->assertHeaderMissing('content-disposition');
+    expect($response->getContent())->not->toContain('isi-pdf-tidak-boleh-terkirim');
 });
 
 test('hapus lampiran menggunakan permission berkas dan mencatat audit', function (): void {
