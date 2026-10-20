@@ -193,4 +193,20 @@ class DashboardStatusIndikatorTest extends TestCase
         $this->assertSame('PIC Saat Diajukan', $this->baris($props, 'I-DUA')['pic']['nama']);
         $this->assertSame($picBaru->nama, $this->baris($props, 'I-TIGA')['pic']['nama']);
     }
+
+    public function test_grafik_memisahkan_seri_bila_satuan_snapshot_berubah(): void
+    {
+        $tw2 = $this->tambahPeriode(2, '2026-06-01', '2026-06-15');
+        $koreksi = $this->context->replicate();
+        $koreksi->fill(['nomor_versi' => 2, 'menggantikan_id' => $this->context->id, 'periode_mulai_id' => $tw2->periode_id, 'satuan' => 'persen', 'desimal_tampilan' => 1])->save();
+        $this->travelTo(now()->setDate(2026, 6, 5));
+
+        $grafik = $this->props()['grafik'];
+
+        $seri = collect($grafik['indikator'])->where('kode', 'I-UJI')->values();
+        $this->assertSame([['poin', 2], ['persen', 1]], $seri->map(fn ($i) => [$i['satuan'], $i['desimal_tampilan']])->all());
+        $this->assertNotSame($seri[0]['id'], $seri[1]['id']);
+        $this->assertSame([$this->pengukuran->periode_id], array_column($grafik['seri'][$seri[0]['id']], 'periode_id'));
+        $this->assertSame([$tw2->periode_id], array_column($grafik['seri'][$seri[1]['id']], 'periode_id'));
+    }
 }

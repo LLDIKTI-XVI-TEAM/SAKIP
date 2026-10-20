@@ -263,3 +263,26 @@ it('panel progres rencana aksi tetap tampil sebelum jendela pengisian pertama di
     expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ })).toBeTruthy();
     expect(screen.queryByRole('region', { name: /Status kegiatan/ })).toBeNull();
 });
+
+it('pilihan indikator grafik menyebut satuan bila satu indikator memiliki lebih dari satu seri', async () => {
+    const titik = (periode: string, realisasi: string) => ({ periode_id: periode, nama: periode, target: null, tanpa_target: false, realisasi, status: 'belum_ditetapkan' as const });
+    render(
+        <Index
+            {...props({
+                grafik: {
+                    indikator: [
+                        { id: 'IK-01:poin:2', kode: 'IK-01', nama: 'Indikator IK-01', satuan: 'poin', desimal_tampilan: 2 },
+                        { id: 'IK-01:%:1', kode: 'IK-01', nama: 'Indikator IK-01', satuan: '%', desimal_tampilan: 1 },
+                    ],
+                    seri: { 'IK-01:poin:2': [titik('p1', '40')], 'IK-01:%:1': [titik('p2', '65.5')] },
+                },
+            })}
+        />,
+    );
+    await screen.findByTestId('chart-line');
+
+    const pilihan = within(screen.getByLabelText('Indikator')).getAllByRole('option').map((o) => o.textContent);
+    expect(pilihan).toEqual(['IK-01 — Indikator IK-01 (poin)', 'IK-01 — Indikator IK-01 (%)']);
+    fireEvent.change(screen.getByLabelText('Indikator'), { target: { value: 'IK-01:%:1' } });
+    expect(JSON.parse((await screen.findByTestId('chart-line')).dataset.series ?? '[]')[1]).toEqual({ name: 'Realisasi', data: [65.5] });
+});

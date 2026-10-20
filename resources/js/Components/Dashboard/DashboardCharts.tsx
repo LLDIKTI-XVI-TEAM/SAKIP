@@ -247,7 +247,11 @@ function GrafikTargetRealisasi({ grafik, base, tahun }: { grafik: DashboardProps
                             label="Indikator"
                             name="grafik-indikator"
                             value={indikator?.id ?? ''}
-                            options={grafik.indikator.map((item) => ({ value: item.id, label: `${item.kode} — ${item.nama}` }))}
+                            options={grafik.indikator.map((item) => ({
+                                value: item.id,
+                                // Koreksi snapshot dapat memecah satu indikator menjadi beberapa seri beda satuan.
+                                label: `${item.kode} — ${item.nama}${grafik.indikator.filter((lain) => lain.kode === item.kode).length > 1 ? ` (${item.satuan})` : ''}`,
+                            }))}
                             onChange={(event) => setDipilih(event.target.value)}
                         />
                     </div>

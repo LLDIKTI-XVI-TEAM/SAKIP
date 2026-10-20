@@ -11,6 +11,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Pengukuran\DaftarKewajibanPengukuran;
 use App\Services\RencanaAksi\PeriodeTanpaTarget;
 use App\Support\StatusTampilanPengukuran as Status;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 
 class StatusIndikatorDashboard
@@ -108,17 +109,22 @@ class StatusIndikatorDashboard
             ...collect(self::ALUR)->mapWithKeys(fn ($s) => [$s => $alur->get($s, 0)])->all()];
     }
 
-    /** Seri per indikator lintas periode dibuka; satuan berbeda tidak digabung pada satu grafik. */
+    /**
+     * Seri per indikator lintas periode dibuka. Koreksi snapshot dapat mengubah satuan/presisi di tengah tahun, jadi kunci
+     * seri memuat keduanya agar nilai beda satuan tidak digambar pada satu sumbu.
+     */
     private function grafik(Collection $cells, Collection $periodeDibuka): array
     {
-        $perIndikator = $cells->groupBy('baris.indikator.id');
         $urutan = $periodeDibuka->pluck('id')->flip();
+        $nama = $periodeDibuka->mapWithKeys(fn (PeriodeJadwal $p) => [$p->id => $p->periode->nama]);
+        $kelompok = $cells->sortBy(fn (array $cell) => $urutan[$cell['periode_jadwal_id']])
+            ->groupBy(fn (array $cell) => implode(':', Arr::only($cell['baris']['indikator'], ['id', 'satuan', 'desimal_tampilan'])));
 
         return [
-            'indikator' => $perIndikator->map(fn (Collection $items) => collect($items->last()['baris']['indikator'])->only(['id', 'kode', 'nama', 'satuan', 'desimal_tampilan'])->all())
-                ->sortBy('kode')->values()->all(),
-            'seri' => $perIndikator->map(fn (Collection $items) => $items->sortBy(fn (array $cell) => $urutan[$cell['periode_jadwal_id']])->map(fn (array $cell) => [
-                'periode_id' => $cell['periode_id'], 'nama' => $periodeDibuka->firstWhere('id', $cell['periode_jadwal_id'])->periode->nama,
+            'indikator' => $kelompok->map(fn (Collection $items, string $kunci) => ['id' => $kunci,
+                ...Arr::only($items->first()['baris']['indikator'], ['kode', 'nama', 'satuan', 'desimal_tampilan'])])->sortBy('kode')->values()->all(),
+            'seri' => $kelompok->map(fn (Collection $items) => $items->map(fn (array $cell) => [
+                'periode_id' => $cell['periode_id'], 'nama' => $nama[$cell['periode_jadwal_id']],
                 'target' => $cell['baris']['target'], 'tanpa_target' => $cell['baris']['tanpa_target_periode'],
                 'realisasi' => $cell['baris']['realisasi'], 'status' => $cell['baris']['status'],
             ])->values()->all())->all(),
