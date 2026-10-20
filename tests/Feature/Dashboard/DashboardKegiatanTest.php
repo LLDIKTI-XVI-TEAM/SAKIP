@@ -2,10 +2,13 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
+use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
+use App\Models\Renstra;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -143,5 +146,23 @@ class DashboardKegiatanTest extends TestCase
         DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id, 'permission_id' => Permission::where('kode', 'dashboard:read')->value('id'),
             'unit_id' => $unitB->id, 'alasan' => 'Deny pengujian', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
         $this->assertSame([1, 1, ['I-UJI'], ['Terlambat A']], $ringkas($this->panel()));
+    }
+
+    public function test_kegiatan_dibatasi_jadwal_terpilih_dan_kegiatan_belum_diklaim_tetap_dihitung(): void
+    {
+        $renstraLama = Renstra::create([...Renstra::findOrFail($this->jadwal->renstra_id)->only(['nama', 'tahun_mulai', 'tahun_selesai', 'created_by']), 'kode' => 'REN-LAMA', 'status' => 'nonaktif']);
+        $jadwalLama = JadwalTahunan::create([...$this->jadwal->only(['tahun', 'penutupan']), 'renstra_id' => $renstraLama->id, 'status' => 'ditutup']);
+        PeriodeJadwal::create([...PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->firstOrFail()->only(['periode_id', 'pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai']),
+            'jadwal_id' => $jadwalLama->id]);
+        $indikatorLama = $this->indikatorBaru('I-LAMA', snapshot: ['jadwal_id' => $jadwalLama->id]);
+        $raLama = RencanaAksi::create([...$this->plan->only(['tahun', 'unit_id', 'penanggung_jawab_id', 'created_by']),
+            'jadwal_tahunan_id' => $jadwalLama->id, 'indikator_id' => $indikatorLama->indikator_id, 'status_alur' => 'draft']);
+        $this->klaim($raLama, $this->kegiatan(['nama' => 'K-lama', 'tanggal_rencana' => '2026-03-01']));
+        $this->klaim($this->plan, $this->kegiatan(['nama' => 'K-baru', 'tanggal_rencana' => '2026-03-02']));
+        $this->kegiatan(['nama' => 'K-bebas', 'tanggal_rencana' => '2026-03-03']);
+        $ringkas = fn (array $panel) => [$panel['per_status']['rencana'], $panel['terlambat_jumlah'], array_column($panel['terlambat'], 'nama'), array_column($panel['per_iku'], 'kode')];
+
+        $this->assertSame([2, 2, ['K-baru', 'K-bebas'], ['I-UJI']], $ringkas($this->panel()));
+        $this->assertSame([2, 2, ['K-lama', 'K-bebas'], ['I-LAMA']], $ringkas($this->panel(query: '?renstra_id='.$renstraLama->id)));
     }
 }
