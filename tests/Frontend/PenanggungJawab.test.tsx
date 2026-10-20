@@ -6,11 +6,11 @@ import Show from '@/Pages/PenanggungJawab/Show';
 import type { AssignmentDetailProps } from '@/types/penanggung-jawab';
 import type { Page, VisitOptions } from '@inertiajs/core';
 
-const transport = vi.hoisted(() => ({ post: vi.fn(), reload: vi.fn(), get: vi.fn(), pengaturan: {} as Record<string, string>, bacaIndikator: true }));
+const transport = vi.hoisted(() => ({ post: vi.fn(), reload: vi.fn(), get: vi.fn(), pengaturan: {} as Record<string, string>, bacaIndikator: true, grant: false }));
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()), Head: () => null,
     router: { reload: transport.reload, get: transport.get },
-    usePage: () => ({ props: { pengaturan: transport.pengaturan, auth: { can: { sasaranIndikator: transport.bacaIndikator } } } }),
+    usePage: () => ({ props: { pengaturan: transport.pengaturan, auth: { can: { sasaranIndikator: transport.bacaIndikator, grant: transport.grant } } } }),
     useForm: (initial: { user_id: string; tanggal_mulai_berlaku: string; alasan: string; expected_state: string }) => {
         const [data, setData] = useState(initial);
         return { data, processing: false, errors: {}, clearErrors: vi.fn(),
@@ -33,7 +33,7 @@ const props: AssignmentDetailProps = {
     has_history: true, expected_state: 'old-token', tanggal_acuan: '2026-03-15', today: '2026-03-15', blocked_reason: null,
     can: { assign: true }, saved_assignment_id: null,
 };
-beforeEach(() => { transport.pengaturan = {}; transport.bacaIndikator = true; });
+beforeEach(() => { transport.pengaturan = {}; transport.bacaIndikator = true; transport.grant = false; });
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 function draft() {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }));
@@ -129,4 +129,25 @@ it('tanpa indikator:read tidak menautkan ke detail indikator yang akan ditolak 4
     render(<Show {...props} />);
     expect(screen.queryByRole('link', { name: 'Kembali ke detail indikator' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Monitoring izin kerja' }).getAttribute('href')).toBe('/penanggung-jawab');
+});
+
+it('tombol Beri izin unit membuka form Izin Unit untuk PJ efektif dan unit ini, hanya bila server mengizinkan', () => {
+    const aktif = { id: 'assignment-c', tanggal_mulai_berlaku: '2026-02-01', pic: { id: 'user-c', nama: 'PJ Aktif', status: 'aktif' },
+        ditetapkan_oleh: null, alasan: null, created_at: null, state: 'Efektif' };
+    transport.grant = true;
+    render(<Show {...props} effective={aktif} />);
+    expect(screen.getByRole('link', { name: 'Beri izin unit kepada PJ Aktif' }).getAttribute('href')).toBe('/akses/grant?beri_pengguna=user-c&beri_unit=unit-a');
+    cleanup();
+
+    // Tanpa kemampuan memberi izin unit, tanpa PJ efektif, atau PJ/unit nonaktif: tombol tidak tampil.
+    transport.grant = false;
+    render(<Show {...props} effective={aktif} />);
+    expect(screen.queryByRole('link', { name: /Beri izin unit/ })).toBeNull();
+    cleanup();
+    transport.grant = true;
+    for (const variasi of [{ effective: null }, { effective: { ...aktif, pic: { ...aktif.pic, status: 'nonaktif' } } }, { effective: aktif, unit: { id: 'unit-a', nama: 'Unit QA', status: 'nonaktif' } }]) {
+        render(<Show {...props} {...variasi} />);
+        expect(screen.queryByRole('link', { name: /Beri izin unit/ })).toBeNull();
+        cleanup();
+    }
 });

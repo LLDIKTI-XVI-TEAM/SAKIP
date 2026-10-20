@@ -248,7 +248,7 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                 },
                 {
                     id: 'grant',
-                    label: 'Izin Unit (Grant)',
+                    label: 'Izin Unit',
                     href: '/akses/grant',
                     icon: ShieldCheck,
                     canKey: 'grant',

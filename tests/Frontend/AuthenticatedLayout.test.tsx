@@ -78,11 +78,11 @@ describe('AuthenticatedLayout Breadcrumbs', () => {
                 <div>Konten</div>
             </AuthenticatedLayout>
         );
-        // Buka grup Manajemen Akses untuk memeriksa submenu Izin Unit (Grant)
+        // Buka grup Manajemen Akses untuk memeriksa submenu Izin Unit
         const groupButton = screen.getByRole('button', { name: 'Manajemen Akses' });
         expect(groupButton).toBeTruthy();
         fireEvent.click(groupButton);
-        expect(screen.getByRole('link', { name: 'Izin Unit (Grant)' }).getAttribute('href')).toBe('/akses/grant');
+        expect(screen.getByRole('link', { name: 'Izin Unit' }).getAttribute('href')).toBe('/akses/grant');
 
         mockCan = { dashboard: true, grant: false };
         rerender(
@@ -90,7 +90,7 @@ describe('AuthenticatedLayout Breadcrumbs', () => {
                 <div>Konten</div>
             </AuthenticatedLayout>
         );
-        expect(screen.queryByRole('link', { name: 'Izin Unit (Grant)' })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Izin Unit' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Manajemen Akses' })).toBeNull();
     });
 

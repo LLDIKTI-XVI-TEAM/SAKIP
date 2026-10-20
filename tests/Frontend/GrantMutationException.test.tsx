@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import GrantIndex from '@/Pages/Akses/GrantIndex';
 
 const currentPage = vi.hoisted(() => ({
@@ -23,10 +23,22 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
     AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
 }));
 
+const methods = ['showModal', 'close'] as const;
+const originals = methods.map((name) => Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name));
+beforeAll(() => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function (this: HTMLDialogElement) { this.open = true; } });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function (this: HTMLDialogElement) { this.open = false; } });
+});
+afterAll(() => methods.forEach((name, index) => {
+    const descriptor = originals[index];
+    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+}));
+
 describe('Grant Mutation 403 Exception Handling', () => {
     beforeEach(() => {
         vi.spyOn(router, 'post').mockImplementation(() => undefined);
-        vi.spyOn(router, 'delete').mockImplementation(() => undefined);
+        vi.spyOn(router, 'put').mockImplementation(() => undefined);
         vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
             items: [{ id: 'user-2', nama: 'Pegawai Test', email: 'pegawai@example.test', roles: ['pegawai'] }],
             page: 1,
@@ -40,39 +52,26 @@ describe('Grant Mutation 403 Exception Handling', () => {
         vi.unstubAllGlobals();
     });
 
-    const mockGrant = {
-        id: 'grant-1',
+    const mockKelompok = {
+        key: 'user-2:unit-1',
         user_id: 'user-2',
         user_name: 'Pegawai Test',
         user_email: 'pegawai@example.test',
-        user_roles: ['pegawai'],
-        permission_id: 'perm-1',
-        permission_kode: 'pengukuran:create',
-        permission_keterangan: 'Input pengukuran unit',
+        user_roles: ['Pegawai'],
         unit_id: 'unit-1',
         unit_nama: 'Bagian Akademik',
-        alasan: 'Alasan penugasan awal',
-        diberikan_oleh_nama: 'Admin SAKIP',
-        created_at: '2026-03-20T10:00:00Z',
-        can_revoke: true,
+        tidak_berlaku: [],
+        izin: [{ grant_id: 'grant-1', permission_id: 'perm-1', label: 'Mengisi pengukuran', aktif: true }],
     };
 
     const mockProps = {
-        grants: {
-            data: [mockGrant],
-            current_page: 1,
-            last_page: 1,
-            per_page: 10,
-            from: 1,
-            to: 1,
-            prev_page_url: null,
-            next_page_url: null,
-            total: 1,
-        },
+        grants: { data: [mockKelompok], links: [], from: 1, to: 1, total: 1 },
+        filters: { search: '', unit_id: 'all' },
         units: [{ id: 'unit-1', nama: 'Bagian Akademik' }],
-        unitPermissions: [{ id: 'perm-1', name: 'pengukuran:create', kode: 'pengukuran:create', keterangan: 'Input pengukuran unit' }],
+        unitPermissions: [{ id: 'perm-1', kode: 'pengukuran:create', label: 'Mengisi pengukuran' }],
         can: {
             create_grant: true,
+            kelola_grant: true,
             revoke_grant: true,
         },
     };
@@ -81,8 +80,8 @@ describe('Grant Mutation 403 Exception Handling', () => {
         const user = userEvent.setup();
         render(<GrantIndex {...mockProps} />);
 
-        // Buka modal tambah grant
-        await user.click(screen.getByRole('button', { name: /Beri Grant Baru/i }));
+        // Buka modal pemberian izin unit
+        await user.click(screen.getByRole('button', { name: 'Beri izin unit' }));
         expect(screen.getByRole('dialog')).toBeTruthy();
 
         // Isi form
@@ -91,24 +90,19 @@ describe('Grant Mutation 403 Exception Handling', () => {
         const userOption = await screen.findByRole('option', { name: /Pegawai Test/i });
         await user.click(userOption);
 
-        const permissionSelect = screen.getByLabelText(/Permission Unit-Scoped/i);
-        await user.selectOptions(permissionSelect, 'perm-1');
-
-        const unitSelect = screen.getByLabelText(/Unit Organisasi Target/i);
-        await user.selectOptions(unitSelect, 'unit-1');
-
-        const alasanInput = screen.getByLabelText(/Alasan Pemberian Izin/i);
-        await user.type(alasanInput, 'Penugasan khusus input data triwulan');
+        await user.click(screen.getByRole('checkbox', { name: 'Mengisi pengukuran' }));
+        await user.selectOptions(screen.getByLabelText(/^Unit/), 'unit-1');
+        await user.type(screen.getByLabelText(/^Alasan pemberian/), 'Penugasan khusus input data triwulan');
 
         // Submit form
-        await user.click(screen.getByRole('button', { name: /Simpan & Catat Audit/i }));
+        await user.click(screen.getByRole('button', { name: 'Simpan' }));
 
         expect(router.post).toHaveBeenCalled();
         const postCall = vi.mocked(router.post).mock.calls[0];
         expect(postCall[0]).toBe('/akses/grant');
         const options = postCall[2];
 
-        // Simulasikan server merespons 403 karena hak akses:update aktor telah dicabut
+        // Simulasikan server merespons 403 karena izin delegasi aktor telah dicabut
         const serverMessage = 'Anda tidak berwenang mengelola pemberian izin unit.';
         let handledResult: unknown;
         await act(async () => {
@@ -122,39 +116,38 @@ describe('Grant Mutation 403 Exception Handling', () => {
         // onHttpException harus mengembalikan false agar exception generik Inertia dicegah
         expect(handledResult).toBe(false);
 
-        // Modal tetap terbuka
-        expect(screen.getByRole('dialog')).toBeTruthy();
-
-        // Pesan penolakan server tampil di alert banner modal
-        const alert = screen.getByRole('alert');
-        expect(alert.textContent).toContain(serverMessage);
+        // Modal tetap terbuka dan pesan penolakan tampil sekali di banner modal, bukan pada field alasan
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByRole('alert').textContent).toContain(serverMessage);
+        expect(screen.getAllByText(serverMessage)).toHaveLength(1);
+        expect(screen.getByLabelText(/^Alasan pemberian/).getAttribute('aria-invalid')).not.toBe('true');
     });
 
     it('menangani 403 pada pencabutan grant: mempertahankan modal konfirmasi dan menampilkan penolakan wewenang dicabut', async () => {
         const user = userEvent.setup();
         render(<GrantIndex {...mockProps} />);
 
-        // Klik tombol cabut izin pada baris grant
-        const revokeBtn = screen.getByTitle('Cabut Izin Unit');
-        await user.click(revokeBtn);
+        // Klik tombol cabut semua izin pada baris pengguna-unit
+        await user.click(screen.getByRole('button', { name: 'Cabut semua izin unit Pegawai Test di Bagian Akademik' }));
 
-        // Modal konfirmasi pencabutan terbuka
-        expect(screen.getByRole('dialog')).toBeTruthy();
-        expect(screen.getByText(/Konfirmasi Pencabutan Izin/i)).toBeTruthy();
+        // Modal alasan pencabutan terbuka dan tombol konfirmasi menunggu alasan
+        const dialog = screen.getByRole('dialog', { name: 'Cabut semua izin unit Pegawai Test?' });
+        const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Cabut semua' });
+        expect(confirm.disabled).toBe(true);
 
         // Isi alasan pencabutan
-        const alasanInput = screen.getByLabelText(/Alasan Pencabutan Izin/i);
+        const alasanInput = within(dialog).getByRole<HTMLTextAreaElement>('textbox');
         await user.type(alasanInput, 'Masa penugasan triwulan telah berakhir');
 
-        // Submit pencabutan
-        await user.click(screen.getByRole('button', { name: /Cabut Izin Sekarang/i }));
+        // Submit pencabutan lewat endpoint Kelola dengan daftar akhir kosong
+        await user.click(confirm);
 
-        expect(router.delete).toHaveBeenCalled();
-        const deleteCall = vi.mocked(router.delete).mock.calls[0];
-        expect(deleteCall[0]).toBe(`/akses/grant/${mockGrant.id}`);
-        const options = deleteCall[1];
+        expect(router.put).toHaveBeenCalled();
+        const putCall = vi.mocked(router.put).mock.calls[0];
+        expect(putCall[0]).toBe('/akses/grant/kelola');
+        const options = putCall[2];
 
-        // Simulasikan server merespons 403 karena hak akses:update aktor telah dicabut
+        // Simulasikan server merespons 403 karena izin delegasi aktor telah dicabut
         const serverMessage = 'Anda tidak berwenang mengelola pencabutan izin unit.';
         let handledResult: unknown;
         await act(async () => {
@@ -168,14 +161,12 @@ describe('Grant Mutation 403 Exception Handling', () => {
         // onHttpException harus mengembalikan false
         expect(handledResult).toBe(false);
 
-        // Modal konfirmasi pencabutan tetap terbuka
-        expect(screen.getByRole('dialog')).toBeTruthy();
+        // Modal tetap terbuka dengan alasan utuh dan tidak ditandai salah
+        expect(screen.getByRole('dialog', { name: 'Cabut semua izin unit Pegawai Test?' })).toBeTruthy();
+        expect(alasanInput.value).toBe('Masa penugasan triwulan telah berakhir');
+        expect(alasanInput.getAttribute('aria-invalid')).toBe('false');
 
-        // Alasan pencabutan tetap utuh
-        expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan Pencabutan Izin/i }).value).toBe('Masa penugasan triwulan telah berakhir');
-
-        // Pesan penolakan server tampil di alert banner
-        const alert = screen.getByRole('alert');
-        expect(alert.textContent).toContain(serverMessage);
+        // Pesan penolakan server tampil di banner modal
+        expect(within(dialog).getByRole('alert').textContent).toContain(serverMessage);
     });
 });

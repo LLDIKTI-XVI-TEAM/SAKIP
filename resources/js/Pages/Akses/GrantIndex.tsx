@@ -1,725 +1,279 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import {
-    ShieldCheck,
-    Plus,
-    Trash2,
-    Search,
-    AlertTriangle,
-    Building2,
-    KeyRound,
-    Info,
-    RotateCcw,
-} from 'lucide-react';
+import { Eye, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
+import { Card, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
-import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
-import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import { Pagination, type PaginationLinkItem } from '@/Components/Pagination';
+import { Select } from '@/Components/Select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Textarea } from '@/Components/Textarea';
+import { Tooltip } from '@/Components/Tooltip';
+import { CabutSemuaIzinUnitModal } from '@/Components/Access/CabutSemuaIzinUnitModal';
 import { GrantUserAutocomplete, type UserOption } from '@/Components/Access/GrantUserAutocomplete';
-
-interface GrantItem {
-    id: string;
-    user_id: string;
-    user_name: string;
-    user_email: string;
-    user_roles: string[];
-    permission_id: string;
-    permission_kode: string;
-    permission_keterangan: string | null;
-    unit_id: string | null;
-    unit_nama: string | null;
-    alasan: string;
-    diberikan_oleh_nama: string;
-    created_at: string;
-    can_revoke?: boolean;
-}
-
-
-
-interface UnitOption {
-    id: string;
-    nama: string;
-}
-
-interface PermissionOption {
-    id: string;
-    name: string;
-    kode: string;
-    keterangan: string | null;
-}
-
-interface PaginatedGrants {
-    data: GrantItem[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    prev_page_url: string | null;
-    next_page_url: string | null;
-}
+import { IzinUnitCheckboxes } from '@/Components/Access/IzinUnitCheckboxes';
+import { KelolaIzinUnitModal } from '@/Components/Access/KelolaIzinUnitModal';
+import { belumDiketahui, failureClass, galatIzin, pesanGagal } from '@/Components/Access/izinUnitFeedback';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import type { KelompokIzinUnit, PilihanIzin } from '@/types/izinUnit';
 
 interface GrantIndexProps {
-    grants: PaginatedGrants;
-    filters?: {
-        search?: string;
-        unit_id?: string;
-    };
-    users?: UserOption[];
-    units: UnitOption[];
-    unitPermissions: PermissionOption[];
-    is_superadmin?: boolean;
-    can: {
-        create_grant: boolean;
-        revoke_grant: boolean;
-    };
+    grants: { data: KelompokIzinUnit[]; links: PaginationLinkItem[]; from: number | null; to: number | null; total: number };
+    filters: { search: string; unit_id: string };
+    units: { id: string; nama: string }[];
+    unitPermissions: PilihanIzin[];
+    /** Isian awal Beri izin unit dari tautan halaman Penanggung Jawab; null bila tidak ada atau tidak sah. */
+    beri?: { user: UserOption; unit_id: string } | null;
+    can: { create_grant: boolean; kelola_grant: boolean; revoke_grant: boolean };
 }
 
-export default function GrantIndex({
-    grants,
-    filters,
-    users = [],
-    units,
-    unitPermissions,
-    is_superadmin = false,
-    can,
-}: GrantIndexProps) {
-    const [search, setSearch] = useState(filters?.search || '');
-    const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>(filters?.unit_id || 'all');
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [grantToRevoke, setGrantToRevoke] = useState<GrantItem | null>(null);
-    const [createError, setCreateError] = useState<string | null>(null);
-    const [revokeError, setRevokeError] = useState<string | null>(null);
+const cellClass = 'min-w-0 p-0 md:px-4 md:py-3.5';
+const mobileLabel = 'mr-2 text-xs text-muted md:hidden';
+const iconLinkClass = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25';
 
-    const formatTanggal = useFormatTanggal();
-
+export default function GrantIndex({ grants, filters, units, unitPermissions, beri = null, can }: GrantIndexProps) {
     const recovery = useAuthRecovery();
+    const [search, setSearch] = useState(filters.search);
+    const [unitId, setUnitId] = useState(filters.unit_id);
+    const [isCreateOpen, setIsCreateOpen] = useState(Boolean(beri && can.create_grant));
+    const [createFailure, setCreateFailure] = useState<string | null>(null);
+    const [dikelola, setDikelola] = useState<KelompokIzinUnit | null>(null);
+    const [dicabut, setDicabut] = useState<KelompokIzinUnit | null>(null);
+    const createTrigger = useRef<HTMLButtonElement | null>(null);
+    const isianBeri = () => ({ user_id: beri?.user.id ?? '', permission_ids: [] as string[], unit_id: beri?.unit_id ?? '', alasan: '' });
+    const createForm = useForm<{ user_id: string; permission_ids: string[]; unit_id: string; alasan: string }>(isianBeri());
+    const hasFilter = filters.search !== '' || filters.unit_id !== 'all';
 
-    const createTriggerRef = useRef<HTMLButtonElement | null>(null);
-    const revokeTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-    // Form Tambah Grant
-    const createForm = useForm({
-        user_id: '',
-        permission_id: '',
-        unit_id: '',
-        alasan: '',
-    });
-
-    // Form Revoke Grant (Modal Alasan Audit)
-    const revokeForm = useForm({
-        alasan: '',
-    });
-
-    const executeFilter = (newSearch: string, newUnitId: string) => {
+    const filterBy = (nextSearch: string, nextUnitId: string) => {
         router.get('/akses/grant', {
-            search: newSearch.trim() || undefined,
-            unit_id: newUnitId !== 'all' ? newUnitId : undefined,
-        }, {
-            preserveState: true,
-            replace: true,
-            preserveScroll: true,
-        });
+            search: nextSearch.trim() || undefined,
+            unit_id: nextUnitId !== 'all' ? nextUnitId : undefined,
+        }, { preserveState: true, replace: true, preserveScroll: true });
     };
 
-    const handleSearchSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        executeFilter(search, selectedUnitFilter);
+    const changeUnit = (event: ChangeEvent<HTMLSelectElement>) => {
+        setUnitId(event.target.value);
+        filterBy(search, event.target.value);
     };
 
-    const handleUnitFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newUnitId = e.target.value;
-        setSelectedUnitFilter(newUnitId);
-        executeFilter(search, newUnitId);
-    };
-
-    const handleResetFilters = () => {
+    const resetFilters = () => {
         setSearch('');
-        setSelectedUnitFilter('all');
+        setUnitId('all');
         router.get('/akses/grant', {}, { preserveState: true, replace: true });
     };
 
-    const handleOpenCreate = (e: React.MouseEvent<HTMLButtonElement>) => {
-        createTriggerRef.current = e.currentTarget;
+    const openCreate = (event: MouseEvent<HTMLButtonElement>) => {
+        createTrigger.current = event.currentTarget;
+        // Default useForm hanya dari render pertama; isian harus mengikuti prop beri saat ini agar PJ lama tidak terbawa setelah filter.
+        createForm.setData(isianBeri());
         createForm.clearErrors();
-        createForm.reset();
-        setCreateError(null);
+        setCreateFailure(null);
         setIsCreateOpen(true);
     };
 
-    const handleCloseCreate = () => {
+    const closeCreate = () => {
+        if (createForm.processing) return;
         setIsCreateOpen(false);
-        setCreateError(null);
-        createForm.clearErrors();
-        createTriggerRef.current?.focus();
+        createTrigger.current?.focus();
     };
 
-    const handleCreateSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (createForm.processing || Boolean(recovery.recovery)) return;
-        setCreateError(null);
-
+    const submitCreate = (event: FormEvent) => {
+        event.preventDefault();
+        if (createForm.processing || recovery.recovery) return;
+        setCreateFailure(null);
         createForm.post('/akses/grant', {
             preserveScroll: true,
             onSuccess: () => {
-                createForm.reset();
-                setCreateError(null);
                 setIsCreateOpen(false);
-                createTriggerRef.current?.focus();
+                createForm.reset();
+                createTrigger.current?.focus();
             },
-            onError: (errors: Record<string, string>) => {
-                const message = errors.permission_id || errors.user_id || errors.unit_id || errors.alasan || Object.values(errors)[0] || 'Validasi pemberian izin unit gagal.';
-                setCreateError(message);
-            },
-            onHttpException: (response) => {
-                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/akses/grant', mutation: true })) {
-                    return false;
-                }
-                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
-                    ? response.data.message
-                    : null;
-                const message = serverMsg || (response.status === 403
-                    ? 'Wewenang Anda untuk mengelola pemberian izin unit telah dicabut atau ditolak. Periksa akses sebelum mencoba kembali.'
-                    : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
-                setCreateError(message);
-                createForm.setError('alasan', message);
+            onCancel: () => setCreateFailure(belumDiketahui('pemberian', 'Permintaan dibatalkan.')),
+            onNetworkError: () => {
+                setCreateFailure(belumDiketahui('pemberian', 'Koneksi terputus.'));
                 return false;
             },
-        });
-    };
-
-    const handleOpenRevoke = (grant: GrantItem, el: HTMLButtonElement | null) => {
-        revokeTriggerRefs.current[grant.id] = el;
-        revokeForm.clearErrors();
-        revokeForm.reset();
-        setRevokeError(null);
-        setGrantToRevoke(grant);
-    };
-
-    const handleCloseRevoke = () => {
-        const grantId = grantToRevoke?.id;
-        setGrantToRevoke(null);
-        setRevokeError(null);
-        revokeForm.clearErrors();
-        if (grantId && revokeTriggerRefs.current[grantId]) {
-            revokeTriggerRefs.current[grantId]?.focus();
-        }
-    };
-
-    const handleRevokeSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!grantToRevoke || revokeForm.processing || Boolean(recovery.recovery)) return;
-
-        const grantId = grantToRevoke.id;
-        setRevokeError(null);
-
-        revokeForm.delete(`/akses/grant/${grantId}`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                revokeForm.reset();
-                setRevokeError(null);
-                setGrantToRevoke(null);
-                if (revokeTriggerRefs.current[grantId]) {
-                    revokeTriggerRefs.current[grantId]?.focus();
-                }
-            },
-            onError: (errors: Record<string, string>) => {
-                const message = errors.alasan || errors.error || Object.values(errors)[0] || 'Validasi pencabutan izin unit gagal.';
-                setRevokeError(message);
-            },
             onHttpException: (response) => {
-                if (recovery.handleHttpException(response, { effectiveMethod: 'delete', path: `/akses/grant/${grantId}`, mutation: true })) {
-                    return false;
-                }
-                const serverMsg = typeof response.data === 'object' && response.data !== null && 'message' in response.data && typeof response.data.message === 'string'
-                    ? response.data.message
-                    : null;
-                const message = serverMsg || (response.status === 403
-                    ? 'Wewenang Anda untuk mengelola pencabutan izin unit telah dicabut atau ditolak. Periksa akses sebelum mencoba kembali.'
-                    : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.');
-                setRevokeError(message);
-                revokeForm.setError('alasan', message);
+                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: '/akses/grant', mutation: true })) return false;
+                setCreateFailure(pesanGagal(response));
                 return false;
             },
         });
     };
 
     return (
-        <AuthenticatedLayout
-            title="Pemberian Grant Izin Tambahan per Unit"
-            breadcrumbs={[
-                { label: 'Dashboard', href: '/dashboard' },
-                { label: 'Manajemen Akses' },
-                { label: 'Grant Izin Unit' },
-            ]}
-        >
-            <Head title="Grant Izin Unit - SAKIP LLDIKTI XVI" />
-
-            <div className="space-y-6 max-w-7xl mx-auto">
-                {/* Header Title & Actions */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div>
-                        <h2 className="text-sm font-semibold text-ink">
-                            Grant Izin Tambahan per Unit
-                        </h2>
-                        <p className="mt-0.5 text-xs text-muted max-w-2xl">
-                            Berikan pengecualian izin operasional berscope unit kepada pengguna tanpa mengubah peran utama. Setiap aksi penambahan dan pencabutan dicatat permanen dalam jejak audit.
-                        </p>
-                    </div>
-
-                    {can.create_grant && (
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={handleOpenCreate}
-                            className="gap-1.5 shrink-0"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Beri Grant Baru
-                        </Button>
-                    )}
-                </div>
-
-                {/* Filter & Kontrol Server-Side */}
-                <Card className="border-slate-200">
-                    <CardContent className="p-4">
-                        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-                            <div className="flex-1 relative">
-                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                <Input
-                                    type="text"
-                                    placeholder="Cari nama pegawai, email, kode permission, keterangan, atau nama unit..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-9 text-sm"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Filter Unit:</span>
-                                <select
-                                    value={selectedUnitFilter}
-                                    onChange={handleUnitFilterChange}
-                                    className="text-xs rounded-md border-slate-200 py-1.5 px-2.5 bg-white text-slate-700 focus:border-[#122E92] focus:ring-[#122E92]"
-                                >
-                                    <option value="all">Semua Unit</option>
-                                    {units.map((u) => (
-                                        <option key={u.id} value={u.id}>
-                                            {u.nama}
-                                        </option>
-                                    ))}
-                                </select>
-
-                                <Button
-                                    type="submit"
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs"
-                                >
-                                    Cari
-                                </Button>
-
-                                {(search || selectedUnitFilter !== 'all') && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleResetFilters}
-                                        className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
-                                    >
-                                        <RotateCcw className="w-3.5 h-3.5" />
-                                        Reset
-                                    </Button>
-                                )}
-                            </div>
-                        </form>
-                    </CardContent>
+        <AuthenticatedLayout title="Izin Unit" breadcrumbs={[{ label: 'Izin Unit' }]}>
+            <Head title="Izin Unit" />
+            <div className="space-y-5">
+                <Card className="overflow-visible">
+                    <form
+                        role="search"
+                        aria-label="Filter izin unit"
+                        onSubmit={(event) => { event.preventDefault(); filterBy(search, unitId); }}
+                        className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,16rem)_auto] md:items-end"
+                    >
+                        <Input id="grant-search" type="search" label="Cari izin unit" placeholder="Nama, email, izin, atau unit" maxLength={100} value={search} onChange={(event) => setSearch(event.target.value)} />
+                        <Select id="grant-unit-filter" label="Filter unit" value={unitId} onChange={changeUnit}>
+                            <option value="all">Semua unit</option>
+                            {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.nama}</option>)}
+                        </Select>
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="submit" variant="outline">Cari</Button>
+                            {hasFilter && <Button type="button" variant="ghost" onClick={resetFilters}>Hapus filter</Button>}
+                        </div>
+                    </form>
                 </Card>
 
-                {/* Tabel Daftar Grant Aktif */}
-                <Card className="border-slate-200 shadow-xs">
-                    <CardHeader className="bg-slate-50/70 border-b border-slate-200/80 px-6 py-4 flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                                <span>Daftar Grant Izin Unit Aktif</span>
-                                <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-[#122E92] font-semibold border border-blue-200">
-                                    {grants.total} data
-                                </span>
-                            </CardTitle>
-                        </div>
+                <Card>
+                    <CardHeader className="px-4 py-4">
+                        <h2 className="min-w-0 text-base font-semibold tracking-tight text-ink">Daftar izin unit</h2>
+                        {can.create_grant && <Button type="button" size="sm" className="shrink-0" onClick={openCreate}>
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                            Beri izin unit
+                        </Button>}
                     </CardHeader>
-                    <CardContent className="p-0 overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 text-xs">
-                                <tr>
-                                    <th className="px-6 py-3.5">Pegawai Penerima</th>
-                                    <th className="px-6 py-3.5">Permission Diberikan</th>
-                                    <th className="px-6 py-3.5">Scope Unit Organisasi</th>
-                                    <th className="px-6 py-3.5">Alasan Administratif</th>
-                                    <th className="px-6 py-3.5">Diberikan Oleh & Waktu</th>
-                                    <th className="px-6 py-3.5 text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {grants.data.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
-                                            <div className="flex flex-col items-center justify-center space-y-2">
-                                                <KeyRound className="w-8 h-8 text-slate-300" />
-                                                <p className="font-medium text-slate-600">Tidak ada grant izin unit yang ditemukan</p>
-                                                <p className="text-xs text-slate-400">
-                                                    {search || selectedUnitFilter !== 'all'
-                                                        ? 'Coba sesuaikan kata kunci pencarian atau filter unit.'
-                                                        : 'Belum ada grant izin unit yang diterbitkan.'}
-                                                </p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    grants.data.map((grant) => (
-                                        <tr key={grant.id} className="hover:bg-slate-50/60 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-blue-50 text-[#122E92] flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
-                                                        {grant.user_name.slice(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-medium text-slate-900">{grant.user_name}</div>
-                                                        <div className="text-xs text-slate-500">{grant.user_email}</div>
-                                                        <div className="flex gap-1 mt-1">
-                                                            {grant.user_roles.map((r) => (
-                                                                <span
-                                                                    key={r}
-                                                                    className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 uppercase font-semibold"
-                                                                >
-                                                                    {r}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-blue-50 text-[#122E92] border border-blue-200">
-                                                    {grant.permission_kode}
-                                                </span>
-                                                {grant.permission_keterangan && (
-                                                    <p className="text-xs text-slate-500 mt-1 max-w-xs line-clamp-2">
-                                                        {grant.permission_keterangan}
-                                                    </p>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <Building2 className="w-4 h-4 text-[#D6AC48] shrink-0" />
-                                                    <span className="font-medium text-slate-800">
-                                                        {grant.unit_nama || 'Semua Unit'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <p className="text-xs text-slate-700 italic max-w-xs bg-slate-50 p-2 rounded border border-slate-100">
-                                                    "{grant.alasan}"
-                                                </p>
-                                            </td>
-                                            <td className="px-6 py-4 text-xs text-slate-500">
-                                                <div className="font-medium text-slate-700">{grant.diberikan_oleh_nama}</div>
-                                                <time dateTime={grant.created_at} className="text-slate-400 mt-0.5 block">
-                                                    {grant.created_at
-                                                        ? formatTanggal(grant.created_at, { withTime: true })
-                                                        : '-'}
-                                                </time>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                {can.revoke_grant && (grant.can_revoke ?? true) ? (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        title="Cabut Izin Unit"
-                                                        aria-label={`Cabut izin unit ${grant.permission_kode} untuk ${grant.user_name}`}
-                                                        onClick={(e) => handleOpenRevoke(grant, e.currentTarget)}
-                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs flex items-center gap-1.5 ml-auto"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                        Cabut
-                                                    </Button>
-                                                ) : (
-                                                    <span className="text-[11px] text-slate-400 italic font-medium px-2 py-0.5 rounded bg-slate-100/80">
-                                                        Tidak dapat dicabut
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </CardContent>
-
-                    {/* Navigasi Paginasi Server-side */}
-                    {grants.last_page > 1 && (
-                        <div className="px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
-                            <div>
-                                Menampilkan <span className="font-semibold text-slate-800">{grants.from ?? 0}</span> sampai{' '}
-                                <span className="font-semibold text-slate-800">{grants.to ?? 0}</span> dari{' '}
-                                <span className="font-semibold text-slate-800">{grants.total}</span> data
-                            </div>
-                            <nav aria-label="Navigasi halaman grant izin unit" className="flex items-center gap-2">
-                                {grants.prev_page_url ? (
-                                    <Link
-                                        href={grants.prev_page_url}
-                                        preserveScroll
-                                        preserveState
-                                        className="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium transition-colors"
-                                    >
-                                        Sebelumnya
-                                    </Link>
-                                ) : (
-                                    <span className="px-3 py-1.5 rounded border border-slate-200 text-slate-300 cursor-not-allowed">
-                                        Sebelumnya
-                                    </span>
-                                )}
-
-                                <span className="px-2 font-semibold text-slate-700">
-                                    Halaman {grants.current_page} dari {grants.last_page}
-                                </span>
-
-                                {grants.next_page_url ? (
-                                    <Link
-                                        href={grants.next_page_url}
-                                        preserveScroll
-                                        preserveState
-                                        className="px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium transition-colors"
-                                    >
-                                        Berikutnya
-                                    </Link>
-                                ) : (
-                                    <span className="px-3 py-1.5 rounded border border-slate-200 text-slate-300 cursor-not-allowed">
-                                        Berikutnya
-                                    </span>
-                                )}
-                            </nav>
-                        </div>
-                    )}
+                    {/* Grid mobile: setiap pengguna-unit tampil sebagai kartu ringkas tanpa scroll horizontal. */}
+                    <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                        <caption className="sr-only">Daftar izin unit per pengguna dan unit</caption>
+                        <TableHeader className="max-md:sr-only">
+                            <TableRow>
+                                <TableHead className="whitespace-normal">Pengguna</TableHead>
+                                <TableHead>Unit</TableHead>
+                                <TableHead>Izin dimiliki</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody className="block md:table-row-group">
+                            {grants.data.length === 0 && <TableRow className="block md:table-row">
+                                <TableCell colSpan={5} className="block py-12 text-center md:table-cell">
+                                    <KeyRound className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                                    {/* Halaman kosong padahal total > 0: nomor halaman melewati halaman terakhir, mis. baris terakhirnya baru dicabut. */}
+                                    {grants.total > 0 ? <>
+                                        <p className="mt-2 text-sm font-semibold text-ink">Tidak ada izin unit di halaman ini.</p>
+                                        <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => filterBy(filters.search, filters.unit_id)}>Ke halaman pertama</Button>
+                                    </> : <>
+                                        <p className="mt-2 text-sm font-semibold text-ink">{hasFilter ? 'Tidak ada izin unit yang sesuai' : 'Belum ada izin unit'}</p>
+                                        <p className="mt-1 text-xs text-muted">{hasFilter ? 'Coba kata kunci atau unit lain.' : 'Izin unit tampil di sini setelah diberikan kepada pengguna.'}</p>
+                                    </>}
+                                </TableCell>
+                            </TableRow>}
+                            {grants.data.map((kelompok) => {
+                                const sasaran = `${kelompok.user_name} di ${kelompok.unit_nama ?? 'unit ini'}`;
+                                // Hanya izin yang masih bisa diberikan (aktif) dihitung; daftar lengkapnya ada di halaman detail.
+                                const dimiliki = unitPermissions.filter((permission) => kelompok.izin.some((izin) => izin.permission_id === permission.id)).length;
+                                return <TableRow key={kelompok.key} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
+                                    <TableCell className={`col-span-2 ${cellClass}`}>
+                                        <p className="break-words text-sm font-semibold text-ink">{kelompok.user_name}</p>
+                                        <p className="break-all text-xs text-muted">{kelompok.user_email}</p>
+                                        <div className="mt-1">
+                                            {kelompok.user_roles.length > 0
+                                                ? <span className="text-xs text-muted">{kelompok.user_roles.join(', ')}</span>
+                                                : <Badge variant="warning">Belum memiliki peran</Badge>}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className={`col-span-2 ${cellClass}`}>
+                                        <span className={mobileLabel}>Unit</span>
+                                        <span className="break-words text-sm text-ink">{kelompok.unit_nama ?? '—'}</span>
+                                    </TableCell>
+                                    <TableCell className={cellClass}>
+                                        <span className={mobileLabel}>Izin</span>
+                                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                                            <span className="whitespace-nowrap text-sm text-ink">{dimiliki} dari {unitPermissions.length}</span>
+                                            {dimiliki > 0 && dimiliki === unitPermissions.length && <Badge variant="success">Lengkap</Badge>}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className={cellClass}>
+                                        <span className={mobileLabel}>Status</span>
+                                        {kelompok.tidak_berlaku.length === 0
+                                            ? <Badge variant="success">Berlaku</Badge>
+                                            : <>
+                                                <Badge variant="warning">Tidak berlaku</Badge>
+                                                <p className="mt-1 text-xs text-muted">{kelompok.tidak_berlaku.join(' · ')}</p>
+                                            </>}
+                                    </TableCell>
+                                    <TableCell className={`${cellClass} md:text-right`}>
+                                        <div className="flex flex-wrap justify-end gap-1.5">
+                                            <Tooltip content="Lihat detail" align="right">
+                                                <Link href={`/akses/grant/${kelompok.user_id}/${kelompok.unit_id}`} aria-label={`Lihat detail izin unit ${sasaran}`} className={iconLinkClass}>
+                                                    <Eye className="h-4 w-4" aria-hidden="true" />
+                                                </Link>
+                                            </Tooltip>
+                                            {can.kelola_grant && <Tooltip content="Kelola izin" align="right">
+                                                <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" aria-label={`Kelola izin unit ${sasaran}`} onClick={() => setDikelola(kelompok)}>
+                                                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                                                </Button>
+                                            </Tooltip>}
+                                            {can.revoke_grant && <Tooltip content="Cabut semua izin" align="right">
+                                                <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0 text-danger hover:bg-danger/10" aria-label={`Cabut semua izin unit ${sasaran}`} onClick={() => setDicabut(kelompok)}>
+                                                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                </Button>
+                                            </Tooltip>}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>;
+                            })}
+                        </TableBody>
+                    </Table>
                 </Card>
+                <Pagination links={grants.links} from={grants.from} to={grants.to} total={grants.total} ariaLabel="Halaman izin unit" />
             </div>
 
-            {/* MODAL: Beri Grant Baru (Accessible Dialog with Focus Trap & Escape) */}
             <Modal
                 isOpen={isCreateOpen}
-                onClose={handleCloseCreate}
+                onClose={closeCreate}
                 size="lg"
-                title={
-                    <div className="flex items-center gap-2 text-slate-900 font-semibold text-base">
-                        <ShieldCheck className="w-5 h-5 text-[#122E92]" />
-                        <span>Beri Izin Tambahan per Unit</span>
-                    </div>
-                }
-                description="Berikan pengecualian izin operasional berscope unit kepada pengguna tanpa mengubah peran utama."
+                title="Beri izin unit"
+                footer={<>
+                    <Button type="button" variant="outline" disabled={createForm.processing} onClick={closeCreate}>Batal</Button>
+                    <Button type="submit" form="grant-create-form" isLoading={createForm.processing} disabled={Boolean(recovery.recovery) || createForm.data.permission_ids.length === 0}>Simpan</Button>
+                </>}
             >
-                <form onSubmit={handleCreateSubmit} className="space-y-4">
-                    {createError && (
-                        <div
-                            role="alert"
-                            className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs"
-                        >
-                            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                            <div className="flex-1 font-medium">
-                                {createError}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-start gap-2">
-                        <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                            <p>
-                                Form ini khusus untuk permission berscope unit. Grant tidak mengubah role pengguna, dan seluruh batas waktu serta verifikasi alur tetap berlaku.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Pengguna Target */}
+                <form id="grant-create-form" onSubmit={submitCreate} className="space-y-4" aria-busy={createForm.processing}>
+                    {createFailure && <p role="alert" className={failureClass}>{createFailure}</p>}
                     <GrantUserAutocomplete
-                        id="grant-user-select"
-                        label="Pengguna Target"
+                        id="grant-user"
+                        label="Pengguna"
                         value={createForm.data.user_id}
+                        initialUser={createForm.data.user_id !== '' && createForm.data.user_id === beri?.user.id ? beri.user : null}
                         onChange={(id) => createForm.setData('user_id', id)}
                         disabled={createForm.processing}
                         error={createForm.errors.user_id}
                     />
-
-                    {/* Pilih Permission (Hanya butuh_scope = unit) */}
-                    <div>
-                        <label htmlFor="grant-permission-select" className="block text-xs font-semibold text-slate-700 mb-1">
-                            Permission Unit-Scoped <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            id="grant-permission-select"
-                            value={createForm.data.permission_id}
-                            onChange={(e) => createForm.setData('permission_id', e.target.value)}
-                            className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
-                            required
-                        >
-                            <option value="">-- Pilih Permission Berscope Unit --</option>
-                            {unitPermissions.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.kode} - {p.keterangan || p.name}
-                                </option>
-                            ))}
-                        </select>
-                        {createForm.errors.permission_id && (
-                            <p className="text-xs text-red-600 mt-1">{createForm.errors.permission_id}</p>
-                        )}
-                    </div>
-
-                    {/* Pilih Unit Target */}
-                    <div>
-                        <label htmlFor="grant-unit-select" className="block text-xs font-semibold text-slate-700 mb-1">
-                            Unit Organisasi Target <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            id="grant-unit-select"
-                            value={createForm.data.unit_id}
-                            onChange={(e) => createForm.setData('unit_id', e.target.value)}
-                            className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
-                            required
-                        >
-                            <option value="">-- Pilih Unit Target --</option>
-                            {units.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                    {u.nama}
-                                </option>
-                            ))}
-                        </select>
-                        {createForm.errors.unit_id && (
-                            <p className="text-xs text-red-600 mt-1">{createForm.errors.unit_id}</p>
-                        )}
-                    </div>
-
-                    {/* Alasan Pemberian (Wajib Audit) */}
-                    <div>
-                        <label htmlFor="grant-alasan-input" className="block text-xs font-semibold text-slate-700 mb-1">
-                            Alasan Pemberian Izin (Audit) <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                            id="grant-alasan-input"
-                            value={createForm.data.alasan}
-                            onChange={(e) => createForm.setData('alasan', e.target.value)}
-                            rows={3}
-                            placeholder="Contoh: Penugasan koordinasi pengisian indikator lintas pokja sesuai SK penugasan..."
-                            className="w-full text-sm rounded-md border-slate-300 focus:border-[#122E92] focus:ring-[#122E92]"
-                            required
-                        />
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                            Wajib diisi. Catatan ini disimpan permanen pada audit trail SAKIP.
-                        </p>
-                        {createForm.errors.alasan && (
-                            <p className="text-xs text-red-600 mt-1">{createForm.errors.alasan}</p>
-                        )}
-                    </div>
-
+                    <IzinUnitCheckboxes
+                        id="grant-izin"
+                        options={unitPermissions}
+                        value={createForm.data.permission_ids}
+                        onChange={(ids) => createForm.setData('permission_ids', ids)}
+                        disabled={createForm.processing}
+                        error={galatIzin(createForm.errors as Record<string, string | undefined>)}
+                    />
+                    <Select id="grant-unit" label="Unit" required value={createForm.data.unit_id} onChange={(event) => createForm.setData('unit_id', event.target.value)} disabled={createForm.processing} error={createForm.errors.unit_id}>
+                        <option value="" disabled>Pilih unit</option>
+                        {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.nama}</option>)}
+                    </Select>
+                    <Textarea
+                        id="grant-alasan"
+                        label="Alasan pemberian (opsional)"
+                        maxLength={1000}
+                        rows={3}
+                        placeholder="Contoh: penugasan pengisian capaian lintas pokja sesuai SK."
+                        value={createForm.data.alasan}
+                        onChange={(event) => createForm.setData('alasan', event.target.value)}
+                        disabled={createForm.processing}
+                        error={createForm.errors.alasan}
+                        helperText="Boleh dikosongkan. Maksimal 1.000 karakter. Tercatat di jejak audit."
+                    />
                     <AuthRecoveryNotice recovery={recovery.recovery} pending={createForm.processing} />
-
-                    <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleCloseCreate}
-                            disabled={createForm.processing}
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={createForm.processing || Boolean(recovery.recovery)}
-                            className="bg-[#122E92] hover:bg-[#0d226b] text-white"
-                        >
-                            {createForm.processing ? 'Menyimpan...' : 'Simpan & Catat Audit'}
-                        </Button>
-                    </div>
                 </form>
             </Modal>
 
-            {/* MODAL: Cabut Grant (Accessible Dialog with Focus Trap & Escape) */}
-            <Modal
-                isOpen={Boolean(grantToRevoke)}
-                onClose={handleCloseRevoke}
-                size="md"
-                title={
-                    <div className="flex items-center gap-2 text-rose-700 font-semibold text-base">
-                        <AlertTriangle className="w-5 h-5 text-rose-600" />
-                        <span>Konfirmasi Pencabutan Izin</span>
-                    </div>
-                }
-                description="Pencabutan izin unit bersifat permanen dan dicatat dalam audit trail."
-            >
-                {grantToRevoke && (
-                    <form onSubmit={handleRevokeSubmit} className="space-y-4">
-                        {revokeError && (
-                            <div
-                                role="alert"
-                                className="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800 shadow-2xs"
-                            >
-                                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                                <div className="flex-1 font-medium">
-                                    {revokeError}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800">
-                            <p className="font-semibold mb-1">Perhatian:</p>
-                            <p>
-                                Anda akan mencabut izin <strong className="font-mono">{grantToRevoke.permission_kode}</strong> pada unit <strong>{grantToRevoke.unit_nama}</strong> dari pegawai <strong>{grantToRevoke.user_name}</strong>.
-                            </p>
-                        </div>
-
-                        <div>
-                            <label htmlFor="revoke-alasan-input" className="block text-xs font-semibold text-slate-700 mb-1">
-                                Alasan Pencabutan Izin (Wajib Audit) <span className="text-red-500">*</span>
-                            </label>
-                            <textarea
-                                id="revoke-alasan-input"
-                                value={revokeForm.data.alasan}
-                                onChange={(e) => revokeForm.setData('alasan', e.target.value)}
-                                rows={3}
-                                placeholder="Contoh: Penugasan penyusunan laporan telah selesai / pergantian personel..."
-                                className="w-full text-sm rounded-md border-slate-300 focus:border-red-600 focus:ring-red-600"
-                                required
-                            />
-                            {revokeForm.errors.alasan && (
-                                <p className="text-xs text-red-600 mt-1">{revokeForm.errors.alasan}</p>
-                            )}
-                        </div>
-
-                        <AuthRecoveryNotice recovery={recovery.recovery} pending={revokeForm.processing} />
-
-                        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={handleCloseRevoke}
-                                disabled={revokeForm.processing}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={revokeForm.processing || Boolean(recovery.recovery)}
-                                className="bg-red-600 hover:bg-red-700 text-white"
-                            >
-                                {revokeForm.processing ? 'Mencabut...' : 'Cabut Izin Sekarang'}
-                            </Button>
-                        </div>
-                    </form>
-                )}
-            </Modal>
+            <KelolaIzinUnitModal kelompok={dikelola} options={unitPermissions} onClose={() => setDikelola(null)} />
+            <CabutSemuaIzinUnitModal kelompok={dicabut} onClose={() => setDicabut(null)} />
         </AuthenticatedLayout>
     );
 }
