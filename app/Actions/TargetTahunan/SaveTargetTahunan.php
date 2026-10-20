@@ -69,11 +69,11 @@ class SaveTargetTahunan
                 if ($next['target_tahunan'] !== $before['target_tahunan']) {
                     TargetTahunanDecimal::assertPrecision($next['target_tahunan'], $state['indikator']->presisi);
                 }
-                // Q63 §63.2: nilai menyimpang tidak ditolak; yang ditolak adalah penyimpanan tanpa alasannya.
+                // Q65 §65.2: nilai menyimpang tidak ditolak; yang ditolak adalah penyimpanan tanpa alasannya.
                 if ($deviasi === DeviasiTargetRenstra::MENYIMPANG && $alasanDeviasi === null) {
                     throw ValidationException::withMessages(['alasan_deviasi_renstra' => $arah === 'turun_baik' ? self::PESAN_DEVIASI_TURUN : self::PESAN_DEVIASI_NAIK]);
                 }
-                // Q63 §63.1: alasan dan rujukan opsional juga setelah snapshot; snapshot tidak ikut berubah.
+                // Q65 §65.1: alasan dan rujukan opsional juga setelah snapshot; snapshot tidak ikut berubah.
                 $reason = trim(AuditReason::sanitize($data['alasan'] ?? null));
                 $source = trim(AuditReason::sanitize($data['rujukan_sumber'] ?? null));
                 $target = $current ?? new TargetKinerja(['indikator_kinerja_id' => $state['indikator']->id, 'tahun' => $tahun]);

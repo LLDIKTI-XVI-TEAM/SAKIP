@@ -15,7 +15,7 @@ import type { TargetEditorProps } from './types';
 
 /** Satu form memiliki satu pasangan nilai dan versi. Refresh eksplisit mengganti keduanya bersama. */
 export function Editor({ editor, path, loading = false, loadError, retryYear, loadRecovery, onClose, onLoad, onSaved }: TargetEditorProps) {
-    // Alasan tersimpan diisi awal agar perubahan baseline saja tidak meminta alasan baru (Q63 §63.2 butir 7).
+    // Alasan tersimpan diisi awal agar perubahan baseline saja tidak meminta alasan baru (Q65 §65.2 butir 7).
     const initialValues = { baseline: editor.baseline ?? '', target_tahunan: editor.target_tahunan ?? '', alasan_deviasi_renstra: editor.alasan_deviasi_renstra ?? '',
         alasan: '', rujukan_sumber: '', expected_state: editor.expected_state };
     const form = useForm(initialValues);

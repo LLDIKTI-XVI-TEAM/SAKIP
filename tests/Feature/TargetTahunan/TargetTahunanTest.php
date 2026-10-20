@@ -154,7 +154,7 @@ class TargetTahunanTest extends TestCase
         $snapshot = $this->snapshot($indicator);
         $before = $snapshot->refresh()->getAttributes();
         $this->assertFalse($this->save($actor, $indicator, ['target_tahunan' => '76.2500'])['changed']);
-        // Q63 §63.1: perubahan target PK setelah snapshot bukan koreksi PK; alasan dan rujukan opsional.
+        // Q65 §65.1: perubahan target PK setelah snapshot bukan koreksi PK; alasan dan rujukan opsional.
         $this->assertTrue($this->save($actor, $indicator)['changed']);
         $tanpaAlasan = AuditLog::where('tindakan', 'target_tahunan.simpan')->whereNotNull('nilai_lama')->sole();
         $this->assertSame('Pencatatan audit untuk tindakan target_tahunan.simpan.', $tanpaAlasan->alasan);

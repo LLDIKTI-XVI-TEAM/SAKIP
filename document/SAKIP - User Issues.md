@@ -67,7 +67,7 @@ Semua issue wajib mengikuti keputusan final 24 September 2026:
 
 Kontrak tambahan 13 Oktober 2026 (Q39–Q51):
 
-- dua lapis target: target Renstra (`target_renstra`, pembanding) dan target PK (`target_tahunan`, acuan pengukuran) yang diinput Perencanaan di halaman PK; keduanya disimpan dengan `target:update`; target PK yang menyimpang dari target Renstra menurut `arah` memunculkan peringatan dan `alasan_deviasi_renstra` wajib (Q39, Q63 §63.2);
+- dua lapis target: target Renstra (`target_renstra`, pembanding) dan target PK (`target_tahunan`, acuan pengukuran) yang diinput Perencanaan di halaman PK; keduanya disimpan dengan `target:update`; target PK yang menyimpang dari target Renstra menurut `arah` memunculkan peringatan dan `alasan_deviasi_renstra` wajib (Q39, Q65 §65.2);
 - revisi PK berversi pada tahap 3 dengan prasyarat ISS-03.03; lampiran revisi Renstra boleh ditambah setelah Renstra aktif (Q40);
 - Rencana Aksi tanpa jendela penyusunan; periode terkunci bagi PIC setelah `pengisian_selesai` periode tersebut, Perencanaan dikecualikan sampai `penutupan` (Q41; menggantikan Q16);
 - kegiatan bagian Rencana Aksi: minimal satu kegiatan saat pengajuan, anggaran per kegiatan wajib (≥ 0), RAB bila anggaran > 0, dan tahap persyaratan `kegiatan_perencanaan` (Q42; menggantikan Q28);
@@ -1057,7 +1057,7 @@ kegiatan:update
 
 ### ISS-02.08 · [Feature] Pencatatan Perjanjian Kinerja (PK) & Lampiran Legal
 
-> **Q39, Q40, Q43, Q48, Q50 (13 Oktober 2026):** halaman PK kini juga memuat isian baseline dan target tahun berjalan per indikator, dikelompokkan per sasaran (ISS-02.11, Q39 §39.1 butir 1). `nomor_pk` menjadi opsional karena PK 2026 tidak bernomor; PK tetap unik per Renstra-tahun (Q50 §50.1). `StorePerjanjianKinerjaRequest`/`UpdatePerjanjianKinerjaRequest` dan kolom `nomor_pk` sudah disesuaikan pada ISS-02.11; AC-1 di bawah dibaca dengan nomor PK opsional. PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK beserta keterangan pada `berkas.keterangan`, tanpa mengubah target maupun snapshot (Q50 §50.7, Q48 §48.2 butir 6). Revisi PK membentuk versi PK baru dengan nomor dan tanggal surat Eselon I sebagai isian tersendiri; PK awal dan akhir dapat diunduh, dan PDF PK bertanda tangan disimpan per versi (ISS-02.12, tahap 3; Q40 §40.1, Q48 §48.2 butir 1). Alasan perubahan PK wajib hanya bila PK sudah dipakai jadwal aktif dan opsional sebelumnya (Q43 §43.3 butir 3; ISS-13.05); perubahan target PK di halaman PK tidak termasuk dan alasannya opsional (Q63 §63.1).
+> **Q39, Q40, Q43, Q48, Q50 (13 Oktober 2026):** halaman PK kini juga memuat isian baseline dan target tahun berjalan per indikator, dikelompokkan per sasaran (ISS-02.11, Q39 §39.1 butir 1). `nomor_pk` menjadi opsional karena PK 2026 tidak bernomor; PK tetap unik per Renstra-tahun (Q50 §50.1). `StorePerjanjianKinerjaRequest`/`UpdatePerjanjianKinerjaRequest` dan kolom `nomor_pk` sudah disesuaikan pada ISS-02.11; AC-1 di bawah dibaca dengan nomor PK opsional. PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK beserta keterangan pada `berkas.keterangan`, tanpa mengubah target maupun snapshot (Q50 §50.7, Q48 §48.2 butir 6). Revisi PK membentuk versi PK baru dengan nomor dan tanggal surat Eselon I sebagai isian tersendiri; PK awal dan akhir dapat diunduh, dan PDF PK bertanda tangan disimpan per versi (ISS-02.12, tahap 3; Q40 §40.1, Q48 §48.2 butir 1). Alasan perubahan PK wajib hanya bila PK sudah dipakai jadwal aktif dan opsional sebelumnya (Q43 §43.3 butir 3; ISS-13.05); perubahan target PK di halaman PK tidak termasuk dan alasannya opsional (Q65 §65.1).
 
 **Terkait User Story:** `US-02.08`  
 **Prioritas:** 🟡 P1  
@@ -1301,9 +1301,9 @@ kegiatan:update
 - **Dependensi:** PK tahun berjalan tercatat (ISS-02.08); target Renstra tersedia sebagai pembanding (ISS-02.10).
 - **Otorisasi:** `target:update` untuk menyimpan target PK (dipegang Tim Perencanaan, Q39 §39.3 butir 3); PJ/PIC baca-saja; metadata dan lampiran PK tetap memakai `pk:create`/`pk:update` serta capability berkas melalui kewenangan induk.
 - **Dampak Data:** `target_tahunan` (termasuk `alasan_deviasi_renstra`), `renstra_pk` (`nomor_pk` opsional), `berkas` (`keterangan`), `audit_log`.
-- **Keputusan terkait:** Q39 §39.1–§39.4, Q33, Q43 §43.2 butir 5 dan §43.3 butir 2, Q50 §50.1–§50.3 dan §50.5–§50.7, Q46 §46.3, Q63.
+- **Keputusan terkait:** Q39 §39.1–§39.4, Q33, Q43 §43.2 butir 5 dan §43.3 butir 2, Q50 §50.1–§50.3 dan §50.5–§50.7, Q46 §46.3, Q65.
 - **Rule:** target PK diinput Tim Perencanaan setelah angka disepakati dengan tim kerja di luar aplikasi (Q39 §39.3 butir 1); capaian dinilai terhadap target PK melalui snapshot, bukan terhadap target Renstra, dan target periode RA dipecah dari target PK (Q39 §39.4).
-- **Rule:** perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (ISS-02.12); koreksi salah ketik memakai ISS-02.09 (Q40 §40.1 butir 8). Target PK tetap dapat diubah di halaman PK setelah snapshot terbentuk, dengan alasan opsional dan tanpa mengubah snapshot (Q63 §63.1).
+- **Rule:** perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (ISS-02.12); koreksi salah ketik memakai ISS-02.09 (Q40 §40.1 butir 8). Target PK tetap dapat diubah di halaman PK setelah snapshot terbentuk, dengan alasan opsional dan tanpa mengubah snapshot (Q65 §65.1).
 - **Rule:** PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan pada PK melalui fitur lampiran PK yang ada, beserta keterangan (mis. "PK perubahan anggaran") yang disimpan pada kolom baru `berkas.keterangan`; target dan snapshot tidak berubah (Q50 §50.7, Q48 §48.2 butir 6). `alasan_koreksi` tetap khusus untuk berkas pengganti.
 - **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (ISS-02.12), dan simulasi target (tahap 3, Q46 §46.3).
 
@@ -1312,11 +1312,11 @@ kegiatan:update
 - [x] **AC-1:** Given PK suatu Renstra-tahun tercatat, When halaman PK dibuka, Then tampil isian baseline dan target tahun berjalan untuk setiap indikator aktif Renstra, dikelompokkan per sasaran, bersama nomor, tanggal, dan lampiran PK. *(Q39 §39.1 butir 1)*
 - [x] **AC-2:** Given Perencanaan menyimpan baseline/target di halaman PK, Then nilai tersimpan pada `target_tahunan` (satu baris per indikator-tahun) dengan domain nilai Q33; editor target di halaman indikator tidak lagi tersedia. *(Q39 §39.1 butir 2–3)*
 - [x] **AC-3:** Given target Renstra tahun yang sama tersedia, When target PK diisi, Then target Renstra ditampilkan di sampingnya bersama anjuran "minimal sama atau naik satu poin" sebagai panduan, bukan aturan sistem. *(Q39 §39.2 butir 1 dan 3)*
-- [x] **AC-4:** Given indikator `naik_baik` dengan target PK di bawah target Renstra, atau `turun_baik` dengan target PK di atas target Renstra, When disimpan, Then sistem menampilkan peringatan dan mewajibkan `alasan_deviasi_renstra`; penyimpanan tidak ditolak bila alasan terisi, dan alasan tersimpan bersama target PK serta tercatat di audit. *(Q39 §39.2 butir 2 dan 5, Q43 §43.2 butir 5, Q63 §63.2)*
+- [x] **AC-4:** Given indikator `naik_baik` dengan target PK di bawah target Renstra, atau `turun_baik` dengan target PK di atas target Renstra, When disimpan, Then sistem menampilkan peringatan dan mewajibkan `alasan_deviasi_renstra`; penyimpanan tidak ditolak bila alasan terisi, dan alasan tersimpan bersama target PK serta tercatat di audit. *(Q39 §39.2 butir 2 dan 5, Q43 §43.2 butir 5, Q65 §65.2)*
 - [x] **AC-5:** Given indikator belum memiliki target Renstra, When target PK diisi, Then penyimpanan diizinkan dengan keterangan "target Renstra belum ada" tanpa kewajiban alasan deviasi. *(Q39 §39.2 butir 4)*
 - [x] **AC-6:** Given PJ atau PIC membuka target PK, Then target tampil baca-saja; request mutasi langsung tanpa `target:update` ditolak 403. *(Q39 §39.3)*
 - [x] **AC-7:** Given aktivasi jadwal diminta, Then gerbang tetap: PK tahun tersebut tercatat, setiap indikator aktif memiliki target PK, tahun jadwal berada dalam rentang Renstra, dan PK memiliki lampiran. *(Q39 §39.1 butir 5)*
-- [x] **AC-8:** Given target PK sudah dibekukan ke snapshot jadwal, When target PK diubah di halaman PK, Then snapshot, rekonsiliasi Rencana Aksi (ADR-0008), dan pengukuran tidak berubah; alasan perubahan target PK tetap opsional. *(Q39 §39.1 butir 3, Q43 §43.3 butir 2, Q63 §63.1)*
+- [x] **AC-8:** Given target PK sudah dibekukan ke snapshot jadwal, When target PK diubah di halaman PK, Then snapshot, rekonsiliasi Rencana Aksi (ADR-0008), dan pengukuran tidak berubah; alasan perubahan target PK tetap opsional. *(Q39 §39.1 butir 3, Q43 §43.3 butir 2, Q65 §65.1)*
 - [x] **AC-9:** Given PK dicatat tanpa nomor, When disimpan, Then diterima karena `nomor_pk` opsional; PK tetap unik per Renstra-tahun. *(Q50 §50.1)*
 - [x] **AC-10:** Given target PK berpresisi penuh (mis. 94,05), When disimpan, Then nilai tersimpan apa adanya dan status capaian serta selisih memakai nilai tersimpan; tampilan mengikuti `desimal_tampilan`. *(Q50 §50.2)*
 - [x] **AC-11:** Given halaman PK, Then baseline tampil sebagai data pendukung, bukan bagian isi dokumen PK. *(Q50 §50.3)*
@@ -1328,7 +1328,7 @@ kegiatan:update
 **A. Persistence / Data Model**
 - [x] Tambahkan kolom `alasan_deviasi_renstra` (nullable) pada `target_kinerjas`; domain nilai Q33 tetap berlaku dan target disimpan dengan nilai penuh sesuai presisi kolom (Q50 §50.2).
 - [x] Ubah `renstra_pk.nomor_pk` menjadi nullable lewat migrasi; `unique(renstra_id, tahun)` tetap berlaku (Q50 §50.1).
-- [x] Simpan keterangan lampiran tambahan PK pada `berkas.keterangan` (kolom nullable baru, Q48 §48.2 butir 6); migrasi kolom dibuat oleh issue yang lebih dulu dikerjakan antara ISS-02.11 dan ISS-10.05 — dibuat ISS-02.11 (migrasi `2026_10_19_000003`, Q63 §63.3).
+- [x] Simpan keterangan lampiran tambahan PK pada `berkas.keterangan` (kolom nullable baru, Q48 §48.2 butir 6); migrasi kolom dibuat oleh issue yang lebih dulu dikerjakan antara ISS-02.11 dan ISS-10.05 — dibuat ISS-02.11 (migrasi `2026_10_19_000003`, Q65 §65.3).
 - [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
@@ -1353,11 +1353,11 @@ kegiatan:update
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given PK suatu Renstra-tahun tercatat, When halaman PK dibuka, Then tampil isian baseline dan target tahun berjalan untuk setiap indikator aktif Renstra, dikelompokkan per sasaran, bersama nomor, tanggal, dan lampiran PK. *(Q39 §39.1 butir 1)*
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan menyimpan baseline/target di halaman PK, Then nilai tersimpan pada `target_tahunan` (satu baris per indikator-tahun) dengan domain nilai Q33; editor target di halaman indikator tidak lagi tersedia. *(Q39 §39.1 butir 2–3)*
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given target Renstra tahun yang sama tersedia, When target PK diisi, Then target Renstra ditampilkan di sampingnya bersama anjuran "minimal sama atau naik satu poin" sebagai panduan, bukan aturan sistem. *(Q39 §39.2 butir 1 dan 3)*
-- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator `naik_baik` dengan target PK di bawah target Renstra, atau `turun_baik` dengan target PK di atas target Renstra, When disimpan, Then sistem menampilkan peringatan dan mewajibkan `alasan_deviasi_renstra`; penyimpanan tidak ditolak bila alasan terisi, dan alasan tersimpan bersama target PK serta tercatat di audit. *(Q39 §39.2 butir 2 dan 5, Q43 §43.2 butir 5, Q63 §63.2)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator `naik_baik` dengan target PK di bawah target Renstra, atau `turun_baik` dengan target PK di atas target Renstra, When disimpan, Then sistem menampilkan peringatan dan mewajibkan `alasan_deviasi_renstra`; penyimpanan tidak ditolak bila alasan terisi, dan alasan tersimpan bersama target PK serta tercatat di audit. *(Q39 §39.2 butir 2 dan 5, Q43 §43.2 butir 5, Q65 §65.2)*
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given indikator belum memiliki target Renstra, When target PK diisi, Then penyimpanan diizinkan dengan keterangan "target Renstra belum ada" tanpa kewajiban alasan deviasi. *(Q39 §39.2 butir 4)*
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given PJ atau PIC membuka target PK, Then target tampil baca-saja; request mutasi langsung tanpa `target:update` ditolak 403. *(Q39 §39.3)*
 - [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given aktivasi jadwal diminta, Then gerbang tetap: PK tahun tersebut tercatat, setiap indikator aktif memiliki target PK, tahun jadwal berada dalam rentang Renstra, dan PK memiliki lampiran. *(Q39 §39.1 butir 5)*
-- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given target PK sudah dibekukan ke snapshot jadwal, When target PK diubah di halaman PK, Then snapshot, rekonsiliasi Rencana Aksi (ADR-0008), dan pengukuran tidak berubah; alasan perubahan target PK tetap opsional. *(Q39 §39.1 butir 3, Q43 §43.3 butir 2, Q63 §63.1)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given target PK sudah dibekukan ke snapshot jadwal, When target PK diubah di halaman PK, Then snapshot, rekonsiliasi Rencana Aksi (ADR-0008), dan pengukuran tidak berubah; alasan perubahan target PK tetap opsional. *(Q39 §39.1 butir 3, Q43 §43.3 butir 2, Q65 §65.1)*
 - [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given PK dicatat tanpa nomor, When disimpan, Then diterima karena `nomor_pk` opsional; PK tetap unik per Renstra-tahun. *(Q50 §50.1)*
 - [x] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given target PK berpresisi penuh (mis. 94,05), When disimpan, Then nilai tersimpan apa adanya dan status capaian serta selisih memakai nilai tersimpan; tampilan mengikuti `desimal_tampilan`. *(Q50 §50.2)*
 - [x] TEST-11: Buat Pest Feature/Unit test yang membuktikan — Given halaman PK, Then baseline tampil sebagai data pendukung, bukan bagian isi dokumen PK. *(Q50 §50.3)*
@@ -4289,7 +4289,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 **A. Persistence / Data Model**
 - [ ] Daftarkan induk `jadwal_tahunan` dan `jadwal_periode` pada `berkas` (relasi `berkasable`) untuk arsip PDF; arsip bersifat append-only tanpa jalur hapus.
-- [ ] Tambahkan kolom `berkas.keterangan` (nullable) untuk keterangan berkas non-pengganti; berkas pengganti tetap memakai `alasan_koreksi` (Q48 §48.2 butir 6). Kolom ini juga dipakai lampiran tambahan PK dan sudah dibuat ISS-02.11 (migrasi `2026_10_19_000003`, Q63 §63.3); issue ini menetapkan pemakaiannya untuk induk arsip.
+- [ ] Tambahkan kolom `berkas.keterangan` (nullable) untuk keterangan berkas non-pengganti; berkas pengganti tetap memakai `alasan_koreksi` (Q48 §48.2 butir 6). Kolom ini juga dipakai lampiran tambahan PK dan sudah dibuat ISS-02.11 (migrasi `2026_10_19_000003`, Q65 §65.3); issue ini menetapkan pemakaiannya untuk induk arsip.
 - [ ] Tambahkan `laporan:unggah` pada katalog permission (`PermissionCatalog`, `PermissionCatalogSeeder`) sebagai permission tidak sensitif, serta pada preset Perencanaan dan Superadmin (`RolePermissionPresets`, `SyncRolePermissionPresets`) dengan audit delta preset (ISS-01.07).
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
@@ -5499,7 +5499,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** tidak berubah.
 - **Dampak Data:** `user_permission_granted.alasan` (tetap NOT NULL; alasan baku server), `penanggung_jawab.alasan` (nullable; field form dihapus), `audit_log`.
 - **Keputusan terkait:** Q43, Q37 §37.2, Q14.
-- **Rule:** kewajiban alasan dari keputusan sebelumnya yang tidak disebut Q43 §43.3 tetap berlaku. Perubahan target PK sudah opsional (Q43 §43.3 butir 2), termasuk setelah snapshot terbentuk (Q63 §63.1).
+- **Rule:** kewajiban alasan dari keputusan sebelumnya yang tidak disebut Q43 §43.3 tetap berlaku. Perubahan target PK sudah opsional (Q43 §43.3 butir 2), termasuk setelah snapshot terbentuk (Q65 §65.1).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5528,13 +5528,13 @@ Perubahan per request (tanpa nomor baris kode):
 
 **B. Backend / Domain**
 - [ ] Terapkan perubahan pada tabel di atas; alasan opsional yang diisi tetap disanitasi helper canonical (`AuditReason`/`AlasanAudit`).
-- [ ] Pastikan aksi Q43 §43.2 (pengembalian dan buka-kembali; penghapusan; koreksi/revisi data sah; perubahan akses; justifikasi kegiatan, deviasi PK, dan target PK yang menyimpang dari target Renstra menurut arah indikator, Q63 §63.2) tetap menolak request tanpa alasan.
+- [ ] Pastikan aksi Q43 §43.2 (pengembalian dan buka-kembali; penghapusan; koreksi/revisi data sah; perubahan akses; justifikasi kegiatan, deviasi PK, dan target PK yang menyimpang dari target Renstra menurut arah indikator, Q65 §65.2) tetap menolak request tanpa alasan.
 
 **C. Authorization & Audit**
 - [ ] Otorisasi tidak berubah; audit tetap mencatat aktor, waktu, tindakan, nilai lama/baru, serta `dasar_izin` untuk permission sensitif (Q37 §37.2).
 
 **D. Frontend / UX**
-- [ ] Ubah label isian menjadi "Alasan (opsional)" pada form terkait dan hapus field alasan dari form Penanggung Jawab; pola **Modal Alasan Audit** wajib hanya untuk aksi Q43 §43.2, kecuali alasan deviasi Rencana Aksi dan target PK yang diisi pada isian di form (Q63 §63.2 butir 12).
+- [ ] Ubah label isian menjadi "Alasan (opsional)" pada form terkait dan hapus field alasan dari form Penanggung Jawab; pola **Modal Alasan Audit** wajib hanya untuk aksi Q43 §43.2, kecuali alasan deviasi Rencana Aksi dan target PK yang diisi pada isian di form (Q65 §65.2 butir 12).
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification

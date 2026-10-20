@@ -4,7 +4,7 @@ namespace App\Support;
 
 use Brick\Math\BigDecimal;
 
-/** Deviasi target PK terhadap target Renstra tahun yang sama menurut arah indikator (Q63 §63.2). */
+/** Deviasi target PK terhadap target Renstra tahun yang sama menurut arah indikator (Q65 §65.2). */
 final class DeviasiTargetRenstra
 {
     public const RENSTRA_BELUM_ADA = 'renstra_belum_ada';

@@ -100,7 +100,7 @@ class JadwalActivationConcurrencyTest extends TestCase
         $before = $this->snapshotFingerprint();
 
         $fresh = app(ShowTargetTahunan::class)->handle($writer, $indikator->id, 2026)['expected_state'];
-        // Q63 §63.1: perubahan target PK setelah snapshot tidak memerlukan alasan maupun rujukan.
+        // Q65 §65.1: perubahan target PK setelah snapshot tidak memerlukan alasan maupun rujukan.
         $this->assertTrue(app(SaveTargetTahunan::class)->handle($writer, $indikator->id, 2026, [...$data, 'expected_state' => $fresh])['changed']);
         $this->assertSame('90.000000000000', DB::table('target_kinerjas')->where('indikator_kinerja_id', $indikator->id)->value('target_tahunan'));
         $this->assertSame($before, $this->snapshotFingerprint());
