@@ -107,7 +107,7 @@ const bukti: RencanaAksiBukti = {
             created_at: '2026-03-10T10:00:00Z',
         },
     ],
-    unggahan: { unggahan_aktif: true, ukuran_maks_kb: 10240, format_diizinkan: 'pdf,docx,xlsx,jpg,jpeg,png' },
+    unggahan: { ukuran_maks_kb: 10240, format_diizinkan: 'pdf,docx,xlsx,jpg,jpeg,png' },
     can: { upload: true, delete: true },
 };
 
@@ -149,37 +149,24 @@ describe('BuktiPanel rencana aksi', () => {
         expect(within(dialog).getByLabelText(/^Keterangan/)).toBeTruthy();
     });
 
-    it('menonaktifkan mode file saat unggahan dimatikan dan memakai tautan sebagai bawaan', async () => {
+    it('menawarkan file sebagai mode bawaan untuk lampiran bebas', async () => {
         const user = userEvent.setup();
-        renderPanel({ unggahan: { ...bukti.unggahan, unggahan_aktif: false } });
-
+        renderPanel();
         await user.click(screen.getByRole('button', { name: /Tambah bukti/ }));
-
         const dialog = screen.getByRole('dialog');
-        expect((within(dialog).getByRole('button', { name: 'File' }) as HTMLButtonElement).disabled).toBe(true);
-        expect(within(dialog).getByRole('button', { name: 'Tautan' }).getAttribute('aria-pressed')).toBe('true');
-        expect(within(dialog).getByText(/Unggahan file sedang dinonaktifkan/)).toBeTruthy();
+        expect((within(dialog).getByRole('button', { name: 'File' }) as HTMLButtonElement).disabled).toBe(false);
+        expect(within(dialog).getByRole('button', { name: 'File' }).getAttribute('aria-pressed')).toBe('true');
+        expect(within(dialog).queryByText(/Unggahan file sedang dinonaktifkan/)).toBeNull();
     });
 
-    it('menyembunyikan tombol Penuhi bila persyaratan file-only tidak dapat dipenuhi karena unggahan nonaktif', () => {
-        renderPanel({
-            unggahan: { ...bukti.unggahan, unggahan_aktif: false },
-            persyaratan: [
-                {
-                    ...bukti.persyaratan[0],
-                    id: 'jb-file',
-                    nama: 'Scan Dokumen Asli',
-                    izinkan_tautan: false,
-                    izinkan_teks: false,
-                    pemenuhan: { terpenuhi: true, mode_terpenuhi: [], mode_kurang: [], mode_dikecualikan: ['file'], tidak_dapat_dipenuhi: true, alasan_pengecualian: 'Unggahan file dinonaktifkan pada setelan aplikasi.' },
-                },
-                bukti.persyaratan[1],
-            ],
-        });
-
-        expect(screen.getByText('Dikecualikan')).toBeTruthy();
-        // Hanya persyaratan kedua (mengizinkan teks) yang masih menawarkan tombol Penuhi.
-        expect(screen.getAllByRole('button', { name: /^Penuhi$/ })).toHaveLength(1);
+    it('persyaratan file-only tetap menawarkan pemenuhan melalui file', async () => {
+        const user = userEvent.setup();
+        renderPanel({ persyaratan: [{ ...bukti.persyaratan[0], id: 'jb-file', nama: 'Scan Dokumen Asli', izinkan_tautan: false, izinkan_teks: false,
+            pemenuhan: { terpenuhi: false, mode_terpenuhi: [], mode_kurang: ['file'], mode_dikecualikan: [], tidak_dapat_dipenuhi: false, alasan_pengecualian: null } }] });
+        await user.click(screen.getByRole('button', { name: /^Penuhi$/ }));
+        const dialog = screen.getByRole('dialog');
+        expect((within(dialog).getByRole('button', { name: 'File' }) as HTMLButtonElement).disabled).toBe(false);
+        expect((within(dialog).getByRole('button', { name: 'Tautan' }) as HTMLButtonElement).disabled).toBe(true);
     });
 
     it('batal menutup modal tanpa mengirim request', async () => {
@@ -241,10 +228,9 @@ describe('BuktiPanel rencana aksi', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    it('menonaktifkan opsi persyaratan tanpa mode tersedia saat unggahan nonaktif', async () => {
+    it('menyediakan opsi persyaratan file-only untuk unggahan', async () => {
         const user = userEvent.setup();
         renderPanel({
-            unggahan: { ...bukti.unggahan, unggahan_aktif: false },
             persyaratan: [
                 { ...bukti.persyaratan[0], id: 'jb-file', nama: 'Scan Dokumen Asli', izinkan_tautan: false, izinkan_teks: false },
                 bukti.persyaratan[1],
@@ -253,7 +239,7 @@ describe('BuktiPanel rencana aksi', () => {
 
         await user.click(screen.getByRole('button', { name: /Tambah bukti/ }));
         const dialog = screen.getByRole('dialog');
-        expect((within(dialog).getByRole('option', { name: /Scan Dokumen Asli/ }) as HTMLOptionElement).disabled).toBe(true);
+        expect((within(dialog).getByRole('option', { name: /Scan Dokumen Asli/ }) as HTMLOptionElement).disabled).toBe(false);
         expect((within(dialog).getByRole('option', { name: /Surat Keputusan Tim Pelaksana/ }) as HTMLOptionElement).disabled).toBe(false);
     });
 

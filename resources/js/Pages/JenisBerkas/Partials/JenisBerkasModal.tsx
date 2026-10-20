@@ -1,5 +1,4 @@
 import React from 'react';
-import { AlertCircle } from 'lucide-react';
 import { Modal } from '@/Components/Modal';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
@@ -34,16 +33,20 @@ export interface JenisBerkasFormData {
 interface JenisBerkasModalProps {
     isOpen: boolean;
     isEditing: boolean;
-    isBatasTeknisOnly?: boolean;
     data: JenisBerkasFormData;
-    errors: Record<string, string>;
+    errors: Record<string, string | undefined>;
     indikators: IndikatorOption[];
     isLoading: boolean;
-    unggahanAktif?: boolean;
-    canManageSettings?: boolean;
-    onChange: (field: keyof JenisBerkasFormData, value: any) => void;
+    batasUnggahan: BatasUnggahan;
+    onChange: <K extends keyof JenisBerkasFormData>(field: K, value: JenisBerkasFormData[K]) => void;
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => void;
+}
+
+export interface BatasUnggahan {
+    ukuran_maks_kb: number;
+    format_diizinkan: string;
+    batas_atas_kb: number;
 }
 
 const MODE = [
@@ -55,13 +58,11 @@ const MODE = [
 export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
     isOpen,
     isEditing,
-    isBatasTeknisOnly = false,
     data,
     errors,
     indikators,
     isLoading,
-    unggahanAktif = true,
-    canManageSettings = true,
+    batasUnggahan,
     onChange,
     onClose,
     onSubmit,
@@ -69,7 +70,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
     if (!isOpen) return null;
 
     const atLeastOneMode = data.izinkan_file || data.izinkan_tautan || data.izinkan_teks;
-    const substantifDisabled = isLoading || isBatasTeknisOnly;
+    const substantifDisabled = isLoading;
 
     const availableIndikators = indikators.filter((ind) => {
         if (ind.status !== 'arsip') {
@@ -89,12 +90,8 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
             onClose={handleSafeClose}
             showCloseButton={!isLoading}
             size="2xl"
-            title={isBatasTeknisOnly ? 'Ubah batas teknis' : isEditing ? 'Edit persyaratan' : 'Tambah persyaratan'}
-            description={
-                isBatasTeknisOnly
-                    ? 'Format dan ukuran maksimum berkas untuk persyaratan ini.'
-                    : 'Bukti dukung yang harus dipenuhi PIC pada tahap kepatuhan.'
-            }
+            title={isEditing ? 'Edit persyaratan' : 'Tambah persyaratan'}
+            description="Bukti dukung yang harus dipenuhi PIC pada tahap kepatuhan."
             footer={
                 <>
                     <Button type="button" variant="outline" disabled={isLoading} onClick={handleSafeClose}>
@@ -104,20 +101,14 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         type="submit"
                         form="jenis-berkas-form"
                         isLoading={isLoading}
-                        disabled={!isBatasTeknisOnly && !atLeastOneMode}
+                        disabled={!atLeastOneMode}
                     >
-                        {isBatasTeknisOnly || isEditing ? 'Lanjut ke konfirmasi' : 'Simpan persyaratan'}
+                        {isEditing ? 'Lanjut ke konfirmasi' : 'Simpan persyaratan'}
                     </Button>
                 </>
             }
         >
             <form id="jenis-berkas-form" onSubmit={onSubmit} className="space-y-5">
-                {isBatasTeknisOnly && (
-                    <p className="rounded-lg border border-info/20 bg-info/10 p-3 text-xs leading-relaxed text-info-dark">
-                        Kolom lain hanya dapat diubah oleh tim Perencanaan.
-                    </p>
-                )}
-
                 <Input
                     id="jb-nama"
                     label="Nama persyaratan"
@@ -135,7 +126,7 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                         label="Tahap"
                         required
                         value={data.tahap}
-                        onChange={(e) => onChange('tahap', e.target.value)}
+                        onChange={(e) => onChange('tahap', e.target.value as JenisBerkasFormData['tahap'])}
                         disabled={substantifDisabled}
                         error={errors.tahap}
                         helperText="Persyaratan Rencana Aksi dan Perencanaan Kegiatan diperiksa saat rencana aksi diajukan."
@@ -234,19 +225,8 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                     )}
                 </fieldset>
 
-                {!unggahanAktif && data.wajib && data.izinkan_file && !data.izinkan_tautan && !data.izinkan_teks && (
-                    <div role="alert" className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning/10 p-3 text-xs leading-relaxed text-warning-dark">
-                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                        <p>
-                            <span className="font-semibold">Unggahan file sedang dinonaktifkan di Pengaturan.</span>{' '}
-                            Persyaratan wajib yang hanya menerima file tidak dapat dipenuhi PIC dan akan ditandai tidak dapat
-                            dipenuhi. Izinkan juga mode tautan atau teks.
-                        </p>
-                    </div>
-                )}
-
                 <fieldset>
-                    <legend className="text-sm font-medium text-ink">Batas teknis file</legend>
+                    <legend className="text-sm font-medium text-ink">Format dan ukuran file</legend>
                     {!data.izinkan_file && <p className="mt-1 text-xs text-muted">Aktif bila mode file diterima.</p>}
                     <div className="mt-2 grid gap-4 sm:grid-cols-2">
                         <Input
@@ -255,22 +235,23 @@ export const JenisBerkasModal: React.FC<JenisBerkasModalProps> = ({
                             value={data.format_diizinkan}
                             onChange={(e) => onChange('format_diizinkan', e.target.value)}
                             placeholder="Contoh: pdf,docx,xlsx"
-                            disabled={isLoading || !data.izinkan_file || !canManageSettings}
+                            disabled={isLoading || !data.izinkan_file}
                             error={errors.format_diizinkan}
-                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin yang dapat mengubah format.' : 'Kosongkan untuk memakai format bawaan.'}
+                            helperText={`Kosongkan untuk memakai format bawaan: ${batasUnggahan.format_diizinkan.split(',').join(', ')}.`}
                         />
                         <Input
                             id="jb-ukuran"
                             label="Ukuran maksimum (KB)"
                             type="number"
                             min={100}
+                            max={batasUnggahan.batas_atas_kb}
                             step={1}
                             value={data.ukuran_maks_kb ?? ''}
                             onChange={(e) => onChange('ukuran_maks_kb', e.target.value ? Number(e.target.value) : null)}
                             placeholder="Contoh: 10240"
-                            disabled={isLoading || !data.izinkan_file || !canManageSettings}
+                            disabled={isLoading || !data.izinkan_file}
                             error={errors.ukuran_maks_kb}
-                            helperText={!canManageSettings ? 'Hanya Admin/Superadmin yang dapat mengubah batas ukuran.' : 'Kosongkan untuk ukuran bawaan (minimal 100 KB).'}
+                            helperText={`Kosongkan untuk bawaan ${batasUnggahan.ukuran_maks_kb.toLocaleString('id-ID')} KB. Minimal 100 KB, maksimal ${batasUnggahan.batas_atas_kb.toLocaleString('id-ID')} KB.`}
                         />
                     </div>
                 </fieldset>

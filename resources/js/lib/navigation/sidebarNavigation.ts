@@ -21,7 +21,6 @@ import {
     Ban,
     Search,
     Settings,
-    HardDrive,
     ClipboardList,
     MessageSquareText,
 } from 'lucide-react';
@@ -74,7 +73,7 @@ export type SidebarNavEntry =
 /**
  * Skema kanonikal navigasi SAKIP:
  * - 1 item direct: Dashboard
- * - 6 grup berfitur sesuai hierarki bisnis SAKIP (21 child items)
+ * - 6 grup berfitur sesuai hierarki bisnis SAKIP
  */
 export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
     {
@@ -94,13 +93,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
             label: 'Perencanaan Kinerja',
             icon: Target,
             children: [
-                {
-                    id: 'regulasi',
-                    label: 'Dasar Aturan',
-                    href: '/regulasi',
-                    icon: BookOpen,
-                    canKey: 'regulasi',
-                },
                 {
                     id: 'renstra',
                     label: 'Master Renstra',
@@ -129,6 +121,13 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/perjanjian-kinerja',
                     icon: FileText,
                     canKey: 'pk',
+                },
+                {
+                    id: 'jenis-berkas',
+                    label: 'Persyaratan Berkas',
+                    href: '/jenis-berkas',
+                    icon: FileText,
+                    canKey: 'jenisBerkas',
                 },
             ],
         },
@@ -217,11 +216,11 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     canKey: 'unit',
                 },
                 {
-                    id: 'jenis-berkas',
-                    label: 'Persyaratan Berkas',
-                    href: '/jenis-berkas',
-                    icon: FileText,
-                    canKey: 'jenisBerkas',
+                    id: 'regulasi',
+                    label: 'Dasar Aturan',
+                    href: '/regulasi',
+                    icon: BookOpen,
+                    canKey: 'regulasi',
                 },
             ],
         },
@@ -284,16 +283,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/pengaturan',
                     icon: Settings,
                     canKey: 'pengaturan',
-                    // /pengaturan/storage beserta turunannya milik Kebijakan Storage, bukan Pengaturan.
-                    matchPatterns: (path: string): boolean =>
-                        isWithinPath(path, '/pengaturan') && !isWithinPath(path, '/pengaturan/storage'),
-                },
-                {
-                    id: 'storage-policy',
-                    label: 'Kebijakan Storage',
-                    href: '/pengaturan/storage',
-                    icon: HardDrive,
-                    canKey: 'storagePolicy',
                 },
                 {
                     id: 'audit',

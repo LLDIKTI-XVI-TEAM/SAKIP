@@ -2,13 +2,13 @@
 
 namespace App\Actions\RencanaAksi;
 
-use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\BuktiDukung;
 use App\Models\JenisBerkas;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\RencanaAksi\GerbangBuktiRencanaAksi;
+use App\Services\Storage\UploadLimits;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -22,14 +22,13 @@ use Throwable;
 /**
  * Pemenuhan bukti rencana aksi tiga mode (PRD §18.4–18.5, Workflow §10.3).
  * Mode harus termasuk mode yang diizinkan persyaratan; batas ukuran/format
- * file mengikuti persyaratan lalu fallback kunci `berkas.*` pengaturan;
+ * file mengikuti persyaratan lalu default dan ceiling konfigurasi server;
  * lampiran bebas (tanpa persyaratan) boleh mode apa pun.
  */
 class TambahBuktiRencanaAksi
 {
     public function __construct(
         private readonly GerbangBuktiRencanaAksi $gerbang,
-        private readonly EvaluateEvidence $evidence,
         private readonly AuditLogger $audit,
     ) {}
 
@@ -64,15 +63,13 @@ class TambahBuktiRencanaAksi
 
                 $path = null;
                 if ($mode === 'file') {
-                    $settings = $this->evidence->settings();
-                    if (! $settings['unggahan_aktif']) {
-                        throw ValidationException::withMessages(['file' => 'Unggahan file sedang dinonaktifkan. Mode tautan/teks tetap mengikuti persyaratannya.']);
-                    }
-                    $max = $requirement?->ukuran_maks_kb ?? $settings['ukuran_maks_kb'];
-                    $formats = $requirement?->format_diizinkan ?: $settings['format_diizinkan'];
-                    Validator::make($data, ['file' => ['required', 'file', "max:{$max}", "mimes:{$formats}"]], [
+                    $limits = UploadLimits::resolve($requirement?->ukuran_maks_kb, $requirement?->format_diizinkan);
+                    $max = $limits['ukuran_maks_kb'];
+                    $formats = $limits['format_diizinkan'];
+                    Validator::make($data, ['file' => ['required', ...UploadLimits::fileRules($requirement?->ukuran_maks_kb, $requirement?->format_diizinkan)]], [
                         'file.max' => "Ukuran berkas melebihi batas {$max} KB.",
                         'file.mimes' => "Format berkas harus salah satu dari: {$formats}.",
+                        'file.extensions' => "Ekstensi berkas harus salah satu dari: {$formats}.",
                     ])->validate();
 
                     /** @var UploadedFile $file */

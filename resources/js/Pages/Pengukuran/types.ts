@@ -69,7 +69,6 @@ export interface Pengukuran {
     komponen: { komponen_id: string; kode: string; label: string; peran: string; bobot: string | number | null; nilai: string | number | null }[];
     prasyarat: { siap: boolean; alasan: string[] };
     persyaratan_bukti: PersyaratanBukti[];
-    unggahan_aktif: boolean;
     can: PengukuranCapabilities;
     businessErrors?: PengukuranBusinessErrors;
     penugasan_indikator: {

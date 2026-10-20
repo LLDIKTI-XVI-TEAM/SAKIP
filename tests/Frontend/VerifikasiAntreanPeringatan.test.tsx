@@ -18,7 +18,7 @@ const pengukuran: Pengukuran = {
     id: 'pengukuran-uji', versi: 2, nomor_pengajuan: 1, status: 'diajukan', jalur_pengajuan: 'pic',
     self_approval: false, reviu_terlambat: true, nilai: '80', target: '100', status_perhitungan: 'terhitung', sumber_nilai: 'manual',
     catatan: null, alasan_tidak_dapat_dihitung: null, komponen: [], bukti_dukungs: [], bukti_count: 0,
-    prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [], unggahan_aktif: false,
+    prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [],
     can: { view: true, evidence: true, uploadEvidence: false, update: false, submit: false, verify: true, ratify: false, return: true },
     penugasan_indikator: {
         indikator_kinerja: { kode: 'IKU-UJI', nama: 'Indikator Uji', satuan: '%', tipe_perhitungan: 'manual', arah: 'naik_baik', presisi: 4, desimal_tampilan: 2 },

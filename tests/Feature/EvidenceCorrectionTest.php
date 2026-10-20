@@ -73,17 +73,17 @@ class EvidenceCorrectionTest extends TestCase
         $this->assertDatabaseCount('berkas', 7);
     }
 
-    public function test_failed_waiver_audit_rolls_back_submission_and_evidence(): void
+    public function test_failed_submission_audit_rolls_back_submission_and_evidence(): void
     {
-        JenisBerkas::create(['nama' => 'Bukti file wajib', 'tahap' => 'pengukuran', 'wajib' => true, 'izinkan_file' => true, 'created_by' => $this->actor->id, 'created_at' => now(), 'updated_at' => now()]);
+        JenisBerkas::create(['nama' => 'Bukti teks wajib', 'tahap' => 'pengukuran', 'wajib' => true, 'izinkan_file' => false, 'izinkan_teks' => true, 'created_by' => $this->actor->id, 'created_at' => now(), 'updated_at' => now()]);
         Pengaturan::create(['kunci' => 'berkas.unggahan_aktif', 'nilai' => 'false', 'tipe' => 'boolean', 'grup' => 'berkas', 'updated_at' => now()]);
         AuditLog::creating(function ($audit): void {
-            if ($audit->tindakan === 'berkas.tandai_tidak_dapat_dipenuhi') {
+            if ($audit->tindakan === 'pengukuran.ajukan') {
                 throw new \RuntimeException('Kegagalan audit sintetis');
             }
         });
         $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85,
-            'bukti' => ['mode' => 'teks', 'isi_teks' => 'Lampiran bebas']])->assertStatus(500);
+            'bukti' => ['jenis_berkas_id' => JenisBerkas::sole()->id, 'mode' => 'teks', 'isi_teks' => 'Bukti sintetis']])->assertStatus(500);
         $this->assertSame('draft', $this->pengukuran->fresh()->status_alur);
         $this->assertSame(1, $this->pengukuran->fresh()->versi);
         $this->assertDatabaseCount('pengukuran_versi', 0);

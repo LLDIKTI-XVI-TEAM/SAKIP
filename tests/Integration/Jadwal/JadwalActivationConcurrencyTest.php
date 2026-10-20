@@ -5,7 +5,6 @@ namespace Tests\Integration\Jadwal;
 use App\Actions\Access\CreateDeny;
 use App\Actions\Jadwal\ActivateJadwal;
 use App\Actions\Jadwal\SaveJadwalDraft;
-use App\Actions\Pengaturan\UpdateStoragePolicyAction;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
 use App\Actions\Perencanaan\PindahUnitIndikator;
@@ -23,7 +22,6 @@ use App\Models\Permission;
 use App\Models\TargetKinerja;
 use App\Models\Unit;
 use App\Models\User;
-use App\Services\Storage\StoragePolicyDefaults;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Carbon;
@@ -281,52 +279,6 @@ class JadwalActivationConcurrencyTest extends TestCase
         $this->assertSame([$this->ready['periode']->id], JadwalSnapshot::pluck('periode_mulai_id')->all());
     }
 
-    public function test_upload_toggle_off_first_lets_activation_reuse_its_marker(): void
-    {
-        $this->readyJadwal();
-        Berkas::query()->delete();
-        app(StoragePolicyDefaults::class)->ensure();
-        $admin = $this->activator(['pengaturan:update']);
-        $job = $this->activationJob();
-        DB::beginTransaction();
-        app(UpdateStoragePolicyAction::class)->handle($admin, $this->storagePayload(false, 1));
-        $this->assertSame(['outcome' => 'changed', 'changed' => true], $this->raceAgainstOpenTransaction($job));
-        $this->assertSame(1, $this->markers('berkas.tandai_tidak_dapat_dipenuhi'));
-        $this->assertTrue(AuditLog::where('tindakan', 'jadwal.aktivasi')->sole()->nilai_baru['pengecualian_lampiran_pk']);
-    }
-
-    public function test_upload_toggle_on_waits_for_activation_marker_then_revokes_it(): void
-    {
-        $this->readyJadwal();
-        Berkas::query()->delete();
-        app(StoragePolicyDefaults::class)->ensure();
-        DB::table('pengaturan')->where('kunci', 'berkas.unggahan_aktif')->update(['nilai' => 'false']);
-        $admin = $this->activator(['pengaturan:update']);
-        DB::beginTransaction();
-        app(ActivateJadwal::class)->handle($this->activator(), $this->ready['jadwal']->id, $this->activationPayload());
-        $result = $this->raceAgainstOpenTransaction(['operation' => 'storage', 'actor_id' => $admin->id, 'data' => $this->storagePayload(true, 1)]);
-        $this->assertSame(['outcome' => 'changed', 'changed' => true], $result);
-        $this->assertSame([1, 1], [$this->markers('berkas.tandai_tidak_dapat_dipenuhi'), $this->markers('berkas.cabut_tidak_dapat_dipenuhi')]);
-        $this->assertSame('aktif', JadwalTahunan::sole()->status);
-    }
-
-    public function test_upload_setting_created_after_absent_lock_is_not_used_for_exception(): void
-    {
-        $this->readyJadwal();
-        Berkas::query()->delete();
-        $this->uploadSetting(null);
-        $admin = $this->activator(['pengaturan:update']);
-        // Aktivasi sudah melewati lock setting (row absent, tidak ada yang terkunci) lalu berhenti sebelum membaca konteks.
-        $worker = $this->start([...$this->activationJob(), 'pause_on' => ['from "target_kinerjas"', 'for update']]);
-        $this->go($worker);
-        $this->until(fn () => str_contains($worker['process']->getOutput(), 'PAUSED'), [$worker]);
-        app(UpdateStoragePolicyAction::class)->handle($admin, $this->storagePayload(false, 1));
-        $worker['input']->write("CONTINUE\n");
-        $this->assertSame(['outcome' => 'validation', 'fields' => ['aktivasi']], $this->workerResult($worker));
-        $this->assertSame('draft', JadwalTahunan::sole()->status);
-        $this->assertSame(0, JadwalSnapshot::count());
-    }
-
     public function test_deny_committed_first_is_seen_by_live_recheck(): void
     {
         $this->readyJadwal();
@@ -350,17 +302,6 @@ class JadwalActivationConcurrencyTest extends TestCase
     {
         return ['sasaran_strategis_id' => $this->ready['sasaran']->id, 'kode' => 'IKU-BARU', 'nama' => 'Indikator baru', 'satuan' => 'persen',
             'unit_id' => $this->ready['unit']->id, 'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'presisi' => 2, 'desimal_tampilan' => 2];
-    }
-
-    private function storagePayload(bool $upload, int $version): array
-    {
-        return ['berkas_unggahan_aktif' => $upload, 'berkas_ukuran_maks_kb' => 10240, 'berkas_format_diizinkan' => 'pdf,docx,xlsx,jpg,jpeg,png',
-            'berkas_tautan_selalu_diizinkan' => true, 'expected_updated_at' => '', 'expected_version' => $version, 'alasan' => 'Toggle fixture konkurensi'];
-    }
-
-    private function markers(string $tindakan): int
-    {
-        return AuditLog::where('tindakan', $tindakan)->where('objek_id', $this->ready['pk']->id)->count();
     }
 
     /** Worker harus benar-benar menunggu transaksi proses test sebelum commit; hasil dibaca sesudah commit. */

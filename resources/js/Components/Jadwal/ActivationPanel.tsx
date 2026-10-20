@@ -22,7 +22,6 @@ interface ActivationPanelProps {
 const GATE_LABELS = { G1: 'Perjanjian Kinerja', G2: 'Target tahunan', G3: 'Tahun dalam Renstra', G4: 'Lampiran PK' } as const;
 const GATE_STATUS = {
     lolos: { text: 'Lolos', icon: '✓', color: 'text-success-dark' },
-    pengecualian: { text: 'Pengecualian', icon: '!', color: 'text-warning-dark' },
     gagal: { text: 'Gagal', icon: '✕', color: 'text-danger' },
 } as const;
 const UNKNOWN = 'Hasil aktivasi belum terkonfirmasi. Periksa jadwal terbaru sebelum mencoba lagi.';

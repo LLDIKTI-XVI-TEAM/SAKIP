@@ -25,7 +25,7 @@ const measurement: Pengukuran = {
     id: '7b2a8af8-3d18-42bb-9b34-ff0bcce043a5', versi: 4, nomor_pengajuan: 1,
     jalur_pengajuan: 'pic', self_approval: false, reviu_terlambat: false, status: 'draft', target: 100,
     nilai: 80, status_perhitungan: 'terhitung', sumber_nilai: 'manual', catatan: '', alasan_tidak_dapat_dihitung: null,
-    komponen: [], prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [], unggahan_aktif: true,
+    komponen: [], prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [],
     can: { view: true, evidence: true, uploadEvidence: true, update: true, submit: true, verify: false, ratify: false, return: false },
     penugasan_indikator: {
         indikator_kinerja: { kode: 'IKU-UJI', nama: 'Indikator Uji', satuan: '%', definisi_operasional: null, tipe_perhitungan: 'manual', arah: 'naik_baik', presisi: 4, desimal_tampilan: 2 },
@@ -295,10 +295,9 @@ describe('Alur pengukuran', () => {
 
     it('mengirim komponen dan mode bukti yang dipilih tanpa mengirim nilai turunan, lalu mempertahankan input saat gagal', async () => {
         const user = userEvent.setup();
-        render(<PengukuranEdit pengukuran={{ ...measurement, sumber_nilai: 'komponen', nilai: null, status_perhitungan: 'belum_diisi', unggahan_aktif: false,
-            can: { ...measurement.can, submit: false }, prasyarat: { siap: false, alasan: ['Lengkapi komponen.'] },
+        render(<PengukuranEdit pengukuran={{ ...measurement, sumber_nilai: 'komponen', nilai: null, status_perhitungan: 'belum_diisi', can: { ...measurement.can, submit: false }, prasyarat: { siap: false, alasan: ['Lengkapi komponen.'] },
             komponen: [{ komponen_id: 'numerator', kode: 'A', label: 'Pembilang', peran: 'pembilang', bobot: null, nilai: null }, { komponen_id: 'denominator', kode: 'B', label: 'Penyebut', peran: 'penyebut', bobot: null, nilai: null }],
-            persyaratan_bukti: [{ id: 'requirement', nama: 'Penjelasan', wajib: true, semua_mode_wajib: false, izinkan_file: true, izinkan_tautan: false, izinkan_teks: true, format_diizinkan: 'pdf', ukuran_maks_kb: 10240, pemenuhan: { terpenuhi: false, mode_terpenuhi: [], mode_kurang: ['teks'], mode_dikecualikan: ['file'], alasan_pengecualian: 'Unggahan dinonaktifkan.' } }],
+            persyaratan_bukti: [{ id: 'requirement', nama: 'Penjelasan', wajib: true, semua_mode_wajib: false, izinkan_file: true, izinkan_tautan: false, izinkan_teks: true, format_diizinkan: 'pdf', ukuran_maks_kb: 10240, pemenuhan: { terpenuhi: false, mode_terpenuhi: [], mode_kurang: ['file', 'teks'], mode_dikecualikan: [], alasan_pengecualian: null } }],
         }} />);
         expect(screen.queryByRole('spinbutton', { name: /Nilai realisasi/ })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Ajukan ke Tim Perencanaan' })).toBeNull();
@@ -309,9 +308,10 @@ describe('Alur pengukuran', () => {
         await user.type(screen.getByRole('spinbutton', { name: /Pembilang/ }), '0');
         await user.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
         await user.selectOptions(screen.getByRole('combobox', { name: 'Persyaratan yang dipenuhi' }), 'requirement');
-        // Unggahan nonaktif dan persyaratan tanpa tautan: hanya mode teks yang tersisa.
-        expect(screen.queryByRole('button', { name: 'File' })).toBeNull();
+        // Mode mengikuti persyaratan: file selalu tersedia bila diizinkan.
+        expect(screen.getByRole('button', { name: 'File' })).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Tautan' })).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Teks' }));
         expect(screen.getByRole('button', { name: 'Teks' }).getAttribute('aria-pressed')).toBe('true');
         const evidence = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Teks lampiran 1' });
         await user.type(evidence, 'Penjelasan hasil pengukuran');

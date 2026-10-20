@@ -5,13 +5,15 @@ import { Button } from '@/Components/Button';
 interface AuditReasonModalProps {
     open: boolean;
     title: string;
-    description: string;
+    description?: string;
     reason: string;
     error?: string;
     busy?: boolean;
     submitDisabled?: boolean;
     notice?: ReactNode;
     showAuditHint?: boolean;
+    showIcon?: boolean;
+    reasonRequired?: boolean;
     confirmLabel: string;
     destructive?: boolean;
     placeholder?: string;
@@ -30,6 +32,8 @@ export function AuditReasonModal({
     submitDisabled = false,
     notice,
     showAuditHint = true,
+    showIcon = true,
+    reasonRequired = true,
     confirmLabel,
     destructive = false,
     placeholder,
@@ -54,7 +58,7 @@ export function AuditReasonModal({
         <dialog
             ref={dialog}
             aria-labelledby={`${id}-title`}
-            aria-describedby={`${id}-description`}
+            aria-describedby={description ? `${id}-description` : undefined}
             onCancel={(event) => {
                 event.preventDefault();
                 if (!busy) onClose();
@@ -66,12 +70,12 @@ export function AuditReasonModal({
             >
                 <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
                     <div className="flex gap-3">
-                        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning-dark">
+                        {showIcon && <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning-dark">
                             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-                        </span>
+                        </span>}
                         <div className="min-w-0">
                             <h2 id={`${id}-title`} className="text-base font-semibold leading-tight text-ink">{title}</h2>
-                            <p id={`${id}-description`} className="mt-0.5 break-words text-sm leading-snug text-muted">{description}</p>
+                            {description && <p id={`${id}-description`} className="mt-0.5 break-words text-sm leading-snug text-muted">{description}</p>}
                         </div>
                     </div>
                     <button
@@ -88,14 +92,16 @@ export function AuditReasonModal({
                 <div className="px-5 py-4">
                     {open && notice}
                     <label htmlFor={`${id}-reason`} className="mb-1.5 block text-sm font-semibold text-ink">
-                        Alasan perubahan <span className="text-danger" aria-hidden="true">*</span>
+                        Alasan perubahan {reasonRequired
+                            ? <span className="text-danger" aria-hidden="true">*</span>
+                            : <span className="font-normal text-muted">(opsional)</span>}
                     </label>
                     <textarea
                         id={`${id}-reason`}
                         ref={reasonInput}
                         rows={4}
                         disabled={busy}
-                        aria-required="true"
+                        aria-required={reasonRequired}
                         aria-invalid={Boolean(error)}
                         aria-describedby={error ? `${id}-error` : undefined}
                         value={reason}
