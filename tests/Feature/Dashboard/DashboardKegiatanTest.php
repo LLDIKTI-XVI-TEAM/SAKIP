@@ -165,4 +165,24 @@ class DashboardKegiatanTest extends TestCase
         $this->assertSame([2, 2, ['K-baru', 'K-bebas'], ['I-UJI']], $ringkas($this->panel()));
         $this->assertSame([2, 2, ['K-lama', 'K-bebas'], ['I-LAMA']], $ringkas($this->panel(query: '?renstra_id='.$renstraLama->id)));
     }
+
+    public function test_filter_sasaran_hanya_mengikuti_klaim_rencana_aksi_jadwal_terpilih(): void
+    {
+        $renstraLama = Renstra::create([...Renstra::findOrFail($this->jadwal->renstra_id)->only(['nama', 'tahun_mulai', 'tahun_selesai', 'created_by']), 'kode' => 'REN-LAMA', 'status' => 'nonaktif']);
+        $jadwalLama = JadwalTahunan::create([...$this->jadwal->only(['tahun', 'penutupan']), 'renstra_id' => $renstraLama->id, 'status' => 'ditutup']);
+        // Sasaran S-DUA ada di jadwal terpilih (I-S2, tanpa klaim) dan di jadwal lama (I-LAMA, mengklaim K-bersama).
+        $sasaranDua = SasaranStrategis::create(['renstra_id' => $this->jadwal->renstra_id, 'kode' => 'S-DUA', 'deskripsi' => 'Sasaran Dua']);
+        $this->indikatorBaru('I-S2', indikator: ['sasaran_strategis_id' => $sasaranDua->id]);
+        $indikatorLama = $this->indikatorBaru('I-LAMA', indikator: ['sasaran_strategis_id' => $sasaranDua->id], snapshot: ['jadwal_id' => $jadwalLama->id]);
+        $raLama = RencanaAksi::create([...$this->plan->only(['tahun', 'unit_id', 'penanggung_jawab_id', 'created_by']),
+            'jadwal_tahunan_id' => $jadwalLama->id, 'indikator_id' => $indikatorLama->indikator_id, 'status_alur' => 'draft']);
+        $bersama = $this->kegiatan(['nama' => 'K-bersama', 'tanggal_rencana' => '2026-03-01']);
+        $this->klaim($this->plan, $bersama);
+        $this->klaim($raLama, $bersama);
+
+        $panel = $this->panel(query: '?sasaran_id='.$sasaranDua->id);
+
+        $this->assertSame([0, 0, [], []], [$panel['per_status']['rencana'], $panel['terlambat_jumlah'], $panel['terlambat'], $panel['per_iku']]);
+        $this->assertSame(1, $this->panel(query: '?sasaran_id='.$this->pengukuran->indikator->sasaran_strategis_id)['per_status']['rencana']);
+    }
 }

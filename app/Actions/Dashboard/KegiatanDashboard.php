@@ -39,7 +39,7 @@ class KegiatanDashboard
             ->when($konteks['filter']['unit_id'], fn (Builder $q, $id) => $q->where('kegiatan.unit_id', $id))
             ->when($sasaran, fn (Builder $q, $id) => $q->whereExists(fn ($sub) => $sub->from('klaim_kegiatan as kk')
                 ->join('rencana_aksi as ra', 'ra.id', '=', 'kk.rencana_aksi_id')->join('indikator_kinerjas as i', 'i.id', '=', 'ra.indikator_id')
-                ->whereColumn('kk.kegiatan_id', 'kegiatan.id')->where('i.sasaran_strategis_id', $id)));
+                ->whereColumn('kk.kegiatan_id', 'kegiatan.id')->where('ra.jadwal_tahunan_id', $jadwal->id)->where('i.sasaran_strategis_id', $id)));
         $perStatus = (clone $base)->toBase()->selectRaw('kegiatan.status, count(*) as total')->groupBy('kegiatan.status')->pluck('total', 'status');
         $terlambat = (clone $base)->where('kegiatan.status', 'rencana')->whereDate('kegiatan.tanggal_rencana', '<', $today);
         // Kegiatan bersama dihitung di setiap IKU yang mengklaimnya; total per status di atas tetap dari kegiatan unik.
