@@ -72,8 +72,11 @@ class PengukuranWorkflowTest extends TestCase
     public function test_dashboard_does_not_publish_raw_evidence_or_average_heterogeneous_values(): void
     {
         $this->pengukuran->update(['status_alur' => 'diajukan', 'nilai' => 999, 'status_perhitungan' => 'terhitung']);
+        // Baris status hanya membawa data tampilan: tanpa bukti, tanpa email PIC, dan tanpa nilai yang belum disahkan.
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->missing('stats.rata_rata_capaian')->missing('pengukurans.0.bukti_dukungs')->missing('pengukurans.0.penugasan_indikator.pic.email'));
+            ->missing('stats.rata_rata_capaian')->has('statusIndikator', 1)
+            ->where('statusIndikator.0.status_alur', 'diajukan')->where('statusIndikator.0.realisasi', null)
+            ->missing('statusIndikator.0.bukti_dukungs')->has('statusIndikator.0.pic', 1)->has('statusIndikator.0.pic.nama'));
     }
 
     public function test_dashboard_permission_deny_is_enforced(): void

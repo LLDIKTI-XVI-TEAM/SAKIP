@@ -6,9 +6,11 @@ use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
+use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\Permission;
 use App\Models\Regulasi;
+use App\Models\RencanaAksi;
 use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
@@ -29,12 +31,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\RencanaAksiFixtures;
 use Tests\Support\SubmitsIndicatorDefinition;
 use Tests\TestCase;
 
 class SasaranIndikatorTest extends TestCase
 {
     use RefreshDatabase;
+    use RencanaAksiFixtures;
     use SubmitsIndicatorDefinition;
 
     private User $perencanaan;
@@ -1024,6 +1028,53 @@ class SasaranIndikatorTest extends TestCase
             'objek_tipe' => 'indikator',
             'objek_id' => $indikatorBerkas->id,
         ]);
+    }
+
+    /**
+     * ISS-02.05 TEST-4: histori Pengukuran dan Rencana Aksi nyata tidak
+     * menghalangi pengarsipan, tetapi juga tidak boleh ikut terhapus.
+     */
+    public function test_destroy_indikator_dengan_histori_pengukuran_dan_rencana_aksi_tetap_diarsipkan(): void
+    {
+        $fixture = $this->buatFixtureManual();
+        $indikator = $fixture['indikator'];
+
+        $pengukuran = PengukuranKinerja::create([
+            'indikator_id' => $indikator->id,
+            'tahun' => 2026,
+            'periode_id' => $fixture['periode1']->id,
+            'jadwal_snapshot_id' => $fixture['snapshot']->id,
+            'nilai' => 100,
+            'sumber_nilai' => 'manual',
+            'status_perhitungan' => 'terhitung',
+            'created_by' => $fixture['pic']->id,
+        ]);
+        $rencanaAksi = $this->buatDraf($fixture);
+
+        $response = $this->actingAs($fixture['perencanaan'])->delete("/perencanaan/indikator/{$indikator->id}", [
+            'alasan' => 'Indikator diarsipkan karena histori pengukuran dan rencana aksi tetap dipertahankan.',
+        ]);
+
+        $response->assertRedirect(route('perencanaan.sasaran-indikator.index', ['renstra_id' => $fixture['renstra']->id]));
+        $this->assertDatabaseHas('indikator_kinerjas', [
+            'id' => $indikator->id,
+            'status' => 'arsip',
+        ]);
+        $this->assertDatabaseHas('pengukuran_kinerjas', ['id' => $pengukuran->id]);
+        $this->assertDatabaseHas('rencana_aksi', ['id' => $rencanaAksi->id]);
+        $this->assertDatabaseHas('audit_log', [
+            'tindakan' => 'indikator.arsipkan',
+            'objek_tipe' => 'indikator',
+            'objek_id' => $indikator->id,
+            'actor_id' => $fixture['perencanaan']->id,
+        ]);
+        $this->assertDatabaseMissing('audit_log', [
+            'tindakan' => 'indikator.hapus',
+            'objek_tipe' => 'indikator',
+            'objek_id' => $indikator->id,
+        ]);
+        $this->assertSame(1, PengukuranKinerja::whereKey($pengukuran->id)->count());
+        $this->assertSame(1, RencanaAksi::whereKey($rencanaAksi->id)->count());
     }
 
     public function test_inactive_unit_rejected_on_store_and_update_transfer(): void

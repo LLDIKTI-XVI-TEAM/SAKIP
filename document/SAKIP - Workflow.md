@@ -1295,6 +1295,8 @@ flowchart TD
 
 Setiap penghapusan tercatat `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`) dengan alasan wajib (Q43 §43.2 butir 2). Setelah batas imutabilitas tercapai: bukti dukung TIDAK DAPAT dihapus maupun diganti isinya pada mode apa pun. Untuk `rencana_aksi`/`pengukuran`/`kegiatan`, koreksi pasca-`jadwal_tahunan.penutupan` hanya lewat `jadwal:buka_kembali`; untuk `renstra`/`renstra_pk`/`regulasi`, tidak ada jalur koreksi otomatis serupa — perubahan dokumen dasar setelah induknya beku memerlukan revisi in place pada induknya sendiri (§14) yang tercatat beralasan, bukan penghapusan lampiran lama.
 
+**Pengecualian Pengukuran (Q36 §36.2):** bukti dukung berinduk `pengukuran` tidak memiliki endpoint hapus; koreksi dilakukan dengan pengembalian beralasan dan pengajuan ulang sebagai versi baru. Ketentuan soft delete `dihapus_pada`/`dihapus_oleh` pada paragraf ini berlaku untuk induk lain yang memiliki jalur hapus.
+
 **10.6b — Audit:**
 
 - Penetapan/ubah persyaratan (`jenis_berkas`) — termasuk perubahan mode yang diizinkan, `wajib`, `semua_mode_wajib`, tahap, format/ukuran, dan `hanya_kegiatan_beranggaran` — dicatat dengan `nilai_lama`/`nilai_baru` dan `alasan` bila diisi; alasan perubahan persyaratan opsional (Q43 §43.3 butir 3), sedangkan penghapusan contoh berkas wajib alasan (Q42 §42.3 butir 4).

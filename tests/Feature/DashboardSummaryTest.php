@@ -55,11 +55,11 @@ class DashboardSummaryTest extends TestCase
             'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
         $this->travelTo(now()->setDate(2026, 4, 1));
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'terakhir')->where('stats.total', 1)->has('pengukurans', 1));
+            ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'terakhir')->where('stats.total', 1)->has('statusIndikator', 1));
 
         $this->travelTo(now()->setDate(2026, 2, 15));
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('activePeriode', null)->where('stats.total', 0)->has('pengukurans', 0));
+            ->where('activePeriode', null)->where('stats.total', 0)->has('statusIndikator', 0));
 
         $this->travelTo(Carbon::parse('2026-02-28 16:00:00', 'UTC'));
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
@@ -83,19 +83,20 @@ class DashboardSummaryTest extends TestCase
             ->where('stats.total', 1)->where('stats.draft', 1)->where('stats.disahkan', 0)
             ->has('progresPeriode', 2)
             ->where('progresPeriode.0.nama', 'Triwulan I')->where('progresPeriode.0.total', 1)->where('progresPeriode.0.draft', 1)
-            ->where('progresPeriode.1.nama', 'Triwulan II')->where('progresPeriode.1.total', 1)->where('progresPeriode.1.disahkan', 1));
+            // Periode yang jendelanya belum dibuka tidak dihitung sebagai kewajiban.
+            ->where('progresPeriode.1.nama', 'Triwulan II')->where('progresPeriode.1.dibuka', false)->where('progresPeriode.1.total', 0)->where('progresPeriode.1.disahkan', 0));
     }
 
     public function test_dashboard_does_not_fall_back_to_old_data_without_an_active_renstra_schedule(): void
     {
         Renstra::query()->update(['is_aktif' => false, 'status' => Renstra::STATUS_NONAKTIF]);
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('activeRenstra', null)->where('activePeriode', null)->where('stats.total', 0)->has('pengukurans', 0));
+            ->where('activeRenstra', null)->where('activePeriode', null)->where('stats.total', 0)->has('statusIndikator', 0));
 
         $renstra = Renstra::create(['kode' => 'R-BARU', 'nama' => 'Renstra Baru', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'is_aktif' => true, 'created_by' => $this->actor->id]);
         $this->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activeRenstra.id', $renstra->id)->where('activeJadwal', null)->where('activePeriode', null)->where('stats.total', 0)
-            ->has('progresPeriode', 0)->has('pengukurans', 0));
+            ->has('progresPeriode', 0)->has('statusIndikator', 0));
     }
 
     public function test_dashboard_selects_the_active_renstra_covering_the_current_year(): void
@@ -118,7 +119,7 @@ class DashboardSummaryTest extends TestCase
             'tahun' => 2027, 'penutupan' => '2027-12-31', 'status' => 'aktif']);
 
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('activePeriode.nama_periode', 'Triwulan I 2026')->where('stats.total', 1)->where('pengukurans.0.id', $this->pengukuran->id));
+            ->where('activePeriode.nama_periode', 'Triwulan I 2026')->where('stats.total', 1)->where('statusIndikator.0.action.href', route('pengukuran.edit', $this->pengukuran->id)));
         $this->get('/pengukuran')->assertOk()->assertInertia(fn ($page) => $page
             ->where('konteks.0.periode.tahun', 2026)->where('pagination.total', 1)->where('pengukurans.0.pengukuran.id', $this->pengukuran->id));
     }

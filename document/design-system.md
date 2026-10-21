@@ -391,6 +391,7 @@ export const kegiatanStatusBadgeMap: Record<string, { variant: BadgeVariant; lab
 > - Indikator **dinilai tahunan** diberi badge `secondary` "Dinilai tahunan" di Sasaran & Indikator dan Rencana Aksi; target periode yang dikosongkan tampil "—" dengan keterangan "Tidak ditargetkan", bukan `0` (Q47).
 > - Pada pengukuran, dashboard, dan rekap, **selisih terhadap target PK** ditampilkan dalam satuan indikator dengan tanda (mis. "−3,57 poin"); warnanya mengikuti arah indikator, dan teksnya tetap menyebut "di atas" atau "di bawah" target agar tidak bergantung pada warna saja (Q47 §47.3).
 > - Status kegiatan di dashboard diberi label "belum diverifikasi" (Q45 §45.3); kegiatan yang diklaim lebih dari satu IKU diberi badge `muted` "Kegiatan bersama" (Q42 §42.2).
+> - Status tampilan indikator × periode di dashboard (Q64) memakai `Badge` dengan varian: "Belum mengisi" `muted`, "Tidak mengisi" `danger`, "Dalam proses" `info` (disertai badge status alur), "Belum ditetapkan" `muted`, "Tanpa target periode" `info`, "Belum dapat diukur" `warning`, "Tidak dapat dihitung" `secondary`, "Tidak berlaku" dan "Belum dibuka" `muted`. Target periode yang tidak ditargetkan tampil "—" dengan keterangan "Tidak ditargetkan".
 > - Rekomendasi yang disetujui Perencanaan sebagai cadangan diberi keterangan "Disetujui Perencanaan (cadangan)" di samping badge `Disetujui` (Q51 §51.2).
 > - Field nama kegiatan menampilkan penghitung karakter dengan batas 500; field tujuan berlabel "Tujuan (opsional)" (Q49 §49.1).
 

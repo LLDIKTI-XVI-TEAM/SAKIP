@@ -839,6 +839,8 @@ kegiatan:update
 
 > **Q43 (13 Oktober 2026):** alasan pemindahan unit indikator menjadi opsional, sedangkan audit unit lama/baru tetap wajib (Q43 §43.1, §43.3 butir 3). `PindahUnitIndikatorRequest` saat ini masih mewajibkan alasan; perubahannya dikerjakan pada ISS-13.05. Penghapusan indikator tetap wajib alasan (Q43 §43.2 butir 2).
 
+> **Status implementasi - issue #132 (2026-10-20):** centang menunjukkan bukti implementasi dan test pada PR #151, bukan penerimaan UAT/deployment. Test: `SasaranIndikatorTest::test_pindah_unit_via_endpoint_sukses_mencatat_audit_tunggal_tepat`, `test_8_destroy_indikator_selalu_mengarsipkan_tanpa_hapus_fisik`, `test_destroy_indikator_dengan_histori_pengukuran_dan_rencana_aksi_tetap_diarsipkan`; `IndexPengukuranTest::test_unit_master_berubah_tidak_mengganti_unit_baris_dan_deny_mengikuti_unit_baris`; `JadwalActivationReadinessTest::test_target_gate_requires_nonnull_value_for_every_eligible_indicator`. AC-4 dibaca sebagai arsip/never-delete, bukan penolakan HTTP 4xx. Perubahan alasan pindah unit menjadi opsional tetap di ISS-13.05. Keputusan PM atas pembacaan AC-4: [review PM #151](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/151#issuecomment-6292560535).
+
 **Terkait User Story:** `US-02.05`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
@@ -862,10 +864,10 @@ kegiatan:update
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given indikator dipindahkan ke unit lain, When perubahan disimpan, Then `indikator.unit_id` berubah untuk konteks master ke depan dan audit merekam unit lama/baru.
-- [ ] **AC-2:** Given snapshot lama telah dipakai RA/Pengukuran, When unit master berubah, Then snapshot/laporan versi lama tetap memakai unit historis yang dibekukan.
-- [ ] **AC-3:** Given indikator diarsipkan, When periode baru dihitung, Then indikator arsip tidak menjadi kewajiban baru.
-- [ ] **AC-4:** Given ada histori pengukuran/RA, When hard delete indikator dicoba, Then sistem menolak penghapusan permanen yang merusak histori.
+- [x] **AC-1:** Given indikator dipindahkan ke unit lain, When perubahan disimpan, Then `indikator.unit_id` berubah untuk konteks master ke depan dan audit merekam unit lama/baru.
+- [x] **AC-2:** Given snapshot lama telah dipakai RA/Pengukuran, When unit master berubah, Then snapshot/laporan versi lama tetap memakai unit historis yang dibekukan.
+- [x] **AC-3:** Given indikator diarsipkan, When periode baru dihitung, Then indikator arsip tidak menjadi kewajiban baru.
+- [x] **AC-4:** Given ada histori pengukuran/RA, When hard delete indikator dicoba, Then sistem menolak penghapusan permanen yang merusak histori.
 
 #### Implementation Tasks
 
@@ -890,10 +892,10 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator dipindahkan ke unit lain, When perubahan disimpan, Then `indikator.unit_id` berubah untuk konteks master ke depan dan audit merekam unit lama/baru.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given snapshot lama telah dipakai RA/Pengukuran, When unit master berubah, Then snapshot/laporan versi lama tetap memakai unit historis yang dibekukan.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator diarsipkan, When periode baru dihitung, Then indikator arsip tidak menjadi kewajiban baru.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given ada histori pengukuran/RA, When hard delete indikator dicoba, Then sistem menolak penghapusan permanen yang merusak histori.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator dipindahkan ke unit lain, When perubahan disimpan, Then `indikator.unit_id` berubah untuk konteks master ke depan dan audit merekam unit lama/baru.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given snapshot lama telah dipakai RA/Pengukuran, When unit master berubah, Then snapshot/laporan versi lama tetap memakai unit historis yang dibekukan.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator diarsipkan, When periode baru dihitung, Then indikator arsip tidak menjadi kewajiban baru.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given ada histori pengukuran/RA, When hard delete indikator dicoba, Then sistem menolak penghapusan permanen yang merusak histori.
 
 #### Definition of Done
 
@@ -3215,6 +3217,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q44 (13 Oktober 2026):** saklar unggahan dihapus sehingga pengecualian mode file karena unggahan dimatikan tidak lagi terjadi (ISS-11.06 dibatalkan); batas ukuran/format mengikuti persyaratan dengan default dan batas atas dari konfigurasi server (ISS-13.06). AC-3 dan TEST-3 dihapus (tidak dikerjakan) dan dipertahankan sebagai riwayat; penanda `tidak_dapat_dipenuhi` yang sudah tercatat tetap menjadi histori.
 
+> **Status implementasi - issue #132 (2026-10-20):** centang menunjukkan bukti implementasi dan test pada PR #151, bukan penerimaan UAT/deployment. Test: `CanonicalPengukuranTest::test_required_modes_remain_mandatory_and_requirements_are_frozen`, `test_download_uses_the_file_frozen_at_submission`; `JenisBerkasTest::test_semua_mode_wajib_semantics`; `BuktiDukungPengukuranTest::test_mode_tautan_dan_teks_pengukuran_tersimpan_tanpa_file` (AC-1); `BuktiRencanaAksiEvaluasiTest::test_semua_mode_wajib_belum_lengkap_bila_sebagian_mode_kosong`; `EvidenceCorrectionTest::test_superseded_mode_does_not_satisfy_required_evidence`. AC-3/TEST-3 dihapus Q44 dan tetap historis.
+
 **Terkait User Story:** `US-07.02`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
@@ -3238,10 +3242,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given mode diizinkan, When bukti disimpan, Then `berkas` terkait Pengukuran dan jenis persyaratan.
-- [ ] **AC-2:** Given `semua_mode_wajib = true`, Then seluruh mode yang disyaratkan wajib terpenuhi.
+- [x] **AC-1:** Given mode diizinkan, When bukti disimpan, Then `berkas` terkait Pengukuran dan jenis persyaratan.
+- [x] **AC-2:** Given `semua_mode_wajib = true`, Then seluruh mode yang disyaratkan wajib terpenuhi.
 - [ ] **AC-3:** *(Dihapus Q44 §44.1 butir 2; tidak dikerjakan.)* Semula: Given file upload dimatikan dan persyaratan mengandung kewajiban file, Then hanya kewajiban **mode file** yang dapat dikecualikan sesuai kebijakan; mode tautan/teks lain tetap wajib bila dipersyaratkan.
-- [ ] **AC-4:** Given bukti telah masuk versi submit, Then perubahan live tidak mengubah versi lama.
+- [x] **AC-4:** Given bukti telah masuk versi submit, Then perubahan live tidak mengubah versi lama.
 
 #### Implementation Tasks
 
@@ -3265,10 +3269,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given mode diizinkan, When bukti disimpan, Then `berkas` terkait Pengukuran dan jenis persyaratan.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given `semua_mode_wajib = true`, Then seluruh mode yang disyaratkan wajib terpenuhi.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given mode diizinkan, When bukti disimpan, Then `berkas` terkait Pengukuran dan jenis persyaratan.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given `semua_mode_wajib = true`, Then seluruh mode yang disyaratkan wajib terpenuhi.
 - [ ] TEST-3: *(Dihapus Q44 §44.1 butir 2; tidak dikerjakan.)* Semula: Buat Pest Feature/Unit test yang membuktikan — Given file upload dimatikan dan persyaratan mengandung kewajiban file, Then hanya kewajiban **mode file** yang dapat dikecualikan sesuai kebijakan; mode tautan/teks lain tetap wajib bila dipersyaratkan.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given bukti telah masuk versi submit, Then perubahan live tidak mengubah versi lama.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given bukti telah masuk versi submit, Then perubahan live tidak mengubah versi lama.
 
 #### Definition of Done
 
@@ -3959,6 +3963,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-10.01 · [Feature] Dashboard Kinerja Eksekutif
 
+> **Status implementasi (GitHub #135):** filter Renstra/tahun/periode/sasaran/unit yang divalidasi server, status indikator × periode dari daftar kewajiban, angka resmi dari versi disahkan, selisih terhadap target PK, progres Rencana Aksi (Plan 7.6), dan panel kegiatan real-time telah terimplementasi dan diuji (PR #147). Status tampilan mengikuti Q64.
+
+> **Batas completion:** AC-8 dan AKSES ANGGARAN tetap terbuka sampai penjumlahan anggaran ISS-06.08 bagian kedua tersedia; dikerjakan pada PR lanjutan. Tercapai/Belum tercapai belum tampil karena status capaian belum dapat ditetapkan (Q64 §64.1 butir 4). Plan 7.8 belum dikerjakan. Test utama: DashboardFilterTest, DashboardAksesTest, DashboardStatusIndikatorTest, DashboardRencanaAksiTest, DashboardKegiatanTest, DaftarKewajibanPengukuranTest, StatusTampilanPengukuranTest, serta Vitest DashboardIndex, DashboardFilter, DashboardPanel, dan SelisihTargetPk. Checkbox AC menandai bukti lokal; persetujuan QA/UAT belum dinyatakan.
+
 > **Q42, Q45, Q47 (13 Oktober 2026):** dashboard menampilkan status kegiatan per periode secara real-time berlabel "belum diverifikasi" dengan peringatan bagi kegiatan yang melewati tanggal rencana (Q45 §45.3), total anggaran per IKU dengan drill-down sampai kegiatan (Q42 §42.2 butir 5), serta "Tanpa target periode", "Belum dapat diukur", dan selisih terhadap target PK; bila keduanya berlaku bersamaan, yang tampil "Belum dapat diukur" (Q47 §47.3–§47.4). Angka capaian resmi tetap hanya dari data yang disahkan (Q45 §45.3 butir 2). AC-7 sampai AC-10 ditambahkan karena issue ini belum dikerjakan.
 
 **Terkait User Story:** `US-10.01`  
@@ -3984,16 +3992,16 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
-- [ ] **AC-2:** Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
-- [ ] **AC-3:** Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
-- [ ] **AC-4:** Given indikator arsip, Then tidak menjadi kewajiban baru.
-- [ ] **AC-5:** Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
-- [ ] **AC-6 (Q31):** Given user ber-PIC operasional (bukan role), When mengakses dashboard, Then keputusan akses tetap berdasarkan `dashboard:read` efektif. Dokumen tidak mengasumsikan role PIC memiliki permission tersebut sampai preset PIC dikonfirmasi.
-- [ ] **AC-7:** Given kegiatan pada periode berjalan, Then dashboard menampilkan status kegiatan secara real-time dengan label "belum diverifikasi", dan kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. *(Q45 §45.3 butir 1)*
+- [x] **AC-1:** Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
+- [x] **AC-2:** Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
+- [x] **AC-3:** Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
+- [x] **AC-4:** Given indikator arsip, Then tidak menjadi kewajiban baru.
+- [x] **AC-5:** Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
+- [x] **AC-6 (Q31):** Given user ber-PIC operasional (bukan role), When mengakses dashboard, Then keputusan akses tetap berdasarkan `dashboard:read` efektif. Dokumen tidak mengasumsikan role PIC memiliki permission tersebut sampai preset PIC dikonfirmasi.
+- [x] **AC-7:** Given kegiatan pada periode berjalan, Then dashboard menampilkan status kegiatan secara real-time dengan label "belum diverifikasi", dan kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. *(Q45 §45.3 butir 1)*
 - [ ] **AC-8:** Given dashboard dibuka, Then total anggaran per IKU tampil dengan drill-down sampai kegiatan sesuai akses dashboard; kegiatan yang diklaim lebih dari satu IKU ditandai "kegiatan bersama". *(Q42 §42.2 butir 4–5, §42.5 butir 2)*
-- [ ] **AC-9:** Given periode tanpa target, Then dashboard menampilkannya sebagai "Tanpa target periode", bukan "Belum tercapai", beserta realisasi, target PK, dan selisih terhadap target PK. *(Q47 §47.3)*
-- [ ] **AC-10:** Given pengukuran berstatus `belum_dapat_diukur`, Then dashboard menampilkan "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0; bila periodenya juga tanpa target, yang tampil "Belum dapat diukur". *(Q47 §47.3 butir 3, §47.4 butir 3)*
+- [x] **AC-9:** Given periode tanpa target, Then dashboard menampilkannya sebagai "Tanpa target periode", bukan "Belum tercapai", beserta realisasi, target PK, dan selisih terhadap target PK. *(Q47 §47.3)*
+- [x] **AC-10:** Given pengukuran berstatus `belum_dapat_diukur`, Then dashboard menampilkan "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0; bila periodenya juga tanpa target, yang tampil "Belum dapat diukur". *(Q47 §47.3 butir 3, §47.4 butir 3)*
 
 #### Implementation Tasks
 
@@ -4018,17 +4026,17 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator arsip, Then tidak menjadi kewajiban baru.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given indikator-periode belum memiliki pengukuran, Then status dihitung dari daftar periode yang diharapkan, bukan dari keberadaan baris pengukuran semata.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum efektivitas indikator, Then dashboard menampilkan Tidak berlaku dan tidak menghitungnya sebagai missing.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator arsip, Then tidak menjadi kewajiban baru.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given hasil resmi ditampilkan, Then angka berasal dari versi disahkan/snapshot yang tepat, bukan master terbaru yang bisa berubah.
 
-- [ ] TEST-6 (Q31): Uji user PIC operasional (bukan role) dengan dan tanpa `dashboard:read` efektif; hasil mengikuti resolver, bukan nama role.
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan pada periode berjalan, Then dashboard menampilkan status kegiatan secara real-time dengan label "belum diverifikasi", dan kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. *(Q45 §45.3 butir 1)*
+- [x] TEST-6 (Q31): Uji user PIC operasional (bukan role) dengan dan tanpa `dashboard:read` efektif; hasil mengikuti resolver, bukan nama role.
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan pada periode berjalan, Then dashboard menampilkan status kegiatan secara real-time dengan label "belum diverifikasi", dan kegiatan yang melewati tanggal rencana tetapi belum terlaksana diberi peringatan. *(Q45 §45.3 butir 1)*
 - [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given dashboard dibuka, Then total anggaran per IKU tampil dengan drill-down sampai kegiatan sesuai akses dashboard; kegiatan yang diklaim lebih dari satu IKU ditandai "kegiatan bersama". *(Q42 §42.2 butir 4–5, §42.5 butir 2)*
-- [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then dashboard menampilkannya sebagai "Tanpa target periode", bukan "Belum tercapai", beserta realisasi, target PK, dan selisih terhadap target PK. *(Q47 §47.3)*
-- [ ] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, Then dashboard menampilkan "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0; bila periodenya juga tanpa target, yang tampil "Belum dapat diukur". *(Q47 §47.3 butir 3, §47.4 butir 3)*
+- [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then dashboard menampilkannya sebagai "Tanpa target periode", bukan "Belum tercapai", beserta realisasi, target PK, dan selisih terhadap target PK. *(Q47 §47.3)*
+- [x] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, Then dashboard menampilkan "Belum dapat diukur" dan tidak menghitungnya sebagai capaian 0; bila periodenya juga tanpa target, yang tampil "Belum dapat diukur". *(Q47 §47.3 butir 3, §47.4 butir 3)*
 - [ ] AKSES ANGGARAN: Uji anggaran per kegiatan pada drill-down tidak tampil bagi pengguna tanpa akses detail kegiatan unit tersebut (Q42 §42.5 butir 1).
 
 #### Definition of Done
@@ -4413,7 +4421,9 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-11.02 · [Feature] Unggah File Privat & Streamed Download
 
-> **Q44 (13 Oktober 2026):** unggahan file selalu aktif tanpa saklar; batas ukuran/format mengikuti persyaratan, dan bila tidak ada persyaratan atau persyaratan mengosongkan format/ukuran, server memakai default konfigurasi 10 MB dan `pdf,docx,xlsx,jpg,jpeg,png` dengan batas atas 100 MB per berkas (Q44 §44.2 butir 1). Penyimpanan tetap privat dan unduhan melalui route berizin (Q44 §44.1 butir 4). Pengalihan pembacaan default ke konfigurasi dikerjakan pada ISS-13.06.
+> **Q44 (13 Oktober 2026):** unggahan file selalu aktif tanpa saklar; batas ukuran/format mengikuti persyaratan, dan bila tidak ada persyaratan atau persyaratan mengosongkan format/ukuran, server memakai default konfigurasi 10 MB dan `pdf,docx,xlsx,jpg,jpeg,png` dengan batas atas 100 MB per berkas (Q44 §44.2 butir 1). Penyimpanan tetap privat dan unduhan melalui route berizin (Q44 §44.1 butir 4). Pengalihan pembacaan default ke konfigurasi telah dikerjakan pada ISS-13.06/PR #150.
+
+> **Status implementasi - issue #132 (2026-10-20, diperbarui setelah merge ISS-13.06):** AC-1..5 dan TEST-1..5 terbukti pada PR #151 setelah merge ISS-13.06, bukan penerimaan UAT/deployment. Test: `BuktiDukungPengukuranTest::test_metadata_berkas_privat_nama_asli_mime_ukuran_dan_path_aman`, `test_path_privat_tidak_dapat_diakses_sebagai_url_publik`; `RegulasiFeatureTest` (Pest) `download lampiran regulasi ditolak tanpa regulasi:read`; `RencanaAksiBuktiHttpTest::test_tautan_non_http_dan_file_di_luar_batas_persyaratan_ditolak`; `VerticalSlice1Test::test_private_evidence_requires_authorized_parent`; `BerkasPerencanaanKegiatanTest::test_mode_tautan_dan_teks_kegiatan_tersimpan_dan_audit_metadata` (AC-5); `RegulasiFeatureTest` (Pest) `lampiran regulasi mode tautan menyimpan nilai dan audit hanya metadata` (AC-5). **Dependency "unggahan selalu aktif" telah diselesaikan oleh PR #150 (ISS-13.06, `d02bab7`)**: kode tidak lagi membaca `berkas.unggahan_aktif` dan halaman Kebijakan Storage telah dihapus. ISS-11.02 dapat ditutup sebagai traceability setelah PR ini merge. AC-4 untuk Regulasi memakai `regulasi:read` sesuai Workflow §3.1; DoD Plan 13.5 diselaraskan sebagai pengecualian.
 
 **Terkait User Story:** `US-11.02`  
 **Prioritas:** 🟡 P1  
@@ -4438,11 +4448,11 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given file valid, When upload, Then file disimpan pada disk privat dan metadata nama asli, MIME, ukuran, path aman disimpan.
-- [ ] **AC-2:** Given ukuran/format melanggar batas persyaratan/fallback, When upload, Then ditolak sebelum file final tersimpan.
-- [ ] **AC-3:** Given path fisik ditebak tanpa autentikasi, When diakses, Then tidak tersedia sebagai public URL.
-- [ ] **AC-4:** Given pengguna meminta download, Then server mengevaluasi hak baca induk dan deny sebelum mengalirkan response.
-- [ ] **AC-5:** Given token/credential/storage path sensitif dicatat audit, Then hanya metadata yang diperlukan yang boleh tampil; secret tidak boleh bocor.
+- [x] **AC-1:** Given file valid, When upload, Then file disimpan pada disk privat dan metadata nama asli, MIME, ukuran, path aman disimpan.
+- [x] **AC-2:** Given ukuran/format melanggar batas persyaratan/fallback, When upload, Then ditolak sebelum file final tersimpan.
+- [x] **AC-3:** Given path fisik ditebak tanpa autentikasi, When diakses, Then tidak tersedia sebagai public URL.
+- [x] **AC-4:** Given pengguna meminta download, Then server mengevaluasi hak baca induk dan deny sebelum mengalirkan response.
+- [x] **AC-5:** Given token/credential/storage path sensitif dicatat audit, Then hanya metadata yang diperlukan yang boleh tampil; secret tidak boleh bocor.
 
 #### Implementation Tasks
 
@@ -4469,11 +4479,11 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given file valid, When upload, Then file disimpan pada disk privat dan metadata nama asli, MIME, ukuran, path aman disimpan.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given ukuran/format melanggar batas persyaratan/fallback, When upload, Then ditolak sebelum file final tersimpan.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given path fisik ditebak tanpa autentikasi, When diakses, Then tidak tersedia sebagai public URL.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengguna meminta download, Then server mengevaluasi hak baca induk dan deny sebelum mengalirkan response.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given token/credential/storage path sensitif dicatat audit, Then hanya metadata yang diperlukan yang boleh tampil; secret tidak boleh bocor.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given file valid, When upload, Then file disimpan pada disk privat dan metadata nama asli, MIME, ukuran, path aman disimpan.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given ukuran/format melanggar batas persyaratan/fallback, When upload, Then ditolak sebelum file final tersimpan.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given path fisik ditebak tanpa autentikasi, When diakses, Then tidak tersedia sebagai public URL.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengguna meminta download, Then server mengevaluasi hak baca induk dan deny sebelum mengalirkan response.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given token/credential/storage path sensitif dicatat audit, Then hanya metadata yang diperlukan yang boleh tampil; secret tidak boleh bocor.
 
 #### Definition of Done
 
@@ -4484,6 +4494,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-11.03 · [Feature] Bukti Mode Tautan atau Teks
+
+> **Status implementasi - issue #132 (2026-10-20):** AC-1..4 dan TEST-1..4 terbukti pada PR #151, bukan penerimaan UAT/deployment. Test: `BuktiDukungPengukuranTest::test_mode_tautan_dan_teks_pengukuran_tersimpan_tanpa_file`, `test_mode_di_luar_izinkan_persyaratan_ditolak_pengukuran`; `BerkasPerencanaanKegiatanTest::test_mode_tautan_dan_teks_kegiatan_tersimpan_dan_audit_metadata`; `RegulasiFeatureTest` (Pest) `lampiran regulasi mode tautan menyimpan nilai dan audit hanya metadata`.
 
 **Terkait User Story:** `US-11.03`  
 **Prioritas:** 🟡 P1  
@@ -4508,10 +4520,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given mode tautan dipilih, When URL `http/https` valid disimpan, Then URL tersimpan tanpa memakai kuota disk file.
-- [ ] **AC-2:** Given mode teks dipilih, When isi valid disimpan, Then teks tersimpan pada kolom yang tepat.
-- [ ] **AC-3:** Given mode tidak diizinkan oleh jenis persyaratan, Then ditolak.
-- [ ] **AC-4:** Given audit untuk teks, Then audit tidak harus menyalin isi sensitif penuh; cukup metadata yang diperlukan sesuai kebijakan.
+- [x] **AC-1:** Given mode tautan dipilih, When URL `http/https` valid disimpan, Then URL tersimpan tanpa memakai kuota disk file.
+- [x] **AC-2:** Given mode teks dipilih, When isi valid disimpan, Then teks tersimpan pada kolom yang tepat.
+- [x] **AC-3:** Given mode tidak diizinkan oleh jenis persyaratan, Then ditolak.
+- [x] **AC-4:** Given audit untuk teks, Then audit tidak harus menyalin isi sensitif penuh; cukup metadata yang diperlukan sesuai kebijakan.
 
 #### Implementation Tasks
 
@@ -4535,10 +4547,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given mode tautan dipilih, When URL `http/https` valid disimpan, Then URL tersimpan tanpa memakai kuota disk file.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given mode teks dipilih, When isi valid disimpan, Then teks tersimpan pada kolom yang tepat.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given mode tidak diizinkan oleh jenis persyaratan, Then ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given audit untuk teks, Then audit tidak harus menyalin isi sensitif penuh; cukup metadata yang diperlukan sesuai kebijakan.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given mode tautan dipilih, When URL `http/https` valid disimpan, Then URL tersimpan tanpa memakai kuota disk file.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given mode teks dipilih, When isi valid disimpan, Then teks tersimpan pada kolom yang tepat.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given mode tidak diizinkan oleh jenis persyaratan, Then ditolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given audit untuk teks, Then audit tidak harus menyalin isi sensitif penuh; cukup metadata yang diperlukan sesuai kebijakan.
 
 #### Definition of Done
 
@@ -4551,6 +4563,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 ### ISS-11.04 · [Feature] Imutabilitas Berkas Berdasarkan Induk
 
 > **Q40, Q42, Q48 (13 Oktober 2026):** induk `berkas` bertambah: `jenis_berkas` untuk contoh berkas persyaratan (bukan bukti; dapat diganti/dihapus beralasan, ISS-06.08), `jadwal_tahunan` dan `jadwal_periode` untuk arsip PDF Rencana Aksi tahunan dan Laporan Kinerja Triwulan yang tidak dapat dihapus dan dikoreksi lewat berkas pengganti (ISS-10.05, Q48 §48.2 butir 3), serta lampiran per versi PK setelah revisi berversi tersedia (ISS-02.12). RAB dan berkas tahap perencanaan kegiatan tidak dapat dihapus sejak RA yang mengklaim kegiatannya diajukan (Q42 §42.4 butir 5).
+
+> **Status implementasi - issue #132 (2026-10-20):** AC-1..6 dan TEST-1..6 terbukti dengan catatan Q36 §36.2: bukti Pengukuran tidak memiliki endpoint hapus; koreksi lewat pengembalian beralasan dan versi baru. Soft delete `dihapus_pada`/`dihapus_oleh` terbukti untuk RA, Kegiatan, Renstra, PK, dan Regulasi. Test baru: `BuktiDukungPengukuranTest::test_delete_bukti_pengukuran_setelah_diajukan_tidak_tersedia_dan_tidak_mengubah_data`; `BerkasPerencanaanKegiatanTest::test_berkas_kegiatan_terlaksana_tidak_dapat_dihapus_atau_diganti`. Test existing: `RencanaAksiBuktiHttpTest::test_status_di_luar_draf_ditolak_sebagai_validasi_bisnis_bukan_izin` (AC-1 RA) dan `test_hapus_soft_delete_beralasan_teraudit_dan_mempertahankan_file` (AC-6 RA); `RenstraFeatureTest` "Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra aktif ditolak" (AC-3) dan "Penghapusan lampiran pada Renstra draft diizinkan dan tercatat di audit log" (AC-6); `DeleteBerkasPerjanjianKinerjaTest::test_delete_berkas_rejected_when_jadwal_tahunan_active` (AC-4) dan `test_delete_berkas_succeeds_when_jadwal_not_active` (AC-6 PK); `RegulasiFeatureTest` "hapus lampiran ditolak saat regulasi dirujuk data aktif" (AC-5) dan "hapus lampiran menggunakan permission berkas dan mencatat audit" (AC-6 Regulasi). Induk `jadwal_tahunan`/`jadwal_periode` (Q48) dan `renstra_pk_versi` (Q40) di luar AC ini (ISS-10.05/ISS-02.12).
 
 **Terkait User Story:** `US-11.04`  
 **Prioritas:** 🔴 P0  
@@ -4575,12 +4589,12 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given berkas RA/Pengukuran telah dirujuk versi resmi/disahkan, When delete dicoba, Then ditolak.
-- [ ] **AC-2:** Given kegiatan telah terlaksana dan bukti menjadi dasar gerbang, When delete dicoba, Then ditolak; koreksi append-only.
-- [ ] **AC-3:** Given Renstra aktif, When lampiran resmi Renstra dihapus, Then ditolak.
-- [ ] **AC-4:** Given PK sudah menjadi dasar jadwal aktif, When lampiran PK dihapus, Then ditolak.
-- [ ] **AC-5:** Given regulasi masih dirujuk Renstra/Indikator aktif, When lampiran regulasi dihapus, Then ditolak.
-- [ ] **AC-6:** Given batas imutabilitas belum tercapai dan aktor berwenang, Then soft delete dapat dilakukan dengan `dihapus_pada/dihapus_oleh` serta audit.
+- [x] **AC-1:** Given berkas RA/Pengukuran telah dirujuk versi resmi/disahkan, When delete dicoba, Then ditolak.
+- [x] **AC-2:** Given kegiatan telah terlaksana dan bukti menjadi dasar gerbang, When delete dicoba, Then ditolak; koreksi append-only.
+- [x] **AC-3:** Given Renstra aktif, When lampiran resmi Renstra dihapus, Then ditolak.
+- [x] **AC-4:** Given PK sudah menjadi dasar jadwal aktif, When lampiran PK dihapus, Then ditolak.
+- [x] **AC-5:** Given regulasi masih dirujuk Renstra/Indikator aktif, When lampiran regulasi dihapus, Then ditolak.
+- [x] **AC-6:** Given batas imutabilitas belum tercapai dan aktor berwenang, Then soft delete dapat dilakukan dengan `dihapus_pada/dihapus_oleh` serta audit.
 
 #### Implementation Tasks
 
@@ -4604,12 +4618,12 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given berkas RA/Pengukuran telah dirujuk versi resmi/disahkan, When delete dicoba, Then ditolak.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah terlaksana dan bukti menjadi dasar gerbang, When delete dicoba, Then ditolak; koreksi append-only.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given Renstra aktif, When lampiran resmi Renstra dihapus, Then ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given PK sudah menjadi dasar jadwal aktif, When lampiran PK dihapus, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given regulasi masih dirujuk Renstra/Indikator aktif, When lampiran regulasi dihapus, Then ditolak.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given batas imutabilitas belum tercapai dan aktor berwenang, Then soft delete dapat dilakukan dengan `dihapus_pada/dihapus_oleh` serta audit.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given berkas RA/Pengukuran telah dirujuk versi resmi/disahkan, When delete dicoba, Then ditolak.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah terlaksana dan bukti menjadi dasar gerbang, When delete dicoba, Then ditolak; koreksi append-only.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given Renstra aktif, When lampiran resmi Renstra dihapus, Then ditolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given PK sudah menjadi dasar jadwal aktif, When lampiran PK dihapus, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given regulasi masih dirujuk Renstra/Indikator aktif, When lampiran regulasi dihapus, Then ditolak.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given batas imutabilitas belum tercapai dan aktor berwenang, Then soft delete dapat dilakukan dengan `dihapus_pada/dihapus_oleh` serta audit.
 
 #### Definition of Done
 
@@ -4623,6 +4637,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 ### ISS-11.05 · [Feature] Pembekuan Persyaratan Bukti Saat Pengajuan
 
 > **Q42, Q44 (13 Oktober 2026):** pengecualian mode file karena unggahan dimatikan tidak lagi terjadi; versi lama yang membekukan pengecualian tersebut tetap menjadi histori (Q44 §44.1 butir 2). Persyaratan tahap `kegiatan_perencanaan` yang diperiksa saat RA diajukan mengikuti aturan pembekuan yang sama (Q24; ISS-06.08), sedangkan contoh berkas tidak dibekukan (Q42 §42.3 butir 4).
+
+> **Status implementasi - issue #132 (2026-10-20):** AC-1..4 dan TEST-1..4 terbukti pada PR #151, bukan penerimaan UAT/deployment. Test baru: `PembekuanPersyaratanBuktiTest::test_perubahan_master_jenis_berkas_setelah_submit_tidak_mengubah_versi`, `test_ketentuan_baru_setelah_submit_dikembalikan_beralasan_dan_diajukan_ulang_sebagai_versi_baru`, `test_pengesahan_lama_tetap_sah_setelah_persyaratan_berubah`; test existing: `RencanaAksiAjukanTest::test_bukti_wajib_tetap_diperiksa_meski_setting_unggahan_lama_nonaktif`, `test_ajukan_ulang_dari_dikembalikan_membuat_nomor_2`.
 
 **Terkait User Story:** `US-11.05`  
 **Prioritas:** 🔴 P0  
@@ -4647,10 +4663,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given submit terjadi, Then versi menyimpan jenis/mode/wajib persyaratan serta bukti/pengecualian yang dipakai.
-- [ ] **AC-2:** Given master `jenis_berkas` berubah setelah submit, Then versi yang sedang direviu tidak ikut berubah.
-- [ ] **AC-3:** Given ketentuan baru harus diterapkan pada proses berjalan, Then proses harus dikembalikan beralasan dan diajukan ulang sebagai versi baru.
-- [ ] **AC-4:** Given hasil sudah disahkan, Then perubahan persyaratan baru tidak otomatis membatalkan hasil lama.
+- [x] **AC-1:** Given submit terjadi, Then versi menyimpan jenis/mode/wajib persyaratan serta bukti/pengecualian yang dipakai.
+- [x] **AC-2:** Given master `jenis_berkas` berubah setelah submit, Then versi yang sedang direviu tidak ikut berubah.
+- [x] **AC-3:** Given ketentuan baru harus diterapkan pada proses berjalan, Then proses harus dikembalikan beralasan dan diajukan ulang sebagai versi baru.
+- [x] **AC-4:** Given hasil sudah disahkan, Then perubahan persyaratan baru tidak otomatis membatalkan hasil lama.
 
 #### Implementation Tasks
 
@@ -4667,10 +4683,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given submit terjadi, Then versi menyimpan jenis/mode/wajib persyaratan serta bukti/pengecualian yang dipakai.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given master `jenis_berkas` berubah setelah submit, Then versi yang sedang direviu tidak ikut berubah.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given ketentuan baru harus diterapkan pada proses berjalan, Then proses harus dikembalikan beralasan dan diajukan ulang sebagai versi baru.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given hasil sudah disahkan, Then perubahan persyaratan baru tidak otomatis membatalkan hasil lama.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given submit terjadi, Then versi menyimpan jenis/mode/wajib persyaratan serta bukti/pengecualian yang dipakai.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given master `jenis_berkas` berubah setelah submit, Then versi yang sedang direviu tidak ikut berubah.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given ketentuan baru harus diterapkan pada proses berjalan, Then proses harus dikembalikan beralasan dan diajukan ulang sebagai versi baru.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given hasil sudah disahkan, Then perubahan persyaratan baru tidak otomatis membatalkan hasil lama.
 
 #### Definition of Done
 

@@ -45,13 +45,13 @@ class UnitDitolakTest extends TestCase
         $this->deny($this->actor, 'pengukuran:read', $unitB->id);
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('stats.total', 2)
-            ->where('pengukurans', fn ($rows) => collect($rows)->mapWithKeys(fn ($row) => [$row['unit']['nama'] => $row['action'] !== null])->sortKeys()->all() === ['Unit B' => false, 'Unit Pengujian' => true]));
+            ->where('statusIndikator', fn ($rows) => collect($rows)->mapWithKeys(fn ($row) => [$row['unit']['nama'] => $row['action'] !== null])->sortKeys()->all() === ['Unit B' => false, 'Unit Pengujian' => true]));
 
         $this->deny($this->actor, 'dashboard:read', $this->unit->id);
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('stats.total', 1)
-            ->has('pengukurans', 1)
-            ->where('pengukurans.0.unit.nama', 'Unit B'));
+            ->has('statusIndikator', 1)
+            ->where('statusIndikator.0.unit.nama', 'Unit B'));
     }
 
     public function test_daftar_pengukuran_menyaring_deny_unit_secara_presisi(): void

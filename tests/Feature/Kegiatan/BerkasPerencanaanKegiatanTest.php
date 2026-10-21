@@ -73,6 +73,56 @@ class BerkasPerencanaanKegiatanTest extends TestCase
             ->where('berkasPerencanaan.alasan_tolak_hapus', null));
     }
 
+    public function test_mode_tautan_dan_teks_kegiatan_tersimpan_dan_audit_metadata(): void
+    {
+        $persyaratan = $this->persyaratan([
+            'nama' => 'Bukti tautan dan teks', 'izinkan_file' => true, 'izinkan_tautan' => true, 'izinkan_teks' => true,
+        ]);
+        // Satu berkas mode file menjadi pembanding bahwa mode tautan/teks tidak menambah berkas di disk.
+        $this->unggah(null, $persyaratan)->assertSessionHasNoErrors();
+        $this->assertCount(1, Storage::disk('local')->allFiles());
+
+        $tautan = 'https://lldikti16.kemdikbud.go.id/bukti/rab.pdf';
+        $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
+            'mode' => 'tautan', 'jenis_berkas_id' => $persyaratan->id, 'tautan' => $tautan,
+        ])->assertSessionHasNoErrors();
+        $isiTeks = 'RAB memuat rincian belanja.';
+        $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
+            'mode' => 'teks', 'jenis_berkas_id' => $persyaratan->id, 'isi_teks' => $isiTeks,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertCount(1, Storage::disk('local')->allFiles());
+        $buktiTautan = BuktiDukung::where('berkasable_type', 'kegiatan')->where('mode', 'tautan')->sole();
+        $this->assertSame($tautan, $buktiTautan->tautan);
+        $this->assertNull($buktiTautan->isi_teks);
+        $this->assertNull($buktiTautan->path);
+        $this->assertNull($buktiTautan->nama_asli);
+        $this->assertNull($buktiTautan->ukuran_bytes);
+        $buktiTeks = BuktiDukung::where('berkasable_type', 'kegiatan')->where('mode', 'teks')->sole();
+        $this->assertSame($isiTeks, $buktiTeks->isi_teks);
+        $this->assertNull($buktiTeks->tautan);
+        $this->assertNull($buktiTeks->path);
+        $this->assertNull($buktiTeks->nama_asli);
+        $this->assertNull($buktiTeks->ukuran_bytes);
+        $buktiFile = BuktiDukung::where('berkasable_type', 'kegiatan')->where('mode', 'file')->sole();
+        Storage::disk('local')->assertExists($buktiFile->path);
+
+        $auditTeks = AuditLog::where('tindakan', 'berkas.unggah')->where('objek_id', $buktiTeks->id)->sole();
+        $this->assertSame(27, $auditTeks->nilai_baru['panjang_teks']);
+        $this->assertArrayNotHasKey('isi_teks', $auditTeks->nilai_baru);
+        $this->assertStringNotContainsString($isiTeks, json_encode($auditTeks->nilai_baru, JSON_THROW_ON_ERROR));
+
+        $auditTautan = AuditLog::where('tindakan', 'berkas.unggah')->where('objek_id', $buktiTautan->id)->sole();
+        $this->assertSame($tautan, $auditTautan->nilai_baru['tautan']);
+        $this->assertArrayNotHasKey('path', $auditTautan->nilai_baru);
+
+        $auditFile = AuditLog::where('tindakan', 'berkas.unggah')->where('objek_id', $buktiFile->id)->sole();
+        $this->assertSame('rab.pdf', $auditFile->nilai_baru['nama_asli']);
+        $this->assertArrayNotHasKey('path', $auditFile->nilai_baru);
+        $this->assertArrayNotHasKey('isi_teks', $auditFile->nilai_baru);
+        $this->assertStringNotContainsString((string) $buktiFile->path, json_encode($auditFile->nilai_baru, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+    }
+
     public function test_persyaratan_tanpa_batas_memakai_ukuran_dan_format_konfigurasi(): void
     {
         config(['uploads.default_max_kb' => 200, 'uploads.allowed_extensions' => 'pdf']);
@@ -142,6 +192,39 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $this->hapus($pengganti)->assertSessionHasNoErrors();
         $this->assertNotNull($pengganti->fresh()->dihapus_pada);
         Storage::disk('local')->assertExists($pengganti->path);
+    }
+
+    public function test_berkas_kegiatan_terlaksana_tidak_dapat_dihapus_atau_diganti(): void
+    {
+        $this->unggah()->assertSessionHasNoErrors();
+        $berkas = BuktiDukung::where('berkasable_type', 'kegiatan')->sole();
+        // RA pengklaim tetap draf: penolakan murni berasal dari status kegiatan yang sudah terlaksana.
+        $this->kegiatan->update(['status' => 'terlaksana']);
+        $this->assertSame('terlaksana', $this->kegiatan->fresh()->status);
+        $this->assertSame(RencanaAksi::STATUS_DRAFT, $this->header->fresh()->status_alur);
+
+        $this->actingAs($this->fixture['pic'])
+            ->deleteJson("/kegiatan/{$this->kegiatan->id}/berkas/{$berkas->id}", ['alasan' => 'RAB keliru diunggah'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('berkas');
+        $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
+            'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-revisi.xlsx', 10),
+            'menggantikan_id' => $berkas->id, 'alasan_koreksi' => 'Nilai satuan diperbaiki',
+        ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('berkas');
+
+        $this->assertNull($berkas->fresh()->dihapus_pada);
+        $this->assertFalse(BuktiDukung::where('menggantikan_id', $berkas->id)->exists());
+        $this->assertSame(1, BuktiDukung::where('berkasable_type', 'kegiatan')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'berkas.hapus_ditolak')->where('objek_id', $this->kegiatan->id)->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'berkas.unggah_ditolak')->where('objek_id', $this->kegiatan->id)->count());
+
+        // Koreksi append-only tetap terbuka: unggahan baru tanpa `menggantikan_id`
+        // tidak mengakhiri keberlakuan berkas lama (Q25, pola Q36).
+        $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
+            'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-tambahan.pdf', 10),
+        ])->assertSessionHasNoErrors();
+        $this->assertNull($berkas->fresh()->dihapus_pada);
+        $this->assertSame(2, PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $this->kegiatan->id)->count());
     }
 
     public function test_tanpa_akses_detail_kegiatan_unit_mutasi_ditolak_dan_unduhan_tertutup(): void
