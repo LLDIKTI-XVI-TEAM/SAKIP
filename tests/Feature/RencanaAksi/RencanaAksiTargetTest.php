@@ -437,6 +437,7 @@ class RencanaAksiTargetTest extends TestCase
             ],
         ])->assertSessionHasErrors(['jendela' => 'Periode terkunci bagi PIC setelah batas pengisian lewat: Triwulan I (batas 2026-03-31).']);
         $this->assertSame(1, $header->fresh()->versi);
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->count());
 
         $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,

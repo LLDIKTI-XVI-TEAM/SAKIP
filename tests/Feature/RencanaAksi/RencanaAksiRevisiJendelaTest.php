@@ -8,6 +8,7 @@ use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\RencanaAksi\PeriodeTanpaTarget;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -55,18 +56,87 @@ class RencanaAksiRevisiJendelaTest extends TestCase
         // Kontrol positif: periode yang belum terkunci tetap dapat ditulis PIC.
         $this->simpanTarget($fixture, $header, $fixture['periode2'], 20)->assertSessionHasNoErrors();
 
-        $this->actingAs($fixture['perencanaan'])->post("/jadwal/{$fixture['jadwal']->id}/revisi-jendela", [
-            'expected_revisi' => $fixture['jadwal']->fresh()->revisi,
-            'alasan' => 'Perpanjangan resmi TW I.',
-            'periode' => [
-                ['periode_id' => $fixture['periode1']->id, 'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => '2026-04-10', 'reviu_mulai' => '2026-04-11', 'reviu_selesai' => '2026-04-30'],
-                ['periode_id' => $fixture['periode2']->id, 'pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30', 'reviu_mulai' => '2026-05-01', 'reviu_selesai' => '2026-05-15'],
-            ],
-        ])->assertSessionHasNoErrors()->assertRedirect("/jadwal/{$fixture['jadwal']->id}");
+        $this->revisiTwI($fixture, '2026-04-10', '2026-04-11')
+            ->assertSessionHasNoErrors()->assertRedirect("/jadwal/{$fixture['jadwal']->id}");
 
         $this->simpanTarget($fixture, $header, $fixture['periode1'], 10)->assertSessionHasNoErrors();
         $this->travelTo(now()->setDate(2026, 4, 11));
         $this->simpanTarget($fixture, $header, $fixture['periode1'], 11)->assertSessionHasErrors('jendela');
+    }
+
+    /**
+     * Status lampau 2026 dinilai dari `pengisian_selesai` yang berlaku: perpanjangan resmi
+     * melewati tanggal aktivasi menjadikan TW I periode normal (target wajib, PIC dapat menulis).
+     */
+    public function test_perpanjangan_periode_lampau_2026_melewati_tanggal_aktivasi_menjadikannya_periode_normal(): void
+    {
+        $fixture = $this->fixture();
+        $fixture['jadwal']->forceFill(['activated_at' => '2026-04-05 01:00:00'])->save(); // 09:00 WITA
+        $header = $this->buatDraf($fixture);
+        $this->travelTo(now()->setDate(2026, 4, 8)->setTime(9, 0));
+        $tw1 = fn () => PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->sole();
+        // Kontrol pra-revisi: TW I (batas 31 Maret) lampau dan terkunci bagi PIC.
+        $this->assertTrue(PeriodeTanpaTarget::isPeriodeLampau($fixture['jadwal']->fresh(), $tw1()));
+        $this->simpanTarget($fixture, $header, $fixture['periode1'], 10)->assertSessionHasErrors('jendela');
+
+        $this->revisiTwI($fixture, '2026-04-10', '2026-04-11')->assertSessionHasNoErrors();
+
+        $this->assertFalse(PeriodeTanpaTarget::isPeriodeLampau($fixture['jadwal']->fresh(), $tw1()));
+        $snapshot = $fixture['snapshot']->fresh();
+        $this->assertFalse(PeriodeTanpaTarget::bolehTanpaTarget($snapshot, $tw1(), $snapshot->jadwal->periode()->with('periode')->get()));
+        $this->simpanTarget($fixture, $header, $fixture['periode1'], 10)->assertSessionHasNoErrors();
+    }
+
+    public function test_perpanjangan_periode_lampau_2026_sebelum_tanggal_aktivasi_tetap_lampau(): void
+    {
+        $fixture = $this->fixture();
+        $fixture['jadwal']->forceFill(['activated_at' => '2026-04-05 01:00:00'])->save();
+        $header = $this->buatDraf($fixture);
+        $this->travelTo(now()->setDate(2026, 4, 8)->setTime(9, 0));
+
+        $this->revisiTwI($fixture, '2026-04-03', '2026-04-04')->assertSessionHasNoErrors();
+
+        $tw1 = PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->sole();
+        // Revisi tanpa perubahan juga lolos tanpa error; pastikan batas baru benar-benar tersimpan.
+        $this->assertSame('2026-04-03', $tw1->pengisian_selesai->toDateString());
+        $this->assertTrue(PeriodeTanpaTarget::isPeriodeLampau($fixture['jadwal']->fresh(), $tw1));
+        $this->simpanTarget($fixture, $header, $fixture['periode1'], 10)->assertSessionHasErrors('jendela');
+    }
+
+    /** Status normal tidak membuka kunci PIC: batas baru 6 April sudah lewat pada 8 April. */
+    public function test_perpanjangan_melewati_tanggal_aktivasi_tetapi_sudah_lewat_tetap_terkunci_bagi_pic(): void
+    {
+        $fixture = $this->fixture();
+        $fixture['jadwal']->forceFill(['activated_at' => '2026-04-05 01:00:00'])->save();
+        $header = $this->buatDraf($fixture);
+        $this->travelTo(now()->setDate(2026, 4, 8)->setTime(9, 0));
+
+        $this->revisiTwI($fixture, '2026-04-06', '2026-04-07')->assertSessionHasNoErrors();
+
+        $tw1 = PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->sole();
+        $this->assertSame('2026-04-06', $tw1->pengisian_selesai->toDateString());
+        $this->assertFalse(PeriodeTanpaTarget::isPeriodeLampau($fixture['jadwal']->fresh(), $tw1));
+        $snapshot = $fixture['snapshot']->fresh();
+        $this->assertFalse(PeriodeTanpaTarget::bolehTanpaTarget($snapshot, $tw1, $snapshot->jadwal->periode()->with('periode')->get()));
+        $this->simpanTarget($fixture, $header, $fixture['periode1'], 10)->assertSessionHasErrors('jendela');
+    }
+
+    /**
+     * Revisi resmi jendela oleh Perencanaan: hanya TW I yang digeser, TW II tetap
+     * 15–30 April (reviu 1–15 Mei).
+     *
+     * @param  array<string, mixed>  $fixture
+     */
+    private function revisiTwI(array $fixture, string $pengisianSelesai, string $reviuMulai): TestResponse
+    {
+        return $this->actingAs($fixture['perencanaan'])->post("/jadwal/{$fixture['jadwal']->id}/revisi-jendela", [
+            'expected_revisi' => $fixture['jadwal']->fresh()->revisi,
+            'alasan' => 'Perpanjangan resmi TW I.',
+            'periode' => [
+                ['periode_id' => $fixture['periode1']->id, 'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => $pengisianSelesai, 'reviu_mulai' => $reviuMulai, 'reviu_selesai' => '2026-04-30'],
+                ['periode_id' => $fixture['periode2']->id, 'pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30', 'reviu_mulai' => '2026-05-01', 'reviu_selesai' => '2026-05-15'],
+            ],
+        ]);
     }
 
     private function penggunaDenganPeran(string $kode): User
