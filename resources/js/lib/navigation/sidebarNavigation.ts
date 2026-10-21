@@ -198,6 +198,13 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     icon: MessageSquareText,
                     canKey: 'rekomendasi',
                 },
+                {
+                    id: 'rekapitulasi',
+                    label: 'Rekapitulasi',
+                    href: '/laporan/rekap',
+                    icon: FileSpreadsheet,
+                    canKey: 'laporan_read',
+                },
             ],
         },
     },

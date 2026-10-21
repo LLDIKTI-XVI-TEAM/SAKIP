@@ -51,6 +51,7 @@ class HandleInertiaRequests extends Middleware
                         'pk:create' => $can['pk:create'],
                         'pk:update' => $can['pk:update'],
                         'rekomendasi' => $can['rekomendasi'],
+                        'laporan_read' => $can['laporan_read'],
                     ],
                 ];
             },
@@ -102,6 +103,7 @@ class HandleInertiaRequests extends Middleware
             'pk:create' => false,
             'pk:update' => false,
             'rekomendasi' => false,
+            'laporan_read' => false,
         ];
 
         if ($user === null || $user->status !== 'aktif') {
@@ -121,7 +123,7 @@ class HandleInertiaRequests extends Middleware
             'regulasi:read', 'regulasi:create', 'regulasi:update', 'regulasi:delete',
             'renstra:read', 'renstra:create', 'renstra:update', 'renstra:delete',
             'berkas:delete', 'pengaturan:update', 'jenis_berkas:read', 'indikator:read',
-            'periode:create', 'periode:update', 'pk:create', 'pk:update', 'rekomendasi:tetapkan',
+            'periode:create', 'periode:update', 'pk:create', 'pk:update', 'rekomendasi:tetapkan', 'laporan:read',
         ]);
         $boleh = fn (string $kode): bool => $izin[$kode]['allowed'];
         $regulasiRead = $boleh('regulasi:read');
@@ -167,6 +169,7 @@ class HandleInertiaRequests extends Middleware
             'pk:create' => $boleh('pk:create'),
             'pk:update' => $boleh('pk:update'),
             'rekomendasi' => $boleh('rekomendasi:tetapkan'),
+            'laporan_read' => $boleh('laporan:read'),
         ];
 
         if ($request) {

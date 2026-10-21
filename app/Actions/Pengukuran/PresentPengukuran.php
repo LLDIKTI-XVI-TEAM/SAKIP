@@ -2,6 +2,7 @@
 
 namespace App\Actions\Pengukuran;
 
+use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\RencanaAksi;
@@ -20,6 +21,13 @@ class PresentPengukuran
     public const STATUS_BEKU = ['diajukan', 'diverifikasi', 'disahkan'];
 
     public function __construct(private SubmissionPrerequisites $prerequisites, private CalculatePengukuran $calculator, private PengukuranKinerjaPolicy $policy, private RekomendasiBerlaku $rekomendasi) {}
+
+    /** Proyeksi realisasi versi eksplisit; laporan tidak mengikuti status header atau versi draf terbaru. */
+    public function realisasiVersi(KinerjaSnapshot $version): array
+    {
+        return array_replace(['nilai' => null, 'status_perhitungan' => null, 'alasan_tidak_dapat_dihitung' => null],
+            array_intersect_key($version->snapshot, array_flip(['nilai', 'status_perhitungan', 'alasan_tidak_dapat_dihitung'])));
+    }
 
     /**
      * Audit, target RA, dan PIC efektif dibaca sekaligus per halaman, tanpa query per baris.
@@ -101,13 +109,14 @@ class PresentPengukuran
         $context = $p->jadwalSnapshot;
         $version = $p->latestVersion;
         $frozen = in_array($p->status_alur, self::STATUS_BEKU, true) ? $version?->snapshot : null;
+        $realisasi = $frozen ? $this->realisasiVersi($version) : null;
         $data = ['id' => $p->id, 'versi' => $p->versi, 'status' => $p->status_alur, 'nomor_pengajuan' => $version?->nomor ?? 0, 'jalur_pengajuan' => $version?->jalur_pengajuan,
             ...$this->penanda($p),
-            'nilai' => $frozen ? $frozen['nilai'] : $p->nilai, 'status_perhitungan' => $frozen ? $frozen['status_perhitungan'] : $p->status_perhitungan,
+            'nilai' => $frozen ? $realisasi['nilai'] : $p->nilai, 'status_perhitungan' => $frozen ? $realisasi['status_perhitungan'] : $p->status_perhitungan,
             'sumber_nilai' => $p->sumber_nilai === 'historis' ? 'historis' : ($context->tipe_perhitungan === 'manual' ? 'manual' : 'komponen'),
             'target' => $frozen ? $frozen['target'] : $p->getAttribute('summary_target'), 'catatan' => $frozen ? $frozen['catatan'] : $p->catatan,
             'tanpa_target_periode' => $frozen ? (bool) ($frozen['tanpa_target_periode'] ?? false) : (bool) $p->getAttribute('summary_tanpa_target_periode'),
-            'alasan_tidak_dapat_dihitung' => $frozen ? $frozen['alasan_tidak_dapat_dihitung'] : $p->alasan_tidak_dapat_dihitung,
+            'alasan_tidak_dapat_dihitung' => $frozen ? $realisasi['alasan_tidak_dapat_dihitung'] : $p->alasan_tidak_dapat_dihitung,
             'diajukan_pada' => $version?->diajukan_at?->toIso8601String(),
             'penugasan_indikator' => ['indikator_kinerja' => $frozen ? [...$frozen['indikator'], 'definisi_operasional' => $frozen['indikator']['definisi']] : [...$context->only(['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $p->indikator->kode, 'definisi_operasional' => $context->definisi],
                 'unit_kerja' => $frozen ? $frozen['unit_kerja'] : $context->unit->only(['id', 'nama']), 'pic' => $frozen ? $frozen['pic'] : ($detail ? $p->effectivePic()?->pic?->only(['id', 'nama']) : $p->getAttribute('summary_pic'))],
