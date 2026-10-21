@@ -121,13 +121,11 @@ class RencanaAksiFixtureSeeder extends Seeder
         $periodes = $this->ensurePeriodes();
 
         // Header Rencana Aksi hanya sah di atas jadwal aktif dengan snapshot
-        // beku; jendela pengisian dan RA dibuka sepanjang tahun fixture.
+        // beku; jendela pengisian dibuka sepanjang tahun fixture.
         $jadwal = JadwalTahunan::where('renstra_id', $renstra->id)->where('tahun', self::FIXTURE_TAHUN)->first()
             ?? JadwalTahunan::create([
                 'renstra_id' => $renstra->id,
                 'tahun' => self::FIXTURE_TAHUN,
-                'rencana_aksi_mulai' => sprintf('%d-01-01', self::FIXTURE_TAHUN),
-                'rencana_aksi_selesai' => sprintf('%d-12-31', self::FIXTURE_TAHUN),
                 'penutupan' => sprintf('%d-12-31', self::FIXTURE_TAHUN),
                 'status' => 'aktif',
                 'activated_at' => now(),

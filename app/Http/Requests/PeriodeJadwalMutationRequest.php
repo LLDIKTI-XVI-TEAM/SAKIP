@@ -56,8 +56,6 @@ abstract class PeriodeJadwalMutationRequest extends FormRequest
             'is_nilai_akhir' => 'Penanda nilai akhir',
             'renstra_id' => 'Renstra',
             'tahun' => 'Tahun',
-            'rencana_aksi_mulai' => 'Tanggal mulai Rencana Aksi',
-            'rencana_aksi_selesai' => 'Tanggal selesai Rencana Aksi',
             'penutupan' => 'Tanggal penutupan',
             'periode' => 'Periode pilihan',
             'periode.*' => 'Jendela periode',

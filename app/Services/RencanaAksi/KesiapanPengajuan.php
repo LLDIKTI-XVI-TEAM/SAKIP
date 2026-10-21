@@ -29,9 +29,11 @@ use InvalidArgumentException;
  * `petaTarget` serta `skor` untuk pratinjau. Dengan satu sumber, alasan yang
  * tampil di halaman sama dengan alasan penolakan server, dan skor yang tampil
  * sama dengan skor yang dibekukan. Service ini tidak membuka
- * transaksi, tidak mengunci, tidak mengaudit, dan tidak membaca database:
- * semua state (definisi snapshot, jendela, target, hasil evaluator bukti)
- * diberikan caller, yang menentukan mode kunci.
+ * transaksi, tidak mengunci, dan tidak mengaudit. Kecuali
+ * `perencanaanKegiatan`, yang membaca persyaratan bukti kegiatan lewat
+ * `PersyaratanPerencanaanKegiatan`, semua state (definisi snapshot, jendela,
+ * periode terkunci bagi aktor, target, hasil evaluator bukti) diberikan
+ * caller, yang menentukan mode kunci.
  */
 class KesiapanPengajuan
 {
@@ -193,13 +195,16 @@ class KesiapanPengajuan
      * wajib dikecualikan hanya pada jalur Perencanaan (Q63; Q32.7, Q46 §46.1
      * butir 1, Workflow §15 butir 4: "berkas wajib dikecualikan"),
      * sementara rekonsiliasi target PK tetap berlaku di semua jalur.
+     * Target kosong pada periode yang sudah terkunci bagi aktor tidak dapat
+     * dilengkapi aktor itu, jadi pesannya mengarahkan ke Tim Perencanaan.
      *
-     * @param  list<array{periode_nama: ?string, status_perhitungan: string}>  $baris
+     * @param  list<array{periode_id: string, periode_nama: ?string, status_perhitungan: string}>  $baris
      * @param  array{status: string}  $deviasi  Keluaran `DeviasiTargetPk::bandingkan`.
      * @param  list<array<string, mixed>>  $persyaratan  Keluaran `EvaluateEvidence::untuk`.
+     * @param  list<string>  $periodeTerkunci  `periode_id` yang terkunci bagi aktor; kosong pada jalur Perencanaan.
      * @return list<string>
      */
-    public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan, int $tahun, bool $jalurPerencanaan): array
+    public function alasanTolak(array $baris, array $deviasi, ?string $alasanDeviasi, array $persyaratan, int $tahun, bool $jalurPerencanaan, array $periodeTerkunci): array
     {
         $alasan = [];
         if ($baris === []) {
@@ -207,7 +212,9 @@ class KesiapanPengajuan
         }
         foreach ($baris as $row) {
             if ($row['status_perhitungan'] === 'belum_diisi') {
-                $alasan[] = "Target periode {$row['periode_nama']} belum lengkap.";
+                $alasan[] = in_array($row['periode_id'], $periodeTerkunci, true)
+                    ? "Target periode {$row['periode_nama']} belum lengkap. Periode ini terkunci; target diisi Tim Perencanaan."
+                    : "Target periode {$row['periode_nama']} belum lengkap.";
             } elseif (! in_array($row['status_perhitungan'], ['terhitung', 'tidak_ditargetkan'], true)) {
                 $alasan[] = "Target periode {$row['periode_nama']} tidak dapat dihitung; perbaiki target sebelum mengajukan.";
             }

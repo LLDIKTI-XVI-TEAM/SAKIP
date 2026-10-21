@@ -17,6 +17,7 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Services\RencanaAksi\KesiapanPengajuan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
+use App\Services\RencanaAksi\PeriodeTanpaTarget;
 use App\Services\RencanaAksi\RekonsiliasiTargetDraf;
 use App\Support\DeviasiTargetPk;
 use App\Support\PerbandinganNilaiRencanaAksi;
@@ -136,7 +137,19 @@ class IndexRencanaAksi
             $jalurPengecualian = in_array($segel->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true)
                 ? $jalurPerencanaan
                 : $versiPengajuan?->jalur_pengajuan === 'perencanaan';
-            $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan, (int) $segel->tahun, $jalurPengecualian);
+            // Kunci tanggal per periode (id → batas `Y-m-d`) untuk semua aktor,
+            // dihitung sekali: dipakai pesan target kosong pada periode terkunci,
+            // batas kunci per baris periode, dan daftar periode terkunci UI.
+            // Juga berlaku dalam sesi koreksi (cermin `penilaian()`).
+            $hariIni = today(config('app.business_timezone'))->toDateString();
+            $rincianKunci = array_column($this->jendela->rincianTerkunci($jadwal, $efektifIds->all(), $hariIni), 'batas', 'id');
+            // Tahun ditutup tanpa sesi koreksi: tidak ada aktor yang dapat
+            // menulis, jadi batas kunci PIC dan arahan "target diisi Tim
+            // Perencanaan" disembunyikan. Daftar `periode_terkunci` tetap
+            // diturunkan dari `$rincianKunci`.
+            $batasTerkunciPic = $this->jendela->tahunDitutup($jadwal) && ! $this->jendela->sesiKoreksiAktif($indikator, $jadwal) ? [] : $rincianKunci;
+            $alasanPengajuan = $this->kesiapan->alasanTolak($barisBeku, $deviasiBeku, $segel->alasan_deviasi_pk, $persyaratan, (int) $segel->tahun, $jalurPengecualian,
+                $jalurPengecualian ? [] : array_keys($batasTerkunciPic));
             // Status pengecualian dipakai bersama kartu kesiapan dan panel bukti.
             $dikecualikan = $this->kesiapan->jalurLampauDikecualikan((int) $segel->tahun, $jalurPengecualian);
             // Gerbang kegiatan memakai aturan yang sama dengan pengajuan.
@@ -166,22 +179,18 @@ class IndexRencanaAksi
                 array_unshift($alasanPengajuan, 'Konteks indikator berubah (snapshot koreksi baru terbit). Simpan target sebelum mengajukan.');
             }
 
-            $periode = $this->susunPeriode($tipe, $definisi, $jendela, $efektifIds, $baris, collect($barisBeku)->keyBy('periode_id'));
+            $periode = $this->susunPeriode($tipe, $definisi, $jendela, $efektifIds, $baris, collect($barisBeku)->keyBy('periode_id'), $batasTerkunciPic, $snapshot);
             $koreksi = $this->statusKoreksi($jadwal, $indikator);
 
             $unitId = (string) $segel->unit_id;
             $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
             // Daftar periode terkunci bagi aktor untuk UI hanya-baca per
             // periode; Perencanaan dikecualikan sehingga daftarnya kosong.
-            // Kunci tanggal juga berlaku dalam sesi koreksi (cermin `penilaian()`).
-            $hariIni = today(config('app.business_timezone'))->toDateString();
-            $terkunciIds = $this->jendela->jalurPerencanaan($keputusanUbah)
-                ? []
-                : array_column($this->jendela->rincianTerkunci($jadwal, $efektifIds->all(), $hariIni), 'id');
+            $terkunciIds = $this->jendela->jalurPerencanaan($keputusanUbah) ? [] : array_keys($rincianKunci);
 
-            // Metadata indikator (nama, satuan, arah, tipe,
-            // presisi, desimal_tampilan) berasal dari jadwal_snapshot beku
-            // untuk konteks RA ini, bukan master berjalan. Kode, status,
+            // Metadata indikator (nama, satuan, arah, tipe, presisi,
+            // desimal_tampilan, dinilai_tahunan) berasal dari jadwal_snapshot
+            // beku untuk konteks RA ini, bukan master berjalan. Kode, status,
             // dan tahun_mulai_berlaku tetap milik master (tak dibekukan).
             $indikatorPayload = $indikator->only(['id', 'kode', 'nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan', 'status', 'tahun_mulai_berlaku']);
             $indikatorPayload['nama'] = (string) $snapshot->nama;
@@ -190,6 +199,7 @@ class IndexRencanaAksi
             $indikatorPayload['tipe_perhitungan'] = (string) $snapshot->tipe_perhitungan;
             $indikatorPayload['presisi'] = (int) $snapshot->presisi;
             $indikatorPayload['desimal_tampilan'] = (int) $snapshot->desimal_tampilan;
+            $indikatorPayload['dinilai_tahunan'] = (bool) $snapshot->dinilai_tahunan;
 
             return [
                 'id' => $segel->id,
@@ -208,8 +218,6 @@ class IndexRencanaAksi
                 'unit' => $segel->unit?->only(['id', 'nama']),
                 'jadwal' => [
                     ...$jadwal->only(['id', 'tahun', 'status']),
-                    'rencana_aksi_mulai' => $jadwal->rencana_aksi_mulai?->toDateString(),
-                    'rencana_aksi_selesai' => $jadwal->rencana_aksi_selesai?->toDateString(),
                     'penutupan' => $jadwal->penutupan?->toDateString(),
                 ],
                 'penanggung_jawab' => $segel->penanggungJawab?->only(['id', 'nama']),
@@ -334,14 +342,22 @@ class IndexRencanaAksi
     }
 
     /**
+     * Baris periode untuk matriks. Setiap baris membawa `batas_terkunci_pic`
+     * (tanggal batas bila periode sudah terkunci bagi PIC, dikirim kepada
+     * semua aktor agar Perencanaan pun melihat kuncinya) dan
+     * `boleh_tanpa_target` (aturan `PeriodeTanpaTarget` yang sama dengan
+     * gerbang pengajuan). Baris tidak berlaku selalu `null`/`false`.
+     *
      * @param  Collection<int, PeriodeJadwal>  $jendela
      * @param  Collection<int, string>  $efektifIds
      * @param  Collection<int, array{komponen_id: string, kode: string, label: string, peran: string, bobot: string, urutan: int}>  $definisi
      * @param  Collection<string, Collection<string, RencanaAksiTarget>>  $baris
      * @param  Collection<string, array{nilai: ?string, status_perhitungan: string}>  $barisBeku  Skor per `periode_id` dari `KesiapanPengajuan::barisPeriode`.
+     * @param  array<string, string>  $batasTerkunciPic  Peta `periode_id` → batas `Y-m-d`; kosong bila tahun ditutup tanpa sesi koreksi.
+     * @param  JadwalSnapshot  $snapshot  Snapshot terbaru dengan relasi `jadwal` sudah terpasang, agar tanpa query tambahan.
      * @return list<array<string, mixed>>
      */
-    private function susunPeriode(string $tipe, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $baris, Collection $barisBeku): array
+    private function susunPeriode(string $tipe, Collection $definisi, Collection $jendela, Collection $efektifIds, Collection $baris, Collection $barisBeku, array $batasTerkunciPic, JadwalSnapshot $snapshot): array
     {
         $hasil = [];
         /** @var array<string, string|null> $nilaiSebelumnya nilai komponen periode efektif sebelumnya */
@@ -373,6 +389,8 @@ class IndexRencanaAksi
                 'skor' => ['nilai' => $beku['nilai'] ?? null, 'status_perhitungan' => $beku['status_perhitungan'] ?? 'belum_diisi'],
                 'peringatan_turun' => $turun !== [],
                 'komponen_turun' => $turun,
+                'batas_terkunci_pic' => $batasTerkunciPic[$periodeId] ?? null,
+                'boleh_tanpa_target' => PeriodeTanpaTarget::bolehTanpaTarget($snapshot, $window, $jendela),
             ];
         }
 
@@ -394,6 +412,8 @@ class IndexRencanaAksi
             'skor' => null,
             'peringatan_turun' => false,
             'komponen_turun' => [],
+            'batas_terkunci_pic' => null,
+            'boleh_tanpa_target' => false,
         ];
     }
 

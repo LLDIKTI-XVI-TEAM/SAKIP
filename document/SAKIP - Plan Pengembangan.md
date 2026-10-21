@@ -890,9 +890,9 @@ Setiap task memiliki tiga bagian wajib:
   5. Periode yang sudah lampau saat jadwal diaktifkan terkunci bagi PIC sejak aktivasi.
   6. Penanda dinilai tahunan tersimpan dan diaudit; snapshot yang terbentuk sesudahnya menyalin penanda tersebut; perubahan penanda setelah jadwal aktif tidak mengubah baris snapshot yang sudah terbit.
   7. Untuk indikator dinilai tahunan menurut snapshot, pengajuan dengan target periode sebelum periode nilai akhir kosong diterima, sedangkan pengajuan dengan target periode nilai akhir kosong ditolak; selisih target periode nilai akhir terhadap target PK tetap wajib dijelaskan (11.6).
-  8. Untuk indikator yang tidak dinilai tahunan, pengajuan dengan salah satu target periode kosong ditolak dengan pesan per periode.
+  8. Untuk indikator yang tidak dinilai tahunan, pengajuan dengan salah satu target periode kosong ditolak dengan pesan per periode, kecuali periode lampau 2026.
   9. Target kosong tersimpan sebagai tidak ditargetkan dan tampil berbeda dari target `0`; versi Rencana Aksi yang dibekukan mencatat periode tersebut berstatus `tidak_ditargetkan`, bukan `belum_diisi`.
-  10. Pengajuan pengukuran pada indikator yang Rencana Aksinya belum disahkan tetap ditolak, dan target kumulatif yang turun tetap hanya peringatan.
+  10. Pengajuan pengukuran pada indikator yang Rencana Aksinya belum disahkan tetap ditolak, kecuali periode lampau 2026 (Q32.7, Q46), dan target kumulatif yang turun tetap hanya peringatan.
   11. Rencana Aksi data awal 2026 dengan target TW I–III kosong dapat dicatat dan disahkan Perencanaan untuk semua indikator (pengecualian periode lampau, 3.11).
   12. Setelah `pengisian_selesai` periode P diperpanjang melalui revisi resmi jendela pengisian, kunci periode P bagi PIC mengikuti tanggal baru.
   13. Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah Rencana Aksi pada periode yang jendela pengisiannya dibuka kembali secara resmi; perubahan PIC pada periode lain ditolak, sedangkan Perencanaan tetap dapat mengoreksi.

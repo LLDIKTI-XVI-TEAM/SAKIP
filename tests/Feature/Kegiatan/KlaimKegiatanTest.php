@@ -179,6 +179,9 @@ class KlaimKegiatanTest extends TestCase
         $this->travelTo(now()->setDate(2026, 4, 1));
         $this->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertSessionHasErrors('jendela');
         $this->delete($this->url().'/'.KlaimKegiatan::sole()->id, ['alasan' => 'Salah klaim'])->assertSessionHasErrors('jendela');
+        foreach (['klaim_kegiatan.tambah_ditolak', 'klaim_kegiatan.hapus_ditolak'] as $tindakan) {
+            $this->assertStringContainsString('Periode terkunci bagi PIC', AuditLog::where('tindakan', $tindakan)->sole()->alasan);
+        }
 
         $this->actingAs($this->createUserWithRole('perencanaan'))->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertSessionHasNoErrors();
         $this->assertDatabaseCount('klaim_kegiatan', 2);

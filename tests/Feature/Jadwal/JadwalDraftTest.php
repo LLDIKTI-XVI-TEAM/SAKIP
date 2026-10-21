@@ -63,7 +63,29 @@ class JadwalDraftTest extends TestCase
 
     public static function unsupportedFields(): array
     {
-        return array_map(fn (string $field): array => [$field], ['status', 'renstra_pk_id', 'activated_at', 'closed_at', 'pakai_persetujuan_pimpinan', 'persetujuan_mulai', 'is_backfill', 'audit', 'actor_id', 'periode.*']);
+        return array_map(fn (string $field): array => [$field], ['status', 'renstra_pk_id', 'activated_at', 'closed_at', 'pakai_persetujuan_pimpinan', 'persetujuan_mulai', 'is_backfill', 'audit', 'actor_id', 'periode.*', 'rencana_aksi_mulai', 'rencana_aksi_selesai']);
+    }
+
+    public function test_simpan_tanpa_jendela_rencana_aksi_mempertahankan_nilai_lama(): void
+    {
+        $actor = $this->calendarActor();
+        $data = $this->calendarPayload($this->calendarRenstra($actor), $this->calendarMaster());
+        $this->actingAs($actor)->post('/jadwal', $data)->assertSessionHasNoErrors();
+        $jadwal = JadwalTahunan::sole();
+        $this->assertNull($jadwal->rencana_aksi_mulai);
+
+        // Baris lama yang masih menyimpan jendela RA: nilainya tidak dibaca, tidak ditulis ulang.
+        $jadwal->forceFill(['rencana_aksi_mulai' => '2026-01-05', 'rencana_aksi_selesai' => '2026-01-30'])->save();
+        $this->put("/jadwal/{$jadwal->id}", [...$data, 'penutupan' => '2027-01-20', 'revisi' => $jadwal->fresh()->revisi])
+            ->assertSessionHasNoErrors();
+
+        $fresh = $jadwal->fresh();
+        $this->assertSame(['2026-01-05', '2026-01-30', '2027-01-20'], [
+            $fresh->rencana_aksi_mulai->format('Y-m-d'), $fresh->rencana_aksi_selesai->format('Y-m-d'), $fresh->penutupan->format('Y-m-d'),
+        ]);
+        $audit = AuditLog::where('tindakan', 'jadwal.ubah')->sole();
+        $this->assertArrayNotHasKey('rencana_aksi_mulai', $audit->nilai_baru);
+        $this->assertArrayNotHasKey('rencana_aksi_selesai', $audit->nilai_lama);
     }
 
     public function test_missing_nested_dates_and_duplicate_periods_are_rejected(): void
@@ -71,8 +93,8 @@ class JadwalDraftTest extends TestCase
         $actor = $this->calendarActor();
         $data = $this->calendarPayload($this->calendarRenstra($actor), $this->calendarMaster());
         $data['periode'][] = $data['periode'][0];
-        unset($data['rencana_aksi_selesai'], $data['periode'][1]['reviu_selesai']);
-        $this->actingAs($actor)->post('/jadwal', $data)->assertSessionHasErrors(['rencana_aksi_selesai', 'periode.1.reviu_selesai', 'periode.0.periode_id']);
+        unset($data['periode'][1]['reviu_selesai']);
+        $this->actingAs($actor)->post('/jadwal', $data)->assertSessionHasErrors(['periode.1.reviu_selesai', 'periode.0.periode_id']);
         $this->assertSame(0, JadwalTahunan::count());
     }
 
@@ -82,18 +104,16 @@ class JadwalDraftTest extends TestCase
         $this->actingAs($actor)->post('/jadwal', [])->assertSessionHasErrors([
             'renstra_id' => 'Renstra wajib diisi.',
             'tahun' => 'Tahun wajib diisi.',
-            'rencana_aksi_mulai' => 'Tanggal mulai Rencana Aksi wajib diisi.',
-            'rencana_aksi_selesai' => 'Tanggal selesai Rencana Aksi wajib diisi.',
             'penutupan' => 'Tanggal penutupan wajib diisi.',
             'periode' => 'Periode pilihan wajib diisi.',
         ]);
         $data = $this->calendarPayload($this->calendarRenstra($actor), $this->calendarMaster());
         $data['tahun'] = 10000;
-        $data['rencana_aksi_mulai'] = '2026-02-30';
+        $data['penutupan'] = '2027-02-30';
         unset($data['periode'][0]['reviu_mulai']);
         $this->post('/jadwal', $data)->assertSessionHasErrors([
             'tahun' => 'Tahun harus berada antara 1 dan 9998.',
-            'rencana_aksi_mulai' => 'Tanggal mulai Rencana Aksi harus berupa tanggal valid dengan format YYYY-MM-DD.',
+            'penutupan' => 'Tanggal penutupan harus berupa tanggal valid dengan format YYYY-MM-DD.',
             'periode.0.reviu_mulai' => 'Tanggal mulai review wajib diisi.',
         ]);
         $this->assertSame(0, JadwalTahunan::count());
@@ -266,7 +286,7 @@ class JadwalDraftTest extends TestCase
         $cases = [
             [fn () => $this->calendarMaster(5, true), 'periode_final_aktif_unik'],
             [fn () => PeriodeJadwal::sole()->update(['reviu_mulai' => '2027-01-01']), 'jadwal_periode_urutan_tanggal'],
-            [fn () => $jadwal->update(['rencana_aksi_selesai' => '2026-01-01']), 'jadwal_tahunan_urutan_ra'],
+            [fn () => $jadwal->forceFill(['rencana_aksi_mulai' => '2026-01-05', 'rencana_aksi_selesai' => '2026-01-01'])->save(), 'jadwal_tahunan_urutan_ra'],
         ];
         foreach ($cases as [$write, $constraint]) {
             try {

@@ -94,13 +94,10 @@ trait CreatesRencanaAksiFixture
             'is_nilai_akhir' => false,
         ]);
 
-        $hariIni = today(config('app.business_timezone'));
         $this->jadwal = JadwalTahunan::create([
             'renstra_id' => $renstra->id,
             'tahun' => 2026,
             'renstra_pk_id' => $pk->id,
-            'rencana_aksi_mulai' => $hariIni->copy()->subDay()->toDateString(),
-            'rencana_aksi_selesai' => $hariIni->copy()->addDay()->toDateString(),
             'penutupan' => '2026-12-31',
             'status' => 'aktif',
             'activated_at' => now(),

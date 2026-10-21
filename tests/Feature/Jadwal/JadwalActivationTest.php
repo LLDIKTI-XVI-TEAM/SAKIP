@@ -73,7 +73,8 @@ class JadwalActivationTest extends TestCase
         $jadwal = JadwalTahunan::findOrFail($this->ready['jadwal']->id);
         $this->assertSame(['aktif', $this->ready['pk']->id, 3], [$jadwal->status, $jadwal->renstra_pk_id, $jadwal->revisi]);
         $this->assertSame(now()->format('Y-m-d H:i:s'), Carbon::parse($jadwal->activated_at)->format('Y-m-d H:i:s'));
-        $this->assertSame(['2026-01-05', '2027-01-19'], [$jadwal->rencana_aksi_mulai->format('Y-m-d'), $jadwal->penutupan->format('Y-m-d')]);
+        $this->assertNull($jadwal->rencana_aksi_mulai);
+        $this->assertSame('2027-01-19', $jadwal->penutupan->format('Y-m-d'));
 
         $rows = DB::table('jadwal_snapshot')->where('jadwal_id', $jadwal->id)->get()->keyBy('indikator_id');
         $this->assertCount(2, $rows);
