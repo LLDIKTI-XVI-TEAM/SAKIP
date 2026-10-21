@@ -83,7 +83,6 @@ export interface DashboardProps {
     activePeriode: { id: string; nama_periode: string; status: 'aktif' | 'terakhir' } | null;
     stats: DashboardStats;
     progresPeriode: ProgresPeriode[];
-    ringkasanStatus: Record<StatusTampilan, number>;
     statusIndikator: BarisStatusIndikator[];
     grafik: {
         indikator: { id: string; kode: string; nama: string; satuan: string; desimal_tampilan: number }[];

@@ -31,10 +31,6 @@ vi.mock('apexcharts/features/legend', () => ({}));
 afterEach(cleanup);
 
 const zero = { total: 0, belum_mengisi: 0, draft: 0, diajukan: 0, diverifikasi: 0, dikembalikan: 0, disahkan: 0 };
-const ringkasanKosong = {
-    belum_dibuka: 0, tidak_berlaku: 0, belum_mengisi: 0, tidak_mengisi: 0, dalam_proses: 0,
-    belum_dapat_diukur: 0, tanpa_target_periode: 0, tidak_dapat_dihitung: 0, belum_ditetapkan: 0,
-};
 const kegiatanKosong = { per_status: { rencana: 0, terlaksana: 0, tidak_terlaksana: 0, ditunda: 0, batal: 0 }, terlambat_jumlah: 0, per_iku: [], terlambat: [] };
 const indikator = (kode: string) => ({ id: kode, kode, nama: `Indikator ${kode}`, satuan: '%', desimal_tampilan: 2, arah: 'naik_baik' as const });
 
@@ -56,7 +52,6 @@ const props = (overrides: Partial<DashboardProps> = {}): DashboardProps => ({
         { periode_id: 'p1', nama: 'Triwulan I', dibuka: true, ...zero, total: 3, disahkan: 3 },
         { periode_id: 'p2', nama: 'Triwulan II', dibuka: true, ...zero, total: 200, diverifikasi: 1, disahkan: 199 },
     ],
-    ringkasanStatus: { ...ringkasanKosong, tanpa_target_periode: 4, belum_dapat_diukur: 2, dalam_proses: 7, tidak_berlaku: 1 },
     statusIndikator: [
         {
             indikator: indikator('IK-01'), unit: { nama: 'Bagian Umum' }, pic: { nama: 'Ani' }, status: 'tanpa_target_periode', status_alur: 'disahkan',
@@ -120,14 +115,18 @@ it('menampilkan ringkasan, grafik, dan tabel status tanpa header dan kartu konte
     expect(within(barisTabel('IK-03')).getByText('Diverifikasi')).toBeTruthy();
 });
 
-it('menampilkan filter dan ringkasan status capaian periode terpilih', () => {
-    render(<Index {...props()} />);
+it('menampilkan filter dan ringkasan status alur tanpa kartu status capaian (Q66)', () => {
+    const tidakBerlaku = { ...props().statusIndikator[2], indikator: indikator('IK-04'), status: 'tidak_berlaku' as const, status_alur: null };
+    render(<Index {...props({ statusIndikator: [...props().statusIndikator, tidakBerlaku] })} />);
 
     for (const label of ['Renstra', 'Tahun', 'Periode', 'Sasaran', 'Unit']) expect(screen.getByLabelText(label)).toBeTruthy();
-    const ringkasan = screen.getByRole('region', { name: /Status capaian Triwulan II 2026/ });
-    expect(within(ringkasan).getByText('Tanpa target periode').closest('div[data-status]')?.textContent).toContain('4');
-    expect(within(ringkasan).getByText('Belum dapat diukur').closest('div[data-status]')?.textContent).toContain('2');
-    expect(within(ringkasan).getByText(/1 indikator belum berlaku/)).toBeTruthy();
+    expect(screen.queryByRole('region', { name: /Status capaian/ })).toBeNull();
+    expect(screen.queryByText(/indikator belum berlaku/)).toBeNull();
+    // Kontrol positif: ringkasan status alur dan status tampilan per baris tetap tampil.
+    const ringkasan = screen.getByRole('region', { name: /Ringkasan status pengukuran Triwulan II 2026/ });
+    for (const label of ['Total', 'Belum mengisi', 'Disahkan']) expect(within(ringkasan).getByText(label)).toBeTruthy();
+    expect(within(barisTabel('IK-04')).getByText('Tidak berlaku')).toBeTruthy();
+    expect(within(barisTabel('IK-01')).getByText('Tanpa target periode')).toBeTruthy();
 });
 
 it('baris tanpa target periode menampilkan realisasi, target PK, dan selisih', () => {
@@ -163,15 +162,11 @@ it('label status dan header data grafik boleh terlipat dan grid kartu tidak mema
     render(<Index {...props()} />);
     await screen.findByTestId('chart-line');
 
-    const capaian = screen.getByRole('region', { name: /Status capaian Triwulan II 2026/ });
-    capaian.querySelectorAll('[data-status] > span').forEach((badge) => expect(badge.className).not.toContain('whitespace-nowrap'));
     const badgeBaris = within(barisTabel('IK-02')).getAllByText(/^Belum dapat diukur$/i);
     expect(badgeBaris).toHaveLength(2);
     badgeBaris.forEach((badge) => expect(badge.className).not.toContain('whitespace-nowrap'));
-    for (const grid of [capaian.querySelector('.grid'), screen.getByRole('region', { name: /Ringkasan status pengukuran/ }).querySelector('.grid')]) {
-        expect([grid?.classList.contains('xl:grid-cols-7'), grid?.classList.contains('2xl:grid-cols-7')]).toEqual([false, true]);
-    }
-    expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ }).parentElement?.classList.contains('xl:grid-cols-3')).toBe(true);
+    const grid = screen.getByRole('region', { name: /Ringkasan status pengukuran/ }).querySelector('.grid');
+    expect([grid?.classList.contains('xl:grid-cols-7'), grid?.classList.contains('2xl:grid-cols-7')]).toEqual([false, true]);
     const progres = screen.getByRole('table', { name: /Progres pengukuran per periode/ });
     within(progres).getAllByRole('columnheader').forEach((th) => expect(th.className).toContain('whitespace-normal'));
 });
@@ -183,7 +178,6 @@ it('menampilkan keadaan kosong pada grafik dan tabel periode terakhir', async ()
                 activePeriode: { ...props().activePeriode!, status: 'terakhir' },
                 stats: zero,
                 progresPeriode: [{ periode_id: 'p2', nama: 'Triwulan II', dibuka: true, ...zero }],
-                ringkasanStatus: ringkasanKosong,
                 statusIndikator: [],
             })}
         />,
@@ -247,11 +241,26 @@ it('grafik target vs realisasi tidak menggambar nol untuk tanpa target atau belu
     ]);
 });
 
-it('menampilkan panel rencana aksi dan kegiatan', () => {
+it('panel rencana aksi dan kegiatan berdampingan sama lebar, tabel per IKU hanya tampil bila ada kegiatan (Q66)', () => {
     render(<Index {...props()} />);
 
-    expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ })).toBeTruthy();
-    expect(screen.getByRole('region', { name: /Status kegiatan Triwulan II 2026/ })).toBeTruthy();
+    const ra = screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ });
+    const kegiatan = screen.getByRole('region', { name: /Status kegiatan Triwulan II 2026/ });
+    expect(ra.parentElement).toBe(kegiatan.parentElement);
+    expect(ra.parentElement?.className).toContain('lg:grid-cols-2');
+    expect(screen.queryByRole('region', { name: /Kegiatan per IKU/ })).toBeNull();
+});
+
+it('tabel kegiatan per IKU tampil pada kartu tersendiri di bawah kedua panel (Q66)', () => {
+    const jumlah = { rencana: 1, terlaksana: 0, tidak_terlaksana: 0, ditunda: 0, batal: 0 };
+    const kegiatan = { per_status: jumlah, terlambat_jumlah: 0, per_iku: [{ id: 'i1', kode: 'IKU 1.1', nama: 'Persentase PT terakreditasi', jumlah }], terlambat: [] };
+    render(<Index {...props({ kegiatan })} />);
+
+    const panel = screen.getByRole('region', { name: /Status kegiatan Triwulan II 2026/ });
+    const iku = screen.getByRole('region', { name: /Kegiatan per IKU Triwulan II 2026/ });
+    expect(panel.contains(iku)).toBe(false);
+    expect(iku.parentElement).not.toBe(panel.parentElement);
+    expect(within(iku).getByText('IKU 1.1')).toBeTruthy();
 });
 
 it('grafik yang disembunyikan dari pembaca layar tidak membuat elemen yang dapat difokus keyboard', async () => {
@@ -296,7 +305,8 @@ it('panel progres rencana aksi tetap tampil sebelum jendela pengisian pertama di
     render(<Index {...props({ activePeriode: null, stats: zero, progresPeriode: [], statusIndikator: [] })} />);
 
     expect(screen.getByRole('status').textContent).toContain('Jendela pengisian pertama Jadwal Tahunan 2026 belum dimulai.');
-    expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ })).toBeTruthy();
+    // Grid yang sama dengan saat periode dibuka, agar panel tetap selebar setengah layar.
+    expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ }).parentElement?.className).toContain('lg:grid-cols-2');
     expect(screen.queryByRole('region', { name: /Status kegiatan/ })).toBeNull();
 });
 
