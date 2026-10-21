@@ -24,12 +24,15 @@ it('panel kegiatan berlabel belum diverifikasi dan memberi peringatan kegiatan t
 
     const panel = screen.getByRole('region', { name: /Status kegiatan Triwulan I 2026/ });
     expect(within(panel).getByText('Belum diverifikasi')).toBeTruthy();
-    expect(within(panel).getByText('2 kegiatan melewati tanggal rencana dan belum terlaksana')).toBeTruthy();
+    const peringatan = within(panel).getByText('2 kegiatan melewati tanggal rencana dan belum terlaksana');
+    // Kontras teks peringatan minimal 4,5:1 (design-system); bg-warning/15 hanya 4,46:1.
+    expect(peringatan.closest('div')?.className).toContain('bg-warning/10');
     expect(within(panel).getByText('Bimtek akreditasi')).toBeTruthy();
     expect(panel.querySelector('[data-status="tidak_terlaksana"]')?.textContent).toBe('Tidak terlaksana1');
     expect(panel.querySelector('[data-status="batal"]')?.textContent).toBe('Batal2');
     const iku = within(panel).getByRole('table', { name: /Kegiatan per IKU/ });
-    expect(iku.className).toContain('block md:table');
+    // Di bawah lg panel terlalu sempit untuk enam kolom, jadi baris tetap berupa kartu.
+    expect(iku.className).toContain('block lg:table');
     expect(within(iku).getByText('IKU 1.1')).toBeTruthy();
 });
 
@@ -53,6 +56,8 @@ it('panel rencana aksi menampilkan indikator belum disusun', () => {
     const panel = screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ });
     expect(panel.querySelector('[data-status="belum_disusun"]')?.textContent).toBe('Belum disusun15');
     expect(panel.querySelector('[data-status="disahkan"]')?.textContent).toBe('Disahkan5');
+    // Di kolom sepertiga (xl) tiga kotak sebaris membuat label "Dikembalikan" meluber.
+    expect(panel.querySelector('[data-status="disahkan"]')?.parentElement?.classList.contains('xl:grid-cols-2')).toBe(true);
 });
 
 it('dua IKU berkode sama tetap tampil sebagai dua baris', () => {

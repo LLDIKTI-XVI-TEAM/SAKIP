@@ -20,8 +20,8 @@ const SERI_PROGRES: { key: Exclude<keyof DashboardStats, 'total'>; label: string
     ...STATUS_ALUR,
 ];
 
-// Tabel data ringkas di dalam kartu grafik: header huruf biasa agar tujuh kolom muat tanpa scroll di desktop.
-const dataHead = 'px-3 normal-case tracking-normal';
+// Tabel data ringkas di dalam kartu grafik: header huruf biasa dan boleh terlipat agar delapan kolom muat tanpa scroll mulai 1280px.
+const dataHead = 'px-3 normal-case tracking-normal whitespace-normal';
 
 // Judul tooltip ApexCharts ditulis lewat innerHTML; nama periode adalah input pengguna.
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -153,7 +153,7 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun, gr
                                 <TableBody>
                                     {progres.map((item) => (
                                         <TableRow key={item.periode_id}>
-                                            <TableHead scope="row" className="px-3 font-medium normal-case tracking-normal">
+                                            <TableHead scope="row" className={`${dataHead} font-medium`}>
                                                 {item.nama}
                                             </TableHead>
                                             {SERI_PROGRES.map((status) => (
@@ -291,7 +291,7 @@ function GrafikTargetRealisasi({ grafik, base, tahun }: { grafik: DashboardProps
                             <TableBody>
                                 {titik.map((item) => (
                                     <TableRow key={item.periode_id}>
-                                        <TableHead scope="row" className="px-3 font-medium normal-case tracking-normal">
+                                        <TableHead scope="row" className={`${dataHead} font-medium`}>
                                             {item.nama}
                                         </TableHead>
                                         <TableCell className="px-3 tabular-nums">{item.tanpa_target ? 'Tidak ditargetkan' : tampil(item.target)}</TableCell>

@@ -1,5 +1,6 @@
 import { ListChecks } from 'lucide-react';
 import { Card } from '@/Components/Card';
+import { KotakHitungan } from '@/Components/Dashboard/KotakHitungan';
 import { STATUS_ALUR } from '@/Components/Dashboard/statusAlur';
 import type { DashboardProps } from '@/types/dashboard';
 
@@ -21,12 +22,10 @@ export function PanelRencanaAksi({ progres, tahun }: { progres: DashboardProps['
                         <p className="mt-0.5 text-xs text-muted">Jumlah indikator per status Rencana Aksi.</p>
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-3">
+                {/* Di kolom sepertiga (xl) tiga kotak sebaris membuat label "Dikembalikan" meluber. */}
+                <div className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-3 xl:grid-cols-2">
                     {items.map(({ key, label }) => (
-                        <div key={key} data-status={key} className="rounded-lg border border-border bg-soft/40 px-3 py-2.5">
-                            <p className="text-xs text-muted">{label}</p>
-                            <p className="mt-1 text-xl font-bold tabular-nums text-ink">{progres[key]}</p>
-                        </div>
+                        <KotakHitungan key={key} status={key} label={label} nilai={progres[key]} />
                     ))}
                 </div>
             </Card>

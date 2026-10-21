@@ -14,9 +14,9 @@ export const statusPerhitunganBadgeMap: Record<Exclude<StatusPerhitungan, 'terhi
  * Badge hanya menandai status tanpa nilai. `terhitung` selalu memiliki nilai, sehingga tampil
  * sebagai teks polos dan sel status cukup satu pemanggilan untuk semua status.
  */
-export function StatusPerhitunganBadge({ status, size }: { status: StatusPerhitungan } & Pick<BadgeProps, 'size'>): ReactNode {
+export function StatusPerhitunganBadge({ status, size, className }: { status: StatusPerhitungan } & Pick<BadgeProps, 'size' | 'className'>): ReactNode {
     if (status === 'terhitung') return statusPerhitungan.terhitung;
     const { variant, label } = statusPerhitunganBadgeMap[status];
 
-    return <Badge variant={variant} size={size}>{label}</Badge>;
+    return <Badge variant={variant} size={size} className={className}>{label}</Badge>;
 }

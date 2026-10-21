@@ -153,9 +153,27 @@ it('baris belum dapat diukur tidak menampilkan realisasi nol', () => {
 it('tabel status memakai pola kartu di HP dan tidak memakai teks di bawah 12px', () => {
     const { container } = render(<Index {...props()} />);
 
-    expect(screen.getByRole('table', { name: /Status indikator/ }).className).toContain('block md:table');
+    // Delapan kolom baru muat sebagai tabel mulai xl; di bawahnya kolom kanan terpotong oleh kartu.
+    expect(screen.getByRole('table', { name: /Status indikator/ }).className).toContain('block xl:table');
     expect(container.querySelector('[class*="text-[11px]"]')).toBeNull();
     expect(container.querySelector('[class*="text-[10px]"]')).toBeNull();
+});
+
+it('label status dan header data grafik boleh terlipat dan grid kartu tidak memaksa tujuh kolom di layar menengah', async () => {
+    render(<Index {...props()} />);
+    await screen.findByTestId('chart-line');
+
+    const capaian = screen.getByRole('region', { name: /Status capaian Triwulan II 2026/ });
+    capaian.querySelectorAll('[data-status] > span').forEach((badge) => expect(badge.className).not.toContain('whitespace-nowrap'));
+    const badgeBaris = within(barisTabel('IK-02')).getAllByText(/^Belum dapat diukur$/i);
+    expect(badgeBaris).toHaveLength(2);
+    badgeBaris.forEach((badge) => expect(badge.className).not.toContain('whitespace-nowrap'));
+    for (const grid of [capaian.querySelector('.grid'), screen.getByRole('region', { name: /Ringkasan status pengukuran/ }).querySelector('.grid')]) {
+        expect([grid?.classList.contains('xl:grid-cols-7'), grid?.classList.contains('2xl:grid-cols-7')]).toEqual([false, true]);
+    }
+    expect(screen.getByRole('region', { name: /Progres Rencana Aksi 2026/ }).parentElement?.classList.contains('xl:grid-cols-3')).toBe(true);
+    const progres = screen.getByRole('table', { name: /Progres pengukuran per periode/ });
+    within(progres).getAllByRole('columnheader').forEach((th) => expect(th.className).toContain('whitespace-normal'));
 });
 
 it('menampilkan keadaan kosong pada grafik dan tabel periode terakhir', async () => {

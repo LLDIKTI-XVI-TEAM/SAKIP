@@ -93,11 +93,12 @@ export default function DashboardIndex({
                                     ditetapkan.
                                 </p>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+                            {/* Tujuh kartu sebaris baru muat mulai 2xl; di bawahnya label status terpotong. */}
+                            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 2xl:grid-cols-7">
                                 {STATUS_DIHITUNG.map((key) => (
                                     <Card key={key} className="p-4">
                                         <div data-status={key}>
-                                            <Badge variant={STATUS_TAMPILAN[key].variant}>
+                                            <Badge variant={STATUS_TAMPILAN[key].variant} className="whitespace-normal">
                                                 {STATUS_TAMPILAN[key].label}
                                             </Badge>
                                             <p className="mt-2 text-2xl font-bold tabular-nums text-ink">{ringkasanStatus[key]}</p>
@@ -116,7 +117,7 @@ export default function DashboardIndex({
                             <h2 id="ringkasan-status" className="sr-only">
                                 Ringkasan status pengukuran {activePeriode.nama_periode}
                             </h2>
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+                            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 2xl:grid-cols-7">
                                 <KartuRingkasan
                                     icon={BarChart2}
                                     tone="bg-primary/10 text-primary"
@@ -155,9 +156,10 @@ export default function DashboardIndex({
                             />
                         </Suspense>
 
-                        <div className="grid gap-5 lg:grid-cols-3">
+                        {/* grid-cols-1 (minmax 0) mencegah tabel per IKU melebarkan halaman; dua panel sebaris baru muat mulai xl. */}
+                        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
                             <PanelRencanaAksi progres={progresRencanaAksi} tahun={activeJadwal?.tahun ?? tahun} />
-                            <div className="lg:col-span-2">
+                            <div className="xl:col-span-2">
                                 <PanelKegiatan kegiatan={kegiatan} periodeNama={activePeriode.nama_periode} />
                             </div>
                         </div>

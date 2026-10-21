@@ -16,6 +16,8 @@ it('menampilkan selisih negatif bertanda dalam satuan indikator dan warnanya men
     const nilai = screen.getByText('−3,57 poin');
     expect(screen.getByText('di bawah target')).toBeTruthy();
     expect(nilai.className).toContain('text-danger-dark');
+    // Rata kanan hanya saat tabel status tampil sebagai tabel (xl); di kartu tetap rata kiri.
+    expect(nilai.parentElement?.className).toContain('xl:items-end');
 });
 
 it('selisih negatif pada indikator arah turun berwarna baik', () => {

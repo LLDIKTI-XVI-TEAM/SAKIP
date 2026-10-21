@@ -26,7 +26,7 @@ export function SelisihTargetPk({ selisih, arah, satuan, desimal }: SelisihTarge
     const warna = nol ? 'text-muted' : baik ? 'text-success-dark' : 'text-danger-dark';
 
     return (
-        <span className="inline-flex flex-col items-start md:items-end">
+        <span className="inline-flex flex-col items-start xl:items-end">
             <span className={`font-semibold tabular-nums ${warna}`}>{`${tanda}${mutlak} ${satuan}`}</span>
             <span className="text-xs text-muted">{nol ? 'sama dengan target' : negatif ? 'di bawah target' : 'di atas target'}</span>
         </span>
