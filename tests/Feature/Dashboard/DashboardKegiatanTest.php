@@ -57,14 +57,17 @@ class DashboardKegiatanTest extends TestCase
         $this->assertSame(['rencana' => 1, 'terlaksana' => 1, 'tidak_terlaksana' => 1, 'ditunda' => 1, 'batal' => 1], $this->panel()['per_status']);
     }
 
-    public function test_kegiatan_lanjutan_dihitung_terpisah_dari_asal(): void
+    public function test_kegiatan_lanjutan_hasil_geser_periode_dihitung_terpisah_dari_asal(): void
     {
+        $tw2 = $this->tambahPeriode(2, '2026-06-01', '2026-06-15');
         $asal = $this->kegiatan(['status' => 'ditunda', 'justifikasi' => 'Ditunda pengujian']);
-        $this->kegiatan(['kegiatan_asal_id' => $asal->id]);
+        $this->kegiatan(['kegiatan_asal_id' => $asal->id, 'periode_id' => $tw2->periode_id]);
+        $this->travelTo(now()->setDate(2026, 6, 5));
+        $hitung = fn (array $panel) => [$panel['per_status']['ditunda'], $panel['per_status']['rencana']];
 
-        $panel = $this->panel();
-
-        $this->assertSame([1, 1], [$panel['per_status']['ditunda'], $panel['per_status']['rencana']]);
+        // Plan 7.7: lanjutan dihitung di periode tujuan, asal tetap di periode asal; tidak dobel-hitung.
+        $this->assertSame([0, 1], $hitung($this->panel()));
+        $this->assertSame([1, 0], $hitung($this->panel(query: '?periode_id='.$this->pengukuran->periode_id)));
     }
 
     public function test_kegiatan_lewat_tanggal_rencana_belum_terlaksana_diberi_peringatan(): void

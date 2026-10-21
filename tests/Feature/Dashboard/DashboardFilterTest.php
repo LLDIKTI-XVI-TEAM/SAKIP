@@ -175,4 +175,46 @@ class DashboardFilterTest extends TestCase
         $this->get('/dashboard?unit_id='.$unitBebas->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->where('filter.unit_id', $unitBebas->id)->where('kegiatan.per_status.rencana', 1)->where('statusIndikator', []));
     }
+
+    public function test_filter_periode_mengganti_ringkasan_status_dan_panel_kegiatan(): void
+    {
+        $tw2 = $this->tambahPeriode(2, '2026-06-01', '2026-06-15');
+        $this->sahkan($this->pengukuran, ['nilai' => '80']);
+        Kegiatan::create(['unit_id' => $this->unit->id, 'tahun' => 2026, 'periode_id' => $this->pengukuran->periode_id, 'nama' => 'Kegiatan TW I', 'anggaran' => 0, 'created_by' => $this->actor->id]);
+        $this->travelTo(now()->setDate(2026, 6, 5));
+        $ringkas = fn (AssertableInertia $page, string $periode, string $status, int $disahkan, int $rencana) => $page->where('filter.periode_id', $periode)
+            ->where('statusIndikator.0.status', $status)->where('stats.disahkan', $disahkan)->where('kegiatan.per_status.rencana', $rencana);
+
+        $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $ringkas($page, $tw2->periode_id, 'belum_mengisi', 0, 0));
+        $this->get('/dashboard?periode_id='.$this->pengukuran->periode_id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $ringkas($page, $this->pengukuran->periode_id, 'belum_ditetapkan', 1, 1)
+            ->where('statusIndikator.0.realisasi', '80')->where('activePeriode.status', 'terakhir'));
+    }
+
+    public function test_filter_tahun_memilih_jadwal_tahun_lain_pada_renstra_yang_sama(): void
+    {
+        $jadwal2025 = JadwalTahunan::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2025, 'penutupan' => '2025-12-31', 'status' => 'ditutup',
+            'closed_at' => Carbon::parse('2025-12-31 01:00:00', 'UTC')]);
+        PeriodeJadwal::create(['jadwal_id' => $jadwal2025->id, 'periode_id' => $this->pengukuran->periode_id,
+            'pengisian_mulai' => '2025-03-01', 'pengisian_selesai' => '2025-03-15', 'reviu_mulai' => '2025-03-15', 'reviu_selesai' => '2025-04-15']);
+        JadwalSnapshot::create([...$this->context->only(['indikator_id', 'periode_mulai_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
+            'jadwal_id' => $jadwal2025->id]);
+
+        $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('filter.tahun', 2026)->where('pilihan.tahun', [2026, 2025])->where('statusIndikator.0.status', 'dalam_proses'));
+        $this->get('/dashboard?tahun=2025')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('filter.tahun', 2025)->where('activeJadwal', ['tahun' => 2025, 'status' => 'ditutup'])->where('statusIndikator.0.status', 'belum_mengisi'));
+    }
+
+    public function test_renstra_di_luar_pilihan_dan_pengenal_salah_bentuk_ditolak(): void
+    {
+        $this->actingAs($this->actor)->get('/dashboard?renstra_id='.Str::uuid())->assertSessionHasErrors('renstra_id');
+        // Bentuk pengenal divalidasi FormRequest sekaligus, sebelum dicocokkan dengan pilihan.
+        $this->get('/dashboard?renstra_id=1&periode_id=xyz&unit_id=abc')->assertSessionHasErrors(['renstra_id', 'periode_id', 'unit_id']);
+    }
+
+    public function test_pengenal_huruf_besar_diterima_dan_dinormalkan(): void
+    {
+        $this->actingAs($this->actor)->get('/dashboard?unit_id='.strtoupper($this->unit->id))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('filter.unit_id', $this->unit->id));
+    }
 }
