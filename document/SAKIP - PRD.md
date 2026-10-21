@@ -1240,6 +1240,7 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari `pengu
 
 - Bila periode tanpa target dan realisasi belum dapat diukur berlaku pada pengukuran yang sama (mis. IKU 1.3 pada TW I–III), yang tampil "Belum dapat diukur" (Q47 §47.3 butir 3).
 - **Q64 (19 Oktober 2026):** kewajiban hanya mencakup periode yang jendela pengisiannya sudah dibuka; pengukuran yang belum disahkan (Draft dalam jendela, Diajukan, Diverifikasi, Dikembalikan) tampil "Dalam proses"; "Tidak mengisi" tidak berlaku pada periode lampau 2026; selama status capaian belum dapat ditetapkan, pengukuran disahkan tampil "Belum ditetapkan" di luar kasus Q47 dan "Tidak dapat dihitung".
+- **Q66 (21 Oktober 2026):** status tampilan di atas tampil per baris pada tabel status per indikator, tanpa kartu ringkasan jumlah per status; ringkasan di bagian atas dashboard memakai status alur kewajiban periode terpilih. Ringkasan status capaian (Tercapai/Belum Tercapai) ditambahkan setelah penetapan status capaian (§21) tersedia di aplikasi.
 - Dashboard dapat difilter berdasarkan Renstra, Tahun, Periode, Sasaran, dan Unit.
 - Akses dashboard: pada preset lama `dashboard:read` dimiliki Superadmin, Admin, Perencanaan, Pimpinan, dan Pegawai. Karena PIC operasional (bukan role) baru ditambahkan melalui Q31 sementara preset permission-nya belum dikonfirmasi, hak bawaan `dashboard:read` untuk PIC tetap **OPEN** dan tidak boleh diasumsikan.
 
