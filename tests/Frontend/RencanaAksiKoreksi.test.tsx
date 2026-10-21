@@ -24,7 +24,12 @@ const P2 = '44444444-4444-4434-8434-444444444444';
 const P3 = '55555555-5555-4555-8555-555555555555';
 const P4 = '66666666-6666-4666-8666-666666666666';
 
-function buatPayload(koreksi: RencanaAksiPayload['koreksi'], periodeTerkunci: string[] = []): RencanaAksiPayload {
+// Batas pengisian per periode; dikirim server hanya untuk periode yang sudah terkunci bagi PIC.
+const BATAS_PENGISIAN = ['2026-04-10', '2026-07-10', '2026-10-10', '2027-01-10'];
+// Tahun ditutup tanpa koreksi tidak mengirim batas, jadi kasus batas di luar koreksi memakai jadwal aktif.
+const JADWAL_AKTIF: RencanaAksiPayload['jadwal'] = { id: 'jadwal-uji', tahun: 2026, status: 'aktif', penutupan: '2027-01-19' };
+
+function buatPayload(koreksi: RencanaAksiPayload['koreksi'], periodeTerkunci: string[] = [], overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayload {
     const periode = [P1, P2, P3, P4].map((id, index) => ({
         id,
         nama: `Triwulan ${['I', 'II', 'III', 'IV'][index]}`,
@@ -35,6 +40,8 @@ function buatPayload(koreksi: RencanaAksiPayload['koreksi'], periodeTerkunci: st
         skor: { nilai: null, status_perhitungan: 'belum_diisi' },
         peringatan_turun: false,
         komponen_turun: [] as (string | null)[],
+        batas_terkunci_pic: periodeTerkunci.includes(id) ? BATAS_PENGISIAN[index] : null,
+        boleh_tanpa_target: false,
     }));
     return {
         id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
@@ -57,14 +64,13 @@ function buatPayload(koreksi: RencanaAksiPayload['koreksi'], periodeTerkunci: st
             desimal_tampilan: 2,
             status: 'aktif',
             tahun_mulai_berlaku: 2025,
+            dinilai_tahunan: false,
         },
         unit: { id: 'unit-uji', nama: 'Unit Uji' },
         jadwal: {
             id: 'jadwal-uji',
             tahun: 2026,
             status: 'ditutup',
-            rencana_aksi_mulai: '2026-03-01',
-            rencana_aksi_selesai: '2026-03-31',
             penutupan: '2026-03-05',
         },
         penanggung_jawab: { id: 'pic-uji', nama: 'PIC Uji' },
@@ -88,6 +94,7 @@ function buatPayload(koreksi: RencanaAksiPayload['koreksi'], periodeTerkunci: st
         pengajuan: { siap: true, alasan: [] },
         versi_pengajuan: null,
         can: { view: true, update: true, submit: false },
+        ...overrides,
     };
 }
 
@@ -145,7 +152,7 @@ describe('lingkup koreksi di UI', () => {
 
     it('periode terkunci tanpa koreksi: hanya periode terbuka terkirim dan dapat disunting', async () => {
         const user = userEvent.setup();
-        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: false, periode_ids: [] }, [P1, P2])} />);
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: false, periode_ids: [] }, [P1, P2], { jadwal: JADWAL_AKTIF })} />);
 
         expect(screen.getByText(/periode terkunci hanya-baca dan tidak dikirim/)).toBeTruthy();
 
@@ -153,7 +160,10 @@ describe('lingkup koreksi di UI', () => {
         const inputTerbuka = screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Target Triwulan III (poin)' });
         expect(inputTerkunci.disabled).toBe(true);
         expect(inputTerbuka.disabled).toBe(false);
-        expect(screen.getAllByText(/tidak disunting dan tidak dikirim/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Terkunci')).toHaveLength(2);
+        expect(screen.getByText('Batas pengisian 10 April 2026 sudah lewat. Target diisi Tim Perencanaan.')).toBeTruthy();
+        expect(screen.getByText('Batas pengisian 10 Juli 2026 sudah lewat. Target diisi Tim Perencanaan.')).toBeTruthy();
+        expect(screen.queryByText(/tidak disunting dan tidak dikirim/)).toBeNull();
 
         await user.type(inputTerbuka, '25');
         await user.click(screen.getByRole('button', { name: 'Simpan Target' }));
@@ -166,6 +176,13 @@ describe('lingkup koreksi di UI', () => {
         expect(kirim.targets.find((item) => item.periode_id === P2)).toBeUndefined();
         expect(kirim.targets.find((item) => item.periode_id === P3)).toBeDefined();
         expect(kirim.targets.find((item) => item.periode_id === P4)).toBeDefined();
+    });
+
+    it('semua periode terkunci di luar sesi koreksi menampilkan Semua periode terkunci.', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ aktif: false, periode_ids: [] }, [P1, P2, P3, P4], { jadwal: JADWAL_AKTIF })} />);
+
+        expect(screen.getByText('Semua periode terkunci.')).toBeTruthy();
+        expect(screen.queryByText('Tidak ada periode yang dapat dikoreksi.')).toBeNull();
     });
 
     it('koreksi TW III tetap tunduk pada kunci tanggal: disunting hanya setelah jendelanya dibuka resmi', async () => {

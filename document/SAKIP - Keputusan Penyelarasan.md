@@ -646,7 +646,7 @@ Tahun aktif tidak boleh di-hardcode; tahun aktif adalah tahun yang mempunyai Jad
 
 Rencana Aksi 2026 sudah disusun oleh Perencanaan. Data tersebut harus dicatat di aplikasi dengan status **disahkan** sebelum pengajuan TW III karena gerbang pengajuan mensyaratkan RA yang sah.
 
-Penetapan PIC operasional melalui workflow normal per periode dimulai pada Rencana Aksi berikutnya (2027). Initial setup 2026 diperlakukan sebagai data awal yang diverifikasi Perencanaan, bukan migrasi role PIC.
+Penetapan PIC operasional melalui workflow normal per periode dimulai pada Rencana Aksi berikutnya (2027). Initial setup 2026 diperlakukan sebagai data awal yang diverifikasi Perencanaan, bukan migrasi role PIC. *(Catatan 19 Oktober 2026: sistem tidak membedakan tahun 2026 bagi PIC; PIC dengan izin sah dapat menyunting periode Rencana Aksi 2026 yang belum terkunci. Kalimat Q32.8 mengatur cara pengisian data awal oleh Perencanaan, bukan aturan yang ditegakkan sistem. Setelah RA disahkan, perubahan oleh PIC tetap lewat buka-kembali (ISS-05.06) ([keputusan PM 19 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/130#issuecomment-6322219488)).)*
 
 ## 32.9 IKU 8 — Definisi Final
 
@@ -1064,7 +1064,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:09:38, 1:19:12–1:24:52, dan 1
 2. Setiap perubahan RA oleh PIC — simpan draf, pengajuan, dan versi setelah dikembalikan atau dibuka kembali — tidak boleh mengubah target maupun daftar kegiatan periode yang terkunci. Pelanggaran ditolak sebagai validasi bisnis (422) dan diaudit. (PM)
 3. Perencanaan dikecualikan sampai `penutupan`, sama seperti pengecualian Perencanaan pada jendela pengisian.
 4. Periode lampau pada saat aktivasi jadwal (Q46) sudah terkunci bagi PIC sejak aktivasi.
-5. Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC. (PM, saat penyelarasan Q47–Q51)
+5. Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC. (PM, saat penyelarasan Q47–Q51) *(Catatan 19 Oktober 2026: periode lampau 2026 yang jendelanya diperpanjang melewati tanggal aktivasi menjadi periode normal. Akibatnya target wajib, kecuali untuk indikator dinilai tahunan pada periode sebelum nilai akhir; gerbang pengukuran (RA sah, target versi sah, bukti, narasi) berlaku; anggaran kegiatan berlaku bagi PIC, sedangkan jalur Perencanaan 2026 tetap dikecualikan sebagai data awal (Q32.7). Kunci bagi PIC tetap mengikuti batas pengisian yang baru: terbuka hanya bila batas itu belum lewat. Perubahan ini dapat dibatalkan dengan revisi jendela berikutnya, yang tercatat di audit beserta alasannya ([keputusan PM 19 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/130#issuecomment-6322219488)).)*
 6. Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan. (PM, saat penyelarasan Q47–Q51)
 
 ## 41.3 Aturan yang tetap berlaku
@@ -1086,7 +1086,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:09:38, 1:19:12–1:24:52, dan 1
 
 - PRD §4 prinsip 7, §5.1, §8 butir 6, §12.2, §12.3, §14.1, §14.6, §15.2, §28, §31; Data Model §2.15, §2.16, §2.23, §2.25–§2.26; Workflow §1, §4, §7, §8, §9, §13; Plan modul 3, 11 (task 11.9), dan 12.
 - User Stories/Issues: US/ISS-03.01, 05.01, dan 05.03 diberi catatan; US/ISS-03.06, 05.06, 06.04, dan 06.05 diselaraskan; issue baru **US/ISS-05.07**.
-- Status implementasi: belum. `JendelaTulisRencanaAksi` masih menolak PIC di luar jendela dan saat tanggal jendela kosong (baris 70–74).
+- Status implementasi: §41.1–§41.2 diterapkan ISS-05.07 (#130); jendela penyusunan tidak lagi dibaca atau ditulis (kolom dan CHECK `jadwal_tahunan_urutan_ra` menunggu migrasi lanjutan). §41.3 tetap ditegakkan gerbang pengukuran; §41.4 mengikuti ISS-06.04/06.05.
 
 ---
 
@@ -1255,7 +1255,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:25:19–1:26:59, 1:29:56–1:30:52, dan 1
 > **Diperjelas Q63 (19 Oktober 2026):** bukti wajib tahap `rencana_aksi` termasuk pengecualian, hanya pada jalur Perencanaan; PIC tidak pernah dikecualikan (§63.1).
 
 1. Gerbang baru Q42–Q45 — RA minimal satu kegiatan, RAB, persyaratan tahap perencanaan kegiatan, narasi wajib, dan tindak lanjut rekomendasi — **dikecualikan untuk periode lampau**, sama seperti gerbang lain pada Q32.7. Kunci per triwulan (Q41 §41.2) bukan bagian pengecualian ini: periode lampau terkunci bagi PIC sejak aktivasi, sedangkan Perencanaan yang mengisinya memang tidak terikat kunci (Q41 §41.2 butir 3–4). *(Dikoreksi 13 Oktober 2026 saat penyelarasan Q47–Q51; semula kunci per triwulan ikut disebut sebagai gerbang yang dikecualikan.)*
-2. Dengan pola pelaporan pada minggu pertama bulan setelah triwulan (menit 1:25:19), **TW III 2026** menjadi periode lampau yang diisi Perencanaan; **TW IV 2026** menjadi triwulan pertama workflow normal PIC operasional, dengan pelaporan awal Januari 2027. Status periode lampau tetap dihitung dari jendela pengisian terhadap waktu aktivasi, tanpa `is_backfill`.
+2. Dengan pola pelaporan pada minggu pertama bulan setelah triwulan (menit 1:25:19), **TW III 2026** menjadi periode lampau yang diisi Perencanaan; **TW IV 2026** menjadi triwulan pertama workflow normal PIC operasional, dengan pelaporan awal Januari 2027. Status periode lampau tetap dihitung dari jendela pengisian terhadap waktu aktivasi, tanpa `is_backfill`. *(Catatan 19 Oktober 2026: status periode lampau beserta seluruh pengecualiannya hanya berlaku pada jadwal 2026. Pengecualian itu meliputi target boleh kosong, gerbang pengajuan pengukuran, serta persyaratan tahap `kegiatan_perencanaan` (termasuk RAB) dan anggaran kegiatan pada periode lampau (Q42); bukti wajib tahap RA dan gerbang kegiatan minimal mengikuti Q63. Pada tahun lain, periode yang jendelanya sudah lewat saat aktivasi hanya terkunci bagi PIC dan diisi Perencanaan. Tahun 2026 di kode adalah pengecualian data awal, bukan penentu tahun aktif (Q32.7). Status lampau dihitung dari `pengisian_selesai` yang berlaku terhadap tanggal aktivasi (Q41 §41.2 butir 5) ([keputusan PM 19 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/130#issuecomment-6322219488)).)*
 3. RA 2026 yang dicatat Perencanaan sebagai data awal (Q32.8) dikecualikan dari gerbang kegiatan minimal dan RAB; kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan. Kegiatan data awal dan kegiatan pada periode lampau boleh tanpa anggaran (tercatat belum diisi, Q42 §42.2 butir 2), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output. (Ketentuan anggaran ditambahkan PM saat penyelarasan Q47–Q51) *(Catatan 16 Oktober 2026: RA data awal 2026 dikenali dari tahun 2026 yang diajukan lewat jalur Perencanaan, tanpa kolom penanda (keputusan PM 16 Oktober 2026, PR #111).)*
 4. Setiap issue yang menambah gerbang Q42–Q45 menyertakan pengecualian periode lampau beserta test-nya; issue kunci per triwulan (Q41) menyertakan test bahwa periode lampau terkunci bagi PIC.
 5. Memperbarui Q32.7 ("TW III–IV normal"), Q32.8, dan PRD §12.6.
@@ -1340,7 +1340,7 @@ Sumber: Rencana Aksi 2026 (target TW I–III bernilai 0 untuk semua indikator) d
 ## 47.1 Indikator dinilai tahunan
 
 1. Perencanaan dapat menandai indikator sebagai **dinilai tahunan**, yaitu indikator yang nilainya baru tersedia pada periode nilai akhir (`periode.is_nilai_akhir`). Penanda diubah di Sasaran & Indikator dan tercatat di audit.
-2. Penanda ikut dibekukan pada snapshot jadwal bersama atribut indikator lain; perubahan setelah jadwal aktif mengikuti koreksi snapshot (Q35).
+2. Penanda ikut dibekukan pada snapshot jadwal bersama atribut indikator lain; perubahan setelah jadwal aktif mengikuti koreksi snapshot (Q35). *(Catatan 19 Oktober 2026: perubahan penanda setelah jadwal aktif berlaku pada jadwal berikutnya; koreksi tahun berjalan lewat koreksi snapshot ISS-03.03 (Q35) ([keputusan PM 19 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/130#issuecomment-6322219488)).)*
 3. Penanda tidak mengubah tipe perhitungan, formula, maupun komponen indikator.
 4. Data awal 2026: hanya **IKU 1.3** yang ditandai. IKU 4.1 tidak ditandai karena nilainya tersedia tiap triwulan (TW I 99,48; TW II 99,71).
 
@@ -1371,7 +1371,7 @@ Sumber: Rencana Aksi 2026 (target TW I–III bernilai 0 untuk semua indikator) d
 - Mengubah Q7 dan PRD §14.7 (target wajib di setiap periode); melengkapi Q9.
 - PRD §11, §14.3, §14.4, §14.7, §17.7, §19.4, §20, §21, §23, §24; Data Model §2.12 (`indikator`), §2.17 (`jadwal_snapshot`), §2.20 (`pengukuran`), §2.24 (`rencana_aksi_target`); Workflow (penyusunan Rencana Aksi dan pengajuan pengukuran); Plan modul 2, 5, 7, 8, dan 11 (task 11.9); design system (tampilan status).
 - User Stories/Issues: **US/ISS-05.07** (penanda dan target periode kosong); US/ISS-07.01 dan 07.03 (realisasi belum dapat diukur); US/ISS-10.01 dan 10.02 (tampilan); ISS-15.01 (data awal).
-- Status implementasi: belum.
+- Status implementasi: §47.1–§47.2 diterapkan PR #105 (ISS-07.03) dan ISS-05.07 (#130); §47.3–§47.4 mengikuti issue masing-masing.
 
 ---
 

@@ -9,9 +9,10 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     helperText?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, labelClassName, error, helperText, className, id, ...props }) => {
+export const Input: React.FC<InputProps> = ({ label, labelClassName, error, helperText, className, id, 'aria-describedby': describedBy, ...props }) => {
     const generatedId = React.useId();
     const inputId = id || props.name || generatedId;
+    const messageId = error ? `${inputId}-error` : helperText ? `${inputId}-help` : undefined;
 
     return (
         <div className="w-full">
@@ -24,7 +25,7 @@ export const Input: React.FC<InputProps> = ({ label, labelClassName, error, help
             <input
                 id={inputId}
                 aria-invalid={error ? true : undefined}
-                aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-help` : undefined}
+                aria-describedby={[describedBy, messageId].filter(Boolean).join(' ') || undefined}
                 className={twMerge(
                     clsx(
                         'w-full h-[42px] rounded-lg border bg-surface px-3.5 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted',

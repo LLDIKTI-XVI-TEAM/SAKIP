@@ -117,9 +117,9 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
      → Persyaratan wajib tahap kegiatan_perencanaan (mis. RAB) belum lengkap untuk salah satu
        kegiatan yang diklaim pada tahap RA: pengajuan DITOLAK (Q42)
      → Gerbang kegiatan minimal dan RAB DIKECUALIKAN untuk RA 2026 data awal; gerbang baru
-       Q42–Q45 dikecualikan untuk periode lampau, sedangkan kunci per triwulan bukan bagian
-       pengecualian itu — periode lampau terkunci bagi PIC sejak aktivasi (Q46 §46.1 butir 1,
-       §15)
+       Q42–Q45 dikecualikan untuk periode lampau 2026 (bukti wajib RA dan kegiatan minimal
+       mengikuti Q63), sedangkan kunci per triwulan bukan bagian pengecualian itu — periode
+       lampau terkunci bagi PIC sejak aktivasi (Q46 §46.1 butir 1, §15)
 
 📋 Perencanaan
   20. Memverifikasi Rencana Aksi yang diajukan
@@ -799,9 +799,10 @@ Rencana aksi adalah tahap yang disisipkan setelah penugasan Penanggung Jawab dan
      → [Digantikan Q41] Deadline jendela rencana_aksi_selesai yang MUTLAK bagi PIC tidak berlaku
        lagi — batas PIC kini kunci per triwulan (§4) dan jadwal_tahunan.penutupan
      → Gerbang kegiatan minimal dan RAB DIKECUALIKAN untuk RA 2026 data awal; gerbang baru
-       Q42–Q45 dikecualikan untuk periode lampau, sedangkan kunci per triwulan bukan bagian
-       pengecualian itu — periode lampau terkunci bagi PIC sejak aktivasi, dan Perencanaan
-       yang mengisinya tidak terikat kunci (Q46 §46.1 butir 1, §15)
+       Q42–Q45 dikecualikan untuk periode lampau 2026 (bukti wajib RA dan kegiatan minimal
+       mengikuti Q63), sedangkan kunci per triwulan bukan bagian pengecualian itu — periode
+       lampau terkunci bagi PIC sejak aktivasi, dan Perencanaan yang mengisinya tidak terikat
+       kunci (Q46 §46.1 butir 1, §15)
 
 📋 Perencanaan (akses rencana_aksi:create/update/ajukan bersifat GLOBAL, tanpa scope unit;
                 dikecualikan dari kunci per triwulan, dibatasi jadwal_tahunan.penutupan — Q41)
@@ -2221,8 +2222,9 @@ Keputusan Q38–Q51 diselaraskan melalui catatan pada bagian terkait; alur baru 
 
 ⚙️ Sistem (aktivasi jadwal, §5)
   2. Penanda dibekukan ke jadwal_snapshot.dinilai_tahunan bersama atribut indikator lain;
-     perubahan penanda setelah jadwal aktif mengikuti koreksi snapshot berversi (Q35; Q47 §47.1
-     butir 2)
+     perubahan penanda setelah jadwal aktif berlaku pada jadwal berikutnya; koreksi tahun
+     berjalan lewat koreksi snapshot berversi ISS-03.03 (Q35; Q47 §47.1 butir 2; keputusan PM
+     19 Oktober 2026, #130)
 
 🎯 PIC operasional / 📋 Perencanaan (penyusunan Rencana Aksi, §7)
   3. Indikator dinilai tahunan menurut snapshot: target periode sebelum periode nilai akhir

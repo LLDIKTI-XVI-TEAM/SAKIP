@@ -16,7 +16,7 @@ class JadwalTahunan extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['renstra_id', 'tahun', 'rencana_aksi_mulai', 'rencana_aksi_selesai', 'penutupan', 'status', 'renstra_pk_id', 'activated_at', 'closed_at', 'koreksi_mulai', 'koreksi_sampai', 'lingkup_koreksi'];
+    protected $fillable = ['renstra_id', 'tahun', 'penutupan', 'status', 'renstra_pk_id', 'activated_at', 'closed_at', 'koreksi_mulai', 'koreksi_sampai', 'lingkup_koreksi'];
 
     protected $casts = ['tahun' => 'integer', 'rencana_aksi_mulai' => 'date', 'rencana_aksi_selesai' => 'date', 'penutupan' => 'date', 'revisi' => 'integer', 'pakai_persetujuan_pimpinan' => 'boolean', 'persetujuan_mulai' => 'date', 'persetujuan_selesai' => 'date', 'koreksi_mulai' => 'datetime', 'koreksi_sampai' => 'datetime', 'lingkup_koreksi' => 'array'];
 
@@ -39,8 +39,6 @@ class JadwalTahunan extends Model
     {
         return [
             ...$this->only(['id', 'renstra_id', 'tahun', 'status', 'revisi']),
-            'rencana_aksi_mulai' => $this->rencana_aksi_mulai?->format('Y-m-d'),
-            'rencana_aksi_selesai' => $this->rencana_aksi_selesai?->format('Y-m-d'),
             'penutupan' => $this->penutupan?->format('Y-m-d'),
             'periode' => $this->periode->sortBy('periode_id')->map(fn (PeriodeJadwal $window): array => [
                 'periode_id' => $window->periode_id,

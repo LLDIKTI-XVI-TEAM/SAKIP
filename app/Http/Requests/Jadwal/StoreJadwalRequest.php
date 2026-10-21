@@ -24,8 +24,6 @@ class StoreJadwalRequest extends PeriodeJadwalMutationRequest
             'renstra_id' => ['required', 'uuid'],
             // Batas representasi YYYY-MM-DD, termasuk kemungkinan satu tahun berikutnya.
             'tahun' => ['required', 'integer', 'between:1,9998'],
-            'rencana_aksi_mulai' => ['required', 'date_format:Y-m-d'],
-            'rencana_aksi_selesai' => ['required', 'date_format:Y-m-d'],
             'penutupan' => ['required', 'date_format:Y-m-d'],
             // Kunci jumlah periode di sumbernya (maksimal 12 periode
             // kalender) agar batas `targets` max:600 (= 50 komponen × 12 periode)

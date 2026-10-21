@@ -69,6 +69,10 @@ export interface RencanaAksiPeriode {
     peringatan_turun: boolean;
     /** Daftar komponen_id yang turun; `[null]` untuk indikator manual. */
     komponen_turun: (string | null)[];
+    /** Batas `YYYY-MM-DD` bila periode sudah terkunci bagi PIC (dikirim ke semua aktor); null bila belum, tidak berlaku, atau tahun ditutup tanpa sesi koreksi. */
+    batas_terkunci_pic: string | null;
+    /** Target periode ini boleh kosong menurut `PeriodeTanpaTarget::bolehTanpaTarget` (periode lampau jadwal 2026, atau periode sebelum nilai akhir pada indikator dinilai tahunan); false untuk baris tidak berlaku. */
+    boleh_tanpa_target: boolean;
 }
 
 export interface RencanaAksiDeviasiPk {
@@ -111,14 +115,14 @@ export interface RencanaAksiShow {
         desimal_tampilan: number;
         status: string;
         tahun_mulai_berlaku: number;
+        /** Penanda dinilai tahunan dari snapshot beku, bukan master. */
+        dinilai_tahunan: boolean;
     };
     unit: { id: string; nama: string } | null;
     jadwal: {
         id: string;
         tahun: number;
         status: string;
-        rencana_aksi_mulai: string | null;
-        rencana_aksi_selesai: string | null;
         penutupan: string | null;
     };
     penanggung_jawab: { id: string; nama: string } | null;

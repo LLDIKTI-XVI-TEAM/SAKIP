@@ -25,8 +25,6 @@ const jadwal: JadwalDetail = {
     status: 'draft',
     revisi: 4,
     renstra: { id: 'renstra-1', nama: 'Renstra pengujian', status: 'aktif', tahun_mulai: 2025, tahun_selesai: 2029 },
-    rencana_aksi_mulai: '2026-01-05',
-    rencana_aksi_selesai: '2026-01-30',
     penutupan: '2027-01-19',
     periode: [
         {
@@ -163,8 +161,6 @@ it('mengirim agregat pilihan sekali tanpa metadata tampilan atau status', () => 
         renstra_id: 'renstra-1',
         tahun: '2026',
         revisi: 4,
-        rencana_aksi_mulai: '2026-01-05',
-        rencana_aksi_selesai: '2026-01-30',
         penutupan: '2027-01-19',
         periode: jadwal.periode.map(
             ({ periode_id, periode_revisi, pengisian_mulai, pengisian_selesai, reviu_mulai, reviu_selesai }) => ({
@@ -366,6 +362,7 @@ it('mode create aman dirender server tanpa hardcode tahun atau tanggal', () => {
     expect(screen.queryByText('Draft')).toBeNull();
     expect(screen.getByLabelText<HTMLInputElement>(/^Tahun/).value).toBe('');
     expect(screen.getByLabelText<HTMLInputElement>(/^Penutupan/).value).toBe('');
+    expect(screen.queryAllByLabelText(/Rencana Aksi/)).toHaveLength(0);
     expect(screen.getByText(/Belum ada periode dipilih/)).toBeTruthy();
 });
 

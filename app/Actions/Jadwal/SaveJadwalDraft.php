@@ -96,7 +96,7 @@ class SaveJadwalDraft
                     }
                 }
                 $this->rules->validate($data, $selected->map(fn (Periode $master): array => ['urutan' => $master->urutan])->all());
-                $current->fill(array_intersect_key($data, array_flip(['renstra_id', 'tahun', 'rencana_aksi_mulai', 'rencana_aksi_selesai', 'penutupan'])));
+                $current->fill(array_intersect_key($data, array_flip(['renstra_id', 'tahun', 'penutupan'])));
                 $nextWindows = collect($data['periode'])->map(fn (array $window): array => [
                     'periode_id' => $window['periode_id'],
                     'pengisian_mulai' => $window['pengisian_mulai'],

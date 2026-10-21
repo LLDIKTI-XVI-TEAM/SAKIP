@@ -58,7 +58,7 @@ class RevisiJendelaPic
                 $jadwal->setRelation('periode', $windows->values());
                 $before = ['revisi' => $jadwal->revisi, 'periode' => $jadwal->draftAttributes()['periode']];
                 $metadata = Periode::whereIn('id', $ids)->pluck('urutan', 'id')->map(fn ($urutan): array => ['urutan' => (int) $urutan])->all();
-                $this->rules->validateJendela(['tahun' => $jadwal->tahun, 'penutupan' => $jadwal->penutupan->toDateString(), 'periode' => $requested], $metadata);
+                $this->rules->validate(['tahun' => $jadwal->tahun, 'penutupan' => $jadwal->penutupan->toDateString(), 'periode' => $requested], $metadata);
                 $changed = false;
                 foreach ($requested as $window) {
                     $row = $windows->get($window['periode_id']);

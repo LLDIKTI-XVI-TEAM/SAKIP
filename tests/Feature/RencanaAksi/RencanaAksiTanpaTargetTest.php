@@ -32,8 +32,14 @@ class RencanaAksiTanpaTargetTest extends TestCase
         $this->assertSame([null, 'tidak_ditargetkan', []], [$version->snapshot['target_periode'][0]['nilai'],
             $version->snapshot['target_periode'][0]['status_perhitungan'], $version->snapshot['target_periode'][0]['komponen']]);
         $this->assertSame(['100.00', 'terhitung'], [$version->snapshot['target_periode'][1]['nilai'], $version->snapshot['target_periode'][1]['status_perhitungan']]);
+        // Penanda tahunan dibaca dari snapshot; hanya periode sebelum nilai akhir boleh tanpa target.
         $this->get('/rencana-aksi/'.$header->id)->assertInertia(fn ($page) => $page
-            ->where('rencanaAksi.periode.0.skor.status_perhitungan', 'tidak_ditargetkan'));
+            ->where('rencanaAksi.periode.0.skor.status_perhitungan', 'tidak_ditargetkan')
+            ->where('rencanaAksi.indikator.dinilai_tahunan', true)
+            ->where('rencanaAksi.periode.0.id', $fixture['periode1']->id)
+            ->where('rencanaAksi.periode.0.boleh_tanpa_target', true)
+            ->where('rencanaAksi.periode.1.id', $fixture['periode2']->id)
+            ->where('rencanaAksi.periode.1.boleh_tanpa_target', false));
 
         app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id,
             ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $version->id]);
@@ -90,6 +96,38 @@ class RencanaAksiTanpaTargetTest extends TestCase
         $this->travelTo(now()->setDate(2026, 4, 5)->setTime(9, 0));
         $this->simpan($fixture, $header, 1, [$this->target($fixture['periode1']->id, null), $this->target($fixture['periode2']->id, 100)], $fixture['perencanaan']);
         $version = app(AjukanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id, ['expected_versi' => 2]);
+        $this->assertSame('tidak_ditargetkan', $version->snapshot['target_periode'][0]['status_perhitungan']);
+
+        // Gerbang review menerima periode lampau tanpa target sampai pengesahan; snapshot pengajuan tidak berubah.
+        app(VerifikasiRencanaAksi::class)->handle($fixture['perencanaan'], $header->id,
+            ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $version->id]);
+        app(SahkanRencanaAksi::class)->handle($fixture['perencanaan'], $header->id,
+            ['expected_versi' => $header->fresh()->versi, 'versi_pengajuan_id' => $version->id]);
+        $this->assertSame('disahkan', $header->fresh()->status_alur);
+        $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.sahkan')->where('objek_id', $header->id)->sole()->nilai_baru['self_approval']);
+        $this->assertSame('tidak_ditargetkan', $version->fresh()->snapshot['target_periode'][0]['status_perhitungan']);
+    }
+
+    /** Target periode sebelum nilai akhir yang kosong tidak menghapus kewajiban alasan deviasi PK pada nilai akhir. */
+    public function test_deviasi_pk_tetap_wajib_dijelaskan_pada_indikator_dinilai_tahunan(): void
+    {
+        $fixture = $this->fixtureTahunan();
+        $header = $this->buatDraf($fixture);
+        $targets = [$this->target($fixture['periode1']->id, null), $this->target($fixture['periode2']->id, 90)];
+        $this->simpan($fixture, $header, 1, $targets, tambahan: ['expected_snapshot_versi' => 2]);
+
+        try {
+            app(AjukanRencanaAksi::class)->handle($fixture['pic'], $header->id, ['expected_versi' => 2]);
+            $this->fail('Skor nilai akhir yang berbeda dari target PK tanpa alasan deviasi harus ditolak.');
+        } catch (ValidationException $exception) {
+            $this->assertContains('Skor periode terakhir berbeda dari target PK; alasan deviasi wajib diisi.', $exception->errors()['pengajuan']);
+        }
+        $this->assertDatabaseCount('rencana_aksi_versi', 0);
+
+        $this->simpan($fixture, $header, 2, $targets,
+            tambahan: ['expected_snapshot_versi' => 2, 'alasan_deviasi_pk' => 'Realisasi anggaran triwulan II terlambat.']);
+        $version = app(AjukanRencanaAksi::class)->handle($fixture['pic'], $header->id, ['expected_versi' => 3]);
+        $this->assertSame('deviasi', $version->snapshot['deviasi_pk']['status']);
         $this->assertSame('tidak_ditargetkan', $version->snapshot['target_periode'][0]['status_perhitungan']);
     }
 
