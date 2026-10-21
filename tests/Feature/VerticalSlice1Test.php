@@ -59,7 +59,7 @@ class VerticalSlice1Test extends TestCase
         $this->assertSame($audit->nilai_baru, $audit->fresh()->nilai_baru);
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', true));
         $this->get('/pengukuran')->assertInertia(fn ($page) => $page->where('pengukurans.0.pengukuran.reviu_terlambat', true));
-        $this->get('/dashboard')->assertInertia(fn ($page) => $page->where('pengukurans.0.reviu_terlambat', true));
+        $this->get('/dashboard')->assertInertia(fn ($page) => $page->where('statusIndikator.0.reviu_terlambat', true));
     }
 
     public function test_new_submission_does_not_inherit_the_previous_late_review_marker(): void
