@@ -12,6 +12,7 @@ import { Modal } from '@/Components/Modal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import { formatRupiah } from '@/lib/rupiah';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import Pagination from '@/Pages/Pengukuran/Pagination';
 import type { ReviewProps, StatusReview } from './review-types';
@@ -189,13 +190,17 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                     </Table>
                 </Card>
                 {rencanaAksi.can.kegiatan && <Card>
-                    <CardHeader><CardTitle>Kegiatan yang diklaim pada versi {versi.nomor}</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle>Kegiatan yang diklaim pada versi {versi.nomor}</CardTitle>
+                        {rencanaAksi.anggaran_kegiatan && <p className="text-sm text-ink">Total anggaran saat pengajuan: <span className="font-semibold">{formatRupiah(rencanaAksi.anggaran_kegiatan.total)}</span>
+                            {rencanaAksi.anggaran_kegiatan.belum_diisi > 0 && ` (${rencanaAksi.anggaran_kegiatan.belum_diisi} kegiatan belum diisi)`}</p>}
+                    </CardHeader>
                     <CardContent>
                         {rencanaAksi.klaim === null ? <p className="text-sm text-muted">Versi ini dibentuk sebelum daftar kegiatan ikut dibekukan.</p>
                             : rencanaAksi.klaim.length === 0 ? <p className="text-sm text-muted">Tidak ada kegiatan yang diklaim pada versi ini.</p>
                                 : <ul className="divide-y divide-border">{rencanaAksi.klaim.map((item) => <li key={item.id} className="space-y-1 py-2">
                                     <p className="break-words text-sm font-semibold text-ink">{item.nama}</p>
-                                    <p className="text-xs text-muted">{item.periode_nama} · {item.komponen ?? 'Tanpa komponen tertentu'} · {item.arah_dampak === 'mengurangi' ? 'Mengurangi' : 'Menambah'}{item.status ? ` · ${statusKegiatanConfig[item.status]?.label ?? item.status}` : ''}</p>
+                                    <p className="text-xs text-muted">{item.periode_nama} · {item.komponen ?? 'Tanpa komponen tertentu'} · {item.arah_dampak === 'mengurangi' ? 'Mengurangi' : 'Menambah'}{item.status ? ` · ${statusKegiatanConfig[item.status]?.label ?? item.status}` : ''} · Anggaran {formatRupiah(item.anggaran)}</p>
                                     {item.catatan && <p className="break-words text-xs text-muted">{item.catatan}</p>}
                                 </li>)}</ul>}
                     </CardContent>
