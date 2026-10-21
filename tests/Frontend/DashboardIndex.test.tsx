@@ -254,6 +254,14 @@ it('menampilkan panel rencana aksi dan kegiatan', () => {
     expect(screen.getByRole('region', { name: /Status kegiatan Triwulan II 2026/ })).toBeTruthy();
 });
 
+it('grafik yang disembunyikan dari pembaca layar tidak membuat elemen yang dapat difokus keyboard', async () => {
+    render(<Index {...props()} />);
+    await screen.findByTestId('chart-line');
+
+    // Bawaan ApexCharts memberi SVG dan legenda tabindex 0 walau pembungkusnya aria-hidden; datanya tersedia di tabel.
+    for (const type of ['bar', 'donut', 'line']) expect(chartProps.get(type)?.options.chart?.accessibility?.enabled, type).toBe(false);
+});
+
 it('meng-escape satuan indikator pada nilai tooltip grafik target vs realisasi', async () => {
     const payload = '<img src=x onerror=alert(1)>';
     const base = props();

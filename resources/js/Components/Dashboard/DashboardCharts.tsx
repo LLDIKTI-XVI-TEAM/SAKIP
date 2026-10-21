@@ -35,6 +35,8 @@ const baseOptions = (muted: string): ApexOptions => ({
         zoom: { enabled: false },
         animations: { enabled: !reduceMotion() },
         parentHeightOffset: 0,
+        // Grafik dibungkus aria-hidden dan datanya ada di tabel; modul aksesibilitas bawaan membuat SVG dan legenda bisa difokus tanpa terbaca.
+        accessibility: { enabled: false },
     },
     colors: SERI_PROGRES.map((status) => warnaToken(status.token)),
     dataLabels: { enabled: false },
