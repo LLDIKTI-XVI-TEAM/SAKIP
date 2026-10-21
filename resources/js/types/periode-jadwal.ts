@@ -76,8 +76,6 @@ export interface JadwalDetail {
     tahun: number;
     status: JadwalStatus;
     revisi: number;
-    rencana_aksi_mulai: string | null;
-    rencana_aksi_selesai: string | null;
     penutupan: string | null;
     periode: JadwalPeriode[];
 }

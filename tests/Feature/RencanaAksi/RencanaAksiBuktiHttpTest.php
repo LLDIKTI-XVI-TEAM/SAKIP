@@ -256,7 +256,8 @@ class RencanaAksiBuktiHttpTest extends TestCase
         // Q41: jendela penyusunan tidak ada lagi — unggahan bukti PIC pada
         // header yang dapat disunting diterima sebelum penutupan walau kolom
         // rencana_aksi_mulai/selesai sudah lewat.
-        $this->jadwal->update(['rencana_aksi_mulai' => '2026-02-01', 'rencana_aksi_selesai' => '2026-02-28']);
+        $this->jadwal->forceFill(['rencana_aksi_mulai' => '2026-02-01', 'rencana_aksi_selesai' => '2026-02-28'])->save();
+        $this->assertSame('2026-02-28', $this->jadwal->fresh()->rencana_aksi_selesai->toDateString());
         $pic = $this->createPicPegawai();
 
         $this->kirim($pic, ['mode' => 'teks', 'isi_teks' => 'Lampiran tepat waktu.'])->assertSessionHasNoErrors();
@@ -466,7 +467,8 @@ class RencanaAksiBuktiHttpTest extends TestCase
 
         // Kolom rencana_aksi_mulai/selesai yang lewat tidak lagi membatasi.
         $hariIni = today(config('app.business_timezone'));
-        $this->jadwal->update(['rencana_aksi_mulai' => $hariIni->copy()->subDays(3)->toDateString(), 'rencana_aksi_selesai' => $hariIni->copy()->subDays(2)->toDateString()]);
+        $this->jadwal->forceFill(['rencana_aksi_mulai' => $hariIni->copy()->subDays(3)->toDateString(), 'rencana_aksi_selesai' => $hariIni->copy()->subDays(2)->toDateString()])->save();
+        $this->assertSame($hariIni->copy()->subDays(2)->toDateString(), $this->jadwal->fresh()->rencana_aksi_selesai->toDateString());
         $lihatCan($pic, true);
         $lihatCan($this->actor, true);
 

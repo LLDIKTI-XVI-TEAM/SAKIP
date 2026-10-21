@@ -149,8 +149,6 @@ class RencanaAksiMatrixLimitTest extends TestCase
         return [
             'renstra_id' => $renstra->id,
             'tahun' => $year,
-            'rencana_aksi_mulai' => "{$year}-01-05",
-            'rencana_aksi_selesai' => "{$year}-01-10",
             'penutupan' => ($year + 1).'-01-19',
             'periode' => $periode,
         ];

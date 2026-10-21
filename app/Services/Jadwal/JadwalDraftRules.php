@@ -6,13 +6,16 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Memusatkan validasi aturan kalender yang digunakan bersama oleh Action
- * SaveJadwalDraft, SavePeriode, dan RevisiJendelaPic agar aturan ketiganya
- * konsisten.
+ * SaveJadwalDraft, SavePeriode, dan RevisiJendelaPic, serta oleh
+ * JadwalActivationReadiness untuk blocker kalender_tidak_valid, agar
+ * aturan keempatnya konsisten.
  *
  * Action tetap menangani use case secara utuh: otorisasi, pengambilan
- * data, locking, transaksi, penyimpanan, dan audit. Service ini hanya
- * memvalidasi data yang diberikan Action dan melempar ValidationException
- * jika aturan dilanggar.
+ * data, locking, transaksi, penyimpanan, dan audit. Untuk
+ * JadwalActivationReadiness, transaksi dan lock aktivasi milik ActivateJadwal,
+ * sedangkan ReadJadwalActivation hanya membaca dalam satu snapshot read-only.
+ * Service ini hanya memvalidasi data yang diberikan pemanggil dan melempar
+ * ValidationException jika aturan dilanggar.
  */
 class JadwalDraftRules
 {
@@ -25,33 +28,6 @@ class JadwalDraftRules
      * @param  array<string, array{urutan: int}>  $periodeMetadata
      */
     public function validate(array $data, array $periodeMetadata): void
-    {
-        $this->validateSelectedMetadata($data, $periodeMetadata);
-        $errors = $this->kalenderErrors($data);
-        $year = (int) $data['tahun'];
-        foreach (['rencana_aksi_mulai', 'rencana_aksi_selesai'] as $field) {
-            if ((int) substr($data[$field], 0, 4) !== $year) {
-                $errors[$field] = 'Jendela Rencana Aksi harus berada pada tahun pelaporan.';
-            }
-        }
-        if ($data['rencana_aksi_mulai'] > $data['rencana_aksi_selesai']) {
-            $errors['rencana_aksi_selesai'] = 'Selesai Rencana Aksi harus sama dengan atau setelah tanggal mulai.';
-        }
-        if ($data['rencana_aksi_selesai'] >= min(array_column($data['periode'], 'pengisian_mulai'))) {
-            $errors['rencana_aksi_selesai'] = 'Rencana Aksi harus selesai sebelum pengisian pertama dimulai.';
-        }
-        if ($errors !== []) {
-            throw ValidationException::withMessages($errors);
-        }
-    }
-
-    /**
-     * Revisi jendela PIC pada jadwal aktif (Q18): aturan kalender yang sama tanpa jendela Rencana Aksi yang dihapus Q41.
-     *
-     * @param  array<string, mixed>  $data
-     * @param  array<string, array{urutan: int}>  $periodeMetadata
-     */
-    public function validateJendela(array $data, array $periodeMetadata): void
     {
         $this->validateSelectedMetadata($data, $periodeMetadata);
         $errors = $this->kalenderErrors($data);
@@ -98,7 +74,7 @@ class JadwalDraftRules
     }
 
     /**
-     * Mutasi urutan master hanya memeriksa aturan yang dipengaruhinya, bukan mengharuskan RA nullable existing dilengkapi.
+     * Mutasi urutan master hanya memeriksa aturan yang dipengaruhinya.
      *
      * @param  array<string, mixed>  $data
      * @param  array<string, array{urutan: int}>  $periodeMetadata

@@ -176,7 +176,7 @@ class JadwalActivationReadiness
     private function calendarValid(JadwalTahunan $jadwal): bool
     {
         $data = $jadwal->draftAttributes();
-        if ($data['rencana_aksi_mulai'] === null || $data['rencana_aksi_selesai'] === null || $data['penutupan'] === null || $data['periode'] === []) {
+        if ($data['penutupan'] === null || $data['periode'] === []) {
             return false;
         }
         try {

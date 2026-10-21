@@ -19,8 +19,6 @@ import type { JadwalEditorProps, JadwalPeriode, JadwalPeriodeInput } from '@/typ
 interface JadwalForm {
     renstra_id: string;
     tahun: string;
-    rencana_aksi_mulai: string;
-    rencana_aksi_selesai: string;
     penutupan: string;
     revisi?: number;
     periode: JadwalPeriode[];
@@ -28,8 +26,6 @@ interface JadwalForm {
 
 const linkClass =
     'rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/30';
-// Padding rapat hanya di HP agar tanggal muat di setengah lebar kartu.
-const dateClass = 'min-w-0 px-2 text-xs sm:px-3.5 sm:text-sm';
 const kapital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 export default function Editor(props: JadwalEditorProps) {
@@ -40,8 +36,6 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
     const form = useForm<JadwalForm>({
         renstra_id: jadwal?.renstra_id ?? '',
         tahun: jadwal ? String(jadwal.tahun) : '',
-        rencana_aksi_mulai: jadwal?.rencana_aksi_mulai ?? '',
-        rencana_aksi_selesai: jadwal?.rencana_aksi_selesai ?? '',
         penutupan: jadwal?.penutupan ?? '',
         ...(jadwal ? { revisi: jadwal.revisi } : {}),
         periode: jadwal?.periode ?? [],
@@ -82,8 +76,6 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
         form.transform((data) => ({
             renstra_id: data.renstra_id,
             tahun: data.tahun,
-            rencana_aksi_mulai: data.rencana_aksi_mulai,
-            rencana_aksi_selesai: data.rencana_aksi_selesai,
             penutupan: data.penutupan,
             ...(jadwal ? { revisi: data.revisi } : {}),
             periode: data.periode.map(
@@ -290,36 +282,12 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                                 disabled={disabled}
                             />
                         </div>
-                        {/* Urut waktu: Rencana Aksi lebih dulu, penutupan paling akhir. */}
-                        <div className="mt-5 grid grid-cols-2 items-end gap-4 border-t border-border pt-5 lg:grid-cols-3">
-                            <Input
-                                name="rencana_aksi_mulai"
-                                label="Rencana Aksi mulai"
-                                type="date"
-                                required
-                                className={dateClass}
-                                value={form.data.rencana_aksi_mulai}
-                                onChange={(event) => form.setData('rencana_aksi_mulai', event.target.value)}
-                                error={errors.rencana_aksi_mulai}
-                                disabled={disabled}
-                            />
-                            <Input
-                                name="rencana_aksi_selesai"
-                                label="Rencana Aksi selesai"
-                                type="date"
-                                required
-                                className={dateClass}
-                                value={form.data.rencana_aksi_selesai}
-                                onChange={(event) => form.setData('rencana_aksi_selesai', event.target.value)}
-                                error={errors.rencana_aksi_selesai}
-                                disabled={disabled}
-                            />
+                        <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-3">
                             <Input
                                 name="penutupan"
                                 label="Penutupan"
                                 type="date"
                                 required
-                                className={dateClass}
                                 value={form.data.penutupan}
                                 onChange={(event) => form.setData('penutupan', event.target.value)}
                                 error={errors.penutupan}
@@ -327,7 +295,7 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                             />
                         </div>
                         <p className="mt-3 text-xs leading-relaxed text-muted">
-                            Rencana Aksi selesai sebelum pengisian pertama; penutupan setelah seluruh jendela.
+                            Penutupan setelah seluruh jendela.
                         </p>
                     </CardContent>
                 </Card>
