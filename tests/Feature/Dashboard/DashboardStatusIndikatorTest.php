@@ -31,6 +31,11 @@ class DashboardStatusIndikatorTest extends TestCase
         return collect($props['statusIndikator'])->firstWhere('indikator.kode', $kode);
     }
 
+    private function jumlah(array $props, string $status): int
+    {
+        return collect($props['statusIndikator'])->where('status', $status)->count();
+    }
+
     private function tolak(string $unitId): void
     {
         DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id, 'permission_id' => Permission::where('kode', 'dashboard:read')->value('id'),
@@ -43,9 +48,11 @@ class DashboardStatusIndikatorTest extends TestCase
 
         $props = $this->props();
 
-        $this->assertSame(1, $props['ringkasanStatus']['belum_mengisi']);
-        $this->assertSame(1, $props['ringkasanStatus']['dalam_proses']);
-        $this->assertSame(['total' => 2, 'belum_mengisi' => 1, 'draft' => 1, 'diajukan' => 0, 'diverifikasi' => 0, 'dikembalikan' => 0, 'disahkan' => 0], $props['stats']);
+        // Q66: kartu ringkasan per status tampilan dihapus; status tetap dihitung per baris.
+        $this->assertArrayNotHasKey('ringkasanStatus', $props);
+        $this->assertSame(1, $this->jumlah($props, 'belum_mengisi'));
+        $this->assertSame(1, $this->jumlah($props, 'dalam_proses'));
+        $this->assertSame(['total' => 2, 'belum_mengisi' => 1, 'draft' => 1, 'diajukan' => 0, 'diverifikasi' => 0, 'dikembalikan' => 0, 'disahkan' => 0, 'tidak_mengisi' => 0], $props['stats']);
         $this->assertSame('belum_mengisi', $this->baris($props, 'I-DUA')['status']);
         $this->assertNull($this->baris($props, 'I-DUA')['action']);
     }
@@ -58,7 +65,7 @@ class DashboardStatusIndikatorTest extends TestCase
         $props = $this->props();
 
         $this->assertSame('tidak_berlaku', $this->baris($props, 'I-DUA')['status']);
-        $this->assertSame(1, $props['ringkasanStatus']['tidak_berlaku']);
+        $this->assertSame(1, $this->jumlah($props, 'tidak_berlaku'));
         $this->assertSame(1, $props['stats']['total']);
     }
 
@@ -94,7 +101,7 @@ class DashboardStatusIndikatorTest extends TestCase
 
         $this->assertSame(['tanpa_target_periode', '65.5', null, true, '70', '-4.5'],
             [$row['status'], $row['realisasi'], $row['target'], $row['tanpa_target_periode'], $row['target_pk'], $row['selisih']]);
-        $this->assertSame([1, 0], [$props['ringkasanStatus']['tanpa_target_periode'], $props['ringkasanStatus']['belum_ditetapkan']]);
+        $this->assertSame([1, 0], [$this->jumlah($props, 'tanpa_target_periode'), $this->jumlah($props, 'belum_ditetapkan')]);
     }
 
     public function test_belum_dapat_diukur_bukan_nol_dan_menang_atas_tanpa_target(): void
@@ -108,7 +115,7 @@ class DashboardStatusIndikatorTest extends TestCase
             $row = $this->baris($props, $kode);
             $this->assertSame(['belum_dapat_diukur', null, null], [$row['status'], $row['realisasi'], $row['selisih']], $kode);
         }
-        $this->assertSame(2, $props['ringkasanStatus']['belum_dapat_diukur']);
+        $this->assertSame(2, $this->jumlah($props, 'belum_dapat_diukur'));
     }
 
     public function test_realisasi_nol_berbeda_dari_kosong(): void
@@ -123,11 +130,16 @@ class DashboardStatusIndikatorTest extends TestCase
     public function test_draft_lewat_jendela_tidak_mengisi_kecuali_periode_lampau(): void
     {
         $this->travelTo(now()->setDate(2026, 3, 20));
-        $this->assertSame('tidak_mengisi', $this->baris($this->props(), 'I-UJI')['status']);
+        $props = $this->props();
+        $this->assertSame('tidak_mengisi', $this->baris($props, 'I-UJI')['status']);
+        // Q66 §66.1 butir 3: "Tidak mengisi" terhitung Draft pada ringkasan alur, jumlahnya dikirim terpisah untuk kartu Draft.
+        $this->assertSame([1, 1], [$props['stats']['draft'], $props['stats']['tidak_mengisi'] ?? null]);
 
         // Aktivasi setelah jendela TW I selesai menjadikan TW I periode lampau 2026 (Q46 §46.1).
         DB::table('jadwal_tahunan')->where('id', $this->jadwal->id)->update(['activated_at' => Carbon::parse('2026-03-18 02:00:00', 'UTC')]);
-        $this->assertSame('dalam_proses', $this->baris($this->props(), 'I-UJI')['status']);
+        $props = $this->props();
+        $this->assertSame('dalam_proses', $this->baris($props, 'I-UJI')['status']);
+        $this->assertSame([1, 0], [$props['stats']['draft'], $props['stats']['tidak_mengisi'] ?? null]);
     }
 
     public function test_periode_belum_dibuka_nol_di_progres(): void

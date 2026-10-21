@@ -3963,7 +3963,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-10.01 · [Feature] Dashboard Kinerja Eksekutif
 
-> **Status implementasi (GitHub #135):** filter Renstra/tahun/periode/sasaran/unit yang divalidasi server, status indikator × periode dari daftar kewajiban, angka resmi dari versi disahkan, selisih terhadap target PK, progres Rencana Aksi (Plan 7.6), dan panel kegiatan real-time telah terimplementasi dan diuji (PR #147). Status tampilan mengikuti Q64.
+> **Status implementasi (GitHub #135):** filter Renstra/tahun/periode/sasaran/unit yang divalidasi server, status indikator × periode dari daftar kewajiban, angka resmi dari versi disahkan, selisih terhadap target PK, progres Rencana Aksi (Plan 7.6), dan panel kegiatan real-time telah terimplementasi dan diuji (PR #147). Status tampilan mengikuti Q64. Sejak Q66, status tampilan tampil per baris pada tabel tanpa kartu ringkasan per status, dan panel Rencana Aksi serta kegiatan tampil berdampingan.
 
 > **Batas completion:** AC-8 dan AKSES ANGGARAN tetap terbuka sampai penjumlahan anggaran ISS-06.08 bagian kedua tersedia; dikerjakan pada PR lanjutan. Tercapai/Belum tercapai belum tampil karena status capaian belum dapat ditetapkan (Q64 §64.1 butir 4). Plan 7.8 belum dikerjakan. Test utama: DashboardFilterTest, DashboardAksesTest, DashboardStatusIndikatorTest, DashboardRencanaAksiTest, DashboardKegiatanTest, DaftarKewajibanPengukuranTest, StatusTampilanPengukuranTest, serta Vitest DashboardIndex, DashboardFilter, DashboardPanel, dan SelisihTargetPk. Checkbox AC menandai bukti lokal; persetujuan QA/UAT belum dinyatakan.
 

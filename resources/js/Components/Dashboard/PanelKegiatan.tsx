@@ -1,7 +1,7 @@
 import { AlertTriangle, CalendarCheck } from 'lucide-react';
 import { Badge } from '@/Components/Badge';
 import { Card } from '@/Components/Card';
-import { KotakHitungan } from '@/Components/Dashboard/KotakHitungan';
+import { DaftarHitungan } from '@/Components/Dashboard/DaftarHitungan';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { statusKegiatanConfig } from '@/types/kegiatan';
@@ -9,14 +9,21 @@ import type { DashboardKegiatan, StatusKegiatan } from '@/types/dashboard';
 
 const STATUS: StatusKegiatan[] = ['rencana', 'terlaksana', 'tidak_terlaksana', 'ditunda', 'batal'];
 
+const tanpaKegiatan = (kegiatan: DashboardKegiatan) => STATUS.every((status) => kegiatan.per_status[status] === 0);
+
 /** Status kegiatan dari data kerja (Q45 §45.3): berubah langsung tanpa menunggu pengesahan, jadi bukan angka capaian resmi. */
 export function PanelKegiatan({ kegiatan, periodeNama }: { kegiatan: DashboardKegiatan; periodeNama: string }) {
     const formatTanggal = useFormatTanggal();
-    const kosong = STATUS.every((status) => kegiatan.per_status[status] === 0);
+    const items = STATUS.map((status) => ({
+        key: status,
+        label: statusKegiatanConfig[status].label,
+        token: statusKegiatanConfig[status].variant,
+        nilai: kegiatan.per_status[status],
+    }));
 
     return (
-        <section aria-labelledby="status-kegiatan">
-            <Card>
+        <section aria-labelledby="status-kegiatan" className="h-full">
+            <Card className="h-full">
                 <div className="flex flex-wrap items-start gap-3 px-5 pt-5 pb-3">
                     <span className="rounded-lg bg-primary/10 p-2 text-primary">
                         <CalendarCheck className="h-4 w-4" aria-hidden="true" />
@@ -33,11 +40,7 @@ export function PanelKegiatan({ kegiatan, periodeNama }: { kegiatan: DashboardKe
                 </div>
 
                 <div className="space-y-4 px-5 pb-5">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                        {STATUS.map((status) => (
-                            <KotakHitungan key={status} status={status} label={statusKegiatanConfig[status].label} nilai={kegiatan.per_status[status]} />
-                        ))}
-                    </div>
+                    <DaftarHitungan items={items} satuan="kegiatan" />
 
                     {kegiatan.terlambat_jumlah > 0 && (
                         <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-warning-dark">
@@ -60,51 +63,63 @@ export function PanelKegiatan({ kegiatan, periodeNama }: { kegiatan: DashboardKe
                         </div>
                     )}
 
-                    {kosong ? (
-                        <p className="text-sm text-muted">Belum ada kegiatan pada periode ini.</p>
-                    ) : (
-                        <div>
-                            {/* Enam kolom baru muat sebagai tabel mulai lg; di bawahnya panel terlalu sempit sehingga baris tetap kartu. */}
-                            <Table wrapperClassName="overflow-x-visible" className="block lg:table">
-                                <caption className="sr-only">Kegiatan per IKU {periodeNama}</caption>
-                                <TableHeader className="hidden lg:table-header-group">
-                                    <TableRow>
-                                        <TableHead className="whitespace-normal">IKU</TableHead>
-                                        {STATUS.map((status) => (
-                                            <TableHead key={status} className="whitespace-normal text-right">
-                                                {statusKegiatanConfig[status].label}
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody className="block lg:table-row-group">
-                                    {kegiatan.per_iku.length === 0 && (
-                                        <TableRow className="block lg:table-row">
-                                            <TableCell colSpan={STATUS.length + 1} className="block py-6 text-center text-sm text-muted lg:table-cell">
-                                                Belum ada kegiatan yang diklaim IKU pada periode ini.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                    {kegiatan.per_iku.map((iku) => (
-                                        <TableRow key={iku.id} className="grid min-w-0 grid-cols-2 gap-2 p-4 lg:table-row">
-                                            <TableCell className="col-span-2 min-w-0 p-0 lg:max-w-sm lg:px-4 lg:py-3">
-                                                <p className="text-xs font-semibold text-ink">{iku.kode}</p>
-                                                <p className="mt-0.5 break-words text-xs text-muted">{iku.nama}</p>
-                                            </TableCell>
-                                            {STATUS.map((status) => (
-                                                <TableCell key={status} className="min-w-0 p-0 tabular-nums lg:px-4 lg:py-3 lg:text-right">
-                                                    <span className="mr-2 text-xs text-muted lg:hidden">{statusKegiatanConfig[status].label}</span>
-                                                    {iku.jumlah[status]}
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                            <p className="mt-2 text-xs text-muted">Kegiatan yang diklaim lebih dari satu IKU dihitung pada setiap IKU tersebut.</p>
-                        </div>
-                    )}
+                    {tanpaKegiatan(kegiatan) && <p className="text-sm text-muted">Belum ada kegiatan pada periode ini.</p>}
                 </div>
+            </Card>
+        </section>
+    );
+}
+
+/** Kegiatan per IKU pada kartu tersendiri selebar konten agar enam kolom tidak bergantung pada lebar panel status (Q66). */
+export function TabelKegiatanPerIku({ kegiatan, periodeNama }: { kegiatan: DashboardKegiatan; periodeNama: string }) {
+    if (tanpaKegiatan(kegiatan)) return null;
+
+    return (
+        <section aria-labelledby="kegiatan-per-iku">
+            <Card>
+                <div className="px-5 pt-5 pb-3">
+                    <h2 id="kegiatan-per-iku" className="text-base font-semibold tracking-tight text-ink">
+                        Kegiatan per IKU {periodeNama}
+                    </h2>
+                    <p className="mt-0.5 text-xs text-muted">Kegiatan yang diklaim lebih dari satu IKU dihitung pada setiap IKU tersebut.</p>
+                </div>
+                {/* Enam kolom baru muat sebagai tabel mulai lg; di bawahnya area konten terlalu sempit sehingga baris tetap kartu. */}
+                <Table wrapperClassName="overflow-x-visible" className="block lg:table">
+                    <caption className="sr-only">Kegiatan per IKU {periodeNama}</caption>
+                    <TableHeader className="hidden lg:table-header-group">
+                        <TableRow>
+                            <TableHead className="whitespace-normal">IKU</TableHead>
+                            {STATUS.map((status) => (
+                                <TableHead key={status} className="whitespace-normal text-right">
+                                    {statusKegiatanConfig[status].label}
+                                </TableHead>
+                            ))}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody className="block lg:table-row-group">
+                        {kegiatan.per_iku.length === 0 && (
+                            <TableRow className="block lg:table-row">
+                                <TableCell colSpan={STATUS.length + 1} className="block py-6 text-center text-sm text-muted lg:table-cell">
+                                    Belum ada kegiatan yang diklaim IKU pada periode ini.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                        {kegiatan.per_iku.map((iku) => (
+                            <TableRow key={iku.id} className="grid min-w-0 grid-cols-2 gap-2 p-4 lg:table-row">
+                                <TableCell className="col-span-2 min-w-0 p-0 lg:max-w-sm lg:px-4 lg:py-3">
+                                    <p className="text-xs font-semibold text-ink">{iku.kode}</p>
+                                    <p className="mt-0.5 break-words text-xs text-muted">{iku.nama}</p>
+                                </TableCell>
+                                {STATUS.map((status) => (
+                                    <TableCell key={status} className="min-w-0 p-0 tabular-nums lg:px-4 lg:py-3 lg:text-right">
+                                        <span className="mr-2 text-xs text-muted lg:hidden">{statusKegiatanConfig[status].label}</span>
+                                        {iku.jumlah[status]}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </Card>
         </section>
     );

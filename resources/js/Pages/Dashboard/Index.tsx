@@ -2,13 +2,11 @@ import { lazy, Suspense } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowRight, BarChart2, Check, FileText, Info, RotateCcw, Send, ShieldCheck, UserX } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Badge } from '@/Components/Badge';
 import { Card } from '@/Components/Card';
 import { DashboardFilter } from '@/Components/Dashboard/DashboardFilter';
-import { PanelKegiatan } from '@/Components/Dashboard/PanelKegiatan';
+import { PanelKegiatan, TabelKegiatanPerIku } from '@/Components/Dashboard/PanelKegiatan';
 import { PanelRencanaAksi } from '@/Components/Dashboard/PanelRencanaAksi';
 import { STATUS_ALUR, persenDisahkan } from '@/Components/Dashboard/statusAlur';
-import { STATUS_DIHITUNG, STATUS_TAMPILAN } from '@/Components/Dashboard/statusTampilan';
 import { TabelStatusIndikator } from '@/Components/Dashboard/TabelStatusIndikator';
 import type { DashboardProps, StatusAlur } from '@/types/dashboard';
 import type { SharedPageProps } from '@/types/auth';
@@ -17,6 +15,9 @@ const DashboardCharts = lazy(() => import('@/Components/Dashboard/DashboardChart
 
 const outlineLink =
     'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-all duration-150 hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25 focus:ring-offset-1';
+
+// Panel Rencana Aksi dan kegiatan sama lebar mulai lg (Q66); grid-cols-1 (minmax 0) mencegah isi panel melebarkan halaman.
+const gridPanel = 'grid grid-cols-1 gap-5 lg:grid-cols-2';
 
 const kartuStatus: Record<StatusAlur, { icon: typeof FileText; tone: string; desc: string }> = {
     draft: { icon: FileText, tone: 'bg-soft text-muted', desc: 'Belum diajukan' },
@@ -35,7 +36,6 @@ export default function DashboardIndex({
     activePeriode,
     stats,
     progresPeriode,
-    ringkasanStatus,
     statusIndikator,
     grafik,
     progresRencanaAksi,
@@ -43,6 +43,7 @@ export default function DashboardIndex({
 }: DashboardProps) {
     const { auth, errors } = usePage<SharedPageProps & { errors?: Record<string, string> }>().props;
     const persen = persenDisahkan(stats.disahkan, stats.total);
+    const descDraft = stats.tidak_mengisi > 0 ? `${stats.tidak_mengisi} tidak mengisi (melewati batas pengisian)` : kartuStatus.draft.desc;
 
     const alasanKosong = !activeRenstra
         ? `Belum ada Renstra aktif yang mencakup tahun ${tahun}.`
@@ -79,40 +80,14 @@ export default function DashboardIndex({
                     </Card>
                 ) : null}
 
-                {!activePeriode && activeJadwal && <PanelRencanaAksi progres={progresRencanaAksi} tahun={activeJadwal.tahun} />}
+                {!activePeriode && activeJadwal && (
+                    <div className={gridPanel}>
+                        <PanelRencanaAksi progres={progresRencanaAksi} tahun={activeJadwal.tahun} />
+                    </div>
+                )}
 
                 {activePeriode && (
                     <>
-                        <section aria-labelledby="status-capaian" className="space-y-3">
-                            <div>
-                                <h2 id="status-capaian" className="text-base font-semibold tracking-tight text-ink">
-                                    Status capaian {activePeriode.nama_periode}
-                                </h2>
-                                <p className="mt-0.5 text-xs text-muted">
-                                    Angka resmi hanya dari pengukuran yang disahkan. Status Tercapai/Belum tercapai tampil setelah status capaian
-                                    ditetapkan.
-                                </p>
-                            </div>
-                            {/* Tujuh kartu sebaris baru muat mulai 2xl; di bawahnya label status terpotong. */}
-                            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 2xl:grid-cols-7">
-                                {STATUS_DIHITUNG.map((key) => (
-                                    <Card key={key} className="p-4">
-                                        <div data-status={key}>
-                                            <Badge variant={STATUS_TAMPILAN[key].variant} className="whitespace-normal">
-                                                {STATUS_TAMPILAN[key].label}
-                                            </Badge>
-                                            <p className="mt-2 text-2xl font-bold tabular-nums text-ink">{ringkasanStatus[key]}</p>
-                                        </div>
-                                    </Card>
-                                ))}
-                            </div>
-                            {ringkasanStatus.tidak_berlaku > 0 && (
-                                <p className="text-xs text-muted">
-                                    {ringkasanStatus.tidak_berlaku} indikator belum berlaku pada periode ini dan tidak dihitung sebagai kewajiban.
-                                </p>
-                            )}
-                        </section>
-
                         <section aria-labelledby="ringkasan-status" className="space-y-3">
                             <h2 id="ringkasan-status" className="sr-only">
                                 Ringkasan status pengukuran {activePeriode.nama_periode}
@@ -133,7 +108,7 @@ export default function DashboardIndex({
                                         tone={kartuStatus[key].tone}
                                         label={label}
                                         value={stats[key]}
-                                        desc={key === 'disahkan' ? `${persen}% dari total` : kartuStatus[key].desc}
+                                        desc={key === 'disahkan' ? `${persen}% dari total` : key === 'draft' ? descDraft : kartuStatus[key].desc}
                                     />
                                 ))}
                             </div>
@@ -156,13 +131,11 @@ export default function DashboardIndex({
                             />
                         </Suspense>
 
-                        {/* grid-cols-1 (minmax 0) mencegah tabel per IKU melebarkan halaman; dua panel sebaris baru muat mulai xl. */}
-                        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                        <div className={gridPanel}>
                             <PanelRencanaAksi progres={progresRencanaAksi} tahun={activeJadwal?.tahun ?? tahun} />
-                            <div className="xl:col-span-2">
-                                <PanelKegiatan kegiatan={kegiatan} periodeNama={activePeriode.nama_periode} />
-                            </div>
+                            <PanelKegiatan kegiatan={kegiatan} periodeNama={activePeriode.nama_periode} />
                         </div>
+                        <TabelKegiatanPerIku kegiatan={kegiatan} periodeNama={activePeriode.nama_periode} />
 
                         <Card>
                             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
