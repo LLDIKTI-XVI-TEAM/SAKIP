@@ -39,6 +39,42 @@ const periode = (id: string, nama: string): RencanaAksiPeriode => ({
     id, nama, urutan: 1, efektif: true, status: 'efektif', nilai: [], skor: { nilai: null, status_perhitungan: 'belum_diisi' }, peringatan_turun: false, komponen_turun: [],
 });
 
+const TOTAL_KOSONG = { total: '0', belum_diisi: 0, per_periode: {} };
+
+it('panel RA menampilkan total presisi di atas batas Number dan total nol untuk periode tanpa kegiatan', () => {
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
+        kegiatan={{ daftar: [{ id: 'k1', periode_id: 'tw1', kegiatan_id: 'keg-1', nama: 'Besar', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null,
+            anggaran: '999999999999999', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
+        total: { total: '9999999999999991', belum_diisi: 0, per_periode: { tw1: { total: '9999999999999991', belum_diisi: 0 } } }, can: { tambah: false, kelola: false } }} />);
+
+    expect(screen.getByText(/^Total Rp\s?9\.999\.999\.999\.999\.991$/)).toBeTruthy();
+    const tw2 = within(screen.getByRole('region', { name: 'Triwulan II' }));
+    expect(tw2.getByText(/^Total Rp\s?0$/)).toBeTruthy();
+    expect(tw2.getByText('Belum ada kegiatan.')).toBeTruthy();
+});
+
+it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan klaim pengukuran, serta total yang menandai anggaran belum diisi', () => {
+    const baris = { periode_id: 'tw1', status: 'rencana', komponen_id: null, arah_dampak: 'menambah' as const, catatan: null };
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
+        kegiatan={{ daftar: [
+            { ...baris, id: 'k1', kegiatan_id: 'keg-1', nama: 'Workshop', anggaran: '1500000', sumber_klaim: 'rencana_aksi', kegiatan_bersama: true },
+            { ...baris, id: 'k2', kegiatan_id: 'keg-2', nama: 'Rapat', anggaran: null, sumber_klaim: 'pengukuran', kegiatan_bersama: false },
+        ], total: { total: '1500000', belum_diisi: 1, per_periode: { tw1: { total: '1500000', belum_diisi: 1 } } }, can: { tambah: false, kelola: true } }} />);
+
+    const [workshop, rapat] = screen.getAllByRole('listitem').map((item) => within(item));
+    expect(workshop.getByText(/Anggaran: Rp\s?1\.500\.000/)).toBeTruthy();
+    expect(workshop.getByText('Kegiatan bersama')).toBeTruthy();
+    expect(workshop.queryByText('Klaim pengukuran')).toBeNull();
+    expect(rapat.getByText('Anggaran: Belum diisi')).toBeTruthy();
+    expect(rapat.getByText('Klaim pengukuran')).toBeTruthy();
+    expect(rapat.queryByText('Kegiatan bersama')).toBeNull();
+    // Klaim pengukuran tidak dapat dikelola di halaman Kegiatan, sehingga tautannya tidak ditawarkan.
+    expect(workshop.getByRole('link', { name: 'Kelola klaim' })).toBeTruthy();
+    expect(rapat.queryByRole('link', { name: 'Kelola klaim' })).toBeNull();
+    expect(screen.getByText(/Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)/)).toBeTruthy();
+    expect(screen.getByText(/^Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
+});
+
 it('mengirim klaim dengan komponen dari rencana aksi terpilih dan mengingatkan klaim tidak mengubah nilai', () => {
     render(<KlaimPanel kegiatanId="keg-1" klaim={panel} />);
     expect(screen.getByText(/tidak mengubah nilai komponen maupun pengukuran/i)).toBeTruthy();
@@ -75,8 +111,8 @@ it('tanpa rencana aksi yang dapat diklaim tidak menampilkan form dan menjelaskan
 it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke periode terbuka lain', () => {
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II'), periode('tw3', 'Triwulan III')]}
         komponen={[]} terkunci={['tw1']}
-        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Rapat lama', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null }],
-            can: { tambah: true, kelola: true } }} />);
+        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Rapat lama', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
+            total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
 
     expect(screen.queryByRole('button', { name: /Tambah kegiatan Triwulan I$/ })).toBeNull();
     expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/kegiatan/keg-1/edit');
@@ -99,8 +135,8 @@ it('pembaca RA melihat komponen snapshot, arah dampak, dan catatan tanpa akses k
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]}
         komponen={[{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }]}
         terkunci={['tw1']} kegiatan={{ daftar: [
-            { id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: 'komp-1', arah_dampak: 'mengurangi', catatan: 'Mengurangi kendala pelaksanaan' },
-        ], can: { tambah: false, kelola: false } }} />);
+            { id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: 'komp-1', arah_dampak: 'mengurangi', catatan: 'Mengurangi kendala pelaksanaan', anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false },
+        ], total: TOTAL_KOSONG, can: { tambah: false, kelola: false } }} />);
 
     const row = within(screen.getByRole('listitem'));
     expect(row.getByText('Bimtek')).toBeTruthy();
@@ -116,8 +152,8 @@ it.each([
     ['komponen-lama', 'Komponen tidak tersedia pada snapshot'],
 ])('menjelaskan komponen %s tanpa menghilangkan klaim', (komponenId, label) => {
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
-        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: komponenId, arah_dampak: 'menambah', catatan: null }],
-            can: { tambah: false, kelola: false } }} />);
+        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: komponenId, arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
+            total: TOTAL_KOSONG, can: { tambah: false, kelola: false } }} />);
 
     const row = within(screen.getByRole('listitem'));
     expect(row.getByText(label)).toBeTruthy();
@@ -126,7 +162,7 @@ it.each([
 
 it('menonaktifkan tambah kegiatan selama form target berubah belum disimpan', () => {
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
-        kegiatan={{ daftar: [], can: { tambah: true, kelola: true } }} />);
+        kegiatan={{ daftar: [], total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
 
     expect(screen.getByRole<HTMLButtonElement>('button', { name: /Tambah kegiatan Triwulan I$/ }).disabled).toBe(true);
     expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
@@ -136,7 +172,7 @@ it('menahan kelola klaim saat target kotor dan mengaktifkannya kembali sesudah b
     const props = {
         rencanaAksiId: 'ra-1', periode: [periode('tw1', 'Triwulan I')], komponen: [], terkunci: [],
         kegiatan: { daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana' as const,
-            komponen_id: null, arah_dampak: 'menambah' as const, catatan: null }], can: { tambah: false, kelola: true } },
+            komponen_id: null, arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi' as const, kegiatan_bersama: false }], total: TOTAL_KOSONG, can: { tambah: false, kelola: true } },
     };
     const { rerender } = render(<KegiatanPanel {...props} kotor />);
 

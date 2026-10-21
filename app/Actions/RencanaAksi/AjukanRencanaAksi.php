@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Services\Kegiatan\TotalAnggaranKegiatan;
 use App\Services\Perencanaan\IndikatorArsipGuard;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Services\RencanaAksi\KesiapanPengajuan;
@@ -40,6 +41,7 @@ class AjukanRencanaAksi
         private readonly KonteksBekuRencanaAksi $konteks,
         private readonly KesiapanPengajuan $kesiapan,
         private readonly EvaluateEvidence $evaluator,
+        private readonly TotalAnggaranKegiatan $anggaran,
     ) {}
 
     /**
@@ -234,6 +236,9 @@ class AjukanRencanaAksi
                                 'id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks',
                             ]))->values()->all(),
                         ], $perencanaanKegiatan['evaluasi']),
+                        // Total anggaran saat pengajuan (Q42 §42.2 butir 6): tidak dihitung ulang meski anggaran kegiatan berubah kemudian.
+                        // Hanya klaim tahap RA, sama dengan `klaim` beku yang dikunci; klaim pengukuran tidak dikunci di sini.
+                        'anggaran_kegiatan' => $this->anggaran->perRencanaAksi($header, tahapRaSaja: true),
                         'persyaratan_bukti' => $persyaratan,
                         // `path` privat hanya untuk unduhan beku di server; tidak pernah masuk props.
                         'bukti_dukungs' => $bukti->map(fn (BuktiDukung $item): array => $item->only([
