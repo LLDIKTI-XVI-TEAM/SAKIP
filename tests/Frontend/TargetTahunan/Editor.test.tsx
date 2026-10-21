@@ -79,6 +79,13 @@ it('target Renstra ada: pembanding, anjuran, penanda deviasi, dan isian alasan b
     expect(screen.getByLabelText<HTMLTextAreaElement>('Alasan deviasi terhadap target Renstra').value).toBe('PK revisi menurunkan target');
 });
 
+it('indikator turun_baik: anjuran turun satu poin dan penanda di atas target Renstra (Q65 §65.2 butir 13)', () => {
+    show({ indikator: { ...editor.indikator, arah: 'turun_baik' }, target_tahunan: '12', target_renstra: '11', status_deviasi: 'menyimpang' });
+    expect(screen.getByText('Anjuran: target PK minimal sama atau turun satu poin dari target Renstra. Anjuran ini panduan, bukan aturan sistem.')).toBeTruthy();
+    expect(screen.queryByText(/naik satu poin/)).toBeNull();
+    expect(screen.getByText('Di atas target Renstra')).toBeTruthy();
+});
+
 it('indikator turun_baik yang menyimpang ditandai di atas target Renstra', () => {
     show({ indikator: { ...editor.indikator, arah: 'turun_baik' }, target_tahunan: '81', target_renstra: '80', status_deviasi: 'menyimpang' });
     const badge = screen.getByText('Di atas target Renstra');

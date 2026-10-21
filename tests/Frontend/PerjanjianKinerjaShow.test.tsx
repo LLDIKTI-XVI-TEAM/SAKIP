@@ -95,7 +95,8 @@ it('target Renstra tampil di samping target PK beserta anjuran dan penanda devia
     expect(within(baris1).getByText('Di bawah target Renstra')).toBeTruthy();
     expect(within(baris2).queryByText(/target Renstra$/)).toBeNull();
     expect(within(baris3).getByText('Di atas target Renstra')).toBeTruthy();
-    expect(screen.getByText('Anjuran: target PK minimal sama atau naik satu poin dari target Renstra. Anjuran ini panduan, bukan aturan sistem.')).toBeTruthy();
+    // Tabel memuat indikator naik_baik dan turun_baik, jadi anjuran menyebut kedua arah (Q65 §65.2 butir 13).
+    expect(screen.getByText('Anjuran: target PK minimal sama atau naik satu poin dari target Renstra; untuk indikator yang membaik bila nilainya turun, minimal sama atau turun satu poin. Anjuran ini panduan, bukan aturan sistem.')).toBeTruthy();
 });
 
 it('kode sasaran dan penanda deviasi memakai teks minimal 12px', () => {

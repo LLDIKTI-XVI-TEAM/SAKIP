@@ -10,7 +10,7 @@ import { Badge } from '@/Components/Badge';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
-import { ANJURAN_TARGET_RENSTRA, labelDeviasi } from './deviasi';
+import { anjuranTargetRenstra, labelDeviasi } from './deviasi';
 import type { TargetEditorProps } from './types';
 
 /** Satu form memiliki satu pasangan nilai dan versi. Refresh eksplisit mengganti keduanya bersama. */
@@ -171,7 +171,7 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
                         <dd className="font-mono tabular-nums text-ink">{formatNilai(editor.target_renstra, editor.indikator.desimal_tampilan)}</dd>
                         {editor.status_deviasi === 'menyimpang' && <dd><Badge variant="warning">{labelDeviasi(editor.indikator.arah)}</Badge></dd>}
                     </dl>
-                    <p className="text-xs text-muted">{ANJURAN_TARGET_RENSTRA}</p>
+                    <p className="text-xs text-muted">{anjuranTargetRenstra(editor.indikator.arah)}</p>
                 </>}
                 {mintaAlasan
                     ? <Textarea label="Alasan deviasi terhadap target Renstra" name="alasan_deviasi_renstra" autoComplete="off" rows={3} value={form.data.alasan_deviasi_renstra}
