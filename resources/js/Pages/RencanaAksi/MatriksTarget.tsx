@@ -170,8 +170,9 @@ export default function MatriksTarget({
                                 </p>
                                 {batas !== null && (
                                     <p id={kunciId} className="mt-2 text-xs text-muted">
+                                        {/* Periode yang boleh tanpa target tidak wajib diisi siapa pun, jadi tidak menyebut Tim Perencanaan. */}
                                         {terkunciAktor
-                                            ? `Batas pengisian ${formatTanggal(batas)} sudah lewat. Target diisi Tim Perencanaan.`
+                                            ? `Batas pengisian ${formatTanggal(batas)} sudah lewat.${baris.boleh_tanpa_target ? '' : ' Target diisi Tim Perencanaan.'}`
                                             : `Batas pengisian PIC ${formatTanggal(batas)} sudah lewat.`}
                                     </p>
                                 )}

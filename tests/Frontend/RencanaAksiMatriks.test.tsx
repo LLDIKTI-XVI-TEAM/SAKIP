@@ -404,6 +404,13 @@ describe('Tanda kunci periode, target kosong, dan dinilai tahunan', () => {
         expect(screen.queryByText('Periode dikunci; tidak disunting dan tidak dikirim.')).toBeNull();
     });
 
+    it('PIC: periode terkunci yang boleh tanpa target tidak menyebut target diisi Tim Perencanaan', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31', boleh_tanpa_target: true }), periode_terkunci: [PERIODE_1] })} />);
+
+        expect(screen.getByText('Batas pengisian 31 Maret 2026 sudah lewat.')).toBeTruthy();
+        expect(screen.queryByText(/Target diisi Tim Perencanaan/)).toBeNull();
+    });
+
     it('Perencanaan: periode lewat batas PIC tetap dapat disunting dan berbadge Terkunci bagi PIC', () => {
         render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }), periode_terkunci: [] })} />);
 
