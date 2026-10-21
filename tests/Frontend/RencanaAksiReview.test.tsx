@@ -42,7 +42,8 @@ const rencanaAksi: ReviewRencanaAksi = {
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
     target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
-    klaim: [{ id: 'klaim-1', periode_nama: 'Triwulan I', nama: 'Bimtek beku', status: 'rencana', komponen: null, arah_dampak: 'menambah', catatan: 'Catatan beku' }],
+    klaim: [{ id: 'klaim-1', periode_nama: 'Triwulan I', nama: 'Bimtek beku', status: 'rencana', komponen: null, arah_dampak: 'menambah', catatan: 'Catatan beku', anggaran: '1500000' }],
+    anggaran_kegiatan: { total: '1500000', belum_diisi: 1, per_periode: { 'p-1': { total: '1500000', belum_diisi: 1 } } },
     bukti_dukungs: [{ id: 'bukti-1', mode: 'file', nama_asli: 'versi-dua.pdf', tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/versi/versi-2/bukti/bukti-1/unduh' }],
     can: { verifikasi: true, kembalikan: true, sahkan: false, buka_kembali: false, evidence: true, kegiatan: true }, businessErrors: { verifikasi: [], kembalikan: [], sahkan: [], buka_kembali: [] }, pengesahan: null,
     dibuka_kembali: false,
@@ -73,6 +74,15 @@ describe('Review Rencana Aksi', () => {
         expect(screen.getByText('Bimtek beku')).toBeTruthy();
         expect(screen.getByText('Catatan beku')).toBeTruthy();
         expect(screen.queryByRole('textbox')).toBeNull();
+    });
+    it('menampilkan anggaran klaim dan total yang dibekukan saat pengajuan beserta penanda belum diisi', () => {
+        renderReview();
+        expect(screen.getByText(/Anggaran Rp\s?1\.500\.000/)).toBeTruthy();
+        expect(screen.getByText(/Total anggaran saat pengajuan:/).textContent).toMatch(/Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)/);
+    });
+    it('tidak menampilkan total untuk versi yang dibentuk sebelum total dibekukan', () => {
+        renderReview({ anggaran_kegiatan: null });
+        expect(screen.queryByText(/Total anggaran saat pengajuan/)).toBeNull();
     });
     it('menyembunyikan klaim beku bila aktor tidak boleh membaca kegiatan unit', () => {
         renderReview({ klaim: null, can: { ...rencanaAksi.can, kegiatan: false } });

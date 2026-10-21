@@ -7,11 +7,14 @@ use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Kegiatan\GerbangKlaimKegiatan;
+use App\Services\Kegiatan\TotalAnggaranKegiatan;
 use App\Support\PermissionCodes;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Props panel kegiatan per periode pada halaman Rencana Aksi (Q42 §42.1):
- * daftar kegiatan yang diklaim tahap RA beserta capability tambah. Akses
+ * daftar kegiatan yang diklaim RA (tahap RA dan pengukuran) beserta anggaran,
+ * penanda kegiatan bersama, total (Q42 §42.2), dan capability tambah. Akses
  * halaman sudah diputuskan `IndexRencanaAksi`; periode, komponen, dan
  * periode terkunci bagi aktor memakai props halaman yang sama.
  */
@@ -20,11 +23,13 @@ class DaftarKegiatanRencanaAksi
     public function __construct(
         private readonly GerbangKlaimKegiatan $gerbang,
         private readonly PermissionResolver $resolver,
+        private readonly TotalAnggaranKegiatan $anggaran,
     ) {}
 
     /**
      * Null bila aktor tidak boleh membaca kegiatan unit RA (deny unit menang),
-     * agar detail kegiatan tidak terbaca lewat halaman RA.
+     * agar detail kegiatan, termasuk anggaran dan total, tidak terbaca lewat
+     * halaman RA (Q42 §42.5).
      *
      * @return array<string, mixed>|null
      */
@@ -35,14 +40,35 @@ class DaftarKegiatanRencanaAksi
         if (! $this->resolver->allows($actor, PermissionCodes::KEGIATAN_READ, $unitId)) {
             return null;
         }
+
+        // Capability di luar snapshot READ ONLY: gerbang klaim mengambil row lock (`FOR SHARE`) yang ditolak transaksi read-only.
+        $can = [
+            'tambah' => $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE),
+            // Pengelolaan klaim per kegiatan berada di halaman Kegiatan; tautan hanya bila izin ubah kegiatan ada.
+            'kelola' => $this->resolver->allows($actor, PermissionCodes::KEGIATAN_UPDATE, $unitId),
+        ];
+
+        return DB::transaction(function () use ($header, $can): array {
+            // Daftar, penanda, dan total dibaca dari satu snapshot; bila dipanggil di dalam transaksi lain, isolasi milik caller.
+            if (DB::transactionLevel() === 1) {
+                DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
+            }
+
+            return [...$this->baca($header), 'can' => $can];
+        });
+    }
+
+    /** @return array{daftar: list<array<string, mixed>>, total: array<string, mixed>} */
+    private function baca(RencanaAksi $header): array
+    {
         $daftar = KlaimKegiatan::query()
             ->join('kegiatan', 'kegiatan.id', '=', 'klaim_kegiatan.kegiatan_id')
             ->where('klaim_kegiatan.rencana_aksi_id', $header->id)
-            ->where('klaim_kegiatan.sumber_klaim', 'rencana_aksi')
             ->orderBy('kegiatan.nama')
             ->orderBy('klaim_kegiatan.id')
             ->get(['klaim_kegiatan.id', 'klaim_kegiatan.kegiatan_id', 'klaim_kegiatan.komponen_id', 'klaim_kegiatan.arah_dampak',
-                'klaim_kegiatan.catatan', 'kegiatan.periode_id', 'kegiatan.nama', 'kegiatan.status']);
+                'klaim_kegiatan.catatan', 'klaim_kegiatan.sumber_klaim', 'kegiatan.periode_id', 'kegiatan.nama', 'kegiatan.status', 'kegiatan.anggaran']);
+        $bersama = $this->anggaran->kegiatanBersama($daftar->pluck('kegiatan_id')->map(fn ($id): string => (string) $id)->unique()->values()->all());
 
         return [
             'daftar' => $daftar->map(fn (KlaimKegiatan $klaim): array => [
@@ -51,15 +77,15 @@ class DaftarKegiatanRencanaAksi
                 'periode_id' => (string) $klaim->getAttribute('periode_id'),
                 'nama' => (string) $klaim->getAttribute('nama'),
                 'status' => (string) $klaim->getAttribute('status'),
+                // Kolom hasil join tidak melewati cast `decimal:0` Kegiatan; rupiah bulat, null berarti belum diisi.
+                'anggaran' => $klaim->getAttribute('anggaran') === null ? null : bcadd((string) $klaim->getAttribute('anggaran'), '0', 0),
+                'sumber_klaim' => $klaim->sumber_klaim,
+                'kegiatan_bersama' => in_array((string) $klaim->kegiatan_id, $bersama, true),
                 'komponen_id' => $klaim->komponen_id,
                 'arah_dampak' => $klaim->arah_dampak,
                 'catatan' => $klaim->catatan,
             ])->values()->all(),
-            'can' => [
-                'tambah' => $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE),
-                // Pengelolaan klaim per kegiatan berada di halaman Kegiatan; tautan hanya bila izin ubah kegiatan ada.
-                'kelola' => $this->resolver->allows($actor, PermissionCodes::KEGIATAN_UPDATE, $unitId),
-            ],
+            'total' => $this->anggaran->perRencanaAksi($header),
         ];
     }
 }

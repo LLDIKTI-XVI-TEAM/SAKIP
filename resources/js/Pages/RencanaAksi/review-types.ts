@@ -1,4 +1,5 @@
 import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
+import type { TotalAnggaran } from './types';
 
 export type StatusReview = 'draft' | 'diajukan' | 'diverifikasi' | 'dikembalikan' | 'disahkan';
 
@@ -37,7 +38,11 @@ export interface ReviewRencanaAksi {
         komponen: string | null;
         arah_dampak: 'menambah' | 'mengurangi' | null;
         catatan: string | null;
+        /** Rupiah bulat beku; null berarti belum diisi. */
+        anggaran: string | null;
     }[] | null;
+    /** Total anggaran yang dibekukan saat pengajuan; null untuk versi lama atau tanpa izin baca kegiatan. */
+    anggaran_kegiatan: (TotalAnggaran & { per_periode: Record<string, TotalAnggaran> }) | null;
     bukti_dukungs: {
         id: string;
         mode: 'file' | 'tautan' | 'teks';
