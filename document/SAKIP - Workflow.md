@@ -439,7 +439,8 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
        di audit — nilai tidak ditolak, penyimpanan tanpa alasan DITOLAK server (Q65 §65.2).
        Nilai yang sama tidak menyimpang; target Renstra belum ada atau target PK kosong tidak
        dinilai
-     → Anjuran "minimal sama atau naik satu poin" tampil sebagai panduan, bukan aturan sistem
+     → Anjuran "minimal sama atau naik satu poin" (`turun_baik`: "minimal sama atau turun satu poin")
+       tampil sebagai panduan, bukan aturan sistem (Q65 §65.2 butir 13)
      → Di luar alasan deviasi tersebut, alasan perubahan target PK opsional (Q43), juga
        setelah snapshot terbentuk (Q65 §65.1)
      → Setelah snapshot terbentuk, target PK tetap dapat diubah tetapi snapshot, rekonsiliasi
