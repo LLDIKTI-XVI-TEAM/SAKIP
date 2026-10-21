@@ -43,6 +43,7 @@ export default function DashboardIndex({
 }: DashboardProps) {
     const { auth, errors } = usePage<SharedPageProps & { errors?: Record<string, string> }>().props;
     const persen = persenDisahkan(stats.disahkan, stats.total);
+    const descDraft = stats.tidak_mengisi > 0 ? `${stats.tidak_mengisi} tidak mengisi (melewati batas pengisian)` : kartuStatus.draft.desc;
 
     const alasanKosong = !activeRenstra
         ? `Belum ada Renstra aktif yang mencakup tahun ${tahun}.`
@@ -107,7 +108,7 @@ export default function DashboardIndex({
                                         tone={kartuStatus[key].tone}
                                         label={label}
                                         value={stats[key]}
-                                        desc={key === 'disahkan' ? `${persen}% dari total` : kartuStatus[key].desc}
+                                        desc={key === 'disahkan' ? `${persen}% dari total` : key === 'draft' ? descDraft : kartuStatus[key].desc}
                                     />
                                 ))}
                             </div>

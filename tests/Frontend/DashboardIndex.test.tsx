@@ -31,6 +31,7 @@ vi.mock('apexcharts/features/legend', () => ({}));
 afterEach(cleanup);
 
 const zero = { total: 0, belum_mengisi: 0, draft: 0, diajukan: 0, diverifikasi: 0, dikembalikan: 0, disahkan: 0 };
+const statsNol = { ...zero, tidak_mengisi: 0 };
 const kegiatanKosong = { per_status: { rencana: 0, terlaksana: 0, tidak_terlaksana: 0, ditunda: 0, batal: 0 }, terlambat_jumlah: 0, per_iku: [], terlambat: [] };
 const indikator = (kode: string) => ({ id: kode, kode, nama: `Indikator ${kode}`, satuan: '%', desimal_tampilan: 2, arah: 'naik_baik' as const });
 
@@ -47,7 +48,7 @@ const props = (overrides: Partial<DashboardProps> = {}): DashboardProps => ({
     activeRenstra: { id: 'r1', nama: 'Renstra LLDIKTI XVI 2025–2029', tahun_mulai: 2025, tahun_selesai: 2029 },
     activeJadwal: { tahun: 2026, status: 'aktif' },
     activePeriode: { id: 'p2', nama_periode: 'Triwulan II 2026', status: 'aktif' },
-    stats: { ...zero, total: 200, diverifikasi: 1, disahkan: 199 },
+    stats: { ...statsNol, total: 200, diverifikasi: 1, disahkan: 199 },
     progresPeriode: [
         { periode_id: 'p1', nama: 'Triwulan I', dibuka: true, ...zero, total: 3, disahkan: 3 },
         { periode_id: 'p2', nama: 'Triwulan II', dibuka: true, ...zero, total: 200, diverifikasi: 1, disahkan: 199 },
@@ -129,6 +130,19 @@ it('menampilkan filter dan ringkasan status alur tanpa kartu status capaian (Q66
     expect(within(barisTabel('IK-01')).getByText('Tanpa target periode')).toBeTruthy();
 });
 
+it('kartu Draft menyebut jumlah tidak mengisi bila ada (Q66)', () => {
+    const { rerender } = render(<Index {...props({ stats: { ...statsNol, total: 5, draft: 3, tidak_mengisi: 2 } })} />);
+    const ringkasan = () => screen.getByRole('region', { name: /Ringkasan status pengukuran/ });
+
+    const keterangan = within(ringkasan()).getByText('2 tidak mengisi (melewati batas pengisian)');
+    expect(keterangan.parentElement?.textContent).toContain('Draft');
+
+    // Kontrol positif: tanpa tidak mengisi, keterangan Draft kembali "Belum diajukan".
+    rerender(<Index {...props({ stats: { ...statsNol, total: 5, draft: 3 } })} />);
+    expect(within(ringkasan()).queryByText(/tidak mengisi/)).toBeNull();
+    expect(within(ringkasan()).getByText('Belum diajukan')).toBeTruthy();
+});
+
 it('baris tanpa target periode menampilkan realisasi, target PK, dan selisih', () => {
     render(<Index {...props()} />);
     const row = barisTabel('IK-01');
@@ -176,7 +190,7 @@ it('menampilkan keadaan kosong pada grafik dan tabel periode terakhir', async ()
         <Index
             {...props({
                 activePeriode: { ...props().activePeriode!, status: 'terakhir' },
-                stats: zero,
+                stats: statsNol,
                 progresPeriode: [{ periode_id: 'p2', nama: 'Triwulan II', dibuka: true, ...zero }],
                 statusIndikator: [],
             })}
@@ -190,7 +204,7 @@ it('menampilkan keadaan kosong pada grafik dan tabel periode terakhir', async ()
 });
 
 it('menampilkan satu pemberitahuan dengan alasan bila belum ada periode', () => {
-    render(<Index {...props({ activeJadwal: null, activePeriode: null, stats: zero, progresPeriode: [], statusIndikator: [] })} />);
+    render(<Index {...props({ activeJadwal: null, activePeriode: null, stats: statsNol, progresPeriode: [], statusIndikator: [] })} />);
 
     expect(screen.getByRole('status').textContent).toContain('Belum ada Jadwal Tahunan 2026 untuk Renstra aktif.');
     expect(screen.queryByText('Total')).toBeNull();
@@ -302,7 +316,7 @@ it('menandai persetujuan sendiri dan reviu terlambat pada baris status', () => {
 });
 
 it('panel progres rencana aksi tetap tampil sebelum jendela pengisian pertama dibuka', () => {
-    render(<Index {...props({ activePeriode: null, stats: zero, progresPeriode: [], statusIndikator: [] })} />);
+    render(<Index {...props({ activePeriode: null, stats: statsNol, progresPeriode: [], statusIndikator: [] })} />);
 
     expect(screen.getByRole('status').textContent).toContain('Jendela pengisian pertama Jadwal Tahunan 2026 belum dimulai.');
     // Grid yang sama dengan saat periode dibuka, agar panel tetap selebar setengah layar.
