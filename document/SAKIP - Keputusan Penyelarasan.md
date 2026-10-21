@@ -1782,7 +1782,7 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 # Keputusan Q64 — Status Tampilan Dashboard Kinerja
 
-**Keputusan PM: 19 Oktober 2026 (WITA), saat perencanaan ISS-10.01 ([Issue #135](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/135)).** Melengkapi PRD §23 dan Plan 7.2, 7.6, 7.7. Q62 dan Q63 digunakan PR #145 dan PR #146 yang sudah merge; PR #149 juga memakai Q63 sehingga salah satunya perlu dinomori ulang saat integrasi. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+**Keputusan PM: 19 Oktober 2026 (WITA), saat perencanaan ISS-10.01 ([Issue #135](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/135)).** Melengkapi PRD §23 dan Plan 7.2, 7.6, 7.7. Q62 dan Q63 digunakan PR #145 dan PR #146 yang sudah merge. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
 
 ## 64.1 Status indikator × periode
 
@@ -1803,7 +1803,7 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 - PRD §23; Plan 7.2, 7.6, 7.7; design-system (status tampilan dashboard); US/ISS-10.01.
 - Selisih terhadap target PK tetap realisasi − target PK tanpa membalik tanda (Q47 §47.3 butir 1).
-- Status implementasi: ISS-10.01 (PR menyusul); AC-8 (anggaran per IKU) menunggu penjumlahan ISS-06.08 bagian kedua.
+- Status implementasi: ISS-10.01 (PR #147); AC-8 (anggaran per IKU) menunggu penjumlahan ISS-06.08 bagian kedua.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
