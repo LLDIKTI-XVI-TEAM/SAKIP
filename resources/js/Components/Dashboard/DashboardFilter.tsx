@@ -32,7 +32,8 @@ export function DashboardFilter({ filter, pilihan, errors = {} }: { filter: Dash
 
     return (
         <form role="search" aria-label="Filter dashboard" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" onSubmit={(event) => event.preventDefault()}>
-            {select('renstra_id', 'Renstra', pilihan.renstra.map((r) => ({ value: r.id, label: r.nama })))}
+            {/* Tanpa Renstra aktif, opsi kosong mencegah peramban menampilkan Renstra pertama seolah terpilih. */}
+            {select('renstra_id', 'Renstra', pilihan.renstra.map((r) => ({ value: r.id, label: r.nama })), filter.renstra_id === null ? 'Pilih Renstra' : undefined)}
             {select('tahun', 'Tahun', pilihan.tahun.map((t) => ({ value: t, label: String(t) })))}
             {select('periode_id', 'Periode', pilihan.periode.map((p) => ({ value: p.id, label: p.nama })))}
             {select('sasaran_id', 'Sasaran', pilihan.sasaran.map((s) => ({ value: s.id, label: `${s.kode} — ${s.deskripsi}` })), 'Semua sasaran')}

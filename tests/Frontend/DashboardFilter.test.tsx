@@ -4,7 +4,11 @@ import { router } from '@inertiajs/react';
 import { DashboardFilter } from '@/Components/Dashboard/DashboardFilter';
 import type { DashboardFilterValue, DashboardPilihan } from '@/types/dashboard';
 
-afterEach(cleanup);
+afterEach(() => {
+    cleanup();
+    // Riwayat panggilan router.get tidak boleh terbawa ke test berikutnya.
+    vi.restoreAllMocks();
+});
 beforeEach(() => {
     vi.spyOn(router, 'get').mockImplementation(() => undefined);
 });
@@ -52,4 +56,14 @@ it('mengganti tahun mengosongkan periode, sasaran, dan unit agar tidak tertolak 
     fireEvent.change(screen.getByLabelText('Tahun'), { target: { value: '2025' } });
 
     expect(router.get).toHaveBeenCalledWith('/dashboard', { renstra_id: 'r1', tahun: 2025 }, expect.anything());
+});
+
+it('tanpa Renstra aktif, select Renstra kosong dan memilih Renstra lama memuat ulang dashboard', () => {
+    render(<DashboardFilter filter={{ ...filter, renstra_id: null, tahun: null, periode_id: null }} pilihan={{ ...pilihan, tahun: [], periode: [], sasaran: [], unit: [] }} />);
+
+    const renstra = screen.getByLabelText('Renstra') as HTMLSelectElement;
+    expect(renstra.value).toBe('');
+    expect(screen.getByRole('option', { name: 'Pilih Renstra' })).toBeTruthy();
+    fireEvent.change(renstra, { target: { value: 'r1' } });
+    expect(router.get).toHaveBeenCalledWith('/dashboard', { renstra_id: 'r1' }, expect.anything());
 });
