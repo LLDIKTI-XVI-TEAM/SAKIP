@@ -74,7 +74,7 @@ class ResolveDashboardKonteks
 
         return [
             'renstra' => $renstra, 'jadwal' => $jadwal, 'periodeJadwal' => $periodeJadwal, 'periodeAktif' => $periodeJadwal !== null && $periodeJadwal === $aktif,
-            'periodeDibuka' => $periodeDibuka, 'semuaPeriode' => $semuaPeriode, 'unitDitolak' => $unitDitolak, 'tahun' => $tahun ?? $year, 'batas' => $batas,
+            'periodeDibuka' => $periodeDibuka, 'semuaPeriode' => $semuaPeriode, 'unitDitolak' => $unitDitolak, 'tahun' => $tahun ?? $year,
             'filter' => ['renstra_id' => $renstra?->id, 'tahun' => $tahun, 'periode_id' => $periodeJadwal?->periode_id, 'sasaran_id' => $sasaranId, 'unit_id' => $unitId],
             'pilihan' => [
                 'renstra' => $renstraOptions->map->only(['id', 'nama'])->values()->all(),

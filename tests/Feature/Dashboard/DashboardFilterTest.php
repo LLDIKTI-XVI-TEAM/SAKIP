@@ -138,16 +138,15 @@ class DashboardFilterTest extends TestCase
         $this->get('/dashboard?tahun=2026&sasaran_id='.$this->pengukuran->indikator->sasaran_strategis_id)->assertOk();
     }
 
-    public function test_jadwal_ditutup_tidak_memiliki_periode_aktif_dan_jendela_dinilai_pada_tanggal_penutupan(): void
+    public function test_jadwal_ditutup_tidak_memiliki_periode_aktif_dan_draft_lewat_jendela_tidak_mengisi(): void
     {
-        // Ditutup di tengah jendela TW I (1–15 Maret): bukan "aktif", dan draft belum dianggap lewat jendela.
+        // Ditutup di tengah jendela TW I (1–15 Maret): tidak ada periode aktif, tetapi jendela tetap dinilai pada tanggal bisnis (PRD §23).
         $this->jadwal->update(['status' => 'ditutup', 'closed_at' => Carbon::parse('2026-03-09 02:00:00', 'UTC')]);
-        $this->travelTo(now()->setDate(2026, 4, 1));
+        $this->travelTo(now()->setDate(2026, 3, 10));
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->where('activePeriode.status', 'terakhir')->where('statusIndikator.0.status', 'dalam_proses'));
 
-        // Ditutup setelah jendela berakhir: draft yang tertinggal adalah "Tidak mengisi".
-        $this->jadwal->update(['closed_at' => Carbon::parse('2026-03-20 02:00:00', 'UTC')]);
+        $this->travelTo(now()->setDate(2026, 4, 1));
         $this->get('/dashboard')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->where('activePeriode.status', 'terakhir')->where('statusIndikator.0.status', 'tidak_mengisi'));
     }

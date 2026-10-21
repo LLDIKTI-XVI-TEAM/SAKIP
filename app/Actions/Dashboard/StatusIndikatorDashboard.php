@@ -58,13 +58,12 @@ class StatusIndikatorDashboard
         $canRead = $this->permissions->allows($actor, 'pengukuran:read');
         $readDenies = $this->permissions->unitDitolak($actor, 'pengukuran:read')->pluck('unit_id')->all();
 
-        $batas = $konteks['batas'];
-        $cells = $rows->map(function ($row) use ($jadwal, $dibuka, $headers, $resmi, $bekuDari, $targets, $batas, $canRead, $readDenies): array {
+        $cells = $rows->map(function ($row) use ($jadwal, $dibuka, $headers, $resmi, $bekuDari, $targets, $today, $canRead, $readDenies): array {
             $periode = $dibuka[$row->periode_jadwal_id];
             $header = $headers->get($row->pengukuran_id ?? '');
             $versi = $resmi($row);
-            // Jendela dinilai terhadap batas jadwal (tanggal penutupan bila sudah ditutup), bukan hari ini.
-            $status = Status::tentukan(true, (bool) $row->berlaku, $header?->status_alur, $batas > $periode->pengisian_selesai->toDateString(),
+            // "Tidak mengisi" = Draft melewati pengisian_selesai pada tanggal bisnis (PRD §23), juga pada jadwal yang sudah ditutup.
+            $status = Status::tentukan(true, (bool) $row->berlaku, $header?->status_alur, $today > $periode->pengisian_selesai->toDateString(),
                 PeriodeTanpaTarget::isPeriodeLampau($jadwal, $periode), $versi);
             // Pengajuan yang sedang direviu memakai metadata indikator, unit, PIC, dan target beku saat diajukan, sama dengan halaman Pengukuran.
             $beku = $bekuDari($row);
