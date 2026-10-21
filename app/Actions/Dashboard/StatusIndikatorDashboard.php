@@ -18,8 +18,6 @@ class StatusIndikatorDashboard
 {
     private const ALUR = ['draft', 'diajukan', 'diverifikasi', 'dikembalikan', 'disahkan'];
 
-    private const STATUS = [Status::BELUM_DIBUKA, Status::TIDAK_BERLAKU, ...Status::DIHITUNG];
-
     public function __construct(
         private DaftarKewajibanPengukuran $kewajiban,
         private PresentPengukuran $present,
@@ -94,10 +92,10 @@ class StatusIndikatorDashboard
         $periodeIni = $cells->where('periode_jadwal_id', $terpilih);
 
         return [
-            'stats' => $this->tally($periodeIni),
+            // Q66 §66.1 butir 3: "Tidak mengisi" terhitung Draft pada ringkasan alur, jadi jumlahnya dikirim terpisah untuk kartu Draft.
+            'stats' => [...$this->tally($periodeIni), 'tidak_mengisi' => $periodeIni->where('baris.status', Status::TIDAK_MENGISI)->count()],
             'progresPeriode' => $konteks['semuaPeriode']->map(fn (PeriodeJadwal $p) => ['periode_id' => $p->periode_id, 'nama' => $p->periode->nama,
                 'dibuka' => $dibuka->has($p->id), ...$this->tally($cells->where('periode_jadwal_id', $p->id))])->values()->all(),
-            'ringkasanStatus' => array_merge(array_fill_keys(self::STATUS, 0), $periodeIni->countBy('baris.status')->all()),
             'statusIndikator' => $periodeIni->pluck('baris')->values()->all(),
             'grafik' => $this->grafik($cells, $konteks['periodeDibuka']),
         ];

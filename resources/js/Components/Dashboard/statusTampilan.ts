@@ -16,14 +16,3 @@ export const STATUS_TAMPILAN: Record<StatusTampilan, { label: string; variant: B
     tidak_berlaku: { label: 'Tidak berlaku', variant: 'muted' },
     belum_dibuka: { label: 'Belum dibuka', variant: 'muted' },
 };
-
-/** Kategori yang masuk hitungan kewajiban, urutan kartu ringkasan. */
-export const STATUS_DIHITUNG: StatusTampilan[] = [
-    'belum_mengisi',
-    'tidak_mengisi',
-    'dalam_proses',
-    'belum_ditetapkan',
-    'tanpa_target_periode',
-    'belum_dapat_diukur',
-    'tidak_dapat_dihitung',
-];

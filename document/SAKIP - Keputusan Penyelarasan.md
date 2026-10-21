@@ -1811,6 +1811,32 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 ---
 
+# Keputusan Q66 — Penyederhanaan Ringkasan dan Panel Dashboard Kinerja
+
+**Keputusan PM: 21 Oktober 2026 (WITA), tindak lanjut ISS-10.01 ([Issue #135](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/135)).** Melengkapi Q64 dan mengubah sementara PRD §23 serta Plan 7.2. Q65 dipakai keputusan target PK ISS-02.11 (PR #149), sehingga keputusan ini bernomor Q66. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 66.1 Ringkasan status tampilan
+
+1. Kartu ringkasan jumlah per status tampilan (Belum mengisi, Tidak mengisi, Dalam proses, Belum ditetapkan, Tanpa target periode, Belum dapat diukur, Tidak dapat dihitung) beserta catatan jumlah indikator "Tidak berlaku" dihapus dari dashboard. Sebagian isinya berulang dengan ringkasan status alur: "Belum mengisi" sama, dan "Dalam proses" adalah Draft yang belum melewati batas pengisian atau berada pada periode lampau, ditambah Diajukan, Diverifikasi, dan Dikembalikan. "Tidak mengisi" (Draft yang melewati batas pengisian di luar periode lampau) terhitung sebagai Draft pada ringkasan alur, sehingga jumlahnya ditampilkan pada kartu Draft (butir 3). Belum ditetapkan, Tanpa target periode, Belum dapat diukur, dan Tidak dapat dihitung adalah rincian pengukuran Disahkan dan hanya tampil per baris pada tabel. Tercapai/Belum tercapai belum dapat tampil (Q64 §64.1 butir 4).
+2. Status tampilan indikator × periode tetap dihitung menurut Q64 §64.1 dan ditampilkan per baris pada tabel status per indikator, termasuk "Tidak berlaku". Ringkasan di bagian atas dashboard adalah ringkasan status alur kewajiban periode terpilih: Total, Belum mengisi, Draft, Diajukan, Diverifikasi, Dikembalikan, dan Disahkan.
+3. Kartu Draft pada ringkasan status alur menyebut jumlah pengukuran "Tidak mengisi" bila lebih dari nol, mis. "2 tidak mengisi (melewati batas pengisian)"; bila nol, keterangannya tetap "Belum diajukan". "Tidak mengisi" adalah satu-satunya status tampilan yang menandai kelalaian pengisian (PRD §23), sehingga jumlahnya tidak cukup hanya tampil per baris.
+4. Penghapusan ini sementara. Ringkasan Tercapai/Belum tercapai (PRD §23; Plan 7.2) ditambahkan kembali setelah penetapan status capaian (Plan 6.4) tersedia di aplikasi.
+
+## 66.2 Panel Rencana Aksi dan kegiatan
+
+1. Panel progres Rencana Aksi dan panel status kegiatan tampil berdampingan dengan lebar dan tinggi yang sama pada layar lebar, dan bertumpuk pada layar sempit.
+2. Jumlah per status tampil sebagai daftar berlabel teks beserta angkanya; warna dan bar proporsi hanya penanda tambahan.
+3. Tabel kegiatan per IKU tampil pada kartu tersendiri di bawah kedua panel bila ada kegiatan pada periode terpilih. Label "belum diverifikasi" dan peringatan kegiatan yang melewati tanggal rencana (Q45 §45.3) tidak berubah.
+
+## 66.3 Dampak dan traceability
+
+- PRD §23; Plan 7.2 dan catatan Modul 7; design-system (dashboard); US/ISS-10.01.
+- Data halaman dashboard tidak lagi memuat hitungan per status tampilan, kecuali `stats.tidak_mengisi` untuk kartu Draft (§66.1 butir 3). Akses, daftar kewajiban, dan query lain tidak berubah, dan tidak ada migrasi.
+- Status implementasi: PR tindak lanjut ISS-10.01.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
 # Bukti aritmetika IKU 3
 
 Sumber historis: `document/Pengukuran Kinerja  Triwulan 2026.xlsx` pada commit `54c9489`, SHA-256 `66840a50d3048e9aa0a1c10c6d7b8158b80b95d006d2df9feefd209fdc09054b`. Workbook/transkrip sudah dihapus PM dari development melalui `17761d8`; keduanya tidak dipulihkan oleh penyelarasan ini.
