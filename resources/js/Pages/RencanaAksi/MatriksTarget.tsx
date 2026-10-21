@@ -15,6 +15,9 @@ interface MatriksTargetProps {
     disabled: boolean;
     /** Penentu per-periode boleh disunting (koreksi parsial). Default semua efektif boleh. */
     dapatDisunting?: (periodeId: string) => boolean;
+    /** Id periode yang terkunci bagi aktor (selalu kosong bagi Perencanaan). */
+    periodeTerkunci: ReadonlySet<string>;
+    formatTanggal: (tanggal: string) => string;
     /** Nilai input mentah per sel (`""` = belum diisi/null, `"0"` = nol eksplisit). */
     values: Record<string, string>;
     onValueChange: (periodeId: string, komponenId: string | null, value: string) => void;
@@ -49,6 +52,8 @@ export default function MatriksTarget({
     satuan,
     disabled,
     dapatDisunting,
+    periodeTerkunci,
+    formatTanggal,
     values,
     onValueChange,
     galatSel,
@@ -114,11 +119,18 @@ export default function MatriksTarget({
                     // saat simpan); backend tetap menolak fail-closed.
                     const terkunciKoreksi = dapatDisunting ? !dapatDisunting(baris.id) : false;
                     const selDisabled = disabled || terkunciKoreksi;
+                    const batas = baris.batas_terkunci_pic;
+                    const terkunciAktor = periodeTerkunci.has(baris.id);
+                    const kunciId = batas === null ? undefined : `kunci-${baris.id}`;
 
                     return (
                         <TableRow key={baris.id} className="grid grid-cols-2 gap-3 p-4 md:table-row md:align-top">
                             <TableHead scope="row" className="col-span-2 h-auto p-0 text-sm normal-case tracking-normal md:px-4 md:py-3.5">
-                                {baris.nama ?? 'Periode'}
+                                <span className="flex flex-wrap items-center gap-2">
+                                    {baris.nama ?? 'Periode'}
+                                    {/* Perencanaan tetap dapat menyunting setelah batas PIC, jadi badgenya menyebut PIC agar tidak terbaca sebagai kunci bagi dirinya. */}
+                                    {batas !== null && <Badge variant="muted" size="sm">{terkunciAktor ? 'Terkunci' : 'Terkunci bagi PIC'}</Badge>}
+                                </span>
                             </TableHead>
                             {kolom.map((sel) => {
                                 const key = kunciSel(baris.id, sel.komponen_id);
@@ -140,11 +152,12 @@ export default function MatriksTarget({
                                             type="number"
                                             step="any"
                                             value={values[key] ?? ''}
-                                            placeholder="Belum diisi"
+                                            placeholder={baris.boleh_tanpa_target ? (selDisabled ? '—' : 'Tidak ditargetkan') : 'Belum diisi'}
                                             disabled={selDisabled}
                                             onChange={(event) => onValueChange(baris.id, sel.komponen_id, event.target.value)}
                                             error={galat}
                                             aria-invalid={galat ? true : undefined}
+                                            aria-describedby={kunciId}
                                             helperText={values[key] === '0' || values[key] === '0.00' ? 'Nol eksplisit (berbeda dari kosong).' : undefined}
                                         />
                                     </TableCell>
@@ -155,8 +168,17 @@ export default function MatriksTarget({
                                 <p className="font-mono text-sm font-semibold text-ink" data-testid={`skor-${baris.id}`}>
                                     {labelSkor(baris.skor.nilai, baris.skor.status_perhitungan, formatNilai, desimalTampilan, satuan)}
                                 </p>
-                                {/* Catatan per baris hanya membedakan baris saat sebagian matriks dapat disunting. */}
-                                {terkunciKoreksi && !disabled && (
+                                {batas !== null && (
+                                    <p id={kunciId} className="mt-2 text-xs text-muted">
+                                        {terkunciAktor
+                                            ? `Batas pengisian ${formatTanggal(batas)} sudah lewat. Target diisi Tim Perencanaan.`
+                                            : `Batas pengisian PIC ${formatTanggal(batas)} sudah lewat.`}
+                                    </p>
+                                )}
+                                {/* Catatan per baris hanya membedakan baris saat sebagian matriks dapat disunting.
+                                    Baris yang terkunci bagi aktor sudah dijelaskan alasan batas di atas; catatan tetap
+                                    tampil bila baris nonaktif karena lingkup koreksi, termasuk baris "Terkunci bagi PIC". */}
+                                {terkunciKoreksi && !disabled && !terkunciAktor && (
                                     <p className="mt-2 text-xs font-medium text-muted" data-testid={`koreksi-terkunci-${baris.id}`}>
                                         Periode dikunci; tidak disunting dan tidak dikirim.
                                     </p>

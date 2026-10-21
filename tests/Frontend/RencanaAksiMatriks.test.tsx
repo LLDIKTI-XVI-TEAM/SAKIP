@@ -5,7 +5,7 @@ import { router } from '@inertiajs/react';
 import { http } from '@inertiajs/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import RencanaAksiShow from '@/Pages/RencanaAksi/Show';
-import type { RencanaAksiShow as RencanaAksiPayload } from '@/Pages/RencanaAksi/types';
+import type { RencanaAksiPeriode, RencanaAksiShow as RencanaAksiPayload } from '@/Pages/RencanaAksi/types';
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
@@ -46,14 +46,13 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
             desimal_tampilan: 2,
             status: 'aktif',
             tahun_mulai_berlaku: 2025,
+            dinilai_tahunan: false,
         },
         unit: { id: 'unit-uji', nama: 'Unit Uji' },
         jadwal: {
             id: 'jadwal-uji',
             tahun: 2026,
             status: 'aktif',
-            rencana_aksi_mulai: '2026-03-01',
-            rencana_aksi_selesai: '2026-03-31',
             penutupan: '2026-12-31',
         },
         penanggung_jawab: { id: 'pic-uji', nama: 'PIC Uji' },
@@ -79,6 +78,8 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
                 skor: { nilai: '50.00', status_perhitungan: 'terhitung' },
                 peringatan_turun: false,
                 komponen_turun: [],
+                batas_terkunci_pic: null,
+                boleh_tanpa_target: false,
             },
             {
                 id: PERIODE_2,
@@ -93,6 +94,8 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
                 skor: { nilai: '80.00', status_perhitungan: 'terhitung' },
                 peringatan_turun: false,
                 komponen_turun: [],
+                batas_terkunci_pic: null,
+                boleh_tanpa_target: false,
             },
         ],
         deviasi_pk: {
@@ -166,6 +169,8 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: '50.00', status_perhitungan: 'terhitung' },
                     peringatan_turun: false,
                     komponen_turun: [],
+                    batas_terkunci_pic: null,
+                    boleh_tanpa_target: false,
                 },
                 {
                     id: PERIODE_2,
@@ -180,6 +185,8 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: '30.00', status_perhitungan: 'terhitung' },
                     peringatan_turun: true,
                     komponen_turun: [PEMBILANG],
+                    batas_terkunci_pic: null,
+                    boleh_tanpa_target: false,
                 },
             ],
         });
@@ -211,6 +218,7 @@ describe('Rencana aksi matriks target', () => {
                 desimal_tampilan: 2,
                 status: 'aktif',
                 tahun_mulai_berlaku: 2025,
+                dinilai_tahunan: false,
             },
             komponen: [],
             periode: [
@@ -224,6 +232,8 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: '0.00', status_perhitungan: 'terhitung' },
                     peringatan_turun: false,
                     komponen_turun: [],
+                    batas_terkunci_pic: null,
+                    boleh_tanpa_target: false,
                 },
                 {
                     id: PERIODE_2,
@@ -235,6 +245,8 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: null, status_perhitungan: 'belum_diisi' },
                     peringatan_turun: false,
                     komponen_turun: [],
+                    batas_terkunci_pic: null,
+                    boleh_tanpa_target: false,
                 },
                 {
                     id: '55555555-5555-4555-8555-555555555555',
@@ -246,6 +258,8 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: null, status_perhitungan: 'belum_diisi' },
                     peringatan_turun: false,
                     komponen_turun: [],
+                    batas_terkunci_pic: null,
+                    boleh_tanpa_target: false,
                 },
             ],
             deviasi_pk: {
@@ -366,6 +380,89 @@ describe('Rencana aksi matriks target', () => {
         expect(router.post).toHaveBeenCalledTimes(1);
         const kirim = vi.mocked(router.post).mock.calls[0][1] as { expected_versi: number };
         expect(kirim.expected_versi).toBe(2);
+    });
+});
+
+describe('Tanda kunci periode, target kosong, dan dinilai tahunan', () => {
+    // Fixture rasio: TW I punya dua isian (`n · Pembilang · Triwulan I`, `t · Penyebut · Triwulan I`).
+    const inputTw1 = () => screen.getAllByRole<HTMLInputElement>('spinbutton', { name: /· Triwulan I$/ });
+    const periodeDenganTw1 = (ubah: Partial<RencanaAksiPeriode>): RencanaAksiPeriode[] => {
+        const [tw1, tw2] = buatPayload().periode;
+        return [{ ...tw1, ...ubah }, tw2];
+    };
+
+    it('PIC: periode lewat batas berbadge Terkunci dengan alasan bertanggal yang terhubung ke input', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }), periode_terkunci: [PERIODE_1] })} />);
+
+        expect(screen.getByText('Terkunci').closest('th')?.textContent).toContain('Triwulan I');
+        const alasan = screen.getByText('Batas pengisian 31 Maret 2026 sudah lewat. Target diisi Tim Perencanaan.');
+        expect(inputTw1()).toHaveLength(2);
+        for (const input of inputTw1()) {
+            expect(input.disabled).toBe(true);
+            expect(input.getAttribute('aria-describedby')?.split(' ')).toContain(alasan.id);
+        }
+        expect(screen.queryByText('Periode dikunci; tidak disunting dan tidak dikirim.')).toBeNull();
+    });
+
+    it('Perencanaan: periode lewat batas PIC tetap dapat disunting dan berbadge Terkunci bagi PIC', () => {
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }), periode_terkunci: [] })} />);
+
+        expect(screen.getByText('Terkunci bagi PIC')).toBeTruthy();
+        const alasan = screen.getByText('Batas pengisian PIC 31 Maret 2026 sudah lewat.');
+        expect(inputTw1()).toHaveLength(2);
+        for (const input of inputTw1()) {
+            expect(input.disabled).toBe(false);
+            expect(input.getAttribute('aria-describedby')?.split(' ')).toContain(alasan.id);
+        }
+    });
+
+    it('Perencanaan dalam sesi koreksi: periode di luar lingkup yang lewat batas PIC menampilkan badge dan catatan koreksi', () => {
+        render(
+            <RencanaAksiShow
+                rencanaAksi={buatPayload({
+                    periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }),
+                    periode_terkunci: [],
+                    koreksi: { aktif: true, periode_ids: [PERIODE_2] },
+                })}
+            />,
+        );
+
+        expect(screen.getByText('Terkunci bagi PIC')).toBeTruthy();
+        expect(screen.getByTestId(`koreksi-terkunci-${PERIODE_1}`).textContent).toContain('Periode dikunci; tidak disunting dan tidak dikirim.');
+        expect(inputTw1()).toHaveLength(2);
+        expect(inputTw1().every((input) => input.disabled)).toBe(true);
+    });
+
+    it('target yang boleh kosong: placeholder Tidak ditargetkan saat dapat disunting dan — saat baca-saja', () => {
+        const payload = buatPayload({
+            periode: periodeDenganTw1({
+                boleh_tanpa_target: true,
+                nilai: [
+                    { komponen_id: PEMBILANG, kode: 'n', label: 'Pembilang', nilai: null, keterangan: null },
+                    { komponen_id: PENYEBUT, kode: 't', label: 'Penyebut', nilai: null, keterangan: null },
+                ],
+                skor: { nilai: null, status_perhitungan: 'tidak_ditargetkan' },
+            }),
+        });
+        const { rerender } = render(<RencanaAksiShow rencanaAksi={payload} />);
+
+        expect(inputTw1().map((input) => input.getAttribute('placeholder'))).toEqual(['Tidak ditargetkan', 'Tidak ditargetkan']);
+        expect(screen.getByRole('spinbutton', { name: 'n · Pembilang · Triwulan II' }).getAttribute('placeholder')).toBe('Belum diisi');
+
+        rerender(<RencanaAksiShow rencanaAksi={{ ...payload, can: { ...payload.can, update: false } }} />);
+
+        expect(inputTw1().map((input) => input.getAttribute('placeholder'))).toEqual(['—', '—']);
+        expect(screen.getByTestId(`skor-${PERIODE_1}`).textContent).toContain('Tidak ditargetkan');
+    });
+
+    it('indikator dinilai tahunan menampilkan badge Dinilai tahunan', () => {
+        const payload = buatPayload();
+        const { rerender } = render(<RencanaAksiShow rencanaAksi={{ ...payload, indikator: { ...payload.indikator, dinilai_tahunan: true } }} />);
+
+        expect(screen.getByText('Dinilai tahunan')).toBeTruthy();
+
+        rerender(<RencanaAksiShow rencanaAksi={payload} />);
+        expect(screen.queryByText('Dinilai tahunan')).toBeNull();
     });
 });
 

@@ -36,7 +36,7 @@ const panel: KlaimKegiatanPanel = {
 };
 
 const periode = (id: string, nama: string): RencanaAksiPeriode => ({
-    id, nama, urutan: 1, efektif: true, status: 'efektif', nilai: [], skor: { nilai: null, status_perhitungan: 'belum_diisi' }, peringatan_turun: false, komponen_turun: [],
+    id, nama, urutan: 1, efektif: true, status: 'efektif', nilai: [], skor: { nilai: null, status_perhitungan: 'belum_diisi' }, peringatan_turun: false, komponen_turun: [], batas_terkunci_pic: null, boleh_tanpa_target: false,
 });
 
 it('mengirim klaim dengan komponen dari rencana aksi terpilih dan mengingatkan klaim tidak mengubah nilai', () => {

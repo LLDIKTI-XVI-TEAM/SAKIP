@@ -266,7 +266,10 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                             {/* `versi` adalah token konkurensi header, bukan nomor pengajuan; tidak ditampilkan. */}
                             <p className="text-xs text-muted">Tahun {rencanaAksi.tahun}</p>
                         </div>
-                        <Badge status={rencanaAksi.status_alur} />
+                        <div className="flex flex-wrap items-center gap-2">
+                            {rencanaAksi.indikator.dinilai_tahunan && <Badge variant="secondary">Dinilai tahunan</Badge>}
+                            <Badge status={rencanaAksi.status_alur} />
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <dl className="grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -290,14 +293,6 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                             <div>
                                 <dt className="text-muted">Penanggung jawab</dt>
                                 <dd className="mt-1 font-medium">{rencanaAksi.penanggung_jawab?.nama ?? '—'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-muted">Jendela penyusunan</dt>
-                                <dd className="mt-1 font-medium">
-                                    {rencanaAksi.jadwal.rencana_aksi_mulai ? formatTanggal(rencanaAksi.jadwal.rencana_aksi_mulai) : '—'}
-                                    {' — '}
-                                    {rencanaAksi.jadwal.rencana_aksi_selesai ? formatTanggal(rencanaAksi.jadwal.rencana_aksi_selesai) : '—'}
-                                </dd>
                             </div>
                             <div>
                                 <dt className="text-muted">Penutupan jadwal</dt>
@@ -375,7 +370,9 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                                 {(terkunciSemua || canUpdate || koreksi.aktif || terkunci.size > 0 || kotor) && (
                                     <p className="px-6 pt-4 pb-3 text-sm text-muted">
                                         {terkunciSemua
-                                            ? 'Tidak ada periode yang dapat dikoreksi.'
+                                            ? koreksi.aktif
+                                                ? 'Tidak ada periode yang dapat dikoreksi.'
+                                                : 'Semua periode terkunci.'
                                             : canUpdate
                                               ? 'Isi target setiap periode yang berlaku. Pratinjau di bawah tabel menghitung perubahan sebelum disimpan.'
                                               : null}
@@ -391,6 +388,8 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                                         satuan={satuan}
                                         disabled={formDisabled || kosong || terkunciSemua}
                                         dapatDisunting={bolehSunting}
+                                        periodeTerkunci={terkunci}
+                                        formatTanggal={formatTanggal}
                                         values={data.nilai}
                                         onValueChange={handleNilai}
                                         galatSel={galatSel}
