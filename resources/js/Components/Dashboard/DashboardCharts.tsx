@@ -219,7 +219,13 @@ function GrafikTargetRealisasi({ grafik, base, tahun }: { grafik: DashboardProps
             axisBorder: { show: false },
             axisTicks: { show: false },
         },
-        yaxis: { labels: { style: { colors: muted, fontSize: '12px' } } },
+        yaxis: {
+            labels: {
+                style: { colors: muted, fontSize: '12px' },
+                // Sumbu ikut format angka dan desimal tampilan indikator seperti tabel; pustaka juga memanggil formatter untuk nilai bukan angka.
+                formatter: (nilai: number) => (Number.isFinite(nilai) ? formatNilai(String(nilai), indikator?.desimal_tampilan ?? 0) : ''),
+            },
+        },
         grid: { borderColor: warnaToken('border'), strokeDashArray: 4 },
         tooltip: {
             ...base.tooltip,

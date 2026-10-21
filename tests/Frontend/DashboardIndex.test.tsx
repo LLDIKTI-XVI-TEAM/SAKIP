@@ -262,6 +262,16 @@ it('grafik yang disembunyikan dari pembaca layar tidak membuat elemen yang dapat
     for (const type of ['bar', 'donut', 'line']) expect(chartProps.get(type)?.options.chart?.accessibility?.enabled, type).toBe(false);
 });
 
+it('label sumbu Y grafik target vs realisasi memakai format angka aplikasi dan desimal tampilan indikator', async () => {
+    render(<Index {...props()} />);
+    await screen.findByTestId('chart-line');
+
+    // Bawaan pustaka memakai titik desimal dan jumlah desimal dari data, berbeda dari tabel dan tooltip.
+    const yaxis = chartProps.get('line')!.options.yaxis as { labels?: { formatter?: (value: number) => string } };
+    expect(yaxis.labels?.formatter?.(62.5)).toBe('62,50');
+    expect(yaxis.labels?.formatter?.(66.66666666666667)).toBe('66,67');
+});
+
 it('meng-escape satuan indikator pada nilai tooltip grafik target vs realisasi', async () => {
     const payload = '<img src=x onerror=alert(1)>';
     const base = props();
