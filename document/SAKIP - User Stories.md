@@ -1166,11 +1166,13 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-3:** Given tanggal realisasi, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)*
 - [ ] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
 - [ ] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
-- [ ] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4)*
+- [ ] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
 
 ### US-06.04 · Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan
 
 > **Q41, Q43 (13 Oktober 2026):** kegiatan yang tidak dilaksanakan sesuai rencana ditandai `ditunda` dengan justifikasi dan periode tujuan, lalu dilanjutkan sebagai kegiatan lanjutan (US-06.05); RA yang sudah disahkan tidak dibuka kembali hanya untuk memindahkan kegiatan, dan justifikasi menjadi catatan resmi yang dilihat Perencanaan saat verifikasi pengukuran (Q41 §41.4 butir 1 dan 3). Justifikasi tetap wajib (Q43 §43.2 butir 5). AC-6 ditambahkan karena story ini belum dikerjakan.
+
+> **Q69 (22 Oktober 2026):** hanya `rencana` dan `tidak_terlaksana` yang masih dapat berubah, sedangkan `terlaksana`, `ditunda`, dan `batal` final (Q69 §69.1). Story ini mencakup `rencana` → `tidak_terlaksana`/`ditunda`/`batal` dan `tidak_terlaksana` → `ditunda`/`batal`; transisi ke `terlaksana` mengikuti US-06.03. Data rencana baca-saja setelah status berubah (Q69 §69.3); kegiatan lanjutan dibentuk sistem saat `ditunda`, dengan isi dan audit mengikuti Q69 §69.5. AC diselaraskan dengan ISS-06.04.
 
 | Field | Detail |
 |---|---|
@@ -1188,16 +1190,18 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given status diubah menjadi `tidak_terlaksana`, `ditunda`, atau `batal`, When submit, Then justifikasi wajib.
-- [ ] **AC-2:** Given justifikasi kosong, When submit, Then ditolak.
-- [ ] **AC-3:** Given status bukan `terlaksana`, Then bukti SPJ pelaksanaan tidak diwajibkan semata-mata untuk transisi tersebut.
-- [ ] **AC-4:** Given kegiatan telah diklaim, When laporan dibentuk, Then narasi kegagalan/penundaan tetap dapat muncul sebagai konteks.
-- [ ] **AC-5:** Given perubahan status dilakukan, Then audit mencatat nilai lama/baru dan alasan.
-- [ ] **AC-6:** Given status diubah menjadi `ditunda`, When submit, Then periode tujuan wajib diisi, dan justifikasi menjadi catatan resmi yang dilihat Perencanaan saat verifikasi pengukuran. *(Q41 §41.4 butir 1 dan 3)*
+- [x] **AC-1:** Given status diubah menjadi `tidak_terlaksana`, `ditunda`, atau `batal`, When submit, Then justifikasi wajib.
+- [x] **AC-2:** Given justifikasi kosong, When submit, Then ditolak (422) dan diaudit.
+- [x] **AC-3:** Given status bukan `terlaksana`, Then bukti pelaksanaan tidak diwajibkan untuk transisi tersebut.
+- [x] **AC-4:** Given kegiatan telah diklaim, When laporan dibentuk, Then narasi kegagalan/penundaan tersedia sebagai konteks (data tersimpan dan terbaca; tampilan di ISS-10.02).
+- [x] **AC-5:** Given perubahan status dilakukan, Then audit mencatat nilai lama/baru dan alasan.
+- [x] **AC-6:** Given status diubah menjadi `ditunda`, When submit, Then periode tujuan wajib pada tahun yang sama dan lebih akhir; baris lanjutan minimal dibuat dengan `kegiatan_asal_id`; justifikasi menjadi catatan resmi untuk verifikasi pengukuran. *(Q41 §41.4 butir 1, 3, dan 5)*
+- [x] **AC-7 (guard):** Given kegiatan sudah `terlaksana`/`ditunda`/`batal`, atau tahun jadwalnya ditutup, When transisi dicoba, Then 422; tanpa `kegiatan:update` unit itu atau terkena deny → 403; keduanya teraudit. *(Q52, Q54, Q69 §69.1)*
+- [x] **AC-8:** Given kegiatan `tidak_terlaksana`, When diubah menjadi `ditunda` atau `batal` dengan justifikasi baru, Then diterima; justifikasi lama tercatat di `nilai_lama` audit; untuk `ditunda`, periode tujuan dan baris lanjutan mengikuti AC-6. *(Q69 §69.1 butir 1 dan 3)*
 
 **Business Rules / Catatan**
 
-- Kegiatan `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung dalam total anggaran; anggarannya terhitung pada kegiatan lanjutan (Q42 §42.2 butir 6; US-06.05, US-06.08).
+- Kegiatan asal `ditunda` tidak dihitung dalam total anggaran setelah lanjutannya diklaim; sebelum itu tetap terhitung, dan setelahnya anggarannya terhitung pada kegiatan lanjutan (Q42 §42.2 butir 6; Q69 §69.6; US-06.05, US-06.08).
 - Periode tujuan hanya periode lain pada tahun yang sama; kegiatan yang mundur ke tahun berikutnya dicatat sebagai kegiatan baru pada Rencana Aksi tahun itu (Q41 §41.4 butir 5).
 
 ### US-06.05 · Roll-Over Kegiatan ke Periode Berikutnya
@@ -1211,7 +1215,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 | **Story Points** | 5 |
 | **Modul** | Kegiatan, Klaim Dampak, dan Bukti Pelaksanaan |
 | **Dependensi** | Kegiatan asal berstatus `ditunda`; periode tujuan valid. |
-| **Otorisasi** | `kegiatan:create`. |
+| **Otorisasi** | `kegiatan:update` melalui transisi `ditunda` ISS-06.04; kegiatan lanjutan dibentuk sistem sehingga `kegiatan:create` tidak disyaratkan (Q69 §69.4 butir 1). |
 | **Dampak Data** | `kegiatan`, `audit_log`. |
 
 > **Sebagai** PIC/petugas unit berizin,  
@@ -1223,12 +1227,13 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-1:** Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
 - [ ] **AC-2:** Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
 - [ ] **AC-3:** Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
-- [ ] **AC-4:** Given roll-over selesai, Then audit menyimpan hubungan asal-tujuan.
+- [ ] **AC-4:** Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. *(Q69 §69.5 butir 4)*
 - [ ] **AC-5:** Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
 
 **Business Rules / Catatan**
 
-- Kegiatan lanjutan menyalin anggaran kegiatan asal dan anggarannya dapat diubah; kegiatan asal `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung dalam total, dan total yang sudah dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6; US-06.08).
+- Kegiatan lanjutan menyalin unit, tahun, nama, tujuan, sasaran peserta, keterangan peserta, lokasi, dan anggaran dari kegiatan asal; periode = periode tujuan, tanggal rencana kosong, status `rencana`, dan `kegiatan_asal_id` = kegiatan asal; klaim dan berkas tidak disalin; klaim tahap pengukurannya mengikuti story ini (Q69 §69.5 butir 1).
+- Kegiatan lanjutan menyalin anggaran kegiatan asal dan anggarannya dapat diubah; kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), dan total yang sudah dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6; US-06.08).
 - Kegiatan lanjutan hanya ke periode lain pada tahun yang sama; kegiatan yang mundur ke tahun berikutnya dicatat sebagai kegiatan baru pada Rencana Aksi tahun itu. Berkas kegiatan asal, termasuk RAB, tidak disalin; tautan ke asal lewat `kegiatan_asal_id`, dan persyaratan tahap perencanaan kegiatan tidak diperiksa ulang untuk kegiatan lanjutan yang diklaim pada tahap pengukuran (Q41 §41.4 butir 5).
 
 ### US-06.06 · Koreksi Klaim Kegiatan Berdasarkan Sumber Versi
@@ -1311,7 +1316,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 **Business Rules / Catatan**
 
 - Realisasi belanja, pagu induk, dan rekonsiliasi anggaran tidak dikelola (Q42 §42.2 butir 3).
-- Kegiatan lanjutan (Q41 §41.4) menyalin anggaran kegiatan asal dan anggarannya dapat diubah. Kegiatan asal `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung dalam total, sehingga anggarannya hanya terhitung pada kegiatan lanjutan; total yang sudah dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6).
+- Kegiatan lanjutan (Q41 §41.4) menyalin anggaran kegiatan asal dan anggarannya dapat diubah. Kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), sehingga anggarannya hanya terhitung pada kegiatan lanjutan; total yang sudah dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6).
 - Aplikasi tidak membuat template RAB (Q42 §42.3 butir 2).
 - Persyaratan tahap `kegiatan_perencanaan` dapat ditandai hanya untuk kegiatan beranggaran (`jenis_berkas.hanya_kegiatan_beranggaran`, default `false`). Persyaratan RAB memakai penanda ini sehingga hanya diperiksa untuk kegiatan beranggaran lebih dari 0, sedangkan persyaratan lain pada tahap yang sama berlaku untuk setiap kegiatan (Q42 §42.3 butir 3).
 - Contoh berkas bukan bukti: Perencanaan dapat menambah, mengganti, atau menghapusnya kapan saja; penghapusannya wajib alasan (Q43 §43.2 butir 2), dan contoh berkas tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 4).

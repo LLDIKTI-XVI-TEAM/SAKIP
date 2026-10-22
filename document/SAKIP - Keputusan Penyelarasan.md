@@ -1088,7 +1088,11 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:09:38, 1:19:12–1:24:52, dan 1
 
 - PRD §4 prinsip 7, §5.1, §8 butir 6, §12.2, §12.3, §14.1, §14.6, §15.2, §28, §31; Data Model §2.15, §2.16, §2.23, §2.25–§2.26; Workflow §1, §4, §7, §8, §9, §13; Plan modul 3, 11 (task 11.9), dan 12.
 - User Stories/Issues: US/ISS-03.01, 05.01, dan 05.03 diberi catatan; US/ISS-03.06, 05.06, 06.04, dan 06.05 diselaraskan; issue baru **US/ISS-05.07**.
-- Status implementasi: §41.1–§41.2 diterapkan ISS-05.07 (#130); jendela penyusunan tidak lagi dibaca atau ditulis (kolom dan CHECK `jadwal_tahunan_urutan_ra` dihapus oleh migrasi #159). §41.3 tetap ditegakkan gerbang pengukuran; §41.4 mengikuti ISS-06.04/06.05.
+- Status implementasi: §41.1–§41.2 diterapkan ISS-05.07 (#130); jendela penyusunan tidak lagi dibaca atau ditulis (kolom dan CHECK `jadwal_tahunan_urutan_ra` dihapus oleh migrasi #159). §41.3 tetap ditegakkan gerbang pengukuran. §41.4:
+  - butir 1 dan 3 diterapkan ISS-06.04 (#136) mengikuti Q69;
+  - butir 2: kegiatan lanjutan dibentuk ISS-06.04, sedangkan klaim tahap pengukurannya mengikuti ISS-06.05;
+  - butir 4 tidak terdampak;
+  - butir 5: batas tahun yang sama dan tanpa salinan berkas diterapkan ISS-06.04, sedangkan pengecualian persyaratan tahap perencanaan untuk lanjutan yang diklaim pada tahap pengukuran mengikuti ISS-06.05.
 
 ---
 
@@ -1111,7 +1115,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:05:23 dan 1:28:47–1:44:27. Bu
 3. Rincian realisasi belanja, pagu induk, dan rekonsiliasi anggaran tidak dikelola. (menit 1:40:03–1:42:29)
 4. Anggaran dijumlahkan otomatis per periode, per RA, dan per IKU. Kegiatan yang diklaim lebih dari satu IKU ditampilkan penuh di setiap IKU dengan penanda **"kegiatan bersama"**; total per unit dan per tahun dihitung dari **kegiatan unik** agar tidak terhitung ganda. (PM)
 5. Dashboard menampilkan total anggaran per IKU dengan drill-down sampai kegiatan. (menit 1:34:24–1:35:27)
-6. Kegiatan lanjutan (Q41 §41.4) menyalin anggaran kegiatan asal dan anggarannya dapat diubah. Kegiatan asal yang `ditunda` dan sudah memiliki kegiatan lanjutan tidak dihitung dalam total, sehingga anggarannya hanya terhitung pada kegiatan lanjutan. Total yang sudah dibekukan pada versi RA tidak berubah. (PM, saat penyelarasan Q47–Q51)
+6. Kegiatan lanjutan (Q41 §41.4) menyalin anggaran kegiatan asal dan anggarannya dapat diubah. Kegiatan asal yang `ditunda` dan sudah memiliki kegiatan lanjutan tidak dihitung dalam total, sehingga anggarannya hanya terhitung pada kegiatan lanjutan. Total yang sudah dibekukan pada versi RA tidak berubah. (PM, saat penyelarasan Q47–Q51) *(Catatan 23 Oktober 2026: diperjelas oleh Q69 §69.6, yaitu kegiatan asal `ditunda` tidak dihitung setelah lanjutannya diklaim; https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136#issuecomment-6343201888)*
 7. Total pada halaman RA menghitung seluruh klaim, baik tahap RA maupun tahap pengukuran, karena butir 4 tidak membedakan tahap klaim; klaim tahap pengukuran tampil di halaman RA dengan label "Klaim pengukuran". (PM, 20 Oktober 2026, [review PR #148](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/148#issuecomment-6287372375))
 8. Total per IKU dan per unit/tahun cukup tersedia di layanan sampai tampilan dashboard (butir 5, ISS-10.01). (PM, 20 Oktober 2026, [review PR #148](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/148#issuecomment-6287372375))
 9. Total yang dibekukan pada versi RA (butir 6) hanya dihitung dari klaim tahap RA yang dikunci saat pengajuan, sehingga sama dengan daftar klaim beku; klaim tahap pengukuran tidak dikunci karena menguncinya berarti mengubah aturan versi RA lintas modul. Total pada review versi ("saat pengajuan") dan pada halaman RA dapat berbeda. (PM, 20 Oktober 2026, [review PR #148](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/148#issuecomment-6287372375))
@@ -1141,7 +1145,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:05:23 dan 1:28:47–1:44:27. Bu
 - Menggantikan Q28 serta PRD §5.2 butir "Modul anggaran kegiatan penuh" sepanjang menyangkut input, tampilan, dan penjumlahan anggaran per kegiatan. Q12, Q22, Q24, dan Q25 tetap berlaku.
 - PRD §5.1, §5.2, §14.7, §15.1, §15.6, §16, §18.2–§18.4, §18.6, §18.8, §22.4, §23, §25.1, §30; Data Model §2.25, §2.26, §2.29, §2.30, §6; Workflow §1, §7, §8, §9, §10; Plan modul 7, 8, 11, 12 (task 12.12), dan 13; System Architecture §9.
 - User Stories/Issues: US/ISS-06.01 diberi catatan (PR #97 tidak diperluas; anggaran dikerjakan di ISS-06.08); US/ISS-06.02, 06.03, 10.01, dan 10.02 diselaraskan; US/ISS-11.01 diberi catatan; issue baru **US/ISS-06.08**.
-- Status implementasi: input dan validasi anggaran, tahap persyaratan `kegiatan_perencanaan` dengan penanda `hanya_kegiatan_beranggaran`, contoh berkas, berkas RAB pada kegiatan, dan gerbang pengajuan RA diterapkan ISS-06.08 (PR pertama). Penjumlahan anggaran (§42.2 butir 4 dan 6, termasuk total beku pada versi RA dan pengecualian kegiatan asal `ditunda` yang memiliki lanjutan) dan pembatasan tampilan anggaran per kegiatan (§42.5) diterapkan pada PR kedua ISS-06.08; tampilan dashboard per IKU (§42.2 butir 5) mengikuti ISS-10.01. Catatan penerapan ISS-06.08 (asumsi kerja, menunggu persetujuan PM): (1) format RAB Excel/PDF (§42.3 butir 1) diterapkan lewat konfigurasi persyaratan oleh Perencanaan, yaitu mode file dengan `format_diizinkan` `xlsx,pdf` (Q44 §44.1), tanpa aturan format khusus RAB di kode karena tidak ada penanda RAB tersendiri; (2) kunci §42.4 butir 5 berlaku untuk seluruh berkas tahap `kegiatan_perencanaan` milik kegiatan sejak salah satu RA pengklaimnya diajukan, sejalan dengan snapshot versi RA yang membekukan seluruh berkas berlaku kegiatan tersebut; mengikuti pola Q36, berkas itu tidak dapat dihapus maupun diganti selama kunci berlaku agar berkas yang dibekukan tetap berlaku dan dapat diunduh, sedangkan unggahan baru tetap diterima (kegiatan bersama dapat butuh persyaratan indikator lain, §42.4 butir 4); koreksi lewat pengembalian RA, lalu berkas pengganti beralasan (Q25).
+- Status implementasi: input dan validasi anggaran, tahap persyaratan `kegiatan_perencanaan` dengan penanda `hanya_kegiatan_beranggaran`, contoh berkas, berkas RAB pada kegiatan, dan gerbang pengajuan RA diterapkan ISS-06.08 (PR pertama). Penjumlahan anggaran (§42.2 butir 4 dan 6, termasuk total beku pada versi RA dan pengecualian kegiatan asal `ditunda` setelah lanjutannya diklaim, dengan syarat klaim diterapkan ISS-06.04 (Q69 §69.6)) dan pembatasan tampilan anggaran per kegiatan (§42.5) diterapkan pada PR kedua ISS-06.08; tampilan dashboard per IKU (§42.2 butir 5) mengikuti ISS-10.01. Catatan penerapan ISS-06.08 (asumsi kerja, menunggu persetujuan PM): (1) format RAB Excel/PDF (§42.3 butir 1) diterapkan lewat konfigurasi persyaratan oleh Perencanaan, yaitu mode file dengan `format_diizinkan` `xlsx,pdf` (Q44 §44.1), tanpa aturan format khusus RAB di kode karena tidak ada penanda RAB tersendiri; (2) kunci §42.4 butir 5 berlaku untuk seluruh berkas tahap `kegiatan_perencanaan` milik kegiatan sejak salah satu RA pengklaimnya diajukan, sejalan dengan snapshot versi RA yang membekukan seluruh berkas berlaku kegiatan tersebut; mengikuti pola Q36, berkas itu tidak dapat dihapus maupun diganti selama kunci berlaku agar berkas yang dibekukan tetap berlaku dan dapat diunduh, sedangkan unggahan baru tetap diterima (kegiatan bersama dapat butuh persyaratan indikator lain, §42.4 butir 4); koreksi lewat pengembalian RA, lalu berkas pengganti beralasan (Q25).
 
 ---
 
@@ -1912,6 +1916,110 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 - Akses tidak berubah: halaman tetap memerlukan `penanggung_jawab:update`. Tidak ada migrasi, dan route, controller, serta penilaian izin kerja tidak berubah.
 - Status implementasi: PR perbaikan ISS-04.01.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
+# Keputusan Q69 — Status Kegiatan, Justifikasi, dan Kegiatan Lanjutan
+
+**Keputusan PM: 22 Oktober 2026 (WITA), untuk ISS-06.03, ISS-06.04 ([Issue #136](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136)), dan ISS-06.05 ([Issue #137](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/137)); dicatat dari [komentar keputusan PM di #136](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136#issuecomment-6343201888), [ralat §69.5 butir 4](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136#issuecomment-6343611397), dan [ralat nomor keputusan](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136#issuecomment-6349871234).** Keputusan ini:
+- memperjelas Q45 §45.1 butir 4 dan Q42 §42.2 butir 6;
+- mempersempit PRD §15.4 dan Workflow §8 untuk status kegiatan yang final;
+- mengubah otorisasi pembentukan kegiatan lanjutan pada US/ISS-06.05.
+
+Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring Penanggung Jawab, sehingga keputusan ini bernomor Q69. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 69.1 Matriks transisi
+
+1. Hanya status `rencana` dan `tidak_terlaksana` yang masih dapat berubah:
+   - `rencana` → `terlaksana`, `tidak_terlaksana`, `ditunda`, atau `batal`;
+   - `tidak_terlaksana` → `terlaksana`, `ditunda`, atau `batal`.
+2. Status `terlaksana`, `ditunda`, dan `batal` bersifat final:
+   - `terlaksana`: bukti pelaksanaan yang menjadi dasarnya sudah tidak dapat dihapus atau diganti (PRD §15.6, §18.8);
+   - `ditunda`: sistem sudah membentuk kegiatan lanjutan (Q41 §41.4 butir 2), dan anggaran kegiatan asal tidak lagi dihitung dalam total setelah lanjutannya diklaim (§69.6);
+   - `batal`: kegiatan dinyatakan tidak akan dilaksanakan.
+3. Syarat setiap transisi tidak berubah:
+   - ke `terlaksana`: gerbang bukti tahap `kegiatan` (PRD §15.6), termasuk bila berasal dari `tidak_terlaksana`;
+   - ke `tidak_terlaksana`, `ditunda`, atau `batal`: justifikasi wajib (Q43 §43.2 butir 5; §69.2). Justifikasi baru menggantikan nilai pada kegiatan, sedangkan nilai lama tetap tercatat di `audit_log`;
+   - ke `ditunda`: periode tujuan dan pembentukan kegiatan lanjutan (Q41 §41.4; §69.5).
+4. Batas waktu seluruh transisi adalah tahun kegiatan belum terkunci (Q52 §52.2–§52.3), sama dengan pembaruan data kegiatan lainnya. Kunci per periode Rencana Aksi (Q41 §41.2) tidak membatasi transisi status kegiatan.
+
+## 69.2 Justifikasi sebagai data kegiatan
+
+1. Justifikasi status `tidak_terlaksana`, `ditunda`, atau `batal` disimpan pada `kegiatan.justifikasi` sebagai catatan resmi kegiatan. Catatan ini dibaca Perencanaan saat verifikasi pengukuran (Q41 §41.4 butir 3) dan bukan alasan audit.
+2. Justifikasi diisi pada form status kegiatan, bukan pada modal alasan audit. Server menolak justifikasi yang kosong setelah spasi di tepinya dibuang, serta menerapkan batas panjang dan penolakan karakter kontrol yang sama dengan isian teks kegiatan lainnya.
+3. Audit `kegiatan.ubah_status` mencatat status dan justifikasi lama serta baru.
+4. Justifikasi tidak dapat diubah tanpa transisi status. Pada status final, justifikasi ikut final.
+
+## 69.3 Data rencana dan data pelaksanaan
+
+1. Data rencana kegiatan (unit, tahun, periode, nama, tujuan, sasaran dan keterangan peserta, lokasi, tanggal rencana, dan anggaran) hanya dapat diubah selama status kegiatan `rencana`. Setelah status berubah, data rencana menjadi baca-saja: penyimpanan ditolak 422 dan form ditampilkan terkunci.
+2. Pindah periode hanya melalui transisi `ditunda` dan baris kegiatan baru (Data Model §5).
+3. Klaim kegiatan tetap boleh pada setiap status mengikuti gerbang klaim yang berlaku (PRD §15.5).
+4. Data pelaksanaan (`tanggal_realisasi`, `realisasi_peserta`, dan narasi per kegiatan) bukan data rencana. Data ini diisi dan diperbarui melalui aksi pelaksanaan (ISS-06.03) sampai tahun terkunci (PRD §15.4); pada kegiatan `terlaksana`, pembaruan ini tidak mengubah status, dan bukti dasarnya tetap tidak dapat dihapus atau diganti.
+
+## 69.4 Izin dan gerbang transisi
+
+1. Transisi ke `tidak_terlaksana`, `ditunda`, atau `batal` mensyaratkan `kegiatan:update` pada unit kegiatan beserta izin bacanya (Q54 §54.3).
+   - Kegiatan lanjutan dibentuk sistem sebagai bagian transisi `ditunda` (Q41 §41.4 butir 2), sehingga `kegiatan:create` tidak disyaratkan.
+   - Ketentuan ini menggantikan otorisasi `kegiatan:create` pada US/ISS-06.05.
+2. Penolakan:
+   - tanpa izin atau terkena deny → 403;
+   - unit kegiatan nonaktif, status awal di luar §69.1 butir 1, atau tahun terkunci (Q52) → 422;
+   - seluruh penolakan diaudit.
+3. Kunci periode asal (Q41 §41.2) dan status Rencana Aksi yang mengklaim kegiatan tidak diperiksa, karena perubahan status pelaksanaan bukan perubahan rencana. Versi Rencana Aksi yang sudah diajukan atau disahkan beserta snapshot-nya tidak berubah.
+
+## 69.5 Kegiatan lanjutan
+
+1. **Isi kegiatan lanjutan:**
+   - disalin dari kegiatan asal: unit, tahun, nama, tujuan, sasaran peserta, keterangan peserta, lokasi, dan anggaran. Daftar field mengikuti salin kegiatan ISS-06.02;
+   - periode = periode tujuan; tanggal rencana kosong; status `rencana`; `kegiatan_asal_id` = kegiatan asal;
+   - klaim dan berkas tidak disalin. Berkas mengikuti Q41 §41.4 butir 5; klaim tahap pengukuran mengikuti ISS-06.05;
+   - anggaran lanjutan tetap dapat diubah selama berstatus `rencana` (Q42 §42.2 butir 6).
+2. **Periode tujuan:**
+   - harus periode aktif pada tahun yang sama dan lebih akhir dari periode asal (Q41 §41.4 butir 5);
+   - periode tujuan yang sudah terkunci bagi PIC ditolak; Perencanaan dikecualikan sampai `penutupan` (Q41 §41.2);
+   - kegiatan pada periode terakhir tahun itu tidak dapat ditunda: kegiatan itu ditandai `tidak_terlaksana` atau `batal`, dan pelaksanaannya pada tahun berikutnya dicatat sebagai kegiatan baru (Q41 §41.4 butir 5).
+3. Satu kegiatan asal paling banyak memiliki satu kegiatan lanjutan. Ketentuan ini dijaga di dalam transaksi transisi dengan kunci baris kegiatan asal, karena `ditunda` final (§69.1 butir 2).
+4. **Audit dalam transaksi yang sama:**
+   - `kegiatan.ubah_status` pada kegiatan asal (status, justifikasi, periode tujuan, id lanjutan);
+   - `kegiatan.geser_periode` pada kegiatan lanjutan (pasangan asal–tujuan);
+   - keduanya dengan `dasar_izin` `kegiatan:update`;
+   - klaim tahap pengukuran untuk kegiatan lanjutan (ISS-06.05) yang dibuat dalam transaksi yang sama ditambahkan ke payload `kegiatan.geser_periode`; klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`.
+
+## 69.6 Total anggaran
+
+1. Memperjelas Q42 §42.2 butir 6: kegiatan asal `ditunda` dikecualikan dari total anggaran setelah kegiatan lanjutannya diklaim. Sebelum lanjutan diklaim, kegiatan asal tetap terhitung, sehingga anggarannya tidak hilang dari total di antara penundaan dan klaim.
+2. Total hanya menghitung kegiatan yang diklaim, sehingga anggaran tidak terhitung dua kali. Total yang sudah dibekukan pada versi Rencana Aksi tidak berubah (Q42 §42.2 butir 6).
+
+## 69.7 Akibat
+
+1. Pembaruan status lebih dari sekali pada kegiatan yang sama (Q45 §45.1 butir 4) berlangsung melalui `tidak_terlaksana`, mis. `rencana` → `tidak_terlaksana` → `terlaksana`. Tidak ada entitas bulanan.
+2. Pengukuran yang sudah diajukan tetap memuat salinan status dan justifikasi kegiatan yang dibekukan saat pengajuan. Perubahan sesudahnya hanya tampil pada data kerja dan dashboard berlabel "belum diverifikasi" (Q45 §45.3).
+3. Kesalahan penandaan pada status final tidak dapat dikoreksi lewat transisi status. Karena itu, form transisi `ditunda` dan `batal` menampilkan langkah konfirmasi yang menyebut bahwa hasilnya final. Bila jalur koreksi dibutuhkan, keputusannya dibuat tersendiri.
+
+## 69.8 Dampak dan traceability
+
+- **Q45 §45.1 butir 4:** "dapat diperbarui sepanjang periode berjalan" berlaku melalui matriks §69.1.
+- **Q42 §42.2 butir 6:** diperjelas oleh §69.6.
+- **PRD:** §15.4 merujuk §69.1 dan §69.3.
+- **Workflow §8:** butir 2 dan 5 merujuk §69.1. Diagram status ditambah transisi `tidak_terlaksana → terlaksana | ditunda | batal`, karena `tidak_terlaksana` tidak lagi hanya berakhir di status itu.
+- **Plan:**
+  - 12.3: scope mencakup transisi dari `tidak_terlaksana` (§69.1);
+  - 12.4: aksi geser terpisah digantikan transisi `ditunda`, dengan isi lanjutan §69.5;
+  - 12.12: aturan total §69.6.
+- **US/ISS-06.03:** AC-6 merujuk §69.1; aksi pelaksanaan menerima status awal `rencana` atau `tidak_terlaksana`, serta pembaruan data pelaksanaan kegiatan `terlaksana` (§69.3 butir 4).
+- **US/ISS-06.04 (Issue #136):** AC, TEST, dan DoD mengikuti §69.1–§69.6.
+- **US/ISS-06.05 (Issue #137):**
+  - otorisasi menjadi `kegiatan:update` melalui transisi `ditunda` (§69.4 butir 1);
+  - audit hubungan asal–tujuan memakai `kegiatan.geser_periode` (§69.5 butir 4);
+  - isi lanjutan mengikuti §69.5 butir 1.
+- **Data Model:** §2.32 tidak berubah, karena `kegiatan.ubah_status` dan `kegiatan.geser_periode` sudah tercantum. Kolom `kegiatan` tidak berubah dan tidak ada migrasi.
+- **design-system.md:** `kegiatanStatusBadgeMap` diselaraskan dengan peta status kegiatan di kode (`rencana`, `terlaksana`, `tidak_terlaksana`, `ditunda`, `batal`).
+- **Status implementasi:** bagian ISS-06.04 diterapkan ([Issue #136](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136)); bagian ISS-06.03 dan ISS-06.05 belum diterapkan.
+  - §69.1 (selain transisi ke `terlaksana`), §69.2–§69.4, §69.5 (selain kunci periode tujuan dan klaim), dan §69.6: ISS-06.04;
+  - transisi ke `terlaksana` dan data pelaksanaan: ISS-06.03;
+  - kunci periode tujuan dan klaim lanjutan: ISS-06.05.
+- **Status keputusan:** baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
 
