@@ -312,8 +312,6 @@ class RencanaAksiInputBaruDanSnapshotBekuTest extends TestCase
         $jadwal = JadwalTahunan::create([
             'renstra_id' => $renstra->id,
             'tahun' => 2026,
-            'rencana_aksi_mulai' => '2026-03-01',
-            'rencana_aksi_selesai' => '2026-03-31',
             'penutupan' => '2026-12-31',
             'status' => 'aktif',
             'activated_at' => now(),
@@ -421,8 +419,6 @@ class RencanaAksiInputBaruDanSnapshotBekuTest extends TestCase
         $jadwal = JadwalTahunan::create([
             'renstra_id' => $renstra->id,
             'tahun' => 2026,
-            'rencana_aksi_mulai' => '2026-03-01',
-            'rencana_aksi_selesai' => '2026-03-31',
             'penutupan' => '2026-12-31',
             'status' => 'aktif',
             'activated_at' => now(),

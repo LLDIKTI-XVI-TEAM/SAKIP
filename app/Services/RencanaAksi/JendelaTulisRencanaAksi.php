@@ -17,24 +17,26 @@ use Carbon\CarbonInterface;
  * jalur Perencanaan global, PIC efektif, dan kunci per periode mengikuti
  * `jadwal_periode.pengisian_selesai` yang berlaku pada tanggal Asia/Makassar.
  *
- * Sejak Q41 tidak ada jendela penyusunan: kolom
- * `jadwal_tahunan.rencana_aksi_mulai`/`rencana_aksi_selesai` dibiarkan di
- * skema tetapi tidak dibaca di sini. PIC efektif dengan grant yang sah
- * dapat menulis sejak jadwal `aktif` sampai `penutupan`; periode P
- * terkunci bagi PIC setelah `pengisian_selesai` P terlewati — termasuk
- * periode lampau saat aktivasi (tanggalnya sudah lewat sehingga otomatis
- * terkunci) dan hasil revisi resmi jendela (Q18) karena yang dibaca selalu
- * nilai berlaku. Dalam sesi koreksi sah pascapenutupan, periode wajib
- * berada dalam lingkup koreksi dan kunci tanggal tetap berlaku bagi PIC,
- * sehingga PIC hanya menulis periode yang jendela pengisiannya dibuka
- * kembali secara resmi (Q19, Q41 §41.2 butir 6).
+ * Sejak Q41 jendela penyusunan dihapus; pembatas tulis PIC kini kunci per
+ * periode. PIC efektif dengan grant yang sah dapat menulis sejak jadwal
+ * `aktif` sampai `penutupan`; periode P terkunci bagi PIC setelah
+ * `pengisian_selesai` P terlewati — termasuk periode lampau saat aktivasi
+ * (tanggalnya sudah lewat sehingga otomatis terkunci) dan hasil revisi resmi
+ * jendela (Q18) karena yang dibaca selalu nilai berlaku. Dalam sesi koreksi
+ * sah pascapenutupan, periode wajib berada dalam lingkup koreksi dan kunci
+ * tanggal tetap berlaku bagi PIC, sehingga PIC hanya menulis periode yang
+ * jendela pengisiannya dibuka kembali secara resmi (Q19, Q41 §41.2 butir 6).
  *
  * Dipisah agar gerbang tulis (`EnsureDraftRencanaAksi`,
- * `SimpanTargetPeriode`, `AjukanRencanaAksi`) dan capability baca
- * (`IndexRencanaAksi`, `DaftarRencanaAksi`) memakai satu sumber aturan, sehingga UI tidak
- * menawarkan aksi yang pasti ditolak. Service ini hanya menilai; izin dasar
- * (`PermissionDecision`) diputuskan pemanggil lewat resolver, sedangkan
- * transaksi, kunci baris, pelemparan error, dan audit tetap milik Action.
+ * `SimpanTargetPeriode`, `AjukanRencanaAksi`, `GerbangBuktiRencanaAksi`,
+ * `GerbangKlaimKegiatan`, `SimpanKegiatan`, `TambahKegiatanRencanaAksi`,
+ * `HapusKlaimKegiatan`), gerbang review (`GerbangReviewRencanaAksi`), serta
+ * capability baca (`IndexRencanaAksi`, `DaftarRencanaAksi`,
+ * `DaftarKlaimKegiatan`) memakai satu sumber aturan, sehingga UI tidak
+ * menawarkan aksi yang pasti ditolak.
+ * Service ini hanya menilai; izin dasar (`PermissionDecision`) diputuskan
+ * pemanggil lewat resolver, sedangkan transaksi, kunci baris, pelemparan
+ * error, dan audit tetap milik Action.
  * Pemanggil tulis wajib meneruskan indikator dan jadwal yang sudah dikunci
  * agar keputusan memakai state terkini. PIC efektif dibaca tanpa kunci
  * karena writer PJ juga mengunci indikator, yang sudah dikunci pemanggil

@@ -87,7 +87,7 @@ class PeriodeManagementTest extends TestCase
         $this->assertFalse($next->fresh()->is_nilai_akhir);
     }
 
-    public function test_master_reorder_only_revalidates_affected_metadata_for_existing_nullable_ra(): void
+    public function test_master_reorder_only_revalidates_affected_metadata_for_existing_jadwal(): void
     {
         $actor = $this->calendarActor();
         $master = $this->calendarMaster();
@@ -97,7 +97,6 @@ class PeriodeManagementTest extends TestCase
         PeriodeJadwal::create(['jadwal_id' => $jadwal->id, ...$data['periode'][0]]);
         $this->actingAs($actor)->put('/periode/'.$master->id, ['nama' => $master->nama, 'urutan' => 5, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1])->assertSessionDoesntHaveErrors();
         $this->assertSame(5, $master->fresh()->urutan);
-        $this->assertNull($jadwal->fresh()->rencana_aksi_mulai);
     }
 
     public function test_master_denied_intent_rejects_before_target_lookup_and_validation(): void

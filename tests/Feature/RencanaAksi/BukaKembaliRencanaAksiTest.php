@@ -225,10 +225,8 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->assertSame('disahkan', $this->rencanaAksi->fresh()->status_alur);
         $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.buka_kembali_ditolak')->count());
 
-        // Tidak ada jendela penyusunan — kolom lama yang sudah lewat tidak
-        // dibaca. PIC boleh menulis periode yang belum terkunci sebelum
-        // penutupan selama grant + PIC efektif valid.
-        $this->jadwal->forceFill(['rencana_aksi_mulai' => '2026-02-01', 'rencana_aksi_selesai' => '2026-02-28'])->save();
+        // Tidak ada jendela penyusunan: PIC boleh menulis periode yang belum
+        // terkunci sebelum penutupan selama grant + PIC efektif valid.
         $this->bukaKembali($this->pembuka)->assertOk();
 
         $this->travelTo(now()->setDate(2026, 3, 20)->setTime(9, 0));
@@ -576,8 +574,7 @@ class BukaKembaliRencanaAksiTest extends TestCase
                     ->where('rencanaAksi.periode.0.id', $fixture['periode1']->id)
                     ->where('rencanaAksi.periode.0.batas_terkunci_pic', '2026-03-05')
                     ->where('rencanaAksi.periode.1.id', $fixture['periode2']->id)
-                    ->where('rencanaAksi.periode.1.batas_terkunci_pic', null)
-                    ->missing('rencanaAksi.jadwal.rencana_aksi_mulai'));
+                    ->where('rencanaAksi.periode.1.batas_terkunci_pic', null));
         }
 
         // Perubahan pada periode terkunci membuat pengajuan tidak ditawarkan,
