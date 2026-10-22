@@ -1815,7 +1815,7 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 # Keputusan Q65 — Target PK Setelah Snapshot, Alasan Deviasi Target Renstra, dan Keterangan Lampiran PK
 
-**Keputusan PM: 19 Oktober 2026 (WITA)**, untuk [ISS-02.11 / Issue #126](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/126). Mengubah Q39 §39.1 (fungsi target Renstra) dan §39.2 butir 2, Q43 §43.2 butir 5 dan §43.3 butir 2, serta Q60 §60.1 butir 4. Memperjelas Q39 §39.1 butir 3, Q43 §43.2 butir 3 dan §43.3 butir 3, Q48 §48.2 butir 6, dan Q50 §50.7. Menyelaraskan ADR-0008 bagian Consequences. Q62 dipakai keputusan Izin Unit (PR #145), Q63 keputusan periode lampau Rencana Aksi (PR #146), dan Q64 keputusan status tampilan dashboard (ISS-10.01, PR #147), sehingga keputusan ini bernomor Q65. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+**Keputusan PM: 19 Oktober 2026 (WITA)**, untuk [ISS-02.11 / Issue #126](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/126). Mengubah Q39 §39.1 (fungsi target Renstra) dan §39.2 butir 2, Q43 §43.2 butir 5 dan §43.3 butir 2, serta Q60 §60.1 butir 4. Memperjelas Q39 §39.1 butir 3, Q43 §43.2 butir 3 dan §43.3 butir 3, Q48 §48.2 butir 6, dan Q50 §50.7. Menyelaraskan ADR-0008 bagian Consequences. Q62 dipakai keputusan Izin Unit (PR #145), Q63 keputusan periode lampau 2026 Rencana Aksi (PR #146), dan Q64 keputusan status tampilan dashboard (ISS-10.01, PR #147), sehingga keputusan ini bernomor Q65. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
 
 ## 65.1 Perubahan target PK setelah snapshot terbentuk
 
