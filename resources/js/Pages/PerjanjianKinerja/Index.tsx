@@ -154,7 +154,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                             <TableCell className="whitespace-nowrap font-mono text-sm font-semibold">{item.tahun}</TableCell>
                                             <TableCell className="max-w-md">
                                                 <Link href={`/perjanjian-kinerja/${item.id}`} className="text-sm font-semibold text-ink hover:text-primary hover:underline">
-                                                    {item.nomor_pk}
+                                                    {item.nomor_pk ?? 'Tanpa nomor'}
                                                 </Link>
                                                 <p className="mt-0.5 truncate text-xs text-muted" title={item.renstra.nama}>{item.renstra.nama}</p>
                                             </TableCell>
@@ -170,13 +170,13 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                                             <TableCell className="whitespace-nowrap">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <Tooltip content="Lihat Detail">
-                                                        <Link href={`/perjanjian-kinerja/${item.id}`} className={iconAction} aria-label={`Lihat detail PK ${item.nomor_pk}`}>
+                                                        <Link href={`/perjanjian-kinerja/${item.id}`} className={iconAction} aria-label={`Lihat detail PK ${item.nomor_pk ?? item.tahun}`}>
                                                             <Eye className="h-4 w-4" aria-hidden="true" />
                                                         </Link>
                                                     </Tooltip>
                                                     {can.update && (
                                                         <Tooltip content="Edit Perjanjian Kinerja" align="right">
-                                                            <button type="button" onClick={() => setEditingPk(item)} className={iconAction} aria-label={`Edit PK ${item.nomor_pk}`}>
+                                                            <button type="button" onClick={() => setEditingPk(item)} className={iconAction} aria-label={`Edit PK ${item.nomor_pk ?? item.tahun}`}>
                                                                 <Pencil className="h-4 w-4" aria-hidden="true" />
                                                             </button>
                                                         </Tooltip>

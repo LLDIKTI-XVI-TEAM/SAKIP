@@ -53,6 +53,7 @@ class PerjanjianKinerjaAttachmentService
             $attributes = [
                 'jenis_berkas_id' => null,
                 'mode' => $mode,
+                'keterangan' => $item['keterangan'] ?? null,
                 'uploaded_by' => $actor->id,
             ];
 
@@ -202,6 +203,7 @@ class PerjanjianKinerjaAttachmentService
             'id' => $berkas->id,
             'mode' => $berkas->mode,
             'nama_asli' => $berkas->nama_asli,
+            'keterangan' => $berkas->keterangan,
         ];
 
         if ($berkas->mode === 'file') {

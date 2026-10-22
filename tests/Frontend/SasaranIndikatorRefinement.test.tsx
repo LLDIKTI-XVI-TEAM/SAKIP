@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { router } from '@inertiajs/react';
 import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
@@ -107,15 +107,14 @@ function renderIndex(
     );
 }
 
-it('aksi baseline tetap tersedia untuk pembaca dan membuka tahun mulai indikator yang valid', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}', { status: 403 }));
+it('editor baseline dan target PK tidak lagi tersedia di Sasaran & Indikator walau pengguna berizin', () => {
+    const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);
-    vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
-    renderIndex([makeIndikator({ tahun_mulai_berlaku: 2027 })], { ...defaultCan, indikator_update: false });
+    renderIndex([makeIndikator()], { ...defaultCan, target_update: true });
     fireEvent.click(screen.getByRole('button', { name: 'Aksi IKU-01' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Baseline & target IKU-01' }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(fetchMock.mock.calls[0][0]).toBe('/perencanaan/indikator/ind-1/target-tahunan/2027/editor');
+    expect(screen.getByRole('menuitem', { name: 'Lihat detail indikator IKU-01' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Baseline & target IKU-01' })).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
 });
 
 it('sakelar tab menampilkan tabel target Renstra', () => {
@@ -192,13 +191,6 @@ it('pilihan Renstra terkunci selama simpan target Renstra berjalan', () => {
     expect(pilihan.disabled).toBe(true);
     act(() => { opsi.onFinish({}); });
     expect(pilihan.disabled).toBe(false);
-});
-
-it('aksi baseline tidak tersedia tanpa izin membaca indikator', () => {
-    renderIndex([makeIndikator()], { ...defaultCan, indikator_read: false });
-    const aksi = screen.queryByRole('button', { name: 'Aksi IKU-01' });
-    if (aksi) fireEvent.click(aksi);
-    expect(screen.queryByRole('menuitem', { name: 'Baseline & target IKU-01' })).toBeNull();
 });
 
 describe('Sasaran & Indikator UI Refinement Presentation Tests', () => {

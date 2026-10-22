@@ -140,7 +140,7 @@ class CreatePerjanjianKinerja
                 $pk = RenstraPk::create([
                     'renstra_id' => $renstraLocked->id,
                     'tahun' => $tahun,
-                    'nomor_pk' => $data['nomor_pk'],
+                    'nomor_pk' => $data['nomor_pk'] ?? null,
                     'tanggal_pk' => $data['tanggal_pk'],
                     'created_by' => $lockedActor->id,
                 ]);

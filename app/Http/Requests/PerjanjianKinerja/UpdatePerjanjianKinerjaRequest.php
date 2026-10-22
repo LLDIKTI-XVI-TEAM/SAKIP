@@ -91,7 +91,7 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nomor_pk' => ['required', 'string', 'max:255'],
+            'nomor_pk' => ['nullable', 'string', 'max:255'],
             'tanggal_pk' => ['required', 'date'],
             // Opsional sebelum PK dipakai jadwal aktif; sesudahnya wajib (Q43 §43.2 butir 3, §43.3 butir 3).
             'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],

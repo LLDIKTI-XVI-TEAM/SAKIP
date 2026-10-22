@@ -8,8 +8,8 @@ vi.mock('@inertiajs/react', async (original) => ({
     ...await original<typeof import('@inertiajs/react')>(),
     Head: () => null,
     usePage: () => ({ props: { auth: { user: {} }, pengaturan: {} } }),
-    Link: ({ children, href, className, title }: { children: ReactNode; href: string; className?: string; title?: string }) => (
-        <a href={href} className={className} title={title}>{children}</a>
+    Link: ({ children, href, className, title, 'aria-label': ariaLabel }: { children: ReactNode; href: string; className?: string; title?: string; 'aria-label'?: string }) => (
+        <a href={href} className={className} title={title} aria-label={ariaLabel}>{children}</a>
     ),
 }));
 
@@ -168,6 +168,24 @@ describe('PerjanjianKinerja Index Schedule Status Badges', () => {
         expect(badges).toHaveLength(2);
         expect(screen.queryByText('Aktif')).toBeNull();
         expect(screen.queryByText('Ditutup')).toBeNull();
+    });
+});
+
+describe('PerjanjianKinerja Index tanpa nomor PK', () => {
+    it('menampilkan "Tanpa nomor" dan label aksi PK {tahun}, bukan null', () => {
+        const pkTanpaNomor = createPkItem({ id: 'pk-tanpa-nomor', nomor_pk: null });
+        const paginated: Paginated<RenstraPkSummary> = {
+            data: [pkTanpaNomor], current_page: 1, last_page: 1, from: 1, to: 1, total: 1, links: [],
+        };
+
+        const { container } = render(
+            <Index perjanjianKinerja={paginated} renstras={[pkTanpaNomor.renstra]} filters={{}} can={{ create: true, update: true }} />
+        );
+
+        expect(screen.getByRole('link', { name: 'Tanpa nomor' }).getAttribute('href')).toBe('/perjanjian-kinerja/pk-tanpa-nomor');
+        expect(screen.getByRole('link', { name: 'Lihat detail PK 2026' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Edit PK 2026' })).toBeTruthy();
+        expect(container.textContent).not.toContain('null');
     });
 });
 

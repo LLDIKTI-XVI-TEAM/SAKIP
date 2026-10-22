@@ -6,6 +6,7 @@ export interface BerkasPk {
     id: string;
     mode: LampiranMode;
     nama_asli: string | null;
+    keterangan?: string | null;
     mime: string | null;
     ukuran_bytes: number | null;
     tautan: string | null;
@@ -27,11 +28,34 @@ export interface RenstraSummary {
     is_aktif?: boolean;
 }
 
+/** Baris target PK pada halaman PK; nilai berupa string kanonis dari server. */
+export interface TargetPkIndikator {
+    id: string;
+    kode: string;
+    nama: string;
+    satuan: string;
+    desimal_tampilan: number;
+    arah: string;
+    baseline: string | null;
+    target_tahunan: string | null;
+    /** `null` berarti target Renstra belum ada. */
+    target_renstra: string | null;
+    status_deviasi: string;
+    read_only_reason: string | null;
+}
+
+export interface TargetPkSasaran {
+    id: string;
+    kode: string;
+    deskripsi: string;
+    indikator: TargetPkIndikator[];
+}
+
 export interface RenstraPkSummary {
     id: string;
     renstra_id: string;
     tahun: number;
-    nomor_pk: string;
+    nomor_pk: string | null;
     tanggal_pk: string | null;
     created_at: string;
     updated_at: string;

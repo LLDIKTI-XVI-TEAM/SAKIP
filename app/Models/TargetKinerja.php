@@ -18,6 +18,7 @@ class TargetKinerja extends Model
         'tahun',
         'target_tahunan',
         'baseline',
+        'alasan_deviasi_renstra',
         'updated_by',
         'target_tw1',
         'target_tw2',

@@ -49,8 +49,8 @@ export function PerjanjianKinerjaFormFields({
         return years;
     }, [selectedRenstra]);
 
-    const setNamaLampiran = (index: number, nama: string) => {
-        setField('lampiran', data.lampiran.map((item, itemIndex) => (itemIndex === index ? { ...item, nama_asli: nama } : item)));
+    const setLampiranField = (index: number, field: 'nama_asli' | 'keterangan', value: string) => {
+        setField('lampiran', data.lampiran.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)));
     };
 
     const maksMb = storageSettings?.ukuran_maks_kb ? Math.round(storageSettings.ukuran_maks_kb / 1024) : 10;
@@ -141,13 +141,12 @@ export function PerjanjianKinerjaFormFields({
                     <div className="sm:col-span-2 lg:col-span-12">
                         <Input
                             name="nomor_pk"
-                            label="Nomor Dokumen Perjanjian Kinerja"
+                            label="Nomor Dokumen Perjanjian Kinerja (opsional)"
                             value={data.nomor_pk}
                             onChange={(event) => setField('nomor_pk', event.target.value)}
                             error={errors.nomor_pk}
                             placeholder="Contoh: PK/LLDIKTI16/2026/001"
                             disabled={disabled}
-                            required
                         />
                     </div>
                 </div>
@@ -186,11 +185,22 @@ export function PerjanjianKinerjaFormFields({
                     : '.pdf,.docx,.xlsx,.jpg,.jpeg,.png'}
                 disabled={disabled}
                 blockedMessage={canUploadBerkas ? undefined : 'Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'}
+                renderItemFields={(index) => (
+                    <Input
+                        label="Keterangan (opsional)"
+                        value={data.lampiran[index]?.keterangan ?? ''}
+                        onChange={(event) => setLampiranField(index, 'keterangan', event.target.value)}
+                        error={errors[`lampiran.${index}.keterangan`]}
+                        placeholder="Contoh: PK perubahan anggaran"
+                        maxLength={1000}
+                        disabled={disabled}
+                    />
+                )}
                 renderExtraFields={(index) => (
                     <Input
                         label="Nama dokumen (opsional)"
                         value={data.lampiran[index]?.nama_asli ?? ''}
-                        onChange={(event) => setNamaLampiran(index, event.target.value)}
+                        onChange={(event) => setLampiranField(index, 'nama_asli', event.target.value)}
                         disabled={disabled}
                     />
                 )}

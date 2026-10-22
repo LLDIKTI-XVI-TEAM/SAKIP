@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $ukuran_bytes
  * @property string|null $tautan
  * @property string|null $isi_teks
+ * @property string|null $keterangan
  * @property string $uploaded_by
  * @property string|null $dihapus_oleh
  */
@@ -42,6 +43,7 @@ class Berkas extends Model
         'ukuran_bytes',
         'tautan',
         'isi_teks',
+        'keterangan',
         'uploaded_by',
         'dihapus_oleh',
     ];

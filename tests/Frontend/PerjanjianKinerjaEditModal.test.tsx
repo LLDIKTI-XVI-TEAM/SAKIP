@@ -254,5 +254,25 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
 
         expect(screen.getByText(/^Jadwal tahunan ditutup: lampiran yang ada tidak dapat dihapus/)).toBeTruthy();
     });
+
+    it('lampiran baru (termasuk mode file) punya isian keterangan opsional yang terikat ke data form', () => {
+        render(<PerjanjianKinerjaEditModal isOpen={true} onClose={() => {}} pk={samplePk} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
+        act(() => {
+            fireEvent.change(screen.getByLabelText<HTMLInputElement>(/^Keterangan \(opsional\)/), { target: { value: 'PK perubahan anggaran' } });
+        });
+
+        expect(screen.getByLabelText<HTMLInputElement>(/^Keterangan \(opsional\)/).value).toBe('PK perubahan anggaran');
+        expect(document.querySelector('input[type=file]')).not.toBeNull();
+    });
+
+    it('nomor PK opsional: PK tanpa nomor membuka isian kosong yang tidak wajib', () => {
+        render(<PerjanjianKinerjaEditModal isOpen={true} onClose={() => {}} pk={{ ...samplePk, nomor_pk: null }} />);
+
+        const nomorInput = screen.getByLabelText<HTMLInputElement>(/Nomor Dokumen Perjanjian Kinerja \(opsional\)/);
+        expect(nomorInput.value).toBe('');
+        expect(nomorInput.required).toBe(false);
+    });
 });
 

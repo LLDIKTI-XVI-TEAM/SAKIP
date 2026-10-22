@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
  * @property string $id
  * @property string $renstra_id
  * @property int $tahun
- * @property string $nomor_pk
+ * @property string|null $nomor_pk
  * @property Carbon $tanggal_pk
  * @property string $created_by
  * @property Carbon|null $created_at
