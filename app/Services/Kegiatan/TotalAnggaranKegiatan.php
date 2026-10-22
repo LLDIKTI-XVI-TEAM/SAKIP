@@ -13,10 +13,18 @@ use stdClass;
  * Penjumlahan anggaran kegiatan (Q42 §42.2 butir 2, 4, 6) dari seluruh
  * klaim (tahap RA dan pengukuran). Anggaran kosong tidak dihitung sebagai 0
  * tetapi menandai total lewat `belum_diisi`. Kegiatan bersama tampil penuh
- * per IKU, sedangkan total per unit/tahun memakai kegiatan unik. Kegiatan
- * asal `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung agar
- * anggarannya hanya terhitung pada lanjutan. Penjumlahan dilakukan di
- * database agar tidak memuat seluruh kegiatan ke memori.
+ * per IKU, sedangkan total per unit/tahun memakai kegiatan unik.
+ *
+ * Kegiatan asal `ditunda` tidak dihitung setelah kegiatan lanjutannya
+ * diklaim (klaim apa pun, ke RA mana pun), agar anggarannya hanya terhitung
+ * pada lanjutan; sebelum itu asal tetap terhitung (Q69 §69.6). Karena semua
+ * total hanya menghitung kegiatan berklaim, anggaran tidak terhitung ganda.
+ *
+ * Caller aktual: `DaftarKegiatanRencanaAksi` (total live halaman RA) dan
+ * `AjukanRencanaAksi` (total yang dibekukan ke snapshot versi dengan
+ * `tahapRaSaja: true`). Service ini baca-saja tanpa lock, transaksi, maupun
+ * audit; snapshot versi yang sudah dibekukan tidak dihitung ulang.
+ * Penjumlahan dilakukan di database agar tidak memuat seluruh kegiatan ke memori.
  */
 class TotalAnggaranKegiatan
 {
@@ -75,7 +83,8 @@ class TotalAnggaranKegiatan
     private function terhitung(): Builder
     {
         return Kegiatan::query()->whereNot(fn (Builder $query) => $query->where('kegiatan.status', 'ditunda')
-            ->whereExists(fn ($lanjutan) => $lanjutan->from('kegiatan as lanjutan')->whereColumn('lanjutan.kegiatan_asal_id', 'kegiatan.id')));
+            ->whereExists(fn ($lanjutan) => $lanjutan->from('kegiatan as lanjutan')->whereColumn('lanjutan.kegiatan_asal_id', 'kegiatan.id')
+                ->whereExists(fn ($klaim) => $klaim->from('klaim_kegiatan')->whereColumn('klaim_kegiatan.kegiatan_id', 'lanjutan.id'))));
     }
 
     /**

@@ -81,6 +81,23 @@ class TotalAnggaranKegiatanTest extends TestCase
         $this->assertSame('1000000', $this->total->perUnitTahun((string) $this->fixture['unit']->id, 2026)['total']);
     }
 
+    public function test_asal_ditunda_tetap_dihitung_sampai_lanjutan_diklaim(): void
+    {
+        $asal = $this->kegiatan('Pelatihan asesor', 700000, null, ['status' => 'ditunda']);
+        $this->klaim($asal);
+        $lanjutan = $this->kegiatan('Pelatihan asesor', 700000, $this->fixture['periode2'], ['kegiatan_asal_id' => $asal->id]);
+        $unit = (string) $this->fixture['unit']->id;
+
+        // Lanjutan belum diklaim: anggaran tetap terhitung pada asal.
+        $this->assertSame('700000', $this->total->perRencanaAksi($this->header)['total']);
+        $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
+
+        // Klaim ke Rencana Aksi IKU lain pun memindahkan hitungan ke lanjutan.
+        $this->klaim($lanjutan, $this->headerIkuLain());
+        $this->assertSame('0', $this->total->perRencanaAksi($this->header)['total']);
+        $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
+    }
+
     public function test_klaim_tahap_pengukuran_ikut_dihitung(): void
     {
         $this->klaim($this->kegiatan('Benchmarking', 400000));
