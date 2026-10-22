@@ -42,6 +42,7 @@ export interface RenstraPkSummary {
     } | null;
     berkas?: BerkasPk[];
     berkas_count?: number;
+    alasan_wajib?: boolean;
     jadwal_tahunan?: {
         id: string;
         status: string;
