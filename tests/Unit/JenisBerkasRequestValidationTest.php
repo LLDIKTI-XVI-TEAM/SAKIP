@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use App\Http\Requests\DeleteJenisBerkasRequest;
-use App\Http\Requests\StoreJenisBerkasRequest;
-use App\Http\Requests\UpdateJenisBerkasRequest;
+use App\Http\Requests\JenisBerkas\DeleteJenisBerkasRequest;
+use App\Http\Requests\JenisBerkas\StoreJenisBerkasRequest;
+use App\Http\Requests\JenisBerkas\UpdateJenisBerkasRequest;
 use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
