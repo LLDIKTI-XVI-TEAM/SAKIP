@@ -69,7 +69,7 @@ class TampilkanRekapIndikatorPeriode
             $recommendations = RekomendasiPimpinan::whereIn('indikator_id', $ids)->where('tahun', $jadwal?->tahun)
                 ->whereIn('periode_id', $items->pluck('periode_id'))->where('status', 'disetujui')
                 ->distinct('indikator_id', 'periode_id')->orderBy('indikator_id')->orderBy('periode_id')->orderByDesc('disetujui_pada')->orderByDesc('id')
-                ->get(['id', 'indikator_id', 'periode_id', 'isi', 'disetujui_pada', 'disetujui_oleh_role'])->keyBy(fn ($r) => $r->indikator_id.':'.$r->periode_id);
+                ->get(['id', 'indikator_id', 'periode_id', 'isi', 'status', 'disetujui_pada', 'disetujui_oleh_role'])->keyBy(fn ($r) => $r->indikator_id.':'.$r->periode_id);
             $capabilities = $this->izin->decideManyForUnits($actor, ['kegiatan:read'], $items->pluck('unit_id')->unique()->all());
             $data = $items->map(function ($row) use ($versions, $contexts, $plans, $paired, $indicators, $pics, $recommendations, $capabilities): array {
                 $version = $versions->get($row->versi_id);

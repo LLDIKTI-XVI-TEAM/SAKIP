@@ -15,6 +15,7 @@ use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
 
@@ -151,16 +152,28 @@ class RekapIndikatorPeriodeTest extends TestCase
         $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page->where('baris.0.sasaran.kode', 'S-RA'));
     }
 
-    public function test_rekomendasi_hanya_yang_disetujui_dan_berbeda_dari_rekomendasi_sebelumnya(): void
+    /** @return array<string, array{string, bool}> */
+    public static function peranPenyetujuRekomendasi(): array
+    {
+        return [
+            'pimpinan' => ['pimpinan', false],
+            'perencanaan' => ['perencanaan', true],
+            'superadmin' => ['superadmin', true],
+        ];
+    }
+
+    #[DataProvider('peranPenyetujuRekomendasi')]
+    public function test_rekomendasi_hanya_yang_disetujui_dan_berbeda_dari_rekomendasi_sebelumnya(string $peran, bool $cadangan): void
     {
         $this->versi(['rekomendasi_sebelumnya' => ['isi' => 'Rekomendasi sebelumnya beku']]);
         RekomendasiPimpinan::create(['indikator_id' => $this->pengukuran->indikator_id, 'tahun' => 2026, 'periode_id' => $this->pengukuran->periode_id,
             'isi' => 'Rekomendasi berlaku', 'ditetapkan_oleh' => $this->actor->id, 'status' => 'disetujui', 'disetujui_oleh' => $this->actor->id,
-            'disetujui_oleh_role' => 'superadmin', 'disetujui_pada' => now(), 'created_at' => now()]);
+            'disetujui_oleh_role' => $peran, 'disetujui_pada' => now(), 'created_at' => now()]);
         RekomendasiPimpinan::create(['indikator_id' => $this->pengukuran->indikator_id, 'tahun' => 2026, 'periode_id' => $this->pengukuran->periode_id,
             'isi' => 'CANARY-REKOMENDASI-DRAF', 'ditetapkan_oleh' => $this->actor->id, 'status' => 'draf', 'created_at' => now()]);
         $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page
-            ->where('baris.0.rekomendasi.isi', 'Rekomendasi berlaku')->where('baris.0.rekomendasi_sebelumnya.isi', 'Rekomendasi sebelumnya beku'))
+            ->where('baris.0.rekomendasi.isi', 'Rekomendasi berlaku')->where('baris.0.rekomendasi.cadangan', $cadangan)
+            ->where('baris.0.rekomendasi_sebelumnya.isi', 'Rekomendasi sebelumnya beku'))
             ->assertDontSee('CANARY-REKOMENDASI-DRAF');
     }
 
