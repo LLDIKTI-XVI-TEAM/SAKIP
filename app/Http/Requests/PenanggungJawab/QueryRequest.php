@@ -19,9 +19,9 @@ class QueryRequest extends FormRequest
             'q' => ['nullable', 'string', 'max:100'],
             'tanggal_acuan' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:0001-01-01'],
             'unit_id' => ['nullable', 'uuid'],
+            'indikator_id' => ['nullable', 'uuid'],
+            'izin' => ['nullable', 'in:lengkap,kurang'],
             'user_id' => [$this->routeIs('penanggung-jawab.readiness') ? 'required' : 'nullable', 'uuid'],
-            'after' => ['nullable', 'uuid'],
-            'after_scope' => ['nullable', 'string', 'size:64', 'regex:/\A[0-9a-f]{64}\z/'],
             'page' => ['nullable', 'integer', 'min:1', 'max:10000'],
         ];
     }
