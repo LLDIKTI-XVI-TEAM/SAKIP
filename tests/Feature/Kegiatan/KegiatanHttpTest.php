@@ -119,18 +119,37 @@ class KegiatanHttpTest extends TestCase
     public function test_ubah_data_rencana_mempertahankan_status_dan_data_pelaksanaan(): void
     {
         $kegiatan = $this->kegiatan();
-        $kegiatan->forceFill(['status' => 'terlaksana', 'uraian_pelaksanaan' => 'Narasi histori'])->save();
+        $kegiatan->forceFill(['uraian_pelaksanaan' => 'Narasi histori'])->save();
         $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
             'nama' => 'Rencana diperbarui', 'expected_state' => $this->editToken($kegiatan),
             'status' => 'batal', 'uraian_pelaksanaan' => 'Payload tidak dipercaya',
         ]))->assertRedirect('/kegiatan?tahun=2026')->assertSessionHasNoErrors();
 
         $this->assertSame('Rencana diperbarui', $kegiatan->fresh()->nama);
-        $this->assertSame('terlaksana', $kegiatan->fresh()->status);
+        $this->assertSame('rencana', $kegiatan->fresh()->status);
         $this->assertSame('Narasi histori', $kegiatan->fresh()->uraian_pelaksanaan);
         $audit = AuditLog::where('tindakan', 'kegiatan.ubah')->sole();
         $this->assertSame('Rencana awal', $audit->nilai_lama['nama']);
         $this->assertSame('Rencana diperbarui', $audit->nilai_baru['nama']);
+    }
+
+    /** Data rencana hanya dapat diubah selama status `rencana` (Q69 §69.3). */
+    #[DataProvider('statusSelainRencana')]
+    public function test_data_rencana_status_selain_rencana_ditolak_422(string $status): void
+    {
+        $kegiatan = $this->kegiatan();
+        $kegiatan->forceFill(['status' => $status])->save();
+
+        $this->actingAs($this->pegawai)->postJson("/kegiatan/{$kegiatan->id}", [...$this->payload(), 'nama' => 'Ditolak', 'expected_state' => $kegiatan->fresh()->versionToken()])
+            ->assertUnprocessable()->assertJsonValidationErrors(['status' => 'Data rencana terkunci karena status kegiatan sudah berubah.']);
+
+        $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
+        $this->assertFalse(AuditLog::where('tindakan', 'kegiatan.ubah')->exists());
+    }
+
+    public static function statusSelainRencana(): array
+    {
+        return [['tidak_terlaksana'], ['terlaksana'], ['ditunda'], ['batal']];
     }
 
     public function test_request_lintas_unit_ditolak_dan_teraudit_tanpa_mutasi(): void

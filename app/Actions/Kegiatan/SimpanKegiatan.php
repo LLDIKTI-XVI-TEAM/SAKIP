@@ -49,6 +49,7 @@ class SimpanKegiatan
     /**
      * Satu use case simpan rencana; aktor/ACL, objek dan master diperiksa ulang di bawah lock.
      * Metadata rencana termasuk anggaran (Q42); tidak mengubah status, narasi pelaksanaan atau snapshot pengukuran.
+     * Data rencana hanya dapat diubah selama status `rencana` (Q69 §69.3); status diubah lewat `UbahStatusKegiatan`.
      *
      * @param  array<string, mixed>  $data
      */
@@ -107,6 +108,9 @@ class SimpanKegiatan
                 }
                 if ($kegiatan && ! hash_equals($kegiatan->versionToken(), (string) ($data['expected_state'] ?? ''))) {
                     throw ValidationException::withMessages(['expected_state' => 'Kegiatan telah berubah. Muat ulang sebelum menyimpan.']);
+                }
+                if ($kegiatan && $kegiatan->status !== 'rencana') {
+                    throw ValidationException::withMessages(['status' => 'Data rencana terkunci karena status kegiatan sudah berubah.']);
                 }
                 if ($kegiatan) {
                     $changedContext = array_filter(['unit_id', 'tahun', 'periode_id'], fn ($field) => (string) $data[$field] !== (string) $kegiatan->{$field});
