@@ -32,7 +32,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - **Initial year 2026 (Q46).** TW I–III periode lampau oleh Perencanaan; TW IV triwulan pertama workflow normal PIC operasional; tanpa `is_backfill`. Gerbang baru Q42–Q45 dikecualikan untuk periode lampau, sedangkan kunci per triwulan (Q41) bukan bagian pengecualian itu (Q46 §46.1 butir 1). Data awal 2026 diisi Perencanaan dari dokumen resmi 2026 (Q46 §46.1 butir 6). *(Semula Q32: TW I–II lampau, TW III–IV normal.)*
 - **Dua lapis target (Q39, Q50).** Target Renstra per indikator per tahun hanya pembanding; target PK (`target_tahunan`) diinput Perencanaan di halaman PK dengan nilai penuh (Q50 §50.2), dibaca PJ/PIC sebagai baca-saja, dan menjadi acuan pengukuran melalui snapshot. Target PK yang menyimpang dari target Renstra menurut `arah` memunculkan peringatan dan `alasan_deviasi_renstra` wajib (Q65 §65.2); keduanya disimpan dengan `target:update` (Q39 §39.2–§39.3).
 - **Rencana Aksi sepanjang tahun (Q41).** Tanpa jendela penyusunan RA; periode terkunci bagi PIC setelah `pengisian_selesai` periode tersebut; Perencanaan dikecualikan sampai `penutupan`.
-- **Indikator dinilai tahunan dan periode tanpa target (Q47).** Indikator dinilai tahunan boleh tanpa target pada periode sebelum periode nilai akhir, sedangkan indikator lain tetap wajib bertarget di setiap periode kecuali periode lampau (Q46 §46.1 butir 6, Q47 §47.2 butir 4); target kosong berarti tidak ditargetkan dan berbeda dari `0`. Pada periode tanpa target, capaian persen dan status capaian tidak dihitung dan tampilan memuat selisih terhadap target PK. Realisasi yang belum tersedia dicatat `status_perhitungan = belum_dapat_diukur`.
+- **Indikator dinilai tahunan dan periode tanpa target (Q47).** Indikator dinilai tahunan boleh tanpa target pada periode sebelum periode nilai akhir, sedangkan indikator lain tetap wajib bertarget di setiap periode kecuali periode lampau 2026 (Q46 §46.1 butir 6, Q47 §47.2 butir 4); target kosong berarti tidak ditargetkan dan berbeda dari `0`. Pada periode tanpa target, capaian persen dan status capaian tidak dihitung dan tampilan memuat selisih terhadap target PK. Realisasi yang belum tersedia dicatat `status_perhitungan = belum_dapat_diukur`.
 - **Kegiatan dalam Rencana Aksi (Q42, Q49).** Kegiatan, anggaran, dan RAB menjadi bagian RA; pengajuan RA mensyaratkan minimal satu kegiatan yang diklaim pada tahap RA. Anggaran per kegiatan wajib (≥ 0) dan RAB wajib bila anggaran lebih dari 0. Nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain yang belum terkunci (Q49).
 - **Kewajiban alasan (Q43).** Alasan hanya diwajibkan pada aksi Q43 §43.2; aksi lain beralasan opsional dan audit tetap lengkap.
 - **Unggahan selalu aktif (Q44).** Tanpa saklar unggahan dan halaman Kebijakan Storage; batas teknis unggahan berasal dari konfigurasi server.
@@ -1049,7 +1049,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - [x] **AC-2:** Given form jadwal tahunan, Then isian jendela penyusunan RA tidak ditampilkan dan tidak divalidasi; kolomnya dibiarkan nullable. *(Q41 §41.1 butir 2)*
 - [x] **AC-3:** Given `pengisian_selesai` periode P sudah lewat (tanggal bisnis Asia/Makassar), When PIC menyimpan draf, mengajukan, atau menyimpan versi baru RA yang mengubah target atau daftar kegiatan periode P, Then ditolak sebagai validasi bisnis (422) dan diaudit; perubahan pada periode yang belum terkunci tetap diterima. *(Q41 §41.2 butir 1–2)*
 - [x] **AC-4:** Given aktor Perencanaan, When mengubah periode yang terkunci bagi PIC sebelum `penutupan`, Then diizinkan. *(Q41 §41.2 butir 3)*
-- [x] **AC-5:** Given periode lampau saat jadwal diaktifkan, Then periode itu terkunci bagi PIC sejak aktivasi. *(Q41 §41.2 butir 4, Q46 §46.1)*
+- [x] **AC-5:** Given periode lampau 2026 saat jadwal diaktifkan, Then periode itu terkunci bagi PIC sejak aktivasi. *(Q41 §41.2 butir 4, Q46 §46.1)*
 - [x] **AC-6:** Given Perencanaan menandai indikator sebagai dinilai tahunan, When disimpan, Then penanda tersimpan dan diaudit; snapshot jadwal yang diaktifkan sesudahnya membekukan penanda tersebut, dan perubahan setelah jadwal aktif berlaku pada jadwal berikutnya; koreksi tahun berjalan lewat koreksi snapshot ISS-03.03 (Q35). *(Q47 §47.1)*
 - [x] **AC-7:** Given indikator dinilai tahunan menurut snapshot, When RA diajukan dengan target periode sebelum periode nilai akhir kosong, Then pengajuan diterima; target periode nilai akhir tetap wajib dan direkonsiliasi dengan target PK (ADR-0008). *(Q47 §47.2 butir 1)*
 - [x] **AC-8:** Given indikator yang tidak dinilai tahunan, When salah satu target periode kosong saat pengajuan, Then pengajuan ditolak dengan pesan per periode, kecuali periode lampau 2026. *(Q47 §47.2 butir 2)*
@@ -1060,7 +1060,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 - Perencanaan boleh mengesahkan RA yang diinputnya sendiri dengan penanda self-approval (Q41 §41.3 butir 2).
 - Kegiatan yang mundur ditangani US-06.04/06.05 tanpa buka-kembali RA (Q41 §41.4); buka-kembali RA (US-05.06) hanya untuk target periode yang belum terkunci.
-- Gerbang baru dikecualikan untuk periode lampau (Q46 §46.1).
+- Gerbang baru dikecualikan untuk periode lampau 2026 (Q46 §46.1).
 - Data awal 2026: target TW I–III dicatat kosong (Q47 §47.2 butir 4).
 - Pada versi RA yang dibekukan, periode tanpa target dicatat dengan status `tidak_ditargetkan`, bukan `belum_diisi`, sehingga laporan dapat membedakannya dari target yang belum diisi (Q47 §47.2 butir 5).
 - Kunci mengikuti `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, US-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC (Q41 §41.2 butir 5).
@@ -1132,7 +1132,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-7:** Given RA diajukan tanpa satu pun kegiatan yang diklaim pada tahap RA, When submit, Then pengajuan ditolak; tidak setiap periode wajib berisi kegiatan. *(Q42 §42.1 butir 3)*
 - [x] **AC-8:** Given kegiatan ditambahkan dari halaman RA, When PIC menyalinnya ke satu atau lebih periode lain pada RA yang sama, Then setiap salinan menjadi kegiatan tersendiri per unit × periode dengan klaim `sumber_klaim = rencana_aksi` sendiri; nama, tujuan, dan anggaran ikut disalin dan dapat diubah per kegiatan, sedangkan berkas termasuk RAB tidak ikut disalin. *(Q49 §49.2 butir 1–3)*
 - [x] **AC-9:** Given periode sudah terkunci bagi PIC, When PIC menambah atau menyalin kegiatan ke periode tersebut, Then ditolak. *(Q41 §41.2, Q49 §49.2 butir 4)*
-- [x] **AC-10:** Given RA data awal 2026 atau periode lampau, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
+- [x] **AC-10:** Given RA data awal 2026 atau periode lampau 2026, Then gerbang minimal satu kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
 
 **Business Rules / Catatan**
 
@@ -1305,7 +1305,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-6:** Given kegiatan ditandai `terlaksana`, Then persyaratan tahap `kegiatan` (pelaksanaan) tetap diperiksa sesuai PRD §15.6 dan Q22. *(Q42 §42.4 butir 2)*
 - [x] **AC-7:** Given halaman RA, Then total anggaran tampil per periode dan per RA, dan total per IKU tersedia untuk dashboard; kegiatan yang diklaim lebih dari satu IKU tampil penuh di setiap IKU dengan penanda "kegiatan bersama", sedangkan total per unit dan per tahun dihitung dari kegiatan unik. *(Q42 §42.2 butir 4)*
 - [x] **AC-8:** Given pengguna tanpa akses detail kegiatan unit tersebut, Then anggaran per kegiatan dan RAB tidak tampil; Perencanaan dan Pimpinan melihat seluruhnya. *(Q42 §42.5)*
-- [x] **AC-9:** Given RA data awal 2026 atau periode lampau, Then gerbang RAB dan persyaratan tahap perencanaan kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
+- [x] **AC-9:** Given RA data awal 2026 atau periode lampau 2026, Then gerbang RAB dan persyaratan tahap perencanaan kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
 
 **Business Rules / Catatan**
 
@@ -1316,7 +1316,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - Contoh berkas bukan bukti: Perencanaan dapat menambah, mengganti, atau menghapusnya kapan saja; penghapusannya wajib alasan (Q43 §43.2 butir 2), dan contoh berkas tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 4).
 - Persyaratan tahap perencanaan kegiatan yang diperiksa saat RA indikator X diajukan adalah persyaratan global ditambah persyaratan khusus indikator X; untuk kegiatan bersama, persyaratan khusus indikator lain diperiksa saat RA indikator tersebut diajukan (Q42 §42.4 butir 4).
 - Berkas yang dipakai memenuhi persyaratan tahap perencanaan kegiatan (mis. RAB) tidak dapat dihapus sejak RA yang mengklaim kegiatan tersebut diajukan; koreksinya lewat pengembalian RA atau berkas pengganti (Q25), mengikuti pola bukti RA (Q36) (Q42 §42.4 butir 5).
-- Kegiatan data awal 2026 dan kegiatan pada periode lampau boleh tanpa anggaran dan tercatat belum diisi (Q42 §42.2 butir 2), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output (Q46 §46.1 butir 3).
+- Kegiatan data awal 2026 dan kegiatan pada periode lampau 2026 boleh tanpa anggaran dan tercatat belum diisi (Q42 §42.2 butir 2), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output (Q46 §46.1 butir 3).
 - Batas ukuran/format mengikuti persyaratan dan batas teknis Q44.
 - Bila PR #97 di-merge sebelum Q49 diterapkan, `nama` hingga 500 karakter dan `tujuan` opsional dikerjakan di story ini (Q49 §49.1 butir 3).
 - **Di luar cakupan:** dashboard anggaran per IKU (US-10.01), salin kegiatan (US-06.02).
@@ -1385,9 +1385,9 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 >
 > **Integrasi dan gerbang rekomendasi — 16 Oktober 2026:** #106 telah diintegrasikan melalui `19ab8fe`; kolom, simpan, presenter, dan form draf narasi memakai kontrak #106, termasuk `PengukuranKinerja::NARASI`, serta migration duplikat telah dihapus sesuai [keputusan PM](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/106#issuecomment-6187340893). Gerbang narasi pengajuan, pembekuan, dan tampilan verifikator tetap milik #105. AC-8/TEST-8 dan uji lintas tahun dibuktikan pada `04c8a16` melalui `tests/Feature/Rekomendasi/RekomendasiBerlakuTest.php`; `850ae98` menambahkan empat skenario konkurensi persetujuan/pengajuan sesuai Q55 pada `tests/Integration/Concurrency/MutationConcurrencyTest.php`. [CI commit `850ae98`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/38921923125) lulus. Centang menandai implementasi/test otomatis, bukan penerimaan QA/UAT atau penyelesaian seluruh DoD.
 >
-> **Pengecualian periode lampau dan gerbang final — 17 Oktober 2026:** AC-10 dibuktikan pada `346bb66` dan `0c9a1ea` melalui `PengukuranPeriodeLampauTest` dan `RekomendasiBerlakuTest`: pengecualian hanya berlaku pada periode lampau Jadwal 2026 yang diisi Perencanaan, dengan kontrol gerbang tetap berlaku pada periode yang belum lampau dan pada aktivasi terlambat 2027. Gerbang final AC-9 sudah diuji di `PengukuranWorkflowTest`, tetapi belum dicentang karena klausa kondisi tidak dapat dihitung (Q9) pada periode nilai akhir belum memiliki Pest test khusus. [CI exact-HEAD `0c9a1ea`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/39021536370) lulus. Centang menandai implementasi/test otomatis, bukan penerimaan QA/UAT atau penyelesaian seluruh DoD.
+> **Pengecualian periode lampau 2026 dan gerbang final — 17 Oktober 2026:** AC-10 dibuktikan pada `346bb66` dan `0c9a1ea` melalui `PengukuranPeriodeLampauTest` dan `RekomendasiBerlakuTest`: pengecualian hanya berlaku pada periode lampau Jadwal 2026 yang diisi Perencanaan, dengan kontrol gerbang tetap berlaku pada periode yang belum lampau dan pada aktivasi terlambat 2027. Gerbang final AC-9 sudah diuji di `PengukuranWorkflowTest`, tetapi belum dicentang karena klausa kondisi tidak dapat dihitung (Q9) pada periode nilai akhir belum memiliki Pest test khusus. [CI exact-HEAD `0c9a1ea`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/39021536370) lulus. Centang menandai implementasi/test otomatis, bukan penerimaan QA/UAT atau penyelesaian seluruh DoD.
 
-> **Q45, Q46, Q47, Q51 (13 Oktober 2026):** kewajiban `catatan` saat nilai memburuk atau indikator `wajib_catatan` digantikan narasi pengukuran wajib; `catatan` menjadi keterangan opsional dan saklar `wajib_catatan` disembunyikan dari form indikator tanpa menghapus kolomnya (Q45 §45.1 butir 1 dan 3). Tindak lanjut wajib hanya atas Rekomendasi Pimpinan yang disetujui (Q45 §45.2 butir 3, Q51 §51.1 butir 2). Realisasi `belum_dapat_diukur` mengecualikan gerbang kelengkapan komponen, dan periode tanpa target ditampilkan dengan selisih terhadap target PK (Q47 §47.3–§47.4). Gerbang baru dikecualikan untuk periode lampau (Q46 §46.1 butir 1). AC-2 dan AC-4 diperbarui serta AC-8 sampai AC-12 ditambahkan karena story ini belum dikerjakan.
+> **Q45, Q46, Q47, Q51 (13 Oktober 2026):** kewajiban `catatan` saat nilai memburuk atau indikator `wajib_catatan` digantikan narasi pengukuran wajib; `catatan` menjadi keterangan opsional dan saklar `wajib_catatan` disembunyikan dari form indikator tanpa menghapus kolomnya (Q45 §45.1 butir 1 dan 3). Tindak lanjut wajib hanya atas Rekomendasi Pimpinan yang disetujui (Q45 §45.2 butir 3, Q51 §51.1 butir 2). Realisasi `belum_dapat_diukur` mengecualikan gerbang kelengkapan komponen, dan periode tanpa target ditampilkan dengan selisih terhadap target PK (Q47 §47.3–§47.4). Gerbang baru dikecualikan untuk periode lampau 2026 (Q46 §46.1 butir 1). AC-2 dan AC-4 diperbarui serta AC-8 sampai AC-12 ditambahkan karena story ini belum dikerjakan.
 
 | Field | Detail |
 |---|---|
@@ -1414,7 +1414,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-7:** Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); item notifikasi in-app mengikuti ISS-12.02 AC-2. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi antrean Perencanaan dibuat setelah commit.)*
 - [x] **AC-8:** Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
 - [ ] **AC-9:** Given pengukuran berstatus `belum_dapat_diukur`, When diajukan, Then narasi pengukuran tetap wajib dan menjelaskan mengapa nilai belum tersedia; pada periode nilai akhir status ini ditolak karena realisasi wajib terisi, sedangkan kondisi tidak dapat dihitung menurut Q9 tetap diperbolehkan. *(Q47 §47.4 butir 2 dan 4)*
-- [x] **AC-10:** Given pengukuran periode lampau diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
+- [x] **AC-10:** Given pengukuran periode lampau 2026 diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
 - [x] **AC-11:** Given form indikator, Then saklar `wajib_catatan` tidak ditampilkan dan kolomnya tetap tersimpan. *(Q45 §45.1 butir 3)*
 - [ ] **AC-12:** Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
 
@@ -1468,7 +1468,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] Tidak ada `is_backfill` atau tipe pengukuran khusus.
 - [ ] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
 - [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi.
-- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau. *(Q46 §46.1 butir 1 dan 6)*
+- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6)*
 
 ### US-07.06 · Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
@@ -1621,7 +1621,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - Rekomendasi melekat pada indikator × periode dan independen dari status pengukuran (Q45 §45.2 butir 2).
 - Rekomendasi yang disetujui dimuat pada Laporan Kinerja Triwulan (Q48 §48.1 butir 1; US-10.05).
 - Kewajiban tindak lanjut berlaku lintas tahun: rekomendasi pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
-- Tindak lanjut rekomendasi dikecualikan untuk periode lampau (Q46 §46.1 butir 1; US-07.03).
+- Tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026 (Q46 §46.1 butir 1; US-07.03).
 - Data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada kolom rancangan `rekomendasi_pimpinan.rujukan_sumber` (Q51 §51.1 butir 5; US-15.01).
 - Penanda persetujuan cadangan berlaku untuk persetujuan oleh peran selain Pimpinan, termasuk Superadmin, bukan hanya Perencanaan (Q51 §51.2 butir 2).
 - Paling banyak satu draf terbuka per indikator × tahun × periode; token versi draf dan rekomendasi berlaku yang dilihat menolak tampilan basi tanpa mengubah data, dan versi pengajuan pengukuran membekukan rekomendasi yang tampil; pengajuan dari tampilan basi ditolak (Q55).

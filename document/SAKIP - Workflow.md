@@ -183,7 +183,7 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
        periode N+1 belum memuat tindak lanjut atas rekomendasi → pengajuan DITOLAK (Q45 §45.2
        butir 3, Q51; lintas tahun bila indikator masih diukur, Q51 §51.1 butir 4; dibangun
        bersama ISS-09.01 pada tahap 2)
-     → Gerbang di atas DIKECUALIKAN untuk periode lampau (§15), termasuk narasi wajib dan
+     → Gerbang di atas DIKECUALIKAN untuk periode lampau 2026 (§15), termasuk narasi wajib dan
        tindak lanjut rekomendasi (Q46)
      → Jendela pengisian sudah lewat: PIC tidak dapat lagi membuat/mengubah/mengajukan;
        hanya Perencanaan yang masih dapat mengisi (lihat §12), tetap tunduk gerbang di atas
@@ -285,7 +285,7 @@ flowchart TD
     W2 --> X[PIC dapat menambah klaim kegiatan susulan\ntermasuk kegiatan lanjutan - Q41\nsaat pengisian - tidak mengubah nilai otomatis]
     X --> Y[PIC melengkapi bukti dukung wajib tahap pengukuran\npilih mode: file / tautan / teks]
     Y --> Z{PIC mengajukan sebelum jendela pengisian berakhir}
-    Z --> Z2{GERBANG: rencana aksi disahkan?\nkomponen aktif lengkap atau\nbelum dapat diukur - Q47?\nbukti dukung wajib lengkap?\nnarasi wajib lengkap?\ntindak lanjut rekomendasi disetujui\nterisi? - Q45, Q51\nDIKECUALIKAN utk periode lampau - Q46}
+    Z --> Z2{GERBANG: rencana aksi disahkan?\nkomponen aktif lengkap atau\nbelum dapat diukur - Q47?\nbukti dukung wajib lengkap?\nnarasi wajib lengkap?\ntindak lanjut rekomendasi disetujui\nterisi? - Q45, Q51\nDIKECUALIKAN utk periode lampau 2026 - Q46}
     Z2 -- Tidak --> Y
     Z2 -- Ya --> AA[Status: Diajukan]
     AA --> AB{Perencanaan memverifikasi\nGERBANG pemisahan tugas §20\nperingatan bila realisasi/narasi sama\ndengan periode sebelumnya - tidak memblokir}
@@ -562,7 +562,7 @@ periode (master global)          jadwal_tahunan (payung tahun)
 - Kolom `pengisian_mulai`, `pengisian_selesai`, `reviu_mulai`, `reviu_selesai` **tidak lagi ada** pada `jadwal_tahunan` — seluruhnya berpindah ke `jadwal_periode`, satu baris per periode yang diharapkan.
 - Kolom `rencana_aksi_mulai`, `rencana_aksi_selesai` (date, nullable) di `jadwal_tahunan` **tidak lagi dipakai** sejak Q41 — tidak menjadi batas PIC, tidak tampil di form jadwal, dan dibiarkan nullable sampai dihapus pada migrasi lanjutan. Semula keduanya menjadi jendela tingkat tahun karena rencana aksi disusun sekali per (indikator × tahun).
 - `jadwal_tahunan.penutupan` **tetap ada** dan berlaku sebagai pembekuan akhir di tingkat tahun, terpisah dari jendela per periode — sekaligus batas akhir penyusunan, perubahan, dan pengajuan Rencana Aksi (Q41); lihat §11 dan §13 untuk perannya dalam batas akses Perencanaan. Penutupan jadwal hanya menghentikan mutasi data kinerja; unggahan arsip PDF dokumen resmi tetap dapat dilakukan setelah jadwal ditutup karena tidak mengubah data (Q48 §48.2 butir 5, §25).
-- **Kunci per triwulan pada Rencana Aksi (Q41)** menggantikan deadline mutlak jendela rencana aksi: periode P terkunci bagi PIC setelah `jadwal_periode.pengisian_selesai` periode P terlewati (tanggal bisnis Asia/Makassar). Setiap perubahan RA oleh PIC — simpan draf, pengajuan, dan versi setelah dikembalikan atau dibuka kembali — tidak boleh mengubah target maupun daftar kegiatan periode yang terkunci; pelanggaran ditolak sebagai validasi bisnis (422) dan diaudit. **Perencanaan dikecualikan** sampai `jadwal_tahunan.penutupan` (permission `rencana_aksi:create`/`update`/`ajukan` bersifat global tanpa scope unit). Periode lampau pada saat aktivasi jadwal sudah terkunci bagi PIC sejak aktivasi (§15). Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC (Q41 §41.2 butir 5). Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan (Q41 §41.2 butir 6).
+- **Kunci per triwulan pada Rencana Aksi (Q41)** menggantikan deadline mutlak jendela rencana aksi: periode P terkunci bagi PIC setelah `jadwal_periode.pengisian_selesai` periode P terlewati (tanggal bisnis Asia/Makassar). Setiap perubahan RA oleh PIC — simpan draf, pengajuan, dan versi setelah dikembalikan atau dibuka kembali — tidak boleh mengubah target maupun daftar kegiatan periode yang terkunci; pelanggaran ditolak sebagai validasi bisnis (422) dan diaudit. **Perencanaan dikecualikan** sampai `jadwal_tahunan.penutupan` (permission `rencana_aksi:create`/`update`/`ajukan` bersifat global tanpa scope unit). Periode lampau 2026 pada saat aktivasi jadwal sudah terkunci bagi PIC sejak aktivasi (§15). Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC (Q41 §41.2 butir 5). Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan (Q41 §41.2 butir 6).
 - Nilai periode dengan `is_nilai_akhir = true` (mis. Tahunan) diisi manual oleh yang berwenang — tidak ada perhitungan agregasi otomatis dari periode-periode di bawahnya.
 
 ---
@@ -878,7 +878,7 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
        0 sah dan kegiatan beranggaran 0 tetap dapat diklaim. anggaran kosong hanya ada pada
        data sebelum Q42, tampil "belum diisi", dan tidak dihitung sebagai 0 (Q42 §42.2
        butir 1–2)
-     → Pengecualian: kegiatan data awal 2026 dan kegiatan pada periode lampau boleh tanpa
+     → Pengecualian: kegiatan data awal 2026 dan kegiatan pada periode lampau 2026 boleh tanpa
        anggaran, tercatat "belum diisi" (Q46 §46.1 butir 3, §15)
   1a. Salin kegiatan (Q49 §49.2): saat menambah kegiatan dari halaman RA, PIC dapat
       menyalinnya ke satu atau lebih periode lain pada RA yang sama
@@ -1255,7 +1255,7 @@ Dari enam induk, **empat** memiliki gerbang kelengkapan; **dua** (`renstra`, `re
 - **renstra** dan **regulasi**: TIDAK memiliki gerbang kelengkapan — lampiran pada kedua induk ini murni pelengkap penelusuran (§3.1, §3.2), tidak pernah memblokir transisi status apa pun.
 - Keempat gerbang di atas (rencana_aksi, pengukuran, kegiatan, renstra_pk) mengikuti aturan `semua_mode_wajib` yang sama: pada tiga induk bertahap, `true` mensyaratkan seluruh mode yang diizinkan terpenuhi dan `false` cukup satu; pada `renstra_pk`, cukup satu lampiran mode apa pun. Aturan anti-macet `tidak_dapat_dipenuhi` (§10.5) digantikan Q44.
 - Induk baru `jenis_berkas` (contoh berkas), `jadwal_tahunan`, dan `jadwal_periode` (arsip dokumen resmi) tidak memiliki gerbang kelengkapan (Q42, Q48).
-- Gerbang rencana_aksi, pengukuran, dan kegiatan DIKECUALIKAN untuk periode lampau (§15), termasuk persyaratan tahap `kegiatan_perencanaan` dan RAB; RA 2026 data awal juga dikecualikan dari gerbang RAB (Q46 §46.1 butir 1 dan 3). Gerbang `renstra_pk` (gerbang keempat aktivasi jadwal) TIDAK dikecualikan untuk periode lampau — periode lampau tetap memerlukan PK tahun berjalan beserta lampirannya, karena PK adalah dasar legal yang mendahului aktivasi jadwal, bukan bagian dari alur pengisian rutin yang dikecualikan.
+- Gerbang rencana_aksi, pengukuran, dan kegiatan DIKECUALIKAN untuk periode lampau 2026 (§15), termasuk persyaratan tahap `kegiatan_perencanaan` dan RAB; RA 2026 data awal juga dikecualikan dari gerbang RAB (Q46 §46.1 butir 1 dan 3). Gerbang `renstra_pk` (gerbang keempat aktivasi jadwal) TIDAK dikecualikan untuk periode lampau — periode lampau tetap memerlukan PK tahun berjalan beserta lampirannya, karena PK adalah dasar legal yang mendahului aktivasi jadwal, bukan bagian dari alur pengisian rutin yang dikecualikan.
 
 ### 10.5 Aturan anti-macet: penanda `tidak_dapat_dipenuhi`
 
@@ -1311,7 +1311,7 @@ Setiap penghapusan tercatat `audit_log` (soft delete lewat `dihapus_pada`/`dihap
 
 ## 11. Alur Pengisian Pengukuran per Periode
 
-> **Q44, Q45, Q46, Q47, Q51 (13 Oktober 2026):** pengajuan pengukuran kini juga mensyaratkan narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`) dan, bila ada Rekomendasi Pimpinan yang **disetujui** pada periode sebelumnya, `tindak_lanjut_rekomendasi` (Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2); `catatan` menjadi keterangan tambahan opsional. Realisasi yang belum tersedia dapat diajukan sebagai "belum dapat diukur" (`status_perhitungan = belum_dapat_diukur`, `nilai` kosong) dengan gerbang komponen dikecualikan (Q47 §47.4, §24). Pengecualian `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44). Gerbang baru dikecualikan untuk periode lampau (Q46 §46.1). Status implementasi: belum (US/ISS-07.01, 07.03; tahap 2).
+> **Q44, Q45, Q46, Q47, Q51 (13 Oktober 2026):** pengajuan pengukuran kini juga mensyaratkan narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`) dan, bila ada Rekomendasi Pimpinan yang **disetujui** pada periode sebelumnya, `tindak_lanjut_rekomendasi` (Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2); `catatan` menjadi keterangan tambahan opsional. Realisasi yang belum tersedia dapat diajukan sebagai "belum dapat diukur" (`status_perhitungan = belum_dapat_diukur`, `nilai` kosong) dengan gerbang komponen dikecualikan (Q47 §47.4, §24). Pengecualian `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44). Gerbang baru dikecualikan untuk periode lampau 2026 (Q46 §46.1). Status implementasi: belum (US/ISS-07.01, 07.03; tahap 2).
 
 Jendela pengisian dan reviu berlaku per periode (§4), bukan satu jendela untuk seluruh tahun. Batasan waktu ini berlaku berbeda bagi Penanggung Jawab (PIC) dibandingkan Perencanaan, dan pengajuan pengukuran tunduk pada gerbang tambahan: rencana aksi disahkan, komponen lengkap, bukti dukung lengkap, narasi wajib, dan tindak lanjut rekomendasi (Q45).
 
@@ -1338,7 +1338,7 @@ Jendela pengisian dan reviu berlaku per periode (§4), bukan satu jendela untuk 
         terakhir tahun sebelumnya bila indikatornya masih diukur (Q51 §51.1 butir 4) — tetapi
         tindak_lanjut_rekomendasi belum diisi (Q45 §45.2 butir 3, Q51 §51.1 butir 2; dibangun
         bersama ISS-09.01, tahap 2) — draf rekomendasi tidak memicu gerbang ini
-     → Gerbang di atas DIKECUALIKAN untuk periode lampau (§15), termasuk narasi wajib dan
+     → Gerbang di atas DIKECUALIKAN untuk periode lampau 2026 (§15), termasuk narasi wajib dan
        tindak lanjut rekomendasi (Q46 §46.1 butir 1) — periode lampau dipakai justru untuk
        memasukkan data historis yang mungkin tidak melalui proses rencana aksi/bukti dukung
        formal pada masanya
@@ -1383,7 +1383,7 @@ flowchart TD
     G -- Tidak --> I[Perencanaan mengisi/mengubah\npengukuran langsung]
     C --> J{Ajukan pengukuran}
     I --> J
-    J --> K{Periode lampau saat\naktivasi jadwal - §15, Q46?}
+    J --> K{Periode lampau 2026 saat\naktivasi jadwal - §15, Q46?}
     K -- Ya --> L[GERBANG DIKECUALIKAN -\nlangsung lanjut ajukan]
     K -- Tidak --> M{GERBANG: rencana aksi disahkan?\nkomponen aktif lengkap atau\nbelum dapat diukur - Q47?\nbukti dukung wajib lengkap?\nnarasi wajib lengkap - Q45?\ntindak lanjut rekomendasi\ndisetujui terisi - Q45, Q51?}
     M -- Tidak --> N[Pengajuan DITOLAK]
@@ -1414,7 +1414,7 @@ flowchart TD
      GERBANG (§11): rencana_aksi disahkan, komponen aktif lengkap (dikecualikan bila realisasi
      belum dapat diukur, Q47), bukti dukung wajib tahap pengukuran lengkap, narasi pengukuran
      lengkap, dan tindak lanjut atas rekomendasi disetujui periode sebelumnya (Q45, Q51) —
-     dikecualikan untuk periode lampau (§15, Q46)
+     dikecualikan untuk periode lampau 2026 (§15, Q46)
      catatan opsional sebagai keterangan tambahan (Q45 §45.1 butir 3)
      [Digantikan Q45] Semula catatan wajib diisi jika:
        a. Nilai pada periode ini MEMBURUK menurut arah indikator (naik_baik: nilai turun;
@@ -1459,7 +1459,7 @@ pakai_persetujuan_pimpinan=true)
 stateDiagram-v2
     [*] --> Draft: pengukuran:create\n(PIC: grant scoped unit + jendela periode;\nPerencanaan: role global, tanpa batas jendela)
     Draft --> Draft: pengukuran:update\n(edit nilai komponen, narasi wajib - Q45,\ncatatan opsional; atau nyatakan belum dapat diukur - Q47;\nnilai indikator turunan otomatis jika berkomponen)
-    Draft --> Diajukan: ajukan (GERBANG: rencana aksi disahkan,\nkomponen lengkap kecuali belum dapat diukur - Q47,\nbukti dukung lengkap, narasi wajib,\ntindak lanjut rekomendasi disetujui - Q45, Q51;\ndikecualikan utk periode lampau - Q46)
+    Draft --> Diajukan: ajukan (GERBANG: rencana aksi disahkan,\nkomponen lengkap kecuali belum dapat diukur - Q47,\nbukti dukung lengkap, narasi wajib,\ntindak lanjut rekomendasi disetujui - Q45, Q51;\ndikecualikan utk periode lampau 2026 - Q46)
     Diajukan --> Diverifikasi: pengukuran:verifikasi (Perencanaan,\ntunduk gerbang pemisahan tugas F1/F2 §20;\nperingatan bila realisasi/narasi sama persis\ndengan periode sebelumnya - tidak memblokir)
     Diajukan --> Dikembalikan: pengukuran:kembalikan (Perencanaan, alasan wajib)
     Diverifikasi --> Dikembalikan: pengukuran:kembalikan (Perencanaan, alasan wajib)
@@ -1836,7 +1836,7 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari status
      dengan target, capaian, komponen, dan narasi (Q51 §51.1 butir 2)
   9. Rekomendasi disetujui pada periode N memicu kewajiban tindak_lanjut_rekomendasi pada
      pengajuan pengukuran periode N+1 (Q45 §45.2 butir 3, §11) — draf tidak memicu kewajiban
-     ini; pengecualian periode lampau tetap berlaku (Q46 §46.1)
+     ini; pengecualian periode lampau 2026 tetap berlaku (Q46 §46.1)
      → Kewajiban berlaku lintas tahun: rekomendasi pada periode terakhir suatu tahun
        ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih
        diukur (Q51 §51.1 butir 4)
