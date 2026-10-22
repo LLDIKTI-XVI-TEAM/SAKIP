@@ -11,8 +11,6 @@ function calendarDates(): array
 {
     return [
         'tahun' => 2026,
-        'rencana_aksi_mulai' => '2026-01-05',
-        'rencana_aksi_selesai' => '2026-01-30',
         'penutupan' => '2027-01-19',
         'periode' => [
             ['periode_id' => 'a', 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07', 'reviu_mulai' => '2026-04-08', 'reviu_selesai' => '2026-04-15'],
@@ -39,38 +37,9 @@ test('invalid calendar boundaries have field errors', function (string $field, s
     ['periode.0.reviu_mulai', '2026-04-06', 'periode.0.reviu_mulai'],
     ['periode.0.reviu_selesai', '2026-04-07', 'periode.0.reviu_selesai'],
     ['periode.1.pengisian_mulai', '2026-04-07', 'periode.1.pengisian_mulai'],
-    ['rencana_aksi_selesai', '2026-04-01', 'rencana_aksi_selesai'],
-    ['rencana_aksi_mulai', '2025-12-01', 'rencana_aksi_mulai'],
     ['periode.0.reviu_selesai', '2027-01-01', 'periode.0.reviu_selesai'],
     ['periode.1.reviu_selesai', '2028-01-01', 'periode.1.reviu_selesai'],
     ['penutupan', '2027-01-18', 'penutupan'],
-]);
-
-test('revisi jendela memakai aturan kalender tanpa jendela Rencana Aksi', function (): void {
-    $data = calendarDates();
-    unset($data['rencana_aksi_mulai'], $data['rencana_aksi_selesai']);
-    // Pengisian pertama sebelum "Rencana Aksi selesai" lama sah sejak Q41.
-    $data['periode'][0]['pengisian_mulai'] = '2026-01-10';
-    (new JadwalDraftRules)->validateJendela($data, ['a' => ['urutan' => 1], 'b' => ['urutan' => 4]]);
-    // Sampai di sini berarti tidak ada galat; aturan draft lama akan menolak tanggal ini pada rencana_aksi_selesai.
-    expect(fn () => (new JadwalDraftRules)->validate([...$data, 'rencana_aksi_mulai' => '2026-01-05', 'rencana_aksi_selesai' => '2026-01-30'], ['a' => ['urutan' => 1], 'b' => ['urutan' => 4]]))
-        ->toThrow(ValidationException::class);
-});
-
-test('revisi jendela tetap menolak pelanggaran kalender per kolom', function (string $field, string $value, string $error): void {
-    $data = calendarDates();
-    unset($data['rencana_aksi_mulai'], $data['rencana_aksi_selesai']);
-    data_set($data, $field, $value);
-    try {
-        (new JadwalDraftRules)->validateJendela($data, ['a' => ['urutan' => 1], 'b' => ['urutan' => 4]]);
-        $this->fail('Kalender invalid diterima.');
-    } catch (ValidationException $exception) {
-        expect($exception->errors())->toHaveKey($error);
-    }
-})->with([
-    ['periode.0.pengisian_selesai', '2026-03-31', 'periode.0.pengisian_selesai'],
-    ['periode.1.pengisian_mulai', '2026-04-07', 'periode.1.pengisian_mulai'],
-    ['periode.0.reviu_selesai', '2027-01-01', 'periode.0.reviu_selesai'],
     ['periode.1.reviu_selesai', '2027-01-19', 'penutupan'],
 ]);
 
@@ -81,7 +50,4 @@ test('selected order must be unique without imposing chronological order', funct
 
     $data['periode'][1] = ['periode_id' => 'b', 'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => '2026-03-07', 'reviu_mulai' => '2026-03-07', 'reviu_selesai' => '2026-04-05'];
     (new JadwalDraftRules)->validate($data, ['a' => ['urutan' => 1], 'b' => ['urutan' => 4]]);
-    $data['rencana_aksi_selesai'] = '2026-03-01';
-    expect(fn () => (new JadwalDraftRules)->validate($data, ['a' => ['urutan' => 1], 'b' => ['urutan' => 4]]))
-        ->toThrow(ValidationException::class);
 });

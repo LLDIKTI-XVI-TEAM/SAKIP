@@ -18,6 +18,7 @@ use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\RencanaAksi\PeriodeTanpaTarget;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -111,6 +112,38 @@ class RencanaAksiAjukanTest extends TestCase
         $this->assertSame('draft', $header->fresh()->status_alur);
         $this->assertSame(2, $header->fresh()->versi);
         $this->assertSame('Target periode Triwulan II belum lengkap.', AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->sole()->alasan);
+    }
+
+    /**
+     * Target kosong pada periode yang sudah terkunci bagi PIC tidak dapat
+     * dilengkapi PIC, jadi pesannya mengarahkan ke Tim Perencanaan. Bagi
+     * Perencanaan (tidak terkena kunci tanggal) pesan tetap pesan lama.
+     */
+    public function test_target_kosong_periode_terkunci_bagi_pic_menyebut_tim_perencanaan(): void
+    {
+        // Kalender: TW I terkunci setelah 31 Maret, TW II mulai 15 April.
+        $fixture = $this->buatFixtureManual();
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)
+            ->update(['pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30', 'reviu_mulai' => '2026-05-01', 'reviu_selesai' => '2026-05-15']);
+        // Aktivasi dipatok sebelum batas TW I agar TW I bukan periode lampau (Q46).
+        $fixture['jadwal']->forceFill(['activated_at' => '2026-02-15 01:00:00'])->save();
+        $header = $this->buatDraf($fixture);
+        $this->simpan($fixture, $header, 1, [$this->manual($fixture['periode2'], 100)]);
+        $this->travelTo(Carbon::parse('2026-04-05 09:00', 'Asia/Makassar'));
+
+        $pesan = 'Target periode Triwulan I belum lengkap. Periode ini terkunci; target diisi Tim Perencanaan.';
+        $tw1 = PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->sole();
+        $this->assertFalse(PeriodeTanpaTarget::isPeriodeLampau($fixture['jadwal']->fresh(), $tw1));
+        $this->ajukan($fixture['pic'], $header, $header->fresh()->versi)
+            ->assertSessionHasErrors(['pengajuan' => $pesan]);
+        $this->assertSame($pesan, AuditLog::where('tindakan', 'rencana_aksi.ajukan_ditolak')->sole()->alasan);
+        // Gerbang server pada jalur Perencanaan tetap memakai pesan lama.
+        $this->ajukan($fixture['perencanaan'], $header, $header->fresh()->versi)
+            ->assertSessionHasErrors(['pengajuan' => 'Target periode Triwulan I belum lengkap.']);
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.pengajuan.alasan', fn ($alasan) => collect($alasan)->contains($pesan)));
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")->assertInertia(fn ($page) => $page
+            ->where('rencanaAksi.pengajuan.alasan', fn ($alasan) => collect($alasan)->contains('Target periode Triwulan I belum lengkap.')));
     }
 
     public function test_penyebut_nol_ditolak(): void

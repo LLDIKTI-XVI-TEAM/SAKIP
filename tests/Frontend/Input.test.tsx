@@ -16,3 +16,9 @@ it('Input mempertahankan gaya label dan hubungan aksesibel ke error tanpa ID eks
     expect(input.getAttribute('aria-describedby')).toBe(error.id);
     expect(input.hasAttribute('labelClassName')).toBe(false);
 });
+
+it('Input menggabungkan aria-describedby pemanggil dengan helper tanpa saling menimpa', () => {
+    render(<Input id="x" label="Nilai" helperText="Bantuan" aria-describedby="luar" />);
+
+    expect(screen.getByRole('textbox', { name: 'Nilai' }).getAttribute('aria-describedby')?.split(' ')).toEqual(expect.arrayContaining(['luar', 'x-help']));
+});
