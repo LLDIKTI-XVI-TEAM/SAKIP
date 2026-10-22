@@ -6,10 +6,11 @@ import type { BarisRekap, RekapProps } from '@/types/laporan';
 import { getSidebarNavEntries } from '@/lib/navigation/sidebarNavigation';
 
 const request = vi.hoisted(() => ({ get: vi.fn(), processing: false, errors: {} as Record<string, string> }));
+const page = vi.hoisted(() => ({ pengaturan: {} as Record<string, string> }));
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: ({ children, href, className }: { children: ReactNode; href: string; className?: string }) => <a href={href} className={className}>{children}</a>,
-    usePage: () => ({ props: { pengaturan: {} } }),
+    usePage: () => ({ props: page }),
     useForm: (initial: RekapProps['filters']) => {
         const [data, setData] = useState(initial);
         return { data, setData: (key: keyof RekapProps['filters'] | RekapProps['filters'], value?: string) => setData(typeof key === 'string' ? { ...data, [key]: value ?? '' } : key), ...request };
@@ -17,7 +18,7 @@ vi.mock('@inertiajs/react', () => ({
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children, title }: { children: ReactNode; title: string }) => <main><h1>{title}</h1>{children}</main> }));
 
-beforeEach(() => { request.get.mockReset(); request.processing = false; request.errors = {}; });
+beforeEach(() => { request.get.mockReset(); request.processing = false; request.errors = {}; page.pengaturan = {}; });
 afterEach(cleanup);
 
 function row(overrides: Partial<BarisRekap> = {}): BarisRekap {
@@ -43,6 +44,18 @@ function props(rows: BarisRekap[] = [row()]): RekapProps {
         pilihan_jadwal: [{ id: 'j1', label: '2026 · Renstra Uji' }, { id: 'j2', label: '2025 · Renstra Uji' }], pilihan_periode: [{ id: 'p1', nama: 'Triwulan I' }],
         baris: rows, pagination: { links: [], from: rows.length ? 1 : null, to: rows.length || null, total: rows.length } };
 }
+
+it.each([
+    { zona: 'UTC', format: 'Y-m-d', hasil: '2026-10-21' },
+    { zona: 'Asia/Jayapura', format: 'd F Y', hasil: '22 Oktober 2026' },
+])('tanggal pengesahan mengikuti preferensi format dan zona waktu $zona / $format', ({ zona, format, hasil }) => {
+    page.pengaturan = { 'tampilan.zona_waktu': zona, 'tampilan.format_tanggal': format };
+    const data = row({ versi: { id: 'v1', nomor: 1, disahkan_pada: '2026-10-21T16:30:00Z' } });
+
+    render(<Rekap {...props([data])} />);
+
+    expect(screen.getByText(`Versi pengajuan 1 · disahkan ${hasil}`)).toBeTruthy();
+});
 
 it('menampilkan rekap berkomponen dengan dua kegiatan, rekomendasi dan histori bukti sesuai Plan 8.3', () => {
     const data = row({

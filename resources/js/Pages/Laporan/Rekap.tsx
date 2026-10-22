@@ -9,6 +9,7 @@ import { Pagination } from '@/Components/Pagination';
 import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { BarisRekap, RekapProps } from '@/types/laporan';
 
 const tidakTercatat = 'Tidak tercatat pada versi ini';
@@ -31,6 +32,7 @@ function Data({ label, children }: { label: string; children: ReactNode }) {
 
 function IsiBaris({ row }: { row: BarisRekap }) {
     const format = useFormatNilai();
+    const formatTanggal = useFormatTanggal();
     const nilai = (value: string | null, unit = true) => value === null ? '—' : `${format(value, row.indikator.desimal_tampilan)}${unit && row.indikator.satuan ? ` ${row.indikator.satuan}` : ''}`;
     const sah = row.versi !== null;
     const unavailable = sah ? tidakTercatat : 'Belum disahkan';
@@ -46,7 +48,7 @@ function IsiBaris({ row }: { row: BarisRekap }) {
                 {sah && row.pic_saat_ini?.id !== row.pic?.id && <Data label="PIC saat ini">{row.pic_saat_ini?.nama ?? 'Belum ditetapkan'}</Data>}
                 <Data label="Cara hitung">{row.indikator.tipe_perhitungan === 'manual' ? 'Nilai manual' : row.indikator.tipe_perhitungan === 'rasio_persen' ? 'Rasio persen berbobot' : 'Penjumlahan berbobot'}</Data>
             </dl>
-            {row.versi && <p className="mt-4 text-xs text-muted">Versi pengajuan {row.versi.nomor} · disahkan {new Date(row.versi.disahkan_pada).toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar' })}</p>}
+            {row.versi && <p className="mt-4 text-xs text-muted">Versi pengajuan {row.versi.nomor} · disahkan {formatTanggal(row.versi.disahkan_pada)}</p>}
         </TableCell>
         <TableCell className="block min-w-0 border-t border-border align-top lg:table-cell lg:w-[30%] lg:border-t-0">
             <h3 className="mb-3 text-sm font-semibold lg:sr-only">Target</h3>
