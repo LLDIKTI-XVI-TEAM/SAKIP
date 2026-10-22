@@ -6,7 +6,7 @@ use App\Models\Pengaturan;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\PengaturanService;
+use App\Services\Pengaturan\PengaturanService;
 use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;

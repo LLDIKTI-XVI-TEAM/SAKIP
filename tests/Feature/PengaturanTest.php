@@ -6,7 +6,7 @@ use App\Models\Pengaturan;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\PengaturanService;
+use App\Services\Pengaturan\PengaturanService;
 use Database\Seeders\AccessCatalogSeeder;
 use Database\Seeders\PengaturanSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
