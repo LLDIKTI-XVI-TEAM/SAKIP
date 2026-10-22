@@ -7,14 +7,16 @@ import { Editor } from './Editor';
 import type { TargetEditorData } from './types';
 
 export interface TargetModalProps {
+    pkId: string;
     indikatorId: string;
-    initialYear: number;
+    /** Tahun Perjanjian Kinerja; target PK hanya diisi untuk tahun ini. */
+    tahun: number;
     onClose: () => void;
     onSaved: (message: string) => void;
 }
 
 export function TargetModal(props: TargetModalProps) {
-    return <LoadTargetModal key={props.indikatorId} {...props} />;
+    return <LoadTargetModal key={`${props.pkId}:${props.indikatorId}`} {...props} />;
 }
 function record(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -37,11 +39,15 @@ function isEditor(value: unknown, id: string, year: number): value is TargetEdit
         && (value.target_tahunan === null || typeof value.target_tahunan === 'string')
         && typeof value.expected_state === 'string' && /^[a-f0-9]{64}$/.test(value.expected_state)
         && typeof value.has_snapshot === 'boolean' && typeof value.can.update === 'boolean'
-        && (value.read_only_reason === null || typeof value.read_only_reason === 'string');
+        && (value.read_only_reason === null || typeof value.read_only_reason === 'string')
+        && typeof indikator.arah === 'string' && typeof value.status_deviasi === 'string'
+        && (value.target_renstra === null || typeof value.target_renstra === 'string')
+        && (value.alasan_deviasi_renstra === null || typeof value.alasan_deviasi_renstra === 'string');
 }
 
-function LoadTargetModal({ indikatorId, initialYear, onClose, onSaved }: TargetModalProps) {
-    const [request, setRequest] = useState({ year: initialYear, serial: 0 });
+function LoadTargetModal({ pkId, indikatorId, tahun, onClose, onSaved }: TargetModalProps) {
+    const path = `/perjanjian-kinerja/${pkId}/target/${indikatorId}`;
+    const [request, setRequest] = useState({ year: tahun, serial: 0 });
     const [loaded, setLoaded] = useState<{ editor: TargetEditorData; serial: number } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -53,12 +59,12 @@ function LoadTargetModal({ indikatorId, initialYear, onClose, onSaved }: TargetM
         const fetchEditor = async () => {
             setError(''); setRecovery(null);
             try {
-                const response = await fetch(`/perencanaan/indikator/${indikatorId}/target-tahunan/${request.year}/editor`, {
+                const response = await fetch(`${path}/editor`, {
                     credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, signal: controller.signal,
                 });
                 if (controller.signal.aborted) return;
                 if (!response.ok) {
-                    setRecovery(classifyRecovery({ status: response.status, data: {}, headers: {} }, { effectiveMethod: 'get', path: `/perencanaan/indikator/${indikatorId}/target-tahunan/${request.year}/editor`, mutation: false }));
+                    setRecovery(classifyRecovery({ status: response.status, data: {}, headers: {} }, { effectiveMethod: 'get', path: `${path}/editor`, mutation: false }));
                     setError(response.status === 403 ? 'Anda tidak memiliki akses membaca indikator ini.'
                         : response.status === 401 ? 'Sesi berakhir. Masuk ulang untuk melihat data.'
                             : response.status === 419 ? 'Verifikasi keamanan gagal. Muat ulang halaman setelah menyalin isian.'
@@ -77,9 +83,9 @@ function LoadTargetModal({ indikatorId, initialYear, onClose, onSaved }: TargetM
         };
         void fetchEditor();
         return () => controller.abort();
-    }, [indikatorId, request]);
+    }, [indikatorId, path, request]);
 
-    if (loaded) return <Editor key={`${loaded.editor.tahun}:${loaded.serial}`} editor={loaded.editor} loading={loading} loadError={error} loadRecovery={recovery} retryYear={request.year} onLoad={load} onClose={onClose} onSaved={onSaved} />;
+    if (loaded) return <Editor key={`${loaded.editor.tahun}:${loaded.serial}`} editor={loaded.editor} path={path} loading={loading} loadError={error} loadRecovery={recovery} retryYear={request.year} onLoad={load} onClose={onClose} onSaved={onSaved} />;
     return <Modal isOpen onClose={() => { if (!loading) onClose(); }} title="Baseline & target tahunan" size="xl" bodyClassName="p-4 sm:p-6">
         {loading ? <p role="status" className="rounded-lg bg-soft p-3 text-sm text-muted">Memuat data…</p> : <div className="space-y-5">
             {recovery ? <AuthRecoveryNotice recovery={recovery} /> : <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">{error}</p>}

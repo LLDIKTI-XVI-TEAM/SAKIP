@@ -35,7 +35,6 @@ import { tipePerhitunganLabel } from '@/lib/indikator';
 import { FormulaModal } from './FormulaModal';
 import { TambahMenu } from './TambahMenu';
 import { DeleteConfirmModal, type DeleteTarget } from './DeleteConfirmModal';
-import { TargetModal } from '@/Pages/TargetTahunan/TargetModal';
 import { TargetRenstraTable } from './TargetRenstraTable';
 import type {
     IndikatorKinerjaItem,
@@ -82,7 +81,6 @@ export default function SasaranIndikatorIndex({
     const [pindahTarget, setPindahTarget] = useState<IndikatorKinerjaItem | null>(null);
 
     const [formulaTarget, setFormulaTarget] = useState<DefinitionEditor | null>(null);
-    const [annualTarget, setAnnualTarget] = useState<{ id: string; year: number } | null>(null);
     const [annualMessage, setAnnualMessage] = useState('');
     const [tab, setTab] = useState<'indikator' | 'target'>('indikator');
     const [targetDibuka, setTargetDibuka] = useState(false);
@@ -130,13 +128,6 @@ export default function SasaranIndikatorIndex({
     const indikatorActions = (ind: IndikatorKinerjaItem): ActionMenuItem[] => [
         ...(can.indikator_read ? [{ key: 'detail', label: 'Lihat Detail', icon: Eye, href: `/perencanaan/indikator/${ind.id}`, ariaLabel: `Lihat detail indikator ${ind.kode}` }] : []),
         ...(can.penanggung_jawab_update ? [{ key: 'pj', label: 'Penanggung Jawab', icon: UserCheck, href: `/perencanaan/indikator/${ind.id}/penanggung-jawab`, ariaLabel: `Penanggung jawab ${ind.kode}` }] : []),
-        ...(can.indikator_read && selectedRenstra ? [{
-            key: 'target', label: 'Baseline & Target', icon: Target, ariaLabel: `Baseline & target ${ind.kode}`,
-            onSelect: () => {
-                setAnnualMessage('');
-                setAnnualTarget({ id: ind.id, year: Math.max(ind.tahun_mulai_berlaku, selectedRenstra.tahun_mulai, Math.min(new Date().getFullYear(), selectedRenstra.tahun_selesai)) });
-            },
-        }] : []),
         ...(ind.tipe_perhitungan !== 'manual' && can.komponen_read ? [{ key: 'komponen', label: 'Komponen Perhitungan', icon: Calculator, href: `/indikator/${ind.id}/komponen`, ariaLabel: `Komponen perhitungan ${ind.kode}` }] : []),
         ...(canAturFormula ? [{ key: 'formula', label: 'Atur Formula', icon: Sigma, ariaLabel: `Atur formula indikator ${ind.kode}`, onSelect: () => { void openFormula(ind); } }] : []),
         ...(can.indikator_update ? [
@@ -427,7 +418,6 @@ export default function SasaranIndikatorIndex({
             </div>
 
             {/* Modal Tambah/Edit Sasaran */}
-            {annualTarget && <TargetModal indikatorId={annualTarget.id} initialYear={annualTarget.year} onClose={() => setAnnualTarget(null)} onSaved={setAnnualMessage} />}
             {selectedRenstraId && (
                 <SasaranModal
                     isOpen={sasaranModalOpen}

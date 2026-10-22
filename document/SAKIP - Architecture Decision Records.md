@@ -755,7 +755,7 @@ Ditolak karena alasan tidak queryable untuk payload baca/preview dan tidak tampi
 ## Consequences
 
 - Data Model §2.23 diselaraskan melalui Q34.
-- Target PK tetap hanya berubah melalui revisi PK resmi.
+- Target PK resmi pada snapshot tetap hanya berubah melalui revisi PK resmi; perubahan target PK di halaman PK tidak mengubah snapshot (diselaraskan melalui Q65).
 
 ## Verification
 

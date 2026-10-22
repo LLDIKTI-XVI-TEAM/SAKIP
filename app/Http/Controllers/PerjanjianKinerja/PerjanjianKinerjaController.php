@@ -8,12 +8,16 @@ use App\Actions\PerjanjianKinerja\DownloadBerkasPerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\IndexPerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\ShowPerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\UpdatePerjanjianKinerja;
+use App\Actions\TargetTahunan\SaveTargetTahunan;
+use App\Actions\TargetTahunan\ShowTargetTahunan;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PerjanjianKinerja\DestroyBerkasPerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\StorePerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\UpdatePerjanjianKinerjaRequest;
+use App\Http\Requests\TargetTahunan\SaveTargetTahunanRequest;
 use App\Models\Berkas;
 use App\Models\RenstraPk;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -70,6 +74,28 @@ class PerjanjianKinerjaController extends Controller
         Gate::authorize('view', $perjanjianKinerja);
 
         return Inertia::render('PerjanjianKinerja/Show', $action->handle($request->user(), $perjanjianKinerja));
+    }
+
+    /**
+     * Memuat editor baseline dan target PK satu indikator pada tahun Perjanjian Kinerja.
+     */
+    public function targetEditor(Request $request, RenstraPk $perjanjianKinerja, string $indikator, ShowTargetTahunan $action): JsonResponse
+    {
+        return response()->json($action->handle($request->user(), $indikator, $perjanjianKinerja->tahun, $perjanjianKinerja->renstra_id));
+    }
+
+    /**
+     * Menyimpan baseline dan target PK satu indikator dari halaman Perjanjian Kinerja.
+     */
+    public function updateTarget(SaveTargetTahunanRequest $request, RenstraPk $perjanjianKinerja, string $indikator, SaveTargetTahunan $action): JsonResponse|RedirectResponse
+    {
+        $outcome = $action->handle($request->user(), $indikator, $perjanjianKinerja->tahun, $request->validated(), $perjanjianKinerja->renstra_id);
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->json($outcome);
+        }
+        Inertia::flash('target_tahunan', $outcome);
+
+        return redirect()->route('perjanjian-kinerja.show', $perjanjianKinerja);
     }
 
     /**

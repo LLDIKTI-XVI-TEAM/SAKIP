@@ -3,8 +3,10 @@
 namespace Tests\Feature\PerjanjianKinerja;
 
 use App\Models\AuditLog;
+use App\Models\Berkas;
 use App\Models\JadwalTahunan;
 use App\Models\Permission;
+use App\Models\Regulasi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
 use App\Models\Role;
@@ -15,7 +17,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PerjanjianKinerjaHttpTest extends TestCase
@@ -232,6 +236,202 @@ class PerjanjianKinerjaHttpTest extends TestCase
                 'alasan' => '',
             ])
             ->assertSessionHasErrors('alasan');
+    }
+
+    /**
+     * @param  array<string, string>  $nomor
+     */
+    #[DataProvider('nomorPkKosong')]
+    public function test_pk_tanpa_nomor_diterima_dan_tersimpan_null(array $nomor): void
+    {
+        $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'tanggal_pk' => '2026-04-21',
+                ...$nomor,
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $baris = DB::table('renstra_pk')->where('renstra_id', $this->renstra->id)->where('tahun', 2026)->get(['nomor_pk', 'tanggal_pk']);
+        $this->assertCount(1, $baris);
+        $this->assertNull($baris[0]->nomor_pk);
+        $this->assertSame('2026-04-21', $baris[0]->tanggal_pk);
+    }
+
+    /**
+     * @return array<string, array{array<string, string>}>
+     */
+    public static function nomorPkKosong(): array
+    {
+        return [
+            'dikosongkan' => [['nomor_pk' => '']],
+            'tidak dikirim' => [[]],
+        ];
+    }
+
+    public function test_ubah_pk_mengosongkan_nomor_diterima(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-AWAL',
+            'tanggal_pk' => '2026-04-21',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => '',
+                'tanggal_pk' => '2026-04-21',
+                'alasan' => 'PK 2026 tidak bernomor',
+                'expected_updated_at' => $pk->updated_at?->toISOString() ?? now()->toISOString(),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertNull(DB::table('renstra_pk')->where('id', $pk->id)->value('nomor_pk'));
+    }
+
+    public function test_pk_kedua_pada_renstra_tahun_sama_tetap_ditolak_tanpa_nomor(): void
+    {
+        RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => null,
+            'tanggal_pk' => '2026-04-21',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => '',
+                'tanggal_pk' => '2026-05-02',
+            ])
+            ->assertSessionHasErrors('tahun')
+            ->assertSessionDoesntHaveErrors('nomor_pk');
+
+        $this->assertSame(1, DB::table('renstra_pk')->where('renstra_id', $this->renstra->id)->where('tahun', 2026)->count());
+    }
+
+    public function test_tanggal_pk_sebelum_tanggal_penetapan_renstra_tidak_ditolak(): void
+    {
+        $regulasi = Regulasi::create([
+            'jenis' => 'keputusan_lainnya',
+            'nomor' => '548/DST/LL16/PR.00.02/2026',
+            'tahun' => 2026,
+            'tentang' => 'Renstra LLDIKTI Wilayah XVI 2025-2029',
+            'tanggal' => '2026-05-01',
+            'created_by' => $this->perencanaan->id,
+        ]);
+        $this->renstra->update(['regulasi_id' => $regulasi->id]);
+
+        $this->actingAs($this->perencanaan)
+            ->post('/perjanjian-kinerja', [
+                'renstra_id' => $this->renstra->id,
+                'tahun' => 2026,
+                'nomor_pk' => 'PK-2026-AWAL',
+                'tanggal_pk' => '2026-04-21',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame('2026-04-21', DB::table('renstra_pk')->where('nomor_pk', 'PK-2026-AWAL')->value('tanggal_pk'));
+    }
+
+    #[DataProvider('modeLampiran')]
+    public function test_lampiran_pk_menyimpan_keterangan_dan_mencatatnya_di_audit(string $mode): void
+    {
+        $pk = $this->pkTahun2026();
+        $keterangan = 'PK perubahan anggaran QA-7f3';
+        $item = match ($mode) {
+            'file' => ['mode' => 'file', 'file' => UploadedFile::fake()->create('pk-perubahan.pdf', 120, 'application/pdf')],
+            'tautan' => ['mode' => 'tautan', 'tautan' => 'https://contoh.go.id/pk-perubahan'],
+            'teks' => ['mode' => 'teks', 'isi_teks' => 'Ringkasan PK perubahan anggaran'],
+        };
+
+        $this->ubahPkDenganLampiran($pk, [...$item, 'keterangan' => $keterangan])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $berkas = DB::table('berkas')->where('berkasable_type', 'renstra_pk')->where('berkasable_id', $pk->id)->get(['id', 'keterangan']);
+        $this->assertCount(1, $berkas);
+        $this->assertSame($keterangan, $berkas[0]->keterangan);
+        $audit = AuditLog::where('tindakan', 'berkas.unggah')->where('objek_id', $berkas[0]->id)->sole();
+        $this->assertSame($keterangan, $audit->nilai_baru['keterangan'] ?? null);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function modeLampiran(): array
+    {
+        return ['file' => ['file'], 'tautan' => ['tautan'], 'teks' => ['teks']];
+    }
+
+    public function test_keterangan_lampiran_lebih_dari_1000_karakter_ditolak(): void
+    {
+        $pk = $this->pkTahun2026();
+        $lampiran = fn (string $keterangan): array => ['mode' => 'tautan', 'tautan' => 'https://contoh.go.id/pk', 'keterangan' => $keterangan];
+
+        $this->ubahPkDenganLampiran($pk, $lampiran(str_repeat('a', 1001)))->assertSessionHasErrors('lampiran.0.keterangan');
+        $this->assertSame(0, DB::table('berkas')->where('berkasable_id', $pk->id)->count());
+
+        $this->ubahPkDenganLampiran($pk, $lampiran(str_repeat('a', 1000)))->assertSessionHasNoErrors();
+        $this->assertSame(1000, mb_strlen((string) DB::table('berkas')->where('berkasable_id', $pk->id)->value('keterangan')));
+    }
+
+    public function test_keterangan_lampiran_dengan_byte_nul_ditolak(): void
+    {
+        $pk = $this->pkTahun2026();
+
+        $this->ubahPkDenganLampiran($pk, ['mode' => 'tautan', 'tautan' => 'https://contoh.go.id/pk', 'keterangan' => "PK perubahan\0anggaran"])
+            ->assertSessionHasErrors('lampiran.0.keterangan');
+        $this->assertSame(0, DB::table('berkas')->where('berkasable_id', $pk->id)->count());
+    }
+
+    public function test_detail_pk_mengirim_keterangan_lampiran(): void
+    {
+        $pk = $this->pkTahun2026();
+        Berkas::forceCreate(['id' => (string) Str::uuid(), 'berkasable_type' => 'renstra_pk', 'berkasable_id' => $pk->id, 'mode' => 'tautan',
+            'tautan' => 'https://contoh.go.id/pk', 'uploaded_by' => $this->perencanaan->id, 'keterangan' => 'PK perubahan anggaran']);
+
+        $this->actingAs($this->perencanaan)
+            ->get("/perjanjian-kinerja/{$pk->id}")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('PerjanjianKinerja/Show')
+                ->where('pk.berkas.0.keterangan', 'PK perubahan anggaran')
+            );
+    }
+
+    private function pkTahun2026(): RenstraPk
+    {
+        return RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-AWAL',
+            'tanggal_pk' => '2026-04-21',
+            'created_by' => $this->perencanaan->id,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $lampiran
+     */
+    private function ubahPkDenganLampiran(RenstraPk $pk, array $lampiran): TestResponse
+    {
+        return $this->actingAs($this->perencanaan)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-AWAL',
+                'tanggal_pk' => '2026-04-21',
+                'alasan' => 'Unggah PK perubahan anggaran',
+                'expected_updated_at' => $pk->fresh()->updated_at?->toISOString() ?? now()->toISOString(),
+                'lampiran' => [$lampiran],
+            ]);
     }
 
     public function test_delete_lampiran_berkas_succeeds_when_jadwal_inactive(): void

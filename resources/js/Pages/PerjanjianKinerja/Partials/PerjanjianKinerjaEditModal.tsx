@@ -61,7 +61,7 @@ export function PerjanjianKinerjaEditModal({
             setData({
                 renstra_id: pk.renstra_id,
                 tahun: pk.tahun,
-                nomor_pk: pk.nomor_pk,
+                nomor_pk: pk.nomor_pk ?? '',
                 tanggal_pk: pk.tanggal_pk ? pk.tanggal_pk.split('T')[0] : '',
                 expected_updated_at: pk.updated_at ?? '',
                 alasan: '',
