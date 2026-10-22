@@ -14,6 +14,7 @@ use App\Models\Role;
 use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\PenanggungJawab\AppendAssignment;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -325,17 +326,38 @@ class PenanggungJawabTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.ganti')->count());
     }
 
-    public function test_empty_reason_and_stale_backdate_are_audited_without_insert(): void
+    public function test_replacement_without_reason_is_accepted_and_stale_backdate_is_audited(): void
     {
         $this->assignment($this->target, '2026-02-01');
         $oldPayload = $this->payload($this->actor, '2026-04-01', 'Pergantian');
         $this->assignment($this->actor, '2026-01-01');
         $this->actingAs($this->actor)->from($this->url())->post($this->url().'/pergantian', $oldPayload)->assertSessionHasErrors('expected_state');
-        foreach (['', '   ', "\x01"] as $reason) {
-            $this->actingAs($this->actor)->from($this->url())->post($this->url().'/pergantian', $this->payload($this->actor, '2026-03-01', $reason))->assertSessionHasErrors('alasan');
+
+        // Q43 §43.3 butir 4: pergantian tanpa alasan diterima (field tidak dikirim, kosong, atau spasi).
+        foreach ([[null, '2026-03-01', $this->actor, true], ['', '2026-05-01', $this->target, false], ['   ', '2026-06-01', $this->actor, false]] as [$reason, $date, $user, $omitField]) {
+            $payload = $this->payload($user, $date, $reason);
+            if ($omitField) {
+                unset($payload['alasan']);
+            }
+            $this->actingAs($this->actor)->post($this->url().'/pergantian', $payload)
+                ->assertRedirect($this->url())->assertSessionHasNoErrors();
+            $row = PenugasanIndikator::where('tanggal_mulai_berlaku', $date)->sole();
+            $this->assertNull($row->alasan);
+            $audit = AuditLog::where('tindakan', 'penanggung_jawab.ganti')->where('nilai_baru->assignment_id', $row->id)->sole();
+            $this->assertSame(AppendAssignment::ALASAN_BAKU_GANTI, $audit->alasan);
+            $this->assertNull($audit->nilai_baru['alasan']);
         }
-        $this->assertDatabaseCount('penanggung_jawab', 2);
-        $this->assertSame(4, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
+
+        // Kontrol: alasan eksplisit tetap tersimpan pada histori dan audit.
+        $this->actingAs($this->actor)->post($this->url().'/pergantian', $this->payload($this->target, '2026-07-01', 'Pergantian resmi'))
+            ->assertRedirect($this->url())->assertSessionHasNoErrors();
+        $control = PenugasanIndikator::where('tanggal_mulai_berlaku', '2026-07-01')->sole();
+        $this->assertSame('Pergantian resmi', $control->alasan);
+        $this->assertSame('Pergantian resmi', AuditLog::where('tindakan', 'penanggung_jawab.ganti')->where('nilai_baru->assignment_id', $control->id)->sole()->alasan);
+
+        $this->assertDatabaseCount('penanggung_jawab', 6);
+        $this->assertSame(1, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'penanggung_jawab.ditolak')->where('nilai_baru->field', 'alasan')->count());
     }
 
     #[DataProvider('blockedContexts')]

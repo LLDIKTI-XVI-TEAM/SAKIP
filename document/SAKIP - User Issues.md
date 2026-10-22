@@ -5580,7 +5580,9 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 - [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
-> **Batas verifikasi PR:** AC-4/TEST-4 dipetakan ke test per endpoint dan CI 9/9 pada `1fdb7e2`. QA SSO/browser smoke dan UAT belum dilakukan; DoD design-system tetap terbuka sampai QA tersebut.
+> **Status verifikasi AC-2/TEST-2 (22 Oktober 2026, review B1):** pergantian PJ tanpa alasan diterima; dibuktikan `PenanggungJawabTest::test_replacement_without_reason_is_accepted_and_stale_backdate_is_audited` (histori `alasan` null, audit `penanggung_jawab.ganti` memakai `AppendAssignment::ALASAN_BAKU_GANTI`) dan Vitest `AuditReasonModal` (notice/error tetap tampil saat `hideReasonField`).
+
+> **Batas verifikasi PR:** AC-2/TEST-2 dibuktikan test pergantian PJ tanpa alasan dan Vitest modal; AC-4/TEST-4 dipetakan ke test per endpoint dan CI 9/9 pada `09c2329`. QA SSO/browser smoke dan UAT belum dilakukan; DoD design-system tetap terbuka sampai QA tersebut.
 
 ### ISS-13.06 · [Feature] Penghapusan Kebijakan Storage, Batas Teknis Unggahan di Konfigurasi, dan Penataan Menu Referensi
 

@@ -1522,7 +1522,7 @@ class PerjanjianKinerjaHttpTest extends TestCase
 
         // Pastikan tidak ada query N+1 per baris untuk resolusi jadwal
         // Query untuk jadwal_tahunan fallback maksimal 1 kali batch query.
-        // Query EXISTS `alasan_wajib` per baris dikecualikan: bukan resolusi jadwal (disetujui reviewer).
+        // Query EXISTS `alasan_wajib` per baris bukan resolusi jadwal.
         $jadwalQueries = array_filter(
             $queries,
             fn ($q) => str_contains(strtolower($q['query']), 'jadwal_tahunan')

@@ -120,6 +120,11 @@ export function AuditReasonModal({
                     )}
                 </div>}
 
+                {hideReasonField && (notice || error) && <div className="px-5 py-4">
+                    {open && notice}
+                    {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">{error}</p>}
+                </div>}
+
                 <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end">
                     <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Batal</Button>
                     <Button
