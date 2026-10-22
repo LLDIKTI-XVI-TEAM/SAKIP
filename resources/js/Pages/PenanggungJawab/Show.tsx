@@ -217,7 +217,7 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
                             </div>
                             <p className="mt-1 text-xs text-muted">Berlaku {formatTanggal(row.tanggal_mulai_berlaku)} · Ditetapkan oleh {row.ditetapkan_oleh?.nama ?? 'Tidak tersedia'}</p>
                             <p className="mt-0.5 text-xs text-muted">Dicatat {row.created_at ? formatTanggal(row.created_at, { withTime: true }) : 'Tidak tersedia'}</p>
-                            <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">{row.alasan ?? 'Penetapan awal'}</p>
+                            <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">{row.alasan ?? 'Tanpa alasan tambahan'}</p>
                         </li>)}</ol>}
                     {(history.prev_page_url || history.next_page_url) && <nav aria-label="Halaman histori" className="mt-6 flex justify-between gap-3 border-t border-border pt-4">
                         {history.prev_page_url && <Link href={history.prev_page_url} preserveState preserveScroll className={pagerLink}>‹ Sebelumnya</Link>}

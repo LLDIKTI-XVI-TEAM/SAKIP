@@ -110,6 +110,21 @@ describe('Tampilan histori PJ mengikuti preferensi tanpa mengubah tanggal API', 
         expect(screen.getByText('Dicatat Tidak tersedia')).toBeTruthy();
     });
 
+    it('memakai fallback netral saat alasan penugasan kosong, bukan label penetapan awal', () => {
+        const base = historyProps('2026-02-01T16:30:00Z');
+        const [latest] = base.history.data;
+        render(<Show {...base} effective={null} history={{ ...base.history, data: [{ ...latest, alasan: null }] }} />);
+        expect(screen.getByText('Tanpa alasan tambahan')).toBeTruthy();
+        expect(screen.queryByText(/Penetapan awal/)).toBeNull();
+    });
+
+    it('menampilkan alasan penugasan bila server mengirimkannya', () => {
+        const base = historyProps('2026-02-01T16:30:00Z');
+        const [latest] = base.history.data;
+        render(<Show {...base} effective={null} history={{ ...base.history, data: [{ ...latest, alasan: 'Pergantian resmi' }] }} />);
+        expect(screen.getByText('Pergantian resmi')).toBeTruthy();
+    });
+
     it('menampilkan dua penugasan bertanggal sama sesuai urutan server', () => {
         const base = historyProps('2026-02-01T01:00:00Z');
         const [latest] = base.history.data;
