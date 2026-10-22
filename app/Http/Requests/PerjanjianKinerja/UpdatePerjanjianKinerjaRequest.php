@@ -6,6 +6,7 @@ use App\Models\RenstraPk;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\PerjanjianKinerja\PerjanjianKinerjaSupport;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -92,7 +93,8 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
         return [
             'nomor_pk' => ['required', 'string', 'max:255'],
             'tanggal_pk' => ['required', 'date'],
-            'alasan' => ['required', 'string', 'min:3', 'max:1000'],
+            // Opsional sebelum PK dipakai jadwal aktif; sesudahnya wajib (Q43 §43.2 butir 3, §43.3 butir 3).
+            'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],
             'expected_updated_at' => ['required', 'date'],
             ...PerjanjianKinerjaSupport::lampiranRules(),
         ];
@@ -115,6 +117,15 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator) {
+                $pk = $this->route('perjanjian_kinerja');
+                $alasan = PerjanjianKinerjaSupport::sanitizeAlasan($this->input('alasan'));
+
+                // Pratinjau batas mutasi: Action memeriksa ulang di dalam transaksi setelah baris jadwal dikunci.
+                if ($pk instanceof RenstraPk && $alasan === '' && $pk->dipakaiJadwalAktif()) {
+                    $validator->errors()->add('alasan', 'Alasan perubahan Perjanjian Kinerja wajib diisi karena PK sudah dipakai jadwal aktif.');
+                }
+            },
             function (Validator $validator) {
                 $lampiran = (array) $this->input('lampiran', []);
                 $files = [];

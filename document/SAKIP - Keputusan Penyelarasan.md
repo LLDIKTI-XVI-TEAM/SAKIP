@@ -1171,7 +1171,7 @@ Kewajiban alasan dari keputusan sebelumnya yang tidak disebut pada §43.3 tetap 
 
 - Mengubah Q14 (alasan grant), PRD §4 prinsip 6, §7.5, §13, §25.1–§25.2; Data Model §2.7, §2.19, §2.32; Workflow §21–§22; Plan modul 10 (task 10.7); design system (pola modal alasan).
 - User Stories/Issues: US/ISS-01.04 dan 04.01 diberi catatan; issue baru **US/ISS-13.05** memuat rincian per request.
-- Status implementasi: belum.
+- Status implementasi: diterapkan pada branch `feature/iss-13-05-alasan-opsional` (22 Oktober 2026) untuk §43.3 butir 1–4. Suite backend penuh dijalankan CI; browser smoke desktop/mobile belum dijalankan. Belum UAT maupun deployed.
 
 ---
 

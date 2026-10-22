@@ -215,7 +215,7 @@ class PerjanjianKinerjaHttpTest extends TestCase
         $this->assertSame('PK-PERBAIKAN-01', $pk->fresh()->nomor_pk);
     }
 
-    public function test_update_perjanjian_kinerja_fails_validation_without_alasan(): void
+    public function test_update_perjanjian_kinerja_accepts_missing_alasan_before_schedule_active(): void
     {
         $pk = RenstraPk::create([
             'renstra_id' => $this->renstra->id,
@@ -229,9 +229,41 @@ class PerjanjianKinerjaHttpTest extends TestCase
             ->put("/perjanjian-kinerja/{$pk->id}", [
                 'nomor_pk' => 'PK-PERBAIKAN-02',
                 'tanggal_pk' => '2026-01-22',
-                'alasan' => '',
+                'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('PK-PERBAIKAN-02', $pk->fresh()->nomor_pk);
+    }
+
+    public function test_update_perjanjian_kinerja_requires_alasan_after_schedule_active(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-AWAL',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-PERBAIKAN-03',
+                'tanggal_pk' => '2026-01-22',
+                'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
             ])
             ->assertSessionHasErrors('alasan');
+
+        $this->assertSame('PK-AWAL', $pk->fresh()->nomor_pk);
     }
 
     public function test_delete_lampiran_berkas_succeeds_when_jadwal_inactive(): void

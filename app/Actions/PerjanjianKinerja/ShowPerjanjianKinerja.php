@@ -87,6 +87,7 @@ class ShowPerjanjianKinerja
             'jadwal_status' => $jadwal?->status,
             'is_jadwal_aktif' => $jadwal?->status === 'aktif',
             'is_jadwal_terkunci' => $isJadwalTerkunci,
+            'alasan_wajib' => $perjanjianKinerja->dipakaiJadwalAktif(),
             'storageSettings' => $this->evidence->settings(),
             'can' => [
                 'update' => $user->can('update', $perjanjianKinerja),

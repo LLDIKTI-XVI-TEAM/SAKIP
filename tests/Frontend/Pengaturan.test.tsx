@@ -175,7 +175,8 @@ describe('PengaturanIndex Frontend', () => {
         expect(screen.getByRole('button', { name: 'Konfirmasi & Simpan' })).toBeTruthy();
     });
 
-    it('menolak submit konfirmasi jika alasan audit kurang dari 5 karakter', async () => {
+    it('menerima konfirmasi tanpa alasan karena alasan audit opsional', async () => {
+        const putSpy = vi.spyOn(router, 'put').mockImplementation(() => undefined);
         const user = userEvent.setup();
         render(<PengaturanIndex {...mockProps} />);
 
@@ -184,14 +185,13 @@ describe('PengaturanIndex Frontend', () => {
         await user.type(inputNama, 'Nama Instansi Diperbarui');
 
         await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
-
-        // Isi alasan kurang dari 5 karakter
-        const inputAlasan = screen.getByLabelText(/Alasan perubahan/i);
-        await user.type(inputAlasan, 'test');
-
         await user.click(screen.getByRole('button', { name: 'Konfirmasi & Simpan' }));
 
-        expect(screen.getByText(/Harap berikan alasan pembaruan minimal 5 karakter/i)).toBeTruthy();
+        expect(putSpy).toHaveBeenCalledTimes(1);
+        const payload = putSpy.mock.calls[0]?.[1] as Record<string, unknown>;
+        expect(payload.alasan).toBe('');
+        expect(screen.queryByText(/minimal 5 karakter/i)).toBeNull();
+        putSpy.mockRestore();
     });
 
     it('menolak submit konfirmasi jika alasan audit melebihi 255 karakter', async () => {
@@ -204,7 +204,7 @@ describe('PengaturanIndex Frontend', () => {
 
         await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
 
-        const inputAlasan = screen.getByLabelText(/Alasan perubahan/i);
+        const inputAlasan = screen.getByLabelText(/^Alasan/i);
         fireEvent.change(inputAlasan, { target: { value: 'A'.repeat(256) } });
 
         await user.click(screen.getByRole('button', { name: 'Konfirmasi & Simpan' }));
@@ -222,7 +222,7 @@ describe('PengaturanIndex Frontend', () => {
 
         await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
 
-        const inputAlasan = screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/i);
+        const inputAlasan = screen.getByLabelText<HTMLTextAreaElement>(/^Alasan/i);
         fireEvent.change(inputAlasan, { target: { value: 'Alasan pembaruan valid untuk audit.' } });
 
         // Tutup modal dengan tombol Batal
@@ -232,7 +232,7 @@ describe('PengaturanIndex Frontend', () => {
         await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
 
         // Alasan tidak boleh hilang
-        const inputAlasanKembali = screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/i);
+        const inputAlasanKembali = screen.getByLabelText<HTMLTextAreaElement>(/^Alasan/i);
         expect(inputAlasanKembali.value).toBe('Alasan pembaruan valid untuk audit.');
     });
 
@@ -322,7 +322,7 @@ describe('PengaturanIndex Frontend', () => {
         const saveButton = screen.getByRole('button', { name: /Simpan Pengaturan/ });
         await user.click(saveButton);
 
-        const inputAlasan = screen.getByLabelText<HTMLInputElement>(/Alasan perubahan/i);
+        const inputAlasan = screen.getByLabelText<HTMLInputElement>(/^Alasan/i);
         await user.type(inputAlasan, 'Alasan pembaruan pertama');
 
         const confirmButton = screen.getByRole('button', { name: 'Konfirmasi & Simpan' });
@@ -359,7 +359,7 @@ describe('PengaturanIndex Frontend', () => {
 
         // Klik Simpan lagi untuk mengirim A2
         await user.click(screen.getByRole('button', { name: /Simpan Pengaturan/ }));
-        const inputAlasanKedua = screen.getByLabelText<HTMLInputElement>(/Alasan perubahan/i);
+        const inputAlasanKedua = screen.getByLabelText<HTMLInputElement>(/^Alasan/i);
         await user.type(inputAlasanKedua, 'Alasan pembaruan kedua');
         await user.click(screen.getByRole('button', { name: 'Konfirmasi & Simpan' }));
 

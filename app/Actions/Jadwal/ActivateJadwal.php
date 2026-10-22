@@ -34,6 +34,9 @@ class ActivateJadwal
 {
     private const STALE = 'Jadwal sudah berubah. Muat ulang detail jadwal sebelum mengaktifkan.';
 
+    /** Alasan baku bila pengguna mengosongkan alasan (Q43 §43.3 butir 3). */
+    public const ALASAN_BAKU = 'Aktivasi jadwal tanpa alasan tambahan.';
+
     public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit, private readonly JadwalActivationReadiness $readiness) {}
 
     /**
@@ -142,7 +145,15 @@ class ActivateJadwal
         $request = new ActivateJadwalRequest;
         $data = Validator::make($data, $rules, $request->messages(), $request->attributes())->validate();
 
-        return ['expected_revisi' => (int) $data['expected_revisi'], 'operation_id' => strtolower($data['operation_id']), 'alasan' => AuditReason::sanitize($data['alasan'])];
+        return ['expected_revisi' => (int) $data['expected_revisi'], 'operation_id' => strtolower($data['operation_id']), 'alasan' => $this->alasanAudit($data['alasan'] ?? null)];
+    }
+
+    /** Sanitasi alasan opsional; teks kosong memakai alasan baku agar audit tetap terbaca. */
+    private function alasanAudit(mixed $alasan): string
+    {
+        $bersih = AuditReason::sanitize($alasan);
+
+        return trim($bersih) !== '' ? $bersih : self::ALASAN_BAKU;
     }
 
     /** Seluruh indikator Renstra termasuk arsip/tahun mendatang, agar perubahan status tidak lolos dari lock. @return list<string> */

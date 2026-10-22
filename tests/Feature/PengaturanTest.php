@@ -270,29 +270,32 @@ test('validasi menolak format input tidak valid dengan HTTP 422', function (): v
     $response->assertJsonValidationErrors(['instansi.surel', 'instansi.laman', 'tampilan.zona_waktu']);
 });
 
-test('server mewajibkan alasan perubahan minimal 5 karakter untuk catatan audit', function (): void {
+test('alasan perubahan pengaturan opsional dan teks baku dipakai bila kosong', function (): void {
     $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
 
-    // Tanpa alasan
-    $resNoReason = $this->actingAs($this->admin)->putJson('/pengaturan', [
+    // Tanpa alasan: diterima dan audit memakai teks baku server (Q43 §43.3 butir 3).
+    $resNoReason = $this->actingAs($this->admin)->put('/pengaturan', [
         'instansi.nama' => 'Nama Baru',
         'expected_updated_at' => [
             'instansi.nama' => $token,
         ],
     ]);
-    $resNoReason->assertUnprocessable();
-    $resNoReason->assertJsonValidationErrors(['alasan']);
+    $resNoReason->assertRedirect(route('pengaturan.index'));
 
-    // Alasan terlalu pendek (< 5 karakter)
-    $resShortReason = $this->actingAs($this->admin)->putJson('/pengaturan', [
-        'instansi.nama' => 'Nama Baru',
-        'alasan' => 'test',
+    $audit = AuditLog::where('tindakan', 'pengaturan:update')->latest('id')->firstOrFail();
+    expect($audit->alasan)->toBe(UpdatePengaturan::ALASAN_BAKU);
+
+    // Alasan pendek tetap diterima dan disimpan apa adanya bila diisi.
+    $token = Pengaturan::query()->where('kunci', 'instansi.nama')->value('updated_at')?->toISOString();
+    $resShortReason = $this->actingAs($this->admin)->put('/pengaturan', [
+        'instansi.nama' => 'Nama Baru 2',
+        'alasan' => 'ok',
         'expected_updated_at' => [
             'instansi.nama' => $token,
         ],
     ]);
-    $resShortReason->assertUnprocessable();
-    $resShortReason->assertJsonValidationErrors(['alasan']);
+    $resShortReason->assertRedirect(route('pengaturan.index'));
+    expect(Pengaturan::query()->where('kunci', 'instansi.nama')->value('nilai'))->toBe('Nama Baru 2');
 });
 
 test('nilai null yang disengaja dipertahankan dan tidak kembali ke nilai default seeder', function (): void {

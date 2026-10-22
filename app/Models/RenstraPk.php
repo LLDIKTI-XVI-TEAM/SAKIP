@@ -113,6 +113,15 @@ class RenstraPk extends Model
         return $this->resolveJadwalTahunan()?->status === 'aktif';
     }
 
+    /**
+     * PK sudah dipakai jadwal aktif bila ada jadwal terkait yang aktif, ditutup, atau pernah diaktifkan.
+     * Sesudahnya alasan perubahan PK wajib diisi (Q43 §43.2 butir 3, ISS-02.09).
+     */
+    public function dipakaiJadwalAktif(): bool
+    {
+        return JadwalTahunan::query()->terkaitPk($this)->mengunciPk()->exists();
+    }
+
     public function isJadwalTerkunci(): bool
     {
         $jadwal = $this->resolveJadwalTahunan();

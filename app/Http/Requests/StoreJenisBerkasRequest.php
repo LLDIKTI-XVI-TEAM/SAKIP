@@ -95,6 +95,8 @@ class StoreJenisBerkasRequest extends FormRequest
             'format_diizinkan' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
             'ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:'.UploadLimits::maxKb()],
             'aktif' => ['sometimes', 'boolean'],
+            // Opsional (Q43 §43.3 butir 3); alasan kosong diisi teks baku oleh CreateJenisBerkasAction.
+            'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],
         ];
     }
 
@@ -104,6 +106,7 @@ class StoreJenisBerkasRequest extends FormRequest
             'tahap.in' => 'Tahap Kegiatan (SPJ) belum didukung karena gerbang buktinya belum diimplementasikan.',
             'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah diarsipkan.',
             'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
+            'alasan.max' => 'Alasan penambahan persyaratan maksimal 1.000 karakter.',
         ];
     }
 

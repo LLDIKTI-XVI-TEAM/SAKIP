@@ -122,7 +122,7 @@ it.each(['', 'OK', 'Penyesuaian format laporan'])('menyimpan perubahan dengan al
     await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(/nama persyaratan/i)));
     await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
     expect(router.put).not.toHaveBeenCalled();
-    const reason = screen.getByLabelText(/alasan perubahan/i);
+    const reason = screen.getByLabelText(/alasan \(opsional\)/i);
     expect(reason.getAttribute('aria-required')).toBe('false');
     expect(screen.queryByText(/Perubahan katalog persyaratan bukti dukung bersifat sensitif/)).toBeNull();
     expect(screen.queryByText(/Alasan, pengguna, waktu/)).toBeNull();
@@ -147,7 +147,7 @@ it.each(['Batal', 'Escape'] as const)('menangguhkan form selama alasan audit ter
     expect(screen.queryByRole('dialog', { name: 'Edit persyaratan' })).toBeNull();
     const audit = screen.getByRole('dialog', { name: 'Simpan perubahan persyaratan?' });
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
-    expect(document.activeElement).toBe(within(audit).getByLabelText(/alasan perubahan/i));
+    expect(document.activeElement).toBe(within(audit).getByLabelText(/alasan \(opsional\)/i));
     await user.tab();
     expect(document.activeElement).toBe(within(audit).getByRole('button', { name: 'Batal' }));
     await user.tab();
@@ -195,7 +195,7 @@ it('Perencanaan mengubah format dan mengosongkan batas lewat form persyaratan', 
     await user.clear(format);
     await user.clear(ukuran);
     await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
-    await user.type(screen.getByLabelText(/alasan perubahan/i), 'Format mengikuti bawaan');
+    await user.type(screen.getByLabelText(/alasan \(opsional\)/i), 'Format mengikuti bawaan');
     await user.click(screen.getByRole('button', { name: /simpan perubahan/i }));
     expect(router.put).toHaveBeenCalledWith('/jenis-berkas/j1', expect.objectContaining({
         alasan: 'Format mengikuti bawaan', expected_updated_at: '2026-09-01T00:00:00Z', format_diizinkan: null, ukuran_maks_kb: null,
@@ -225,7 +225,7 @@ it('mempertahankan draft dan menampilkan galat field ketika perubahan ditolak se
     await user.clear(screen.getByLabelText(/format file/i));
     await user.type(screen.getByLabelText(/format file/i), 'pdf,xlsx');
     await user.click(screen.getByRole('button', { name: /lanjut ke konfirmasi/i }));
-    await user.type(screen.getByLabelText(/alasan perubahan/i), 'Format disesuaikan');
+    await user.type(screen.getByLabelText(/alasan \(opsional\)/i), 'Format disesuaikan');
     await user.click(screen.getByRole('button', { name: /simpan perubahan/i }));
     await act(async () => { vi.mocked(router.put).mock.calls[0][2]?.onError?.({ format_diizinkan: 'Format tidak valid.' }); });
     expect(screen.getByRole('dialog', { name: 'Edit persyaratan' })).toBeTruthy();
