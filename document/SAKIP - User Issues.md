@@ -1892,7 +1892,7 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 - Assignment tidak memberikan permission.
 - Hak kerja scoped dinilai oleh PermissionResolver pada unit indikator; assignment sendiri bukan sumber allow.
 - Calon PJ dengan izin kerja belum lengkap: **warning, bukan blokir**.
-- Sistem menyediakan daftar **PJ aktif tanpa hak isi** dengan tujuh permission scoped: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`; tampilkan izin tersedia/kurang menggunakan ACL saat ini. Explicit deny menang dan user nonaktif fail-closed; diagnosis tidak menggantikan resolver pada aksi.
+- Sistem menyediakan daftar **PJ aktif tanpa hak isi** dengan tujuh permission scoped: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`; tampilkan izin tersedia/kurang menggunakan ACL saat ini. Explicit deny menang dan user nonaktif fail-closed; diagnosis tidak menggantikan resolver pada aksi. *(Diperbarui Q68, 22 Oktober 2026: Monitoring Penanggung Jawab menjadi tabel seluruh PJ efektif, termasuk akun nonaktif, dengan filter unit, indikator, izin kerja, dan tanggal acuan; daftar ini menjadi filter Izin kerja "Belum lengkap".)*
 - Pergantian menambah histori baru; baris lama tidak ditimpa.
 - Perubahan role user tidak mengakhiri assignment.
 
@@ -1909,7 +1909,7 @@ Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pa
 
 #### Acceptance Criteria
 
-> Centang di bagian AC, Automated Tests, dan DoD mencatat implementasi/verifikasi teknis yang tersedia, bukan penyelesaian review, merge, UAT, atau deployment. Persetujuan PJ-01–PJ-05 berasal dari Q34; cakupan monitoring akun nonaktif (D-01) masih memerlukan klarifikasi.
+> Centang di bagian AC, Automated Tests, dan DoD mencatat implementasi/verifikasi teknis yang tersedia, bukan penyelesaian review, merge, UAT, atau deployment. Persetujuan PJ-01–PJ-05 berasal dari Q34; cakupan monitoring akun nonaktif (D-01) ditetapkan Q68.
 
 - [x] Penugasan awal user aktif berhasil.
 - [x] User nonaktif ditolak.
@@ -1918,6 +1918,7 @@ Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pa
 - [x] Query PJ efektif menggunakan `tanggal_mulai_berlaku` terbaru <= tanggal acuan.
 - [x] Role change tidak menonaktifkan PJ.
 - [x] Daftar PJ tanpa hak isi dapat ditampilkan secara akurat.
+- [x] Tabel Monitoring Penanggung Jawab menampilkan seluruh PJ efektif, termasuk akun nonaktif, dengan filter unit, indikator, izin kerja, dan tanggal acuan serta paginasi 20 baris (Q68).
 
 #### Automated Tests
 
@@ -1926,6 +1927,7 @@ Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pa
 - [x] Warning tanpa grant.
 - [x] Monitoring PJ tanpa hak isi.
 - [x] Regression role change tidak menghapus assignment.
+- [x] Tabel monitoring Q68: PJ izin lengkap dan kurang, kelima filter, PJ nonaktif, paginasi, dan batas evaluasi izin per pasangan PJ×unit (`tests/Feature/PenanggungJawab/MonitoringPenanggungJawabTest.php`, `tests/Frontend/PenanggungJawabMonitoring.test.tsx`).
 
 #### Definition of Done
 
@@ -1933,9 +1935,9 @@ Diratifikasi Q34; butir 1 (pergantian di tanggal yang sama) diimplementasikan pa
 
 #### Status Review dan Traceability ISS-04.01 — 8 Oktober 2026
 
-**Tindak lanjut teknis M-02/M-03 — terverifikasi lokal, belum dipublikasikan:** penolakan aktor nonaktif pada mutasi PJ mencatat tepat satu audit melalui policy/resolver canonical sebelum respons existing dikirim; assignment dan histori tidak berubah. Monitoring membatasi evaluasi pada 100 kandidat per request dan 20 hasil, meneruskan cursor dari kandidat terakhir yang diperiksa walaupun halaman kosong, serta memulai ulang scan saat filter berubah. Regresi berada pada `tests/Feature/PenanggungJawabTest.php` dan `tests/Frontend/PenanggungJawabMonitoring.test.tsx`; rincian eksekusi/benchmark berada pada laporan QA di luar repository. Status ini tidak menutup dependency keputusan domain atau menyatakan CI patch lokal, merge, UAT, maupun deployment.
+**Tindak lanjut teknis M-02/M-03 — terverifikasi lokal, belum dipublikasikan:** penolakan aktor nonaktif pada mutasi PJ mencatat tepat satu audit melalui policy/resolver canonical sebelum respons existing dikirim; assignment dan histori tidak berubah. Monitoring membatasi evaluasi pada 100 kandidat per request dan 20 hasil, meneruskan cursor dari kandidat terakhir yang diperiksa walaupun halaman kosong, serta memulai ulang scan saat filter berubah. Regresi berada pada `tests/Feature/PenanggungJawabTest.php` dan `tests/Frontend/PenanggungJawabMonitoring.test.tsx`; rincian eksekusi/benchmark berada pada laporan QA di luar repository. Status ini tidak menutup dependency keputusan domain atau menyatakan CI patch lokal, merge, UAT, maupun deployment. *(Diganti Q68, 22 Oktober 2026: batas kandidat dan cursor dihapus; izin kerja dievaluasi sekali per pasangan PJ×unit untuk halaman tampil, atau untuk seluruh hasil saat filter Izin kerja dipakai. Regresi monitoring pindah ke `tests/Feature/PenanggungJawab/MonitoringPenanggungJawabTest.php`.)*
 
-**D-01: OPEN — PENDING REQUIREMENT CLARIFICATION.** Frasa “PJ aktif tanpa hak isi” pada Q32, Plan §4.5, dan Issue #54 belum membuktikan keputusan eksplisit mengenai PJ efektif yang kemudian dinonaktifkan. Filter akun aktif existing dipertahankan sementara. Stakeholder perlu memilih **A:** hanya akun aktif dengan assignment efektif dan izin kurang, atau **B:** seluruh assignment efektif yang bermasalah termasuk akun nonaktif. Opsi B memerlukan penjelasan status akun/reason `inactive_user` dan regresi monitoring; kedua opsi tetap menjaga histori, fail-closed, serta tidak memberi grant/aktivasi otomatis. Evidence keputusan perlu ditautkan pada Issue #54 atau dokumen pemilik requirement sebelum perilaku diubah.
+**D-01: RESOLVED oleh Q68 (22 Oktober 2026), opsi B.** Frasa “PJ aktif tanpa hak isi” pada Q32, Plan §4.5, dan Issue #54 belum membuktikan keputusan eksplisit mengenai PJ efektif yang kemudian dinonaktifkan. Sebelum Q68, filter akun aktif dipertahankan sementara. Pilihan yang diajukan: **A:** hanya akun aktif dengan assignment efektif dan izin kurang, atau **B:** seluruh assignment efektif yang bermasalah termasuk akun nonaktif. Opsi B memerlukan penjelasan status akun/reason `inactive_user` dan regresi monitoring; kedua opsi tetap menjaga histori, fail-closed, serta tidak memberi grant/aktivasi otomatis. PM memilih opsi B (Q68 §68.1 butir 3): PJ efektif berakun nonaktif tampil dengan penanda Nonaktif dan alasan `inactive_user`.
 
 **MAJOR: RESOLVED oleh Q34 (9 Oktober 2026).** PJ-01 dan PJ-03–PJ-05 diratifikasi; PJ-02 digantikan butir 1 (pergantian di tanggal yang sama) yang diimplementasikan pada [#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70). Sebelum Q34, pemeriksaan [re-review PR #68 pada `a51cedc`](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/68#issuecomment-6056081808), seluruh komentar/review thread PR, [Issue #54](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/54) beserta komentarnya (belum ada), Q32, ADR, dan histori dokumen belum menemukan persetujuan stakeholder untuk PJ-01–PJ-05. Pernyataan di body PR, implementasi, test, serta penambahan requirement pada branch bukan bukti persetujuan domain. Checklist implementasi existing tidak berarti finding MAJOR, review tim, merge, UAT, atau deployment sudah selesai.
 
