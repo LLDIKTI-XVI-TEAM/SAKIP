@@ -28,8 +28,11 @@ use Throwable;
  */
 class TambahKegiatanRencanaAksi
 {
-    /** Atribut rencana yang ikut disalin (anggaran: Q49 §49.2); tanggal rencana melekat pada periode asal sehingga tidak disalin. */
-    private const FIELD_SALIN = ['nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'anggaran'];
+    /**
+     * Atribut rencana yang ikut disalin (anggaran: Q49 §49.2); tanggal rencana melekat pada periode asal sehingga tidak disalin.
+     * Juga sumber tunggal isi kegiatan lanjutan di `RollOverKegiatan` (Q69 §69.5 butir 1).
+     */
+    public const FIELD_SALIN = ['nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'anggaran'];
 
     public function __construct(
         private readonly GerbangKlaimKegiatan $gerbang,

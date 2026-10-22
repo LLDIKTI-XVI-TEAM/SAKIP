@@ -94,6 +94,30 @@ class KegiatanConcurrencyTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'kegiatan.ubah')->count());
     }
 
+    public function test_dua_tunda_bersamaan_hanya_membentuk_satu_lanjutan(): void
+    {
+        [$admin, $actor, $data] = $this->fixture();
+        // Kegiatan fixture berada di Triwulan IV (urutan 4).
+        $tujuan = Periode::create(['nama' => 'Periode uji race', 'urutan' => 5, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $kegiatan = Kegiatan::create($data + ['created_by' => $actor->id])->fresh();
+        $tunda = ['status' => 'ditunda', 'justifikasi' => 'Uji race tunda.', 'periode_tujuan_id' => $tujuan->id, 'expected_state' => $kegiatan->versionToken()];
+        DB::beginTransaction();
+        Kegiatan::whereKey($kegiatan->id)->lockForUpdate()->firstOrFail();
+        $first = $this->start(['operation' => 'ubah_status', 'actor_id' => $actor->id, 'id' => $kegiatan->id, 'data' => $tunda]);
+        $second = $this->start(['operation' => 'ubah_status', 'actor_id' => $admin->id, 'id' => $kegiatan->id, 'data' => $tunda]);
+        $first['input']->write("GO\n");
+        $this->blockedBy($first, (int) DB::selectOne('select pg_backend_pid() as pid')->pid);
+        $second['input']->write("GO\n");
+        $this->blockedBy($second, $first['pid']);
+        DB::commit();
+        $outcomes = [$this->workerResult($first), $this->workerResult($second)];
+        $this->assertEqualsCanonicalizing([['outcome' => 'saved'], ['outcome' => 'validation', 'fields' => ['expected_state']]], $outcomes);
+        $this->assertSame(1, Kegiatan::where('kegiatan_asal_id', $kegiatan->id)->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'kegiatan.ubah_status')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'kegiatan.geser_periode')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'kegiatan.ubah_status_ditolak')->count());
+    }
+
     private function fixture(): array
     {
         $this->seed(AccessCatalogSeeder::class);

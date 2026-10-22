@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 class Kegiatan extends Model
 {
@@ -14,6 +15,15 @@ class Kegiatan extends Model
     public const STATUSES = ['rencana', 'terlaksana', 'tidak_terlaksana', 'ditunda', 'batal'];
 
     public const RENCANA_FIELDS = ['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana', 'anggaran'];
+
+    /**
+     * Transisi milik form status pelaksanaan (Q69 §69.1); transisi ke `terlaksana` milik aksi pelaksanaan.
+     * Status yang tidak menjadi kunci bersifat final. Urutan nilai = urutan tampil menu.
+     */
+    public const TRANSISI_STATUS = [
+        'rencana' => ['ditunda', 'tidak_terlaksana', 'batal'],
+        'tidak_terlaksana' => ['ditunda', 'batal'],
+    ];
 
     protected $table = 'kegiatan';
 
@@ -26,6 +36,7 @@ class Kegiatan extends Model
         return $this->belongsTo(Unit::class);
     }
 
+    /** @return BelongsTo<Periode, $this> */
     public function periode(): BelongsTo
     {
         return $this->belongsTo(Periode::class);
@@ -52,5 +63,27 @@ class Kegiatan extends Model
     public function versionToken(): string
     {
         return hash('sha256', json_encode($this->getRawOriginal(), JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * Pilihan status dan periode tujuan untuk tampilan saja; Action memeriksa ulang di bawah lock.
+     * Periode tujuan = periode aktif dengan `urutan` lebih besar, sehingga urutan sama bukan "lebih akhir"
+     * dan periode terakhir tidak menawarkan Tunda. Kunci periode tujuan bagi PIC (Q69 §69.5 butir 2) belum
+     * diterapkan dan tidak diterapkan di sini; bila diterapkan, penyaringannya di caller (`DaftarKegiatan`/`FormKegiatan`),
+     * sehingga signature tetap.
+     *
+     * @param  Collection<int, Periode>  $periodeAktif  Periode aktif berkolom `id, nama, urutan`, urut `urutan, id`; relasi `periode` wajib dimuat.
+     * @return array{status: list<string>, periode_tujuan: list<array{id: string, nama: string}>}
+     */
+    public function pilihanStatus(Collection $periodeAktif): array
+    {
+        $tujuan = $periodeAktif->filter(fn (Periode $periode): bool => $periode->urutan > $this->periode->urutan)
+            ->map(fn (Periode $periode): array => ['id' => (string) $periode->id, 'nama' => (string) $periode->nama])->values()->all();
+        $status = self::TRANSISI_STATUS[$this->status] ?? [];
+
+        return [
+            'status' => $tujuan === [] ? array_values(array_diff($status, ['ditunda'])) : $status,
+            'periode_tujuan' => $tujuan,
+        ];
     }
 }
