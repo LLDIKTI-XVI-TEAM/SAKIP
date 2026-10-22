@@ -4,12 +4,21 @@ namespace App\Actions\PerjanjianKinerja;
 
 use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\Berkas;
+use App\Models\IndikatorKinerja;
 use App\Models\RenstraPk;
+use App\Models\SasaranStrategis;
+use App\Models\TargetKinerja;
+use App\Models\TargetRenstra;
 use App\Models\User;
+use App\Services\Authorization\PermissionResolver;
+use App\Support\DeviasiTargetRenstra;
+use App\Support\PermissionCodes;
+use App\Support\TargetTahunanDecimal;
+use App\Support\TargetTahunanState;
 
 class ShowPerjanjianKinerja
 {
-    public function __construct(private EvaluateEvidence $evidence) {}
+    public function __construct(private EvaluateEvidence $evidence, private PermissionResolver $permissions) {}
 
     /**
      * Detail PK beserta status jadwal tahunan (langsung atau fallback legacy) dan lampiran legal; tautan/isi teks lampiran
@@ -64,6 +73,7 @@ class ShowPerjanjianKinerja
                     'id' => $b->id,
                     'mode' => $b->mode,
                     'nama_asli' => $b->nama_asli,
+                    'keterangan' => $b->keterangan,
                     'mime' => $b->mime,
                     'ukuran_bytes' => $b->ukuran_bytes,
                     'created_at' => $b->dibuat_pada?->toISOString() ?? $b->created_at?->toISOString(),
@@ -84,6 +94,7 @@ class ShowPerjanjianKinerja
 
         return [
             'pk' => $pk,
+            'target_pk' => $this->targetPk($perjanjianKinerja),
             'jadwal_status' => $jadwal?->status,
             'is_jadwal_aktif' => $jadwal?->status === 'aktif',
             'is_jadwal_terkunci' => $isJadwalTerkunci,
@@ -93,7 +104,48 @@ class ShowPerjanjianKinerja
                 'delete_berkas' => ! $isJadwalTerkunci && $user->can('deleteBerkas', $perjanjianKinerja),
                 'read_berkas' => $canReadBerkas,
                 'upload_berkas' => $user->can('uploadBerkas', $perjanjianKinerja),
+                'update_target' => $this->permissions->allows($user, PermissionCodes::INDIKATOR_READ)
+                    && $this->permissions->allows($user, PermissionCodes::TARGET_UPDATE),
             ],
         ];
+    }
+
+    /**
+     * Baseline (data pendukung) dan target PK per sasaran untuk indikator yang ikut gerbang target aktivasi jadwal.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function targetPk(RenstraPk $pk): array
+    {
+        $sasaran = SasaranStrategis::where('renstra_id', $pk->renstra_id)->orderBy('urutan')->orderBy('kode')
+            ->with(['indikatorKinerjas' => fn ($query) => $query->where('status', IndikatorKinerja::STATUS_AKTIF)
+                ->where('tahun_mulai_berlaku', '<=', $pk->tahun)->orderBy('kode')])
+            ->get()->filter(fn (SasaranStrategis $s): bool => $s->indikatorKinerjas->isNotEmpty());
+        $indikatorIds = $sasaran->flatMap(fn (SasaranStrategis $s) => $s->indikatorKinerjas->modelKeys());
+        $targets = TargetKinerja::whereIn('indikator_kinerja_id', $indikatorIds)->where('tahun', $pk->tahun)->get()->keyBy('indikator_kinerja_id');
+        $targetRenstra = TargetRenstra::whereIn('indikator_id', $indikatorIds)->where('tahun', $pk->tahun)->get()->keyBy('indikator_id');
+
+        return $sasaran->map(fn (SasaranStrategis $s): array => [
+            'id' => $s->id,
+            'kode' => $s->kode,
+            'deskripsi' => $s->deskripsi,
+            'indikator' => $s->indikatorKinerjas->map(function (IndikatorKinerja $i) use ($targets, $targetRenstra, $pk): array {
+                $nilai = TargetTahunanState::values($targets->get($i->id));
+                $renstra = TargetTahunanDecimal::normalize($targetRenstra->get($i->id)?->nilai);
+
+                return [
+                    'id' => $i->id,
+                    'kode' => $i->kode,
+                    'nama' => $i->nama,
+                    'satuan' => $i->satuan,
+                    'desimal_tampilan' => $i->desimal_tampilan,
+                    'arah' => $i->arah,
+                    ...$nilai,
+                    'target_renstra' => $renstra,
+                    'status_deviasi' => DeviasiTargetRenstra::status($i->arah, $nilai['target_tahunan'], $renstra),
+                    'read_only_reason' => TargetTahunanState::readOnlyReason(['indikator' => $i, 'renstra' => $pk->renstra]),
+                ];
+            })->values()->all(),
+        ])->values()->all();
     }
 }

@@ -7,12 +7,14 @@ import { Button } from '@/Components/Button';
 import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import type { BerkasPk, RenstraPkSummary, StorageSettings } from '@/types/perjanjian-kinerja';
+import type { BerkasPk, RenstraPkSummary, StorageSettings, TargetPkSasaran } from '@/types/perjanjian-kinerja';
 import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModal';
 import { PkLockNotice, StatusJadwalBadge } from './Partials/StatusJadwal';
+import { TargetPkTable } from './Partials/TargetPkTable';
 
 interface ShowProps {
     pk: RenstraPkSummary;
+    target_pk?: TargetPkSasaran[];
     jadwal_status?: string | null;
     is_jadwal_aktif: boolean;
     is_jadwal_terkunci?: boolean;
@@ -22,10 +24,11 @@ interface ShowProps {
         delete_berkas: boolean;
         read_berkas?: boolean;
         upload_berkas?: boolean;
+        update_target?: boolean;
     };
 }
 
-export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, storageSettings, can }: ShowProps) {
+export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, storageSettings, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -56,7 +59,7 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
             title="Detail Perjanjian Kinerja"
             breadcrumbs={[
                 { label: 'Perjanjian Kinerja (PK)', href: '/perjanjian-kinerja' },
-                { label: pk.nomor_pk },
+                { label: pk.nomor_pk ?? `PK ${pk.tahun}` },
             ]}
         >
             <Head title={`Perjanjian Kinerja (PK) Tahun ${pk.tahun}`} />
@@ -80,7 +83,7 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                 <Card>
                     <CardHeader className="items-start gap-4">
                         <div className="min-w-0">
-                            <CardTitle className="break-words">{pk.nomor_pk}</CardTitle>
+                            <CardTitle className="break-words">{pk.nomor_pk ?? `PK ${pk.tahun}`}</CardTitle>
                             <p className="mt-1 text-sm text-muted">Tahun {pk.tahun} · {pk.renstra?.nama}</p>
                         </div>
                         <StatusJadwalBadge status={pk.jadwal_tahunan?.status} className="shrink-0" />
@@ -107,6 +110,8 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                     </CardContent>
                 </Card>
 
+                <TargetPkTable pkId={pk.id} tahun={pk.tahun} sasaran={target_pk} canUpdate={can.update_target === true} jadwalStatus={jadwal_status} />
+
                 <Card>
                     <CardHeader>
                         <CardTitle>Lampiran dokumen</CardTitle>
@@ -128,8 +133,9 @@ export default function Show({ pk, jadwal_status, is_jadwal_aktif, is_jadwal_ter
                                                 tautan: dapatDibaca ? berkas.tautan : null,
                                                 download_url: dapatDibaca ? `/perjanjian-kinerja/${pk.id}/berkas/${berkas.id}/unduh` : null,
                                             }}
-                                            meta={(berkas.pengunggah || berkas.created_at) && (
+                                            meta={(berkas.keterangan || berkas.pengunggah || berkas.created_at) && (
                                                 <>
+                                                    {berkas.keterangan && <span className="block break-words text-ink">Keterangan: {berkas.keterangan}</span>}
                                                     {berkas.pengunggah && <>Diunggah oleh {berkas.pengunggah.nama}</>}
                                                     {berkas.pengunggah && berkas.created_at && ' · '}
                                                     {berkas.created_at && formatTanggal(berkas.created_at)}

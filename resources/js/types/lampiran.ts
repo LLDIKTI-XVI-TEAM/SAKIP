@@ -9,4 +9,6 @@ export interface LampiranDraft {
     isi_teks: string;
     /** Judul opsional untuk tautan/teks; saat ini hanya dipakai PK. */
     nama_asli?: string;
+    /** Keterangan opsional untuk semua mode, mis. "PK perubahan anggaran"; saat ini hanya dipakai PK. */
+    keterangan?: string;
 }

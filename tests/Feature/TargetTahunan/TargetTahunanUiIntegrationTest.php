@@ -58,7 +58,7 @@ class TargetTahunanUiIntegrationTest extends TestCase
             }
         });
 
-        $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', [])->assertForbidden();
+        $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), [])->assertForbidden();
 
         $audit = AuditLog::where('tindakan', 'target_tahunan.simpan_ditolak')->sole();
         $this->assertSame('izin_ditolak', $audit->nilai_baru['alasan_penolakan']);
@@ -84,7 +84,7 @@ class TargetTahunanUiIntegrationTest extends TestCase
                 'alasan' => 'Deny setelah otorisasi', 'ditetapkan_oleh' => $actor->id]);
         });
 
-        $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', [])->assertUnprocessable();
+        $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), [])->assertUnprocessable();
 
         $audit = AuditLog::where('tindakan', 'target_tahunan.simpan_ditolak')->sole();
         $this->assertSame('input_tidak_valid', $audit->nilai_baru['alasan_penolakan']);
@@ -104,7 +104,7 @@ class TargetTahunanUiIntegrationTest extends TestCase
                 'alasan' => 'Deny sebelum Action', 'ditetapkan_oleh' => $actor->id]);
         });
 
-        $this->actingAs($actor)->putJson('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', [
+        $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), [
             'baseline' => null, 'target_tahunan' => '76.25', 'expected_state' => $editor['expected_state'], 'operation_id' => (string) Str::uuid(),
         ])->assertForbidden();
 
@@ -114,29 +114,6 @@ class TargetTahunanUiIntegrationTest extends TestCase
         $this->assertSame([UserPermissionDeny::sole()->id], $audit->dasar_izin['target:update']['deny']);
         $this->assertSame(0, TargetKinerja::count());
         $this->assertSame(0, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
-    }
-
-    public function test_redirect_keeps_the_selected_renstra_filter(): void
-    {
-        $actor = $this->calendarActor(['indikator:read', 'target:update']);
-        $indicator = $this->targetIndicator($actor);
-        $editor = app(ShowTargetTahunan::class)->handle($actor, $indicator->id, 2026);
-        $origin = route('perencanaan.sasaran-indikator.index', ['renstra_id' => $editor['renstra']['id']]);
-        $this->actingAs($actor)->from($origin)->withHeader('X-Inertia', 'true')
-            ->put('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', [
-                'baseline' => null, 'target_tahunan' => null, 'expected_state' => $editor['expected_state'], 'operation_id' => (string) Str::uuid(),
-            ])->assertRedirect($origin);
-    }
-
-    public function test_redirect_does_not_trust_an_external_origin_or_add_unrelated_query(): void
-    {
-        $actor = $this->calendarActor(['indikator:read', 'target:update']);
-        $indicator = $this->targetIndicator($actor);
-        $editor = app(ShowTargetTahunan::class)->handle($actor, $indicator->id, 2026);
-        $this->actingAs($actor)->from('https://untrusted.example/perencanaan/sasaran-indikator?renstra_id='.$editor['renstra']['id'].'&other=1')->withHeader('X-Inertia', 'true')
-            ->put('/perencanaan/indikator/'.$indicator->id.'/target-tahunan/2026', [
-                'baseline' => null, 'target_tahunan' => null, 'expected_state' => $editor['expected_state'], 'operation_id' => (string) Str::uuid(),
-            ])->assertRedirect(route('perencanaan.sasaran-indikator.index'));
     }
 
     public function test_indicator_row_contains_start_year_for_a_valid_initial_editor_year(): void

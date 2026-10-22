@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Show from '@/Pages/PerjanjianKinerja/Show';
 import type { RenstraPkSummary } from '@/types/perjanjian-kinerja';
@@ -9,7 +9,14 @@ vi.mock('@inertiajs/react', async (original) => ({
     Head: () => null,
     usePage: () => ({ props: { pengaturan: {} } }),
 }));
-vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
+vi.mock('@/Layouts/AuthenticatedLayout', () => ({
+    AuthenticatedLayout: ({ children, breadcrumbs }: { children: ReactNode; breadcrumbs?: { label: string }[] }) => (
+        <main>
+            <nav aria-label="Breadcrumb">{breadcrumbs?.map((item) => <span key={item.label}>{item.label}</span>)}</nav>
+            {children}
+        </main>
+    ),
+}));
 const originalShowModal = HTMLDialogElement.prototype.showModal;
 const originalClose = HTMLDialogElement.prototype.close;
 beforeEach(() => {
@@ -47,6 +54,19 @@ it('detail PK memakai pola detail bersama, menautkan unduhan ber-otorisasi, dan 
     expect(screen.queryByText(/lampiran yang ada tidak dapat dihapus/)).toBeNull();
 });
 
+it('lampiran berketerangan menampilkan keterangannya di daftar lampiran', () => {
+    const berkas = { ...pk.berkas![1], keterangan: 'PK perubahan anggaran' };
+    render(<Show pk={{ ...pk, berkas: [berkas] }} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true }} />);
+    expect(screen.getByText(/Keterangan: PK perubahan anggaran/)).toBeTruthy();
+});
+
+it('PK tanpa nomor memakai label cadangan PK {tahun} pada judul dan breadcrumb', () => {
+    const { container } = render(<Show pk={{ ...pk, nomor_pk: null }} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true }} />);
+    expect(screen.getByRole('heading', { name: 'PK 2026' })).toBeTruthy();
+    expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByText('PK 2026')).toBeTruthy();
+    expect(container.textContent).not.toContain('null');
+});
+
 it('jadwal aktif menampilkan penanda terkunci tanpa tombol hapus, dan tanpa izin baca berkas tidak ada tautan unduh', () => {
     render(<Show pk={pk} jadwal_status="aktif" is_jadwal_aktif can={{ update: false, delete_berkas: true, read_berkas: false }} />);
     expect(screen.getByText(/^Jadwal tahunan aktif: lampiran yang ada tidak dapat dihapus/)).toBeTruthy();
@@ -54,4 +74,76 @@ it('jadwal aktif menampilkan penanda terkunci tanpa tombol hapus, dan tanpa izin
     expect(screen.queryByRole('link', { name: 'Unduh file' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Buka tautan' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Edit Perjanjian Kinerja/ })).toBeNull();
+});
+
+const targetPk = [{
+    id: 's1', kode: 'S1', deskripsi: 'Meningkatnya tata kelola',
+    indikator: [
+        { id: 'i1', kode: 'IKU 1.1', nama: 'Indeks reformasi birokrasi', satuan: 'nilai', desimal_tampilan: 2, arah: 'naik_baik', baseline: '74.2', target_tahunan: '94.05', target_renstra: '95', status_deviasi: 'menyimpang', read_only_reason: null },
+        { id: 'i2', kode: 'IKU 1.2', nama: 'Nilai SAKIP', satuan: 'nilai', desimal_tampilan: 1, arah: 'naik_baik', baseline: null, target_tahunan: null, target_renstra: null, status_deviasi: 'renstra_belum_ada', read_only_reason: null },
+        { id: 'i3', kode: 'IKU 1.3', nama: 'Indikator Renstra nonaktif', satuan: 'persen', desimal_tampilan: 0, arah: 'turun_baik', baseline: '10', target_tahunan: '12', target_renstra: '11', status_deviasi: 'menyimpang', read_only_reason: 'Renstra nonaktif atau diarsipkan hanya dapat dibaca.' },
+    ],
+}];
+
+it('target Renstra tampil di samping target PK beserta anjuran dan penanda deviasi menurut arah', () => {
+    render(<Show pk={pk} target_pk={targetPk} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true, update_target: true }} />);
+    const tabel = screen.getByRole('table', { name: 'Target PK 2026 sasaran S1' });
+    expect(within(tabel).getByRole('columnheader', { name: 'Target Renstra 2026' })).toBeTruthy();
+    expect(within(tabel).getByText('95,00')).toBeTruthy();
+    expect(within(tabel).getByText('Target Renstra belum ada')).toBeTruthy();
+    const [baris1, baris2, baris3] = within(tabel).getAllByRole('row').slice(1);
+    expect(within(baris1).getByText('Di bawah target Renstra')).toBeTruthy();
+    expect(within(baris2).queryByText(/target Renstra$/)).toBeNull();
+    expect(within(baris3).getByText('Di atas target Renstra')).toBeTruthy();
+    // Tabel memuat indikator naik_baik dan turun_baik, jadi anjuran menyebut kedua arah (Q65 §65.2 butir 13).
+    expect(screen.getByText('Anjuran: target PK minimal sama atau naik satu poin dari target Renstra; untuk indikator yang membaik bila nilainya turun, minimal sama atau turun satu poin. Anjuran ini panduan, bukan aturan sistem.')).toBeTruthy();
+});
+
+it('kode sasaran dan penanda deviasi memakai teks minimal 12px', () => {
+    render(<Show pk={pk} target_pk={targetPk} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true, update_target: true }} />);
+    for (const badge of [screen.getByText('S1'), screen.getByText('Di bawah target Renstra'), screen.getByText('Di atas target Renstra')]) {
+        expect(badge.classList.contains('text-[11px]')).toBe(false);
+        expect(badge.classList.contains('text-xs')).toBe(true);
+    }
+});
+
+it('target PK tampil per sasaran: baseline sebagai data pendukung, angka sesuai desimal tampilan, dan Ubah hanya untuk baris yang boleh diubah', () => {
+    render(<Show pk={pk} target_pk={targetPk} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true, update_target: true }} />);
+    const tabel = screen.getByRole('table', { name: 'Target PK 2026 sasaran S1' });
+    expect(within(tabel).getByRole('columnheader', { name: 'Baseline (data pendukung)' })).toBeTruthy();
+    expect(within(tabel).getByRole('columnheader', { name: 'Target PK 2026' })).toBeTruthy();
+    expect(within(tabel).getByText('74,20')).toBeTruthy();
+    expect(within(tabel).getByText('94,05')).toBeTruthy();
+    expect(within(tabel).getAllByText('Belum diisi')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Ubah target PK IKU 1.1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ubah target PK IKU 1.2' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ubah target PK IKU 1.3' })).toBeNull();
+});
+
+it.each(['aktif', 'ditutup'])('jadwal %s menampilkan pemberitahuan bahwa perubahan target PK tidak mengubah target yang dipakai', (status) => {
+    render(<Show pk={pk} target_pk={targetPk} jadwal_status={status} is_jadwal_aktif={status === 'aktif'} is_jadwal_terkunci can={{ update: true, delete_berkas: true, update_target: true }} />);
+    expect(screen.getByText('Perubahan target PK tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun 2026.')).toBeTruthy();
+});
+
+it.each([null, 'draft'])('jadwal %s tidak menampilkan pemberitahuan target beku', (status) => {
+    render(<Show pk={pk} target_pk={targetPk} jadwal_status={status} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true, update_target: true }} />);
+    expect(screen.queryByText(/tidak mengubah target yang dipakai Rencana Aksi/)).toBeNull();
+});
+
+it('tanpa izin ubah target, nilai target PK tetap terlihat tanpa tombol Ubah', () => {
+    render(<Show pk={pk} target_pk={targetPk} jadwal_status={null} is_jadwal_aktif={false} can={{ update: false, delete_berkas: false, update_target: false }} />);
+    expect(within(screen.getByRole('table', { name: 'Target PK 2026 sasaran S1' })).getByText('94,05')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Ubah target PK/ })).toBeNull();
+});
+
+it('Ubah membuka editor dari route target PK tanpa pilihan tahun', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}', { status: 403 }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+        render(<Show pk={pk} target_pk={targetPk} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true, update_target: true }} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Ubah target PK IKU 1.1' }));
+        await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+        expect(fetchMock.mock.calls[0][0]).toBe('/perjanjian-kinerja/pk-1/target/i1/editor');
+        expect(screen.queryByLabelText('Tahun')).toBeNull();
+    } finally { vi.unstubAllGlobals(); }
 });

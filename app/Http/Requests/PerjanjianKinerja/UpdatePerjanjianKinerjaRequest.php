@@ -90,7 +90,7 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nomor_pk' => ['required', 'string', 'max:255'],
+            'nomor_pk' => ['nullable', 'string', 'max:255'],
             'tanggal_pk' => ['required', 'date'],
             'alasan' => ['required', 'string', 'min:3', 'max:1000'],
             'expected_updated_at' => ['required', 'date'],
