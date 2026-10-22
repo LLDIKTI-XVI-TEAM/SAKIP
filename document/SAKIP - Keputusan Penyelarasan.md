@@ -76,6 +76,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 19 Oktober 2026 (Q65)** menetapkan bahwa target PK tetap dapat diubah di halaman Perjanjian Kinerja setelah snapshot terbentuk, dengan alasan opsional dan tanpa mengubah snapshot. Q65 juga mengatur alasan deviasi terhadap target Renstra menurut arah indikator beserta pencatatan auditnya, serta sifat keterangan lampiran PK; mengubah Q39 §39.2, Q43, dan Q60 §60.1 butir 4, serta menyelaraskan ADR-0008.
 
+**Keputusan 22 Oktober 2026 (Q68)** menetapkan Monitoring Penanggung Jawab sebagai tabel seluruh PJ efektif, termasuk akun nonaktif, dengan filter unit, indikator, izin kerja, dan tanggal acuan; daftar "PJ aktif tanpa hak isi" Q32 menjadi filter izin kerja belum lengkap, dan D-01 ISS-04.01 ditutup.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -536,7 +538,7 @@ hak kerja eksplisit pada unit tertentu
 
 `penanggung_jawab` adalah penugasan data beriwayat. Siapa pun dapat ditunjuk selama user ada dan berstatus aktif. Penetapan dilakukan oleh **Perencanaan** atau **Superadmin**.
 
-Assignment PJ **tidak memberikan izin**. Agar dapat mengerjakan Rencana Aksi/Kegiatan/Pengukuran, user harus memiliki grant unit yang sesuai. UI penugasan wajib memberi **peringatan, bukan blokir**, ketika calon PJ belum memiliki grant yang diperlukan, dan sistem menyediakan daftar **“PJ aktif tanpa hak isi”**.
+Assignment PJ **tidak memberikan izin**. Agar dapat mengerjakan Rencana Aksi/Kegiatan/Pengukuran, user harus memiliki grant unit yang sesuai. UI penugasan wajib memberi **peringatan, bukan blokir**, ketika calon PJ belum memiliki grant yang diperlukan, dan sistem menyediakan daftar **“PJ aktif tanpa hak isi”**. *(Diperbarui Q68: daftar ini menjadi filter Izin kerja "Belum lengkap" pada tabel Monitoring Penanggung Jawab, yang menampilkan seluruh PJ efektif termasuk akun nonaktif.)*
 
 Perubahan role user tidak menghapus assignment PJ dan tidak mencabut grant secara otomatis. Pencabutan hak isi harus menjadi aksi eksplisit, beralasan, dan teraudit.
 
@@ -1881,6 +1883,34 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 - PRD §23; Plan 7.2 dan catatan Modul 7; design-system (dashboard); US/ISS-10.01.
 - Data halaman dashboard tidak lagi memuat hitungan per status tampilan, kecuali `stats.tidak_mengisi` untuk kartu Draft (§66.1 butir 3). Akses, daftar kewajiban, dan query lain tidak berubah, dan tidak ada migrasi.
 - Status implementasi: PR tindak lanjut ISS-10.01.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
+# Keputusan Q68 — Tabel Monitoring Penanggung Jawab
+
+**Keputusan PM: 22 Oktober 2026 (WITA), perbaikan ISS-04.01.** Mengubah Q32 §32.2 (daftar "PJ aktif tanpa hak isi") dan menutup D-01 ISS-04.01. Q67 dicadangkan untuk keputusan lain, sehingga keputusan ini bernomor Q68. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 68.1 Isi tabel
+
+1. Halaman Monitoring Penanggung Jawab menampilkan tabel seluruh PJ efektif pada tanggal acuan, satu baris per indikator: kode dan nama indikator, unit, PJ, tanggal mulai berlaku, status izin kerja (Lengkap atau jumlah izin yang belum tersedia), dan tautan ke halaman penugasan. Alasan penugasan terblokir (indikator diarsipkan, Renstra induk tidak tersedia atau diarsipkan, unit nonaktif) tetap tampil pada baris.
+2. Daftar "PJ aktif tanpa hak isi" (Q32 §32.2) menjadi filter **Izin kerja: Belum lengkap**. Filter bawaan adalah **Semua**.
+3. PJ efektif yang akunnya nonaktif tetap tampil dengan penanda "Nonaktif". Resolver menilai seluruh izinnya tidak tersedia dengan alasan `inactive_user`, sehingga baris itu terhitung belum lengkap. Ketentuan ini menutup D-01 ISS-04.01 dengan opsi B. Penugasan dan histori tidak berubah, dan tidak ada aktivasi akun atau pemberian izin otomatis.
+4. Indikator tanpa PJ pada tanggal acuan tidak termasuk tabel.
+5. Status izin kerja dihitung resolver dari ACL saat ini untuk tujuh izin unit-scoped Q32. Halaman ini hanya diagnosis dan tidak menggantikan pemeriksaan resolver pada aksi.
+
+## 68.2 Filter dan paginasi
+
+1. Filter terdiri atas pencarian teks harfiah pada nama PJ, kode dan nama indikator, serta nama unit; Unit; Indikator, yang pilihannya menyempit sesuai unit terpilih; Izin kerja (Semua, Belum lengkap, Lengkap); dan Tanggal acuan.
+2. Pilihan unit dan indikator diambil dari penugasan efektif pada tanggal acuan. Unit atau indikator di luar pilihan diabaikan, sehingga hasilnya sama dengan tanpa filter itu.
+3. Hasil diurutkan menurut kode indikator dan dipaginasi 20 baris per halaman beserta jumlah totalnya.
+4. Izin kerja dievaluasi sekali per pasangan PJ×unit, hanya untuk baris pada halaman tampil atau, bila filter Izin kerja dipakai, untuk seluruh hasil filter lainnya. Ketentuan ini menggantikan batas 100 kandidat per permintaan dan cursor lanjutan dari tindak lanjut M-02/M-03 ISS-04.01. Biayanya tumbuh linear terhadap jumlah pasangan PJ×unit, yang pada data LLDIKTI XVI berjumlah puluhan.
+
+## 68.3 Dampak dan traceability
+
+- Q32 §32.2; Plan §4.5; US/ISS-04.01 (Kontrak Final Q32, D-01, tindak lanjut M-02/M-03). Data Model §8.3 tidak berubah karena PJ tanpa grant tetap dapat ditemukan lewat filter.
+- Akses tidak berubah: halaman tetap memerlukan `penanggung_jawab:update`. Tidak ada migrasi, dan route, controller, serta penilaian izin kerja tidak berubah.
+- Status implementasi: PR perbaikan ISS-04.01.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
