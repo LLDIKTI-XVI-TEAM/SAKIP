@@ -618,7 +618,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 > **Q32:** initial schedule = 2026. TW I–II periode lampau oleh Perencanaan, TW III–IV normal. Tidak ada `is_backfill`.
 >
-> **Q41 (13 Oktober 2026):** jendela penyusunan RA dihapus; isian `rencana_aksi_mulai`/`rencana_aksi_selesai` dihapus dari form jadwal dan kolomnya dibiarkan nullable sampai migrasi lanjutan. AC-1 dan AC-3 yang menyebut jendela RA digantikan; perubahan dikerjakan pada US-05.07.
+> **Q41 (13 Oktober 2026):** jendela penyusunan RA dihapus; isian `rencana_aksi_mulai`/`rencana_aksi_selesai` dihapus dari form jadwal dan kolomnya dibiarkan nullable sampai migrasi lanjutan, lalu dihapus beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159. AC-1 dan AC-3 yang menyebut jendela RA digantikan; perubahan dikerjakan pada US-05.07.
 >
 > **Q46 (13 Oktober 2026):** TW III 2026 ikut menjadi periode lampau yang diisi Perencanaan; TW IV 2026 menjadi triwulan pertama workflow normal PIC operasional. Catatan Q32 di atas dipertahankan sebagai riwayat.
 
@@ -1036,7 +1036,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 | **Modul** | Penyusunan, Pengajuan, Verifikasi, dan Pengesahan Rencana Aksi |
 | **Dependensi** | US-05.01 (target RA), US-05.03 (pengajuan RA), US-03.01/03.02 (jadwal dan snapshot), US-02.04 (form indikator untuk penanda). |
 | **Otorisasi** | `rencana_aksi:create`/`update`/`ajukan` (PIC dengan grant unit sah dan PIC efektif; Perencanaan global); penanda dinilai tahunan: `indikator:update`. |
-| **Dampak Data** | `jadwal_tahunan.rencana_aksi_mulai/selesai` (tidak dibaca, dihapus dari form, kolom nullable), `indikator.dinilai_tahunan`, `jadwal_snapshot.dinilai_tahunan`, `rencana_aksi_target`, `audit_log`. |
+| **Dampak Data** | `jadwal_tahunan.rencana_aksi_mulai/selesai` (tidak dibaca dan dihapus dari form; kolom beserta CHECK `jadwal_tahunan_urutan_ra` kemudian dihapus oleh migrasi #159), `indikator.dinilai_tahunan`, `jadwal_snapshot.dinilai_tahunan`, `rencana_aksi_target`, `audit_log`. |
 | **Keputusan terkait** | Q41, Q47 §47.1–§47.2, Q46 §46.1. |
 
 > **Sebagai** PIC dan Tim Perencanaan,  
@@ -1046,7 +1046,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 **Acceptance Criteria**
 
 - [x] **AC-1:** Given jadwal tahun berstatus `aktif` dan `penutupan` belum lewat, When PIC efektif dengan grant sah membuat, mengubah, atau mengajukan RA, Then aksi diizinkan tanpa memeriksa jendela penyusunan; `rencana_aksi_mulai`/`rencana_aksi_selesai` tidak lagi dibaca. *(Q41 §41.1 butir 1)*
-- [x] **AC-2:** Given form jadwal tahunan, Then isian jendela penyusunan RA tidak ditampilkan dan tidak divalidasi; kolomnya dibiarkan nullable. *(Q41 §41.1 butir 2)*
+- [x] **AC-2:** Given form jadwal tahunan, Then isian jendela penyusunan RA tidak ditampilkan dan tidak divalidasi; kolomnya dibiarkan nullable. *(Q41 §41.1 butir 2; kolom kemudian dihapus beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159.)*
 - [x] **AC-3:** Given `pengisian_selesai` periode P sudah lewat (tanggal bisnis Asia/Makassar), When PIC menyimpan draf, mengajukan, atau menyimpan versi baru RA yang mengubah target atau daftar kegiatan periode P, Then ditolak sebagai validasi bisnis (422) dan diaudit; perubahan pada periode yang belum terkunci tetap diterima. *(Q41 §41.2 butir 1–2)*
 - [x] **AC-4:** Given aktor Perencanaan, When mengubah periode yang terkunci bagi PIC sebelum `penutupan`, Then diizinkan. *(Q41 §41.2 butir 3)*
 - [x] **AC-5:** Given periode lampau saat jadwal diaktifkan, Then periode itu terkunci bagi PIC sejak aktivasi. *(Q41 §41.2 butir 4, Q46 §46.1)*

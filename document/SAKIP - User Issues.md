@@ -1466,7 +1466,7 @@ kegiatan:update
 
 > **Q32 FINAL:** Jadwal pertama 2026; TW I–II periode lampau oleh Perencanaan, TW III–IV normal; tidak ada flag backfill. *(Diperbarui Q46 §46.1 butir 2: TW III 2026 juga periode lampau; TW IV menjadi triwulan pertama workflow normal PIC operasional.)*
 >
-> **Q41 (13 Oktober 2026):** jendela penyusunan Rencana Aksi dihapus; isian `rencana_aksi_mulai`/`rencana_aksi_selesai` dihapus dari form jadwal dan tidak lagi divalidasi, sedangkan kolomnya dibiarkan nullable sampai migrasi lanjutan (Q41 §41.1 butir 2). AC-1 dan AC-3 beserta TEST-1 dan TEST-3 yang menyebut jendela RA digantikan Q41 dan dipertahankan sebagai histori; perubahan dikerjakan pada ISS-05.07.
+> **Q41 (13 Oktober 2026):** jendela penyusunan Rencana Aksi dihapus; isian `rencana_aksi_mulai`/`rencana_aksi_selesai` dihapus dari form jadwal dan tidak lagi divalidasi, sedangkan kolomnya dibiarkan nullable sampai migrasi lanjutan (Q41 §41.1 butir 2), lalu dihapus beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159. AC-1 dan AC-3 beserta TEST-1 dan TEST-3 yang menyebut jendela RA digantikan Q41 dan dipertahankan sebagai histori; perubahan dikerjakan pada ISS-05.07.
 
 **Terkait User Story:** `US-03.01`  
 **Prioritas:** 🟡 P1  
@@ -2450,7 +2450,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 - **Dependensi:** ISS-05.01 (target RA), ISS-05.03 (pengajuan RA), ISS-03.01/03.02 (jadwal dan snapshot), ISS-02.04 (form indikator untuk penanda).
 - **Otorisasi:** `rencana_aksi:create`/`update`/`ajukan` (PIC dengan grant unit sah dan PIC efektif; Perencanaan global); penanda dinilai tahunan: `indikator:update`.
-- **Dampak Data:** `jadwal_tahunan.rencana_aksi_mulai/selesai` (tidak dibaca, dihapus dari form, kolom nullable), `indikator.dinilai_tahunan`, `jadwal_snapshot.dinilai_tahunan`, `rencana_aksi_target`, `audit_log`.
+- **Dampak Data:** `jadwal_tahunan.rencana_aksi_mulai/selesai` (tidak dibaca dan dihapus dari form; kolom beserta CHECK `jadwal_tahunan_urutan_ra` kemudian dihapus oleh migrasi #159), `indikator.dinilai_tahunan`, `jadwal_snapshot.dinilai_tahunan`, `rencana_aksi_target`, `audit_log`.
 - **Keputusan terkait:** Q41, Q47 §47.1–§47.2, Q46 §46.1.
 - **Rule:** Perencanaan boleh mengesahkan RA yang diinputnya sendiri dengan penanda self-approval (Q41 §41.3 butir 2). Kegiatan yang mundur ditangani ISS-06.04/06.05 tanpa buka-kembali RA (Q41 §41.4); buka-kembali RA (ISS-05.06) hanya untuk target periode yang belum terkunci.
 - **Rule:** gerbang baru Q42–Q45 dikecualikan untuk periode lampau, tetapi kunci per periode bukan bagian pengecualian: periode lampau terkunci bagi PIC sejak aktivasi, sedangkan Perencanaan tidak terikat kunci (Q46 §46.1 butir 1, Q41 §41.2 butir 3–4). Data awal 2026: target TW I–III dicatat kosong (Q47 §47.2 butir 4).
@@ -2461,7 +2461,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given jadwal tahun berstatus `aktif` dan `penutupan` belum lewat, When PIC efektif dengan grant sah membuat, mengubah, atau mengajukan RA, Then aksi diizinkan tanpa memeriksa jendela penyusunan; `rencana_aksi_mulai`/`rencana_aksi_selesai` tidak lagi dibaca. *(Q41 §41.1 butir 1)*
-- [x] **AC-2:** Given form jadwal tahunan, Then isian jendela penyusunan RA tidak ditampilkan dan tidak divalidasi; kolomnya dibiarkan nullable. *(Q41 §41.1 butir 2)*
+- [x] **AC-2:** Given form jadwal tahunan, Then isian jendela penyusunan RA tidak ditampilkan dan tidak divalidasi; kolomnya dibiarkan nullable. *(Q41 §41.1 butir 2; kolom kemudian dihapus beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159.)*
 - [x] **AC-3:** Given `pengisian_selesai` periode P sudah lewat (tanggal bisnis Asia/Makassar), When PIC menyimpan draf, mengajukan, atau menyimpan versi baru RA yang mengubah target atau daftar kegiatan periode P, Then ditolak sebagai validasi bisnis (422) dan diaudit; perubahan pada periode yang belum terkunci tetap diterima. *(Q41 §41.2 butir 1–2)*
 - [x] **AC-4:** Given aktor Perencanaan, When mengubah periode yang terkunci bagi PIC sebelum `penutupan`, Then diizinkan. *(Q41 §41.2 butir 3)*
 - [x] **AC-5:** Given periode lampau saat jadwal diaktifkan, Then periode itu terkunci bagi PIC sejak aktivasi. *(Q41 §41.2 butir 4, Q46 §46.1)*
@@ -2475,7 +2475,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 **A. Persistence / Data Model**
 - [x] Tambahkan `indikator.dinilai_tahunan` (boolean, default `false`) dan salinannya `jadwal_snapshot.dinilai_tahunan` yang dibekukan saat snapshot dibentuk (`ActivateJadwal`); perubahan setelah jadwal aktif mengikuti koreksi snapshot ISS-03.03 (Q35, Q47 §47.1 butir 2).
-- [x] Biarkan `jadwal_tahunan.rencana_aksi_mulai`/`rencana_aksi_selesai` nullable tanpa dibaca sampai migrasi lanjutan (Q41 §41.1 butir 2).
+- [x] Biarkan `jadwal_tahunan.rencana_aksi_mulai`/`rencana_aksi_selesai` nullable tanpa dibaca sampai migrasi lanjutan (Q41 §41.1 butir 2). Kolom beserta CHECK `jadwal_tahunan_urutan_ra` kemudian dihapus oleh migrasi #159.
 - [x] Pastikan `rencana_aksi_target` menyimpan nilai kosong sebagai "tidak ditargetkan" yang berbeda dari `0`, dan bekukan periode tersebut pada `rencana_aksi_versi` dengan status `tidak_ditargetkan`, bukan `belum_diisi` (Q47 §47.2 butir 5; Data Model §2.34).
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
@@ -2500,7 +2500,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 #### Automated Tests / Verification
 
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahun berstatus `aktif` dan `penutupan` belum lewat, When PIC efektif dengan grant sah membuat, mengubah, atau mengajukan RA, Then aksi diizinkan tanpa memeriksa jendela penyusunan; `rencana_aksi_mulai`/`rencana_aksi_selesai` tidak lagi dibaca. *(Q41 §41.1 butir 1)*
-- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given form jadwal tahunan, Then isian jendela penyusunan RA tidak ditampilkan dan tidak divalidasi; kolomnya dibiarkan nullable. *(Q41 §41.1 butir 2)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given form jadwal tahunan, Then isian jendela penyusunan RA tidak ditampilkan dan tidak divalidasi; kolomnya dibiarkan nullable. *(Q41 §41.1 butir 2; kolom kemudian dihapus beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159.)*
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given `pengisian_selesai` periode P sudah lewat (tanggal bisnis Asia/Makassar), When PIC menyimpan draf, mengajukan, atau menyimpan versi baru RA yang mengubah target atau daftar kegiatan periode P, Then ditolak sebagai validasi bisnis (422) dan diaudit; perubahan pada periode yang belum terkunci tetap diterima. *(Q41 §41.2 butir 1–2)*
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aktor Perencanaan, When mengubah periode yang terkunci bagi PIC sebelum `penutupan`, Then diizinkan. *(Q41 §41.2 butir 3)*
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given periode lampau saat jadwal diaktifkan, Then periode itu terkunci bagi PIC sejak aktivasi. *(Q41 §41.2 butir 4, Q46 §46.1)*
