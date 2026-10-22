@@ -60,7 +60,7 @@ it.each([
 it('menampilkan rekap berkomponen dengan dua kegiatan, rekomendasi dan histori bukti sesuai Plan 8.3', () => {
     const data = row({
         komponen: [
-            { komponen_id: 'c1', kode: 'A', label: 'Komponen A', peran: 'penjumlah', bobot: '1', target: '8', realisasi: '12' },
+            { komponen_id: 'c1', kode: 'A', label: 'Komponen A', peran: 'penjumlah', bobot: '1.000000000000', target: '8', realisasi: '12' },
             { komponen_id: 'c2', kode: 'B', label: 'Komponen B', peran: 'penjumlah', bobot: '1', target: '12', realisasi: '18' },
         ],
         kegiatan: [
@@ -92,6 +92,7 @@ it('menampilkan rekap berkomponen dengan dua kegiatan, rekomendasi dan histori b
     fireEvent.click(komponenTrigger);
     expect(komponenTrigger.closest('details')?.open).toBe(true);
     const komponenA = within(screen.getByText('A · Komponen A').parentElement!);
+    expect(komponenA.getByText('Penjumlah · bobot 1')).toBeTruthy();
     expect(komponenA.getByText('Target: 8,00')).toBeTruthy();
     expect(komponenA.getByText('Realisasi: 12,00')).toBeTruthy();
     const komponenB = within(screen.getByText('B · Komponen B').parentElement!);
@@ -99,12 +100,28 @@ it('menampilkan rekap berkomponen dengan dua kegiatan, rekomendasi dan histori b
     expect(komponenB.getByText('Realisasi: 18,00')).toBeTruthy();
     expect(screen.getByText('Pendampingan terlaksana')).toBeTruthy();
     const tidakTerlaksana = within(screen.getByText('Koordinasi tidak terlaksana').closest('li')!);
-    expect(tidakTerlaksana.getByText('tidak terlaksana')).toBeTruthy();
+    expect(tidakTerlaksana.getByText('Tidak terlaksana').className).toContain('bg-danger/10');
+    expect(screen.getByText('Terlaksana', { exact: true }).className).toContain('bg-success/10');
+    expect(screen.getByText(/^Rp\s*15\.000\.000$/)).toBeTruthy();
     const catatanTrigger = tidakTerlaksana.getByText('Catatan kegiatan');
     fireEvent.click(catatanTrigger);
     expect(catatanTrigger.closest('details')?.open).toBe(true);
     expect(tidakTerlaksana.getByText('Peserta belum tersedia')).toBeTruthy();
     expect(screen.getByText('Histori: tidak dapat dipenuhi')).toBeTruthy();
+});
+
+it.each([
+    { locale: 'id_ID', bobot: '0,123456789012' },
+    { locale: 'en_US', bobot: '0.123456789012' },
+])('format bobot mengikuti $locale tanpa menghilangkan presisi snapshot dan peran historis', ({ locale, bobot }) => {
+    page.pengaturan = { 'tampilan.format_angka': locale };
+    render(<Rekap {...props([row({ komponen: [
+        { komponen_id: 'c1', kode: 'A', label: 'Komponen A', peran: 'pembilang', bobot: '0.123456789012', target: '8', realisasi: '12' },
+        { komponen_id: 'c2', kode: 'B', label: 'Komponen B', peran: 'peran_lama', bobot: '1.000000000000', target: null, realisasi: null },
+    ] })])} />);
+    fireEvent.click(screen.getByText('Komponen (2)'));
+    expect(screen.getByText(`Pembilang · bobot ${bobot}`)).toBeTruthy();
+    expect(screen.getByText('peran_lama · bobot 1')).toBeTruthy();
 });
 
 it('menampilkan alasan penyebut nol dan histori bukti tanpa mengubahnya menjadi nol', () => {
@@ -125,13 +142,16 @@ it('mempertahankan penanda server belum dapat diukur saat periode juga tanpa tar
 
 it('membedakan key anggaran hilang, nilai null, dan nol faktual', () => {
     render(<Rekap {...props([row({ kegiatan: [
-        { id: 'k1', nama: 'Kegiatan lama', anggaran_tercatat: false, anggaran: null, kegiatan_bersama: null, sumber_klaim: null },
+        { id: 'k1', nama: 'Kegiatan lama', status: 'status_lama', anggaran_tercatat: false, anggaran: null, kegiatan_bersama: null, sumber_klaim: null },
         { id: 'k2', nama: 'Kegiatan belum diisi', anggaran_tercatat: true, anggaran: null, kegiatan_bersama: false, sumber_klaim: 'pengukuran' },
         { id: 'k3', nama: 'Kegiatan tanpa anggaran', anggaran_tercatat: true, anggaran: '0', kegiatan_bersama: true, sumber_klaim: 'rencana_aksi' },
+        { id: 'k4', nama: 'Kegiatan anggaran besar', anggaran_tercatat: true, anggaran: '9007199254740993', kegiatan_bersama: false, sumber_klaim: 'rencana_aksi' },
     ] })])} />);
     expect(within(screen.getByText('Kegiatan lama').closest('li')!).getAllByText('Tidak tercatat pada versi ini').length).toBeGreaterThan(0);
     expect(within(screen.getByText('Kegiatan belum diisi').closest('li')!).getByText('Belum diisi')).toBeTruthy();
-    expect(screen.getByText('Rp0')).toBeTruthy();
+    expect(screen.getByText('status_lama').className).toContain('bg-soft');
+    expect(screen.getByText(/^Rp\s*0$/)).toBeTruthy();
+    expect(screen.getByText(/^Rp\s*9\.007\.199\.254\.740\.993$/)).toBeTruthy();
     expect(screen.getByText('Kegiatan bersama')).toBeTruthy();
 });
 
