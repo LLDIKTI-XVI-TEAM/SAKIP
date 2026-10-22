@@ -318,8 +318,6 @@ erDiagram
         boolean pakai_persetujuan_pimpinan
         date persetujuan_mulai "nullable"
         date persetujuan_selesai "nullable"
-        date rencana_aksi_mulai "nullable, tidak dipakai sejak Q41"
-        date rencana_aksi_selesai "nullable, tidak dipakai sejak Q41"
         date penutupan
         enum status
         uuid renstra_pk_id FK
@@ -950,8 +948,8 @@ Jendela penutupan tingkat tahun dan (opsional) persetujuan pimpinan, per Renstra
 | `pakai_persetujuan_pimpinan` | boolean | not null, default `false` | **-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)**. Fase Awal: selalu `false`, tidak memengaruhi alur pengesahan |
 | `persetujuan_mulai` | date | nullable | **-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)** |
 | `persetujuan_selesai` | date | nullable | **-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)** |
-| `rencana_aksi_mulai` | date | nullable | **Tidak dipakai sejak Q41:** dihapus dari form jadwal; kolom dibiarkan nullable sampai dihapus pada migrasi lanjutan (§6). Semula: awal jendela penyusunan `rencana_aksi` tingkat tahun, disusun setelah `jadwal_periode` tersusun dan sebelum jendela pengisian periode pertama dibuka (digantikan Q41) |
-| `rencana_aksi_selesai` | date | nullable | **Tidak dipakai sejak Q41:** tidak lagi menjadi batas PIC; PIC menulis rencana aksi sejak jadwal `aktif` sampai `penutupan` dengan kunci per periode (§2.16, §2.23). Kolom dibiarkan nullable sampai dihapus pada migrasi lanjutan (§6). Semula: batas mutlak bagi PIC (izin ber-scope unit lewat grant, §2.7) untuk menyusun/mengubah/mengajukan `rencana_aksi`, dengan Perencanaan dikecualikan (digantikan Q41) |
+| `rencana_aksi_mulai` | — | — | **Dihapus oleh migrasi #159:** tidak dipakai sejak Q41 dan dihapus dari form jadwal, lalu dari skema beserta CHECK `jadwal_tahunan_urutan_ra` (§6). Semula: awal jendela penyusunan `rencana_aksi` tingkat tahun, disusun setelah `jadwal_periode` tersusun dan sebelum jendela pengisian periode pertama dibuka (digantikan Q41) |
+| `rencana_aksi_selesai` | — | — | **Dihapus oleh migrasi #159:** sejak Q41 tidak lagi menjadi batas PIC; PIC menulis rencana aksi sejak jadwal `aktif` sampai `penutupan` dengan kunci per periode (§2.16, §2.23). Kolom kemudian dihapus dari skema beserta CHECK `jadwal_tahunan_urutan_ra` (§6). Semula: batas mutlak bagi PIC (izin ber-scope unit lewat grant, §2.7) untuk menyusun/mengubah/mengajukan `rencana_aksi`, dengan Perencanaan dikecualikan (digantikan Q41) |
 | `penutupan` | date | not null | Tanggal batas akhir seluruh aktivitas jadwal tahun ini — termasuk batas akhir bagi Perencanaan mengisi/mengubah pengukuran maupun rencana aksi, dan batas akhir bagi PIC menulis rencana aksi (Q41) (lihat §2.16, §2.23) |
 | `status` | enum(`draft`,`aktif`,`ditutup`) | not null, default `draft` | |
 | `renstra_pk_id` | uuid | FK → renstra_pk.id | **Wajib diisi saat aktivasi** |
@@ -1821,7 +1819,7 @@ Setiap pemeriksaan otorisasi berbentuk `boleh(kode_permission, unit_target?)`. P
    - Ada deny yang cocok → **TOLAK**, terlepas dari allow apa pun yang cocok.
    - Tidak ada deny yang cocok, tetapi ada allow yang cocok → **IZINKAN**.
    - Tidak ada allow yang cocok (dengan atau tanpa deny) → **TOLAK**.
-6. **Jangan campur dengan validasi bisnis.** Jendela waktu (`jadwal_tahunan.penutupan`, `jadwal_periode.pengisian_selesai` termasuk kunci per periode rencana aksi Q41; `jadwal_tahunan.rencana_aksi_selesai` tidak dipakai lagi sejak Q41), kepemilikan unit atas record yang diakses, dan gerbang kelengkapan (rencana aksi belum disahkan, komponen belum lengkap, berkas wajib belum lengkap) adalah **validasi bisnis** yang berjalan **setelah** langkah 1–5 di atas menyatakan "boleh". Kontraknya: resolusi izin menjawab "apakah aktor ini secara prinsip boleh melakukan aksi ini", validasi bisnis menjawab "apakah saat ini/untuk record ini aksi tersebut masih sah dilakukan". Kedua lapisan ini **tidak boleh digabung** dalam satu pemeriksaan — kegagalan validasi bisnis tidak pernah diperlakukan sebagai "izin ditolak", dan sebaliknya.
+6. **Jangan campur dengan validasi bisnis.** Jendela waktu (`jadwal_tahunan.penutupan`, `jadwal_periode.pengisian_selesai` termasuk kunci per periode rencana aksi Q41; `jadwal_tahunan.rencana_aksi_selesai` dihapus oleh migrasi #159 setelah tidak dipakai sejak Q41), kepemilikan unit atas record yang diakses, dan gerbang kelengkapan (rencana aksi belum disahkan, komponen belum lengkap, berkas wajib belum lengkap) adalah **validasi bisnis** yang berjalan **setelah** langkah 1–5 di atas menyatakan "boleh". Kontraknya: resolusi izin menjawab "apakah aktor ini secara prinsip boleh melakukan aksi ini", validasi bisnis menjawab "apakah saat ini/untuk record ini aksi tersebut masih sah dilakukan". Kedua lapisan ini **tidak boleh digabung** dalam satu pemeriksaan — kegagalan validasi bisnis tidak pernah diperlakukan sebagai "izin ditolak", dan sebaliknya.
 7. **Tidak ada evaluasi izin di sisi klien.** Resolusi hanya dijalankan di server (satu service resolusi terpusat, lihat §3.5). Halaman React dapat menyembunyikan tombol/menu berdasarkan hasil pemeriksaan dari server (mis. lewat props halaman), tetapi ini murni kenyamanan tampilan — server **selalu** mengevaluasi ulang setiap permintaan yang benar-benar mengubah/mengambil data, tanpa mempercayai keputusan yang sudah dibuat di klien sebelumnya.
 
 ### 3.3 Lokasi scope unit
@@ -1933,7 +1931,7 @@ Daftar eksplisit kolom/entitas yang ada di skema sejak migrasi pertama namun jal
 | `jadwal_tahunan` | `pakai_persetujuan_pimpinan` | Selalu `false`; tidak dicek di logika alur pengesahan |
 | `jadwal_tahunan` | `persetujuan_mulai` | Selalu `null`; tidak ditampilkan sebagai jendela aktif di UI |
 | `jadwal_tahunan` | `persetujuan_selesai` | Selalu `null`; tidak ditampilkan sebagai jendela aktif di UI |
-| `jadwal_tahunan` | `rencana_aksi_mulai`/`rencana_aksi_selesai` | **Tidak dipakai lagi sejak Q41:** jendela penyusunan rencana aksi dihapus dari form dan tidak dibaca; kolom dibiarkan nullable sampai dihapus pada migrasi lanjutan (§2.15) |
+| `jadwal_tahunan` | `rencana_aksi_mulai`/`rencana_aksi_selesai` | **Keluar dari daftar ini:** kolom dan CHECK `jadwal_tahunan_urutan_ra` dihapus oleh migrasi #159 (§2.15). Semula: tidak dipakai lagi sejak Q41; jendela penyusunan rencana aksi dihapus dari form dan tidak dibaca |
 | `pengaturan` | kunci grup `berkas` (`berkas.unggahan_aktif`, `berkas.ukuran_maks_kb`, `berkas.format_diizinkan`, `berkas.tautan_selalu_diizinkan`) | **Tidak dipakai lagi sejak Q44:** tidak dibaca maupun dikelola dari UI; batas teknis unggahan berasal dari konfigurasi server; baris dan audit lama tetap sebagai histori (§2.22) |
 | `indikator` | `wajib_catatan` | **Tidak dipakai lagi sejak Q45:** disembunyikan dari form indikator dan tidak mewajibkan `catatan`; kolom dipertahankan (§2.12, §2.20) |
 | `status_capaian` | `sumber` (nilai `data_sumber`) | Nilai enum ini valid secara skema namun **tidak pernah ditulis** oleh kode Fase Awal — seluruh baris ditulis dengan `sumber = 'manual'` |

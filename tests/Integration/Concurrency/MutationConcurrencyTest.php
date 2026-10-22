@@ -910,7 +910,7 @@ class MutationConcurrencyTest extends TestCase
         $tahun = (int) now()->year;
         $period = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
         $schedule = JadwalTahunan::create(['renstra_id' => $indicator->sasaranStrategis->renstra_id, 'tahun' => $tahun,
-            'rencana_aksi_mulai' => "{$tahun}-01-01", 'rencana_aksi_selesai' => "{$tahun}-12-31", 'penutupan' => '2099-12-31', 'status' => 'aktif', 'activated_at' => now()]);
+            'penutupan' => '2099-12-31', 'status' => 'aktif', 'activated_at' => now()]);
         PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => "{$tahun}-01-01",
             'pengisian_selesai' => "{$tahun}-06-30", 'reviu_mulai' => "{$tahun}-07-01", 'reviu_selesai' => "{$tahun}-12-31"]);
         $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,

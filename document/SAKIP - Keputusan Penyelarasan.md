@@ -1086,7 +1086,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:09:38, 1:19:12–1:24:52, dan 1
 
 - PRD §4 prinsip 7, §5.1, §8 butir 6, §12.2, §12.3, §14.1, §14.6, §15.2, §28, §31; Data Model §2.15, §2.16, §2.23, §2.25–§2.26; Workflow §1, §4, §7, §8, §9, §13; Plan modul 3, 11 (task 11.9), dan 12.
 - User Stories/Issues: US/ISS-03.01, 05.01, dan 05.03 diberi catatan; US/ISS-03.06, 05.06, 06.04, dan 06.05 diselaraskan; issue baru **US/ISS-05.07**.
-- Status implementasi: §41.1–§41.2 diterapkan ISS-05.07 (#130); jendela penyusunan tidak lagi dibaca atau ditulis (kolom dan CHECK `jadwal_tahunan_urutan_ra` menunggu migrasi lanjutan). §41.3 tetap ditegakkan gerbang pengukuran; §41.4 mengikuti ISS-06.04/06.05.
+- Status implementasi: §41.1–§41.2 diterapkan ISS-05.07 (#130); jendela penyusunan tidak lagi dibaca atau ditulis (kolom dan CHECK `jadwal_tahunan_urutan_ra` dihapus oleh migrasi #159). §41.3 tetap ditegakkan gerbang pengukuran; §41.4 mengikuti ISS-06.04/06.05.
 
 ---
 

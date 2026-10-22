@@ -344,7 +344,7 @@ Setiap task memiliki tiga bagian wajib:
 
 ### 3.2 Migrasi `jadwal_tahunan` (tanpa kolom jendela periode, dengan jendela rencana aksi)
 
-> **Q41 (13 Oktober 2026):** `rencana_aksi_mulai`/`rencana_aksi_selesai` tidak lagi menjadi batas PIC dan dihapus dari form jadwal; kolomnya dibiarkan nullable sampai dihapus pada migrasi lanjutan. Penyesuaian dikerjakan pada 11.9 (ISS-05.07).
+> **Q41 (13 Oktober 2026):** `rencana_aksi_mulai`/`rencana_aksi_selesai` tidak lagi menjadi batas PIC dan dihapus dari form jadwal; kolomnya dibiarkan nullable sampai migrasi lanjutan, lalu dihapus beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159. Penyesuaian dikerjakan pada 11.9 (ISS-05.07).
 
 - **Scope:** Migrasi tabel `jadwal_tahunan` **tanpa** kolom `pengisian_mulai`, `pengisian_selesai`, `reviu_mulai`, `reviu_selesai` (dipindahkan ke `jadwal_periode`, lihat 3.3). Kolom yang tetap ada: `renstra_id`, `tahun`, `penutupan`, `pakai_persetujuan_pimpinan`, `persetujuan_mulai`, `persetujuan_selesai` (disiapkan, tidak dipakai logic Fase Awal), `status`, `renstra_pk_id`, `activated_at`, `closed_at`; ditambah kolom baru **`rencana_aksi_mulai`**, **`rencana_aksi_selesai`** (date, nullable); constraint unique (`renstra_id`, `tahun`) lintas seluruh status sesuai [addendum ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md). Pasangan yang sudah memiliki jadwal memakai objek existing sesuai status dan permission, tanpa membuat jadwal kedua.
 - **Dependency:** 2.1, 2.11 (renstra_pk).
@@ -884,7 +884,7 @@ Setiap task memiliki tiga bagian wajib:
 - **Dependency:** 11.3, 11.5, 11.6, 11.7, 3.2, 3.4, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 2.7, 4.4, 10.1; ISS-03.06 dan ISS-14.03 untuk revisi dan pembukaan kembali jendela pengisian PIC. Tahap 1 Q46 §46.3.
 - **DoD:**
   1. Test Pest dengan `Carbon::setTestNow()`: PIC efektif bergrant membuat, mengubah, dan mengajukan Rencana Aksi selama jadwal `aktif` tanpa pemeriksaan jendela, termasuk saat `rencana_aksi_mulai`/`rencana_aksi_selesai` kosong atau tanggalnya sudah lewat karena kolom tersebut tidak lagi dibaca; aksi yang sama ditolak setelah `penutupan`.
-  2. Form jadwal tahunan tidak menampilkan dan tidak memvalidasi isian jendela penyusunan Rencana Aksi (Vitest dan Pest), dan kolomnya tetap nullable.
+  2. Form jadwal tahunan tidak menampilkan dan tidak memvalidasi isian jendela penyusunan Rencana Aksi (Vitest dan Pest), dan kolomnya tetap nullable (kemudian dihapus beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159).
   3. PIC yang menyimpan draf, mengajukan, atau menyimpan versi baru yang mengubah target atau daftar kegiatan periode P setelah `pengisian_selesai` P (diuji pada batas tanggal Asia/Makassar) ditolak 422 dan menghasilkan baris `audit_log`; perubahan pada periode yang belum terkunci diterima.
   4. Perencanaan dapat mengubah periode yang terkunci bagi PIC sebelum `penutupan`.
   5. Periode yang sudah lampau saat jadwal diaktifkan terkunci bagi PIC sejak aktivasi.

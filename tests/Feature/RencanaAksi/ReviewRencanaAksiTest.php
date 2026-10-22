@@ -126,7 +126,7 @@ class ReviewRencanaAksiTest extends TestCase
 
     public function test_review_memakai_penutupan_tahunan_dan_lingkup_koreksi_bukan_jendela_pengukuran(): void
     {
-        $this->jadwal->update(['rencana_aksi_selesai' => today()->subDay()->toDateString(), 'penutupan' => today()->subDay()->toDateString()]);
+        $this->jadwal->update(['penutupan' => today()->subDay()->toDateString()]);
         $url = "/rencana-aksi/{$this->rencanaAksi->id}/verifikasi";
         $this->actingAs($this->reviewer)->postJson($url, $this->tokens())->assertUnprocessable();
         $this->jadwal->update(['koreksi_mulai' => now()->subHour(), 'koreksi_sampai' => now()->addHour(),

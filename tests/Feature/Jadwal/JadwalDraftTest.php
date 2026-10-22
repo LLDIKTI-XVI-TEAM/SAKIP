@@ -66,26 +66,18 @@ class JadwalDraftTest extends TestCase
         return array_map(fn (string $field): array => [$field], ['status', 'renstra_pk_id', 'activated_at', 'closed_at', 'pakai_persetujuan_pimpinan', 'persetujuan_mulai', 'is_backfill', 'audit', 'actor_id', 'periode.*', 'rencana_aksi_mulai', 'rencana_aksi_selesai']);
     }
 
-    public function test_simpan_tanpa_jendela_rencana_aksi_mempertahankan_nilai_lama(): void
+    public function test_simpan_dan_ubah_jadwal_lewat_http_tanpa_jendela_rencana_aksi(): void
     {
         $actor = $this->calendarActor();
         $data = $this->calendarPayload($this->calendarRenstra($actor), $this->calendarMaster());
         $this->actingAs($actor)->post('/jadwal', $data)->assertSessionHasNoErrors();
         $jadwal = JadwalTahunan::sole();
-        $this->assertNull($jadwal->rencana_aksi_mulai);
 
-        // Baris lama yang masih menyimpan jendela RA: nilainya tidak dibaca, tidak ditulis ulang.
-        $jadwal->forceFill(['rencana_aksi_mulai' => '2026-01-05', 'rencana_aksi_selesai' => '2026-01-30'])->save();
-        $this->put("/jadwal/{$jadwal->id}", [...$data, 'penutupan' => '2027-01-20', 'revisi' => $jadwal->fresh()->revisi])
+        $this->put("/jadwal/{$jadwal->id}", [...$data, 'penutupan' => '2027-01-20', 'revisi' => $jadwal->revisi])
             ->assertSessionHasNoErrors();
 
-        $fresh = $jadwal->fresh();
-        $this->assertSame(['2026-01-05', '2026-01-30', '2027-01-20'], [
-            $fresh->rencana_aksi_mulai->format('Y-m-d'), $fresh->rencana_aksi_selesai->format('Y-m-d'), $fresh->penutupan->format('Y-m-d'),
-        ]);
-        $audit = AuditLog::where('tindakan', 'jadwal.ubah')->sole();
-        $this->assertArrayNotHasKey('rencana_aksi_mulai', $audit->nilai_baru);
-        $this->assertArrayNotHasKey('rencana_aksi_selesai', $audit->nilai_lama);
+        $this->assertSame('2027-01-20', $jadwal->fresh()->penutupan->format('Y-m-d'));
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.ubah')->count());
     }
 
     public function test_missing_nested_dates_and_duplicate_periods_are_rejected(): void
@@ -286,7 +278,6 @@ class JadwalDraftTest extends TestCase
         $cases = [
             [fn () => $this->calendarMaster(5, true), 'periode_final_aktif_unik'],
             [fn () => PeriodeJadwal::sole()->update(['reviu_mulai' => '2027-01-01']), 'jadwal_periode_urutan_tanggal'],
-            [fn () => $jadwal->forceFill(['rencana_aksi_mulai' => '2026-01-05', 'rencana_aksi_selesai' => '2026-01-01'])->save(), 'jadwal_tahunan_urutan_ra'],
         ];
         foreach ($cases as [$write, $constraint]) {
             try {
@@ -297,5 +288,9 @@ class JadwalDraftTest extends TestCase
             }
         }
         $this->assertSame(1, $jadwal->fresh()->revisi);
+
+        // Jendela penyusunan RA sudah dihapus dari skema beserta CHECK urutannya.
+        $this->assertSame([], array_intersect(['rencana_aksi_mulai', 'rencana_aksi_selesai'], Schema::getColumnListing('jadwal_tahunan')));
+        $this->assertFalse(DB::table('pg_constraint')->where('conname', 'jadwal_tahunan_urutan_ra')->exists());
     }
 }

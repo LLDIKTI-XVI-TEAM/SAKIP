@@ -18,7 +18,7 @@ class JadwalTahunan extends Model
 
     protected $fillable = ['renstra_id', 'tahun', 'penutupan', 'status', 'renstra_pk_id', 'activated_at', 'closed_at', 'koreksi_mulai', 'koreksi_sampai', 'lingkup_koreksi'];
 
-    protected $casts = ['tahun' => 'integer', 'rencana_aksi_mulai' => 'date', 'rencana_aksi_selesai' => 'date', 'penutupan' => 'date', 'revisi' => 'integer', 'pakai_persetujuan_pimpinan' => 'boolean', 'persetujuan_mulai' => 'date', 'persetujuan_selesai' => 'date', 'koreksi_mulai' => 'datetime', 'koreksi_sampai' => 'datetime', 'lingkup_koreksi' => 'array'];
+    protected $casts = ['tahun' => 'integer', 'penutupan' => 'date', 'revisi' => 'integer', 'pakai_persetujuan_pimpinan' => 'boolean', 'persetujuan_mulai' => 'date', 'persetujuan_selesai' => 'date', 'koreksi_mulai' => 'datetime', 'koreksi_sampai' => 'datetime', 'lingkup_koreksi' => 'array'];
 
     protected $appends = ['is_terkunci'];
 

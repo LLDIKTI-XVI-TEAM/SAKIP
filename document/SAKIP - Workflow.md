@@ -531,8 +531,6 @@ periode (master global)          jadwal_tahunan (payung tahun)
   - urutan                          - penutupan (pembekuan akhir tahun)
   - aktif                           - status: draft / aktif / ditutup
   - is_nilai_akhir                  - renstra_pk_id, activated_at, closed_at
-                                     - rencana_aksi_mulai, rencana_aksi_selesai (tidak dipakai
-                                       sejak Q41; nullable)
 
               \                          /
                \                        /
@@ -560,7 +558,7 @@ periode (master global)          jadwal_tahunan (payung tahun)
 
 **Aturan penting:**
 - Kolom `pengisian_mulai`, `pengisian_selesai`, `reviu_mulai`, `reviu_selesai` **tidak lagi ada** pada `jadwal_tahunan` — seluruhnya berpindah ke `jadwal_periode`, satu baris per periode yang diharapkan.
-- Kolom `rencana_aksi_mulai`, `rencana_aksi_selesai` (date, nullable) di `jadwal_tahunan` **tidak lagi dipakai** sejak Q41 — tidak menjadi batas PIC, tidak tampil di form jadwal, dan dibiarkan nullable sampai dihapus pada migrasi lanjutan. Semula keduanya menjadi jendela tingkat tahun karena rencana aksi disusun sekali per (indikator × tahun).
+- Kolom `rencana_aksi_mulai`, `rencana_aksi_selesai` (date, nullable) di `jadwal_tahunan` **tidak lagi dipakai** sejak Q41 — tidak menjadi batas PIC, tidak tampil di form jadwal, lalu dihapus dari skema beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159. Semula keduanya menjadi jendela tingkat tahun karena rencana aksi disusun sekali per (indikator × tahun).
 - `jadwal_tahunan.penutupan` **tetap ada** dan berlaku sebagai pembekuan akhir di tingkat tahun, terpisah dari jendela per periode — sekaligus batas akhir penyusunan, perubahan, dan pengajuan Rencana Aksi (Q41); lihat §11 dan §13 untuk perannya dalam batas akses Perencanaan. Penutupan jadwal hanya menghentikan mutasi data kinerja; unggahan arsip PDF dokumen resmi tetap dapat dilakukan setelah jadwal ditutup karena tidak mengubah data (Q48 §48.2 butir 5, §25).
 - **Kunci per triwulan pada Rencana Aksi (Q41)** menggantikan deadline mutlak jendela rencana aksi: periode P terkunci bagi PIC setelah `jadwal_periode.pengisian_selesai` periode P terlewati (tanggal bisnis Asia/Makassar). Setiap perubahan RA oleh PIC — simpan draf, pengajuan, dan versi setelah dikembalikan atau dibuka kembali — tidak boleh mengubah target maupun daftar kegiatan periode yang terkunci; pelanggaran ditolak sebagai validasi bisnis (422) dan diaudit. **Perencanaan dikecualikan** sampai `jadwal_tahunan.penutupan` (permission `rencana_aksi:create`/`update`/`ajukan` bersifat global tanpa scope unit). Periode lampau 2026 pada saat aktivasi jadwal sudah terkunci bagi PIC sejak aktivasi (§15). Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC (Q41 §41.2 butir 5). Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan (Q41 §41.2 butir 6).
 - Nilai periode dengan `is_nilai_akhir = true` (mis. Tahunan) diisi manual oleh yang berwenang — tidak ada perhitungan agregasi otomatis dari periode-periode di bawahnya.
