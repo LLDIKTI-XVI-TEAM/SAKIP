@@ -125,15 +125,16 @@ class UbahStatusKegiatanTest extends TestCase
 
     public function test_audit_ubah_status_dan_geser_periode_dalam_transaksi_yang_sama(): void
     {
-        // Atomisitas: audit kedua gagal membatalkan status, lanjutan, dan kenaikan versi RA.
+        // Atomisitas: audit kedua gagal membatalkan audit pertama yang sudah tertulis, status, lanjutan, dan kenaikan versi RA.
         $versi = $this->header->fresh()->versi;
+        $logger = app(AuditLogger::class);
         $panggilan = 0;
-        $this->mock(AuditLogger::class)->shouldReceive('catat')->twice()->andReturnUsing(function () use (&$panggilan): AuditLog {
+        $this->mock(AuditLogger::class)->shouldReceive('catat')->twice()->andReturnUsing(function (mixed ...$argumen) use (&$panggilan, $logger): AuditLog {
             if (++$panggilan === 2) {
                 throw new RuntimeException('Audit geser periode gagal.');
             }
 
-            return new AuditLog;
+            return $logger->catat(...$argumen);
         });
         $this->withoutExceptionHandling();
 
@@ -144,6 +145,7 @@ class UbahStatusKegiatanTest extends TestCase
             $this->assertSame('Audit geser periode gagal.', $exception->getMessage());
         }
 
+        $this->assertFalse(AuditLog::where('tindakan', 'kegiatan.ubah_status')->where('objek_id', $this->kegiatan->id)->exists());
         $this->assertSame('rencana', $this->kegiatan->fresh()->status);
         $this->assertFalse(Kegiatan::where('kegiatan_asal_id', $this->kegiatan->id)->exists());
         $this->assertSame($versi, $this->header->fresh()->versi);
