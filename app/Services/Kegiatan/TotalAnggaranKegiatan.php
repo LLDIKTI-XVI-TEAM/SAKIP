@@ -15,10 +15,12 @@ use stdClass;
  * tetapi menandai total lewat `belum_diisi`. Kegiatan bersama tampil penuh
  * per IKU, sedangkan total per unit/tahun memakai kegiatan unik.
  *
- * Kegiatan asal `ditunda` tidak dihitung setelah kegiatan lanjutannya
+ * Kegiatan asal `ditunda` tidak dihitung setelah salah satu kegiatan dalam
+ * rantai lanjutannya (lanjutan, lanjutan dari lanjutan, dan seterusnya)
  * diklaim (klaim apa pun, ke RA mana pun), agar anggarannya hanya terhitung
  * pada lanjutan; sebelum itu asal tetap terhitung (Q69 §69.6). Karena semua
- * total hanya menghitung kegiatan berklaim, anggaran tidak terhitung ganda.
+ * total hanya menghitung kegiatan berklaim, anggaran tidak terhitung ganda,
+ * termasuk pada rantai yang lanjutan tengahnya tidak diklaim.
  *
  * Caller aktual: `DaftarKegiatanRencanaAksi` (total live halaman RA) dan
  * `AjukanRencanaAksi` (total yang dibekukan ke snapshot versi dengan
@@ -82,9 +84,17 @@ class TotalAnggaranKegiatan
     /** @return Builder<Kegiatan> */
     private function terhitung(): Builder
     {
-        return Kegiatan::query()->whereNot(fn (Builder $query) => $query->where('kegiatan.status', 'ditunda')
-            ->whereExists(fn ($lanjutan) => $lanjutan->from('kegiatan as lanjutan')->whereColumn('lanjutan.kegiatan_asal_id', 'kegiatan.id')
-                ->whereExists(fn ($klaim) => $klaim->from('klaim_kegiatan')->whereColumn('klaim_kegiatan.kegiatan_id', 'lanjutan.id'))));
+        // Rantai lanjutan ditelusuri lewat kegiatan_asal_id (A → B → C); UNION berhenti pada baris yang sudah dikunjungi bila data membentuk siklus.
+        return Kegiatan::query()->whereNot(fn (Builder $query) => $query->where('kegiatan.status', 'ditunda')->whereRaw(<<<'SQL'
+            EXISTS (
+                WITH RECURSIVE rantai (id) AS (
+                    SELECT lanjutan.id FROM kegiatan AS lanjutan WHERE lanjutan.kegiatan_asal_id = kegiatan.id
+                    UNION
+                    SELECT berikut.id FROM kegiatan AS berikut JOIN rantai ON berikut.kegiatan_asal_id = rantai.id
+                )
+                SELECT 1 FROM rantai JOIN klaim_kegiatan ON klaim_kegiatan.kegiatan_id = rantai.id
+            )
+            SQL));
     }
 
     /**
