@@ -2266,11 +2266,13 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
-- [ ] **AC-2:** Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
-- [ ] **AC-3:** Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
-- [ ] **AC-4:** Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
-- [ ] **AC-5:** Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+- [x] **AC-1:** Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
+- [x] **AC-2:** Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
+- [x] **AC-3:** Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
+- [x] **AC-4:** Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
+- [x] **AC-5:** Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+
+> **Status (22 Oktober 2026):** AC-1–AC-5 terpenuhi; AC-4 dipetakan ke test per endpoint Q43 §43.2 pada CI 9/9 exact HEAD `1fdb7e2`. QA SSO/browser smoke dan UAT belum dilakukan.
 
 **Business Rules / Catatan**
 

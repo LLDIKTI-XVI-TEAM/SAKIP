@@ -17,7 +17,7 @@ class UpdatePengaturan extends Controller
         $actor = $request->user();
 
         $validated = $request->validated();
-        $alasan = (string) $validated['alasan'];
+        $alasan = (string) ($validated['alasan'] ?? '');
         $rawExpected = $validated['expected_updated_at'] ?? [];
         /** @var array<string, string|null> $expectedUpdatedAt */
         $expectedUpdatedAt = is_array($rawExpected) ? Arr::dot($rawExpected) : [];

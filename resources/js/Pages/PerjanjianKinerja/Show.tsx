@@ -18,6 +18,7 @@ interface ShowProps {
     jadwal_status?: string | null;
     is_jadwal_aktif: boolean;
     is_jadwal_terkunci?: boolean;
+    alasan_wajib?: boolean;
     storageSettings?: StorageSettings;
     can: {
         update: boolean;
@@ -28,7 +29,7 @@ interface ShowProps {
     };
 }
 
-export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, storageSettings, can }: ShowProps) {
+export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, alasan_wajib = false, storageSettings, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -204,6 +205,7 @@ export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_akti
                     isJadwalAktif={is_jadwal_aktif}
                     isJadwalTerkunci={isTerkunci}
                     jadwalStatus={jadwal_status}
+                    alasanWajib={alasan_wajib}
                     storageSettings={storageSettings}
                     canUploadBerkas={can.upload_berkas ?? true}
                 />

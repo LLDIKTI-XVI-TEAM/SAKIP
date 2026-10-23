@@ -8,12 +8,16 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PindahUnitIndikator
 {
+    /** Alasan baku bila pengguna mengosongkan alasan (Q43 §43.3 butir 3). */
+    public const ALASAN_BAKU = 'Pemindahan unit indikator tanpa alasan tambahan.';
+
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly ResolveLockedActor $lockedActor,
@@ -125,7 +129,7 @@ class PindahUnitIndikator
                     'unit_id' => $nilaiBaru['unit_id'],
                     'unit_nama' => $targetUnit->nama,
                 ],
-                alasan: trim($validated['alasan']),
+                alasan: $this->alasanAudit($validated['alasan'] ?? null),
                 dasarIzin: $dasarIzin,
             );
 
@@ -162,5 +166,13 @@ class PindahUnitIndikator
         $renstraId = SasaranStrategis::whereKey($sasaranId)->sharedLock()->value('renstra_id');
 
         return is_string($renstraId) ? $renstraId : null;
+    }
+
+    /** Sanitasi alasan opsional; teks kosong memakai alasan baku agar audit tetap terbaca. */
+    private function alasanAudit(mixed $alasan): string
+    {
+        $bersih = AuditReason::sanitize($alasan);
+
+        return trim($bersih) !== '' ? $bersih : self::ALASAN_BAKU;
     }
 }

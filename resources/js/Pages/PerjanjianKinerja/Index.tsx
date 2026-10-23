@@ -219,6 +219,7 @@ export default function Index({ perjanjianKinerja, renstras, storageSettings, fi
                     isJadwalAktif={editingPk?.jadwal_tahunan?.status === 'aktif'}
                     isJadwalTerkunci={Boolean(editingPk?.jadwal_tahunan?.is_terkunci ?? (editingPk?.jadwal_tahunan?.status === 'aktif' || editingPk?.jadwal_tahunan?.status === 'ditutup' || Boolean(editingPk?.jadwal_tahunan?.activated_at)))}
                     jadwalStatus={editingPk?.jadwal_tahunan?.status ?? null}
+                    alasanWajib={editingPk?.alasan_wajib ?? false}
                     storageSettings={storageSettings}
                     canUploadBerkas={can.upload_berkas ?? true}
                 />

@@ -141,7 +141,6 @@ class JadwalActivationTest extends TestCase
         $this->readyJadwal();
         $this->actingAs($this->activator());
         $cases = [
-            'alasan' => ['alasan' => '   '],
             'alasan ' => ['alasan' => "Alasan\x07kontrol"],
             'alasan  ' => ['alasan' => str_repeat('a', 1001)],
             'operation_id' => ['operation_id' => 'bukan-uuid'],
@@ -151,10 +150,24 @@ class JadwalActivationTest extends TestCase
         foreach ($cases as $field => $override) {
             $this->activate($this->activationPayload($override))->assertSessionHasErrors(trim($field));
         }
-        $this->activate(array_diff_key($this->activationPayload(), ['alasan' => true]))->assertSessionHasErrors('alasan');
         $this->assertStillDraft();
-        $this->assertSame(count($cases) + 1, $this->audits('jadwal.aktivasi_ditolak'));
+        $this->assertSame(count($cases), $this->audits('jadwal.aktivasi_ditolak'));
         $this->assertSame(0, $this->audits('jadwal.aktivasi'));
+    }
+
+    public function test_activation_without_alasan_uses_server_default_reason(): void
+    {
+        $this->readyJadwal();
+        $this->actingAs($this->activator());
+        $payload = $this->activationPayload();
+        unset($payload['alasan']);
+
+        $this->activate($payload)->assertSessionHasNoErrors();
+
+        $this->assertSame('aktif', JadwalTahunan::findOrFail($this->ready['jadwal']->id)->status);
+        $audit = AuditLog::where('tindakan', 'jadwal.aktivasi')->latest('id')->firstOrFail();
+        $this->assertSame(ActivateJadwal::ALASAN_BAKU, $audit->alasan);
+        $this->assertSame(1, $this->audits('jadwal.aktivasi'));
     }
 
     public function test_authorization_precedes_lookup_and_live_recheck_records_actual_decision(): void

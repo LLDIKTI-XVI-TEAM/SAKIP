@@ -128,6 +128,7 @@ class IndexPerjanjianKinerja
                 'activated_at' => $pk->jadwalTahunan->activated_at,
                 'is_terkunci' => $pk->jadwalTahunan->is_terkunci,
             ] : null,
+            'alasan_wajib' => $pk->dipakaiJadwalAktif(),
         ]);
 
         return $result;

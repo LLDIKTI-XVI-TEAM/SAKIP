@@ -25,7 +25,8 @@ class ActivateJadwalRequest extends PeriodeJadwalMutationRequest
         return [
             'expected_revisi' => ['required', 'integer', 'min:1', 'max:2147483647'],
             'operation_id' => ['required', 'uuid'],
-            'alasan' => ['required', 'string', 'max:1000', AuditReason::validate(...)],
+            // Opsional (Q43 §43.3 butir 3); alasan kosong diisi teks baku oleh ActivateJadwal.
+            'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],
         ];
     }
 

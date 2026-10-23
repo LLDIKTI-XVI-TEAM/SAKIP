@@ -285,6 +285,8 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanju
 
 > **Q43 (13 Oktober 2026):** alasan pemberian grant menjadi opsional; bila dikosongkan, server mengisi alasan baku sehingga kolom `alasan` tetap `NOT NULL` (Q43 §43.3 butir 1, pola Q37 §37.2). Pencabutan grant tetap wajib alasan (Q43 §43.2 butir 4). Butir "alasan" pada AC dan task di bawah dipertahankan sebagai histori implementasi; perubahan dikerjakan pada ISS-13.05.
 
+> **Implementasi ISS-13.05 (22 Oktober 2026):** `alasan` grant opsional dengan alasan baku `CreateUnitGrantAction::ALASAN_BAKU`; revoke tetap wajib alasan. Lihat ISS-13.05 / PR #156.
+
 > **Q62 (18 Oktober 2026):** daftar Izin Unit satu baris per pengguna × unit dengan halaman detail dan aksi Kelola izin (tambah dan cabut sekaligus, alasan wajib bila ada pencabutan, ditolak bila data berubah sejak dibuka). Form pemberian dapat memberi beberapa izin sekaligus. Audit tetap per izin.
 
 **Terkait User Story:** `US-01.04`  
@@ -1879,6 +1881,8 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 ### ISS-04.01 · [Feature] Penetapan & Pergantian Penanggung Jawab Indikator
 
 > **Q43 (13 Oktober 2026):** kolom alasan pada penetapan dan pergantian Penanggung Jawab dihapus dari form; kolom basis datanya sudah nullable dan request tanpa alasan diterima (Q43 §43.3 butir 4). Butir "Pergantian wajib alasan" pada kontrak dan AC di bawah dipertahankan sebagai histori implementasi; perubahan dikerjakan pada ISS-13.05. Audit tetap mencatat aktor, waktu, tindakan, dan nilai lama/baru (Q43 §43.1).
+
+> **Implementasi ISS-13.05 (22 Oktober 2026):** field alasan dihapus dari form dan modal konfirmasi PJ (PR #156); payload tidak lagi mengirim `alasan`, sedangkan kolom histori tetap ditampilkan.
 
 **Terkait User Story:** `US-04.01`  
 **Prioritas:** 🟡 P1  
@@ -5526,10 +5530,12 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
-- [ ] **AC-2:** Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
-- [ ] **AC-3:** Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
-- [ ] **AC-4:** Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
-- [ ] **AC-5:** Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+- [x] **AC-2:** Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
+- [x] **AC-3:** Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
+- [x] **AC-4:** Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
+- [x] **AC-5:** Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+
+> **Status verifikasi AC-4 (22 Oktober 2026):** dipetakan ke test per endpoint Q43 §43.2 yang sudah ada — `ChangeUserStatusTest`, `ExplicitDenyTest`, `JadwalPenutupanTest`, `JadwalRevisiJendelaTest`, `BukaKembaliRencanaAksiTest`, `RencanaAksiBuktiHttpTest`, `SasaranIndikatorTest`, `RenstraFeatureTest`, `JenisBerkasContohTest` — dan CI 9/9 pada exact HEAD `1fdb7e2` (Backend 2183 passed; Frontend 79 file/844 test). Tidak ada test tabel-driven tunggal; pemetaan ini yang menjadi bukti.
 
 #### Implementation Tasks
 
@@ -5546,35 +5552,41 @@ Perubahan per request (tanpa nomor baris kode):
 | Perubahan PK | `UpdatePerjanjianKinerjaRequest` | `alasan` opsional sebelum PK dipakai jadwal aktif; koreksi sesudahnya tetap wajib alasan (ISS-02.09) | Q43 §43.3 butir 3, §43.2 butir 3 |
 
 **A. Persistence / Data Model**
-- [ ] Tidak ada perubahan skema: `user_permission_granted.alasan` tetap `NOT NULL` dan `penanggung_jawab.alasan` sudah nullable; audit tetap menyimpan nilai lama/baru.
+- [x] Tidak ada perubahan skema: `user_permission_granted.alasan` tetap `NOT NULL` dan `penanggung_jawab.alasan` sudah nullable; audit tetap menyimpan nilai lama/baru.
 
 **B. Backend / Domain**
-- [ ] Terapkan perubahan pada tabel di atas; alasan opsional yang diisi tetap disanitasi helper canonical (`AuditReason`/`AlasanAudit`).
-- [ ] Pastikan aksi Q43 §43.2 (pengembalian dan buka-kembali; penghapusan; koreksi/revisi data sah; perubahan akses; justifikasi kegiatan, deviasi PK, dan target PK yang menyimpang dari target Renstra menurut arah indikator, Q65 §65.2) tetap menolak request tanpa alasan.
+- [x] Terapkan perubahan pada tabel di atas; alasan opsional yang diisi tetap disanitasi helper canonical (`AuditReason`/`AlasanAudit`).
+- [x] Pastikan aksi Q43 §43.2 (pengembalian dan buka-kembali; penghapusan; koreksi/revisi data sah; perubahan akses; justifikasi kegiatan, deviasi PK, dan target PK yang menyimpang dari target Renstra menurut arah indikator, Q65 §65.2) tetap menolak request tanpa alasan.
 
 **C. Authorization & Audit**
-- [ ] Otorisasi tidak berubah; audit tetap mencatat aktor, waktu, tindakan, nilai lama/baru, serta `dasar_izin` untuk permission sensitif (Q37 §37.2).
+- [x] Otorisasi tidak berubah; audit tetap mencatat aktor, waktu, tindakan, nilai lama/baru, serta `dasar_izin` untuk permission sensitif (Q37 §37.2).
 
 **D. Frontend / UX**
-- [ ] Ubah label isian menjadi "Alasan (opsional)" pada form terkait dan hapus field alasan dari form Penanggung Jawab; pola **Modal Alasan Audit** wajib hanya untuk aksi Q43 §43.2, kecuali alasan deviasi Rencana Aksi dan target PK yang diisi pada isian di form (Q65 §65.2 butir 12).
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
+- [x] Ubah label isian menjadi "Alasan (opsional)" pada form terkait dan hapus field alasan dari form Penanggung Jawab; pola **Modal Alasan Audit** wajib hanya untuk aksi Q43 §43.2, kecuali alasan deviasi Rencana Aksi dan target PK yang diisi pada isian di form (Q65 §65.2 butir 12).
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+
+> **Status verifikasi TEST-4 (22 Oktober 2026):** bukti mengikuti pemetaan AC-4 di atas (test per endpoint §43.2 pada CI 9/9 exact HEAD `1fdb7e2`). Tidak ada test tabel-driven tunggal untuk seluruh request §43.2.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+
+> **Status verifikasi AC-2/TEST-2 (22 Oktober 2026, review B1):** pergantian PJ tanpa alasan diterima; dibuktikan `PenanggungJawabTest::test_replacement_without_reason_is_accepted_and_stale_backdate_is_audited` (histori `alasan` null, audit `penanggung_jawab.ganti` memakai `AppendAssignment::ALASAN_BAKU_GANTI`) dan Vitest `AuditReasonModal` (notice/error tetap tampil saat `hideReasonField`).
+
+> **Batas verifikasi PR:** AC-2/TEST-2 dibuktikan test pergantian PJ tanpa alasan dan Vitest modal; AC-4/TEST-4 dipetakan ke test per endpoint dan CI 9/9 pada `09c2329`. QA SSO/browser smoke dan UAT belum dilakukan; DoD design-system tetap terbuka sampai QA tersebut.
 
 ### ISS-13.06 · [Feature] Penghapusan Kebijakan Storage, Batas Teknis Unggahan di Konfigurasi, dan Penataan Menu Referensi
 

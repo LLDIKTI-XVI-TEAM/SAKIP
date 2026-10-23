@@ -1175,7 +1175,7 @@ Kewajiban alasan dari keputusan sebelumnya yang tidak disebut pada §43.3 tetap 
 
 - Mengubah Q14 (alasan grant), PRD §4 prinsip 6, §7.5, §13, §25.1–§25.2; Data Model §2.7, §2.19, §2.32; Workflow §21–§22; Plan modul 10 (task 10.7); design system (pola modal alasan).
 - User Stories/Issues: US/ISS-01.04 dan 04.01 diberi catatan; issue baru **US/ISS-13.05** memuat rincian per request.
-- Status implementasi: sebagian. §43.2 butir 5 untuk alasan target PK yang menyimpang dari target Renstra dan §43.3 butir 2 (perubahan target PK opsional, juga setelah snapshot terbentuk) diterapkan ISS-02.11 (Q65); sisanya ISS-13.05.
+- Status implementasi: §43.3 butir 1–4 diterapkan ISS-13.05 (PR #156); §43.2 butir 5 untuk alasan target PK yang menyimpang dari target Renstra dan §43.3 butir 2 diterapkan ISS-02.11 (Q65).
 
 ---
 

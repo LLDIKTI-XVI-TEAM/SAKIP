@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Perencanaan;
 
+use App\Actions\Perencanaan\PindahUnitIndikator;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
@@ -1503,7 +1504,7 @@ class SasaranIndikatorTest extends TestCase
         $this->assertSame(0, AuditLog::where('tindakan', 'indikator.pindah_unit')->where('objek_id', (string) $indikator->id)->count());
     }
 
-    public function test_pindah_unit_menolak_tanpa_alasan_atau_alasan_pendek(): void
+    public function test_pindah_unit_diterima_tanpa_alasan_dan_alasan_pendek(): void
     {
         $unitBaru = Unit::create(['nama' => 'Unit Baru Tanpa Alasan', 'status' => 'aktif', 'created_by' => $this->perencanaan->id]);
 
@@ -1525,21 +1526,32 @@ class SasaranIndikatorTest extends TestCase
             'created_by_role' => 'perencanaan',
         ]);
 
-        // Tanpa alasan ditolak validasi
+        // Tanpa alasan diterima dan audit memakai alasan baku server (Q43 §43.3 butir 3).
         $responseTanpaAlasan = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/pindah-unit", [
             'unit_id' => $unitBaru->id,
         ]);
-        $responseTanpaAlasan->assertSessionHasErrors(['alasan']);
+        $responseTanpaAlasan->assertSessionHasNoErrors();
+        $this->assertSame($unitBaru->id, $indikator->fresh()->unit_id);
 
-        // Alasan < 10 karakter ditolak validasi
+        $auditTanpaAlasan = AuditLog::where('tindakan', 'indikator.pindah_unit')
+            ->where('objek_id', (string) $indikator->id)
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertSame(PindahUnitIndikator::ALASAN_BAKU, $auditTanpaAlasan->alasan);
+
+        // Alasan pendek tetap diterima dan disimpan apa adanya bila diisi.
         $responsePendek = $this->actingAs($this->perencanaan)->patch("/perencanaan/indikator/{$indikator->id}/pindah-unit", [
-            'unit_id' => $unitBaru->id,
+            'unit_id' => $this->unit->id,
             'alasan' => 'pendek',
         ]);
-        $responsePendek->assertSessionHasErrors(['alasan']);
-
+        $responsePendek->assertSessionHasNoErrors();
         $this->assertSame($this->unit->id, $indikator->fresh()->unit_id);
-        $this->assertSame(0, AuditLog::where('tindakan', 'indikator.pindah_unit')->where('objek_id', (string) $indikator->id)->count());
+
+        $auditPendek = AuditLog::where('tindakan', 'indikator.pindah_unit')
+            ->where('objek_id', (string) $indikator->id)
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertSame('pendek', $auditPendek->alasan);
     }
 
     public function test_store_indikator_fails_closed_when_allowed_only_by_direct_grant_without_role(): void

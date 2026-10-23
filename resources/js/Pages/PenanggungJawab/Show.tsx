@@ -40,7 +40,7 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
     const pjAktif = effective?.pic?.status === 'aktif' ? effective.pic : null;
     const hrefBeriIzin = bolehAuth.grant && pjAktif && unit?.status === 'aktif' ? `/akses/grant?beri_pengguna=${pjAktif.id}&beri_unit=${unit.id}` : null;
     const base = `/perencanaan/indikator/${indicator.id}/penanggung-jawab`;
-    const form = useForm({ user_id: '', tanggal_mulai_berlaku: today, alasan: '', expected_state });
+    const form = useForm({ user_id: '', tanggal_mulai_berlaku: today, expected_state });
     const [reference, setReference] = useState(tanggal_acuan);
     const [modal, setModal] = useState(false);
     const [preview, setPreview] = useState<WorkReadiness | null>(null);
@@ -80,7 +80,7 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
                     setUnknownOutcome(true);
                     return;
                 }
-                form.setData({ user_id: '', tanggal_mulai_berlaku: String(page.props.today), alasan: '', expected_state: page.props.expected_state });
+                form.setData({ user_id: '', tanggal_mulai_berlaku: String(page.props.today), expected_state: page.props.expected_state });
                 form.clearErrors();
                 setModal(false);
             },
@@ -217,7 +217,7 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
                             </div>
                             <p className="mt-1 text-xs text-muted">Berlaku {formatTanggal(row.tanggal_mulai_berlaku)} · Ditetapkan oleh {row.ditetapkan_oleh?.nama ?? 'Tidak tersedia'}</p>
                             <p className="mt-0.5 text-xs text-muted">Dicatat {row.created_at ? formatTanggal(row.created_at, { withTime: true }) : 'Tidak tersedia'}</p>
-                            <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">{row.alasan ?? 'Penetapan awal'}</p>
+                            <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">{row.alasan ?? 'Tanpa alasan tambahan'}</p>
                         </li>)}</ol>}
                     {(history.prev_page_url || history.next_page_url) && <nav aria-label="Halaman histori" className="mt-6 flex justify-between gap-3 border-t border-border pt-4">
                         {history.prev_page_url && <Link href={history.prev_page_url} preserveState preserveScroll className={pagerLink}>‹ Sebelumnya</Link>}
@@ -227,8 +227,8 @@ function AssignmentDetail({ indicator, unit, renstra, effective, readiness, hist
             </Card>
         </div>
         <AuditReasonModal open={modal} title="Konfirmasi pergantian PJ" description={`Pergantian untuk ${indicator.kode} berlaku ${formatTanggal(form.data.tanggal_mulai_berlaku)}. Penugasan lama tetap tersimpan.`}
-            reason={form.data.alasan} error={form.errors.alasan ?? form.errors.user_id ?? form.errors.tanggal_mulai_berlaku}
-            onReasonChange={(reason) => form.setData('alasan', reason)} busy={form.processing} submitDisabled={disabled || !form.data.alasan.trim()}
+            reason="" hideReasonField error={form.errors.user_id ?? form.errors.tanggal_mulai_berlaku}
+            onReasonChange={() => {}} busy={form.processing} submitDisabled={disabled}
             notice={notice} confirmLabel="Simpan pergantian" onConfirm={submit} onClose={() => { if (!form.processing) setModal(false); }} />
     </AuthenticatedLayout>;
 }
