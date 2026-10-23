@@ -50,6 +50,7 @@ class SimpanKegiatan
      * Satu use case simpan rencana; aktor/ACL, objek dan master diperiksa ulang di bawah lock.
      * Metadata rencana termasuk anggaran (Q42); tidak mengubah status, narasi pelaksanaan atau snapshot pengukuran.
      * Data rencana hanya dapat diubah selama status `rencana` (Q69 §69.3); status diubah lewat `UbahStatusKegiatan`.
+     * Kegiatan lanjutan tetap pada tahun kegiatan asal dan periode yang lebih akhir (Q69 §69.5 butir 2).
      *
      * @param  array<string, mixed>  $data
      */
@@ -117,6 +118,17 @@ class SimpanKegiatan
                     // Jaga integritas klaim yang sudah ada. Jangan lock child: submit mengunci klaim sebelum kegiatan.
                     if ($changedContext !== [] && KlaimKegiatan::where('kegiatan_id', $kegiatan->id)->exists()) {
                         throw ValidationException::withMessages(array_fill_keys($changedContext, 'Konteks kegiatan yang sudah diklaim tidak dapat dipindahkan.'));
+                    }
+                    // Lanjutan tetap pada tahun asal dan periode yang lebih akhir (Q69 §69.5 butir 2). Asal berstatus `ditunda` (final,
+                    // data rencananya terkunci) sehingga tahun dan periodenya tidak berubah; dibaca tanpa lock.
+                    if ($kegiatan->kegiatan_asal_id && array_intersect($changedContext, ['tahun', 'periode_id']) !== []) {
+                        $asal = Kegiatan::with('periode:id,urutan')->findOrFail($kegiatan->kegiatan_asal_id);
+                        if ((int) $data['tahun'] !== (int) $asal->tahun) {
+                            throw ValidationException::withMessages(['tahun' => 'Kegiatan lanjutan harus tetap pada tahun kegiatan asal.']);
+                        }
+                        if ($periode->urutan <= $asal->periode->urutan) {
+                            throw ValidationException::withMessages(['periode_id' => 'Periode kegiatan lanjutan harus lebih akhir dari periode kegiatan asal.']);
+                        }
                     }
                 }
                 $jalurPerencanaan = $this->jendela->jalurPerencanaan($this->resolver->resolve($currentActor, $id ? 'kegiatan:update' : 'kegiatan:create', $unitId));
