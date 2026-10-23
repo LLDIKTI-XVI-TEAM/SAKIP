@@ -1694,6 +1694,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### US-10.02 · Matriks Rekapitulasi Indikator × Periode
 
+> **Status implementasi lokal — 21 Oktober 2026:** `/laporan/rekap` membaca versi pengukuran sah terakhir, memakai target RA resmi yang berpasangan, menghitung capaian dari target periode positif, dan membatasi detail kegiatan melalui resolver server. Test fitur rekap terbaru lulus 33 test/354 assertion, termasuk regresi penyebut nol pada periode tanpa target; 12 test frontend rekap lulus, termasuk indikator berkomponen dengan dua kegiatan sesuai DoD Plan 8.3. Pengujian menyeluruh sebelum perbaikan review mencakup 181 file backend. Browser desktop 1440×1000, tablet 1024×900, dan mobile 390×844 memverifikasi filter/reset, disclosure keyboard, serta ketiadaan overflow. Komponen `SelisihTargetPk` resmi dari hasil merge PR #147 (`e0459bf`) sudah dipakai dan diverifikasi kembali pada desktop/mobile; AC-7 terpenuhi. AC-5 masih parsial: rekomendasi disetujui dan bukti sudah tampil, sedangkan status capaian memakai penanda belum ditetapkan selama ISS-09.02 belum tersedia. Kelengkapan key snapshot serta filter lanjutan tetap mengikuti tindak lanjut PM Q1/Q5. DoD keseluruhan tetap terbuka; ini bukti implementasi lokal, bukan merge #134, CI hijau, UAT, atau deployment.
+
 > **Q42, Q44, Q45, Q47, Q48, Q51 (13 Oktober 2026):** rekap menampilkan narasi pengukuran bersama daftar kegiatan yang diklaim dan anggarannya (Q45 §45.1 butir 2, Q42 §42.2), Rekomendasi Pimpinan yang berlaku yaitu berstatus disetujui (Q51 §51.1 butir 2), tampilan periode tanpa target dan realisasi belum dapat diukur sesuai Q47 §47.3–§47.4, serta penanda `tidak_dapat_dipenuhi` hanya sebagai histori (Q44 §44.1 butir 2). Dokumen resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat melalui US-10.05 (Q48). AC-4 sampai AC-6 diperbarui dan AC-7 ditambahkan karena story ini belum dikerjakan.
 
 > **Keputusan PM (17 Oktober 2026):** rekap juga menampilkan alasan `tidak_dapat_dihitung` dari versi resmi sesuai hak baca, sehingga tampilan laporan pada US-07.06 AC-5 dipenuhi melalui story ini (tindak lanjut review PR #118, m2). AC-6 diperbarui.
@@ -1714,13 +1716,13 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given tahun/periode dipilih, Then tabel memuat identitas Sasaran, Indikator, Satuan, Unit, PIC efektif/historis yang relevan.
-- [ ] **AC-2:** Then kolom target memisahkan baseline, target PK, dan target periode.
-- [ ] **AC-3:** Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
-- [ ] **AC-4:** Then narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, `tindak_lanjut_rekomendasi`) beserta daftar kegiatan yang diklaim dan anggarannya berasal dari versi resmi yang dinilai, bukan live data yang telah berubah. *(Diperbarui Q45 §45.1 butir 2, Q42 §42.2; semula narasi kegiatan/kendala/tindak lanjut.)*
+- [x] **AC-1:** Given tahun/periode dipilih, Then tabel memuat identitas Sasaran, Indikator, Satuan, Unit, PIC efektif/historis yang relevan.
+- [x] **AC-2:** Then kolom target memisahkan baseline, target PK, dan target periode.
+- [x] **AC-3:** Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
+- [x] **AC-4:** Then narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, `tindak_lanjut_rekomendasi`) beserta daftar kegiatan yang diklaim dan anggarannya berasal dari versi resmi yang dinilai, bukan live data yang telah berubah. *(Diperbarui Q45 §45.1 butir 2, Q42 §42.2; semula narasi kegiatan/kendala/tindak lanjut.)*
 - [ ] **AC-5:** Then Rekomendasi Pimpinan yang berlaku (berstatus `disetujui`), status capaian, dan status bukti ditampilkan sesuai versi/konteks. *(Diperbarui Q51 §51.1 butir 2)*
-- [ ] **AC-6:** Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol; penanda `tidak_dapat_dihitung` ditampilkan beserta alasan dari versi resmi sesuai hak baca. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3, keputusan PM 17 Oktober 2026)*
-- [ ] **AC-7:** Given periode tanpa target, Then rekap menampilkan "Tanpa target periode" beserta realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen; bila realisasinya juga belum dapat diukur, yang tampil "Belum dapat diukur". *(Q47 §47.3)*
+- [x] **AC-6:** Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol; penanda `tidak_dapat_dihitung` ditampilkan beserta alasan dari versi resmi sesuai hak baca. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3, keputusan PM 17 Oktober 2026)*
+- [x] **AC-7:** Given periode tanpa target, Then rekap menampilkan "Tanpa target periode" beserta realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen; bila realisasinya juga belum dapat diukur, yang tampil "Belum dapat diukur". *(Q47 §47.3)*
 
 ### US-10.03 · Ekspor Laporan Kinerja ke Excel
 

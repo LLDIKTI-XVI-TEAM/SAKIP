@@ -46,6 +46,7 @@ export interface SharedPageProps extends PageProps {
             'pk:create'?: boolean;
             'pk:update'?: boolean;
             rekomendasi?: boolean;
+            laporan_read?: boolean;
         };
     };
     flash?: {
