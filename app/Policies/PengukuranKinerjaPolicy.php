@@ -156,9 +156,6 @@ class PengukuranKinerjaPolicy
                 }
             }
         } else {
-            if ($period && $date < $period->reviu_mulai->toDateString() && ! $correction) {
-                $errors[] = 'Jendela reviu periode ini belum dimulai.';
-            }
             $version = $p->latestVersion;
             if (! $version || $version->jadwal_snapshot_id !== $p->jadwal_snapshot_id) {
                 $errors[] = 'Versi pengajuan yang direviu belum tersedia atau tidak cocok.';

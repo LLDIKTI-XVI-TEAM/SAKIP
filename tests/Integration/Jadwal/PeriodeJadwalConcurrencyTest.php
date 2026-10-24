@@ -149,7 +149,7 @@ class PeriodeJadwalConcurrencyTest extends TestCase
         $early = $this->calendarMaster(1, false);
         $renstra = $this->calendarRenstra($actors[0]);
         $data = $this->calendarPayload($renstra, $final);
-        $data['periode'][] = ['periode_id' => $early->id, 'periode_revisi' => 1, 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07', 'reviu_mulai' => '2026-04-08', 'reviu_selesai' => '2026-04-15'];
+        $data['periode'][] = ['periode_id' => $early->id, 'periode_revisi' => 1, 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07'];
         $this->assertSame(['changed', 'urutan'], $this->race([
             ['actor_id' => $actors[0]->id, 'operation' => 'save', 'data' => $data],
             ['actor_id' => $actors[1]->id, 'operation' => 'master', 'id' => $final->id, 'data' => ['nama' => $final->nama, 'urutan' => 0, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1]],
@@ -223,9 +223,9 @@ class PeriodeJadwalConcurrencyTest extends TestCase
         $periode = $this->calendarMaster();
         // Tahun jauh di depan agar jadwal tetap belum melewati penutupan pada jam nyata worker.
         $jadwal = JadwalTahunan::create(['renstra_id' => $this->calendarRenstra($actors[0], 'aktif')->id, 'tahun' => 2030, 'penutupan' => '2031-01-19', 'status' => 'aktif', 'activated_at' => now()]);
-        PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $periode->id, 'pengisian_mulai' => '2031-01-04', 'pengisian_selesai' => '2031-01-11', 'reviu_mulai' => '2031-01-12', 'reviu_selesai' => '2031-01-18']);
+        PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $periode->id, 'pengisian_mulai' => '2031-01-04', 'pengisian_selesai' => '2031-01-11']);
         $revisi = fn (string $selesai): array => ['expected_revisi' => 1, 'alasan' => 'Perpanjangan resmi.', 'periode' => [
-            ['periode_id' => $periode->id, 'pengisian_mulai' => '2031-01-04', 'pengisian_selesai' => $selesai, 'reviu_mulai' => '2031-01-12', 'reviu_selesai' => '2031-01-18'],
+            ['periode_id' => $periode->id, 'pengisian_mulai' => '2031-01-04', 'pengisian_selesai' => $selesai],
         ]];
         $this->assertSame(['changed', 'jadwal'], $this->race([
             ['actor_id' => $actors[0]->id, 'operation' => 'revisi', 'id' => $jadwal->id, 'data' => $revisi('2031-01-10')],

@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **16 Oktober 2026**
+Pembaruan terakhir: **25 Oktober 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -70,7 +70,7 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 17 Oktober 2026 (Q56)** menetapkan bahwa Admin tetap memegang `audit:read` bersama Superadmin, Perencanaan, dan Pimpinan, menyelaraskan PRD §25.4 dengan Plan Pengembangan, dan menerima secara sadar bahwa izin ini membuka payload audit lintas modul, termasuk draf.
 
-**Keputusan 17 Oktober 2026 (Q57)** menetapkan bahwa revisi resmi jendela PIC dapat ikut menyesuaikan jendela reviu periode yang sama dalam satu aksi beralasan dan teraudit, sedangkan penanda reviu terlambat yang sudah tercatat tetap beku, melengkapi Q18 dan Q41 §41.1 butir 3.
+**Keputusan 17 Oktober 2026 (Q57)** menetapkan bahwa revisi resmi jendela PIC dapat ikut menyesuaikan jendela reviu periode yang sama dalam satu aksi beralasan dan teraudit, sedangkan penanda reviu terlambat yang sudah tercatat tetap beku, melengkapi Q18 dan Q41 §41.1 butir 3. **Diubah Q70:** jendela reviu dihapus, sehingga revisi hanya menyangkut jendela pengisian dan penanda reviu terlambat tidak lagi dibuat; penanda yang sudah tercatat tetap ditampilkan sebagai histori.
 
 **Keputusan 17 Oktober 2026 (Q60)** menetapkan bahwa target Renstra disimpan tanpa alasan pada Renstra `draft` maupun `aktif`, sedangkan audit tetap mencatat nilai lama dan baru per tahun, mengubah Q40 §40.2 butir 3 dan Q43 §43.2 butir 3.
 
@@ -2087,10 +2087,21 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 ## 70.3 Dampak dan traceability
 
 - Q17 tetap berlaku sebatas reviu sampai penutupan; penanda terlambatnya tidak lagi dibuat. Q57 tidak lagi berlaku untuk jendela reviu karena jendela itu dihapus; Q18 tetap berlaku untuk jendela pengisian.
-- PRD §12.1, §12.3, dan §31; Workflow §4; Data Model §2.14 (`periode`: tanggal mulai dan selesai tanpa tahun) dan §2.16 (`jadwal_periode` tanpa kolom reviu); Plan 3.2, 3.3, dan 3.12; US/ISS-03.01 AC-4 (digantikan), US/ISS-03.06, dan US/ISS-03.07 (baru).
+- PRD §12.1, §12.3, dan §31; Workflow §4; Data Model §2.14 (`periode`: tanggal mulai dan selesai tanpa tahun) dan §2.16 (`jadwal_periode` tanpa kolom reviu); Plan 3.2, 3.3, dan 3.12; US/ISS-03.01 AC-4 (digantikan), US/ISS-03.06, US/ISS-07.04 AC-5 dan US/ISS-08.01 AC-5/TEST-5 (digantikan), serta US/ISS-03.07 (baru).
 - Kode terdampak: `JadwalDraftRules` (`WINDOW_FIELDS`, syarat penutupan), `SaveJadwalDraft`, `StoreJadwalRequest`, `PeriodeJadwalMutationRequest`, `RevisiJendelaPic` dan `RevisiJendelaPicRequest`, `PengukuranKinerjaPolicy` (gerbang reviu), `PengukuranMutationSteps` (penanda reviu terlambat), `PresentPengukuran`, `StatusIndikatorDashboard`, serta Action Master Periode (`SavePeriode`, `ListPeriode`).
-- Status implementasi: belum (ISS-03.07).
+- Status implementasi: sebagian. §70.2 butir 1 dan 3–6 pada tahap pertama ISS-03.07 (penghapusan jendela reviu); §70.1, §70.2 butir 2 dan 7, serta §70.4 menyusul pada tahap kedua ISS-03.07 (tanggal periode).
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+## 70.4 Klarifikasi penerapan
+
+**Keputusan PM: 24 Oktober 2026 (WITA)**, saat perencanaan ISS-03.07. Melengkapi §70.1–§70.2 tanpa mengubah isinya.
+
+1. Pada revisi jendela PIC, batas awal jendela pengisian (§70.2 butir 2) hanya diperiksa untuk jendela yang tanggalnya diubah dalam revisi tersebut. Jendela lain pada jadwal aktif yang tidak diubah tetap berlaku apa adanya (§70.2 butir 7), sehingga jadwal 2026 tetap dapat direvisi.
+2. Batas awal yang sama ikut diperiksa saat jadwal draf diaktifkan, memakai tanggal periode yang berlaku saat aktivasi. Draf yang melanggarnya tidak dapat diaktifkan karena kalender tidak valid sampai jendelanya diperbaiki.
+3. Rentang tanggal periode pada tampilan (§70.1 butir 3a) dihitung dari tanggal Master Periode yang berlaku saat ditampilkan dan tidak dibekukan pada snapshot. Perubahan tanggal periode tetap tidak mengubah data yang tersimpan (§70.1 butir 4).
+
+- Status implementasi: belum (tahap kedua ISS-03.07).
+- Status keputusan: baseline kerja PM.
 
 ---
 

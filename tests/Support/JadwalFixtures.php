@@ -41,7 +41,6 @@ trait JadwalFixtures
     {
         return ['renstra_id' => $renstra->id, 'tahun' => $year,
             'penutupan' => ($year + 1).'-01-19', 'periode' => [['periode_id' => $periode->id, 'periode_revisi' => $periode->revisi,
-                'pengisian_mulai' => ($year + 1).'-01-04', 'pengisian_selesai' => ($year + 1).'-01-11',
-                'reviu_mulai' => ($year + 1).'-01-12', 'reviu_selesai' => ($year + 1).'-01-18']]];
+                'pengisian_mulai' => ($year + 1).'-01-04', 'pengisian_selesai' => ($year + 1).'-01-11']]];
     }
 }

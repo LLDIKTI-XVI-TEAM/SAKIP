@@ -31,7 +31,7 @@ class DashboardFilterTest extends TestCase
         $periode = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
 
         return PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $periode->id,
-            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
     }
 
     private function tambahUnitDenganSnapshot(string $nama): Unit
@@ -194,7 +194,7 @@ class DashboardFilterTest extends TestCase
         $jadwal2025 = JadwalTahunan::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2025, 'penutupan' => '2025-12-31', 'status' => 'ditutup',
             'closed_at' => Carbon::parse('2025-12-31 01:00:00', 'UTC')]);
         PeriodeJadwal::create(['jadwal_id' => $jadwal2025->id, 'periode_id' => $this->pengukuran->periode_id,
-            'pengisian_mulai' => '2025-03-01', 'pengisian_selesai' => '2025-03-15', 'reviu_mulai' => '2025-03-15', 'reviu_selesai' => '2025-04-15']);
+            'pengisian_mulai' => '2025-03-01', 'pengisian_selesai' => '2025-03-15']);
         JadwalSnapshot::create([...$this->context->only(['indikator_id', 'periode_mulai_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
             'jadwal_id' => $jadwal2025->id]);
 

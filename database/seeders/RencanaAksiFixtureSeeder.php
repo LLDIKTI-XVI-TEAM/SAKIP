@@ -142,8 +142,6 @@ class RencanaAksiFixtureSeeder extends Seeder
                 'periode_id' => $periode->id,
                 'pengisian_mulai' => sprintf('%d-01-01', self::FIXTURE_TAHUN),
                 'pengisian_selesai' => sprintf('%d-06-30', self::FIXTURE_TAHUN),
-                'reviu_mulai' => sprintf('%d-07-01', self::FIXTURE_TAHUN),
-                'reviu_selesai' => sprintf('%d-12-31', self::FIXTURE_TAHUN),
             ]);
         }
 

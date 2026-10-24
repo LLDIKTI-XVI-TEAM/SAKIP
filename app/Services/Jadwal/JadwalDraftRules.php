@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
  */
 class JadwalDraftRules
 {
-    public const WINDOW_FIELDS = ['pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai'];
+    public const WINDOW_FIELDS = ['pengisian_mulai', 'pengisian_selesai'];
 
     /**
      * Pemanggil memasok tanggal valid YYYY-MM-DD serta metadata otoritatif yang terlindungi lock.
@@ -66,8 +66,8 @@ class JadwalDraftRules
         if ($closeYear < $year || $closeYear > $year + 1) {
             $errors['penutupan'] = 'Penutupan harus berada pada tahun pelaporan atau tahun berikutnya.';
         }
-        if ($data['penutupan'] <= max(array_column($windows, 'reviu_selesai'))) {
-            $errors['penutupan'] = 'Penutupan paling cepat hari berikutnya setelah seluruh target selesai review.';
+        if ($data['penutupan'] <= max(array_column($windows, 'pengisian_selesai'))) {
+            $errors['penutupan'] = 'Penutupan paling cepat hari berikutnya setelah jendela pengisian terakhir selesai.';
         }
 
         return $errors;

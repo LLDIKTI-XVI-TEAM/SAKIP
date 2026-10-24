@@ -22,12 +22,12 @@ class RevisiJendelaPic
     public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit, private readonly JadwalDraftRules $rules) {}
 
     /**
-     * Revisi resmi jendela pengisian dan reviu periode anggota jadwal aktif (Q18).
+     * Revisi resmi jendela pengisian periode anggota jadwal aktif (Q18; jendela reviu dihapus Q70).
      * Hanya tanggal jendela dan revisi yang berubah; guard PIC membaca nilai baru
-     * langsung dari `jadwal_periode`, sedangkan jejak reviu lama sudah dibekukan.
+     * langsung dari `jadwal_periode`.
      * Urutan kunci jadwal → periode jadwal sama dengan writer pengukuran.
      *
-     * @param  array{expected_revisi: int|string, alasan: string, periode: list<array{periode_id: string, pengisian_mulai: string, pengisian_selesai: string, reviu_mulai: string, reviu_selesai: string}>}  $data
+     * @param  array{expected_revisi: int|string, alasan: string, periode: list<array{periode_id: string, pengisian_mulai: string, pengisian_selesai: string}>}  $data
      */
     public function handle(User $actor, string $jadwalId, array $data): JadwalTahunan
     {

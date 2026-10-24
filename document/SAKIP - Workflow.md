@@ -58,7 +58,7 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
      → Validasi lolos: Renstra berstatus AKTIF
   12. Membuat Jadwal Tahunan yang merujuk Renstra X, Tahun Y → status: draft
   13. Menyusun daftar Periode yang diharapkan tahun ini (jadwal_periode) beserta jendela
-      pengisian dan reviu masing-masing periode (mis. Triwulan I–IV)
+      pengisian masing-masing periode (mis. Triwulan I–IV); jendela reviu dihapus Q70
   14. [Digantikan Q41] Jendela penyusunan rencana aksi tingkat tahun (rencana_aksi_mulai,
       rencana_aksi_selesai) tidak lagi diisi — Rencana Aksi dapat disusun sejak jadwal aktif
       sampai penutupan (§4)
@@ -255,7 +255,7 @@ flowchart TD
     I -- Tidak --> E
     I -- Ya --> J[Renstra berstatus AKTIF]
     J --> K[Perencanaan membuat Jadwal Tahunan draft\nmerujuk Renstra X, Tahun Y]
-    K --> K2[Perencanaan menyusun jadwal_periode:\ndaftar periode + jendela pengisian/reviu]
+    K --> K2[Perencanaan menyusun jadwal_periode:\ndaftar periode + jendela pengisian]
     K2 --> L{Empat gerbang validasi aktivasi lolos?\n1 PK tahun Y ada\n2 seluruh indikator aktif punya target PK tahun Y\n3 tahun Y dalam rentang Renstra\n4 renstra_pk tahun Y punya lampiran dokumen}
     L -- Tidak --> K
     L -- Ya --> M[Jadwal AKTIF: sistem membuat jadwal_snapshot\n+ jadwal_snapshot_komponen, idempoten,\nuntuk pasangan jadwal-indikator yang belum ada]
@@ -523,7 +523,9 @@ flowchart TD
 
 > **Q41 (13 Oktober 2026):** Rencana Aksi tidak lagi terikat jendela penyusunan. `rencana_aksi_mulai`/`rencana_aksi_selesai` tidak lagi menjadi batas PIC dan dihapus dari form jadwal; PIC efektif dengan grant yang sah dapat menyusun, mengubah, dan mengajukan RA sejak jadwal aktif sampai `penutupan`, dengan kunci per triwulan (lihat aturan di bawah dan §7). Jadwal hanya mengikat pelaporan realisasi melalui jendela pengisian per periode. Q18 tetap berlaku untuk jendela pengisian pengukuran.
 
-Jendela waktu pengisian dan reviu tidak lagi melekat pada `jadwal_tahunan` secara langsung, melainkan pada tabel pivot `jadwal_periode` yang menghubungkan satu Jadwal Tahunan dengan tiap Periode yang diharapkan pada tahun itu. Susunan ini memungkinkan setiap periode (mis. Triwulan I, II, III, IV) memiliki jendela pengisian dan reviu masing-masing, alih-alih satu jendela tunggal untuk seluruh tahun. `jadwal_tahunan` sendiri sempat juga membawa jendela tingkat tahun untuk penyusunan rencana aksi — digantikan Q41.
+> **Q70 (23 Oktober 2026):** jendela reviu (`reviu_mulai`, `reviu_selesai`) dihapus dari `jadwal_periode` dan dari revisi jendela PIC. Verifikasi, pengembalian, dan pengesahan pengukuran dapat dilakukan sejak pengukuran diajukan sampai `penutupan`; penanda reviu terlambat tidak lagi dibuat, sedangkan penanda yang sudah tercatat di audit tetap ditampilkan sebagai histori. `penutupan` wajib setelah `pengisian_selesai` periode terakhir (Q70 §70.2; ISS-03.07).
+
+Jendela waktu pengisian tidak lagi melekat pada `jadwal_tahunan` secara langsung, melainkan pada tabel pivot `jadwal_periode` yang menghubungkan satu Jadwal Tahunan dengan tiap Periode yang diharapkan pada tahun itu. Susunan ini memungkinkan setiap periode (mis. Triwulan I, II, III, IV) memiliki jendela pengisian masing-masing, alih-alih satu jendela tunggal untuk seluruh tahun. `jadwal_tahunan` sendiri sempat juga membawa jendela tingkat tahun untuk penyusunan rencana aksi — digantikan Q41.
 
 ```
 periode (master global)          jadwal_tahunan (payung tahun)
@@ -538,17 +540,17 @@ periode (master global)          jadwal_tahunan (payung tahun)
                      jadwal_periode
                 (jadwal_id, periode_id)
                 - pengisian_mulai / pengisian_selesai
-                - reviu_mulai / reviu_selesai
 ```
 
 ```
 📋 Perencanaan
   1. Membuat Jadwal Tahunan (draft): pilih Renstra, tahun, tanggal penutupan
   2. Untuk tahun tsb, memilih periode-periode mana yang diharapkan (mis. Triwulan I–IV dari
-     master periode aktif) dan mengisi jendela pengisian_mulai/selesai serta reviu_mulai/selesai
-     untuk masing-masing periode → tersimpan sebagai baris jadwal_periode
-  3. Sistem memvalidasi urutan tanggal logis per baris: pengisian_mulai ≤ pengisian_selesai ≤
-     reviu_mulai ≤ reviu_selesai
+     master periode aktif) dan mengisi jendela pengisian_mulai/selesai untuk masing-masing
+     periode → tersimpan sebagai baris jadwal_periode
+  3. Sistem memvalidasi urutan tanggal logis: pengisian_mulai ≤ pengisian_selesai per baris,
+     jendela pengisian antarperiode tidak tumpang tindih, dan penutupan setelah
+     pengisian_selesai periode terakhir (Q70 §70.2 butir 5)
   4. [Digantikan Q41] Jendela rencana_aksi_mulai / rencana_aksi_selesai tidak lagi diisi pada
      form jadwal — semula jendela tingkat tahun karena rencana aksi disusun sekali per
      indikator × tahun (§7); kini RA disusun sejak jadwal aktif sampai penutupan dengan kunci
@@ -557,7 +559,7 @@ periode (master global)          jadwal_tahunan (payung tahun)
 ```
 
 **Aturan penting:**
-- Kolom `pengisian_mulai`, `pengisian_selesai`, `reviu_mulai`, `reviu_selesai` **tidak lagi ada** pada `jadwal_tahunan` — seluruhnya berpindah ke `jadwal_periode`, satu baris per periode yang diharapkan.
+- Kolom `pengisian_mulai`, `pengisian_selesai` **tidak lagi ada** pada `jadwal_tahunan` — berpindah ke `jadwal_periode`, satu baris per periode yang diharapkan. Kolom `reviu_mulai`, `reviu_selesai` yang semula ikut berpindah ke `jadwal_periode` dihapus oleh migrasi #165 (Q70 §70.2 butir 6).
 - Kolom `rencana_aksi_mulai`, `rencana_aksi_selesai` (date, nullable) di `jadwal_tahunan` **tidak lagi dipakai** sejak Q41 — tidak menjadi batas PIC, tidak tampil di form jadwal, lalu dihapus dari skema beserta CHECK `jadwal_tahunan_urutan_ra` oleh migrasi #159. Semula keduanya menjadi jendela tingkat tahun karena rencana aksi disusun sekali per (indikator × tahun).
 - `jadwal_tahunan.penutupan` **tetap ada** dan berlaku sebagai pembekuan akhir di tingkat tahun, terpisah dari jendela per periode — sekaligus batas akhir penyusunan, perubahan, dan pengajuan Rencana Aksi (Q41); lihat §11 dan §13 untuk perannya dalam batas akses Perencanaan. Penutupan jadwal hanya menghentikan mutasi data kinerja; unggahan arsip PDF dokumen resmi tetap dapat dilakukan setelah jadwal ditutup karena tidak mengubah data (Q48 §48.2 butir 5, §25).
 - **Kunci per triwulan pada Rencana Aksi (Q41)** menggantikan deadline mutlak jendela rencana aksi: periode P terkunci bagi PIC setelah `jadwal_periode.pengisian_selesai` periode P terlewati (tanggal bisnis Asia/Makassar). Setiap perubahan RA oleh PIC — simpan draf, pengajuan, dan versi setelah dikembalikan atau dibuka kembali — tidak boleh mengubah target maupun daftar kegiatan periode yang terkunci; pelanggaran ditolak sebagai validasi bisnis (422) dan diaudit. **Perencanaan dikecualikan** sampai `jadwal_tahunan.penutupan` (permission `rencana_aksi:create`/`update`/`ajukan` bersifat global tanpa scope unit). Periode lampau 2026 pada saat aktivasi jadwal sudah terkunci bagi PIC sejak aktivasi (§15). Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC (Q41 §41.2 butir 5). Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan (Q41 §41.2 butir 6).
@@ -1317,7 +1319,7 @@ Setiap penghapusan tercatat `audit_log` (soft delete lewat `dihapus_pada`/`dihap
 
 > **Q44, Q45, Q46, Q47, Q51 (13 Oktober 2026):** pengajuan pengukuran kini juga mensyaratkan narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`) dan, bila ada Rekomendasi Pimpinan yang **disetujui** pada periode sebelumnya, `tindak_lanjut_rekomendasi` (Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2); `catatan` menjadi keterangan tambahan opsional. Realisasi yang belum tersedia dapat diajukan sebagai "belum dapat diukur" (`status_perhitungan = belum_dapat_diukur`, `nilai` kosong) dengan gerbang komponen dikecualikan (Q47 §47.4, §24). Pengecualian `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak berlaku lagi (Q44). Gerbang baru dikecualikan untuk periode lampau 2026 (Q46 §46.1). Status implementasi: belum (US/ISS-07.01, 07.03; tahap 2).
 
-Jendela pengisian dan reviu berlaku per periode (§4), bukan satu jendela untuk seluruh tahun. Batasan waktu ini berlaku berbeda bagi Penanggung Jawab (PIC) dibandingkan Perencanaan, dan pengajuan pengukuran tunduk pada gerbang tambahan: rencana aksi disahkan, komponen lengkap, bukti dukung lengkap, narasi wajib, dan tindak lanjut rekomendasi (Q45).
+Jendela pengisian berlaku per periode (§4), bukan satu jendela untuk seluruh tahun; verifikasi, pengembalian, dan pengesahan oleh Perencanaan tidak dibatasi jendela reviu dan dapat dilakukan sejak pengukuran diajukan sampai `penutupan` (Q70 §70.2 butir 3). Batasan waktu ini berlaku berbeda bagi Penanggung Jawab (PIC) dibandingkan Perencanaan, dan pengajuan pengukuran tunduk pada gerbang tambahan: rencana aksi disahkan, komponen lengkap, bukti dukung lengkap, narasi wajib, dan tindak lanjut rekomendasi (Q45).
 
 ```
 🎯 Penanggung Jawab (PIC, akses pengukuran:create/update di-scope per unit)

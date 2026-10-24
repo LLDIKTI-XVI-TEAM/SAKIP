@@ -499,8 +499,6 @@ class RencanaAksiAuthorizationTest extends TestCase
                 'periode_id' => $periode->id,
                 'pengisian_mulai' => '2026-03-01',
                 'pengisian_selesai' => '2026-03-31',
-                'reviu_mulai' => '2026-04-01',
-                'reviu_selesai' => '2026-04-30',
             ]);
         }
         $mulaiId = $mulaiUrutan === 2 ? $periode2->id : $periode1->id;
