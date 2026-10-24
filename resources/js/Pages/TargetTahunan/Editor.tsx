@@ -11,12 +11,27 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { anjuranTargetRenstra, labelDeviasi } from './deviasi';
-import type { TargetEditorProps } from './types';
+import type { SaranBaseline, TargetEditorProps } from './types';
+
+/** Kalimat sumber saran baseline; tetap benar walau pengguna mengubah angkanya. */
+function keteranganSaran(saran: SaranBaseline, tahun: number, formatAngka: (nilai: string) => string): string {
+    switch (saran.status) {
+        // Guard respons editor memastikan status disahkan selalu membawa nilai dan periode.
+        case 'disahkan': return `Saran dari realisasi akhir ${tahun} (${saran.periode}) yang disahkan: ${formatAngka(saran.nilai!)}.`;
+        case 'belum_disahkan': return `Realisasi akhir ${tahun} belum disahkan`;
+        case 'tidak_dapat_dihitung': return `Realisasi akhir ${tahun} tidak dapat dihitung`;
+        case 'negatif': return `Realisasi akhir ${tahun} negatif, tidak dapat menjadi baseline`;
+        case 'belum_ada': return `Belum ada realisasi ${tahun} di SAKIP`;
+    }
+}
 
 /** Satu form memiliki satu pasangan nilai dan versi. Refresh eksplisit mengganti keduanya bersama. */
 export function Editor({ editor, path, loading = false, loadError, retryYear, loadRecovery, onClose, onLoad, onSaved }: TargetEditorProps) {
     // Alasan tersimpan diisi awal agar perubahan baseline saja tidak meminta alasan baru (Q65 §65.2 butir 7).
-    const initialValues = { baseline: editor.baseline ?? '', target_tahunan: editor.target_tahunan ?? '', alasan_deviasi_renstra: editor.alasan_deviasi_renstra ?? '',
+    // Saran baseline menjadi nilai awal, bukan perubahan: menutup tanpa mengubah apa pun tidak meminta konfirmasi,
+    // dan saran baru tersimpan bila pengguna menekan Simpan.
+    const saran = editor.saran_baseline;
+    const initialValues = { baseline: editor.baseline ?? saran?.nilai ?? '', target_tahunan: editor.target_tahunan ?? '', alasan_deviasi_renstra: editor.alasan_deviasi_renstra ?? '',
         alasan: '', rujukan_sumber: '', expected_state: editor.expected_state };
     const form = useForm(initialValues);
     const recovery = useAuthRecovery();
@@ -158,7 +173,10 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
             {loading && <p role="status" className="rounded-lg bg-soft p-3 text-sm text-muted">Memuat data…</p>}
             <div className="space-y-2">
                 <div className="grid gap-4 sm:grid-cols-2">
-                    <Input label={`Baseline ${editor.baseline_year}`} name="baseline" inputMode="decimal" autoComplete="off" value={form.data.baseline} onChange={(event) => form.setData('baseline', event.target.value)} readOnly={!editable || busy} error={form.errors.baseline} helperText="Nilai acuan tahun sebelumnya; data pendukung, bukan isi dokumen PK." className="min-w-0 font-mono tabular-nums" />
+                    <div className="min-w-0">
+                        <Input label={`Baseline ${editor.baseline_year}`} name="baseline" inputMode="decimal" autoComplete="off" value={form.data.baseline} onChange={(event) => form.setData('baseline', event.target.value)} readOnly={!editable || busy} error={form.errors.baseline} helperText="Nilai acuan tahun sebelumnya; data pendukung, bukan isi dokumen PK." aria-describedby={saran ? `${id}-saran-baseline` : undefined} className="min-w-0 font-mono tabular-nums" />
+                        {saran && <p id={`${id}-saran-baseline`} className="mt-1 text-xs text-muted">{keteranganSaran(saran, editor.baseline_year, (nilai) => formatNilai(nilai, editor.indikator.desimal_tampilan))}</p>}
+                    </div>
                     <Input label={`Target ${editor.tahun}`} name="target_tahunan" inputMode="decimal" autoComplete="off" value={form.data.target_tahunan} onChange={(event) => form.setData('target_tahunan', event.target.value)} readOnly={!editable || busy} error={form.errors.target_tahunan} helperText={editable ? `Maksimal ${editor.indikator.presisi} desimal untuk nilai baru.` : undefined} className="min-w-0 font-mono tabular-nums" />
                 </div>
                 {editable && <p className="text-xs text-muted">Kosong berarti belum diisi; 0 tetap dihitung sebagai nilai.</p>}
