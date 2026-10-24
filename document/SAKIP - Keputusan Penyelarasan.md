@@ -2024,7 +2024,7 @@ Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring 
   - isi lanjutan mengikuti §69.5 butir 1.
 - **Data Model:** §2.32 tidak berubah, karena `kegiatan.ubah_status` dan `kegiatan.geser_periode` sudah tercantum. Kolom `kegiatan` tidak berubah dan tidak ada migrasi.
 - **design-system.md:** `kegiatanStatusBadgeMap` diselaraskan dengan peta status kegiatan di kode (`rencana`, `terlaksana`, `tidak_terlaksana`, `ditunda`, `batal`).
-- **Status implementasi:** bagian ISS-06.04 diterapkan ([Issue #136](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136)); bagian ISS-06.03 dan ISS-06.05 belum diterapkan.
+- **Status implementasi:** bagian ISS-06.04 diterapkan ([Issue #136](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136)) dan bagian ISS-06.05 diterapkan ([Issue #137](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/137)); bagian ISS-06.03 belum diterapkan.
   - §69.1 (selain transisi ke `terlaksana`), §69.2–§69.4, §69.5 (selain kunci periode tujuan dan klaim), dan §69.6: ISS-06.04;
   - transisi ke `terlaksana` dan data pelaksanaan: ISS-06.03;
   - kunci periode tujuan dan klaim lanjutan: ISS-06.05.
