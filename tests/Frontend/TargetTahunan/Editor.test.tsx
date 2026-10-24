@@ -16,7 +16,7 @@ const editor: TargetEditorData = {
     indikator: { id: '11111111-1111-4111-8111-111111111111', kode: 'IKU 3', nama: 'Indikator pengujian', satuan: 'nilai', presisi: 2, desimal_tampilan: 1, status: 'aktif', tahun_mulai_berlaku: 2025, arah: 'naik_baik' },
     renstra: { id: '22222222-2222-4222-8222-222222222222', nama: 'Renstra pengujian', status: 'aktif', tahun_mulai: 2025, tahun_selesai: 2029 },
     baseline: '74.2345', target_tahunan: '76.25', has_snapshot: true, expected_state: 'a'.repeat(64), can: { update: true }, read_only_reason: null,
-    target_renstra: '75', alasan_deviasi_renstra: null, status_deviasi: 'sesuai',
+    target_renstra: '75', alasan_deviasi_renstra: null, status_deviasi: 'sesuai', saran_baseline: null,
 };
 const path = `/perjanjian-kinerja/44444444-4444-4444-8444-444444444444/target/${editor.indikator_id}`;
 const onClose = vi.fn(), onLoad = vi.fn(), onSaved = vi.fn();
@@ -359,4 +359,62 @@ it('izin baca saja tetap melihat nilai dan alasan tanpa tombol simpan; tahun men
     expect(screen.queryByRole('button', { name: 'Simpan' })).toBeNull();
     expect(screen.getByText('Anda tidak memiliki izin mengubah target.')).toBeTruthy();
     expect(screen.queryByLabelText('Tahun')).toBeNull();
+});
+
+const disahkan = { status: 'disahkan', nilai: '82.5', periode: 'Triwulan IV' } as const;
+const keteranganDisahkan = 'Saran dari realisasi akhir 2026 (Triwulan IV) yang disahkan: 82,5.';
+const showSaran = (saran_baseline: TargetEditorData['saran_baseline']) => show({ tahun: 2027, baseline_year: 2026, baseline: null, saran_baseline });
+const describedBy = (field: HTMLElement) => field.getAttribute('aria-describedby')?.split(' ') ?? [];
+
+it('mengisi baseline dari saran dan menyimpannya lewat Simpan', () => {
+    showSaran(disahkan);
+    const field = screen.getByLabelText<HTMLInputElement>('Baseline 2026');
+    const keterangan = screen.getByText(keteranganDisahkan);
+    expect(field.value).toBe('82.5');
+    expect(keterangan.classList.contains('text-xs')).toBe(true);
+    expect(keterangan.id).not.toBe('');
+    expect(describedBy(field)).toContain(keterangan.id);
+    submit();
+    expect(payload().baseline).toBe('82.5');
+});
+
+it('menampilkan nilai penuh di isian dan nilai terformat di keterangan', () => {
+    showSaran({ ...disahkan, nilai: '82.456' });
+    expect(screen.getByLabelText<HTMLInputElement>('Baseline 2026').value).toBe('82.456');
+    expect(screen.getByText(keteranganDisahkan)).toBeTruthy();
+});
+
+it.each([
+    ['belum_disahkan', 'Realisasi akhir 2026 belum disahkan'],
+    ['tidak_dapat_dihitung', 'Realisasi akhir 2026 tidak dapat dihitung'],
+    ['negatif', 'Realisasi akhir 2026 negatif, tidak dapat menjadi baseline'],
+    ['belum_ada', 'Belum ada realisasi 2026 di SAKIP'],
+] as const)('saran %s: isian kosong dengan keterangan alasannya', (status, teks) => {
+    showSaran({ status, nilai: null, periode: null });
+    const field = screen.getByLabelText<HTMLInputElement>('Baseline 2026');
+    expect(field.value).toBe('');
+    expect(describedBy(field)).toContain(screen.getByText(teks).id);
+});
+
+it('menutup editor berisi saran tanpa konfirmasi dan tanpa request', () => {
+    showSaran(disahkan);
+    fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('dialog', { name: 'Buang perubahan?' })).toBeNull();
+    expect(router.put).not.toHaveBeenCalled();
+});
+
+it('tidak menampilkan keterangan saran bila saran null', () => {
+    // Server tidak mengirim saran bila baseline tersimpan; isian menampilkan nilai tersimpan seperti sebelumnya.
+    show();
+    const field = screen.getByLabelText<HTMLInputElement>('Baseline 2025');
+    expect(field.value).toBe('74.2345');
+    expect(field.getAttribute('aria-describedby')).toBe('baseline-help');
+    expect(screen.queryByText(/^(Saran dari realisasi|Realisasi akhir|Belum ada realisasi)/)).toBeNull();
+});
+
+it('keterangan tetap tampil setelah angka diubah', () => {
+    showSaran(disahkan);
+    fireEvent.change(screen.getByLabelText('Baseline 2026'), { target: { value: '80' } });
+    expect(screen.getByText(keteranganDisahkan)).toBeTruthy();
 });

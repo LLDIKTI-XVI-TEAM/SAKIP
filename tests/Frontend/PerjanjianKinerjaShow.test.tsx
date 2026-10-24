@@ -85,23 +85,36 @@ const targetPk = [{
     ],
 }];
 
-it('target Renstra tampil di samping target PK beserta anjuran dan penanda deviasi menurut arah', () => {
+/** Label HP di dalam sel menandai sel Target PK pada baris yang sama. */
+const selTargetPk = (baris: HTMLElement) => {
+    const sel = within(baris).getByText('Target PK 2026').closest('td');
+    if (!sel) throw new Error('Sel Target PK tidak ditemukan.');
+    return sel;
+};
+
+it('target Renstra tampil kecil di bawah target PK beserta anjuran dan penanda deviasi menurut arah', () => {
     render(<Show pk={pk} target_pk={targetPk} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true, update_target: true }} />);
     const tabel = screen.getByRole('table', { name: 'Target PK 2026 sasaran S1' });
-    expect(within(tabel).getByRole('columnheader', { name: 'Target Renstra 2026' })).toBeTruthy();
-    expect(within(tabel).getByText('95,00')).toBeTruthy();
-    expect(within(tabel).getByText('Target Renstra belum ada')).toBeTruthy();
+    expect(within(tabel).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Kode', 'Indikator', 'Baseline (data pendukung)', 'Target PK 2026', 'Aksi']);
+    expect(within(tabel).queryByRole('columnheader', { name: 'Target Renstra 2026' })).toBeNull();
+    expect(screen.getByText('Baseline adalah data pendukung, bukan isi dokumen PK. Target Renstra tahun yang sama tampil kecil di bawah Target PK.')).toBeTruthy();
     const [baris1, baris2, baris3] = within(tabel).getAllByRole('row').slice(1);
-    expect(within(baris1).getByText('Di bawah target Renstra')).toBeTruthy();
+    expect(within(selTargetPk(baris1)).getByText('Renstra: 95,00')).toBeTruthy();
+    // Lencana boleh dua baris di kartu HP tanpa terpotong atau berimpit.
+    const lencana = within(selTargetPk(baris1)).getByText('Di bawah target Renstra');
+    expect(['whitespace-normal', 'leading-tight'].every((kelas) => lencana.classList.contains(kelas))).toBe(true);
+    expect(['whitespace-nowrap', 'leading-none'].some((kelas) => lencana.classList.contains(kelas))).toBe(false);
+    expect(within(selTargetPk(baris2)).getByText('Target Renstra belum ada')).toBeTruthy();
     expect(within(baris2).queryByText(/target Renstra$/)).toBeNull();
-    expect(within(baris3).getByText('Di atas target Renstra')).toBeTruthy();
+    expect(within(selTargetPk(baris3)).getByText('Renstra: 11')).toBeTruthy();
+    expect(within(selTargetPk(baris3)).getByText('Di atas target Renstra')).toBeTruthy();
     // Tabel memuat indikator naik_baik dan turun_baik, jadi anjuran menyebut kedua arah (Q65 §65.2 butir 13).
     expect(screen.getByText('Anjuran: target PK minimal sama atau naik satu poin dari target Renstra; untuk indikator yang membaik bila nilainya turun, minimal sama atau turun satu poin. Anjuran ini panduan, bukan aturan sistem.')).toBeTruthy();
 });
 
-it('kode sasaran dan penanda deviasi memakai teks minimal 12px', () => {
+it('kode sasaran, target Renstra, dan penanda deviasi memakai teks minimal 12px', () => {
     render(<Show pk={pk} target_pk={targetPk} jadwal_status={null} is_jadwal_aktif={false} can={{ update: true, delete_berkas: true, update_target: true }} />);
-    for (const badge of [screen.getByText('S1'), screen.getByText('Di bawah target Renstra'), screen.getByText('Di atas target Renstra')]) {
+    for (const badge of [screen.getByText('S1'), screen.getByText('Renstra: 95,00'), screen.getByText('Target Renstra belum ada'), screen.getByText('Di bawah target Renstra'), screen.getByText('Di atas target Renstra')]) {
         expect(badge.classList.contains('text-[11px]')).toBe(false);
         expect(badge.classList.contains('text-xs')).toBe(true);
     }
