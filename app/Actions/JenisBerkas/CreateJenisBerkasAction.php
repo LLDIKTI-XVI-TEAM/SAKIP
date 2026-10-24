@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Storage\UploadLimits;
+use App\Support\AuditReason;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -36,6 +37,7 @@ class CreateJenisBerkasAction
      *     format_diizinkan?: string|null,
      *     ukuran_maks_kb?: int|numeric-string|null,
      *     aktif?: bool|0|1|'0'|'1',
+     *     alasan?: string|null,
      * } $data
      */
     public function handle(User $actor, array $data): void
@@ -51,10 +53,14 @@ class CreateJenisBerkasAction
             }
             Validator::make($data, ['ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:'.UploadLimits::maxKb()]])->validate();
             $data['created_by'] = $actor->id;
+            // Alasan opsional (Q43 §43.3 butir 3); teks baku menjaga audit tetap terbaca bila kosong.
+            $alasan = trim(AuditReason::sanitize($data['alasan'] ?? null));
+            unset($data['alasan']);
             $jb = JenisBerkas::create($data);
             $this->auditLogger->catat(
                 actor: $actor, tindakan: 'jenis_berkas.buat', objekTipe: 'jenis_berkas', objekId: $jb->id,
-                nilaiLama: null, nilaiBaru: $jb->toArray(), alasan: 'Penambahan persyaratan jenis berkas: '.$jb->nama,
+                nilaiLama: null, nilaiBaru: $jb->toArray(),
+                alasan: $alasan !== '' ? $alasan : 'Penambahan persyaratan jenis berkas: '.$jb->nama,
                 dasarIzin: $decision,
             );
 

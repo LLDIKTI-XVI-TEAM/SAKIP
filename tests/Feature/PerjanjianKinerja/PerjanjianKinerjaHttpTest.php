@@ -219,7 +219,7 @@ class PerjanjianKinerjaHttpTest extends TestCase
         $this->assertSame('PK-PERBAIKAN-01', $pk->fresh()->nomor_pk);
     }
 
-    public function test_update_perjanjian_kinerja_fails_validation_without_alasan(): void
+    public function test_update_perjanjian_kinerja_accepts_missing_alasan_before_schedule_active(): void
     {
         $pk = RenstraPk::create([
             'renstra_id' => $this->renstra->id,
@@ -233,9 +233,41 @@ class PerjanjianKinerjaHttpTest extends TestCase
             ->put("/perjanjian-kinerja/{$pk->id}", [
                 'nomor_pk' => 'PK-PERBAIKAN-02',
                 'tanggal_pk' => '2026-01-22',
-                'alasan' => '',
+                'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('PK-PERBAIKAN-02', $pk->fresh()->nomor_pk);
+    }
+
+    public function test_update_perjanjian_kinerja_requires_alasan_after_schedule_active(): void
+    {
+        $pk = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'nomor_pk' => 'PK-AWAL',
+            'tanggal_pk' => '2026-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->put("/perjanjian-kinerja/{$pk->id}", [
+                'nomor_pk' => 'PK-PERBAIKAN-03',
+                'tanggal_pk' => '2026-01-22',
+                'expected_updated_at' => $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString(),
             ])
             ->assertSessionHasErrors('alasan');
+
+        $this->assertSame('PK-AWAL', $pk->fresh()->nomor_pk);
     }
 
     /**
@@ -1489,8 +1521,53 @@ class PerjanjianKinerjaHttpTest extends TestCase
         });
 
         // Pastikan tidak ada query N+1 per baris untuk resolusi jadwal
-        // Query untuk jadwal_tahunan fallback maksimal 1 kali batch query
-        $jadwalQueries = array_filter($queries, fn ($q) => str_contains(strtolower($q['query']), 'jadwal_tahunan'));
+        // Query untuk jadwal_tahunan fallback maksimal 1 kali batch query.
+        // Query EXISTS `alasan_wajib` per baris bukan resolusi jadwal.
+        $jadwalQueries = array_filter(
+            $queries,
+            fn ($q) => str_contains(strtolower($q['query']), 'jadwal_tahunan')
+                && ! str_contains(strtolower($q['query']), 'select exists')
+        );
         $this->assertLessThanOrEqual(2, count($jadwalQueries)); // Eager load awal + maksimal 1 batch fallback
+    }
+
+    public function test_index_projects_alasan_wajib_per_row(): void
+    {
+        $pkDipakaiJadwal = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2028,
+            'nomor_pk' => 'PK-ALASAN-WAJIB',
+            'tanggal_pk' => '2028-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        $pkTanpaJadwal = RenstraPk::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2027,
+            'nomor_pk' => 'PK-TANPA-JADWAL',
+            'tanggal_pk' => '2027-01-15',
+            'created_by' => $this->perencanaan->id,
+        ]);
+
+        JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2028,
+            'renstra_pk_id' => $pkDipakaiJadwal->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        $this->actingAs($this->perencanaan)
+            ->get('/perjanjian-kinerja?renstra_id='.$this->renstra->id)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('PerjanjianKinerja/Index')
+                // orderByDesc('tahun'): PK 2028 di indeks 0, PK 2027 di indeks 1
+                ->where('perjanjianKinerja.data.0.id', $pkDipakaiJadwal->id)
+                ->where('perjanjianKinerja.data.0.alasan_wajib', true)
+                ->where('perjanjianKinerja.data.1.id', $pkTanpaJadwal->id)
+                ->where('perjanjianKinerja.data.1.alasan_wajib', false)
+            );
     }
 }

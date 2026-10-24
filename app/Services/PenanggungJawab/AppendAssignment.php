@@ -29,6 +29,9 @@ use Illuminate\Validation\ValidationException;
  */
 class AppendAssignment
 {
+    /** Alasan audit untuk pergantian tanpa alasan pengguna (Q43 §43.3 butir 4). */
+    public const ALASAN_BAKU_GANTI = 'Pergantian penanggung jawab tanpa alasan tambahan.';
+
     public function __construct(
         private readonly ResolveLockedActor $lockedActor,
         private readonly AuditLogger $audit,
@@ -79,8 +82,8 @@ class AppendAssignment
             return $this->rejection('user_id', 'Pengguna ini sudah menjadi PJ efektif pada tanggal yang dipilih. Penetapan tidak mengubah tanggung jawab.', $basis);
         }
         $reason = trim(AuditReason::sanitize($data['alasan'] ?? null));
-        if (($hasHistory && $reason === '') || mb_strlen($reason) > 2000) {
-            return $this->rejection('alasan', 'Pergantian memerlukan alasan yang dapat dibaca, maksimal 2.000 karakter.', $basis);
+        if (mb_strlen($reason) > 2000) {
+            return $this->rejection('alasan', 'Alasan maksimal 2.000 karakter.', $basis);
         }
         // Diagnosis izin tidak memberikan hak baru dan bukan prasyarat assignment.
         $readiness = $this->readiness->forUser($target, $current->unit_id);
@@ -97,7 +100,7 @@ class AppendAssignment
             objekTipe: 'indikator', objekId: $current->id,
             nilaiLama: ['indikator_id' => $current->id, 'user_id' => $old?->user_id, 'assignment_id' => $old?->id, 'tanggal_acuan' => $date],
             nilaiBaru: ['indikator_id' => $current->id, 'assignment_id' => $assignment->id, 'user_id' => $target->id, 'tanggal_mulai_berlaku' => $date, 'alasan' => $assignment->alasan],
-            alasan: $reason === '' ? 'Penetapan penanggung jawab pertama dengan tanggal mulai berlaku '.$date.'.' : $reason,
+            alasan: $reason !== '' ? $reason : ($initial ? 'Penetapan penanggung jawab pertama dengan tanggal mulai berlaku '.$date.'.' : self::ALASAN_BAKU_GANTI),
             dasarIzin: $basis,
         );
 

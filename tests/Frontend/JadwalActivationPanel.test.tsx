@@ -97,8 +97,8 @@ it('membuka modal alasan tanpa request mutasi dan batal tidak mengirim apa pun',
     await user.click(screen.getByRole('button', { name: 'Aktifkan jadwal' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('Target dan formula untuk pengukuran dikunci. Data yang sudah dikunci tetap digunakan.')).toBeTruthy();
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan' }).disabled).toBe(true);
-    await user.click(screen.getByRole('button', { name: 'Batal' }));
+    // Q43 §43.3 butir 3: alasan opsional, tombol konfirmasi tidak lagi terkunci saat field kosong.
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan' }).disabled).toBe(false);    await user.click(screen.getByRole('button', { name: 'Batal' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(router.post).not.toHaveBeenCalled();
 });

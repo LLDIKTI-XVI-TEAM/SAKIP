@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,32 @@ class JadwalTahunan extends Model
     public function renstra(): BelongsTo
     {
         return $this->belongsTo(Renstra::class);
+    }
+
+    /**
+     * Jadwal yang terkait langsung ke PK atau ke Renstra+tahun yang sama (fallback legacy).
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeTerkaitPk(Builder $query, RenstraPk $pk): void
+    {
+        $query->where(function (Builder $sub) use ($pk) {
+            $sub->where('renstra_pk_id', $pk->id)
+                ->orWhere(fn (Builder $legacy) => $legacy->where('renstra_id', $pk->renstra_id)->where('tahun', $pk->tahun));
+        });
+    }
+
+    /**
+     * Jadwal yang membuat PK tidak lagi boleh diubah tanpa alasan: aktif, ditutup, atau pernah diaktifkan.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeMengunciPk(Builder $query): void
+    {
+        $query->where(function (Builder $sub) {
+            $sub->whereIn('status', ['aktif', 'ditutup'])
+                ->orWhereNotNull('activated_at');
+        });
     }
 
     /** @return HasMany<PeriodeJadwal, $this> */

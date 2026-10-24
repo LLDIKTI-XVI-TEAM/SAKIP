@@ -22,7 +22,6 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
     const prevOpenRef = useRef(false);
     const prevIndikatorIdRef = useRef<string | null>(null);
     const [unitError, setUnitError] = useState<string | undefined>();
-    const [alasanError, setAlasanError] = useState<string | undefined>();
 
     const { data, setData, patch, processing, errors, reset, clearErrors } = useForm({
         unit_id: '',
@@ -40,12 +39,10 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
         if (isOpen && (!wasOpen || prevId !== currentId)) {
             clearErrors();
             setUnitError(undefined);
-            setAlasanError(undefined);
             setData({ unit_id: '', alasan: '' });
         } else if (!isOpen && wasOpen) {
             reset();
             setUnitError(undefined);
-            setAlasanError(undefined);
         }
     }, [isOpen, indikator, clearErrors, reset, setData]);
 
@@ -57,7 +54,6 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
         reset();
         clearErrors();
         setUnitError(undefined);
-        setAlasanError(undefined);
         onClose();
     };
 
@@ -65,20 +61,11 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
         e.preventDefault();
         if (!indikator) return;
 
-        let valid = true;
         if (!data.unit_id) {
             setUnitError('Unit penanggung jawab tujuan wajib dipilih.');
-            valid = false;
-        } else {
-            setUnitError(undefined);
+            return;
         }
-        if (data.alasan.trim().length < 10) {
-            setAlasanError('Alasan pemindahan unit penanggung jawab minimal 10 karakter.');
-            valid = false;
-        } else {
-            setAlasanError(undefined);
-        }
-        if (!valid) return;
+        setUnitError(undefined);
 
         patch(`/perencanaan/indikator/${indikator.id}/pindah-unit`, {
             preserveScroll: true,
@@ -150,19 +137,15 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
                 <div>
                     <Textarea
                         id="pindah_unit_alasan"
-                        label="Alasan Pemindahan"
-                        placeholder="Jelaskan alasan pemindahan kepemilikan unit indikator ini (minimal 10 karakter)..."
+                        label="Alasan (opsional)"
+                        placeholder="Jelaskan alasan pemindahan kepemilikan unit indikator ini (opsional)…"
                         rows={4}
                         value={data.alasan}
                         onChange={(e) => {
                             setData('alasan', e.target.value);
-                            if (alasanError && e.target.value.trim().length >= 10) {
-                                setAlasanError(undefined);
-                            }
                         }}
-                        error={alasanError ?? errors.alasan}
-                        helperText="Alasan wajib diisi dan akan dicatat pada audit log perpindahan unit."
-                        required
+                        error={errors.alasan}
+                        helperText="Alasan akan dicatat pada audit log perpindahan unit bila diisi."
                     />
                 </div>
             </form>

@@ -81,8 +81,8 @@ class UpdatePengaturanRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            // Karakter kontrol ditolak sebelum min:5 agar panjang minimal dihitung dari teks yang benar-benar terbaca di audit.
-            'alasan' => ['required', 'string', AuditReason::validate(...), 'min:5', 'max:255'],
+            // Karakter kontrol ditolak sebelum batas panjang agar teks audit tetap terbaca. Opsional (Q43 §43.3 butir 3).
+            'alasan' => ['nullable', 'string', AuditReason::validate(...), 'max:255'],
             'expected_updated_at' => ['sometimes', 'nullable', 'array'],
         ];
 
@@ -182,8 +182,6 @@ class UpdatePengaturanRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'alasan.required' => 'Alasan pembaruan pengaturan wajib diisi untuk catatan audit.',
-            'alasan.min' => 'Alasan pembaruan pengaturan minimal :min karakter.',
             'alasan.max' => 'Alasan pembaruan pengaturan maksimal :max karakter.',
             'instansi.nama.required' => 'Nama instansi wajib diisi.',
             'instansi.nama.max' => 'Nama instansi maksimal 255 karakter.',

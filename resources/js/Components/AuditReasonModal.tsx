@@ -13,6 +13,7 @@ interface AuditReasonModalProps {
     notice?: ReactNode;
     showAuditHint?: boolean;
     showIcon?: boolean;
+    hideReasonField?: boolean;
     reasonRequired?: boolean;
     confirmLabel: string;
     destructive?: boolean;
@@ -33,6 +34,7 @@ export function AuditReasonModal({
     notice,
     showAuditHint = true,
     showIcon = true,
+    hideReasonField = false,
     reasonRequired = true,
     confirmLabel,
     destructive = false,
@@ -89,10 +91,11 @@ export function AuditReasonModal({
                     </button>
                 </div>
 
-                <div className="px-5 py-4">
+                {!hideReasonField && <div className="px-5 py-4">
                     {open && notice}
                     <label htmlFor={`${id}-reason`} className="mb-1.5 block text-sm font-semibold text-ink">
-                        Alasan perubahan {reasonRequired
+                        {reasonRequired ? 'Alasan perubahan' : 'Alasan'}{' '}
+                        {reasonRequired
                             ? <span className="text-danger" aria-hidden="true">*</span>
                             : <span className="font-normal text-muted">(opsional)</span>}
                     </label>
@@ -115,7 +118,12 @@ export function AuditReasonModal({
                             Alasan, pengguna, waktu, serta nilai sebelum dan sesudah akan dicatat pada audit log.
                         </p>
                     )}
-                </div>
+                </div>}
+
+                {hideReasonField && (notice || error) && <div className="px-5 py-4">
+                    {open && notice}
+                    {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">{error}</p>}
+                </div>}
 
                 <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end">
                     <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Batal</Button>

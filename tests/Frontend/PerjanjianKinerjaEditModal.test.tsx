@@ -84,6 +84,34 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
         expect(tanggalInput.value).toBe('2026-01-15');
     });
 
+    it('mewajibkan alasan hanya setelah PK dipakai jadwal aktif', () => {
+        const { rerender } = render(
+            <PerjanjianKinerjaEditModal
+                isOpen={true}
+                onClose={() => {}}
+                pk={samplePk}
+                alasanWajib={false}
+            />
+        );
+
+        // Q43 §43.3 butir 3: sebelum jadwal aktif alasan opsional dan submit tidak terkunci.
+        expect(screen.getByLabelText(/Alasan \(opsional\)/)).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }).hasAttribute('disabled')).toBe(false);
+
+        rerender(
+            <PerjanjianKinerjaEditModal
+                isOpen={true}
+                onClose={() => {}}
+                pk={samplePk}
+                alasanWajib={true}
+            />
+        );
+
+        // Q43 §43.2 butir 3: sesudahnya alasan wajib.
+        expect(screen.getByLabelText(/Alasan Perubahan Data Perjanjian Kinerja/)).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }).hasAttribute('disabled')).toBe(true);
+    });
+
     it('mempertahankan input koreksi pengguna saat props pk di-refresh dengan object reference baru selagi modal terbuka', () => {
         const { rerender } = render(
             <PerjanjianKinerjaEditModal
@@ -99,7 +127,7 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
         });
         expect(nomorInput.value).toBe('PK/KOREKSI/USER/999');
 
-        const alasanInput = screen.getByLabelText<HTMLInputElement>(/Alasan Perubahan/);
+        const alasanInput = screen.getByLabelText<HTMLInputElement>(/^Alasan/);
         act(() => {
             fireEvent.change(alasanInput, { target: { value: 'Koreksi nomor surat resmi' } });
         });

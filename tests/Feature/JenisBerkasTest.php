@@ -139,6 +139,46 @@ class JenisBerkasTest extends TestCase
     }
 
     /**
+     * Q43 §43.3 butir 3: alasan penambahan persyaratan opsional; teks pengguna dipakai bila diisi.
+     */
+    public function test_store_jenis_berkas_memakai_alasan_pengguna_atau_teks_baku(): void
+    {
+        $payload = [
+            'nama' => 'Bukti Tanpa Alasan',
+            'tahap' => 'pengukuran',
+            'indikator_id' => $this->indikator->id,
+            'wajib' => true,
+            'izinkan_file' => true,
+            'izinkan_tautan' => false,
+            'izinkan_teks' => false,
+            'semua_mode_wajib' => false,
+            'urutan' => 1,
+            'format_diizinkan' => 'pdf',
+            'ukuran_maks_kb' => 5120,
+        ];
+
+        $this->actingAs($this->perencanaan)->post('/jenis-berkas', $payload)->assertRedirect('/jenis-berkas');
+
+        $tanpaAlasan = JenisBerkas::where('nama', 'Bukti Tanpa Alasan')->sole();
+        $auditBaku = AuditLog::where('tindakan', 'jenis_berkas.buat')
+            ->where('objek_id', (string) $tanpaAlasan->id)
+            ->sole();
+        $this->assertSame('Penambahan persyaratan jenis berkas: Bukti Tanpa Alasan', $auditBaku->alasan);
+
+        $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
+            ...$payload,
+            'nama' => 'Bukti Dengan Alasan',
+            'alasan' => 'Kebutuhan audit internal unit',
+        ])->assertRedirect('/jenis-berkas');
+
+        $denganAlasan = JenisBerkas::where('nama', 'Bukti Dengan Alasan')->sole();
+        $auditPengguna = AuditLog::where('tindakan', 'jenis_berkas.buat')
+            ->where('objek_id', (string) $denganAlasan->id)
+            ->sole();
+        $this->assertSame('Kebutuhan audit internal unit', $auditPengguna->alasan);
+    }
+
+    /**
      * TEST-2: Tanpa mode diizinkan ditolak.
      */
     public function test_submit_without_allowed_mode_is_rejected(): void

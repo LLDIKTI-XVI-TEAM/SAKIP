@@ -82,7 +82,7 @@ export function ActivationPanel({ jadwalId, tahun, revisi, status, dirtyCalendar
     const canSubmit = readiness?.allowed === true && !stale && !dirtyCalendar && notice?.kind !== 'unknown' && !recovery.recovery;
 
     const confirm = () => {
-        if (!canSubmit || submitting.current || form.data.alasan.trim() === '') return;
+        if (!canSubmit || submitting.current) return;
         submitting.current = true;
         const operationId = crypto.randomUUID();
         form.transform((data) => ({ expected_revisi: revisi, operation_id: operationId, alasan: data.alasan }));
@@ -227,7 +227,8 @@ export function ActivationPanel({ jadwalId, tahun, revisi, status, dirtyCalendar
                 reason={form.data.alasan}
                 error={errors.alasan}
                 busy={form.processing}
-                submitDisabled={!canSubmit || form.data.alasan.trim() === ''}
+                reasonRequired={false}
+                submitDisabled={!canSubmit}
                 notice={serverErrors.length > 0 && (
                     <div role="alert" className="mb-4 rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm">
                         {serverErrors.map(([field, message]) => (

@@ -128,10 +128,10 @@ describe('Pindah Unit Indikator (R2-03)', () => {
         const optionLabels = Array.from(tujuan.options).map((o) => o.text);
         expect(optionLabels).not.toContain('Unit A');
         expect(optionLabels).toContain('Unit B');
-        expect(screen.getByLabelText(/alasan pemindahan/i)).toBeTruthy();
+        expect(screen.getByLabelText(/alasan \(opsional\)/i)).toBeTruthy();
     });
 
-    it('menolak submit tanpa tujuan dan alasan pendek tanpa memanggil PATCH', async () => {
+    it('menolak submit tanpa tujuan tanpa memanggil PATCH', async () => {
         const user = userEvent.setup();
         const patchSpy = vi
             .spyOn(router, 'patch')
@@ -147,10 +147,31 @@ describe('Pindah Unit Indikator (R2-03)', () => {
         expect(
             screen.getByText('Unit penanggung jawab tujuan wajib dipilih.')
         ).toBeTruthy();
-        expect(
-            screen.getByText('Alasan pemindahan unit penanggung jawab minimal 10 karakter.')
-        ).toBeTruthy();
+        // Q43 §43.3 butir 3: alasan opsional, tidak ada lagi validasi panjang minimal.
+        expect(screen.queryByText(/minimal 10 karakter/i)).toBeNull();
         expect(patchSpy).not.toHaveBeenCalled();
+    });
+
+    it('mengirim PATCH pindah-unit tanpa alasan karena alasan opsional', async () => {
+        const user = userEvent.setup();
+        const patchSpy = vi
+            .spyOn(router, 'patch')
+            .mockImplementation((() => undefined) as unknown as typeof router.patch);
+        renderIndex();
+
+        await user.click(screen.getByRole('button', { name: 'Aksi IKU-01' }));
+        await user.click(
+            screen.getByRole('menuitem', { name: 'Pindah unit indikator IKU-01' })
+        );
+        await user.selectOptions(screen.getByLabelText(/unit tujuan/i), 'unit-b');
+        await user.click(screen.getByRole('button', { name: 'Pindahkan Unit' }));
+
+        expect(patchSpy).toHaveBeenCalledTimes(1);
+        const sentData = patchSpy.mock.calls[0]?.[1] as
+            | Record<string, unknown>
+            | undefined;
+        expect(sentData?.['unit_id']).toBe('unit-b');
+        expect(sentData?.['alasan']).toBe('');
     });
 
     it('mengirim PATCH pindah-unit saat tujuan dan alasan valid', async () => {
@@ -166,7 +187,7 @@ describe('Pindah Unit Indikator (R2-03)', () => {
         );
         await user.selectOptions(screen.getByLabelText(/unit tujuan/i), 'unit-b');
         await user.type(
-            screen.getByLabelText(/alasan pemindahan/i),
+            screen.getByLabelText(/alasan \(opsional\)/i),
             'Reorganisasi struktur unit kerja baru'
         );
         await user.click(screen.getByRole('button', { name: 'Pindahkan Unit' }));

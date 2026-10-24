@@ -67,7 +67,7 @@ Semua issue wajib mengikuti keputusan final 24 September 2026:
 
 Kontrak tambahan 13 Oktober 2026 (Q39–Q51):
 
-- dua lapis target: target Renstra (`target_renstra`, pembanding) dan target PK (`target_tahunan`, acuan pengukuran) yang diinput Perencanaan di halaman PK; keduanya disimpan dengan `target:update`; target PK yang menyimpang dari target Renstra menurut `arah` memunculkan peringatan dan `alasan_deviasi_renstra` wajib (Q39, Q65 §65.2);
+- dua lapis target: target Renstra (`target_renstra`, pembanding sekaligus batas target PK menurut arah, Q72) dan target PK (`target_tahunan`, acuan pengukuran) yang diinput Perencanaan di halaman PK; keduanya disimpan dengan `target:update`; target PK yang menyimpang dari target Renstra menurut `arah` ditolak sampai target Renstra direvisi, dan alasan perubahan target PK wajib (Q72, menggantikan peringatan dan `alasan_deviasi_renstra` Q65 §65.2);
 - revisi PK berversi pada tahap 3 dengan prasyarat ISS-03.03; lampiran revisi Renstra boleh ditambah setelah Renstra aktif (Q40);
 - Rencana Aksi tanpa jendela penyusunan; periode terkunci bagi PIC setelah `pengisian_selesai` periode tersebut, Perencanaan dikecualikan sampai `penutupan` (Q41; menggantikan Q16);
 - kegiatan bagian Rencana Aksi: minimal satu kegiatan saat pengajuan, anggaran per kegiatan wajib (≥ 0), RAB bila anggaran > 0, dan tahap persyaratan `kegiatan_perencanaan` (Q42; menggantikan Q28);
@@ -80,19 +80,27 @@ Kontrak tambahan 13 Oktober 2026 (Q39–Q51):
 - `kegiatan.nama` hingga 500 karakter, `tujuan` opsional, dan salin kegiatan ke periode lain (Q49);
 - `nomor_pk` opsional, target PK bernilai penuh, serta kode S1–S4/IKU 1.1–IKU 4.1 mengikuti PK (Q50).
 
+Kontrak tambahan 23 Oktober 2026 (Q70–Q74):
+
+- tanggal periode tanpa tahun di Master Periode; jadwal hanya memuat jendela pengisian, yang paling cepat dibuka tanggal 1 bulan terakhir periode; tanpa jendela reviu, sehingga verifikasi pengukuran dapat dilakukan sejak diajukan (Q70);
+- target Renstra pada Renstra `aktif` hanya diubah lewat mode revisi seluruh tabel dengan draf, satu justifikasi wajib, dan histori bernomor; Renstra `draft` tetap tanpa alasan (Q71);
+- target PK yang menyimpang dari target Renstra menurut arah ditolak sampai target Renstra direvisi, termasuk PK revisi; alasan perubahan target PK wajib (Q72);
+- baseline PK terisi otomatis dari realisasi periode nilai akhir tahun sebelumnya yang disahkan; tabel PK tanpa kolom Target Renstra (Q73);
+- menu Kegiatan dihapus; kegiatan dibuat, diedit, dan direalisasikan dari halaman kegiatan Rencana Aksi; biaya terpakai dicatat sebagai satu angka per kegiatan (Q74).
+
 Urutan pengerjaan (Q46 §46.3, diperbarui Q51):
 
 | Tahap | Batas | Issue |
 |---|---|---|
 | 1 | Sebelum integrasi 9 November 2026 | ISS-01.08, ISS-02.10, ISS-02.11, ISS-05.06, ISS-05.07, ISS-06.01, ISS-06.02, ISS-06.08, ISS-13.05, ISS-13.06, pengecualian periode lampau 2026 (Q46 §46.1; termasuk ISS-03.05); di akhir tahap ISS-15.01 |
-| 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | ISS-06.03, ISS-06.04, ISS-06.05, ISS-07.01, ISS-07.03, ISS-07.06, ISS-08.01, ISS-08.02, ISS-09.01, ISS-10.01, ISS-10.02, ISS-10.05, ISS-14.01 |
+| 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | ISS-06.03, ISS-06.04, ISS-06.05, ISS-07.01, ISS-07.03, ISS-07.06, ISS-08.01, ISS-08.02, ISS-09.01, ISS-10.01, ISS-10.02, ISS-10.05, ISS-14.01; tambahan Q70–Q74: ISS-02.13, ISS-02.14, ISS-02.15, ISS-03.07, ISS-06.09, ISS-09.03 |
 | 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12, simulasi target, tampilan daftar berkas terunggah, versi penuh Renstra, ISS-13.03 |
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 
 Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111); issue Tahap 1 lainnya belum dimulai.
 
-Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q58) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
+Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q74) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
 
 ## Bagian 1 — Fondasi Autentikasi, Unit Organisasi, dan Model Akses RBAC
 
@@ -284,6 +292,8 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanju
 ### ISS-01.04 · [Feature] Pemberian Grant Izin Tambahan per Unit
 
 > **Q43 (13 Oktober 2026):** alasan pemberian grant menjadi opsional; bila dikosongkan, server mengisi alasan baku sehingga kolom `alasan` tetap `NOT NULL` (Q43 §43.3 butir 1, pola Q37 §37.2). Pencabutan grant tetap wajib alasan (Q43 §43.2 butir 4). Butir "alasan" pada AC dan task di bawah dipertahankan sebagai histori implementasi; perubahan dikerjakan pada ISS-13.05.
+
+> **Implementasi ISS-13.05 (22 Oktober 2026):** `alasan` grant opsional dengan alasan baku `CreateUnitGrantAction::ALASAN_BAKU`; revoke tetap wajib alasan. Lihat ISS-13.05 / PR #156.
 
 > **Q62 (18 Oktober 2026):** daftar Izin Unit satu baris per pengguna × unit dengan halaman detail dan aksi Kelola izin (tambah dan cabut sekaligus, alasan wajib bila ada pencabutan, ditolak bila data berubah sejak dibuka). Form pemberian dapat memberi beberapa izin sekaligus. Audit tetap per izin.
 
@@ -1200,6 +1210,8 @@ kegiatan:update
 
 ### ISS-02.10 · [Feature] Target Renstra per Indikator, Lampiran Revisi, dan Riwayat Revisi Target Renstra
 
+> **Q71 (23 Oktober 2026):** untuk Renstra `aktif`, AC-4 dan AC-5 digantikan mode revisi target Renstra dengan justifikasi wajib dan histori revisi bernomor (ISS-02.13); Renstra `draft` tetap mengikuti AC-4.
+
 **Terkait User Story:** `US-02.10`  
 **Prioritas:** Tahap 1 (Q46 §46.3: sebelum integrasi 9 November 2026)  
 **Story Points:** Belum diestimasi  
@@ -1282,6 +1294,8 @@ kegiatan:update
 - [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-02.11 · [Feature] Input Target PK di Halaman Perjanjian Kinerja dengan Pembanding Target Renstra
+
+> **Q72, Q73 (23 Oktober 2026):** AC-4 dan AC-8 digantikan: target PK yang menyimpang ditolak sampai target Renstra direvisi, dan alasan perubahan target PK wajib (ISS-02.14). Pada tabel PK, target Renstra tampil kecil di bawah target PK, dan baseline terisi otomatis dari realisasi tahun sebelumnya (ISS-02.15).
 
 **Terkait User Story:** `US-02.11`  
 **Prioritas:** Tahap 1 (Q46 §46.3: sebelum integrasi 9 November 2026)  
@@ -1457,12 +1471,248 @@ kegiatan:update
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 - [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
+### ISS-02.13 · [Feature] Mode Revisi Target Renstra dengan Draf, Justifikasi, dan Histori
+
+> **Q71 (23 Oktober 2026):** pada Renstra `aktif`, target Renstra hanya diubah melalui mode revisi seluruh tabel dengan satu justifikasi wajib per revisi. Q60 tetap berlaku untuk Renstra `draft`. Issue ini menggantikan ISS-02.10 AC-4 dan AC-5 untuk Renstra `aktif`.
+
+**Terkait User Story:** `US-02.13`  
+**Prioritas:** Tahap 2; prasyarat ISS-02.14  
+**Story Points:** Belum diestimasi  
+**Labels:** `feature`, `master-data`, `audit-sensitive`, `frontend`  
+**Plan:** Modul 2: 2.21 (lanjutan)  
+**PRD:** §10.5, §25.1  
+**Workflow:** §14  
+**Data Model/Entitas:** `target_renstra`, tabel baru draf dan histori revisi target Renstra, `audit_log`
+
+#### User Story
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** merevisi target Renstra yang sudah aktif sekaligus untuk seluruh tabel, dengan draf yang tersimpan otomatis dan satu justifikasi per revisi,  
+> **Sehingga** setiap perubahan target Renstra tercatat sebagai revisi bernomor yang dapat ditelusuri alasannya.
+
+#### Kontrak Teknis
+
+- **Dependensi:** target Renstra per indikator (ISS-02.10, PR #143).
+- **Otorisasi:** `indikator:read` dan `target:update`, sama dengan simpan target Renstra; PJ/PIC baca-saja.
+- **Dampak Data:** tabel baru draf revisi (satu draf terbuka per Renstra) dan histori revisi (nomor per Renstra, justifikasi, aktor, waktu, nilai lama dan baru per indikator × tahun); `target_renstra`; `audit_log`.
+- **Keputusan terkait:** Q71, Q60 (Renstra `draft`), Q40 §40.2, Q43 §43.2 butir 3, Q39 §39.1 butir 4 (domain nilai), Q33.
+- **Rule:** simpan revisi terjadi dalam satu transaksi dengan urutan lock yang sama dengan `SimpanTargetRenstra`; draf dan simpan memakai token konkurensi (409) bila draf berubah sejak dimuat.
+- **Rule:** penolakan (tanpa justifikasi, tanpa perubahan, token kedaluwarsa) diaudit di luar transaksi.
+- **Di luar cakupan:** versi penuh Renstra (Q40 §40.2 butir 4), lampiran revisi Renstra (tetap ISS-02.10), dan penolakan target PK (ISS-02.14).
+
+#### Acceptance Criteria (QA/UAT)
+
+- [ ] **AC-1:** Given Renstra `draft`, When target Renstra diisi atau diubah per indikator, Then tersimpan tanpa alasan seperti sekarang. *(Q71 §71.1 butir 1, Q60)*
+- [ ] **AC-2:** Given Renstra `aktif`, Then tombol Ubah per indikator tidak tersedia, dan request simpan langsung ditolak dengan arahan memakai mode revisi. *(Q71 §71.1 butir 2)*
+- [ ] **AC-3:** Given Renstra `aktif`, When Perencanaan memulai mode revisi, Then draf terbentuk berisi nilai yang berlaku dan seluruh indikator × tahun dapat diubah. *(Q71 §71.2 butir 1)*
+- [ ] **AC-4:** Given isian draf diubah, When halaman dimuat ulang, Then nilai draf tetap ada karena tersimpan otomatis di server. *(Q71 §71.2 butir 2)*
+- [ ] **AC-5:** Given draf terbuka, When pengguna lain berizin membuka mode revisi, Then ia melanjutkan draf yang sama; perubahan dari versi draf yang sudah usang ditolak 409. *(Q71 §71.2 butir 2)*
+- [ ] **AC-6:** Given justifikasi kosong, When Simpan, Then ditolak dan penolakannya diaudit; target Renstra tidak berubah. *(Q71 §71.2 butir 5)*
+- [ ] **AC-7:** Given justifikasi terisi dan ada perubahan, When Simpan, Then seluruh perubahan diterapkan dalam satu transaksi, nilai lama masuk histori, revisi bernomor n+1, dan audit memuat aktor, waktu, `dasar_izin`, justifikasi, serta nilai lama dan baru. *(Q71 §71.2 butir 3, §71.3 butir 4)*
+- [ ] **AC-8:** Given draf terbuka, When Batal, Then draf dibuang dan target Renstra tidak berubah. *(Q71 §71.2 butir 4)*
+- [ ] **AC-9:** Given draf tanpa perubahan nilai, When Simpan, Then ditolak. *(Q71 §71.2 butir 6)*
+- [ ] **AC-10:** Given histori dibuka, Then tampil daftar revisi per Renstra (nomor, waktu, aktor, justifikasi, perubahan per indikator × tahun), dan riwayat per indikator dari audit sebelum mode revisi tetap dapat dibaca. *(Q71 §71.3 butir 1–2)*
+- [ ] **AC-11:** Given draf terbuka, Then halaman Sasaran & Indikator dan pembanding target PK tetap memakai nilai yang berlaku. *(Q71 §71.2 butir 7)*
+- [ ] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When memulai, mengubah, menyimpan, atau membatalkan revisi lewat request langsung, Then ditolak 403.
+
+#### Implementation Tasks
+
+**A. Persistence / Data Model**
+- [ ] Buat tabel draf revisi (unik satu draf terbuka per Renstra) dan histori revisi (unik nomor per Renstra) beserta baris nilai per indikator × tahun; domain nilai mengikuti Q33.
+
+**B. Backend / Domain**
+- [ ] Action mulai revisi, simpan draf (autosave), simpan revisi, dan batal, dengan token konkurensi; controller tipis.
+- [ ] Tutup jalur simpan langsung `SimpanTargetRenstra` untuk Renstra `aktif` (AC-2); Renstra `draft` tidak berubah.
+- [ ] Action baca histori revisi; `BacaRiwayatTargetRenstra` tetap untuk perubahan sebelum mode revisi.
+
+**C. Authorization & Audit**
+- [ ] Semua aksi dinilai `PermissionResolver` untuk `indikator:read` + `target:update`; React hanya membaca `can.*`.
+- [ ] Audit simpan revisi dan penolakannya; penolakan diaudit di luar transaksi.
+
+**D. Frontend / UX**
+- [ ] `TargetRenstraTable.tsx`: tombol Mode revisi untuk Renstra `aktif`, tabel isian seluruh indikator × tahun, indikator autosave, kotak justifikasi di bawah tabel, tombol Simpan dan Batal.
+- [ ] Modal histori revisi per Renstra; pola mobile `block md:table`, teks minimal 12px, label aksesibel.
+
+#### Automated Tests / Verification
+
+- [ ] TEST-1: Pest Feature test membuktikan AC-1 dan AC-2 — Renstra `draft` tetap simpan langsung; Renstra `aktif` ditolak dengan kontrol positif.
+- [ ] TEST-2: Pest Feature test membuktikan AC-3 dan AC-4 — draf terbentuk dan nilai draf tersimpan di tabel draf (dibaca dari tabel mentah).
+- [ ] TEST-3: Pest Feature test membuktikan AC-5 — satu draf per Renstra dan 409 pada versi usang.
+- [ ] TEST-4: Pest Feature test membuktikan AC-6 dan AC-9 — tanpa justifikasi dan tanpa perubahan ditolak, penolakan diaudit.
+- [ ] TEST-5: Pest Feature test membuktikan AC-7 — perubahan atomik, histori, nomor revisi, dan audit.
+- [ ] TEST-6: Pest Feature test membuktikan AC-8 dan AC-11 — batal membuang draf; nilai berlaku tidak berubah selama draf terbuka.
+- [ ] TEST-7: Pest Feature test membuktikan AC-10 — histori revisi dan riwayat lama terbaca.
+- [ ] TEST-8: Vitest untuk mode revisi, autosave, dan kotak justifikasi.
+- [ ] SECURITY: AC-12 untuk setiap endpoint revisi, termasuk deny yang cocok.
+
+#### Definition of Done
+
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+
+### ISS-02.14 · [Feature] Penolakan Target PK yang Menyimpang dan Alasan Perubahan Target PK
+
+> **Q72 (23 Oktober 2026):** target PK yang menyimpang dari target Renstra menurut arah indikator ditolak sampai target Renstra direvisi (Q71); alasan perubahan target PK wajib dan menggantikan `alasan_deviasi_renstra`. Issue ini menggantikan ISS-02.11 AC-3, AC-4, dan AC-8.
+
+**Terkait User Story:** `US-02.14`  
+**Prioritas:** Tahap 2; **merge gate: ISS-02.13**  
+**Story Points:** Belum diestimasi  
+**Labels:** `feature`, `master-data`, `audit-sensitive`, `frontend`  
+**Plan:** Modul 2: 2.22 (lanjutan)  
+**PRD:** §4 prinsip 6, §11, §14.5, §14.10, §25.2  
+**Workflow:** §3.3  
+**Data Model/Entitas:** `target_tahunan` (tabel `target_kinerjas`), `target_renstra` (baca), `audit_log`
+
+#### User Story
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** sistem menolak target PK yang lebih rendah dari target Renstra dan mewajibkan alasan setiap kali target PK diubah,  
+> **Sehingga** target PK selalu sejalan dengan Renstra yang berlaku dan setiap perubahannya dapat dipertanggungjawabkan.
+
+#### Kontrak Teknis
+
+- **Dependensi:** mode revisi target Renstra (ISS-02.13) harus merge lebih dulu; editor target PK (ISS-02.11).
+- **Otorisasi:** `target:update` (tidak berubah); PJ/PIC baca-saja.
+- **Dampak Data:** `target_kinerjas` (`alasan_deviasi_renstra` tidak lagi diisi), `audit_log` (`alasan`, `target_tahunan.simpan_ditolak`).
+- **Keputusan terkait:** Q72, Q71, Q65 §65.1 butir 1 dan 3–4, Q65 §65.2 butir 2–4 dan 9, Q43, Q39 §39.2 butir 4.
+- **Rule:** penilaian menyimpang tetap `DeviasiTargetRenstra` (nilai tersimpan, tanpa pembulatan); yang berubah hanya akibatnya: ditolak, bukan alasan wajib.
+- **Rule:** daftar alasan wajib Q43 yang ditegakkan ISS-13.05 (PR #156) diperbarui: perubahan target PK pindah dari alasan opsional ke alasan wajib (Q72 §72.3).
+- **Di luar cakupan:** revisi PK berversi (ISS-02.12), yang mengikuti Q72 §72.1 butir 4 saat dikerjakan.
+
+#### Acceptance Criteria (QA/UAT)
+
+- [ ] **AC-1:** Given indikator `naik_baik` dengan target PK lebih kecil dari target Renstra tahun yang sama, When disimpan, Then ditolak dengan pesan "Revisi target Renstra dulu", target tidak berubah, dan penolakan diaudit. *(Q72 §72.1 butir 1)*
+- [ ] **AC-2:** Given indikator `turun_baik` dengan target PK lebih besar dari target Renstra, When disimpan, Then ditolak seperti AC-1. *(Q72 §72.1 butir 1)*
+- [ ] **AC-3:** Given target PK sama dengan atau lebih baik dari target Renstra menurut arah, When disimpan, Then tersimpan. *(Q72 §72.1 butir 1)*
+- [ ] **AC-4:** Given target Renstra belum ada atau target PK kosong, When disimpan, Then tidak ditolak karena deviasi. *(Q72 §72.1 butir 3)*
+- [ ] **AC-5:** Given target Renstra direvisi lewat ISS-02.13 menjadi sama dengan target PK yang tadi ditolak, When target PK disimpan ulang, Then tersimpan. *(Q72 §72.1 butir 2)*
+- [ ] **AC-6:** Given target PK yang sudah tersimpan diubah tanpa alasan, When disimpan, Then ditolak dan penolakannya diaudit; dengan alasan, tersimpan dan alasan tercatat pada `audit_log.alasan`. *(Q72 §72.2 butir 1 dan 3)*
+- [ ] **AC-7:** Given pengisian target PK pertama kali, atau hanya baseline yang berubah, When disimpan tanpa alasan, Then diterima. *(Q72 §72.2 butir 2)*
+- [ ] **AC-8:** Given target PK sudah dibekukan ke snapshot, When diubah dengan alasan, Then snapshot, rekonsiliasi Rencana Aksi, dan pengukuran tidak berubah. *(Q65 §65.1 butir 1 dan 4, Q72 §72.2 butir 1)*
+- [ ] **AC-9:** Given editor target PK, Then isian alasan deviasi Renstra tidak tampil; `alasan_deviasi_renstra` dalam request tidak disimpan, dan nilai lama tetap terbaca di audit. *(Q72 §72.2 butir 4)*
+- [ ] **AC-10:** Given target PK lama yang kini menyimpang karena target Renstra berubah, Then nilainya tidak diubah otomatis dan lencana deviasi tetap tampil. *(Q72 §72.1 butir 6)*
+- [ ] **AC-11:** Given penolakan AC-1, Then pesan memuat tautan ke mode revisi target Renstra bagi pengguna yang berizin. *(Q72 §72.1 butir 5)*
+- [ ] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When request simpan langsung, Then ditolak 403.
+
+#### Implementation Tasks
+
+**A. Persistence / Data Model**
+- [ ] Tidak ada migrasi; `alasan_deviasi_renstra` dibiarkan untuk histori.
+
+**B. Backend / Domain**
+- [ ] `SaveTargetTahunan`: ganti kewajiban `alasan_deviasi_renstra` dengan penolakan deviasi (AC-1–AC-4) di dalam transaksi yang mengunci indikator; tambahkan kewajiban alasan saat nilai target tersimpan berubah (AC-6–AC-7).
+- [ ] `SaveTargetTahunanRequest`: `alasan` wajib bersyarat dari Action (bukan dari UI); hapus `alasan_deviasi_renstra` dari kontrak.
+- [ ] `ShowTargetTahunan`: kirim status deviasi dan tautan revisi (bila `can`) untuk pesan penolakan.
+
+**C. Authorization & Audit**
+- [ ] Penolakan deviasi dan penolakan tanpa alasan diaudit sebagai `target_tahunan.simpan_ditolak` di luar transaksi; `dasar_izin` tercatat.
+
+**D. Frontend / UX**
+- [ ] `TargetTahunan/Editor.tsx`: hapus isian alasan deviasi; tampilkan isian alasan perubahan (wajib bila server menandai); tampilkan `businessErrors` penolakan beserta tautan mode revisi.
+
+#### Automated Tests / Verification
+
+- [ ] TEST-1: Pest Feature test membuktikan AC-1 dan AC-2 — penolakan menurut arah, target tidak berubah (dibaca dari tabel mentah), dan audit penolakan.
+- [ ] TEST-2: Pest Feature test membuktikan AC-3 dan AC-4 sebagai kontrol positif.
+- [ ] TEST-3: Pest Feature test membuktikan AC-5 — setelah revisi target Renstra, simpan berhasil.
+- [ ] TEST-4: Pest Feature test membuktikan AC-6 dan AC-7 — alasan wajib bersyarat.
+- [ ] TEST-5: Pest Feature test membuktikan AC-8 — snapshot tidak berubah.
+- [ ] TEST-6: Pest Feature test membuktikan AC-9 dan AC-10.
+- [ ] TEST-7: Vitest membuktikan AC-11 — pesan dan tautan revisi tampil dari `businessErrors`.
+- [ ] SECURITY: AC-12, termasuk deny yang cocok.
+
+#### Definition of Done
+
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+
+### ISS-02.15 · [Feature] Baseline Otomatis dan Tabel Target PK Ringkas
+
+> **Q73 (23 Oktober 2026):** isian Baseline tahun sebelumnya terisi otomatis dari realisasi periode nilai akhir yang sudah disahkan; kolom Target Renstra pada tabel PK dihapus dan angkanya tampil kecil di bawah Target PK.
+
+**Terkait User Story:** `US-02.15`  
+**Prioritas:** Tahap 2  
+**Story Points:** Belum diestimasi  
+**Labels:** `feature`, `master-data`, `frontend`  
+**Plan:** Modul 2: 2.22 (lanjutan)  
+**PRD:** §14.10  
+**Workflow:** §3.3  
+**Data Model/Entitas:** `target_tahunan` (baseline), `pengukuran` (baca), `periode` (`is_nilai_akhir`), `target_renstra` (baca)
+
+#### User Story
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** baseline PK langsung terisi dari realisasi akhir tahun sebelumnya dan tabel PK menampilkan target Renstra secara ringkas,  
+> **Sehingga** saya tidak mengetik ulang angka yang sudah ada di SAKIP dan tabel PK lebih mudah dibaca.
+
+#### Kontrak Teknis
+
+- **Dependensi:** editor dan tabel target PK (ISS-02.11); pengukuran disahkan (ISS-08.02).
+- **Otorisasi:** tidak berubah (`target:update` untuk simpan; baca mengikuti halaman PK).
+- **Dampak Data:** tidak ada migrasi; baseline tetap disimpan di `target_kinerjas.baseline`.
+- **Keputusan terkait:** Q73, Q50 §50.3, Q39 §39.2 butir 1, Q72.
+- **Rule:** isian otomatis hanya saran pada form; tidak ada penulisan data saat editor dibuka.
+- **Di luar cakupan:** pengisian data historis 2025.
+
+#### Acceptance Criteria (QA/UAT)
+
+- [ ] **AC-1:** Given editor target PK tahun T dibuka, baseline belum tersimpan, dan realisasi periode nilai akhir T−1 sudah disahkan, Then isian Baseline T−1 terisi nilai itu dengan keterangan sumbernya, dapat diubah, dan belum tersimpan sebelum Simpan. *(Q73 §73.1 butir 1)*
+- [ ] **AC-2:** Given realisasi periode nilai akhir T−1 belum disahkan atau sedang dibuka kembali, Then isian kosong dengan keterangan "Realisasi akhir {T−1} belum disahkan". *(Q73 §73.1 butir 2 dan 4)*
+- [ ] **AC-3:** Given realisasi periode nilai akhir T−1 disahkan tetapi tidak dapat diukur, Then isian kosong dengan keterangan "Realisasi akhir {T−1} tidak dapat diukur". *(Q73 §73.1 butir 2)*
+- [ ] **AC-4:** Given tidak ada pengukuran T−1 di SAKIP (mis. PK 2026), Then isian kosong dengan keterangan "Belum ada realisasi {T−1} di SAKIP". *(Q73 §73.1 butir 2)*
+- [ ] **AC-5:** Given baseline sudah tersimpan, Then nilai tersimpan yang tampil dan tidak ditimpa. *(Q73 §73.1 butir 3)*
+- [ ] **AC-6:** Given editor dibuka lalu ditutup tanpa Simpan, Then `target_kinerjas` tidak berubah. *(Q73 §73.1 butir 1)*
+- [ ] **AC-7:** Given tabel "Baseline dan target PK", Then tidak ada kolom Target Renstra; target Renstra tampil kecil di bawah Target PK, termasuk keterangan "target Renstra belum ada", dan lencana deviasi ikut di bawah Target PK. *(Q73 §73.2 butir 1–2)*
+- [ ] **AC-8:** Given layar 375 px, Then tabel memakai pola `block md:table` tanpa scroll horizontal dan teks minimal 12px.
+- [ ] **AC-9:** Given editor target PK, Then target Renstra tetap tampil sebagai pembanding. *(Q73 §73.2 butir 3)*
+
+#### Implementation Tasks
+
+**A. Persistence / Data Model**
+- [ ] Tidak ada migrasi.
+
+**B. Backend / Domain**
+- [ ] `ShowTargetTahunan`: bila baseline belum tersimpan, kirim saran baseline dari pengukuran periode `is_nilai_akhir` tahun T−1 berstatus disahkan, memakai nilai versi yang disahkan, beserta keterangan untuk AC-2–AC-4.
+
+**C. Authorization & Audit**
+- [ ] Tidak ada aksi baru; membuka editor tidak menulis audit.
+
+**D. Frontend / UX**
+- [ ] `TargetTahunan/Editor.tsx`: isi awal baseline dari saran server dan tampilkan keterangan sumbernya.
+- [ ] `PerjanjianKinerja/Partials/TargetPkTable.tsx`: hapus kolom Target Renstra; tampilkan target Renstra (teks kecil, minimal 12px) dan lencana deviasi di bawah Target PK.
+
+#### Automated Tests / Verification
+
+- [ ] TEST-1: Pest Feature test membuktikan AC-1 — saran dari realisasi disahkan; kontrol: indikator lain dan tahun lain tidak terbawa.
+- [ ] TEST-2: Pest Feature test membuktikan AC-2, AC-3, dan AC-4 — keterangan per kasus.
+- [ ] TEST-3: Pest Feature test membuktikan AC-5 dan AC-6 — tidak menimpa dan tidak menulis (dibaca dari tabel mentah).
+- [ ] TEST-4: Vitest membuktikan AC-7 dan AC-9 — tabel tanpa kolom Target Renstra; editor tetap menampilkan pembanding.
+- [ ] TEST-5: uji browser desktop 1280×800 dan mobile 375×812 untuk AC-7 dan AC-8.
+
+#### Definition of Done
+
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ---
 
 ## Bagian 3 — Periode, Jadwal, Snapshot, Efektivitas, dan Backfill
 
 ### ISS-03.01 · [Feature] Penyusunan Master Periode, Jadwal Tahunan, dan Jendela Periode
+
+> **Q70 (23 Oktober 2026):** AC-4 digantikan: jadwal tidak lagi memuat jendela reviu, reviu dapat dilakukan sejak pengukuran diajukan, dan tanggal periode disimpan di Master Periode (ISS-03.07).
 
 > **Q32 FINAL:** Jadwal pertama 2026; TW I–II periode lampau oleh Perencanaan, TW III–IV normal; tidak ada flag backfill. *(Diperbarui Q46 §46.1 butir 2: TW III 2026 juga periode lampau; TW IV menjadi triwulan pertama workflow normal PIC operasional.)*
 >
@@ -1790,6 +2040,8 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 
 ### ISS-03.06 · [Feature] Revisi Resmi Jendela PIC
 
+> **Q70 (23 Oktober 2026):** revisi jendela PIC tidak lagi memuat jendela reviu karena jendela itu dihapus (ISS-03.07); Q57 tidak berlaku lagi untuk jendela reviu.
+
 > **Q41 (13 Oktober 2026):** jendela penyusunan Rencana Aksi tidak ada lagi; revisi jendela PIC pada issue ini berlaku untuk jendela pengisian pengukuran, dan Q18 tetap berlaku untuk jendela tersebut (Q41 §41.1 butir 3). "Jendela" pada AC-2 dibaca sebagai jendela pengisian; Rencana Aksi mengikuti kunci per periode bagi PIC (ISS-05.07). Kunci RA per periode mengikuti `pengisian_selesai` yang berlaku, sehingga perpanjangan resmi jendela pengisian periode P ikut menggeser kunci RA periode P (Q41 §41.2 butir 5). Alasan revisi jendela tetap wajib karena tidak termasuk daftar alasan opsional Q43 §43.3. AC-6 ditambahkan karena issue ini belum dikerjakan.
 
 > **Q57 (17 Oktober 2026):** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama karena urutan `pengisian_selesai ≤ reviu_mulai ≤ reviu_selesai`; audit menyimpan seluruh jendela sebelum dan sesudah revisi, penanda `reviu_terlambat` yang sudah tercatat tetap beku, dan reviu sesudahnya mengikuti jendela reviu yang berlaku.
@@ -1871,6 +2123,92 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(Rujukan "Plan Modul 3: 3.12" belum memiliki bagian di Plan Pengembangan.)*
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Responsivitas menunggu smoke SSO.)*
 
+### ISS-03.07 · [Feature] Tanggal Periode di Master Periode dan Jadwal tanpa Jendela Reviu
+
+> **Q70 (23 Oktober 2026):** tanggal periode tanpa tahun disimpan di Master Periode; jadwal tahunan hanya memuat jendela pengisian. Issue ini menggantikan ISS-03.01 AC-4 dan menghapus isian reviu dari ISS-03.06.
+
+**Terkait User Story:** `US-03.07`  
+**Prioritas:** Tahap 2  
+**Story Points:** Belum diestimasi  
+**Labels:** `feature`, `schedule-snapshot`, `frontend`  
+**Plan:** Modul 3: 3.1–3.3, 3.12  
+**PRD:** §12.1, §12.3  
+**Workflow:** §4  
+**Data Model/Entitas:** `periode` (tanggal mulai dan selesai tanpa tahun), `jadwal_periode` (tanpa `reviu_mulai`/`reviu_selesai`), `audit_log`
+
+#### User Story
+
+> **Sebagai** Tim Perencanaan,  
+> **Saya ingin** menetapkan tanggal setiap periode sekali di Master Periode dan menyusun jadwal tahunan hanya dengan tanggal pengisian,  
+> **Sehingga** tanggal periode konsisten setiap tahun dan jadwal tidak memuat tahap reviu yang tidak dipakai.
+
+#### Kontrak Teknis
+
+- **Dependensi:** Master Periode dan jadwal tahunan (ISS-03.01); revisi jendela PIC (ISS-03.06).
+- **Otorisasi:** `periode:create`/`periode:update` untuk Master Periode; `jadwal:create`/`jadwal:update` untuk jadwal; revisi jendela PIC memakai izin ISS-03.06. Tidak ada permission baru.
+- **Dampak Data:** `periode` (kolom tanggal mulai dan selesai tanpa tahun), `jadwal_periode` (hapus `reviu_mulai`, `reviu_selesai`), `audit_log`.
+- **Keputusan terkait:** Q70, Q41, Q35 §35.3, Q46.
+- **Rule:** tanggal periode berlaku setiap tahun; rentang pada tahun tertentu dibentuk dari tahun jadwal atau tahun kegiatan (Q70 §70.1 butir 1).
+- **Rule:** `pengisian_mulai` paling cepat tanggal 1 bulan terakhir periode pada tahun jadwal; batas akhir tidak diatur (Q70 §70.2 butir 2).
+- **Rule:** verifikasi, pengembalian, dan pengesahan pengukuran tidak lagi digerbangi jendela reviu (Q70 §70.2 butir 3).
+- **Di luar cakupan:** validasi tanggal realisasi kegiatan (perubahan ISS-06.03), dan perubahan tenggat verifikasi dari pusat.
+
+#### Acceptance Criteria (QA/UAT)
+
+- [ ] **AC-1:** Given Perencanaan menyimpan periode aktif, When tanggal mulai atau selesai kosong, Then ditolak; tanggal tersimpan sebagai hari dan bulan tanpa tahun. *(Q70 §70.1 butir 1–2)*
+- [ ] **AC-2:** Given tanggal mulai setelah tanggal selesai, atau dua periode aktif saling tumpang tindih, When disimpan, Then ditolak. *(Q70 §70.1 butir 2)*
+- [ ] **AC-3:** Given periode bertanggal, Then halaman Master Periode, jadwal, Rencana Aksi, kegiatan, dan pengukuran menampilkan rentangnya pada tahun terkait (mis. "1 Jan–31 Mar 2027"). *(Q70 §70.1 butir 3a)*
+- [ ] **AC-4:** Given form jadwal tahunan atau revisi jendela PIC, Then tidak ada isian reviu, dan `reviu_mulai`/`reviu_selesai` dalam request tidak disimpan. *(Q70 §70.2 butir 1)*
+- [ ] **AC-5:** Given `pengisian_mulai` sebelum tanggal 1 bulan terakhir periode (mis. Triwulan IV sebelum 1 Desember), When jadwal draf atau revisi jendela disimpan, Then ditolak; `pengisian_selesai` pada tahun berikutnya diterima. *(Q70 §70.2 butir 2)*
+- [ ] **AC-6:** Given pengukuran baru diajukan, When Perencanaan memverifikasi, mengembalikan, atau mengesahkannya pada hari yang sama, Then aksi tidak ditolak karena jendela reviu. *(Q70 §70.2 butir 3)*
+- [ ] **AC-7:** Given audit lama memuat penanda reviu terlambat, Then penanda itu tetap tampil; aksi reviu baru tidak membuat penanda. *(Q70 §70.2 butir 4)*
+- [ ] **AC-8:** Given `penutupan` tidak setelah `pengisian_selesai` periode terakhir, When jadwal disimpan, Then ditolak. *(Q70 §70.2 butir 5)*
+- [ ] **AC-9:** Given jadwal aktif yang jendelanya melanggar AC-5 (mis. jadwal 2026), Then jadwal tetap berlaku tanpa perubahan otomatis. *(Q70 §70.2 butir 7)*
+- [ ] **AC-10:** Given tanggal periode diubah, Then jadwal, kegiatan, dan pengukuran yang sudah tersimpan tidak berubah. *(Q70 §70.1 butir 4)*
+
+#### Implementation Tasks
+
+**A. Persistence / Data Model**
+- [ ] Tambahkan kolom tanggal mulai dan selesai tanpa tahun pada `periode` (mis. bulan dan hari dalam kolom terpisah) dengan CHECK validitas tanggal; isi Triwulan I–IV yang sudah ada dengan tanggal standar (U-25).
+- [ ] Hapus `reviu_mulai` dan `reviu_selesai` dari `jadwal_periode` beserta CHECK yang memakainya (U-7).
+
+**B. Backend / Domain**
+- [ ] Tambahkan satu helper yang membentuk rentang tanggal periode untuk tahun tertentu; pakai di validasi jadwal dan nanti di validasi realisasi kegiatan.
+- [ ] Validasi tanggal periode di `SavePeriode` (AC-1, AC-2).
+- [ ] `JadwalDraftRules`: keluarkan `reviu_*` dari `WINDOW_FIELDS`, ubah syarat penutupan menjadi setelah `pengisian_selesai` terakhir, dan tambahkan batas awal `pengisian_mulai` (AC-5, AC-8).
+- [ ] `SaveJadwalDraft`, `StoreJadwalRequest`, `PeriodeJadwalMutationRequest`, `RevisiJendelaPic`, `RevisiJendelaPicRequest`: hapus field reviu.
+- [ ] `PengukuranKinerjaPolicy`: hapus gerbang "Jendela reviu periode ini belum dimulai" (AC-6).
+- [ ] `PengukuranMutationSteps`: berhenti membuat penanda `reviu_terlambat`; `PresentPengukuran` dan `StatusIndikatorDashboard` tetap membaca penanda lama dari audit (AC-7).
+
+**C. Authorization & Audit**
+- [ ] Perubahan tanggal periode dan jadwal tetap diaudit dengan nilai lama/baru dan `dasar_izin`.
+
+**D. Frontend / UX**
+- [ ] Master Periode: isian hari dan bulan untuk tanggal mulai dan selesai, berlabel aksesibel, teks minimal 12px.
+- [ ] Editor jadwal dan modal revisi jendela PIC: hapus kolom reviu; tampilkan rentang periode pada tahun jadwal di samping isian pengisian.
+- [ ] Tampilkan rentang periode pada Rencana Aksi, kegiatan, dan pengukuran (AC-3).
+
+#### Automated Tests / Verification
+
+- [ ] TEST-1: Pest Feature test membuktikan AC-1 — periode aktif tanpa tanggal ditolak; tanggal tersimpan tanpa tahun.
+- [ ] TEST-2: Pest Feature test membuktikan AC-2 — tanggal terbalik dan periode tumpang tindih ditolak, dengan kontrol positif.
+- [ ] TEST-3: Vitest membuktikan AC-3 — rentang periode tampil pada tahun terkait.
+- [ ] TEST-4: Pest Feature test membuktikan AC-4 — field reviu tidak disimpan pada jadwal dan revisi jendela.
+- [ ] TEST-5: Pest Feature test membuktikan AC-5 — batas awal 1 bulan terakhir periode, termasuk pengisian TW IV di Januari tahun berikutnya diterima.
+- [ ] TEST-6: Pest Feature test membuktikan AC-6 — verifikasi pada hari pengajuan tidak ditolak.
+- [ ] TEST-7: Pest Feature test membuktikan AC-7 — penanda lama tetap terbaca dan aksi baru tidak membuatnya.
+- [ ] TEST-8: Pest Feature test membuktikan AC-8 — syarat penutupan baru.
+- [ ] TEST-9: Pest Feature test membuktikan AC-9 dan AC-10 — data tersimpan tidak berubah.
+- [ ] SECURITY: request langsung tanpa `periode:update`/`jadwal:update` dan deny yang cocok menghasilkan 403.
+
+#### Definition of Done
+
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ---
 
@@ -1879,6 +2217,8 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 ### ISS-04.01 · [Feature] Penetapan & Pergantian Penanggung Jawab Indikator
 
 > **Q43 (13 Oktober 2026):** kolom alasan pada penetapan dan pergantian Penanggung Jawab dihapus dari form; kolom basis datanya sudah nullable dan request tanpa alasan diterima (Q43 §43.3 butir 4). Butir "Pergantian wajib alasan" pada kontrak dan AC di bawah dipertahankan sebagai histori implementasi; perubahan dikerjakan pada ISS-13.05. Audit tetap mencatat aktor, waktu, tindakan, dan nilai lama/baru (Q43 §43.1).
+
+> **Implementasi ISS-13.05 (22 Oktober 2026):** field alasan dihapus dari form dan modal konfirmasi PJ (PR #156); payload tidak lagi mengirim `alasan`, sedangkan kolom histori tetap ditampilkan.
 
 **Terkait User Story:** `US-04.01`  
 **Prioritas:** 🟡 P1  
@@ -2532,6 +2872,8 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 ### ISS-06.01 · [Feature] Pencatatan Rencana Kegiatan Unit
 
+> **Q74 (23 Oktober 2026):** menu Kegiatan dihapus; kegiatan dibuat dan diedit dari halaman kegiatan Rencana Aksi (ISS-06.09). Aturan isian kegiatan pada issue ini tetap.
+
 > **Q42, Q49 (13 Oktober 2026):** `nama` kegiatan hingga 500 karakter dan `tujuan` opsional diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form; Q49 §49.1). PR #97 tidak diperluas untuk anggaran: input, tampilan, validasi, penjumlahan anggaran, dan RAB dikerjakan pada ISS-06.08 (Q42 §42.2–§42.3). Penambahan kegiatan dari halaman Rencana Aksi beserta klaimnya dikerjakan pada ISS-06.02 (Q42 §42.1 butir 2). Detail kegiatan tetap dibatasi unit (Q12, Q49 §49.3). AC-1 mengikuti Q49 §49.1.
 
 **Status implementasi (2026-10-14):** Diterapkan oleh PR #97 (migrasi `2026_10_14_000001`, validasi request, dan form). Checklist yang dicentang mencerminkan automated test lokal dan CI PR #97, bukan penerimaan UAT. Penyesuaian Q49 §49.1 mencakup `nama` hingga 500 karakter dan `tujuan` opsional. Pembatasan detail per unit berizin (PRD §15.1, Q49 §49.3, Workflow §8 butir 9) dan syarat izin baca bagi penerima grant tulis diterapkan oleh [#102](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/102) sesuai Q54. Smoke browser desktop/mobile untuk build modal terbaru dan QA/retest SSO oleh Dion belum dilengkapi; item responsivitas dan checklist UI tetap belum dicentang sampai buktinya tersedia. UAT dan deployment belum dilakukan.
@@ -2693,6 +3035,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### ISS-06.03 · [Feature] Pelaksanaan Kegiatan & Gerbang Bukti Gabungan
 
+> **Q74 §74.2 (23 Oktober 2026):** realisasi dicatat pada form terpisah dari catat rencana, di halaman kegiatan Rencana Aksi (ISS-06.09), dengan isian tanggal realisasi dan biaya terpakai. Tanggal realisasi wajib berada di dalam rentang periode kegiatan (Q70 §70.1 butir 3). Biaya terpakai dicatat sebagai satu angka per kegiatan; rincian belanja tetap tidak dikelola (Q42 §42.2 butir 3 diubah sebatas angka ini). AC-3 diperbarui dan AC-7–AC-10 ditambahkan.
+
 > **Q42, Q45 (13 Oktober 2026):** persyaratan tahap `kegiatan` adalah tahap **pelaksanaan** kegiatan dan tetap diperiksa saat kegiatan ditandai `terlaksana` (PRD §15.6, Q22 tetap); persyaratan tahap perencanaan kegiatan (`kegiatan_perencanaan`, mis. RAB) diperiksa saat Rencana Aksi diajukan (ISS-06.08; Q42 §42.4). Status kegiatan dapat diperbarui sepanjang periode berjalan, misalnya setiap bulan, tanpa entitas bulanan (Q45 §45.1 butir 4); dashboard menampilkannya secara real-time sebagai "belum diverifikasi" (ISS-10.01). Narasi per kegiatan tetap tersedia dan opsional, sedangkan narasi wajib berada pada pengukuran (Q45 §45.1 butir 1–2; ISS-07.03). AC-3 diperbarui dan AC-6 ditambahkan karena issue ini belum dikerjakan.
 
 **Terkait User Story:** `US-06.03`  
@@ -2702,7 +3046,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 **Plan:** Modul 12: 12.11; Modul 13  
 **PRD:** §15.6, §18  
 **Workflow:** §8–10  
-**Data Model/Entitas:** kegiatan + bukti
+**Data Model/Entitas:** kegiatan (+ kolom biaya terpakai, Q74) + bukti
 
 #### User Story
 
@@ -2712,7 +3056,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Kontrak Teknis
 
-- **Dependensi:** Kegiatan berstatus `rencana`; persyaratan global dan indikator klaim dapat dihitung.
+- **Dependensi:** Kegiatan berstatus `rencana`; persyaratan global dan indikator klaim dapat dihitung; halaman kegiatan Rencana Aksi (ISS-06.09) dan tanggal periode (ISS-03.07).
 - **Otorisasi:** `kegiatan:update` + capability bukti induk.
 - **Dampak Data:** `kegiatan`, `klaim_kegiatan`, `jenis_berkas`, `berkas`, `audit_log`.
 
@@ -2720,10 +3064,14 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 - [ ] **AC-1:** Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim** pada tahap `kegiatan` (pelaksanaan). *(Q22, Q42 §42.4 butir 2)*
 - [ ] **AC-2:** Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
-- [ ] **AC-3:** Given tanggal realisasi, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)*
+- [ ] **AC-3:** Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)* *(Diperbarui Q74 §74.2: biaya terpakai ditambahkan.)*
 - [ ] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
 - [ ] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
 - [ ] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
+- [ ] **AC-7:** Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
+- [ ] **AC-8:** Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
+- [ ] **AC-9:** Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
+- [ ] **AC-10:** Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
 
 #### Implementation Tasks
 
@@ -2745,14 +3093,23 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
+**E. Tambahan Q74 §74.2**
+- [ ] Migrasi kolom biaya terpakai (rupiah, nonnegatif, nullable untuk kegiatan yang belum terlaksana) pada `kegiatan`.
+- [ ] Action catat realisasi dengan validasi rentang periode memakai helper rentang dari ISS-03.07.
+- [ ] Form realisasi di halaman kegiatan Rencana Aksi (ISS-06.09).
+
 #### Automated Tests / Verification
 
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim** pada tahap `kegiatan` (pelaksanaan). *(Q22, Q42 §42.4 butir 2)*
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)*
+- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)*
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
+- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
+- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
+- [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
+- [ ] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
 
 #### Definition of Done
 
@@ -3136,6 +3493,80 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 - [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
+### ISS-06.09 · [Feature] Kegiatan di dalam Rencana Aksi
+
+> **Q74 §74.1 (23 Oktober 2026):** menu Kegiatan dihapus; kegiatan dibuat, diedit, dan dikelola dari halaman kegiatan Rencana Aksi. Issue ini mengubah akses yang dibangun ISS-06.01 tanpa mengubah aturan kegiatan Q42 dan Q49.
+
+**Terkait User Story:** `US-06.09`  
+**Prioritas:** Tahap 2; **merge gate: PR #163 (ISS-06.04)**  
+**Story Points:** Belum diestimasi  
+**Labels:** `feature`, `kegiatan`, `frontend`  
+**Plan:** Modul 12: 12.2  
+**PRD:** §15.1–15.4  
+**Workflow:** §8  
+**Data Model/Entitas:** `kegiatan`, `klaim_kegiatan` (tanpa perubahan skema)
+
+#### User Story
+
+> **Sebagai** PIC atau Tim Perencanaan,  
+> **Saya ingin** mengelola kegiatan langsung dari Rencana Aksi indikatornya,  
+> **Sehingga** rencana aksi dan kegiatan turunannya berada di satu tempat.
+
+#### Kontrak Teknis
+
+- **Dependensi:** kegiatan, klaim, dan anggaran (ISS-06.01, ISS-06.02, ISS-06.08); PR #163 (ISS-06.04) merge lebih dulu karena mengubah status kegiatan di halaman yang dipindah.
+- **Otorisasi:** `kegiatan:read`, `kegiatan:create`, `kegiatan:update` per unit (Q32) tidak berubah; akses Rencana Aksi mengikuti aturan yang berlaku.
+- **Dampak Data:** tidak ada migrasi.
+- **Keputusan terkait:** Q74 §74.1, Q41 (kunci per periode), Q42, Q49.
+- **Rule:** halaman kegiatan Rencana Aksi menegakkan kunci per periode Q41 sama seperti panel Kegiatan saat ini.
+- **Di luar cakupan:** form realisasi (perubahan ISS-06.03).
+
+#### Acceptance Criteria (QA/UAT)
+
+- [ ] **AC-1:** Given pengguna mana pun, Then sidebar tidak memuat menu Kegiatan. *(Q74 §74.1 butir 1)*
+- [ ] **AC-2:** Given detail Rencana Aksi (mis. IKU 1.2), When tombol Kegiatan diklik, Then terbuka halaman kegiatan Rencana Aksi itu, berisi kegiatan per periode. *(Q74 §74.1 butir 2)*
+- [ ] **AC-3:** Given pengguna dengan `kegiatan:create` pada unit Rencana Aksi, When mencatat rencana kegiatan di halaman itu, Then kegiatan tersimpan dan langsung terhubung ke Rencana Aksi; endpoint pembuatan kegiatan tanpa konteks Rencana Aksi tidak lagi tersedia. *(Q74 §74.1 butir 2)*
+- [ ] **AC-4:** Given kegiatan pada halaman itu, When diedit, termasuk berkas perencanaan dan klaim, Then perubahan dilakukan di halaman Rencana Aksi tanpa pindah ke `/kegiatan/{id}/edit`. *(Q74 §74.1 butir 3)*
+- [ ] **AC-5:** Given tautan lama `/kegiatan` atau `/kegiatan/{id}/edit`, Then pengguna dialihkan ke halaman kegiatan Rencana Aksi terkait. *(Q74 §74.1 butir 5)*
+- [ ] **AC-6:** Given grant `kegiatan:update` hanya pada unit A, When kegiatan unit B dimutasi lewat halaman baru, Then ditolak 403; pengguna tanpa `kegiatan:create` tidak melihat tombol dan request langsungnya ditolak. *(Q74 §74.1 butir 4)*
+- [ ] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
+- [ ] **AC-8:** Given dashboard, verifikasi, atau laporan menaut ke kegiatan, Then tautan menuju halaman kegiatan Rencana Aksi.
+- [ ] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
+
+#### Implementation Tasks
+
+**A. Persistence / Data Model**
+- [ ] Tidak ada migrasi. Sebelum rilis, daftar kegiatan tanpa klaim Rencana Aksi diserahkan ke Perencanaan untuk ditautkan (U-22).
+
+**B. Backend / Domain**
+- [ ] Route dan Action halaman kegiatan Rencana Aksi (mis. `/rencana-aksi/{id}/kegiatan`, U-26) yang memakai ulang Action kegiatan, klaim, dan berkas yang ada.
+- [ ] Hapus route `GET /kegiatan` (index) dan `POST /kegiatan` (buat tanpa Rencana Aksi); alihkan `/kegiatan` dan `/kegiatan/{id}/edit` (AC-5).
+
+**C. Authorization & Audit**
+- [ ] Otorisasi tetap lewat Policy/PermissionResolver yang ada; React hanya membaca `can.*`.
+
+**D. Frontend / UX**
+- [ ] Hapus item `kegiatan` dari `sidebarNavigation.ts`.
+- [ ] Tombol Kegiatan pada `RencanaAksi/Show.tsx`; halaman kegiatan Rencana Aksi yang memakai ulang `KegiatanPanel`, `BerkasPerencanaanPanel`, dan `KlaimPanel`.
+- [ ] Perbarui tautan di dashboard, verifikasi, dan laporan (AC-8).
+
+#### Automated Tests / Verification
+
+- [ ] TEST-1: Vitest membuktikan AC-1 — sidebar tanpa menu Kegiatan.
+- [ ] TEST-2: Pest Feature test membuktikan AC-2 dan AC-3 — halaman dan pembuatan kegiatan dari Rencana Aksi; endpoint lama tidak tersedia.
+- [ ] TEST-3: Pest Feature test membuktikan AC-4 dan AC-5 — edit di halaman Rencana Aksi dan pengalihan tautan lama.
+- [ ] TEST-4: Pest Feature test membuktikan AC-6 — penolakan lintas unit dengan kontrol positif.
+- [ ] TEST-5: Pest Feature test membuktikan AC-7 dan AC-9.
+- [ ] TEST-6: uji browser desktop dan mobile untuk alur Rencana Aksi → Kegiatan.
+
+#### Definition of Done
+
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ---
 
@@ -3965,6 +4396,67 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 - [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
+### ISS-09.03 · [Feature] Halaman Detail Rekomendasi Pimpinan
+
+> Hasil rapat evaluasi 23 Oktober 2026 (butir 10). Tidak mengubah aturan Q45 dan Q51; tidak memerlukan keputusan Q baru. Isi halaman mengikuti rincian U-24 yang disetujui PM pada 24 Oktober 2026.
+
+**Terkait User Story:** `US-09.03`  
+**Prioritas:** Tahap 2  
+**Story Points:** Belum diestimasi  
+**Labels:** `feature`, `frontend`  
+**Plan:** Modul 6: 6.7 (lanjutan)  
+**PRD:** §22  
+**Workflow:** §17  
+**Data Model/Entitas:** `rekomendasi_pimpinan` (baca), `pengukuran` (baca tindak lanjut)
+
+#### User Story
+
+> **Sebagai** Pimpinan atau Tim Perencanaan,  
+> **Saya ingin** membuka detail satu rekomendasi beserta riwayatnya,  
+> **Sehingga** saya dapat menelusuri isi, persetujuan, dan tindak lanjut rekomendasi tanpa membaca tabel ringkas.
+
+#### Kontrak Teknis
+
+- **Dependensi:** Rekomendasi Pimpinan (ISS-09.01, PR #115).
+- **Otorisasi:** `rekomendasi:tetapkan`, sama dengan halaman daftar (`IndexRekomendasi`); request tanpa izin ditolak 403.
+- **Dampak Data:** tidak ada; halaman baca-saja.
+- **Keputusan terkait:** Q45 §45.2, Q51 §51.1–§51.2.
+- **Di luar cakupan:** perubahan alur draf dan persetujuan.
+
+#### Acceptance Criteria (QA/UAT)
+
+- [ ] **AC-1:** Given halaman daftar Rekomendasi, Then setiap baris memiliki tautan ke halaman detail rekomendasinya.
+- [ ] **AC-2:** Given halaman detail, Then tampil indikator (kode dan nama), periode dan tahun, isi rekomendasi, rujukan sumber, status, penyusun dan waktu, serta penyetuju dan waktu dengan penanda jalur cadangan bila disetujui Perencanaan. *(Q51 §51.1)*
+- [ ] **AC-3:** Given rekomendasi pernah diubah setelah disetujui, Then baris-baris sebelumnya untuk indikator × periode yang sama tampil sebagai riwayat menurut waktu. *(Q51 §51.2 butir 3)*
+- [ ] **AC-4:** Given rekomendasi disetujui dan pengukuran periode berikutnya sudah memuat tindak lanjut, Then tindak lanjut itu tampil; bila belum, tampil keterangan "Belum ada tindak lanjut". *(Q45 §45.2 butir 3)*
+- [ ] **AC-5:** Given pengguna tanpa `rekomendasi:tetapkan`, When membuka URL detail langsung, Then ditolak 403.
+- [ ] **AC-6:** Given aksi setujui atau ubah tersedia di detail, Then aksi mengikuti aturan dan otorisasi ISS-09.01.
+
+#### Implementation Tasks
+
+**B. Backend / Domain**
+- [ ] Route `GET /rekomendasi/{rekomendasi}` dan Action baca detail beserta riwayat dan tindak lanjut.
+
+**C. Authorization & Audit**
+- [ ] Otorisasi `rekomendasi:tetapkan` lewat resolver; tidak ada audit baca.
+
+**D. Frontend / UX**
+- [ ] Halaman `Rekomendasi/Show.tsx` dengan komponen Card, Badge, dan tabel riwayat berpola `block md:table`; tautan Detail pada `Rekomendasi/Index.tsx`.
+
+#### Automated Tests / Verification
+
+- [ ] TEST-1: Pest Feature test membuktikan AC-2 dan AC-3.
+- [ ] TEST-2: Pest Feature test membuktikan AC-4.
+- [ ] TEST-3: Vitest membuktikan AC-1.
+- [ ] SECURITY: AC-5, termasuk deny yang cocok.
+
+#### Definition of Done
+
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ---
 
@@ -4058,6 +4550,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-10.02 · [Feature] Matriks Rekapitulasi Indikator × Periode
 
+> **Status implementasi lokal — 21 Oktober 2026:** `/laporan/rekap` membaca versi pengukuran sah terakhir, memakai target RA resmi yang berpasangan, menghitung capaian dari target periode positif, dan membatasi detail kegiatan melalui resolver server. Test fitur rekap terbaru lulus 33 test/354 assertion, termasuk regresi penyebut nol pada periode tanpa target; 12 test frontend rekap lulus, termasuk indikator berkomponen dengan dua kegiatan sesuai DoD Plan 8.3. Pengujian menyeluruh sebelum perbaikan review mencakup 181 file backend. Browser desktop 1440×1000, tablet 1024×900, dan mobile 390×844 memverifikasi filter/reset, disclosure keyboard, serta ketiadaan overflow. Komponen `SelisihTargetPk` resmi dari hasil merge PR #147 (`e0459bf`) sudah dipakai dan diverifikasi kembali pada desktop/mobile; AC-7 terpenuhi. AC-5 masih parsial: rekomendasi disetujui dan bukti sudah tampil, sedangkan status capaian memakai penanda belum ditetapkan selama ISS-09.02 belum tersedia. Kelengkapan key snapshot serta filter lanjutan tetap mengikuti tindak lanjut PM Q1/Q5. DoD keseluruhan tetap terbuka; ini bukti implementasi lokal, bukan merge #134, CI hijau, UAT, atau deployment.
+
 > **Q42, Q44, Q45, Q47, Q48, Q51 (13 Oktober 2026):** rekap menampilkan narasi pengukuran bersama daftar kegiatan yang diklaim dan anggarannya (Q45 §45.1 butir 2, Q42 §42.2), Rekomendasi Pimpinan yang berlaku yaitu berstatus disetujui (Q51 §51.1 butir 2), tampilan periode tanpa target dan realisasi belum dapat diukur sesuai Q47 §47.3–§47.4, serta penanda `tidak_dapat_dipenuhi` hanya sebagai histori (Q44 §44.1 butir 2). Dokumen resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat melalui ISS-10.05 (Q48). AC-4 sampai AC-6 diperbarui dan AC-7 ditambahkan karena issue ini belum dikerjakan.
 
 > **Keputusan PM (17 Oktober 2026):** rekap juga menampilkan alasan `tidak_dapat_dihitung` dari versi resmi sesuai hak baca, sehingga tampilan laporan pada US-07.06 AC-5 dipenuhi melalui issue ini (tindak lanjut review PR #118, m2). AC-6 dan TEST-6 diperbarui.
@@ -4085,49 +4579,49 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given tahun/periode dipilih, Then tabel memuat identitas Sasaran, Indikator, Satuan, Unit, PIC efektif/historis yang relevan.
-- [ ] **AC-2:** Then kolom target memisahkan baseline, target PK, dan target periode.
-- [ ] **AC-3:** Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
-- [ ] **AC-4:** Then narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, `tindak_lanjut_rekomendasi`) beserta daftar kegiatan yang diklaim dan anggarannya berasal dari versi resmi yang dinilai, bukan live data yang telah berubah. *(Diperbarui Q45 §45.1 butir 2, Q42 §42.2; semula narasi kegiatan/kendala/tindak lanjut.)*
+- [x] **AC-1:** Given tahun/periode dipilih, Then tabel memuat identitas Sasaran, Indikator, Satuan, Unit, PIC efektif/historis yang relevan.
+- [x] **AC-2:** Then kolom target memisahkan baseline, target PK, dan target periode.
+- [x] **AC-3:** Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
+- [x] **AC-4:** Then narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, `tindak_lanjut_rekomendasi`) beserta daftar kegiatan yang diklaim dan anggarannya berasal dari versi resmi yang dinilai, bukan live data yang telah berubah. *(Diperbarui Q45 §45.1 butir 2, Q42 §42.2; semula narasi kegiatan/kendala/tindak lanjut.)*
 - [ ] **AC-5:** Then Rekomendasi Pimpinan yang berlaku (berstatus `disetujui`), status capaian, dan status bukti ditampilkan sesuai versi/konteks. *(Diperbarui Q51 §51.1 butir 2)*
-- [ ] **AC-6:** Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol; penanda `tidak_dapat_dihitung` ditampilkan beserta alasan dari versi resmi sesuai hak baca. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3, keputusan PM 17 Oktober 2026)*
-- [ ] **AC-7:** Given periode tanpa target, Then rekap menampilkan "Tanpa target periode" beserta realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen; bila realisasinya juga belum dapat diukur, yang tampil "Belum dapat diukur". *(Q47 §47.3)*
+- [x] **AC-6:** Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol; penanda `tidak_dapat_dihitung` ditampilkan beserta alasan dari versi resmi sesuai hak baca. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3, keputusan PM 17 Oktober 2026)*
+- [x] **AC-7:** Given periode tanpa target, Then rekap menampilkan "Tanpa target periode" beserta realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen; bila realisasinya juga belum dapat diukur, yang tampil "Belum dapat diukur". *(Q47 §47.3)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Verifikasi query, relasi, indeks, dan eager-loading yang diperlukan; **jangan** membuat mutasi domain baru untuk fitur read-only.
+- [x] Verifikasi query, relasi, indeks, dan eager-loading yang diperlukan; **jangan** membuat mutasi domain baru untuk fitur read-only.
 
 **B. Backend / Domain**
-- [ ] Matriks laporan mengambil target/narasi/bukti dari konteks versi resmi; jangan live-join data kerja yang bisa berubah.
-- [ ] Sajikan narasi pengukuran bersama daftar kegiatan yang diklaim dan anggarannya dari versi resmi (Q45 §45.1 butir 2; penjumlahan ISS-06.08), dengan anggaran per kegiatan mengikuti akses detail kegiatan (Q42 §42.5).
-- [ ] Sajikan hanya Rekomendasi Pimpinan berstatus `disetujui` (Q51 §51.1 butir 2); penanda `tidak_dapat_dipenuhi` hanya untuk data histori karena tidak lagi terbentuk (Q44 §44.1 butir 2).
-- [ ] Hitung selisih terhadap target PK untuk periode tanpa target tanpa capaian persen; bila realisasi juga belum dapat diukur, tampilkan "Belum dapat diukur" (Q47 §47.3).
+- [x] Matriks laporan mengambil target/narasi/bukti dari konteks versi resmi; jangan live-join data kerja yang bisa berubah.
+- [x] Sajikan narasi pengukuran bersama daftar kegiatan yang diklaim dan anggarannya dari versi resmi (Q45 §45.1 butir 2; penjumlahan ISS-06.08), dengan anggaran per kegiatan mengikuti akses detail kegiatan (Q42 §42.5).
+- [x] Sajikan hanya Rekomendasi Pimpinan berstatus `disetujui` (Q51 §51.1 butir 2); penanda `tidak_dapat_dipenuhi` hanya untuk data histori karena tidak lagi terbentuk (Q44 §44.1 butir 2).
+- [x] Hitung selisih terhadap target PK untuk periode tanpa target tanpa capaian persen; bila realisasi juga belum dapat diukur, tampilkan "Belum dapat diukur" (Q47 §47.3).
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `laporan:read`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `laporan:read`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan halaman Inertia React untuk **Matriks Rekapitulasi Indikator × Periode** sebagai tampilan read-only/filterable sesuai hak server.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan halaman Inertia React untuk **Matriks Rekapitulasi Indikator × Periode** sebagai tampilan read-only/filterable sesuai hak server.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given tahun/periode dipilih, Then tabel memuat identitas Sasaran, Indikator, Satuan, Unit, PIC efektif/historis yang relevan.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Then kolom target memisahkan baseline, target PK, dan target periode.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Then narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, `tindak_lanjut_rekomendasi`) beserta daftar kegiatan yang diklaim dan anggarannya berasal dari versi resmi yang dinilai, bukan live data yang telah berubah. *(Diperbarui Q45 §45.1 butir 2, Q42 §42.2; semula narasi kegiatan/kendala/tindak lanjut.)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given tahun/periode dipilih, Then tabel memuat identitas Sasaran, Indikator, Satuan, Unit, PIC efektif/historis yang relevan.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Then kolom target memisahkan baseline, target PK, dan target periode.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Then kolom realisasi memisahkan komponen, nilai akhir, status perhitungan, dan persentase capaian bila relevan.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Then narasi pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, `tindak_lanjut_rekomendasi`) beserta daftar kegiatan yang diklaim dan anggarannya berasal dari versi resmi yang dinilai, bukan live data yang telah berubah. *(Diperbarui Q45 §45.1 butir 2, Q42 §42.2; semula narasi kegiatan/kendala/tindak lanjut.)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Then Rekomendasi Pimpinan yang berlaku (berstatus `disetujui`), status capaian, dan status bukti ditampilkan sesuai versi/konteks. *(Diperbarui Q51 §51.1 butir 2)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol; penanda `tidak_dapat_dihitung` ditampilkan beserta alasan dari versi resmi sesuai hak baca. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3, keputusan PM 17 Oktober 2026)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then rekap menampilkan "Tanpa target periode" beserta realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen; bila realisasinya juga belum dapat diukur, yang tampil "Belum dapat diukur". *(Q47 §47.3)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given `tidak_dapat_dihitung`, `belum_dapat_diukur`, atau penanda histori `tidak_dapat_dipenuhi`, Then penanda ditampilkan dan tidak disamakan dengan nilai nol; penanda `tidak_dapat_dihitung` ditampilkan beserta alasan dari versi resmi sesuai hak baca. *(Diperbarui Q44 §44.1 butir 2, Q47 §47.4 butir 3, keputusan PM 17 Oktober 2026)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then rekap menampilkan "Tanpa target periode" beserta realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen; bila realisasinya juga belum dapat diukur, yang tampil "Belum dapat diukur". *(Q47 §47.3)*
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
@@ -5531,10 +6025,12 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
-- [ ] **AC-2:** Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
-- [ ] **AC-3:** Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
-- [ ] **AC-4:** Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
-- [ ] **AC-5:** Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+- [x] **AC-2:** Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
+- [x] **AC-3:** Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
+- [x] **AC-4:** Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
+- [x] **AC-5:** Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+
+> **Status verifikasi AC-4 (22 Oktober 2026):** dipetakan ke test per endpoint Q43 §43.2 yang sudah ada — `ChangeUserStatusTest`, `ExplicitDenyTest`, `JadwalPenutupanTest`, `JadwalRevisiJendelaTest`, `BukaKembaliRencanaAksiTest`, `RencanaAksiBuktiHttpTest`, `SasaranIndikatorTest`, `RenstraFeatureTest`, `JenisBerkasContohTest` — dan CI 9/9 pada exact HEAD `1fdb7e2` (Backend 2183 passed; Frontend 79 file/844 test). Tidak ada test tabel-driven tunggal; pemetaan ini yang menjadi bukti.
 
 #### Implementation Tasks
 
@@ -5551,35 +6047,41 @@ Perubahan per request (tanpa nomor baris kode):
 | Perubahan PK | `UpdatePerjanjianKinerjaRequest` | `alasan` opsional sebelum PK dipakai jadwal aktif; koreksi sesudahnya tetap wajib alasan (ISS-02.09) | Q43 §43.3 butir 3, §43.2 butir 3 |
 
 **A. Persistence / Data Model**
-- [ ] Tidak ada perubahan skema: `user_permission_granted.alasan` tetap `NOT NULL` dan `penanggung_jawab.alasan` sudah nullable; audit tetap menyimpan nilai lama/baru.
+- [x] Tidak ada perubahan skema: `user_permission_granted.alasan` tetap `NOT NULL` dan `penanggung_jawab.alasan` sudah nullable; audit tetap menyimpan nilai lama/baru.
 
 **B. Backend / Domain**
-- [ ] Terapkan perubahan pada tabel di atas; alasan opsional yang diisi tetap disanitasi helper canonical (`AuditReason`/`AlasanAudit`).
-- [ ] Pastikan aksi Q43 §43.2 (pengembalian dan buka-kembali; penghapusan; koreksi/revisi data sah; perubahan akses; justifikasi kegiatan, deviasi PK, dan target PK yang menyimpang dari target Renstra menurut arah indikator, Q65 §65.2) tetap menolak request tanpa alasan.
+- [x] Terapkan perubahan pada tabel di atas; alasan opsional yang diisi tetap disanitasi helper canonical (`AuditReason`/`AlasanAudit`).
+- [x] Pastikan aksi Q43 §43.2 (pengembalian dan buka-kembali; penghapusan; koreksi/revisi data sah; perubahan akses; justifikasi kegiatan, deviasi PK, dan target PK yang menyimpang dari target Renstra menurut arah indikator, Q65 §65.2) tetap menolak request tanpa alasan.
 
 **C. Authorization & Audit**
-- [ ] Otorisasi tidak berubah; audit tetap mencatat aktor, waktu, tindakan, nilai lama/baru, serta `dasar_izin` untuk permission sensitif (Q37 §37.2).
+- [x] Otorisasi tidak berubah; audit tetap mencatat aktor, waktu, tindakan, nilai lama/baru, serta `dasar_izin` untuk permission sensitif (Q37 §37.2).
 
 **D. Frontend / UX**
-- [ ] Ubah label isian menjadi "Alasan (opsional)" pada form terkait dan hapus field alasan dari form Penanggung Jawab; pola **Modal Alasan Audit** wajib hanya untuk aksi Q43 §43.2, kecuali alasan deviasi Rencana Aksi dan target PK yang diisi pada isian di form (Q65 §65.2 butir 12).
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
+- [x] Ubah label isian menjadi "Alasan (opsional)" pada form terkait dan hapus field alasan dari form Penanggung Jawab; pola **Modal Alasan Audit** wajib hanya untuk aksi Q43 §43.2, kecuali alasan deviasi Rencana Aksi dan target PK yang diisi pada isian di form (Q65 §65.2 butir 12).
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given Grant Unit diberikan tanpa alasan, When disimpan, Then tersimpan dengan alasan baku dari server; bila pengguna mengisi alasan, alasan itu yang disimpan. *(Q43 §43.3 butir 1)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given form penetapan atau pergantian Penanggung Jawab, Then field alasan tidak ditampilkan dan request tanpa alasan diterima. *(Q43 §43.3 butir 4)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, atau perubahan PK sebelum PK dipakai jadwal aktif dikirim tanpa alasan, Then diterima; UI menampilkan "Alasan (opsional)". *(Q43 §43.3 butir 3)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given aksi yang tercantum pada Q43 §43.2 dikirim tanpa alasan, Then tetap ditolak. *(Q43 §43.2)*
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given aksi apa pun, Then audit tetap mencatat aktor, waktu, tindakan, nilai lama dan baru, serta `dasar_izin` untuk permission sensitif. *(Q43 §43.1)*
+
+> **Status verifikasi TEST-4 (22 Oktober 2026):** bukti mengikuti pemetaan AC-4 di atas (test per endpoint §43.2 pada CI 9/9 exact HEAD `1fdb7e2`). Tidak ada test tabel-driven tunggal untuk seluruh request §43.2.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+
+> **Status verifikasi AC-2/TEST-2 (22 Oktober 2026, review B1):** pergantian PJ tanpa alasan diterima; dibuktikan `PenanggungJawabTest::test_replacement_without_reason_is_accepted_and_stale_backdate_is_audited` (histori `alasan` null, audit `penanggung_jawab.ganti` memakai `AppendAssignment::ALASAN_BAKU_GANTI`) dan Vitest `AuditReasonModal` (notice/error tetap tampil saat `hideReasonField`).
+
+> **Batas verifikasi PR:** AC-2/TEST-2 dibuktikan test pergantian PJ tanpa alasan dan Vitest modal; AC-4/TEST-4 dipetakan ke test per endpoint dan CI 9/9 pada `09c2329`. QA SSO/browser smoke dan UAT belum dilakukan; DoD design-system tetap terbuka sampai QA tersebut.
 
 ### ISS-13.06 · [Feature] Penghapusan Kebijakan Storage, Batas Teknis Unggahan di Konfigurasi, dan Penataan Menu Referensi
 

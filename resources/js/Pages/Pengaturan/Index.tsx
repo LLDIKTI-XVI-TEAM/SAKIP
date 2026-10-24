@@ -149,10 +149,6 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
     const handleConfirmSubmit = () => {
         const trimmedReason = auditReason.trim();
-        if (trimmedReason.length < 5) {
-            setAuditError('Harap berikan alasan pembaruan minimal 5 karakter untuk catatan audit.');
-            return;
-        }
 
         if (trimmedReason.length > 255) {
             setAuditError('Alasan pembaruan tidak boleh melebihi 255 karakter.');
@@ -702,10 +698,11 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
             <AuditReasonModal
                 open={isConfirmOpen}
                 title="Konfirmasi Perubahan Pengaturan"
-                description="Perubahan pengaturan sistem bersifat sensitif. Mohon masukkan justifikasi atau dasar perubahan untuk dicatat dalam audit trail."
+                description="Perubahan pengaturan sistem akan dicatat dalam audit trail. Alasan bersifat opsional."
                 reason={auditReason}
                 error={auditError || form.errors.alasan}
                 busy={form.processing}
+                reasonRequired={false}
                 confirmLabel="Konfirmasi & Simpan"
                 onReasonChange={(val) => {
                     setAuditReason(val);

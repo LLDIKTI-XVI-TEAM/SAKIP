@@ -20,6 +20,7 @@ interface PerjanjianKinerjaFormFieldsProps {
     isEdit?: boolean;
     disabled?: boolean;
     canUploadBerkas?: boolean;
+    alasanWajib?: boolean;
     setField: SetPkField;
 }
 
@@ -31,6 +32,7 @@ export function PerjanjianKinerjaFormFields({
     isEdit = false,
     disabled = false,
     canUploadBerkas = true,
+    alasanWajib = false,
     setField,
 }: PerjanjianKinerjaFormFieldsProps) {
 
@@ -153,14 +155,14 @@ export function PerjanjianKinerjaFormFields({
                     <div className="mt-5 border-t border-border pt-5">
                         <Textarea
                             name="alasan"
-                            label="Alasan Perubahan Data Perjanjian Kinerja"
+                            label={alasanWajib ? 'Alasan Perubahan Data Perjanjian Kinerja' : 'Alasan (opsional)'}
                             value={data.alasan ?? ''}
                             onChange={(event) => setField('alasan', event.target.value)}
                             error={errors.alasan}
                             placeholder="Jelaskan alasan pembaruan data atau lampiran PK…"
                             rows={3}
                             disabled={disabled}
-                            required
+                            required={alasanWajib}
                         />
                     </div>
                 )}

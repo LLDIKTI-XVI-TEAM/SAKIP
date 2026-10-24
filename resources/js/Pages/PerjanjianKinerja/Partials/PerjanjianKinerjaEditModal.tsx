@@ -18,6 +18,7 @@ interface PerjanjianKinerjaEditModalProps {
     isJadwalAktif?: boolean;
     isJadwalTerkunci?: boolean;
     jadwalStatus?: string | null;
+    alasanWajib?: boolean;
     storageSettings?: StorageSettings;
     canUploadBerkas?: boolean;
 }
@@ -29,6 +30,7 @@ export function PerjanjianKinerjaEditModal({
     isJadwalAktif = false,
     isJadwalTerkunci,
     jadwalStatus,
+    alasanWajib = false,
     storageSettings,
     canUploadBerkas = true,
 }: PerjanjianKinerjaEditModalProps) {
@@ -129,7 +131,7 @@ export function PerjanjianKinerjaEditModal({
                         form="edit-pk-modal-form"
                         variant="primary"
                         isLoading={processing}
-                        disabled={!data.alasan?.trim()}
+                        disabled={alasanWajib && !data.alasan?.trim()}
                     >
                         Perbarui Perjanjian Kinerja
                     </Button>
@@ -156,6 +158,7 @@ export function PerjanjianKinerjaEditModal({
                     storageSettings={storageSettings}
                     isEdit={true}
                     disabled={processing}
+                    alasanWajib={alasanWajib}
                     canUploadBerkas={canUploadBerkas}
                     setField={setField}
                 />

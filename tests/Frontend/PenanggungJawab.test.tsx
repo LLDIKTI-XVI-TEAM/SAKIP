@@ -11,7 +11,7 @@ vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()), Head: () => null,
     router: { reload: transport.reload, get: transport.get },
     usePage: () => ({ props: { pengaturan: transport.pengaturan, auth: { can: { sasaranIndikator: transport.bacaIndikator, grant: transport.grant } } } }),
-    useForm: (initial: { user_id: string; tanggal_mulai_berlaku: string; alasan: string; expected_state: string }) => {
+    useForm: (initial: { user_id: string; tanggal_mulai_berlaku: string; expected_state: string }) => {
         const [data, setData] = useState(initial);
         return { data, processing: false, errors: {}, clearErrors: vi.fn(),
             setData: (key: keyof typeof initial | typeof initial, value?: string) => setData((current) => typeof key === 'string' ? { ...current, [key]: value } : key),
@@ -21,8 +21,8 @@ vi.mock('@inertiajs/react', async (original) => ({
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 vi.mock('@/Components/Access/GrantUserAutocomplete', () => ({ GrantUserAutocomplete: ({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled: boolean }) =>
     <select aria-label="Penanggung jawab" value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}><option value="">Pilih</option><option value="user-b">Jordan QA</option></select> }));
-vi.mock('@/Components/AuditReasonModal', () => ({ AuditReasonModal: ({ open, reason, onReasonChange, onConfirm, notice, submitDisabled }: { open: boolean; reason: string; onReasonChange: (value: string) => void; onConfirm: () => void; notice: ReactNode; submitDisabled: boolean }) =>
-    open ? <div role="dialog">{notice}<label>Alasan perubahan<textarea value={reason} onChange={(event) => onReasonChange(event.target.value)} /></label><button onClick={onConfirm} disabled={submitDisabled}>Simpan pergantian</button></div> : null }));
+vi.mock('@/Components/AuditReasonModal', () => ({ AuditReasonModal: ({ open, hideReasonField, onConfirm, notice, submitDisabled }: { open: boolean; hideReasonField?: boolean; onConfirm: () => void; notice: ReactNode; submitDisabled: boolean }) =>
+    open ? <div role="dialog" data-hide-reason={String(Boolean(hideReasonField))}>{notice}<button onClick={onConfirm} disabled={submitDisabled}>Simpan pergantian</button></div> : null }));
 
 function page(component: string, props: Record<string, unknown>): Page {
     return { component, props: { errors: {}, ...props }, url: '/penanggung-jawab', version: null, rescuedProps: [], flash: {}, rememberedState: {} };
@@ -41,7 +41,6 @@ function draft() {
     fireEvent.change(screen.getByLabelText('Penanggung jawab'), { target: { value: 'user-b' } });
     fireEvent.change(screen.getByLabelText(/Tanggal mulai berlaku/), { target: { value: '2026-02-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lanjutkan pergantian' }));
-    fireEvent.change(screen.getByLabelText('Alasan perubahan'), { target: { value: 'Pergantian tanggung jawab' } });
     fireEvent.click(screen.getByRole('button', { name: 'Simpan pergantian' }));
 }
 describe('Form PJ mempertahankan draft dan tidak mengulang mutasi otomatis', () => {
@@ -50,7 +49,8 @@ describe('Form PJ mempertahankan draft dan tidak mengulang mutasi otomatis', () 
         const callbacks = transport.post.mock.calls[0][2] as VisitOptions;
         fireEvent.click(screen.getByRole('button', { name: 'Simpan pergantian' }));
         await import('@testing-library/react').then(({ act }) => act(() => { callbacks.onNetworkError?.(new Error('offline')); }));
-        expect((screen.getByLabelText('Alasan perubahan') as HTMLTextAreaElement).value).toBe('Pergantian tanggung jawab');
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        expect(screen.getByText(/Hasil penyimpanan belum diketahui/)).toBeTruthy();
         const beforeReload = transport.post.mock.calls.length;
         fireEvent.click(screen.getByRole('button', { name: 'Simpan pergantian' }));
         expect(transport.post).toHaveBeenCalledTimes(beforeReload);
@@ -59,14 +59,19 @@ describe('Form PJ mempertahankan draft dan tidak mengulang mutasi otomatis', () 
         await import('@testing-library/react').then(({ act }) => act(() => { reload.onSuccess?.(page('PenanggungJawab/Show', { expected_state: 'new-token' })); reload.onFinish?.({} as Parameters<NonNullable<VisitOptions['onFinish']>>[0]); }));
         expect(transport.post).toHaveBeenCalledTimes(beforeReload);
         fireEvent.click(screen.getByRole('button', { name: 'Simpan pergantian' }));
-        expect(transport.post.mock.calls.at(-1)?.[1]).toEqual({ user_id: 'user-b', tanggal_mulai_berlaku: '2026-02-01', alasan: 'Pergantian tanggung jawab', expected_state: 'new-token' });
+        // Q43 §43.3 butir 4: form PJ tidak mengirim alasan sama sekali.
+        expect(transport.post.mock.calls.at(-1)?.[1]).toEqual({ user_id: 'user-b', tanggal_mulai_berlaku: '2026-02-01', expected_state: 'new-token' });
+    });
+    it('modal konfirmasi PJ tidak menampilkan field alasan', () => {
+        draft();
+        expect(screen.getByRole('dialog').getAttribute('data-hide-reason')).toBe('true');
+        expect(screen.queryByLabelText(/Alasan/)).toBeNull();
     });
     it('redirect tanpa marker sukses tidak mengosongkan draft atau menutup modal', async () => {
         draft();
         const callbacks = transport.post.mock.calls[0][2] as VisitOptions;
         await import('@testing-library/react').then(({ act }) => act(() => { callbacks.onSuccess?.(page('Auth/Pending', {})); }));
         expect(screen.getByRole('dialog')).toBeTruthy();
-        expect((screen.getByLabelText('Alasan perubahan') as HTMLTextAreaElement).value).toBe('Pergantian tanggung jawab');
         expect(screen.getByText(/Penyimpanan belum terkonfirmasi/)).toBeTruthy();
     });
     it('konfirmasi sukses authoritative mengosongkan draft dan menutup modal', async () => {
@@ -103,6 +108,21 @@ describe('Tampilan histori PJ mengikuti preferensi tanpa mengubah tanggal API', 
     it.each([null, ''])('aman saat timestamp kosong: %s', (createdAt) => {
         render(<Show {...historyProps(createdAt)} />);
         expect(screen.getByText('Dicatat Tidak tersedia')).toBeTruthy();
+    });
+
+    it('memakai fallback netral saat alasan penugasan kosong, bukan label penetapan awal', () => {
+        const base = historyProps('2026-02-01T16:30:00Z');
+        const [latest] = base.history.data;
+        render(<Show {...base} effective={null} history={{ ...base.history, data: [{ ...latest, alasan: null }] }} />);
+        expect(screen.getByText('Tanpa alasan tambahan')).toBeTruthy();
+        expect(screen.queryByText(/Penetapan awal/)).toBeNull();
+    });
+
+    it('menampilkan alasan penugasan bila server mengirimkannya', () => {
+        const base = historyProps('2026-02-01T16:30:00Z');
+        const [latest] = base.history.data;
+        render(<Show {...base} effective={null} history={{ ...base.history, data: [{ ...latest, alasan: 'Pergantian resmi' }] }} />);
+        expect(screen.getByText('Pergantian resmi')).toBeTruthy();
     });
 
     it('menampilkan dua penugasan bertanggal sama sesuai urutan server', () => {

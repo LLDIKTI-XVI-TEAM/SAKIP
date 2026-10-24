@@ -6,6 +6,7 @@ use App\Actions\PerjanjianKinerja\CreatePerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\UpdatePerjanjianKinerja;
 use App\Jobs\CleanupStorageFileJob;
 use App\Models\AuditLog;
+use App\Models\JadwalTahunan;
 use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\Role;
@@ -63,7 +64,7 @@ class UpdatePerjanjianKinerjaTest extends TestCase
         $this->updateAction = app(UpdatePerjanjianKinerja::class);
     }
 
-    public function test_update_renstra_pk_requires_alasan_and_records_audit(): void
+    public function test_update_renstra_pk_alasan_opsional_sebelum_jadwal_dan_wajib_sesudahnya(): void
     {
         $pk = $this->createAction->handle([
             'renstra_id' => $this->renstra->id,
@@ -72,31 +73,39 @@ class UpdatePerjanjianKinerjaTest extends TestCase
             'tanggal_pk' => '2026-01-10',
         ], $this->actor);
 
-        $expectedUpdatedAt = $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString();
+        $expected = $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString();
 
-        // Update tanpa alasan harus melempar ValidationException
-        try {
-            $this->updateAction->handle($pk, [
-                'nomor_pk' => 'PK-REVISI',
-                'tanggal_pk' => '2026-01-20',
-                'expected_updated_at' => $expectedUpdatedAt,
-            ], '', $this->actor);
-            $this->fail('Harus melempar ValidationException jika alasan kosong.');
-        } catch (ValidationException $e) {
-            $this->assertArrayHasKey('alasan', $e->errors());
-        }
-
-        // Update dengan alasan berhasil
-        $updated = $this->updateAction->handle($pk, [
+        // Sebelum jadwal aktif: tanpa alasan diterima dan audit memakai alasan baku server (Q43 §43.3 butir 3).
+        $tanpaAlasan = $this->updateAction->handle($pk, [
             'nomor_pk' => 'PK-REVISI',
             'tanggal_pk' => '2026-01-20',
-            'expected_updated_at' => $expectedUpdatedAt,
+            'expected_updated_at' => $expected,
+        ], null, $this->actor);
+
+        $this->assertSame('PK-REVISI', $tanpaAlasan->nomor_pk);
+
+        $auditBaku = AuditLog::where('tindakan', 'renstra_pk.ubah')
+            ->where('objek_id', $pk->id)
+            ->latest('id')
+            ->firstOrFail();
+        $this->assertSame(UpdatePerjanjianKinerja::ALASAN_BAKU, $auditBaku->alasan);
+        $this->assertNotNull($auditBaku->dasar_izin);
+        $this->assertNotNull($auditBaku->nilai_lama);
+        $this->assertNotNull($auditBaku->nilai_baru);
+
+        // Dengan alasan: teks pengguna yang tercatat.
+        $pk = $tanpaAlasan->fresh();
+        $expected = $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString();
+
+        $updated = $this->updateAction->handle($pk, [
+            'nomor_pk' => 'PK-REVISI-2',
+            'tanggal_pk' => '2026-01-20',
+            'expected_updated_at' => $expected,
         ], 'Perubahan nomor PK sesuai SK terbaru', $this->actor);
 
-        $this->assertSame('PK-REVISI', $updated->nomor_pk);
+        $this->assertSame('PK-REVISI-2', $updated->nomor_pk);
         $this->assertSame('2026-01-20', $updated->tanggal_pk->toDateString());
 
-        // Audit log renstra_pk.ubah
         $this->assertDatabaseHas('audit_log', [
             'tindakan' => 'renstra_pk.ubah',
             'objek_tipe' => 'renstra_pk',
@@ -104,6 +113,31 @@ class UpdatePerjanjianKinerjaTest extends TestCase
             'actor_id' => $this->actor->id,
             'alasan' => 'Perubahan nomor PK sesuai SK terbaru',
         ]);
+
+        // Sesudah PK dipakai jadwal aktif: alasan wajib (Q43 §43.2 butir 3).
+        JadwalTahunan::create([
+            'renstra_id' => $this->renstra->id,
+            'tahun' => 2026,
+            'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31',
+            'status' => 'aktif',
+            'activated_at' => now(),
+        ]);
+
+        $pk = $updated->fresh();
+        $expected = $pk->updated_at?->toISOString() ?? $pk->created_at->toISOString();
+
+        try {
+            $this->updateAction->handle($pk, [
+                'nomor_pk' => 'PK-REVISI-3',
+                'expected_updated_at' => $expected,
+            ], '', $this->actor);
+            $this->fail('Alasan wajib dilempar setelah PK dipakai jadwal aktif.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('alasan', $e->errors());
+        }
+
+        $this->assertSame('PK-REVISI-2', $pk->fresh()->nomor_pk);
     }
 
     public function test_update_pk_rejected_when_actor_lacks_pk_update(): void

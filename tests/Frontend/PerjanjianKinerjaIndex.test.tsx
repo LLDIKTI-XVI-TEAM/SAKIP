@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Index from '@/Pages/PerjanjianKinerja/Index';
 import type { Paginated, RenstraPkSummary } from '@/types/perjanjian-kinerja';
@@ -186,5 +186,65 @@ describe('PerjanjianKinerja Index tanpa nomor PK', () => {
         expect(screen.getByRole('link', { name: 'Lihat detail PK 2026' })).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Edit PK 2026' })).toBeTruthy();
         expect(container.textContent).not.toContain('null');
+    });
+});
+
+describe('PerjanjianKinerja Index Edit Modal Alasan', () => {
+    const renderIndex = (item: RenstraPkSummary) => {
+        const paginated: Paginated<RenstraPkSummary> = {
+            data: [item],
+            current_page: 1,
+            last_page: 1,
+            from: 1,
+            to: 1,
+            total: 1,
+            links: [],
+        };
+
+        render(
+            <Index
+                perjanjianKinerja={paginated}
+                renstras={[item.renstra]}
+                filters={{}}
+                can={{ create: true, update: true }}
+            />
+        );
+    };
+
+    it('mewajibkan alasan pada modal edit saat PK sudah dipakai jadwal aktif', () => {
+        const pk = createPkItem({
+            id: 'pk-alasan-wajib',
+            nomor_pk: 'PK-WAJIB-001',
+            alasan_wajib: true,
+            jadwal_tahunan: {
+                id: 'jadwal-1',
+                status: 'aktif',
+                is_terkunci: true,
+                activated_at: '2026-01-01T00:00:00.000000Z',
+            },
+        });
+
+        renderIndex(pk);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit PK PK-WAJIB-001' }));
+
+        expect(screen.getByLabelText(/Alasan Perubahan Data Perjanjian Kinerja/)).toBeTruthy();
+        expect(screen.queryByLabelText('Alasan (opsional)')).toBeNull();
+        expect(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }).hasAttribute('disabled')).toBe(true);
+    });
+
+    it('menjaga alasan tetap opsional saat PK belum dipakai jadwal aktif', () => {
+        const pk = createPkItem({
+            id: 'pk-alasan-opsional',
+            nomor_pk: 'PK-OPSIONAL-001',
+            alasan_wajib: false,
+            jadwal_tahunan: null,
+        });
+
+        renderIndex(pk);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit PK PK-OPSIONAL-001' }));
+
+        expect(screen.getByLabelText('Alasan (opsional)')).toBeTruthy();
+        expect(screen.queryByLabelText('Alasan Perubahan Data Perjanjian Kinerja')).toBeNull();
+        expect(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }).hasAttribute('disabled')).toBe(false);
     });
 });

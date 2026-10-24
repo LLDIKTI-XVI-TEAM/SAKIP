@@ -2,6 +2,7 @@
 
 namespace App\Actions\PerjanjianKinerja;
 
+use App\Models\JadwalTahunan;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -17,6 +18,9 @@ use Throwable;
 
 class UpdatePerjanjianKinerja
 {
+    /** Alasan baku bila pengguna mengosongkan alasan sebelum PK dipakai jadwal aktif (Q43 §43.3 butir 3). */
+    public const ALASAN_BAKU = 'Perubahan Perjanjian Kinerja sebelum dipakai jadwal aktif.';
+
     public function __construct(
         protected AuditLogger $auditLogger,
         protected PermissionResolver $permissionResolver,
@@ -27,20 +31,16 @@ class UpdatePerjanjianKinerja
      * Menjalankan use-case pembaruan metadata dan lampiran Perjanjian Kinerja secara teraudit.
      *
      * Catatan Arsitektural Batas Lingkup:
-     * Aksi ini hanya menangani pemeliharaan metadata PK dan lampiran. Aksi ini memerlukan izin pk:update,
-     * alasan wajib, serta merekam jejak audit (renstra_pk.ubah). Koreksi snapshot historis dan pengesahan
+     * Aksi ini hanya menangani pemeliharaan metadata PK dan lampiran. Aksi ini memerlukan izin pk:update
+     * dan merekam jejak audit (renstra_pk.ubah). Alasan opsional sebelum PK dipakai jadwal aktif dan wajib
+     * sesudahnya (Q43 §43.2 butir 3, §43.3 butir 3). Koreksi snapshot historis dan pengesahan
      * ulang ditangani use-case terpisah.
      *
      * @param  array<string, mixed>  $data
      */
-    public function handle(RenstraPk $pk, array $data, string $alasan, User $actor): RenstraPk
+    public function handle(RenstraPk $pk, array $data, ?string $alasan, User $actor): RenstraPk
     {
         $alasan = PerjanjianKinerjaSupport::sanitizeAlasan($alasan);
-        if ($alasan === '') {
-            throw ValidationException::withMessages([
-                'alasan' => 'Alasan perubahan Perjanjian Kinerja wajib diisi.',
-            ]);
-        }
 
         if (! array_key_exists('expected_updated_at', $data) || $data['expected_updated_at'] === null || trim((string) $data['expected_updated_at']) === '') {
             throw ValidationException::withMessages([
@@ -148,6 +148,23 @@ class UpdatePerjanjianKinerja
                     ]);
                 }
 
+                // Kunci jadwal terkait agar keputusan wajib/tidaknya alasan stabil sampai audit ditulis.
+                $jadwalTerkait = JadwalTahunan::query()
+                    ->terkaitPk($pkLocked)
+                    ->mengunciPk()
+                    ->lockForUpdate()
+                    ->get();
+
+                $wajibAlasan = $jadwalTerkait->isNotEmpty();
+
+                if ($wajibAlasan && $alasan === '') {
+                    throw ValidationException::withMessages([
+                        'alasan' => 'Alasan perubahan Perjanjian Kinerja wajib diisi karena PK sudah dipakai jadwal aktif.',
+                    ]);
+                }
+
+                $alasanAudit = $alasan !== '' ? $alasan : self::ALASAN_BAKU;
+
                 $pkLocked->load(['berkas']);
                 $nilaiLama = $this->attachmentService->snapshot($pkLocked);
 
@@ -173,7 +190,7 @@ class UpdatePerjanjianKinerja
                     objekId: $pkLocked->id,
                     nilaiLama: $nilaiLama,
                     nilaiBaru: $nilaiBaru,
-                    alasan: $alasan,
+                    alasan: $alasanAudit,
                     dasarIzin: $decision->toAuditBasis(),
                 );
 

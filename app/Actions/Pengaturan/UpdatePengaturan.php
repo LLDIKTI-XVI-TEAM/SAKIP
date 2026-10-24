@@ -21,6 +21,9 @@ use Illuminate\Validation\ValidationException;
 
 class UpdatePengaturan
 {
+    /** Alasan baku bila pengguna mengosongkan alasan (Q43 §43.3 butir 3). */
+    public const ALASAN_BAKU = 'Perubahan pengaturan tanpa alasan tambahan.';
+
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly PermissionResolver $permissionResolver,
@@ -38,10 +41,8 @@ class UpdatePengaturan
     public function handle(User $actor, array $data, string $alasan, array $expectedUpdatedAt = []): int
     {
         $auditReason = trim($alasan);
-        if (mb_strlen($auditReason) < 5) {
-            throw ValidationException::withMessages([
-                'alasan' => 'Alasan pembaruan pengaturan minimal 5 karakter untuk catatan audit.',
-            ]);
+        if ($auditReason === '') {
+            $auditReason = self::ALASAN_BAKU;
         }
 
         $disallowed = array_diff(array_keys($data), array_keys(PengaturanService::WHITELIST));
