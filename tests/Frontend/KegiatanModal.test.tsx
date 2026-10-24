@@ -24,9 +24,11 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const a = { id: 'unit-a', nama: 'Unit A' };
 const b = { id: 'unit-b', nama: 'Unit B' };
 const period = { id: 'p1', nama: 'Triwulan I' };
-const item = { id: 'k1', unit_id: a.id, periode_id: period.id, nama: 'Kegiatan audit', tujuan: 'Sintetis', tahun: 2026, status: 'rencana', tanggal_rencana: null, unit: a, periode: period, can: { update: true }, version_token: 'v1' };
+const item = { id: 'k1', unit_id: a.id, periode_id: period.id, nama: 'Kegiatan audit', tujuan: 'Sintetis', tahun: 2026, status: 'rencana', tanggal_rencana: null, unit: a, periode: period, can: { update: true, ubah_rencana: true, ubah_status: [] }, opsi_periode_tujuan: [], version_token: 'v1' };
 const rencana = { id: 'k1', unit_id: a.id, tahun: 2026, periode_id: period.id, nama: 'Kegiatan audit', tujuan: null, sasaran_peserta: null,
-    keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: '0', status: 'rencana', version_token: 'v1' };
+    keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: '0', status: 'rencana', version_token: 'v1',
+    justifikasi: null, periode_nama: period.nama, periode_tujuan: null };
+const formCan = { opsiPeriodeTujuan: [], can: { ubah_rencana: true, ubah_status: [] } };
 const indexProps = { kegiatan: { data: [item], links: [], from: 1, to: 1, total: 1 }, filters: { tahun: '2026', unit_id: '', periode_id: '', status: '' }, unitOptions: [a, b], periodeOptions: [period], creatableUnitOptions: [a], activePeriodeOptions: [period], tahunDefault: 2026, can: { create: true } };
 
 it('mempertahankan draft dan error ketika opsi server berubah setelah validasi', async () => {
@@ -42,7 +44,8 @@ it('mempertahankan draft dan error ketika opsi server berubah setelah validasi',
 
 it('aksi ubah menautkan ke halaman ubah kegiatan beserta klaim RA, bukan tombol modal', () => {
     render(<Index {...indexProps} />);
-    expect(screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Kegiatan audit' }).getAttribute('href')).toBe('/kegiatan/k1/edit');
+    fireEvent.click(screen.getByRole('button', { name: 'Aksi kegiatan Kegiatan audit' }));
+    expect(screen.getByRole('menuitem', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Kegiatan audit' }).getAttribute('href')).toBe('/kegiatan/k1/edit');
     expect(screen.queryByRole('button', { name: /Edit kegiatan/ })).toBeNull();
 });
 
@@ -101,7 +104,7 @@ it.each([401, 403, 419, 500])('menahan dismissal dan menyediakan recovery ekspli
 
 it.each(['page', 'modal'])('tidak membuka replay %s setelah request dibatalkan tanpa konfirmasi', async (mode) => {
     const props = { tahunDefault: 2026, unitOptions: [a], periodeOptions: [period] };
-    render(mode === 'page' ? <Form {...props} kegiatan={rencana} /> : <KegiatanModal {...props} isOpen onClose={vi.fn()} />);
+    render(mode === 'page' ? <Form {...props} {...formCan} kegiatan={rencana} /> : <KegiatanModal {...props} isOpen onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Draft pembatalan' } });
     const form = screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!;
     fireEvent.submit(form);
@@ -121,7 +124,7 @@ it('menerima nama hingga 500 karakter dan tujuan opsional, termasuk saat mengedi
     expect(screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/).required).toBe(false);
     cleanup();
 
-    render(<Form kegiatan={rencana} unitOptions={[a]} periodeOptions={[period]} />);
+    render(<Form {...formCan} kegiatan={rencana} unitOptions={[a]} periodeOptions={[period]} />);
     expect(screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/).value).toBe('');
     expect(screen.getByRole('link', { name: 'Kembali ke daftar' }).getAttribute('href')).toBe('/kegiatan');
 });

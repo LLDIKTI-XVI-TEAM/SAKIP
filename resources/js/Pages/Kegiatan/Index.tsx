@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, Pencil, Plus, Search } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { CalendarDays, FileText, MoreHorizontal, Pencil, Plus, Search } from 'lucide-react';
+import { ActionMenu, type ActionMenuItem } from '@/Components/ActionMenu';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -15,9 +16,22 @@ import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import {
     statusKegiatan,
     statusKegiatanConfig,
+    type KegiatanIndexItem,
     type KegiatanIndexProps,
+    type StatusTujuan,
 } from '@/types/kegiatan';
 import { KegiatanModal } from './Partials/KegiatanModal';
+import { StatusKegiatanModal, aksiStatusKegiatan } from './Partials/StatusKegiatanModal';
+
+/** Item menu baris murni dari capability server; tanpa item, menu tidak dirender. */
+function aksiBaris(item: KegiatanIndexItem, pilih: (status: StatusTujuan) => void): ActionMenuItem[] {
+    const href = `/kegiatan/${item.id}/edit`;
+    const buka: ActionMenuItem[] = item.can.ubah_rencana
+        ? [{ key: 'ubah', label: 'Ubah', icon: Pencil, ariaLabel: `Ubah rencana kegiatan dan klaim rencana aksi ${item.nama}`, href }]
+        : item.can.update ? [{ key: 'buka', label: 'Buka', icon: FileText, ariaLabel: `Buka kegiatan ${item.nama}`, href }] : [];
+
+    return [...buka, ...item.can.ubah_status.map((status) => ({ key: status, ...aksiStatusKegiatan[status], onSelect: () => pilih(status) }))];
+}
 
 export default function Index({
     kegiatan = { data: [], links: [], from: null, to: null, total: 0 },
@@ -36,6 +50,9 @@ export default function Index({
         setSearch({ tahun: tahun || String(tahunDefault), unit_id, periode_id, status });
     }, [tahun, unit_id, periode_id, status, tahunDefault]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [pilihan, setPilihan] = useState<{ baris: KegiatanIndexItem; status: StatusTujuan } | null>(null);
+    // Tujuan fokus bila baris keluar dari hasil filter setelah status berubah.
+    const daftarRef = useRef<HTMLElement>(null);
     const formatTanggal = useFormatTanggal();
 
     const hasActiveFilters = Boolean(
@@ -138,91 +155,91 @@ export default function Index({
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <Table>
-                        <TableCaption className="sr-only">Daftar kegiatan</TableCaption>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Kegiatan</TableHead>
-                                <TableHead className="w-1/4 min-w-[220px]">Unit</TableHead>
-                                <TableHead className="w-28 whitespace-nowrap">Tahun / Periode</TableHead>
-                                <TableHead className="w-32 whitespace-nowrap">Tanggal rencana</TableHead>
-                                <TableHead className="w-28 whitespace-nowrap">Status</TableHead>
-                                <TableHead className="w-16 whitespace-nowrap text-right">Aksi</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {kegiatan.data.length === 0 ? (
+                <section ref={daftarRef} aria-label="Daftar kegiatan" tabIndex={-1} className="focus:outline-none">
+                    <Card>
+                        <Table>
+                            <TableCaption className="sr-only">Daftar kegiatan</TableCaption>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={6} className="px-5 py-12 text-center text-muted">
-                                        <CalendarDays className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                        <p className="mt-2 text-sm font-semibold text-ink">
-                                            Tidak ada data kegiatan
-                                        </p>
-                                        <p className="mt-1 text-xs text-muted">
-                                            {hasActiveFilters
-                                                ? 'Coba sesuaikan atau bersihkan kata kunci filter pencarian Anda.'
-                                                : 'Belum ada rencana kegiatan pada unit yang dapat Anda akses.'}
-                                        </p>
-                                    </TableCell>
+                                    <TableHead>Kegiatan</TableHead>
+                                    <TableHead className="w-1/4 min-w-[220px]">Unit</TableHead>
+                                    <TableHead className="w-28 whitespace-nowrap">Tahun / Periode</TableHead>
+                                    <TableHead className="w-32 whitespace-nowrap">Tanggal rencana</TableHead>
+                                    <TableHead className="w-28 whitespace-nowrap">Status</TableHead>
+                                    <TableHead className="w-16 whitespace-nowrap text-right">Aksi</TableHead>
                                 </TableRow>
-                            ) : (
-                                kegiatan.data.map((item) => {
-                                    const statusConfig = statusKegiatanConfig[item.status] ?? {
-                                        label: item.status,
-                                        variant: 'muted' as const,
-                                    };
+                            </TableHeader>
+                            <TableBody>
+                                {kegiatan.data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="px-5 py-12 text-center text-muted">
+                                            <CalendarDays className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                                            <p className="mt-2 text-sm font-semibold text-ink">
+                                                Tidak ada data kegiatan
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted">
+                                                {hasActiveFilters
+                                                    ? 'Coba sesuaikan atau bersihkan kata kunci filter pencarian Anda.'
+                                                    : 'Belum ada rencana kegiatan pada unit yang dapat Anda akses.'}
+                                            </p>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    kegiatan.data.map((item) => {
+                                        const statusConfig = statusKegiatanConfig[item.status] ?? {
+                                            label: item.status,
+                                            variant: 'muted' as const,
+                                        };
+                                        const aksi = aksiBaris(item, (status) => setPilihan({ baris: item, status }));
 
-                                    return (
-                                        <TableRow key={item.id}>
-                                            <TableCell className="max-w-md">
-                                                <span className="text-sm font-semibold text-ink">{item.nama}</span>
-                                                {item.tujuan && <p className="mt-1 line-clamp-2 text-xs text-muted" title={item.tujuan}>{item.tujuan}</p>}
-                                            </TableCell>
-                                            <TableCell className="w-1/4 min-w-[220px] text-xs font-medium text-ink">
-                                                <HoverScrollText showTooltip={false} duration="0.8s">{item.unit?.nama ?? '-'}</HoverScrollText>
-                                            </TableCell>
-                                            <TableCell className="w-28 whitespace-nowrap">
-                                                <span className="font-mono text-xs font-semibold text-ink">{item.tahun}</span>
-                                                <p className="text-xs text-muted">{item.periode.nama}</p>
-                                            </TableCell>
-                                            <TableCell className="w-32 whitespace-nowrap text-xs text-muted">
-                                                {item.tanggal_rencana ? (
-                                                    <Tooltip content={`Tanggal rencana: ${formatTanggal(item.tanggal_rencana)}`}>
-                                                        <span>{formatTanggal(item.tanggal_rencana)}</span>
-                                                    </Tooltip>
-                                                ) : (
-                                                    <span>-</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="w-28 whitespace-nowrap">
-                                                <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-                                            </TableCell>
-                                            <TableCell className="w-16 whitespace-nowrap text-right">
-                                                {item.can?.update && (
-                                                    <Tooltip content="Edit Kegiatan & Klaim RA" align="right" position="top">
-                                                        <Link
-                                                            href={`/kegiatan/${item.id}/edit`}
-                                                            aria-label={`Ubah rencana kegiatan dan klaim rencana aksi ${item.nama}`}
-                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted transition-all duration-150 hover:bg-soft hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
-                                                        >
-                                                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                                                        </Link>
-                                                    </Tooltip>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })
-                            )}
-                        </TableBody>
-                    </Table>
-                    <Pagination
-                        {...kegiatan}
-                        ariaLabel="Halaman kegiatan"
-                        className="border-t border-border px-5 py-3.5"
-                    />
-                </Card>
+                                        return (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="max-w-md">
+                                                    <span className="text-sm font-semibold text-ink">{item.nama}</span>
+                                                    {item.tujuan && <p className="mt-1 line-clamp-2 text-xs text-muted" title={item.tujuan}>{item.tujuan}</p>}
+                                                </TableCell>
+                                                <TableCell className="w-1/4 min-w-[220px] text-xs font-medium text-ink">
+                                                    <HoverScrollText showTooltip={false} duration="0.8s">{item.unit?.nama ?? '-'}</HoverScrollText>
+                                                </TableCell>
+                                                <TableCell className="w-28 whitespace-nowrap">
+                                                    <span className="font-mono text-xs font-semibold text-ink">{item.tahun}</span>
+                                                    <p className="text-xs text-muted">{item.periode.nama}</p>
+                                                </TableCell>
+                                                <TableCell className="w-32 whitespace-nowrap text-xs text-muted">
+                                                    {item.tanggal_rencana ? (
+                                                        <Tooltip content={`Tanggal rencana: ${formatTanggal(item.tanggal_rencana)}`}>
+                                                            <span>{formatTanggal(item.tanggal_rencana)}</span>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <span>-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="w-28 whitespace-nowrap">
+                                                    <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+                                                </TableCell>
+                                                <TableCell className="w-16 whitespace-nowrap text-right">
+                                                    {aksi.length > 0 && (
+                                                        <ActionMenu
+                                                            items={aksi}
+                                                            trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
+                                                            triggerLabel={`Aksi kegiatan ${item.nama}`}
+                                                            triggerClassName="h-8 w-8 px-0"
+                                                        />
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
+                        <Pagination
+                            {...kegiatan}
+                            ariaLabel="Halaman kegiatan"
+                            className="border-t border-border px-5 py-3.5"
+                        />
+                    </Card>
+                </section>
             </div>
 
             <KegiatanModal
@@ -232,6 +249,17 @@ export default function Index({
                 periodeOptions={activePeriodeOptions}
                 tahunDefault={tahunDefault}
             />
+
+            {pilihan && (
+                <StatusKegiatanModal
+                    key={`${pilihan.baris.id}:${pilihan.status}`}
+                    kegiatan={{ ...pilihan.baris, periode: pilihan.baris.periode.nama }}
+                    status={pilihan.status}
+                    opsiPeriodeTujuan={pilihan.baris.opsi_periode_tujuan}
+                    fokusCadangan={daftarRef}
+                    onClose={() => setPilihan(null)}
+                />
+            )}
         </AuthenticatedLayout>
     );
 }

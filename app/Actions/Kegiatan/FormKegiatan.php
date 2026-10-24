@@ -8,6 +8,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Kegiatan\GerbangBerkasKegiatan;
 use App\Support\PermissionDecision;
 
 class FormKegiatan
@@ -31,11 +32,25 @@ class FormKegiatan
         $decisions = $this->resolver->decideManyForUnits($actor, ['kegiatan:update', 'kegiatan:read'], $units->pluck('id')->all());
         // Q54 §54.3: unit tujuan pemindahan juga harus terbaca agar hasil simpan tetap terlihat.
         $unitOptions = $units->filter(fn (Unit $unit) => $decisions[$unit->id]['kegiatan:update']['allowed'] && $decisions[$unit->id]['kegiatan:read']['allowed'])->values();
+        $periodeAktif = Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama', 'urutan']);
+        // Aturan sama dengan DaftarKegiatan: aksi status tidak ditawarkan untuk tahun yang pasti ditolak.
+        $tahunDitutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
+        $pilihan = $kegiatan->loadMissing('periode:id,nama,urutan')->pilihanStatus($periodeAktif);
+        $ubahStatus = $tahunDitutup ? [] : $pilihan['status'];
 
         return [
-            'kegiatan' => $kegiatan->rencanaAttributes() + ['version_token' => $kegiatan->versionToken()],
+            'kegiatan' => $kegiatan->rencanaAttributes() + [
+                'version_token' => $kegiatan->versionToken(),
+                'justifikasi' => $kegiatan->justifikasi,
+                'periode_nama' => $kegiatan->periode->nama,
+                // Nama periode kegiatan lanjutan, bila kegiatan ini sudah ditunda.
+                'periode_tujuan' => Kegiatan::where('kegiatan_asal_id', $kegiatan->id)->with('periode:id,nama')->first()?->periode?->nama,
+            ],
             'unitOptions' => $unitOptions->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
-            'periodeOptions' => Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama'])->toArray(),
+            'periodeOptions' => $periodeAktif->map(fn (Periode $periode) => $periode->only(['id', 'nama']))->all(),
+            'opsiPeriodeTujuan' => in_array('ditunda', $ubahStatus, true) ? $pilihan['periode_tujuan'] : [],
+            // Data rencana baca-saja setelah status berubah (Q69 §69.3).
+            'can' => ['ubah_rencana' => $kegiatan->status === 'rencana', 'ubah_status' => $ubahStatus],
         ];
     }
 

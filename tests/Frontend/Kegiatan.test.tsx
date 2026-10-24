@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { router } from '@inertiajs/react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Form from '@/Pages/Kegiatan/Form';
 import Index from '@/Pages/Kegiatan/Index';
-import type { KegiatanIndexProps } from '@/types/kegiatan';
+import type { KegiatanFormProps, KegiatanIndexItem, KegiatanIndexProps, StatusTujuan } from '@/types/kegiatan';
 
 let mockPengaturan: Record<string, string> = {};
 
@@ -19,15 +19,29 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
 
 const unitOptions = [{ id: 'unit-a', nama: 'Unit A' }];
 const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV' }];
-const rencana = { id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: '', tujuan: null, sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: null, status: 'rencana', version_token: 'v1' };
-const props = { kegiatan: rencana, unitOptions, periodeOptions };
+const rencana = { id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: '', tujuan: null, sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: null, status: 'rencana', version_token: 'v1', justifikasi: null, periode_nama: 'Triwulan IV', periode_tujuan: null };
+const props: KegiatanFormProps = { kegiatan: rencana, unitOptions, periodeOptions, opsiPeriodeTujuan: [], can: { ubah_rencana: true, ubah_status: [] } };
+const tigaStatus: StatusTujuan[] = ['ditunda', 'tidak_terlaksana', 'batal'];
+const opsiPeriodeTujuan = [{ id: 'periode-tambahan', nama: 'Periode Tambahan' }];
+const formRencana: KegiatanFormProps = { ...props, opsiPeriodeTujuan, can: { ubah_rencana: true, ubah_status: tigaStatus } };
 
-beforeEach(() => { mockPengaturan = {}; vi.spyOn(router, 'post').mockImplementation(() => undefined); });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+beforeEach(() => {
+    mockPengaturan = {};
+    vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    vi.stubGlobal('requestAnimationFrame', (callback: () => void) => { callback(); return 0; });
+});
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+const klik = (nama: string) => fireEvent.click(screen.getByRole('button', { name: nama }));
+const isiJustifikasi = (teks: string) => fireEvent.change(screen.getByLabelText(/Justifikasi/), { target: { value: teks } });
+const sukses = async () => {
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => { await options?.onSuccess?.({ props: { errors: {} } } as never); });
+};
 
 it('mengirim field rencana beserta anggaran rupiah melalui submit keyboard tanpa status', () => {
     render(<Form {...props} />);
-    expect(screen.queryByLabelText(/^status/i)).toBeNull();
+    expect(within(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!).queryByLabelText(/^status/i)).toBeNull();
     fireEvent.change(screen.getByLabelText(/Anggaran/), { target: { value: '5000000' } });
     expect(screen.getByText(/Rp\s5\.000\.000/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Fasilitasi unit' } });
@@ -53,7 +67,7 @@ it('menampilkan error server yang terhubung ke field dan mempertahankan koreksi 
 
 it('tidak menawarkan edit atau hapus ketika server tidak memberi capability', () => {
     render(<Index
-        kegiatan={{ data: [{ id: 'kegiatan-1', nama: 'Kegiatan pembaca', tujuan: 'Layanan unit', unit: { id: 'unit-a', nama: 'Unit A' }, periode: { id: 'periode-4', nama: 'Triwulan IV' }, tahun: 2026, status: 'rencana', tanggal_rencana: null, can: { update: false } }], links: [], from: 1, to: 1, total: 1 }}
+        kegiatan={{ data: [{ id: 'kegiatan-1', nama: 'Kegiatan pembaca', tujuan: 'Layanan unit', unit: { id: 'unit-a', nama: 'Unit A' }, periode: { id: 'periode-4', nama: 'Triwulan IV' }, tahun: 2026, status: 'rencana', tanggal_rencana: null, version_token: 'v1', can: { update: false, ubah_rencana: false, ubah_status: [] }, opsi_periode_tujuan: [] }], links: [], from: 1, to: 1, total: 1 }}
         filters={{ tahun: '', periode_id: '', unit_id: '', status: '' }} unitOptions={unitOptions} periodeOptions={periodeOptions} can={{ create: false }}
     />);
     expect(screen.getByText('Kegiatan pembaca')).toBeTruthy();
@@ -90,11 +104,10 @@ it('menghubungkan error unit dan periode ke pesan terlihat tanpa duplikasi', asy
     }
 });
 
+const baris: KegiatanIndexItem = { id: 'kegiatan-1', unit_id: 'unit-a', periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, keterangan_peserta: null, lokasi: null, unit: unitOptions[0], periode: periodeOptions[0], tahun: 2026, status: 'rencana', tanggal_rencana: '2026-10-11', version_token: 'token-1', can: { update: true, ubah_rencana: true, ubah_status: tigaStatus }, opsi_periode_tujuan: opsiPeriodeTujuan };
+const daftar = (data: KegiatanIndexItem[]) => ({ data, links: [], from: data.length ? 1 : null, to: data.length || null, total: data.length });
 const indexProps: KegiatanIndexProps = {
-    kegiatan: {
-        data: [{ id: 'kegiatan-1', unit_id: 'unit-a', periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: 'Meningkatkan layanan', sasaran_peserta: null, keterangan_peserta: null, lokasi: null, unit: unitOptions[0], periode: periodeOptions[0], tahun: 2026, status: 'rencana', tanggal_rencana: '2026-10-11', version_token: 'token-1', can: { update: true } }],
-        links: [], from: 1, to: 1, total: 1,
-    },
+    kegiatan: daftar([baris]),
     filters: { tahun: '', periode_id: '', unit_id: '', status: '' },
     unitOptions, periodeOptions, can: { create: true },
 };
@@ -116,7 +129,9 @@ it('menyediakan buat lewat modal pop-up dan ubah lewat halaman ubah sesuai capab
 
     fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
 
-    expect(screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Fasilitasi unit' }).getAttribute('href')).toBe('/kegiatan/kegiatan-1/edit');
+    klik('Aksi kegiatan Fasilitasi unit');
+    expect(screen.getByRole('menuitem', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Fasilitasi unit' }).getAttribute('href')).toBe('/kegiatan/kegiatan-1/edit');
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Ubah', 'Tunda', 'Tidak terlaksana', 'Batalkan']);
 });
 it('menginisialisasi filter tahun dengan nilai default serta menyediakan placeholder', () => {
     const getSpy = vi.spyOn(router, 'get').mockImplementation(() => undefined);
@@ -142,15 +157,136 @@ it('menjelaskan daftar kosong mengikuti unit yang dapat diakses', () => {
     expect(screen.getByText('Belum ada rencana kegiatan pada unit yang dapat Anda akses.')).toBeTruthy();
 });
 
-it('menempatkan tooltip aksi ubah di atas dan menonaktifkan tooltip bawaan unit dengan durasi dipercepat', () => {
+it('menonaktifkan tooltip bawaan unit dengan durasi dipercepat', () => {
     render(<Index {...indexProps} />);
-    const linkUbah = screen.getByRole('link', { name: 'Ubah rencana kegiatan dan klaim rencana aksi Fasilitasi unit' });
-    const tooltip = linkUbah.closest('.relative')?.querySelector('[role="tooltip"]');
-    expect(tooltip?.className).toContain('bottom-full');
-    expect(tooltip?.textContent).toContain('Edit Kegiatan & Klaim RA');
-
     const unitCell = screen.getByRole('cell', { name: 'Unit A' });
     const scrollContainer = unitCell.querySelector('.hover-scroll-text');
     expect(scrollContainer?.getAttribute('title')).toBeNull();
     expect(scrollContainer?.getAttribute('style')).toContain('--hover-scroll-duration: 0.8s');
+});
+
+it('menu baris final hanya berisi Buka', () => {
+    render(<Index {...indexProps} kegiatan={daftar([{ ...baris, status: 'batal', can: { update: true, ubah_rencana: false, ubah_status: [] }, opsi_periode_tujuan: [] }])} />);
+    klik('Aksi kegiatan Fasilitasi unit');
+    expect(screen.getByRole('menuitem', { name: 'Buka kegiatan Fasilitasi unit' }).getAttribute('href')).toBe('/kegiatan/kegiatan-1/edit');
+    expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+});
+
+it('tanpa capability tidak merender menu', () => {
+    render(<Index {...indexProps} kegiatan={daftar([{ ...baris, can: { update: false, ubah_rencana: false, ubah_status: [] }, opsi_periode_tujuan: [] }])} />);
+    expect(screen.queryByRole('button', { name: /^Aksi kegiatan/ })).toBeNull();
+});
+
+it('tidak membawa isian antarbaris dan mengirim ke kegiatan yang dipilih', () => {
+    render(<Index {...indexProps} kegiatan={daftar([baris, { ...baris, id: 'kegiatan-2', nama: 'Rapat evaluasi', version_token: 'token-2' }])} />);
+    klik('Aksi kegiatan Fasilitasi unit');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Tunda' }));
+    isiJustifikasi('Draf baris A');
+    klik('Tutup');
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    klik('Aksi kegiatan Rapat evaluasi');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Batalkan' }));
+    expect(screen.getByLabelText<HTMLTextAreaElement>(/Justifikasi/).value).toBe('');
+    isiJustifikasi('Alasan baris B');
+    klik('Lanjutkan');
+    klik('Ya, batalkan');
+    const [url, data] = vi.mocked(router.post).mock.calls[0];
+    expect(url).toBe('/kegiatan/kegiatan-2/status');
+    expect(data).toMatchObject({ status: 'batal', justifikasi: 'Alasan baris B', expected_state: 'token-2' });
+});
+
+it('aksi kedua setelah sukses memakai status dan token baru', async () => {
+    const { rerender } = render(<Form {...formRencana} />);
+    screen.getByRole('button', { name: 'Tidak terlaksana' }).focus();
+    klik('Tidak terlaksana');
+    expect(screen.getByRole('dialog', { name: 'Tandai tidak terlaksana' })).toBeTruthy();
+    isiJustifikasi('Anggaran diblokir.');
+    klik('Simpan');
+
+    // Urutan Inertia: props halaman diganti sebelum onSuccess dipanggil.
+    rerender(<Form {...formRencana} kegiatan={{ ...rencana, status: 'tidak_terlaksana', justifikasi: 'Anggaran diblokir.', version_token: 'v2' }} can={{ ubah_rencana: false, ubah_status: ['ditunda', 'batal'] }} />);
+    await sukses();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByText('Status pelaksanaan'));
+
+    klik('Batalkan');
+    expect(screen.getByLabelText<HTMLTextAreaElement>(/Justifikasi/).value).toBe('');
+    isiJustifikasi('Anggaran dialihkan.');
+    klik('Lanjutkan');
+    klik('Ya, batalkan');
+    expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ status: 'batal', justifikasi: 'Anggaran dialihkan.', expected_state: 'v2' });
+});
+
+it('form terkunci menampilkan nilai server, bukan draf', async () => {
+    const awal = { ...rencana, nama: 'Rencana awal', anggaran: '5000000' };
+    const { rerender } = render(<Form {...props} kegiatan={awal} />);
+    fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Draf belum disimpan' } });
+    fireEvent.change(screen.getByLabelText(/Anggaran/), { target: { value: '7500000' } });
+    fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
+    await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onNetworkError?.({} as never); });
+    expect(screen.getByText(/Koneksi terputus/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Muat ulang form' })).toBeTruthy();
+
+    rerender(<Form {...props} kegiatan={{ ...awal, status: 'tidak_terlaksana', version_token: 'v2' }} can={{ ubah_rencana: false, ubah_status: ['ditunda', 'batal'] }} />);
+    const nama = screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/);
+    expect(nama.value).toBe('Rencana awal');
+    expect(nama.matches(':disabled')).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>(/Anggaran/).value).toBe('5000000');
+    expect(screen.getByText(/5\.000\.000/)).toBeTruthy();
+    expect(screen.queryByText(/7\.500\.000/)).toBeNull();
+    expect(screen.queryByText(/Koneksi terputus/)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Muat ulang form' })).toBeNull();
+});
+
+it.each([true, false])('fokus pindah ke judul kartu status setelah transisi final (pemicu difokus: %s)', async (difokus) => {
+    const { rerender } = render(<Form {...formRencana} />);
+    const batalkan = screen.getByRole('button', { name: 'Batalkan' });
+    if (difokus) batalkan.focus();
+    else expect(document.activeElement).toBe(document.body);
+    fireEvent.click(batalkan);
+    isiJustifikasi('Kebijakan berubah.');
+    klik('Lanjutkan');
+    klik('Ya, batalkan');
+
+    rerender(<Form {...formRencana} kegiatan={{ ...rencana, status: 'batal', justifikasi: 'Kebijakan berubah.', version_token: 'v2' }} can={{ ubah_rencana: false, ubah_status: [] }} />);
+    await sukses();
+    expect(document.activeElement).toBe(screen.getByText('Status pelaksanaan'));
+});
+
+it('fokus pindah ke daftar bila baris hilang dari filter', async () => {
+    const filters = { ...indexProps.filters, status: 'rencana' };
+    const { rerender } = render(<Index {...indexProps} filters={filters} />);
+    const pemicu = screen.getByRole('button', { name: 'Aksi kegiatan Fasilitasi unit' });
+    pemicu.focus();
+    fireEvent.click(pemicu);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Batalkan' }));
+    isiJustifikasi('Kebijakan berubah.');
+    klik('Lanjutkan');
+    klik('Ya, batalkan');
+
+    rerender(<Index {...indexProps} filters={filters} kegiatan={daftar([])} />);
+    await sukses();
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Daftar kegiatan' }));
+});
+
+it('form status final terkunci dengan justifikasi baca-saja', () => {
+    render(<Form {...props} kegiatan={{ ...rencana, status: 'ditunda', justifikasi: 'Narasumber berhalangan.', periode_nama: 'Triwulan I', periode_tujuan: 'Triwulan II' }} can={{ ubah_rencana: false, ubah_status: [] }} />);
+    const kartu = within(screen.getByRole('region', { name: 'Status pelaksanaan' }));
+    expect(kartu.getByText('Ditunda')).toBeTruthy();
+    expect(kartu.getByText('Periode tujuan')).toBeTruthy();
+    expect(kartu.getByText('Triwulan II 2026')).toBeTruthy();
+    expect(kartu.getByText('Narasumber berhalangan.')).toBeTruthy();
+    expect(kartu.queryByRole('button')).toBeNull();
+    expect(screen.getByText('Data rencana terkunci karena status sudah berubah.')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).closest('fieldset')!.disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Simpan kegiatan' })).toBeNull();
+});
+
+it('form rencana menawarkan aksi status dari server', () => {
+    render(<Form {...formRencana} />);
+    const kartu = within(screen.getByRole('region', { name: 'Status pelaksanaan' }));
+    expect(kartu.getAllByRole('button').map((tombol) => tombol.textContent)).toEqual(['Tunda', 'Tidak terlaksana', 'Batalkan']);
+    expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).closest('fieldset')!.disabled).toBe(false);
+    expect(screen.queryByText('Data rencana terkunci karena status sudah berubah.')).toBeNull();
 });

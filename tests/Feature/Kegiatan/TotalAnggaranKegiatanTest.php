@@ -16,7 +16,7 @@ use Tests\TestCase;
  * Penjumlahan anggaran kegiatan (Q42 §42.2 butir 2, 4, 6): anggaran kosong
  * tidak dihitung tetapi menandai total, kegiatan bersama tampil penuh per
  * IKU tetapi dihitung sekali per unit/tahun, dan kegiatan asal yang ditunda
- * dengan kegiatan lanjutan tidak ikut dihitung.
+ * tidak ikut dihitung setelah salah satu lanjutan dalam rantainya diklaim (Q69 §69.6).
  */
 class TotalAnggaranKegiatanTest extends TestCase
 {
@@ -81,6 +81,51 @@ class TotalAnggaranKegiatanTest extends TestCase
         $this->assertSame('1000000', $this->total->perUnitTahun((string) $this->fixture['unit']->id, 2026)['total']);
     }
 
+    public function test_asal_ditunda_tetap_dihitung_sampai_lanjutan_diklaim(): void
+    {
+        $asal = $this->kegiatan('Pelatihan asesor', 700000, null, ['status' => 'ditunda']);
+        $this->klaim($asal);
+        $lanjutan = $this->kegiatan('Pelatihan asesor', 700000, $this->fixture['periode2'], ['kegiatan_asal_id' => $asal->id]);
+        $unit = (string) $this->fixture['unit']->id;
+
+        // Lanjutan belum diklaim: anggaran tetap terhitung pada asal.
+        $this->assertSame('700000', $this->total->perRencanaAksi($this->header)['total']);
+        $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
+
+        // Klaim ke Rencana Aksi IKU lain pun memindahkan hitungan ke lanjutan.
+        $this->klaim($lanjutan, $this->headerIkuLain());
+        $this->assertSame('0', $this->total->perRencanaAksi($this->header)['total']);
+        $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
+    }
+
+    public function test_rantai_penundaan_menghitung_anggaran_sekali(): void
+    {
+        // A diklaim lalu ditunda ke B yang belum diklaim, B ditunda ke C: A tidak boleh terhitung bersama C (Q69 §69.6 butir 2).
+        $a = $this->kegiatan('Pelatihan asesor', 700000, null, ['status' => 'ditunda']);
+        $this->klaim($a);
+        $b = $this->kegiatan('Pelatihan asesor', 800000, $this->fixture['periode2'], ['status' => 'ditunda', 'kegiatan_asal_id' => $a->id]);
+        $c = $this->kegiatan('Pelatihan asesor', 900000, $this->periodeTiga(), ['kegiatan_asal_id' => $b->id]);
+        $unit = (string) $this->fixture['unit']->id;
+
+        $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
+
+        $this->klaim($c);
+        $this->assertSame('900000', $this->total->perUnitTahun($unit, 2026)['total']);
+        $this->assertSame('900000', $this->total->perRencanaAksi($this->header)['total']);
+    }
+
+    public function test_rantai_penundaan_dengan_lanjutan_tengah_diklaim_menghitung_lanjutan_tengah(): void
+    {
+        // Kontrol: B diklaim dan ditunda ke C yang belum diklaim, sehingga anggaran terhitung pada B saja.
+        $a = $this->kegiatan('Pelatihan asesor', 700000, null, ['status' => 'ditunda']);
+        $this->klaim($a);
+        $b = $this->kegiatan('Pelatihan asesor', 800000, $this->fixture['periode2'], ['status' => 'ditunda', 'kegiatan_asal_id' => $a->id]);
+        $this->klaim($b);
+        $this->kegiatan('Pelatihan asesor', 900000, $this->periodeTiga(), ['kegiatan_asal_id' => $b->id]);
+
+        $this->assertSame('800000', $this->total->perUnitTahun((string) $this->fixture['unit']->id, 2026)['total']);
+    }
+
     public function test_klaim_tahap_pengukuran_ikut_dihitung(): void
     {
         $this->klaim($this->kegiatan('Benchmarking', 400000));
@@ -105,6 +150,11 @@ class TotalAnggaranKegiatanTest extends TestCase
     {
         KlaimKegiatan::create(['rencana_aksi_id' => ($header ?? $this->header)->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
             'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->fixture['pic']->id, 'created_at' => now()]);
+    }
+
+    private function periodeTiga(): Periode
+    {
+        return Periode::firstOrCreate(['nama' => 'Triwulan III', 'urutan' => 3], ['aktif' => true, 'is_nilai_akhir' => false]);
     }
 
     private function headerIkuLain(): RencanaAksi

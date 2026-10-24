@@ -35,7 +35,7 @@ class DaftarKegiatan
             $effectiveFilters['tahun'] = (string) $tahunDefault;
         }
 
-        $query = Kegiatan::with(['unit:id,nama', 'periode:id,nama'])->whereNotIn('unit_id', $this->resolver->unitDitolak($actor, 'kegiatan:read'))
+        $query = Kegiatan::with(['unit:id,nama', 'periode:id,nama,urutan'])->whereNotIn('unit_id', $this->resolver->unitDitolak($actor, 'kegiatan:read'))
             ->when($this->resolver->unitTerbaca($actor, 'kegiatan:read'), fn ($query, $terbaca) => $query->whereIn('unit_id', $terbaca));
         foreach (['tahun', 'unit_id', 'periode_id', 'status'] as $field) {
             if (isset($effectiveFilters[$field]) && $effectiveFilters[$field] !== '') {
@@ -58,26 +58,35 @@ class DaftarKegiatan
         // Aturan sama dengan SimpanKegiatan agar tombol ubah tidak ditawarkan untuk tahun yang pasti ditolak.
         $tahunDitutup = JadwalTahunan::whereIn('tahun', $page->getCollection()->pluck('tahun')->unique()->values())->where('status', '!=', 'draft')->get()
             ->filter(fn (JadwalTahunan $jadwal): bool => $jadwal->tahunDitutup())->pluck('tahun')->unique()->all();
+        $periodeAktif = Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama', 'urutan']);
 
-        $page->through(fn (Kegiatan $kegiatan) => [
-            'id' => $kegiatan->id,
-            'unit_id' => $kegiatan->unit_id,
-            'tahun' => $kegiatan->tahun,
-            'periode_id' => $kegiatan->periode_id,
-            'nama' => $kegiatan->nama,
-            'tujuan' => $kegiatan->tujuan,
-            'sasaran_peserta' => $kegiatan->sasaran_peserta,
-            'keterangan_peserta' => $kegiatan->keterangan_peserta,
-            'lokasi' => $kegiatan->lokasi,
-            'status' => $kegiatan->status,
-            'tanggal_rencana' => $kegiatan->tanggal_rencana?->format('Y-m-d'),
-            'version_token' => $kegiatan->versionToken(),
-            'unit' => $kegiatan->unit->only(['id', 'nama']),
-            'periode' => $kegiatan->periode->only(['id', 'nama']),
+        $page->through(function (Kegiatan $kegiatan) use ($boleh, $activeUnitIds, $tahunDitutup, $periodeAktif): array {
             // Allow dari role tidak bergantung status unit; writer tetap mensyaratkan unit aktif.
-            'can' => ['update' => $boleh($kegiatan->unit_id, 'kegiatan:update') && $activeUnitIds->contains($kegiatan->unit_id)
-                && ! in_array($kegiatan->tahun, $tahunDitutup, true)],
-        ]);
+            $update = $boleh($kegiatan->unit_id, 'kegiatan:update') && $activeUnitIds->contains($kegiatan->unit_id)
+                && ! in_array($kegiatan->tahun, $tahunDitutup, true);
+            // Pilihan status dihitung server (Q69 §69.1); React hanya merender.
+            $pilihan = $kegiatan->pilihanStatus($periodeAktif);
+            $ubahStatus = $update ? $pilihan['status'] : [];
+
+            return [
+                'id' => $kegiatan->id,
+                'unit_id' => $kegiatan->unit_id,
+                'tahun' => $kegiatan->tahun,
+                'periode_id' => $kegiatan->periode_id,
+                'nama' => $kegiatan->nama,
+                'tujuan' => $kegiatan->tujuan,
+                'sasaran_peserta' => $kegiatan->sasaran_peserta,
+                'keterangan_peserta' => $kegiatan->keterangan_peserta,
+                'lokasi' => $kegiatan->lokasi,
+                'status' => $kegiatan->status,
+                'tanggal_rencana' => $kegiatan->tanggal_rencana?->format('Y-m-d'),
+                'version_token' => $kegiatan->versionToken(),
+                'unit' => $kegiatan->unit->only(['id', 'nama']),
+                'periode' => $kegiatan->periode->only(['id', 'nama']),
+                'can' => ['update' => $update, 'ubah_rencana' => $update && $kegiatan->status === 'rencana', 'ubah_status' => $ubahStatus],
+                'opsi_periode_tujuan' => in_array('ditunda', $ubahStatus, true) ? $pilihan['periode_tujuan'] : [],
+            ];
+        });
 
         return [
             'kegiatan' => $page,
@@ -85,7 +94,7 @@ class DaftarKegiatan
             'unitOptions' => $units->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
             'periodeOptions' => Periode::orderBy('urutan')->orderBy('id')->get(['id', 'nama'])->toArray(),
             'creatableUnitOptions' => $creatableUnits->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
-            'activePeriodeOptions' => Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama'])->toArray(),
+            'activePeriodeOptions' => $periodeAktif->map(fn (Periode $periode) => $periode->only(['id', 'nama']))->all(),
             'tahunDefault' => $tahunDefault,
             'can' => ['create' => $activeUnitIds->contains(fn (string $unitId) => $boleh($unitId, 'kegiatan:create'))],
         ];
