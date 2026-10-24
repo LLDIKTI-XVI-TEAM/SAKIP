@@ -1998,6 +1998,7 @@ Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring 
 
 1. Memperjelas Q42 §42.2 butir 6: kegiatan asal `ditunda` dikecualikan dari total anggaran setelah kegiatan lanjutannya diklaim. Sebelum lanjutan diklaim, kegiatan asal tetap terhitung, sehingga anggarannya tidak hilang dari total di antara penundaan dan klaim.
 2. Total hanya menghitung kegiatan yang diklaim, sehingga anggaran tidak terhitung dua kali. Total yang sudah dibekukan pada versi Rencana Aksi tidak berubah (Q42 §42.2 butir 6).
+3. Pada rantai penundaan (kegiatan lanjutan yang juga ditunda), kegiatan asal `ditunda` dikecualikan dari total bila salah satu kegiatan dalam rantai lanjutannya (lanjutan, lanjutan dari lanjutan, dan seterusnya) sudah diklaim, meskipun lanjutan langsungnya tidak diklaim, sehingga anggaran tidak terhitung dua kali (butir 2). Contoh: A diklaim dan ditunda ke B; B tidak diklaim dan ditunda ke C; setelah C diklaim, hanya C yang terhitung. (PM, 23 Oktober 2026, [review PR #163](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/163#issuecomment-6369997787))
 
 ## 69.7 Akibat
 
