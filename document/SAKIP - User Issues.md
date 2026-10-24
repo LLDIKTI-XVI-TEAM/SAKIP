@@ -6401,13 +6401,13 @@ Perubahan per request (tanpa nomor baris kode):
 
 ### ISS-15.01 · [UAT] Verifikasi Data Awal sebelum Penggunaan Pertama
 
-> **Q46, Q47, Q50, Q51 (13 Oktober 2026):** data awal 2026 diisi Perencanaan dari lima dokumen resmi 2026 (Renstra 2025–2029, Perjanjian Kinerja 2026, Rencana Aksi 2026, serta Laporan Kinerja Triwulan I dan II 2026) dan disiapkan di akhir tahap 1 (Q46 §46.1 butir 6, §46.3). Kegiatan data awal boleh tanpa anggaran (Q46 §46.1 butir 3), dan rekomendasi TW I–II dicatat langsung `disetujui` dengan penanda persetujuan cadangan serta rujukan laporan sumber pada `rekomendasi_pimpinan.rujukan_sumber` (Q51 §51.1 butir 5). Data berasumsi kerja tidak dipakai di produksi sebelum dikonfirmasi. AC-5 diselaraskan dengan US-15.01, AC-6 sampai AC-8 ditambahkan, dan UAT-5 diperbaiki agar tidak lagi menyebut role `pic` (Q32).
+> **Q46, Q47, Q50, Q51 (13 Oktober 2026):** data awal 2026 diisi Perencanaan dari lima dokumen resmi 2026 (Renstra 2025–2029, Perjanjian Kinerja 2026, Rencana Aksi 2026, serta Laporan Kinerja Triwulan I dan II 2026) dan disiapkan di akhir tahap 1 (Q46 §46.1 butir 6, §46.3). Kegiatan data awal boleh tanpa anggaran (Q46 §46.1 butir 3), dan rekomendasi TW I–II dicatat langsung `disetujui` dengan penanda persetujuan cadangan serta rujukan laporan sumber pada `rekomendasi_pimpinan.rujukan_sumber` (Q51 §51.1 butir 5). Data berasumsi kerja tidak dipakai di produksi sebelum dikonfirmasi. AC-5 diselaraskan dengan US-15.01, AC-6 sampai AC-8 ditambahkan, dan UAT-5 diperbaiki agar tidak lagi menyebut role `pic` (Q32). Data awal juga tunduk pada Q70–Q74 (tanggal periode, target PK mengikuti Renstra, baseline otomatis, kegiatan dari Rencana Aksi); gap implementasinya dicatat pada `SAKIP - Data Awal 2026.md`, bukan dikerjakan di issue ini.
 
 **Terkait User Story:** `US-15.01`  
 **Prioritas:** 🟡 P1 · akhir Tahap 1 (Q46 §46.3)  
 **Story Points:** 5  
 **Labels:** `uat`, `release-uat`, `P1`, `backend`  
-**Plan:** S.1, P.4  
+**Plan:** S.1, P.5  
 **PRD:** Pembuka, §12.6, §32  
 **Workflow:** §15  
 **Data Model/Entitas:** initial data
@@ -6426,26 +6426,28 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given tahun penggunaan pertama ditetapkan, Then daftar periode, indikator, unit/PIC, PK/target, dan data historis wajib harus didokumentasikan.
+- [x] **AC-1:** Given tahun penggunaan pertama ditetapkan, Then daftar periode, indikator, unit/PIC, PK/target, dan data historis wajib harus didokumentasikan.
 - [ ] **AC-2:** Given data belum lengkap, When aktivasi pertama dicoba, Then gate aplikasi dan checklist operasional harus menunjukkan kekurangan.
-- [ ] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
+- [x] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
 - [ ] **AC-4:** Given backfill dibutuhkan, Then menggunakan jalur backfill resmi dan bukan query database manual tanpa jejak.
-- [ ] **AC-5 (Q31):** Given data awal UAT disiapkan, Then minimal tersedia akun uji untuk lima role resmi; akun PIC tidak dianggap siap untuk seluruh skenario authorization sampai preset permission dan eligibility assignment dikonfirmasi.
+- [ ] **AC-5:** Given data awal UAT disiapkan, Then tersedia akun uji untuk lima role resmi (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`) dan satu PIC operasional (user ber-role `pegawai` dengan grant unit dan PJ); tidak ada role `pic`, dan akun PIC operasional tidak dianggap siap untuk seluruh skenario authorization sampai preset permission dan eligibility assignment dikonfirmasi. *(Q32; Q31)*
 - [ ] **AC-6:** Given data awal 2026 disiapkan, Then data memuat kode sasaran dan indikator mengikuti PK (S1–S4, IKU 1.1–IKU 4.1), sasaran S4 dan IKU 4.1 di bawah Renstra 2025–2029 tanpa target Renstra, target PK bernilai penuh, IKU 1.3 ditandai dinilai tahunan, target TW I–III kosong, kegiatan Rencana Aksi per triwulan (boleh tanpa anggaran, tercatat belum diisi), realisasi/narasi/rekomendasi TW I–II, dan TW III sebagai periode lampau. *(Q46 §46.1 butir 2, 3, dan 6, Q47 §47.1 butir 4 dan §47.2 butir 4, Q50 §50.2 dan §50.4–§50.5)*
 - [ ] **AC-7:** Given data yang masih memakai asumsi kerja data awal 2026 pada Keputusan Penyelarasan, Then data tersebut hanya dipakai untuk data uji dan rancangan data awal, dan tidak dipakai di produksi sebelum dikonfirmasi Perencanaan. *(Q46 §46.1 butir 6)*
 - [ ] **AC-8:** Given rekomendasi TW I–II 2026 dari laporan triwulan yang sudah ditandatangani Pimpinan, When dicatat Perencanaan sebagai data awal, Then rekomendasi langsung berstatus `disetujui` dengan penanda persetujuan cadangan dan rujukan laporan sumbernya. *(Q51 §51.1 butir 5)*
 
+> **Status per 24 Oktober 2026 (branch `docs/iss-15-01-data-awal-2026`):** AC-1 terpenuhi melalui `document/SAKIP - Data Awal 2026.md`; AC-3 dibuktikan `tests/Feature/Periode/SeedProduksiTanpaFixtureTest.php` (`php artisan test tests/Feature/Periode/SeedProduksiTanpaFixtureTest.php`; PASS 2 test / 34 assertion, 28 tabel domain; DB `sakip_test`, working tree @ `322b59a`, belum CI). AC-2 matriks tersedia tetapi belum dieksekusi; AC-4 jalur teraudit terdokumentasi tetapi pengisian data belum dilakukan; AC-5 sampai AC-8 menunggu akun/data Perencanaan. Status ini **bukan** UAT accepted atau deployment.
+
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
+- [x] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
 
 **B. Backend / Domain**
 - [ ] Implementasikan use-case **Verifikasi Data Awal sebelum Penggunaan Pertama** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
 - [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
+- [x] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
 
 #### Automated Tests / Verification
 
@@ -6453,13 +6455,13 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] UAT-2: Verifikasi manual/acceptance — Given data belum lengkap, When aktivasi pertama dicoba, Then gate aplikasi dan checklist operasional harus menunjukkan kekurangan.
 - [ ] UAT-3: Verifikasi manual/acceptance — Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
 - [ ] UAT-4: Verifikasi manual/acceptance — Given backfill dibutuhkan, Then menggunakan jalur backfill resmi dan bukan query database manual tanpa jejak.
-- [ ] UAT-5 (Q31): Verifikasi akun UAT tersedia untuk `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`; catat blocker bila preset/eligibility PIC belum diputuskan.
+- [ ] UAT-5: Verifikasi akun UAT tersedia untuk `superadmin`, `admin`, `perencanaan`, `pimpinan`, dan `pegawai`, plus satu PIC operasional (role `pegawai` + grant unit + PJ); tidak ada role `pic`; catat blocker bila preset/eligibility PIC operasional belum diputuskan.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 
 ### ISS-15.02 · [Infrastructure] Kesiapan Infrastruktur dan Layanan Eksternal
@@ -6689,7 +6691,7 @@ Decision gate dianggap selesai bila:
 | `US-14.01` | `ISS-14.01` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.02` | `ISS-14.02` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.03` | `ISS-14.03` | Modul 3: 3.12 | §12.3, §12.6 | §13 | ✅ 1:1 |
-| `US-15.01` | `ISS-15.01` | S.1, P.4 | Pembuka, §12.6, §32 | §15 | ✅ 1:1 |
+| `US-15.01` | `ISS-15.01` | S.1, P.5 | Pembuka, §12.6, §32 | §15 | ✅ 1:1 |
 | `US-15.02` | `ISS-15.02` | P.1–P.4 | §6, §28, §34 | §22 | ✅ 1:1 |
 | `US-15.03` | `ISS-15.03` | P.4 | Pembuka, §32 | — | ✅ 1:1 |
 
