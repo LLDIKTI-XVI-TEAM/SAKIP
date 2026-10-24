@@ -2183,7 +2183,7 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 ## 73.3 Dampak dan traceability
 
 - PRD §14.10; Workflow §3.3; Data Model §2.13 (baseline) dan §2.20 (`pengukuran`, dibaca); US/ISS-02.11 AC-1 dan AC-3 (tampilan tabel), US/ISS-02.15 (baru). Tidak ada migrasi.
-- Status implementasi: sudah (ISS-02.15).
+- Status implementasi: sudah (ISS-02.15, PR #176).
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
