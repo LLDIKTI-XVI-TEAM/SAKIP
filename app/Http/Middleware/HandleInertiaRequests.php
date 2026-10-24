@@ -8,7 +8,7 @@ use App\Models\RenstraPk;
 use App\Models\User;
 use App\Policies\RolePermissionPolicy;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\PengaturanService;
+use App\Services\Pengaturan\PengaturanService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
