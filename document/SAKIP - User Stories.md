@@ -2666,14 +2666,16 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given tahun penggunaan pertama ditetapkan, Then daftar periode, indikator, unit/PIC, PK/target, dan data historis wajib harus didokumentasikan.
+- [x] **AC-1:** Given tahun penggunaan pertama ditetapkan, Then daftar periode, indikator, unit/PIC, PK/target, dan data historis wajib harus didokumentasikan.
 - [ ] **AC-2:** Given data belum lengkap, When aktivasi pertama dicoba, Then gate aplikasi dan checklist operasional harus menunjukkan kekurangan.
-- [ ] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
+- [x] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
 - [ ] **AC-4:** Given backfill dibutuhkan, Then menggunakan jalur backfill resmi dan bukan query database manual tanpa jejak.
-- [ ] **AC-5 (Q31):** Given data awal UAT disiapkan, Then minimal tersedia akun uji untuk lima role resmi; akun PIC tidak dianggap siap untuk seluruh skenario authorization sampai preset permission dan eligibility assignment dikonfirmasi.
+- [ ] **AC-5:** Given data awal UAT disiapkan, Then tersedia akun uji untuk lima role resmi (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`) dan satu PIC operasional (user ber-role `pegawai` dengan grant unit dan PJ); tidak ada role `pic`, dan akun PIC operasional tidak dianggap siap untuk seluruh skenario authorization sampai preset permission dan eligibility assignment dikonfirmasi. *(Q32; Q31)*
 - [ ] **AC-6:** Given data awal 2026 disiapkan, Then data memuat kode sasaran dan indikator mengikuti PK (S1–S4, IKU 1.1–IKU 4.1), sasaran S4 dan IKU 4.1 di bawah Renstra 2025–2029 tanpa target Renstra, target PK bernilai penuh, IKU 1.3 ditandai dinilai tahunan, target TW I–III kosong, kegiatan Rencana Aksi per triwulan (boleh tanpa anggaran, tercatat belum diisi), realisasi/narasi/rekomendasi TW I–II, dan TW III sebagai periode lampau. *(Q46 §46.1 butir 2, 3, dan 6, Q47 §47.1 butir 4 dan §47.2 butir 4, Q50 §50.2 dan §50.4–§50.5)*
 - [ ] **AC-7:** Given data yang masih memakai asumsi kerja data awal 2026 pada Keputusan Penyelarasan, Then data tersebut hanya dipakai untuk data uji dan rancangan data awal, dan tidak dipakai di produksi sebelum dikonfirmasi Perencanaan. *(Q46 §46.1 butir 6)*
 - [ ] **AC-8:** Given rekomendasi TW I–II 2026 dari laporan triwulan yang sudah ditandatangani Pimpinan, When dicatat Perencanaan sebagai data awal, Then rekomendasi langsung berstatus `disetujui` dengan penanda persetujuan cadangan dan rujukan laporan sumbernya. *(Q51 §51.1 butir 5)*
+
+> **Status per 24 Oktober 2026:** AC-1 dan AC-3 sudah terpenuhi (dokumen checklist dan test regresi seeder); AC-2, AC-4, serta AC-5–AC-8 masih menunggu eksekusi/data Perencanaan. Bukan UAT accepted.
 
 ### US-15.02 · Kesiapan Infrastruktur dan Layanan Eksternal
 
@@ -2847,7 +2849,7 @@ Matriks memuat seluruh 89 User Story per 24 Oktober 2026, termasuk US-11.06 yang
 | **US-14.01** | Modul 3: 3.9 | §12.6 | §13 | `jadwal_tahunan` |
 | **US-14.02** | Modul 3: 3.9 | §12.6 | §13 | correction session |
 | **US-14.03** | Modul 3: 3.12 | §12.3, §12.6 | §13 | PIC windows |
-| **US-15.01** | S.1, P.4 | Pembuka, §12.6, §32 | §15 | initial data |
+| **US-15.01** | S.1, P.5 | Pembuka, §12.6, §32 | §15 | initial data |
 | **US-15.02** | P.1–P.4 | §6, §28, §34 | §22 | operational dependencies |
 | **US-15.03** | P.4 | Pembuka, §32 | — | UAT/acceptance records |
 
