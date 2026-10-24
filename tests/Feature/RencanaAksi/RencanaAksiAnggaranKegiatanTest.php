@@ -125,6 +125,28 @@ class RencanaAksiAnggaranKegiatanTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('rencanaAksi.anggaran_kegiatan', null)->where('rencanaAksi.klaim', null));
     }
 
+    public function test_total_beku_tidak_berubah_setelah_kegiatan_ditunda(): void
+    {
+        $this->rapat->update(['anggaran' => 250000]);
+        $this->klaimPengukuran('Survei dari pengukuran', 500000);
+        $this->actingAs($this->fixture['pic'])->post("/rencana-aksi/{$this->header->id}/ajukan", ['expected_versi' => $this->header->fresh()->versi])
+            ->assertSessionHasNoErrors();
+        $beku = ['total' => '1750000', 'belum_diisi' => 0, 'per_periode' => [
+            $this->fixture['periode1']->id => ['total' => '1500000', 'belum_diisi' => 0],
+            $this->fixture['periode2']->id => ['total' => '250000', 'belum_diisi' => 0],
+        ]];
+        // Lanjutan beranggaran berbeda dan diklaim: total live berpindah ke lanjutan, total beku tetap.
+        $this->bimtek->forceFill(['status' => 'ditunda'])->save();
+        $lanjutan = $this->kegiatan('Bimtek penjaminan mutu lanjutan', 2000000, $this->fixture['periode2']);
+        $lanjutan->forceFill(['kegiatan_asal_id' => $this->bimtek->id])->save();
+
+        $this->actingAs($this->fixture['perencanaan'])->get("/rencana-aksi/{$this->header->id}/review")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('rencanaAksi.anggaran_kegiatan', $beku));
+        // Pendukung 0 + rapat 250000 + survei 500000 + lanjutan 2000000; bimtek asal dikecualikan.
+        $this->actingAs($this->fixture['perencanaan'])->get("/rencana-aksi/{$this->header->id}")
+            ->assertInertia(fn ($page) => $page->where('kegiatan.total.total', '2750000'));
+    }
+
     private function kegiatan(string $nama, ?int $anggaran, Periode $periode, bool $klaimTahapRa = true): Kegiatan
     {
         $kegiatan = Kegiatan::create(['unit_id' => $this->fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $periode->id,

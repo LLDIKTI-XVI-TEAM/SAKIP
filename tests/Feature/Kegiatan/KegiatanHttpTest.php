@@ -119,18 +119,37 @@ class KegiatanHttpTest extends TestCase
     public function test_ubah_data_rencana_mempertahankan_status_dan_data_pelaksanaan(): void
     {
         $kegiatan = $this->kegiatan();
-        $kegiatan->forceFill(['status' => 'terlaksana', 'uraian_pelaksanaan' => 'Narasi histori'])->save();
+        $kegiatan->forceFill(['uraian_pelaksanaan' => 'Narasi histori'])->save();
         $this->actingAs($this->pegawai)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
             'nama' => 'Rencana diperbarui', 'expected_state' => $this->editToken($kegiatan),
             'status' => 'batal', 'uraian_pelaksanaan' => 'Payload tidak dipercaya',
         ]))->assertRedirect('/kegiatan?tahun=2026')->assertSessionHasNoErrors();
 
         $this->assertSame('Rencana diperbarui', $kegiatan->fresh()->nama);
-        $this->assertSame('terlaksana', $kegiatan->fresh()->status);
+        $this->assertSame('rencana', $kegiatan->fresh()->status);
         $this->assertSame('Narasi histori', $kegiatan->fresh()->uraian_pelaksanaan);
         $audit = AuditLog::where('tindakan', 'kegiatan.ubah')->sole();
         $this->assertSame('Rencana awal', $audit->nilai_lama['nama']);
         $this->assertSame('Rencana diperbarui', $audit->nilai_baru['nama']);
+    }
+
+    /** Data rencana hanya dapat diubah selama status `rencana` (Q69 §69.3). */
+    #[DataProvider('statusSelainRencana')]
+    public function test_data_rencana_status_selain_rencana_ditolak_422(string $status): void
+    {
+        $kegiatan = $this->kegiatan();
+        $kegiatan->forceFill(['status' => $status])->save();
+
+        $this->actingAs($this->pegawai)->postJson("/kegiatan/{$kegiatan->id}", [...$this->payload(), 'nama' => 'Ditolak', 'expected_state' => $kegiatan->fresh()->versionToken()])
+            ->assertUnprocessable()->assertJsonValidationErrors(['status' => 'Data rencana terkunci karena status kegiatan sudah berubah.']);
+
+        $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
+        $this->assertFalse(AuditLog::where('tindakan', 'kegiatan.ubah')->exists());
+    }
+
+    public static function statusSelainRencana(): array
+    {
+        return [['tidak_terlaksana'], ['terlaksana'], ['ditunda'], ['batal']];
     }
 
     public function test_request_lintas_unit_ditolak_dan_teraudit_tanpa_mutasi(): void
@@ -500,6 +519,30 @@ class KegiatanHttpTest extends TestCase
         $this->assertNotNull($jadwal);
         $this->assertNotNull($baris);
         $this->assertLessThan($baris, $jadwal);
+    }
+
+    public function test_lanjutan_tetap_pada_tahun_asal_dan_periode_lebih_akhir(): void
+    {
+        // Q69 §69.5 butir 2 tetap berlaku saat lanjutan tanpa klaim diubah lewat form biasa.
+        $tw1 = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $tw2 = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $tw3 = Periode::create(['nama' => 'Triwulan III', 'urutan' => 3, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $asal = Kegiatan::create([...$this->payload(), 'periode_id' => $tw2->id, 'status' => 'ditunda', 'created_by' => $this->perencanaan->id]);
+        $lanjutan = Kegiatan::create([...$this->payload(), 'periode_id' => $tw3->id, 'kegiatan_asal_id' => $asal->id, 'created_by' => $this->perencanaan->id]);
+        $ubah = fn (array $extra) => $this->actingAs($this->pegawai)->post("/kegiatan/{$lanjutan->id}",
+            [...$this->payload(), 'periode_id' => $tw3->id, 'expected_state' => $lanjutan->fresh()->versionToken(), ...$extra]);
+
+        $ubah(['tahun' => 2027])->assertSessionHasErrors(['tahun' => 'Kegiatan lanjutan harus tetap pada tahun kegiatan asal.']);
+        foreach ([$tw2, $tw1] as $periode) {
+            $ubah(['periode_id' => $periode->id])->assertSessionHasErrors(['periode_id' => 'Periode kegiatan lanjutan harus lebih akhir dari periode kegiatan asal.']);
+        }
+        $this->assertSame([2026, $tw3->id], [(int) $lanjutan->fresh()->tahun, $lanjutan->fresh()->periode_id]);
+
+        // Pindah ke periode lain yang tetap lebih akhir boleh, begitu juga perubahan tanpa tahun dan periode.
+        $ubah(['periode_id' => $this->periode->id])->assertSessionHasNoErrors();
+        $this->assertSame($this->periode->id, $lanjutan->fresh()->periode_id);
+        $ubah(['periode_id' => $this->periode->id, 'anggaran' => 2000000])->assertSessionHasNoErrors();
+        $this->assertSame('2000000', (string) $lanjutan->fresh()->anggaran);
     }
 
     private function renstraUji(): Renstra

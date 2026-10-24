@@ -6,6 +6,9 @@ export interface KegiatanOption {
     nama: string;
 }
 
+/** Status tujuan form status pelaksanaan (Q69 §69.1); pilihannya dihitung server per kegiatan. */
+export type StatusTujuan = 'ditunda' | 'tidak_terlaksana' | 'batal';
+
 export interface RencanaKegiatan {
     id: string;
     unit_id: string;
@@ -21,6 +24,11 @@ export interface RencanaKegiatan {
     anggaran: string | null;
     status: string;
     version_token: string;
+    /** Justifikasi status pelaksanaan; null selama status `rencana`. */
+    justifikasi: string | null;
+    periode_nama: string;
+    /** Nama periode kegiatan lanjutan bila kegiatan ini sudah ditunda. */
+    periode_tujuan: string | null;
 }
 
 export interface KegiatanFormProps {
@@ -31,6 +39,9 @@ export interface KegiatanFormProps {
     berkasPerencanaan?: BerkasPerencanaanKegiatan | null;
     unitOptions: KegiatanOption[];
     periodeOptions: KegiatanOption[];
+    opsiPeriodeTujuan: KegiatanOption[];
+    /** `ubah_rencana` false berarti data rencana baca-saja (Q69 §69.3); `ubah_status` kosong berarti tanpa aksi status. */
+    can: { ubah_rencana: boolean; ubah_status: StatusTujuan[] };
 }
 
 export interface KegiatanIndexItem {
@@ -42,13 +53,14 @@ export interface KegiatanIndexItem {
     tanggal_rencana: string | null;
     unit: KegiatanOption;
     periode: KegiatanOption;
-    can: { update: boolean };
+    can: { update: boolean; ubah_rencana: boolean; ubah_status: StatusTujuan[] };
+    opsi_periode_tujuan: KegiatanOption[];
     unit_id?: string;
     periode_id?: string;
     sasaran_peserta?: number | null;
     keterangan_peserta?: string | null;
     lokasi?: string | null;
-    version_token?: string;
+    version_token: string;
 }
 
 export interface KegiatanIndexProps {

@@ -3067,7 +3067,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-3:** Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)* *(Diperbarui Q74 §74.2: biaya terpakai ditambahkan.)*
 - [ ] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
 - [ ] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
-- [ ] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4)*
+- [ ] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
 - [ ] **AC-7:** Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
 - [ ] **AC-8:** Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
 - [ ] **AC-9:** Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
@@ -3105,7 +3105,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)*
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4)*
+- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
 - [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
 - [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
 - [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
@@ -3121,7 +3121,9 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### ISS-06.04 · [Feature] Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan
 
-> **Q41, Q42, Q43 (13 Oktober 2026):** kegiatan yang tidak dilaksanakan sesuai rencana ditandai **ditunda** saat pelaporan dengan justifikasi dan periode tujuan; sistem membuat kegiatan lanjutan pada periode tujuan yang tertaut ke kegiatan asal (`kegiatan_asal_id`) dan diklaim ke RA pada tahap pengukuran (`sumber_klaim = pengukuran`; ISS-06.05). RA yang sudah disahkan tidak dibuka kembali hanya untuk memindahkan kegiatan; justifikasi menjadi catatan resmi yang dilihat Perencanaan saat verifikasi pengukuran (Q41 §41.4 butir 1–3; ISS-08.01). Kegiatan asal `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung dalam total anggaran (Q42 §42.2 butir 6; ISS-06.08). Justifikasi tetap wajib (Q43 §43.2 butir 5). AC-6 ditambahkan karena issue ini belum dikerjakan.
+> **Q41, Q42, Q43 (13 Oktober 2026):** kegiatan yang tidak dilaksanakan sesuai rencana ditandai **ditunda** saat pelaporan dengan justifikasi dan periode tujuan; sistem membuat kegiatan lanjutan pada periode tujuan yang tertaut ke kegiatan asal (`kegiatan_asal_id`) dan diklaim ke RA pada tahap pengukuran (`sumber_klaim = pengukuran`; ISS-06.05). RA yang sudah disahkan tidak dibuka kembali hanya untuk memindahkan kegiatan; justifikasi menjadi catatan resmi yang dilihat Perencanaan saat verifikasi pengukuran (Q41 §41.4 butir 1–3; ISS-08.01). Kegiatan asal `ditunda` tidak dihitung dalam total anggaran setelah lanjutannya diklaim (Q42 §42.2 butir 6; Q69 §69.6; ISS-06.08). Justifikasi tetap wajib (Q43 §43.2 butir 5). AC-6 ditambahkan karena issue ini belum dikerjakan.
+
+> **Q69 (22 Oktober 2026):** hanya `rencana` dan `tidak_terlaksana` yang masih dapat berubah, sedangkan `terlaksana`, `ditunda`, dan `batal` final (Q69 §69.1). Issue ini mencakup `rencana` → `tidak_terlaksana`/`ditunda`/`batal` dan `tidak_terlaksana` → `ditunda`/`batal`; transisi ke `terlaksana` mengikuti ISS-06.03. Data rencana baca-saja setelah status berubah (Q69 §69.3); kegiatan lanjutan dibentuk sistem saat `ditunda`, dengan isi dan audit mengikuti Q69 §69.5. AC-2 sampai AC-6 diselaraskan, serta AC-7 dan AC-8 ditambahkan, mengikuti [Issue #136](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136).
 
 **Terkait User Story:** `US-06.04`  
 **Prioritas:** 🟡 P1 · Tahap 2 (Q46 §46.3)  
@@ -3147,54 +3149,58 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given status diubah menjadi `tidak_terlaksana`, `ditunda`, atau `batal`, When submit, Then justifikasi wajib.
-- [ ] **AC-2:** Given justifikasi kosong, When submit, Then ditolak.
-- [ ] **AC-3:** Given status bukan `terlaksana`, Then bukti SPJ pelaksanaan tidak diwajibkan semata-mata untuk transisi tersebut.
-- [ ] **AC-4:** Given kegiatan telah diklaim, When laporan dibentuk, Then narasi kegagalan/penundaan tetap dapat muncul sebagai konteks.
-- [ ] **AC-5:** Given perubahan status dilakukan, Then audit mencatat nilai lama/baru dan alasan.
-- [ ] **AC-6:** Given status diubah menjadi `ditunda`, When submit, Then periode tujuan wajib diisi, dan justifikasi menjadi catatan resmi yang dilihat Perencanaan saat verifikasi pengukuran. *(Q41 §41.4 butir 1 dan 3)*
+- [x] **AC-1:** Given status diubah menjadi `tidak_terlaksana`, `ditunda`, atau `batal`, When submit, Then justifikasi wajib.
+- [x] **AC-2:** Given justifikasi kosong, When submit, Then ditolak (422) dan diaudit.
+- [x] **AC-3:** Given status bukan `terlaksana`, Then bukti pelaksanaan tidak diwajibkan untuk transisi tersebut.
+- [x] **AC-4:** Given kegiatan telah diklaim, When laporan dibentuk, Then narasi kegagalan/penundaan tersedia sebagai konteks (data tersimpan dan terbaca; tampilan di ISS-10.02).
+- [x] **AC-5:** Given perubahan status dilakukan, Then audit mencatat nilai lama/baru dan alasan.
+- [x] **AC-6:** Given status diubah menjadi `ditunda`, When submit, Then periode tujuan wajib pada tahun yang sama dan lebih akhir; baris lanjutan minimal dibuat dengan `kegiatan_asal_id`; justifikasi menjadi catatan resmi untuk verifikasi pengukuran. *(Q41 §41.4 butir 1, 3, dan 5)*
+- [x] **AC-7 (guard):** Given kegiatan sudah `terlaksana`/`ditunda`/`batal`, atau tahun jadwalnya ditutup, When transisi dicoba, Then 422; tanpa `kegiatan:update` unit itu atau terkena deny → 403; keduanya teraudit. *(Q52, Q54, Q69 §69.1)*
+- [x] **AC-8:** Given kegiatan `tidak_terlaksana`, When diubah menjadi `ditunda` atau `batal` dengan justifikasi baru, Then diterima; justifikasi lama tercatat di `nilai_lama` audit; untuk `ditunda`, periode tujuan dan baris lanjutan mengikuti AC-6. *(Q69 §69.1 butir 1 dan 3)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Saat status `ditunda` disimpan beserta periode tujuan, picu pembuatan kegiatan lanjutan ISS-06.05 tanpa membuka kembali RA yang sudah disahkan, dan sediakan justifikasi sebagai catatan resmi untuk verifikasi pengukuran ISS-08.01 (Q41 §41.4 butir 2–3).
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Saat status `ditunda` disimpan beserta periode tujuan, picu pembuatan kegiatan lanjutan ISS-06.05 tanpa membuka kembali RA yang sudah disahkan, dan sediakan justifikasi sebagai catatan resmi untuk verifikasi pengukuran ISS-08.01 (Q41 §41.4 butir 2–3).
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given status diubah menjadi `tidak_terlaksana`, `ditunda`, atau `batal`, When submit, Then justifikasi wajib.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given justifikasi kosong, When submit, Then ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given status bukan `terlaksana`, Then bukti SPJ pelaksanaan tidak diwajibkan semata-mata untuk transisi tersebut.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah diklaim, When laporan dibentuk, Then narasi kegagalan/penundaan tetap dapat muncul sebagai konteks.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given perubahan status dilakukan, Then audit mencatat nilai lama/baru dan alasan.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given status diubah menjadi `ditunda`, When submit, Then periode tujuan wajib diisi, dan justifikasi menjadi catatan resmi yang dilihat Perencanaan saat verifikasi pengukuran. *(Q41 §41.4 butir 1 dan 3)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given status diubah menjadi `tidak_terlaksana`, `ditunda`, atau `batal`, When submit, Then justifikasi wajib.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given justifikasi kosong, When submit, Then ditolak (422) dan diaudit.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given status bukan `terlaksana`, Then bukti pelaksanaan tidak diwajibkan untuk transisi tersebut.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah diklaim, When laporan dibentuk, Then narasi kegagalan/penundaan tersedia sebagai konteks (data tersimpan dan terbaca; tampilan di ISS-10.02).
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given perubahan status dilakukan, Then audit mencatat nilai lama/baru dan alasan.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given status diubah menjadi `ditunda`, When submit, Then periode tujuan wajib pada tahun yang sama dan lebih akhir; baris lanjutan minimal dibuat dengan `kegiatan_asal_id`; justifikasi menjadi catatan resmi untuk verifikasi pengukuran. *(Q41 §41.4 butir 1, 3, dan 5)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan sudah `terlaksana`/`ditunda`/`batal`, atau tahun jadwalnya ditutup, When transisi dicoba, Then 422; tanpa `kegiatan:update` unit itu atau terkena deny → 403; keduanya teraudit. *(Q52, Q54, Q69 §69.1)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan `tidak_terlaksana`, When diubah menjadi `ditunda` atau `batal` dengan justifikasi baru, Then diterima; justifikasi lama tercatat di `nilai_lama` audit; untuk `ditunda`, periode tujuan dan baris lanjutan mengikuti AC-6. *(Q69 §69.1 butir 1 dan 3)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-06.05 · [Feature] Roll-Over Kegiatan ke Periode Berikutnya
 
-> **Q41, Q42 (13 Oktober 2026):** kegiatan lanjutan dibuat sistem pada periode tujuan saat kegiatan ditandai ditunda (ISS-06.04), tertaut ke kegiatan asal melalui `kegiatan_asal_id`, dan diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`); RA yang sudah disahkan tidak dibuka kembali hanya untuk memindahkan kegiatan (Q41 §41.4 butir 2–3). Kegiatan lanjutan menyalin anggaran kegiatan asal yang dapat diubah; kegiatan asal yang sudah memiliki lanjutan tidak dihitung dalam total, dan total yang dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6). AC-5 ditambahkan karena issue ini belum dikerjakan.
+> **Q41, Q42 (13 Oktober 2026):** kegiatan lanjutan dibuat sistem pada periode tujuan saat kegiatan ditandai ditunda (ISS-06.04), tertaut ke kegiatan asal melalui `kegiatan_asal_id`, dan diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`); RA yang sudah disahkan tidak dibuka kembali hanya untuk memindahkan kegiatan (Q41 §41.4 butir 2–3). Kegiatan lanjutan menyalin anggaran kegiatan asal yang dapat diubah; kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), dan total yang dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6). AC-5 ditambahkan karena issue ini belum dikerjakan.
 
 **Terkait User Story:** `US-06.05`  
 **Prioritas:** 🟡 P1 · Tahap 2 (Q46 §46.3)  
@@ -3214,17 +3220,18 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 #### Kontrak Teknis
 
 - **Dependensi:** Kegiatan asal berstatus `ditunda`; periode tujuan valid.
-- **Otorisasi:** `kegiatan:create`.
+- **Otorisasi:** `kegiatan:update` melalui transisi `ditunda` ISS-06.04; kegiatan lanjutan dibentuk sistem sehingga `kegiatan:create` tidak disyaratkan (Q69 §69.4 butir 1).
 - **Dampak Data:** `kegiatan`, `klaim_kegiatan` (`sumber_klaim = pengukuran`), `audit_log`.
-- **Rule (Q42 §42.2 butir 6):** kegiatan lanjutan menyalin anggaran kegiatan asal dan anggarannya dapat diubah; kegiatan asal `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung dalam total, dan total yang sudah dibekukan pada versi RA tidak berubah (penjumlahan pada ISS-06.08).
+- **Rule (Q42 §42.2 butir 6):** kegiatan lanjutan menyalin anggaran kegiatan asal dan anggarannya dapat diubah; kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), dan total yang sudah dibekukan pada versi RA tidak berubah (penjumlahan pada ISS-06.08).
 - **Rule (Q41 §41.4 butir 5):** kegiatan lanjutan hanya dapat dibuat ke periode lain pada tahun (jadwal) yang sama; berkas kegiatan asal, termasuk RAB, tidak disalin; persyaratan tahap perencanaan kegiatan tidak diperiksa ulang untuk kegiatan lanjutan yang diklaim pada tahap pengukuran.
+- **Rule (Q69 §69.5 butir 1):** kegiatan lanjutan menyalin unit, tahun, nama, tujuan, sasaran peserta, keterangan peserta, lokasi, dan anggaran dari kegiatan asal; periode = periode tujuan, tanggal rencana kosong, status `rencana`, dan `kegiatan_asal_id` = kegiatan asal; klaim dan berkas tidak disalin; klaim tahap pengukurannya dibuat di issue ini.
 
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
 - [ ] **AC-2:** Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
 - [ ] **AC-3:** Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
-- [ ] **AC-4:** Given roll-over selesai, Then audit menyimpan hubungan asal-tujuan.
+- [ ] **AC-4:** Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`. *(Q69 §69.5 butir 4)*
 - [ ] **AC-5:** Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
 
 #### Implementation Tasks
@@ -3238,7 +3245,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:create`.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update` melalui transisi `ditunda` ISS-06.04; kegiatan lanjutan dibentuk sistem sehingga `kegiatan:create` tidak disyaratkan (Q69 §69.4 butir 1).
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
@@ -3252,10 +3259,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given roll-over selesai, Then audit menyimpan hubungan asal-tujuan.
+- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`. *(Q69 §69.5 butir 4)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
 - [ ] TAHUN SAMA DAN BERKAS: Uji kegiatan lanjutan ke periode pada tahun lain ditolak, berkas asal termasuk RAB tidak ikut disalin, dan persyaratan tahap perencanaan kegiatan tidak diperiksa ulang untuk lanjutan yang diklaim tahap pengukuran (Q41 §41.4 butir 5).
-- [ ] ANGGARAN: Uji kegiatan lanjutan menyalin anggaran kegiatan asal yang dapat diubah, kegiatan asal `ditunda` yang sudah memiliki lanjutan tidak dihitung dalam total, dan total pada versi RA yang dibekukan tidak berubah (Q42 §42.2 butir 6).
+- [ ] ANGGARAN: Uji kegiatan lanjutan menyalin anggaran kegiatan asal yang dapat diubah, kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), dan total pada versi RA yang dibekukan tidak berubah (Q42 §42.2 butir 6).
 
 #### Definition of Done
 
@@ -3392,7 +3399,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 **Workflow:** §7–10  
 **Data Model/Entitas:** `kegiatan.anggaran`, `jenis_berkas` (`tahap`, `hanya_kegiatan_beranggaran`), `berkas`, `klaim_kegiatan`
 
-**Status implementasi (2026-10-20):** dikerjakan dalam dua PR. PR pertama ([#142](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/142)) menerapkan anggaran wajib, tahap `kegiatan_perencanaan` dengan penanda dan contoh berkas, panel berkas perencanaan pada halaman ubah kegiatan, gerbang pengajuan RA beserta pembekuannya pada key snapshot `persyaratan_kegiatan`, dan imutabilitas berkas. Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT. Asumsi kerja yang menunggu persetujuan PM: (1) kegiatan lama dengan anggaran kosong menolak pengajuan RA dengan pesan "anggaran belum diisi", kecuali data awal 2026 dan periode lampau 2026; (2) anggaran berupa rupiah bulat 0 sampai 15 digit; (3) contoh berkas hanya untuk tahap `kegiatan_perencanaan`, diunduh dengan `jenis_berkas:read`, dan ikut dihapus lunak bersama persyaratannya; (4) RAB diunggah pada halaman ubah kegiatan per mode persyaratan; berkas pengganti wajib beralasan dan, seperti penghapusan, ditolak sejak RA pengklaim diajukan (pola Q36), sedangkan unggahan baru tetap diterima; (5) format RAB Excel/PDF diatur Perencanaan lewat `format_diizinkan` persyaratan RAB, tanpa aturan format khusus RAB di kode; (6) kunci hapus dan ganti berlaku untuk seluruh berkas tahap `kegiatan_perencanaan` milik kegiatan sejak salah satu RA pengklaimnya diajukan, sejalan dengan snapshot versi; koreksi lewat pengembalian RA. PR kedua ([#148](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/148)) menerapkan penjumlahan anggaran (`TotalAnggaranKegiatan`) dari seluruh klaim tahap RA dan pengukuran: total per periode dan per RA tampil di halaman RA beserta anggaran per kegiatan, penanda "kegiatan bersama", label klaim pengukuran, dan penanda kegiatan belum diisi; total per IKU dan per unit/tahun (kegiatan unik) tersedia di service untuk dashboard ISS-10.01; kegiatan asal `ditunda` yang memiliki kegiatan lanjutan tidak dihitung; total dibekukan pada key snapshot `anggaran_kegiatan` dan ditampilkan di halaman review versi. Anggaran per kegiatan dan total hanya dikirim pada payload yang tertutup tanpa izin baca kegiatan unit (AC-8). Keputusan pemilik PR yang disetujui PM 20 Oktober 2026 dan dicatat pada Q42 §42.2 butir 7–9: (7) total menghitung klaim tahap RA dan tahap pengukuran, sehingga kegiatan klaim pengukuran ikut tampil di halaman RA dengan label tersendiri; (8) total per IKU dan per unit/tahun belum ditampilkan sampai dashboard ISS-10.01; (9) total beku `anggaran_kegiatan` hanya menghitung klaim tahap RA, sama dengan daftar klaim yang dikunci dan dibekukan saat pengajuan, karena klaim pengukuran tidak dikunci dan tidak menaikkan versi RA; total di halaman RA tetap menghitung semua klaim. AC-6 tidak diubah issue ini dan mengikuti ISS-06.03.
+**Status implementasi (2026-10-20):** dikerjakan dalam dua PR. PR pertama ([#142](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/142)) menerapkan anggaran wajib, tahap `kegiatan_perencanaan` dengan penanda dan contoh berkas, panel berkas perencanaan pada halaman ubah kegiatan, gerbang pengajuan RA beserta pembekuannya pada key snapshot `persyaratan_kegiatan`, dan imutabilitas berkas. Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT. Asumsi kerja yang menunggu persetujuan PM: (1) kegiatan lama dengan anggaran kosong menolak pengajuan RA dengan pesan "anggaran belum diisi", kecuali data awal 2026 dan periode lampau 2026; (2) anggaran berupa rupiah bulat 0 sampai 15 digit; (3) contoh berkas hanya untuk tahap `kegiatan_perencanaan`, diunduh dengan `jenis_berkas:read`, dan ikut dihapus lunak bersama persyaratannya; (4) RAB diunggah pada halaman ubah kegiatan per mode persyaratan; berkas pengganti wajib beralasan dan, seperti penghapusan, ditolak sejak RA pengklaim diajukan (pola Q36), sedangkan unggahan baru tetap diterima; (5) format RAB Excel/PDF diatur Perencanaan lewat `format_diizinkan` persyaratan RAB, tanpa aturan format khusus RAB di kode; (6) kunci hapus dan ganti berlaku untuk seluruh berkas tahap `kegiatan_perencanaan` milik kegiatan sejak salah satu RA pengklaimnya diajukan, sejalan dengan snapshot versi; koreksi lewat pengembalian RA. PR kedua ([#148](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/148)) menerapkan penjumlahan anggaran (`TotalAnggaranKegiatan`) dari seluruh klaim tahap RA dan pengukuran: total per periode dan per RA tampil di halaman RA beserta anggaran per kegiatan, penanda "kegiatan bersama", label klaim pengukuran, dan penanda kegiatan belum diisi; total per IKU dan per unit/tahun (kegiatan unik) tersedia di service untuk dashboard ISS-10.01; kegiatan asal `ditunda` tidak dihitung setelah lanjutannya diklaim, dengan syarat klaim diterapkan ISS-06.04 (Q69 §69.6); total dibekukan pada key snapshot `anggaran_kegiatan` dan ditampilkan di halaman review versi. Anggaran per kegiatan dan total hanya dikirim pada payload yang tertutup tanpa izin baca kegiatan unit (AC-8). Keputusan pemilik PR yang disetujui PM 20 Oktober 2026 dan dicatat pada Q42 §42.2 butir 7–9: (7) total menghitung klaim tahap RA dan tahap pengukuran, sehingga kegiatan klaim pengukuran ikut tampil di halaman RA dengan label tersendiri; (8) total per IKU dan per unit/tahun belum ditampilkan sampai dashboard ISS-10.01; (9) total beku `anggaran_kegiatan` hanya menghitung klaim tahap RA, sama dengan daftar klaim yang dikunci dan dibekukan saat pengajuan, karena klaim pengukuran tidak dikunci dan tidak menaikkan versi RA; total di halaman RA tetap menghitung semua klaim. AC-6 tidak diubah issue ini dan mengikuti ISS-06.03.
 
 #### User Story
 
@@ -3407,7 +3414,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Dampak Data:** `kegiatan.anggaran`, `jenis_berkas.tahap` (+ `kegiatan_perencanaan`), `jenis_berkas.hanya_kegiatan_beranggaran` (boolean, default `false`), `berkas` (induk `jenis_berkas` untuk contoh berkas; induk `kegiatan` untuk RAB), `klaim_kegiatan`, `audit_log`.
 - **Keputusan terkait:** Q42 §42.2–§42.5, Q49 §49.1 butir 3, Q46 §46.1.
 - **Rule:** realisasi belanja, pagu induk, dan rekonsiliasi anggaran tidak dikelola (Q42 §42.2 butir 3). Aplikasi tidak membuat template RAB (Q42 §42.3 butir 2). Batas ukuran/format mengikuti persyaratan dan batas teknis Q44 (ISS-13.06).
-- **Rule:** kegiatan lanjutan menyalin anggaran kegiatan asal yang dapat diubah; kegiatan asal `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung dalam total, dan total yang dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6; ISS-06.05).
+- **Rule:** kegiatan lanjutan menyalin anggaran kegiatan asal yang dapat diubah; kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), dan total yang dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6; ISS-06.05).
 - **Rule:** contoh berkas bukan bukti: Perencanaan dapat menambah, mengganti, atau menghapusnya kapan saja, penghapusannya wajib alasan (Q43 §43.2 butir 2), dan contoh berkas tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 4).
 - **Rule:** persyaratan tahap `kegiatan_perencanaan` dapat ditandai `jenis_berkas.hanya_kegiatan_beranggaran` (boolean, default `false`); persyaratan RAB memakai penanda ini sehingga hanya diperiksa untuk kegiatan beranggaran lebih dari 0, sedangkan persyaratan lain pada tahap yang sama berlaku untuk setiap kegiatan (Q42 §42.3 butir 3).
 - **Rule:** persyaratan tahap `kegiatan_perencanaan` yang diperiksa saat RA indikator X diajukan adalah persyaratan global ditambah persyaratan khusus indikator X; untuk kegiatan bersama, persyaratan khusus indikator lain diperiksa saat RA indikator tersebut diajukan (Q42 §42.4 butir 4).
@@ -3442,7 +3449,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] Perluas gerbang pengajuan RA (`AjukanRencanaAksi` dengan evaluator bukti bersama `EvaluateEvidence`) untuk memeriksa persyaratan wajib tahap `kegiatan_perencanaan` (global + khusus indikator RA yang diajukan, Q42 §42.4 butir 4) setiap kegiatan yang diklaim pada tahap RA, termasuk RAB (Excel atau PDF) bagi kegiatan beranggaran lebih dari 0 melalui penanda `hanya_kegiatan_beranggaran`; pesan menyebut kegiatan dan persyaratan yang kurang.
 - [x] Kecualikan gerbang tersebut untuk RA data awal 2026 dan periode lampau 2026 (Q46 §46.1 butir 1 dan 3).
 - [ ] Pertahankan gerbang tahap `kegiatan` saat transisi `terlaksana` (ISS-06.03; PRD §15.6, Q22).
-- [x] Hitung total anggaran per periode, per RA, dan per IKU; tandai "kegiatan bersama" bagi kegiatan yang diklaim lebih dari satu IKU; hitung total per unit dan per tahun dari kegiatan unik; keluarkan kegiatan asal `ditunda` yang sudah memiliki lanjutan; tandai total yang memuat anggaran "belum diisi"; total pada versi RA yang dibekukan tidak dihitung ulang.
+- [x] Hitung total anggaran per periode, per RA, dan per IKU; tandai "kegiatan bersama" bagi kegiatan yang diklaim lebih dari satu IKU; hitung total per unit dan per tahun dari kegiatan unik; keluarkan kegiatan asal `ditunda` setelah lanjutannya diklaim (Q69 §69.6); tandai total yang memuat anggaran "belum diisi"; total pada versi RA yang dibekukan tidak dihitung ulang.
 - [x] Perlakukan contoh berkas sebagai lampiran persyaratan, bukan bukti: tidak dinilai gerbang kelengkapan dan tidak dibekukan pada versi pengajuan.
 - [x] Tolak penghapusan berkas yang memenuhi persyaratan tahap perencanaan kegiatan (mis. RAB) sejak RA yang mengklaim kegiatan tersebut diajukan, mengikuti pola Q36; koreksi lewat pengembalian RA (Q42 §42.4 butir 5).
 
@@ -3472,7 +3479,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] PENANDA BERANGGARAN: Uji persyaratan bertanda `hanya_kegiatan_beranggaran` hanya diperiksa untuk kegiatan beranggaran lebih dari 0, sedangkan persyaratan tanpa penanda berlaku untuk setiap kegiatan (Q42 §42.3 butir 3).
 - [x] PERSYARATAN PER INDIKATOR: Uji pengajuan RA indikator X memeriksa persyaratan global + khusus indikator X, sedangkan persyaratan khusus indikator lain bagi kegiatan bersama baru diperiksa saat RA indikator tersebut diajukan (Q42 §42.4 butir 4).
 - [x] CONTOH BERKAS: Uji contoh berkas dapat ditambah, diganti, atau dihapus Perencanaan kapan saja, penghapusan wajib alasan, dan contoh berkas tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 4, Q43 §43.2 butir 2).
-- [x] PENJUMLAHAN LANJUTAN: Uji kegiatan asal `ditunda` yang sudah memiliki kegiatan lanjutan tidak dihitung dalam total sehingga anggarannya hanya terhitung pada kegiatan lanjutan, dan total pada versi RA yang dibekukan tidak berubah (Q42 §42.2 butir 6).
+- [x] PENJUMLAHAN LANJUTAN: Uji kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6) sehingga anggarannya hanya terhitung pada kegiatan lanjutan, dan total pada versi RA yang dibekukan tidak berubah (Q42 §42.2 butir 6).
 - [x] DATA AWAL: Uji kegiatan data awal 2026 dan kegiatan periode lampau 2026 tanpa anggaran diterima dan tampil "belum diisi" (Q46 §46.1 butir 3).
 - [x] IMUTABILITAS RAB: Uji penghapusan RAB atau berkas tahap perencanaan kegiatan ditolak sejak RA yang mengklaim kegiatan tersebut diajukan, dan masih diterima sebelum pengajuan (Q42 §42.4 butir 5, Q36).
 - [x] SECURITY: Uji request langsung untuk kegiatan unit lain, deny yang cocok, dan pembacaan anggaran/RAB tanpa akses detail kegiatan menghasilkan 403 atau data tersembunyi meski tombol UI disembunyikan.

@@ -381,9 +381,11 @@ export const rekomendasiBadgeMap: Record<string, { variant: BadgeVariant; label:
 
 // Status Kegiatan
 export const kegiatanStatusBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
-    direncanakan: { variant: 'muted', label: 'Direncanakan' },
+    rencana: { variant: 'muted', label: 'Rencana' },
     terlaksana: { variant: 'success', label: 'Terlaksana' },
-    tidak_terlaksana: { variant: 'danger', label: 'Tidak Terlaksana' },
+    tidak_terlaksana: { variant: 'danger', label: 'Tidak terlaksana' },
+    ditunda: { variant: 'warning', label: 'Ditunda' },
+    batal: { variant: 'danger', label: 'Batal' },
 };
 ```
 

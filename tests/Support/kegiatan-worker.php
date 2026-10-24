@@ -1,6 +1,8 @@
 <?php
 
 use App\Actions\Kegiatan\SimpanKegiatan;
+use App\Actions\Kegiatan\UbahStatusKegiatan;
+use App\Models\Kegiatan;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -25,8 +27,10 @@ try {
     DB::statement("SET statement_timeout = '20s'");
     $payload = json_decode($argv[1], true, flags: JSON_THROW_ON_ERROR);
     $actor = User::findOrFail($payload['actor_id']);
+    $ubahStatus = ($payload['operation'] ?? null) === 'ubah_status';
+    $kegiatan = $ubahStatus ? Kegiatan::findOrFail($payload['id']) : null;
     $code = isset($payload['id']) ? 'kegiatan:update' : 'kegiatan:create';
-    if (! app(PermissionResolver::class)->allows($actor, $code, $payload['data']['unit_id'])) {
+    if (! app(PermissionResolver::class)->allows($actor, $code, $kegiatan?->unit_id ?? $payload['data']['unit_id'])) {
         throw new RuntimeException('Fixture harus berizin sebelum barrier.');
     }
     fwrite(STDOUT, 'READY:'.$identity->pid."\n");
@@ -34,7 +38,11 @@ try {
     if (trim((string) fgets(STDIN)) !== 'GO') {
         throw new RuntimeException('Barrier GO tidak diterima.');
     }
-    app(SimpanKegiatan::class)->handle($actor, $payload['data'], $payload['id'] ?? null);
+    if ($kegiatan) {
+        app(UbahStatusKegiatan::class)->handle($actor, $kegiatan, $payload['data']);
+    } else {
+        app(SimpanKegiatan::class)->handle($actor, $payload['data'], $payload['id'] ?? null);
+    }
     $result = ['outcome' => 'saved'];
 } catch (AuthorizationException) {
     $result = ['outcome' => 'denied'];

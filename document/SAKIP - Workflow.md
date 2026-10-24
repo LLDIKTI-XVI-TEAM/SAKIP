@@ -893,7 +893,8 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
       untuk setiap kegiatan; contoh berkas dari Perencanaan dapat diunduh pada persyaratannya;
       aplikasi tidak membuat template RAB (Q42 §42.3, §42.4 butir 1; §10)
   2. Menjalankan/melaksanakan kegiatan sesuai rencana — status dapat diperbarui sepanjang
-     periode berjalan, mis. setiap bulan, tanpa entitas bulanan tersendiri (Q45 §45.1 butir 4)
+     periode berjalan, mis. setiap bulan, tanpa entitas bulanan tersendiri (Q45 §45.1 butir 4);
+     hanya status rencana dan tidak_terlaksana yang masih dapat berubah (Q69 §69.1)
   3. Setelah masa pelaksanaan, memperbarui kegiatan sesuai hasilnya:
      a. Terlaksana sesuai rencana:
         i.  Mengisi tanggal_realisasi dan realisasi_peserta; narasi per kegiatan
@@ -924,9 +925,9 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
      → Konsekuensi yang disadari: kegiatan yang sama tampil di dua periode (periode asal +
        periode tujuan) — keduanya sah, dibedakan status dan tautan kegiatan_asal_id
      → Kegiatan lanjutan menyalin anggaran kegiatan asal dan anggarannya dapat diubah;
-       kegiatan asal yang ditunda dan sudah memiliki kegiatan lanjutan tidak dihitung dalam
-       total, sehingga anggarannya hanya terhitung pada kegiatan lanjutan; total yang sudah
-       dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6)
+       kegiatan asal yang ditunda tidak dihitung dalam total setelah lanjutannya diklaim
+       (Q69 §69.6), sehingga anggarannya hanya terhitung pada kegiatan lanjutan; total yang
+       sudah dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6)
      → Periode tujuan hanya periode lain pada tahun yang sama; kegiatan yang mundur ke tahun
        berikutnya dicatat sebagai kegiatan baru pada Rencana Aksi tahun itu. Berkas kegiatan
        asal, termasuk RAB, tidak disalin; persyaratan tahap kegiatan_perencanaan tidak
@@ -935,7 +936,9 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
 
 🎯 Penanggung Jawab / 📋 Perencanaan
   5. Kegiatan dapat diperbarui (status, realisasi, narasi, bukti dukung) selama jadwal_tahunan
-     belum penutupan; setelah penutupan hanya lewat jadwal:buka_kembali
+     belum penutupan; setelah penutupan hanya lewat jadwal:buka_kembali; status terlaksana,
+     ditunda, dan batal bersifat final, dan data rencana baca-saja setelah status berubah
+     (Q69 §69.1, §69.3)
   6. Kegiatan berstatus batal/tidak_terlaksana TETAP BOLEH DIKLAIM (§9) — bukti mengapa
      komponen tidak bergerak sesuai rencana; statusnya ikut tampil di rekapitulasi
 
@@ -951,8 +954,8 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
   8. Anggaran dijumlahkan otomatis per periode, per RA, dan per IKU; kegiatan yang diklaim
      lebih dari satu IKU tampil penuh di setiap IKU dengan penanda "kegiatan bersama",
      sedangkan total per unit dan per tahun dihitung dari kegiatan unik (§9)
-     → Kegiatan asal ditunda yang sudah memiliki kegiatan lanjutan tidak dihitung; total yang
-       sudah dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6)
+     → Kegiatan asal ditunda tidak dihitung setelah lanjutannya diklaim (Q69 §69.6); total
+       yang sudah dibekukan pada versi RA tidak berubah (Q42 §42.2 butir 6)
      → Realisasi belanja, pagu induk, dan rekonsiliasi anggaran tidak dikelola (Q42 §42.2
        butir 3)
   9. Anggaran per kegiatan dan berkas RAB mengikuti akses detail kegiatan — dibatasi unit
@@ -968,6 +971,9 @@ stateDiagram-v2
     rencana --> tidak_terlaksana: update status\n(justifikasi WAJIB, tanpa bukti dukung)
     rencana --> ditunda: update status\n(justifikasi + periode tujuan WAJIB,\ntanpa bukti dukung - Q41)
     rencana --> batal: update status\n(justifikasi WAJIB, tanpa bukti dukung)
+    tidak_terlaksana --> terlaksana: update status\n(GERBANG bukti dukung wajib\ntahap kegiatan lengkap - Q69)
+    tidak_terlaksana --> ditunda: update status\n(justifikasi + periode tujuan WAJIB - Q69)
+    tidak_terlaksana --> batal: update status\n(justifikasi WAJIB - Q69)
     tidak_terlaksana --> [*]: kegiatan tetap ada,\ntetap dapat diklaim (§9)
     ditunda --> [*]: dilanjutkan pada\nperiode tujuan - Q41
     batal --> [*]: kegiatan tetap ada,\ntetap dapat diklaim (§9)

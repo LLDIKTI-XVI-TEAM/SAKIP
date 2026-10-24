@@ -57,7 +57,7 @@ export function Select({
                     aria-describedby={error ? `${selectId}-error` : helperText ? `${selectId}-help` : undefined}
                     className={twMerge(
                         clsx(
-                            'w-full h-[42px] appearance-none rounded-lg border bg-surface pl-3.5 pr-10 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted cursor-pointer',
+                            'peer w-full h-[42px] appearance-none rounded-lg border bg-surface pl-3.5 pr-10 py-2 text-sm text-ink transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted cursor-pointer',
                             showHoverScroll && 'text-transparent',
                             error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border',
                             className,
@@ -74,11 +74,12 @@ export function Select({
                         : children}
                 </select>
                 {showHoverScroll && selectedOption && (
-                    <div className="pointer-events-none absolute inset-y-0 left-0 right-10 flex items-center pl-3.5 overflow-hidden">
+                    // Warna ikut `:disabled` select, sehingga fieldset nonaktif (form terkunci) ikut meredupkan label overlay.
+                    <div className="pointer-events-none absolute inset-y-0 left-0 right-10 flex items-center pl-3.5 overflow-hidden text-ink peer-disabled:text-muted">
                         <span className="flex min-w-0 flex-1 items-center" aria-hidden="true">
                             <HoverScrollText
                                 key={String(selectedOption.value)}
-                                className={clsx('text-sm font-normal', props.disabled ? 'text-muted' : 'text-ink')}
+                                className="text-sm font-normal"
                             >
                                 {selectedOption.label}
                             </HoverScrollText>
