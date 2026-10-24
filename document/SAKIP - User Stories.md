@@ -716,11 +716,11 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given editor target PK tahun T dibuka, baseline belum tersimpan, dan realisasi periode nilai akhir T−1 sudah disahkan, Then isian Baseline T−1 terisi nilai itu dengan keterangan sumbernya, dapat diubah, dan belum tersimpan sebelum Simpan. *(Q73 §73.1 butir 1)*
+- [ ] **AC-1:** Given editor target PK tahun T dibuka, baseline kosong, dan realisasi periode nilai akhir T−1 sudah disahkan, Then isian Baseline T−1 terisi nilai itu dengan keterangan sumbernya, dapat diubah, dan belum tersimpan sebelum Simpan. *(Q73 §73.1 butir 1)*
 - [ ] **AC-2:** Given realisasi periode nilai akhir T−1 belum disahkan atau sedang dibuka kembali, Then isian kosong dengan keterangan "Realisasi akhir {T−1} belum disahkan". *(Q73 §73.1 butir 2 dan 4)*
-- [ ] **AC-3:** Given realisasi periode nilai akhir T−1 disahkan tetapi tidak dapat diukur, Then isian kosong dengan keterangan "Realisasi akhir {T−1} tidak dapat diukur". *(Q73 §73.1 butir 2)*
-- [ ] **AC-4:** Given tidak ada pengukuran T−1 di SAKIP (mis. PK 2026), Then isian kosong dengan keterangan "Belum ada realisasi {T−1} di SAKIP". *(Q73 §73.1 butir 2)*
-- [ ] **AC-5:** Given baseline sudah tersimpan, Then nilai tersimpan yang tampil dan tidak ditimpa. *(Q73 §73.1 butir 3)*
+- [ ] **AC-3:** Given realisasi periode nilai akhir T−1 disahkan tetapi tidak dapat dihitung, Then isian kosong dengan keterangan "Realisasi akhir {T−1} tidak dapat dihitung". *(Q73 §73.1 butir 2)*
+- [ ] **AC-4:** Given indikator tidak memiliki snapshot pada jadwal T−1 berstatus aktif/ditutup (mis. PK 2026, indikator baru), Then isian kosong dengan keterangan "Belum ada realisasi {T−1} di SAKIP". *(Q73 §73.1 butir 2)*
+- [ ] **AC-5:** Given baseline tersimpan tidak kosong (termasuk 0), Then nilai tersimpan yang tampil dan tidak ditimpa. *(Q73 §73.1 butir 3)*
 - [ ] **AC-6:** Given editor dibuka lalu ditutup tanpa Simpan, Then `target_kinerjas` tidak berubah. *(Q73 §73.1 butir 1)*
 - [ ] **AC-7:** Given tabel "Baseline dan target PK", Then tidak ada kolom Target Renstra; target Renstra tampil kecil di bawah Target PK, termasuk keterangan "target Renstra belum ada", dan lencana deviasi ikut di bawah Target PK. *(Q73 §73.2 butir 1–2)*
 - [ ] **AC-8:** Given layar 375 px, Then tabel memakai pola `block md:table` tanpa scroll horizontal dan teks minimal 12px.
