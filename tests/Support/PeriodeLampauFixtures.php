@@ -85,8 +85,6 @@ trait PeriodeLampauFixtures
                 'periode_id' => $periode->id,
                 'pengisian_mulai' => '2026-03-01',
                 'pengisian_selesai' => '2026-03-31',
-                'reviu_mulai' => '2026-04-01',
-                'reviu_selesai' => '2026-04-30',
             ]);
         }
         // TW IV: pengisian belum lewat saat aktivasi (normal).
@@ -95,8 +93,6 @@ trait PeriodeLampauFixtures
             'periode_id' => $periode4->id,
             'pengisian_mulai' => '2026-10-01',
             'pengisian_selesai' => '2026-12-31',
-            'reviu_mulai' => '2027-01-01',
-            'reviu_selesai' => '2027-01-31',
         ]);
 
         $snapshot = JadwalSnapshot::create([

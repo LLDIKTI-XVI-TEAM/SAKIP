@@ -59,7 +59,7 @@ class VerifikasiPengukuranTest extends TestCase
         }
         $periode = Periode::create(['nama' => $lintasTahun ? 'Triwulan I' : 'Triwulan II', 'urutan' => $lintasTahun ? 1 : 2, 'aktif' => true, 'is_nilai_akhir' => false]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $periode->id,
-            'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-06-30', 'reviu_mulai' => '2026-06-30', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-06-30']);
         $baru = array_replace_recursive($dasar, $baru);
         $this->pengukuran = PengukuranKinerja::create(['indikator_id' => $this->context->indikator_id, 'tahun' => $this->jadwal->tahun,
             'periode_id' => $periode->id, 'jadwal_snapshot_id' => $this->context->id, 'sumber_nilai' => 'manual',
@@ -126,7 +126,7 @@ class VerifikasiPengukuranTest extends TestCase
         $this->pengukuran->periode->update(['urutan' => 4]);
         $kosong = Periode::create(['nama' => 'Periode kosong', 'urutan' => 3, 'aktif' => true]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $kosong->id,
-            'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-06-30', 'reviu_mulai' => '2026-06-30', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-06-30']);
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.peringatan_verifikasi.periode_pembanding', null));
     }
 

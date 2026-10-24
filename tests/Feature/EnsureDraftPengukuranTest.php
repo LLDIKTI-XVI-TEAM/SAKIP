@@ -326,7 +326,7 @@ class EnsureDraftPengukuranTest extends TestCase
     private function periode(int $urutan, string $mulai, string $selesai, bool $final = false): Periode
     {
         $periode = Periode::create(['nama' => 'Triwulan '.$urutan, 'urutan' => $urutan, 'aktif' => true, 'is_nilai_akhir' => $final]);
-        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $periode->id, 'pengisian_mulai' => $mulai, 'pengisian_selesai' => $selesai, 'reviu_mulai' => $selesai, 'reviu_selesai' => '2026-12-31']);
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $periode->id, 'pengisian_mulai' => $mulai, 'pengisian_selesai' => $selesai]);
 
         return $periode;
     }

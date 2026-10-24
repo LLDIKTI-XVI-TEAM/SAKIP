@@ -56,9 +56,9 @@ class JadwalActivationTest extends TestCase
     {
         $this->readyJadwal(withIndicator: false);
         $first = $this->calendarMaster(1, false);
-        $window = fn (string $from, string $to, string $rFrom, string $rTo): array => ['pengisian_mulai' => $from, 'pengisian_selesai' => $to, 'reviu_mulai' => $rFrom, 'reviu_selesai' => $rTo];
+        $window = fn (string $from, string $to): array => ['pengisian_mulai' => $from, 'pengisian_selesai' => $to];
         $payload = $this->calendarPayload($this->ready['renstra'], $this->ready['periode']);
-        $payload['periode'][] = ['periode_id' => $first->id, 'periode_revisi' => $first->revisi, ...$window('2026-04-01', '2026-04-07', '2026-04-08', '2026-04-14')];
+        $payload['periode'][] = ['periode_id' => $first->id, 'periode_revisi' => $first->revisi, ...$window('2026-04-01', '2026-04-07')];
         app(SaveJadwalDraft::class)->handle($this->ready['owner'], [...$payload, 'revisi' => 1], $this->ready['jadwal']);
         $manual = $this->eligibleIndicator(target: '76.25', baseline: null);
         $ratio = $this->eligibleIndicator(target: '0', baseline: '74.2', tipe: 'rasio_persen', komponen: [['kode' => 'A', 'peran' => 'pembilang'], ['kode' => 'B', 'peran' => 'penyebut', 'bobot' => '2.5']]);

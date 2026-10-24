@@ -23,7 +23,7 @@ class PengukuranTanpaTargetTest extends TestCase
         $this->pengukuran->periode->update(['is_nilai_akhir' => $final]);
         $last = Periode::create(['nama' => 'Triwulan IV', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => ! $final]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $last->id, 'pengisian_mulai' => '2026-12-01',
-            'pengisian_selesai' => '2026-12-15', 'reviu_mulai' => '2026-12-15', 'reviu_selesai' => '2026-12-31']);
+            'pengisian_selesai' => '2026-12-15']);
         if ($past) {
             $this->jadwal->update(['activated_at' => '2026-03-15 16:00:00']);
             $this->travelTo(now()->setDate(2026, 4, 1)->setTime(9, 0));
@@ -93,7 +93,7 @@ class PengukuranTanpaTargetTest extends TestCase
     {
         $final = Periode::create(['nama' => 'Periode akhir', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $final->id, 'pengisian_mulai' => '2026-12-01',
-            'pengisian_selesai' => '2026-12-15', 'reviu_mulai' => '2026-12-15', 'reviu_selesai' => '2026-12-31']);
+            'pengisian_selesai' => '2026-12-15']);
         $context = JadwalSnapshot::create([...$this->context->only(['jadwal_id', 'indikator_id', 'periode_mulai_id', 'unit_id', 'nama', 'definisi',
             'satuan', 'presisi', 'desimal_tampilan', 'arah', 'target']), 'nomor_versi' => 2, 'menggantikan_id' => $this->context->id,
             'tipe_perhitungan' => 'rasio_persen', 'dinilai_tahunan' => true, 'komposisi_final' => false]);

@@ -26,7 +26,7 @@ class RekomendasiBerlakuTest extends TestCase
     public function test_draf_tidak_tampil_dan_hanya_rekomendasi_disetujui_terbaru_yang_berlaku_pada_periode_berikutnya(): void
     {
         $tw2 = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
-        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw2->id, 'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw2->id, 'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
         $berikutnya = PengukuranKinerja::create(['indikator_id' => $this->pengukuran->indikator_id, 'tahun' => 2026, 'periode_id' => $tw2->id, 'jadwal_snapshot_id' => $this->context->id, 'sumber_nilai' => 'manual', 'created_by' => $this->actor->id]);
         $tw1 = $this->pengukuran->periode_id;
 
@@ -119,7 +119,7 @@ class RekomendasiBerlakuTest extends TestCase
         RenstraPk::whereKey($this->jadwal->renstra_pk_id)->update(['tahun' => 2027, 'tanggal_pk' => '2027-01-01']);
         $this->jadwal->update(['tahun' => 2027, 'penutupan' => '2027-12-31', 'activated_at' => '2027-03-15 16:00:00']);
         foreach ($this->jadwal->periode as $window) {
-            $window->update(collect($window->only(['pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai']))
+            $window->update(collect($window->only(['pengisian_mulai', 'pengisian_selesai']))
                 ->map(fn ($tanggal) => $tanggal->setYear(2027)->toDateString())->all());
         }
         $this->plan->update(['tahun' => 2027]);
@@ -206,7 +206,7 @@ class RekomendasiBerlakuTest extends TestCase
         $this->pengukuran->periode->update(['nama' => 'Triwulan II', 'urutan' => 2]);
         $sebelumnya = Periode::create(['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $sebelumnya->id,
-            'pengisian_mulai' => '2026-01-01', 'pengisian_selesai' => '2026-01-15', 'reviu_mulai' => '2026-01-15', 'reviu_selesai' => '2026-02-15']);
+            'pengisian_mulai' => '2026-01-01', 'pengisian_selesai' => '2026-01-15']);
 
         return [2026, $sebelumnya->id];
     }
@@ -225,7 +225,7 @@ class RekomendasiBerlakuTest extends TestCase
         $pk = RenstraPk::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2025, 'nomor_pk' => 'PK-2025', 'tanggal_pk' => '2025-01-01', 'created_by' => $this->actor->id]);
         $lalu = JadwalTahunan::create(['renstra_id' => $this->jadwal->renstra_id, 'tahun' => 2025, 'renstra_pk_id' => $pk->id, 'penutupan' => '2025-12-31', 'status' => 'ditutup', 'activated_at' => now()->subYear()]);
         foreach ([$this->pengukuran->periode_id => '2025-03-01', $tw4->id => '2025-12-01'] as $periodeId => $mulai) {
-            PeriodeJadwal::create(['jadwal_id' => $lalu->id, 'periode_id' => $periodeId, 'pengisian_mulai' => $mulai, 'pengisian_selesai' => $mulai, 'reviu_mulai' => $mulai, 'reviu_selesai' => $mulai]);
+            PeriodeJadwal::create(['jadwal_id' => $lalu->id, 'periode_id' => $periodeId, 'pengisian_mulai' => $mulai, 'pengisian_selesai' => $mulai]);
         }
         JadwalSnapshot::create([...$this->context->only(['indikator_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
             'jadwal_id' => $lalu->id, 'periode_mulai_id' => $this->pengukuran->periode_id]);

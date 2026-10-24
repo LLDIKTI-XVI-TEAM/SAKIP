@@ -19,7 +19,7 @@ trait CreatesDashboardFixture
         $periode = Periode::create(['nama' => 'Triwulan '.['I', 'II', 'III', 'IV'][$urutan - 1], 'urutan' => $urutan, 'aktif' => true, 'is_nilai_akhir' => $urutan === 4]);
 
         return PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $periode->id,
-            'pengisian_mulai' => $mulai, 'pengisian_selesai' => $selesai, 'reviu_mulai' => $selesai, 'reviu_selesai' => $selesai]);
+            'pengisian_mulai' => $mulai, 'pengisian_selesai' => $selesai]);
     }
 
     /** Indikator kedua beserta snapshot jadwal fixture; unit master dan unit snapshot dapat berbeda. */

@@ -156,7 +156,7 @@ class DashboardKegiatanTest extends TestCase
     {
         $renstraLama = Renstra::create([...Renstra::findOrFail($this->jadwal->renstra_id)->only(['nama', 'tahun_mulai', 'tahun_selesai', 'created_by']), 'kode' => 'REN-LAMA', 'status' => 'nonaktif']);
         $jadwalLama = JadwalTahunan::create([...$this->jadwal->only(['tahun', 'penutupan']), 'renstra_id' => $renstraLama->id, 'status' => 'ditutup']);
-        PeriodeJadwal::create([...PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->firstOrFail()->only(['periode_id', 'pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai']),
+        PeriodeJadwal::create([...PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->firstOrFail()->only(['periode_id', 'pengisian_mulai', 'pengisian_selesai']),
             'jadwal_id' => $jadwalLama->id]);
         $indikatorLama = $this->indikatorBaru('I-LAMA', snapshot: ['jadwal_id' => $jadwalLama->id]);
         $raLama = RencanaAksi::create([...$this->plan->only(['tahun', 'unit_id', 'penanggung_jawab_id', 'created_by']),

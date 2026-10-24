@@ -87,7 +87,7 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         [$fixture, $header] = $this->drafTanpaKegiatan('2026-04-05 09:00:00');
         $fixture['jadwal']->update(['tahun' => 2027, 'activated_at' => '2027-04-05 09:00:00', 'penutupan' => '2027-12-31']);
         $fixture['jadwal']->periode()->update(['pengisian_mulai' => '2027-03-01', 'pengisian_selesai' => '2027-03-31',
-            'reviu_mulai' => '2027-04-01', 'reviu_selesai' => '2027-04-30']);
+        ]);
         $header->update(['tahun' => 2027]);
         $this->travelTo(now()->setDate(2027, 3, 10)->setTime(9, 0));
 
@@ -330,7 +330,7 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
     {
         $fixture = $this->buatFixtureManual();
         $fixture['jadwal']->update(['activated_at' => '2026-04-15 09:00:00']);
-        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-06-30', 'reviu_mulai' => '2026-07-01', 'reviu_selesai' => '2026-07-15']);
+        PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-06-30']);
         $this->grant($fixture['pic'], 'kegiatan:create', $fixture['unit']->id, $fixture['perencanaan']);
         $kirim = fn (Periode $periode) => $this->actingAs($fixture['pic'])->post('/kegiatan', [
             'unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $periode->id, 'nama' => 'Kegiatan tanpa anggaran', 'anggaran' => null,

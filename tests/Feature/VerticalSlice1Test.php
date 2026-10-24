@@ -8,13 +8,13 @@ use App\Actions\Access\RevokeDeny;
 use App\Models\AuditLog;
 use App\Models\IndikatorKomponen;
 use App\Models\PenugasanIndikator;
-use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\Renstra;
 use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
+use App\Services\AuditLogger;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,34 +41,44 @@ class VerticalSlice1Test extends TestCase
         return $pic;
     }
 
-    public function test_review_lateness_is_frozen_at_each_transition_using_the_wita_deadline(): void
+    /** Jejak reviu sebelum Q70 yang memuat penanda terlambat untuk versi pengajuan aktif. */
+    private function catatPenandaReviuLama(): AuditLog
+    {
+        return app(AuditLogger::class)->catat(actor: $this->actor, tindakan: 'pengukuran.verifikasi', objekTipe: 'pengukuran', objekId: $this->pengukuran->id,
+            nilaiBaru: ['versi_pengajuan' => ['id' => $this->pengukuran->latestVersion->id], 'self_approval' => false,
+                'reviu_terlambat' => true, 'reviu_selesai' => '2026-04-15', 'tanggal_reviu' => '2026-04-16'],
+            dasarIzin: ['permission' => 'pengukuran:verifikasi', 'fixture' => 'jejak sebelum Q70']);
+    }
+
+    public function test_penanda_reviu_terlambat_lama_tetap_tampil_dan_aksi_reviu_baru_tidak_membuatnya(): void
     {
         $this->submit($this->actor);
-        $this->travelTo(Carbon::parse('2026-04-15 15:59:59', 'UTC'));
-        $this->review($this->actor, 'verifikasi')->assertSessionHasNoErrors();
-        $verification = AuditLog::where('tindakan', 'pengukuran.verifikasi')->sole();
-        $this->assertFalse($verification->nilai_baru['reviu_terlambat'] ?? null);
-        $this->travelTo(Carbon::parse('2026-04-15 16:00:00', 'UTC'));
-        $this->review($this->actor, 'sahkan')->assertSessionHasNoErrors();
-        $audit = AuditLog::where('tindakan', 'pengukuran.sahkan')->sole();
-        $this->assertTrue($audit->nilai_baru['reviu_terlambat']);
-        $this->assertSame('2026-04-15', $audit->nilai_baru['reviu_selesai']);
-        $this->assertSame('2026-04-16', $audit->nilai_baru['tanggal_reviu']);
-        $this->assertSame($this->pengukuran->latestVersion->id, $audit->nilai_baru['versi_pengajuan']['id']);
-        PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->update(['reviu_selesai' => '2026-05-01']);
-        $this->assertSame($audit->nilai_baru, $audit->fresh()->nilai_baru);
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', false));
+
+        $lama = $this->catatPenandaReviuLama();
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', true));
         $this->get('/pengukuran')->assertInertia(fn ($page) => $page->where('pengukurans.0.pengukuran.reviu_terlambat', true));
         $this->get('/dashboard')->assertInertia(fn ($page) => $page->where('statusIndikator.0.reviu_terlambat', true));
+
+        // Aksi reviu setelah tenggat lama tidak lagi membuat penanda.
+        $this->travelTo(Carbon::parse('2026-04-16 09:00:00', 'Asia/Makassar'));
+        $this->review($this->actor, 'verifikasi')->assertSessionHasNoErrors();
+        $this->review($this->actor, 'sahkan')->assertSessionHasNoErrors();
+        $baru = AuditLog::whereIn('tindakan', ['pengukuran.verifikasi', 'pengukuran.sahkan'])->whereKeyNot($lama->id)->get();
+        $this->assertCount(2, $baru);
+        foreach ($baru as $audit) {
+            $this->assertSame($this->pengukuran->latestVersion->id, $audit->nilai_baru['versi_pengajuan']['id']);
+            $this->assertArrayNotHasKey('reviu_terlambat', $audit->nilai_baru, $audit->tindakan);
+            $this->assertArrayNotHasKey('reviu_selesai', $audit->nilai_baru, $audit->tindakan);
+        }
+        $this->assertTrue($lama->fresh()->nilai_baru['reviu_terlambat']);
     }
 
     public function test_new_submission_does_not_inherit_the_previous_late_review_marker(): void
     {
         $this->submit($this->actor);
-        $this->travelTo(Carbon::parse('2026-04-16 00:00:00', 'Asia/Makassar'));
-        $this->review($this->actor, 'verifikasi')->assertSessionHasNoErrors();
-        $audit = AuditLog::where('tindakan', 'pengukuran.verifikasi')->sole();
-        $this->assertTrue($audit->nilai_baru['reviu_terlambat'] ?? null);
+        $audit = $this->catatPenandaReviuLama();
+        $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', true));
         $this->post('/verifikasi/'.$this->pengukuran->id.'/kembalikan', ['versi' => $this->pengukuran->versi, 'catatan' => 'Perlu koreksi.'])->assertSessionHasNoErrors();
         $this->submit($this->actor);
         $this->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', false));
@@ -412,12 +422,6 @@ class VerticalSlice1Test extends TestCase
         $this->assertSame(now()->timestamp, $this->pengukuran->latestVersion->diajukan_at->timestamp);
         $this->assertSame(now()->timestamp, AuditLog::where('tindakan', 'pengukuran.ajukan')->firstOrFail()->waktu->timestamp);
 
-        foreach ([['2026-03-14 15:59:59', false], ['2026-03-14 16:00:00', true]] as [$instant, $open]) {
-            $this->travelTo(Carbon::parse($instant, 'UTC'));
-            $errors = $policy->businessErrors($this->actor, $this->pengukuran->fresh(), 'verifikasi');
-            $this->assertSame($open, ! in_array('Jendela reviu periode ini belum dimulai.', $errors, true));
-        }
-
         $this->pengukuran->update(['status_alur' => 'dikembalikan']);
         foreach ([['2026-12-31 15:59:59', true], ['2026-12-31 16:00:00', false]] as [$instant, $open]) {
             $this->travelTo(Carbon::parse($instant, 'UTC'));
@@ -441,11 +445,23 @@ class VerticalSlice1Test extends TestCase
         $this->assertFalse(Gate::forUser($this->actor)->allows('update', $this->pengukuran->fresh()));
     }
 
-    public function test_verification_cannot_start_before_review_window(): void
+    public function test_verifikasi_kembalikan_dan_sahkan_pada_hari_pengajuan_tidak_ditolak_jendela_reviu(): void
     {
-        PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->update(['reviu_mulai' => today()->addDay()]);
-        $errors = app(PengukuranKinerjaPolicy::class)->businessErrors($this->actor, $this->pengukuran, 'verifikasi');
-        $this->assertContains('Jendela reviu periode ini belum dimulai.', $errors);
+        // Masih di dalam jendela pengisian 1–15 Maret; sebelum Q70 reviu periode ini baru dibuka 15 Maret.
+        $this->travelTo(Carbon::parse('2026-03-10 09:00:00', 'Asia/Makassar'));
+        $this->submit($this->actor);
+        $this->post('/verifikasi/'.$this->pengukuran->id.'/kembalikan', ['versi' => $this->pengukuran->versi, 'catatan' => 'Perlu koreksi.'])->assertSessionHasNoErrors();
+        $this->assertSame('dikembalikan', $this->pengukuran->fresh()->status_alur);
+        $this->submit($this->actor);
+        $this->review($this->actor, 'verifikasi')->assertSessionHasNoErrors();
+        $this->assertSame('diverifikasi', $this->pengukuran->status_alur);
+        $this->review($this->actor, 'sahkan')->assertSessionHasNoErrors();
+        $this->assertSame('disahkan', $this->pengukuran->status_alur);
+
+        // Kontrol: penutupan tetap menjadi batas akhir reviu.
+        $this->travelTo(Carbon::parse('2027-01-01 09:00:00', 'Asia/Makassar'));
+        $this->assertContains('Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.',
+            app(PengukuranKinerjaPolicy::class)->businessErrors($this->actor, $this->pengukuran->fresh(), 'verifikasi'));
     }
 
     /**

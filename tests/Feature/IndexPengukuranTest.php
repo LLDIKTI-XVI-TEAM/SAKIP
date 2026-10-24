@@ -55,7 +55,7 @@ class IndexPengukuranTest extends TestCase
     public function test_dua_jadwal_aktif_digabung_dalam_satu_daftar(): void
     {
         $next = JadwalTahunan::create([...$this->jadwal->only(['renstra_id', 'renstra_pk_id']), 'tahun' => 2027, 'penutupan' => '2027-12-31', 'status' => 'aktif']);
-        PeriodeJadwal::create(['jadwal_id' => $next->id, 'periode_id' => $this->pengukuran->periode_id, 'pengisian_mulai' => '2026-03-10', 'pengisian_selesai' => '2026-03-20', 'reviu_mulai' => '2026-03-20', 'reviu_selesai' => '2026-04-20']);
+        PeriodeJadwal::create(['jadwal_id' => $next->id, 'periode_id' => $this->pengukuran->periode_id, 'pengisian_mulai' => '2026-03-10', 'pengisian_selesai' => '2026-03-20']);
         JadwalSnapshot::create([...$this->context->only(['indikator_id', 'periode_mulai_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']), 'jadwal_id' => $next->id]);
 
         $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page
@@ -143,7 +143,7 @@ class IndexPengukuranTest extends TestCase
         [$absen] = $this->indikator('I-UJI-2', $this->pengukuran->periode, $this->unit);
         $unitB = Unit::create(['nama' => 'Unit B', 'created_by' => $this->actor->id]);
         $next = JadwalTahunan::create([...$this->jadwal->only(['renstra_id', 'renstra_pk_id']), 'tahun' => 2027, 'penutupan' => '2027-12-31', 'status' => 'aktif']);
-        PeriodeJadwal::create(['jadwal_id' => $next->id, 'periode_id' => $this->pengukuran->periode_id, 'pengisian_mulai' => '2026-03-10', 'pengisian_selesai' => '2026-03-20', 'reviu_mulai' => '2026-03-20', 'reviu_selesai' => '2026-04-20']);
+        PeriodeJadwal::create(['jadwal_id' => $next->id, 'periode_id' => $this->pengukuran->periode_id, 'pengisian_mulai' => '2026-03-10', 'pengisian_selesai' => '2026-03-20']);
         JadwalSnapshot::create([...$this->context->only(['indikator_id', 'periode_mulai_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']), 'jadwal_id' => $next->id, 'unit_id' => $unitB->id]);
         // Kontrol positif: sebelum penutupan, baris tanpa header 2026 menawarkan pembentukan draf.
         $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page
@@ -357,7 +357,7 @@ class IndexPengukuranTest extends TestCase
     private function periode(int $urutan, string $mulai, string $selesai): Periode
     {
         $periode = Periode::create(['nama' => 'Triwulan '.$urutan, 'urutan' => $urutan, 'aktif' => true, 'is_nilai_akhir' => false]);
-        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $periode->id, 'pengisian_mulai' => $mulai, 'pengisian_selesai' => $selesai, 'reviu_mulai' => $selesai, 'reviu_selesai' => now()->parse($selesai)->addMonth()->toDateString()]);
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $periode->id, 'pengisian_mulai' => $mulai, 'pengisian_selesai' => $selesai]);
 
         return $periode;
     }
