@@ -40,6 +40,7 @@ function buatPayload(koreksi: RencanaAksiPayload['koreksi'], periodeTerkunci: st
         skor: { nilai: null, status_perhitungan: 'belum_diisi' },
         peringatan_turun: false,
         komponen_turun: [] as (string | null)[],
+        tanggal: null,
         batas_terkunci_pic: periodeTerkunci.includes(id) ? BATAS_PENGISIAN[index] : null,
         boleh_tanpa_target: false,
     }));

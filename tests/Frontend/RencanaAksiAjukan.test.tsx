@@ -38,6 +38,7 @@ function buatPayload(ubah: Partial<RencanaAksiPayload> = {}): RencanaAksiPayload
         skor: { nilai: '100.00', status_perhitungan: 'terhitung' },
         peringatan_turun: false,
         komponen_turun: [] as (string | null)[],
+        tanggal: null,
         batas_terkunci_pic: null,
         boleh_tanpa_target: false,
     }));

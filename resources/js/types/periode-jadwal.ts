@@ -1,6 +1,14 @@
 import type { Paginated, RenstraStatus } from '@/types/renstra';
 
-export interface PeriodeOption {
+/** Tanggal periode tanpa tahun dari Master Periode; keempatnya terisi atau kosong bersamaan. */
+export interface TanggalPeriode {
+    bulan_mulai: number | null;
+    hari_mulai: number | null;
+    bulan_selesai: number | null;
+    hari_selesai: number | null;
+}
+
+export interface PeriodeOption extends TanggalPeriode {
     id: string;
     nama: string;
     urutan: number;
@@ -60,7 +68,7 @@ export interface JadwalPeriodeInput {
     pengisian_selesai: string;
 }
 
-export interface JadwalPeriode extends JadwalPeriodeInput {
+export interface JadwalPeriode extends JadwalPeriodeInput, TanggalPeriode {
     nama: string;
     urutan: number;
     aktif: boolean;

@@ -15,11 +15,20 @@ import { PeriodeFields, type PeriodeFormValues } from '@/Components/Periode/Peri
 import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { formatRentangPeriode } from '@/lib/rentangPeriode';
 import type { PeriodeIndexProps, PeriodeSummary } from '@/types/periode-jadwal';
 
 interface PeriodeForm extends PeriodeFormValues {
     revisi?: number;
 }
+
+const tanggalKosong = { hari_mulai: '', bulan_mulai: '', hari_selesai: '', bulan_selesai: '' };
+const tanggalForm = (item: PeriodeSummary) => ({
+    hari_mulai: String(item.hari_mulai ?? ''),
+    bulan_mulai: String(item.bulan_mulai ?? ''),
+    hari_selesai: String(item.hari_selesai ?? ''),
+    bulan_selesai: String(item.bulan_selesai ?? ''),
+});
 
 export default function PeriodeIndex({ periode, current_final, filters, can }: PeriodeIndexProps) {
     const [query, setQuery] = useState(filters.q);
@@ -35,7 +44,7 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
     const recovery = useAuthRecovery();
     const submitting = useRef(false);
     const summaryRef = useRef<HTMLDivElement>(null);
-    const form = useForm<PeriodeForm>({ nama: '', urutan: '', aktif: true, is_nilai_akhir: false });
+    const form = useForm<PeriodeForm>({ nama: '', urutan: '', aktif: true, is_nilai_akhir: false, ...tanggalKosong });
     const swapForm = useForm({ periode_lama_id: '', revisi_lama: 0, periode_pengganti_id: '', revisi_pengganti: 0 });
     const busy = form.processing || swapForm.processing;
     const blocked = Boolean(failure || recovery.recovery);
@@ -76,9 +85,10 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                       urutan: String(item.urutan),
                       aktif: item.aktif,
                       is_nilai_akhir: item.is_nilai_akhir,
+                      ...tanggalForm(item),
                       revisi: item.revisi,
                   }
-                : { nama: '', urutan: '', aktif: true, is_nilai_akhir: current_final === null },
+                : { nama: '', urutan: '', aktif: true, is_nilai_akhir: current_final === null, ...tanggalKosong },
         );
         form.clearErrors();
         setFormOpen(true);
@@ -242,12 +252,12 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                 </Card>
 
                 <Card>
-                    {/* Grid mobile: empat kolom muat tanpa scroll horizontal di semua lebar layar. */}
+                    {/* Grid mobile: lima kolom muat tanpa scroll horizontal di semua lebar layar. */}
                     <Table wrapperClassName="overflow-x-visible" className="block md:table">
                         <caption className="sr-only">Master periode</caption>
                         <TableHeader className="hidden md:table-header-group">
                             <TableRow>
-                                {['Nama periode', 'Urutan', 'Status', 'Aksi'].map((label) => (
+                                {['Nama periode', 'Urutan', 'Status', 'Rentang tanggal', 'Aksi'].map((label) => (
                                     <TableHead
                                         key={label}
                                         className={`whitespace-normal ${label === 'Aksi' ? 'text-right' : ''}`}
@@ -260,7 +270,7 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                         <TableBody className="block md:table-row-group">
                             {periode.data.length === 0 && (
                                 <TableRow className="block md:table-row">
-                                    <TableCell colSpan={4} className="block py-12 text-center md:table-cell">
+                                    <TableCell colSpan={5} className="block py-12 text-center md:table-cell">
                                         <CalendarDays className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
                                         <p className="mt-2 text-sm font-semibold text-ink">Tidak ada periode</p>
                                         <p className="mt-1 text-xs text-muted">
@@ -284,6 +294,10 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                                         <Badge variant={item.aktif ? 'success' : 'muted'}>
                                             {item.aktif ? 'Aktif' : 'Nonaktif'}
                                         </Badge>
+                                    </TableCell>
+                                    <TableCell className="col-span-2 min-w-0 break-words p-0 text-sm md:px-4 md:py-3.5">
+                                        <span className="mr-2 text-muted md:hidden">Rentang</span>
+                                        {formatRentangPeriode(item) ?? <span className="text-muted">Belum diatur</span>}
                                     </TableCell>
                                     <TableCell className="col-span-2 min-w-0 p-0 md:px-4 md:py-3.5 md:text-right">
                                         <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
@@ -421,6 +435,10 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                                     {detail.aktif ? 'Aktif' : 'Nonaktif'}
                                 </Badge>
                             </dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs font-semibold text-muted">Rentang tanggal</dt>
+                            <dd className="mt-1 text-sm text-ink">{formatRentangPeriode(detail) ?? 'Belum diatur'}</dd>
                         </div>
                         <div>
                             <dt className="text-xs font-semibold text-muted">Periode nilai akhir</dt>

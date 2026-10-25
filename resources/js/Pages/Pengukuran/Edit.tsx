@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Head, useForm, Link } from '@inertiajs/react';
 import { ArrowLeft, Save, Send } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -168,7 +169,7 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
                     <dl className="grid gap-4 text-sm sm:grid-cols-2">
                         <div><dt className="text-muted">{labelUnit} penanggung jawab</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd></div>
                         <div><dt className="text-muted">PIC</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.pic?.nama ?? 'Belum ditetapkan'}</dd></div>
-                        <div><dt className="text-muted">Periode</dt><dd className="mt-1 font-medium">{`${pengukuran.periode_jadwal.nama_periode} ${pengukuran.periode_jadwal.tahun}`}</dd></div>
+                        <div><dt className="text-muted">Periode</dt><dd className="mt-1 font-medium">{`${pengukuran.periode_jadwal.nama_periode} ${pengukuran.periode_jadwal.tahun}`}<RentangPeriode tanggal={pengukuran.periode_jadwal.tanggal} tahun={pengukuran.periode_jadwal.tahun} /></dd></div>
                         <div><dt className="text-muted">Target</dt><dd className="mt-1 font-medium">{pengukuran.tanpa_target_periode ? 'Tanpa target periode' : pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                         <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{tipePerhitunganLabel[indikator.tipe_perhitungan]}</dd></div>
                         <div><dt className="text-muted">Arah kinerja</dt><dd className="mt-1 font-medium">{arahLabel[indikator.arah]}</dd></div>

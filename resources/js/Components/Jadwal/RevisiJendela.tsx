@@ -97,6 +97,7 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: Re
         <div className="space-y-3">
             <JendelaPeriode
                 periode={form.data.periode}
+                tahun={tahun}
                 errors={errors}
                 editable={false}
                 disabled={form.processing || blocked}

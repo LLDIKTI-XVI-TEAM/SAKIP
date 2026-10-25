@@ -384,6 +384,7 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                                         tipePerhitungan={rencanaAksi.tipe_perhitungan}
                                         komponen={komponenTerurut}
                                         periode={[...rencanaAksi.periode].sort((a, b) => a.urutan - b.urutan)}
+                                        tahun={rencanaAksi.tahun}
                                         desimalTampilan={desimal}
                                         satuan={satuan}
                                         disabled={formDisabled || kosong || terkunciSemua}

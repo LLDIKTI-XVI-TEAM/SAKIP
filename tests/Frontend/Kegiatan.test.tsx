@@ -18,7 +18,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
 }));
 
 const unitOptions = [{ id: 'unit-a', nama: 'Unit A' }];
-const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV' }];
+const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV', tanggal: { bulan_mulai: 10, hari_mulai: 1, bulan_selesai: 12, hari_selesai: 31 } }];
 const rencana = { id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: '', tujuan: null, sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: null, status: 'rencana', version_token: 'v1', justifikasi: null, periode_nama: 'Triwulan IV', periode_tujuan: null };
 const props: KegiatanFormProps = { kegiatan: rencana, unitOptions, periodeOptions, opsiPeriodeTujuan: [], can: { ubah_rencana: true, ubah_status: [] } };
 const tigaStatus: StatusTujuan[] = ['ditunda', 'tidak_terlaksana', 'batal'];
@@ -65,9 +65,23 @@ it('menampilkan error server yang terhubung ke field dan mempertahankan koreksi 
     expect(document.getElementById(tujuan.getAttribute('aria-describedby') ?? '')?.textContent).toContain('Tujuan wajib diisi.');
 });
 
+it('rentang periode tampil pada daftar dan sebagai keterangan pilihan periode sesuai tahun form', () => {
+    render(<Index
+        kegiatan={{ data: [{ id: 'kegiatan-1', nama: 'Kegiatan pembaca', tujuan: null, unit: unitOptions[0], periode: periodeOptions[0], tahun: 2026, status: 'rencana', tanggal_rencana: null, version_token: 'v1', can: { update: false, ubah_rencana: false, ubah_status: [] }, opsi_periode_tujuan: [] }], links: [], from: 1, to: 1, total: 1 }}
+        filters={{ tahun: '', periode_id: '', unit_id: '', status: '' }} unitOptions={unitOptions} periodeOptions={periodeOptions} can={{ create: false }}
+    />);
+    expect(screen.getByText('1 Okt–31 Des 2026')).toBeTruthy();
+    cleanup();
+
+    render(<Form {...props} />);
+    expect(screen.getByText('1 Okt–31 Des 2026')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/^Tahun/), { target: { value: '2027' } });
+    expect(screen.getByText('1 Okt–31 Des 2027')).toBeTruthy();
+});
+
 it('tidak menawarkan edit atau hapus ketika server tidak memberi capability', () => {
     render(<Index
-        kegiatan={{ data: [{ id: 'kegiatan-1', nama: 'Kegiatan pembaca', tujuan: 'Layanan unit', unit: { id: 'unit-a', nama: 'Unit A' }, periode: { id: 'periode-4', nama: 'Triwulan IV' }, tahun: 2026, status: 'rencana', tanggal_rencana: null, version_token: 'v1', can: { update: false, ubah_rencana: false, ubah_status: [] }, opsi_periode_tujuan: [] }], links: [], from: 1, to: 1, total: 1 }}
+        kegiatan={{ data: [{ id: 'kegiatan-1', nama: 'Kegiatan pembaca', tujuan: 'Layanan unit', unit: { id: 'unit-a', nama: 'Unit A' }, periode: periodeOptions[0], tahun: 2026, status: 'rencana', tanggal_rencana: null, version_token: 'v1', can: { update: false, ubah_rencana: false, ubah_status: [] }, opsi_periode_tujuan: [] }], links: [], from: 1, to: 1, total: 1 }}
         filters={{ tahun: '', periode_id: '', unit_id: '', status: '' }} unitOptions={unitOptions} periodeOptions={periodeOptions} can={{ create: false }}
     />);
     expect(screen.getByText('Kegiatan pembaca')).toBeTruthy();

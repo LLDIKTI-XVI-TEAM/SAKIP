@@ -1,4 +1,5 @@
 import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
+import type { TanggalPeriode } from '@/types/periode-jadwal';
 
 /**
  * Kontrak halaman daftar Rencana Aksi (`DaftarRencanaAksi`): daftar indikator
@@ -59,6 +60,8 @@ export interface RencanaAksiPeriode {
     id: string;
     nama: string | null;
     urutan: number;
+    /** Tanggal Master Periode saat ini (bukan bagian versi beku); null bila periode master tidak ditemukan. */
+    tanggal: TanggalPeriode | null;
     efektif: boolean;
     status: 'efektif' | 'tidak_berlaku';
     nilai: RencanaAksiNilaiCell[];

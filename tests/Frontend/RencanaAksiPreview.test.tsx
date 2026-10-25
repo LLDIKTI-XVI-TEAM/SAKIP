@@ -70,6 +70,7 @@ function buatPayload(): RencanaAksiPayload {
                 skor: { nilai: '20.00', status_perhitungan: 'terhitung' },
                 peringatan_turun: false,
                 komponen_turun: [],
+                tanggal: null,
                 batas_terkunci_pic: null,
                 boleh_tanpa_target: false,
             },

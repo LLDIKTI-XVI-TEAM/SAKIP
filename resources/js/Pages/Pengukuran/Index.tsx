@@ -5,6 +5,7 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Select } from '@/Components/Select';
 import { Tooltip } from '@/Components/Tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
@@ -155,12 +156,12 @@ export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal 
                                     <div className="font-semibold">{baris.indikator.kode}</div>
                                     <div className="mt-0.5 text-muted">{baris.indikator.nama}</div>
                                     <p className="mt-1 text-xs text-muted">{baris.unit.nama} · PJ: {baris.pic?.nama ?? '—'}</p>
-                                    <p className="mt-1 text-xs text-muted lg:hidden">{baris.periode.nama_periode} {baris.tahun}</p>
+                                    <p className="mt-1 text-xs text-muted lg:hidden">{baris.periode.nama_periode} {baris.tahun}<RentangPeriode tanggal={baris.periode.tanggal} tahun={baris.tahun} /></p>
                                     <p className="mt-1 text-xs text-muted lg:hidden">Target {target(baris)} · Realisasi {realisasi(baris)}</p>
                                     {/* Layar sempit: target, realisasi, dan status pindah ke sel indikator agar kolom Aksi tidak terpotong. */}
                                     <div className="mt-2 lg:hidden"><StatusBaris baris={baris} /></div>
                                 </TableCell>
-                                <TableCell className="hidden lg:table-cell">{baris.periode.nama_periode} {baris.tahun}</TableCell>
+                                <TableCell className="hidden lg:table-cell">{baris.periode.nama_periode} {baris.tahun}<RentangPeriode tanggal={baris.periode.tanggal} tahun={baris.tahun} /></TableCell>
                                 <TableCell className="hidden text-right lg:table-cell">{target(baris)}</TableCell>
                                 <TableCell className="hidden text-right lg:table-cell">{realisasi(baris)}</TableCell>
                                 <TableCell className="hidden lg:table-cell"><StatusBaris baris={baris} /></TableCell>

@@ -32,7 +32,7 @@ const measurement: Pengukuran = {
         unit_kerja: { id: 'ed27dabf-8d26-4e48-935b-07d913d8a49a', nama: 'Unit Uji' },
         pic: { id: 'ae1c7f4c-85b9-4db6-b89c-9951f91ab58e', nama: 'PIC Uji' },
     },
-    periode_jadwal: { id: '0d7029ba-96e0-4343-986b-d1ca723c17e1', urutan: 1, nama_periode: 'Semester I', tahun: 2026, is_nilai_akhir: false }, bukti_dukungs: [], bukti_count: 0, riwayats: [], snapshot: null,
+    periode_jadwal: { id: '0d7029ba-96e0-4343-986b-d1ca723c17e1', urutan: 1, nama_periode: 'Semester I', tahun: 2026, is_nilai_akhir: false, tanggal: { bulan_mulai: 1, hari_mulai: 1, bulan_selesai: 6, hari_selesai: 30 } }, bukti_dukungs: [], bukti_count: 0, riwayats: [], snapshot: null,
 };
 const dialogMethods = ['showModal', 'close'] as const;
 const visit: PendingVisit = {
@@ -380,7 +380,7 @@ describe('Identitas editor pengukuran', () => {
         const { rerender } = render(<PengukuranEdit pengukuran={{ ...measurement, penugasan_indikator: { ...measurement.penugasan_indikator, indikator_kinerja: indikator } }} />);
         const isi = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent;
         expect(isi('PIC')).toBe('PIC Uji');
-        expect(isi('Periode')).toBe('Semester I 2026');
+        expect(isi('Periode')).toBe('Semester I 2026 1 Jan–30 Jun 2026');
         expect(isi('Target')).toBe('100,00 %');
         expect(isi('Cara hitung')).toBe('Rasio Persen');
         expect(isi('Arah kinerja')).toBe('Makin rendah makin baik');
@@ -506,6 +506,19 @@ const indexProps = (pengukurans: BarisPengukuran[], extra: Record<string, unknow
 });
 
 describe('Daftar kewajiban pengukuran', () => {
+    it('rentang periode tampil pada daftar, form, antrean, dan detail verifikasi', () => {
+        const rentang = '1 Jan–30 Jun 2026';
+        const pagination = { current_page: 1, last_page: 1, total: 1, prev_page_url: null, next_page_url: null };
+        const { rerender } = render(<PengukuranIndex {...indexProps([baris('IKU-UJI', { jenis: 'existing', pengukuran: ringkasan, can: { create: false } })])} />);
+        expect(screen.getAllByText(rentang).length).toBeGreaterThan(0);
+        rerender(<PengukuranEdit pengukuran={measurement} />);
+        expect(screen.getByText(rentang)).toBeTruthy();
+        rerender(<VerifikasiIndex pengukurans={[measurement]} pagination={pagination} />);
+        expect(screen.getByText(rentang)).toBeTruthy();
+        rerender(<VerifikasiShow pengukuran={{ ...measurement, status: 'diajukan' }} />);
+        expect(screen.getByText(rentang)).toBeTruthy();
+    });
+
     it('memakai paginasi bersama ketika daftar lebih dari satu halaman', () => {
         render(<PengukuranIndex {...indexProps([baris('IKU-UJI', { jenis: 'existing', pengukuran: ringkasan, can: { create: false } })], { pagination: { total: 23, from: 1, to: 20, links: [
             { url: null, label: '&laquo; Sebelumnya', active: false }, { url: '/pengukuran?page=1', label: '1', active: true },

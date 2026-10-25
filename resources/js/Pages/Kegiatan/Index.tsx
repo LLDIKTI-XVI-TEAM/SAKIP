@@ -8,6 +8,7 @@ import { Button } from '@/Components/Button';
 import { Card, CardContent } from '@/Components/Card';
 import { HoverScrollText } from '@/Components/HoverScrollText';
 import { Input } from '@/Components/Input';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Pagination } from '@/Components/Pagination';
 import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
@@ -204,6 +205,7 @@ export default function Index({
                                                 <TableCell className="w-28 whitespace-nowrap">
                                                     <span className="font-mono text-xs font-semibold text-ink">{item.tahun}</span>
                                                     <p className="text-xs text-muted">{item.periode.nama}</p>
+                                                    <RentangPeriode tanggal={item.periode.tanggal} tahun={item.tahun} />
                                                 </TableCell>
                                                 <TableCell className="w-32 whitespace-nowrap text-xs text-muted">
                                                     {item.tanggal_rencana ? (

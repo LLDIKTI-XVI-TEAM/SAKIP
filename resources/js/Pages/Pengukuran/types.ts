@@ -1,9 +1,13 @@
+import type { TanggalPeriode } from '@/types/periode-jadwal';
+
 export interface PeriodePengukuran {
     id: string;
     nama_periode: string;
     urutan: number;
     tahun: number;
     is_nilai_akhir: boolean;
+    /** Tanggal Master Periode saat ini; nama periode boleh beku, rentangnya tidak. */
+    tanggal: TanggalPeriode;
 }
 
 export interface BuktiPengukuran {

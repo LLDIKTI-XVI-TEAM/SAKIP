@@ -23,7 +23,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 const a = { id: 'unit-a', nama: 'Unit A' };
 const b = { id: 'unit-b', nama: 'Unit B' };
-const period = { id: 'p1', nama: 'Triwulan I' };
+const period = { id: 'p1', nama: 'Triwulan I', tanggal: { bulan_mulai: 1, hari_mulai: 1, bulan_selesai: 3, hari_selesai: 31 } };
 const item = { id: 'k1', unit_id: a.id, periode_id: period.id, nama: 'Kegiatan audit', tujuan: 'Sintetis', tahun: 2026, status: 'rencana', tanggal_rencana: null, unit: a, periode: period, can: { update: true, ubah_rencana: true, ubah_status: [] }, opsi_periode_tujuan: [], version_token: 'v1' };
 const rencana = { id: 'k1', unit_id: a.id, tahun: 2026, periode_id: period.id, nama: 'Kegiatan audit', tujuan: null, sasaran_peserta: null,
     keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: '0', status: 'rencana', version_token: 'v1',

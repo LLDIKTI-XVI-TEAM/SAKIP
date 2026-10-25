@@ -26,6 +26,10 @@ const props: PeriodeIndexProps = {
                 aktif: true,
                 is_nilai_akhir: false,
                 revisi: 3,
+                bulan_mulai: 1,
+                hari_mulai: 1,
+                bulan_selesai: 3,
+                hari_selesai: 31,
                 metadata_locked: false,
                 metadata_locked_reason: null,
             },
@@ -129,6 +133,10 @@ it('koreksi nama mengirim metadata terkunci tetap dan mempertahankan input pada 
         urutan: '1',
         aktif: false,
         is_nilai_akhir: true,
+        hari_mulai: '1',
+        bulan_mulai: '1',
+        hari_selesai: '31',
+        bulan_selesai: '3',
         revisi: 3,
     });
     await act(async () => {
@@ -201,6 +209,46 @@ it('konfigurasi kosong menawarkan satu periode pertama aktif dan final', () => {
     expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').disabled).toBe(true);
     expect(screen.getByLabelText<HTMLInputElement>('Aktif').checked).toBe(true);
     expect(screen.queryByRole('button', { name: 'Ganti periode nilai akhir' })).toBeNull();
+});
+
+it('tabel dan detail menampilkan rentang tanggal tanpa tahun atau penanda belum diatur', () => {
+    const tanpaTanggal = { ...props.periode.data[0], id: 'periode-2', nama: 'Semester Lama', urutan: 5, aktif: false,
+        bulan_mulai: null, hari_mulai: null, bulan_selesai: null, hari_selesai: null };
+    render(<Index {...props} periode={{ ...props.periode, data: [props.periode.data[0], tanpaTanggal] }} />);
+    const [, triwulan, semester] = within(screen.getByRole('table')).getAllByRole('row');
+    expect(triwulan.textContent).toContain('1 Jan–31 Mar');
+    expect(semester.textContent).toContain('Belum diatur');
+    fireEvent.click(screen.getByRole('button', { name: 'Lihat detail Triwulan I' }));
+    expect(within(screen.getByRole('dialog')).getByText('1 Jan–31 Mar')).toBeTruthy();
+});
+
+it('tambah periode mengirim tanggal mulai dan selesai dari isian berlabel serta menandai galat per isian', async () => {
+    const user = userEvent.setup();
+    render(<Index {...props} />);
+    await user.click(screen.getByRole('button', { name: 'Tambah periode' }));
+    await user.type(screen.getByLabelText(/^Nama periode/), 'Triwulan II');
+    await user.type(screen.getByLabelText(/^Urutan/), '2');
+    await user.selectOptions(screen.getByLabelText('Tanggal mulai'), '1');
+    await user.selectOptions(screen.getByLabelText('Bulan mulai'), 'April');
+    await user.selectOptions(screen.getByLabelText('Tanggal selesai'), '30');
+    await user.selectOptions(screen.getByLabelText('Bulan selesai'), 'Juni');
+    await user.click(screen.getByRole('button', { name: 'Simpan periode' }));
+    expect(vi.mocked(router.post).mock.calls[0][1]).toEqual({
+        nama: 'Triwulan II',
+        urutan: '2',
+        aktif: true,
+        is_nilai_akhir: false,
+        hari_mulai: '1',
+        bulan_mulai: '4',
+        hari_selesai: '30',
+        bulan_selesai: '6',
+    });
+    await act(async () => {
+        vi.mocked(router.post).mock.calls[0][2]?.onError?.({ bulan_mulai: 'Rentang tanggal tumpang tindih dengan periode aktif Triwulan I.' });
+    });
+    const bulanMulai = screen.getByLabelText('Bulan mulai');
+    expect(bulanMulai.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(bulanMulai.getAttribute('aria-describedby') ?? '')?.textContent).toContain('tumpang tindih');
 });
 
 it('pesan tabel kosong mengikuti filter yang diterapkan, bukan ketikan yang belum diterapkan', () => {
@@ -283,7 +331,7 @@ it('tabel ringkas hanya menampilkan kolom penting tanpa metadata dan nilai akhir
     render(<Index {...props} />);
     const table = screen.getByRole('table');
     const columns = within(table).getAllByRole('columnheader');
-    expect(columns.map((cell) => cell.textContent)).toEqual(['Nama periode', 'Urutan', 'Status', 'Aksi']);
+    expect(columns.map((cell) => cell.textContent)).toEqual(['Nama periode', 'Urutan', 'Status', 'Rentang tanggal', 'Aksi']);
     expect(within(table).queryByText('Nilai akhir')).toBeNull();
     expect(within(table).queryByText('Metadata')).toBeNull();
     expect(within(table).queryByText('Terkunci')).toBeNull();

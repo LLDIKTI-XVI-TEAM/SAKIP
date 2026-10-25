@@ -137,6 +137,10 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                     periode_revisi: option.revisi,
                     nama: option.nama,
                     urutan: option.urutan,
+                    bulan_mulai: option.bulan_mulai,
+                    hari_mulai: option.hari_mulai,
+                    bulan_selesai: option.bulan_selesai,
+                    hari_selesai: option.hari_selesai,
                     aktif: option.aktif,
                     is_nilai_akhir: option.is_nilai_akhir,
                     pengisian_mulai: '',
@@ -303,6 +307,7 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                 ) : (
                     <JendelaPeriode
                         periode={form.data.periode}
+                        tahun={/^\d{4}$/.test(form.data.tahun) ? Number(form.data.tahun) : undefined}
                         errors={errors}
                         editable={editable}
                         disabled={disabled}

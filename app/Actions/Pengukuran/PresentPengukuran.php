@@ -5,6 +5,7 @@ namespace App\Actions\Pengukuran;
 use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
+use App\Models\Periode;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
@@ -121,7 +122,9 @@ class PresentPengukuran
             'penugasan_indikator' => ['indikator_kinerja' => $frozen ? [...$frozen['indikator'], 'definisi_operasional' => $frozen['indikator']['definisi']] : [...$context->only(['nama', 'satuan', 'arah', 'tipe_perhitungan', 'presisi', 'desimal_tampilan']), 'kode' => $p->indikator->kode, 'definisi_operasional' => $context->definisi],
                 'unit_kerja' => $frozen ? $frozen['unit_kerja'] : $context->unit->only(['id', 'nama']), 'pic' => $frozen ? $frozen['pic'] : ($detail ? $p->effectivePic()?->pic?->only(['id', 'nama']) : $p->getAttribute('summary_pic'))],
             'periode_jadwal' => ['id' => $p->periode_id, 'nama_periode' => $frozen ? $frozen['periode']['nama'] : $p->periode->nama, 'urutan' => $p->periode->urutan, 'tahun' => $p->tahun,
-                'is_nilai_akhir' => (bool) ($frozen ? $frozen['periode']['is_nilai_akhir'] : $p->periode->is_nilai_akhir)],
+                'is_nilai_akhir' => (bool) ($frozen ? $frozen['periode']['is_nilai_akhir'] : $p->periode->is_nilai_akhir),
+                // Nama boleh beku, tetapi rentang selalu dari tanggal master yang berlaku saat ditampilkan.
+                'tanggal' => $p->periode->only(Periode::TANGGAL)],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
             'prasyarat' => ['siap' => false, 'alasan' => []],
             'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false],

@@ -34,6 +34,10 @@ const jadwal: JadwalDetail = {
             urutan: 1,
             aktif: true,
             is_nilai_akhir: false,
+            bulan_mulai: 1,
+            hari_mulai: 1,
+            bulan_selesai: 3,
+            hari_selesai: 31,
             pengisian_mulai: '2026-04-01',
             pengisian_selesai: '2026-04-07',
         },
@@ -44,16 +48,26 @@ const jadwal: JadwalDetail = {
             urutan: 4,
             aktif: true,
             is_nilai_akhir: true,
+            bulan_mulai: 10,
+            hari_mulai: 1,
+            bulan_selesai: 12,
+            hari_selesai: 31,
             pengisian_mulai: '2027-01-04',
             pengisian_selesai: '2027-01-11',
         },
     ],
 };
+const tanggal = (bulanMulai: number, bulanSelesai: number, hariSelesai: number) => ({
+    bulan_mulai: bulanMulai,
+    hari_mulai: 1,
+    bulan_selesai: bulanSelesai,
+    hari_selesai: hariSelesai,
+});
 const periodeOptions = [
-    { id: 'periode-1', nama: 'Triwulan I', urutan: 1, aktif: true, is_nilai_akhir: false, revisi: 2 },
-    { id: 'periode-2', nama: 'Triwulan II', urutan: 2, aktif: true, is_nilai_akhir: false, revisi: 3 },
-    { id: 'periode-3', nama: 'Triwulan III', urutan: 3, aktif: true, is_nilai_akhir: false, revisi: 6 },
-    { id: 'periode-4', nama: 'Triwulan IV', urutan: 4, aktif: true, is_nilai_akhir: true, revisi: 7 },
+    { id: 'periode-1', nama: 'Triwulan I', urutan: 1, aktif: true, is_nilai_akhir: false, revisi: 2, ...tanggal(1, 3, 31) },
+    { id: 'periode-2', nama: 'Triwulan II', urutan: 2, aktif: true, is_nilai_akhir: false, revisi: 3, ...tanggal(4, 6, 30) },
+    { id: 'periode-3', nama: 'Triwulan III', urutan: 3, aktif: true, is_nilai_akhir: false, revisi: 6, ...tanggal(7, 9, 30) },
+    { id: 'periode-4', nama: 'Triwulan IV', urutan: 4, aktif: true, is_nilai_akhir: true, revisi: 7, ...tanggal(10, 12, 31) },
 ];
 const props: JadwalEditorProps = {
     jadwal,
@@ -143,6 +157,31 @@ it('mempertahankan tanggal dan revisi asal setelah error bersarang, dengan ringk
     const preserveState = options?.preserveState;
     expect(typeof preserveState === 'function' && preserveState(page())).toBe(true);
     expect(typeof preserveState === 'function' && preserveState(page({ success: 'Draft tersimpan.' }))).toBe(false);
+});
+
+it('rentang periode tampil pada tahun jadwal, termasuk periode yang baru ditambah dan saat revisi jendela', async () => {
+    const { unmount } = render(<Editor {...props} />);
+    expect(screen.getByText('1 Jan–31 Mar 2026')).toBeTruthy();
+    expect(screen.getByText('1 Okt–31 Des 2026')).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Pilih periode' }), { target: { value: 'periode-2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tambah' }));
+    expect(screen.getByText('1 Apr–30 Jun 2026')).toBeTruthy();
+    unmount();
+
+    render(<Editor {...createProps} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Pilih periode' }), { target: { value: 'periode-3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tambah' }));
+    // Tahun belum diisi: rentang tampil tanpa tahun, lalu mengikuti tahun yang diketik.
+    expect(screen.getByText('1 Jul–30 Sep')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/^Tahun/), { target: { value: '2027' } });
+    expect(screen.getByText('1 Jul–30 Sep 2027')).toBeTruthy();
+    cleanup();
+
+    const izinRevisi = { create: false, update: false, activate: false, close: false, revise_windows: true };
+    render(<Editor {...props} jadwal={{ ...jadwal, status: 'aktif' }} read_only_reason="Jadwal aktif." can={izinRevisi} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
+    expect(screen.getByRole('button', { name: 'Simpan revisi' })).toBeTruthy();
+    expect(screen.getByText('1 Okt–31 Des 2026')).toBeTruthy();
 });
 
 it('mengirim agregat pilihan sekali tanpa metadata tampilan atau status', () => {

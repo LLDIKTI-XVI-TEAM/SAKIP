@@ -9,6 +9,7 @@ use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
+use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
@@ -383,6 +384,7 @@ class IndexRencanaAksi
                 'id' => $periodeId,
                 'nama' => $window->periode?->nama,
                 'urutan' => (int) ($window->periode?->urutan ?? 0),
+                'tanggal' => $window->periode?->only(Periode::TANGGAL),
                 'efektif' => true,
                 'status' => 'efektif',
                 'nilai' => $this->tampilNilai($tipe, $definisi, $baris->get($periodeId) ?? collect()),
@@ -406,6 +408,7 @@ class IndexRencanaAksi
             'id' => (string) $window->periode_id,
             'nama' => $window->periode?->nama,
             'urutan' => (int) ($window->periode?->urutan ?? 0),
+            'tanggal' => $window->periode?->only(Periode::TANGGAL),
             'efektif' => false,
             'status' => 'tidak_berlaku',
             'nilai' => [],
