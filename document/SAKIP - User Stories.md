@@ -1640,6 +1640,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q70 (23 Oktober 2026):** AC-5 digantikan: jendela reviu dihapus, sehingga reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan dan penanda terlambat tidak lagi dibuat; penanda yang sudah tercatat tetap ditampilkan sebagai histori (US-03.07).
 
+> **Status implementasi — issue #184:** AC-1–AC-4 memiliki bukti test pada PR #<n>; rincian test dan batas bukti tercatat pada [ISS-07.04](SAKIP%20-%20User%20Issues.md#iss-0704--feature-pengisian-oleh-perencanaan-di-luar-deadline-pic). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-07.04` |
@@ -1656,10 +1658,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given tanggal melewati `pengisian_selesai`, When PIC mencoba mengubah/submit, Then ditolak kecuali jendela PIC resmi dibuka ulang.
-- [ ] **AC-2:** Given Perencanaan bekerja setelah deadline PIC tetapi sebelum penutupan/jendela koreksi sah, When mengisi data, Then diizinkan melalui izin global.
-- [ ] **AC-3:** Given Perencanaan submit, Then seluruh gerbang kelengkapan normal tetap berlaku kecuali jalur backfill eksplisit.
-- [ ] **AC-4:** Given submit oleh Perencanaan, Then `jalur_pengajuan = perencanaan` dibekukan pada versi untuk F2.
+- [x] **AC-1:** Given tanggal melewati `pengisian_selesai`, When PIC mencoba mengubah/submit, Then ditolak kecuali jendela PIC resmi dibuka ulang.
+- [x] **AC-2:** Given Perencanaan bekerja setelah deadline PIC tetapi sebelum penutupan/jendela koreksi sah, When mengisi data, Then diizinkan melalui izin global.
+- [x] **AC-3:** Given Perencanaan submit, Then seluruh gerbang kelengkapan normal tetap berlaku kecuali jalur backfill eksplisit. *(Dibaca menurut Q32 §32.7, Q46 §46.1 butir 1–2, dan PRD §19.4: "jalur backfill eksplisit" adalah pengecualian periode lampau jadwal 2026 yang dihitung dari `pengisian_selesai` terhadap tanggal aktivasi, tanpa `is_backfill`; di luar itu gerbang normal berlaku untuk Perencanaan. Bukan alur backfill skor historis Q21, yang tidak dibangun.)*
+- [x] **AC-4:** Given submit oleh Perencanaan, Then `jalur_pengajuan = perencanaan` dibekukan pada versi untuk F2.
 - [ ] **AC-5:** Given reviu melewati `reviu_selesai`, Then proses masih dapat berlangsung sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2 butir 3–4: tanpa jendela reviu dan tanpa penanda terlambat baru — US-03.07.)*
 
 ### US-07.05 · Pengisian Nilai Periode Lampau oleh Perencanaan
