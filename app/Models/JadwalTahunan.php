@@ -71,8 +71,6 @@ class JadwalTahunan extends Model
                 'periode_id' => $window->periode_id,
                 'pengisian_mulai' => $window->pengisian_mulai->format('Y-m-d'),
                 'pengisian_selesai' => $window->pengisian_selesai->format('Y-m-d'),
-                'reviu_mulai' => $window->reviu_mulai->format('Y-m-d'),
-                'reviu_selesai' => $window->reviu_selesai->format('Y-m-d'),
             ])->values()->all(),
         ];
     }

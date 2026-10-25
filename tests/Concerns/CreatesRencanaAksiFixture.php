@@ -108,8 +108,6 @@ trait CreatesRencanaAksiFixture
             'periode_id' => $periode->id,
             'pengisian_mulai' => '2026-01-01',
             'pengisian_selesai' => '2026-03-31',
-            'reviu_mulai' => '2026-04-01',
-            'reviu_selesai' => '2026-04-15',
         ]);
 
         $this->snapshot = JadwalSnapshot::create([

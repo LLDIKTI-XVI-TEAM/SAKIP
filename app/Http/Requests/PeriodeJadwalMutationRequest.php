@@ -63,8 +63,6 @@ abstract class PeriodeJadwalMutationRequest extends FormRequest
             'periode.*.periode_revisi' => 'Revisi periode',
             'periode.*.pengisian_mulai' => 'Tanggal mulai pengisian',
             'periode.*.pengisian_selesai' => 'Tanggal selesai pengisian',
-            'periode.*.reviu_mulai' => 'Tanggal mulai review',
-            'periode.*.reviu_selesai' => 'Tanggal selesai review',
             'revisi' => 'Revisi data',
             'periode_lama_id' => 'Periode nilai akhir saat ini',
             'periode_pengganti_id' => 'Periode pengganti',

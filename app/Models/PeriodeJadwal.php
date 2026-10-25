@@ -14,9 +14,9 @@ class PeriodeJadwal extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['jadwal_id', 'periode_id', 'pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai'];
+    protected $fillable = ['jadwal_id', 'periode_id', 'pengisian_mulai', 'pengisian_selesai'];
 
-    protected $casts = ['pengisian_mulai' => 'date', 'pengisian_selesai' => 'date', 'reviu_mulai' => 'date', 'reviu_selesai' => 'date'];
+    protected $casts = ['pengisian_mulai' => 'date', 'pengisian_selesai' => 'date'];
 
     /** @return BelongsTo<JadwalTahunan, $this> */
     public function jadwal(): BelongsTo

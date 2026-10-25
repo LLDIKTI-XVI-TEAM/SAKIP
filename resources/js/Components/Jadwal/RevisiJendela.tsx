@@ -8,7 +8,7 @@ import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import type { JadwalPeriode } from '@/types/periode-jadwal';
 
-const tanggal = ['pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai'] as const;
+const tanggal = ['pengisian_mulai', 'pengisian_selesai'] as const;
 const linkClass = 'text-sm font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/30 rounded';
 
 export function RevisiJendelaPanel({ tahun, onStart }: { tahun: number; onStart: () => void }) {
@@ -19,8 +19,8 @@ export function RevisiJendelaPanel({ tahun, onStart }: { tahun: number; onStart:
             </CardHeader>
             <CardContent className="space-y-3 p-4 sm:p-5">
                 <p className="text-sm">
-                    Perpanjang atau buka ulang jendela pengisian dan review periode tahun {tahun} secara resmi. Revisi wajib
-                    beralasan dan tercatat di jejak audit.
+                    Perpanjang atau buka ulang jendela pengisian periode tahun {tahun} secara resmi. Revisi wajib beralasan
+                    dan tercatat di jejak audit.
                 </p>
                 <div className="flex justify-end">
                     <Button id="revisi-jendela-mulai" type="button" onClick={onStart}>
@@ -65,12 +65,10 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: Re
         form.transform((data) => ({
             expected_revisi: awal.revisi,
             alasan: data.alasan,
-            periode: data.periode.map(({ periode_id, pengisian_mulai, pengisian_selesai, reviu_mulai, reviu_selesai }) => ({
+            periode: data.periode.map(({ periode_id, pengisian_mulai, pengisian_selesai }) => ({
                 periode_id,
                 pengisian_mulai,
                 pengisian_selesai,
-                reviu_mulai,
-                reviu_selesai,
             })),
         }));
         form.post(path, {

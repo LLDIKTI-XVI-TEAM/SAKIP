@@ -12,7 +12,7 @@ vi.mock('@inertiajs/react', async (original) => ({
 
 const id = '11111111-1111-4111-8111-111111111111';
 const pkId = '44444444-4444-4444-8444-444444444444';
-const data = (changes: Record<string, unknown> = {}) => ({ indikator_id: id, tahun: 2026, baseline_year: 2025, baseline: '74.2', target_tahunan: '76.25', expected_state: 'a'.repeat(64), has_snapshot: false, can: { update: true }, read_only_reason: null, target_renstra: null, alasan_deviasi_renstra: null, status_deviasi: 'renstra_belum_ada', indikator: { id, kode: 'IKU 3', nama: 'Contoh', satuan: 'nilai', presisi: 2, desimal_tampilan: 1, status: 'aktif', tahun_mulai_berlaku: 2025, arah: 'naik_baik' }, renstra: { id: 'r1', nama: 'Renstra contoh', tahun_mulai: 2025, tahun_selesai: 2029, status: 'aktif' }, ...changes });
+const data = (changes: Record<string, unknown> = {}) => ({ indikator_id: id, tahun: 2026, baseline_year: 2025, baseline: '74.2', target_tahunan: '76.25', expected_state: 'a'.repeat(64), has_snapshot: false, can: { update: true }, read_only_reason: null, target_renstra: null, alasan_deviasi_renstra: null, status_deviasi: 'renstra_belum_ada', saran_baseline: null, indikator: { id, kode: 'IKU 3', nama: 'Contoh', satuan: 'nilai', presisi: 2, desimal_tampilan: 1, status: 'aktif', tahun_mulai_berlaku: 2025, arah: 'naik_baik' }, renstra: { id: 'r1', nama: 'Renstra contoh', tahun_mulai: 2025, tahun_selesai: 2029, status: 'aktif' }, ...changes });
 const response = (changes: Record<string, unknown> = {}) => new Response(JSON.stringify(data(changes)), { status: 200 });
 const fetchMock = vi.fn<typeof fetch>();
 const show = () => render(<TargetModal pkId={pkId} indikatorId={id} tahun={2026} onClose={vi.fn()} onSaved={vi.fn()} />);
@@ -107,4 +107,25 @@ it.each([401, 419])('GET %s saat muat ulang menawarkan pemulihan sesi tanpa meng
     expect(screen.getByLabelText<HTMLInputElement>('Baseline 2025').value).toBe('75,1234');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan' }).disabled).toBe(true);
     expect(router.put).toHaveBeenCalledOnce();
+});
+
+it.each([
+    ['bukan objek', 'x'],
+    ['status tidak dikenal', { status: 'lain', nilai: null, periode: null }],
+    ['disahkan tanpa nilai', { status: 'disahkan', nilai: null, periode: 'Triwulan IV' }],
+    ['status tanpa angka membawa nilai', { status: 'belum_disahkan', nilai: '82.5', periode: null }],
+])('saran baseline malformed (%s) tidak dianggap editor sah', async (_kasus, saran_baseline) => {
+    fetchMock.mockResolvedValueOnce(response({ baseline: null, saran_baseline }));
+    show();
+    expect(await screen.findByText('Data belum dapat dimuat. Coba lagi.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Simpan' })).toBeNull();
+});
+
+it.each([
+    { status: 'disahkan', nilai: '82.5', periode: 'Triwulan IV' },
+    { status: 'belum_ada', nilai: null, periode: null },
+])('saran baseline sah ($status) menampilkan editor', async (saran_baseline) => {
+    fetchMock.mockResolvedValueOnce(response({ baseline: null, saran_baseline }));
+    show();
+    expect(await screen.findByRole('button', { name: 'Simpan' })).toBeTruthy();
 });

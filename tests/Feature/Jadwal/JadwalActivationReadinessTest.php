@@ -153,9 +153,9 @@ class JadwalActivationReadinessTest extends TestCase
         $this->assertContains('periode_nonaktif', $codes());
         $this->ready['periode']->update(['aktif' => true]);
 
-        DB::table('jadwal_periode')->where('jadwal_id', $this->ready['jadwal']->id)->update(['reviu_selesai' => '2027-01-25']);
+        DB::table('jadwal_periode')->where('jadwal_id', $this->ready['jadwal']->id)->update(['pengisian_selesai' => '2027-01-25']);
         $this->assertContains('kalender_tidak_valid', $codes());
-        DB::table('jadwal_periode')->where('jadwal_id', $this->ready['jadwal']->id)->update(['reviu_selesai' => '2027-01-18']);
+        DB::table('jadwal_periode')->where('jadwal_id', $this->ready['jadwal']->id)->update(['pengisian_selesai' => '2027-01-11']);
 
         JadwalTahunan::whereKey($this->ready['jadwal']->id)->update(['activated_at' => now()]);
         $this->assertContains('status', $codes());

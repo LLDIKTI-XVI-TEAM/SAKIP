@@ -36,8 +36,6 @@ const jadwal: JadwalDetail = {
             is_nilai_akhir: false,
             pengisian_mulai: '2026-04-01',
             pengisian_selesai: '2026-04-07',
-            reviu_mulai: '2026-04-08',
-            reviu_selesai: '2026-04-15',
         },
         {
             periode_id: 'periode-4',
@@ -48,8 +46,6 @@ const jadwal: JadwalDetail = {
             is_nilai_akhir: true,
             pengisian_mulai: '2027-01-04',
             pengisian_selesai: '2027-01-11',
-            reviu_mulai: '2027-01-12',
-            reviu_selesai: '2027-01-18',
         },
     ],
 };
@@ -109,14 +105,15 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-it('menampilkan seluruh jendela dalam desain A dan label Review yang disetujui', () => {
+it('menampilkan jendela pengisian saja tanpa isian review (Q70)', () => {
     render(<Editor {...props} />);
-    expect(screen.getByRole('columnheader', { name: 'Review' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Target selesai' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Pengisian' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: /review/i })).toBeNull();
+    expect(screen.queryAllByLabelText(/review/i)).toHaveLength(0);
     for (const item of jadwal.periode) {
-        expect(screen.getByLabelText<HTMLInputElement>(`${item.nama}: Mulai Review`).value).toBe(item.reviu_mulai);
-        expect(screen.getByLabelText<HTMLInputElement>(`${item.nama}: Target Selesai Review`).value).toBe(
-            item.reviu_selesai,
+        expect(screen.getByLabelText<HTMLInputElement>(`${item.nama}: Mulai pengisian`).value).toBe(item.pengisian_mulai);
+        expect(screen.getByLabelText<HTMLInputElement>(`${item.nama}: Selesai pengisian`).value).toBe(
+            item.pengisian_selesai,
         );
     }
     expect(screen.queryByText('Periode berikutnya')).toBeNull();
@@ -124,12 +121,12 @@ it('menampilkan seluruh jendela dalam desain A dan label Review yang disetujui',
 
 it('mempertahankan tanggal dan revisi asal setelah error bersarang, dengan ringkasan fokus dan ARIA', async () => {
     const { rerender } = render(<Editor {...props} />);
-    const field = screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review');
+    const field = screen.getByLabelText<HTMLInputElement>('Triwulan IV: Selesai pengisian');
     fireEvent.change(field, { target: { value: '2027-01-20' } });
     fireEvent.click(screen.getByRole('button', { name: 'Simpan draft' }));
     const options = vi.mocked(router.put).mock.calls[0][2];
     await act(async () => {
-        options?.onError?.({ 'periode.1.reviu_selesai': 'Target review harus sebelum penutupan.' });
+        options?.onError?.({ 'periode.1.pengisian_selesai': 'Tanggal harus sama dengan atau setelah tanggal jendela sebelumnya.' });
     });
     rerender(
         <Editor
@@ -140,7 +137,7 @@ it('mempertahankan tanggal dan revisi asal setelah error bersarang, dengan ringk
     expect(field.value).toBe('2027-01-20');
     expect(field.getAttribute('aria-invalid')).toBe('true');
     expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toContain(
-        'Target review harus sebelum penutupan.',
+        'Tanggal harus sama dengan atau setelah tanggal jendela sebelumnya.',
     );
     expect(document.activeElement?.textContent).toContain('Periksa data kalender');
     const preserveState = options?.preserveState;
@@ -156,23 +153,23 @@ it('mengirim agregat pilihan sekali tanpa metadata tampilan atau status', () => 
         fireEvent.click(button);
     });
     expect(router.put).toHaveBeenCalledTimes(1);
-    const payload = vi.mocked(router.put).mock.calls[0][1];
+    const payload = vi.mocked(router.put).mock.calls[0][1] as { periode: Record<string, unknown>[] };
     expect(payload).toEqual({
         renstra_id: 'renstra-1',
         tahun: '2026',
         revisi: 4,
         penutupan: '2027-01-19',
-        periode: jadwal.periode.map(
-            ({ periode_id, periode_revisi, pengisian_mulai, pengisian_selesai, reviu_mulai, reviu_selesai }) => ({
-                periode_id,
-                periode_revisi,
-                pengisian_mulai,
-                pengisian_selesai,
-                reviu_mulai,
-                reviu_selesai,
-            }),
-        ),
+        periode: jadwal.periode.map(({ periode_id, periode_revisi, pengisian_mulai, pengisian_selesai }) => ({
+            periode_id,
+            periode_revisi,
+            pengisian_mulai,
+            pengisian_selesai,
+        })),
     });
+    // toEqual mengabaikan key bernilai undefined, jadi daftar key diperiksa langsung.
+    for (const item of payload.periode) {
+        expect(Object.keys(item).sort()).toEqual(['pengisian_mulai', 'pengisian_selesai', 'periode_id', 'periode_revisi']);
+    }
 });
 
 it('penghapusan hubungan periode menjaga fokus pada baris berikutnya dan lalu tombol tambah', async () => {
@@ -220,7 +217,7 @@ it('menonaktifkan input dan aksi selama penyimpanan berjalan', async () => {
     await act(async () => {
         vi.mocked(router.put).mock.calls[0][2]?.onStart?.(visit);
     });
-    expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai Review').disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai pengisian').disabled).toBe(true);
     expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Pilih periode' }).disabled).toBe(true);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tambah' }).disabled).toBe(true);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan draft' }).disabled).toBe(true);
@@ -236,7 +233,7 @@ it('periode nonaktif tetap terlihat dan boleh dihapus dari draft', () => {
     );
     expect(screen.getByText('Ada periode nonaktif pada draft')).toBeTruthy();
     expect(screen.getByText('Nonaktif')).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai Review').disabled).toBe(false);
+    expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai pengisian').disabled).toBe(false);
 });
 
 it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalender baca saja', (status) => {
@@ -254,7 +251,7 @@ it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalen
     expect(renstra.value).toBe('renstra-1');
     expect(renstra.disabled).toBe(true);
     expect(screen.getByRole('option', { name: /^Renstra pengujian \(2025–2029\) · (Nonaktif|Diarsipkan)$/ })).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review').disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Selesai pengisian').disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Simpan draft' })).toBeNull();
     expect(screen.queryByRole('combobox', { name: 'Pilih periode' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tambah' })).toBeNull();
@@ -264,14 +261,14 @@ it.each(['nonaktif', 'diarsipkan'] as const)('Renstra %s hanya menampilkan kalen
 
 it('hasil jaringan unknown mempertahankan input dan memberi pemeriksaan otoritatif tanpa replay', async () => {
     render(<Editor {...props} />);
-    fireEvent.change(screen.getByLabelText('Triwulan I: Mulai Review'), { target: { value: '2026-04-09' } });
+    fireEvent.change(screen.getByLabelText('Triwulan I: Mulai pengisian'), { target: { value: '2026-04-02' } });
     fireEvent.click(screen.getByRole('button', { name: 'Simpan draft' }));
     const options = vi.mocked(router.put).mock.calls[0][2];
     await act(async () => {
         expect(options?.onNetworkError?.(new Error('Disconnected'))).toBe(false);
     });
     expect(screen.getByText(/Hasil penyimpanan belum terkonfirmasi/)).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai Review').value).toBe('2026-04-09');
+    expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai pengisian').value).toBe('2026-04-02');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan draft' }).disabled).toBe(true);
     expect(screen.getByRole('link', { name: 'Periksa kalender terbaru' }).getAttribute('href')).toBe(
         '/jadwal/jadwal-1',
@@ -288,22 +285,22 @@ it('pemulihan sesi mempertahankan draft dan tidak mengulang mutasi', async () =>
         options?.onHttpException?.({ status: 401, data: {}, headers: {} });
     });
     expect(screen.getByRole('link', { name: 'Masuk ulang' }).getAttribute('href')).toBe('/login?recovery=1');
-    expect(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review').value).toBe('2027-01-18');
+    expect(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Selesai pengisian').value).toBe('2027-01-11');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan draft' }).disabled).toBe(true);
     expect(router.put).toHaveBeenCalledTimes(1);
 });
 
 it('403 respons akhir tanpa bukti penolakan sebelum mutasi mempertahankan draft sebagai hasil unknown', async () => {
     render(<Editor {...props} />);
-    const field = screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai Review');
-    fireEvent.change(field, { target: { value: '2026-04-09' } });
+    const field = screen.getByLabelText<HTMLInputElement>('Triwulan I: Mulai pengisian');
+    fireEvent.change(field, { target: { value: '2026-04-02' } });
     const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan draft' });
     fireEvent.click(button);
     await act(async () => {
         expect(vi.mocked(router.put).mock.calls[0][2]?.onHttpException?.({ status: 403, data: {}, headers: {} })).toBe(false);
     });
     expect(screen.getByText(/Hasil penyimpanan belum terkonfirmasi karena akses ditolak/)).toBeTruthy();
-    expect(field.value).toBe('2026-04-09');
+    expect(field.value).toBe('2026-04-02');
     expect(button.disabled).toBe(true);
     expect(screen.getByRole('link', { name: 'Periksa kalender terbaru' }).getAttribute('href')).toBe('/jadwal/jadwal-1');
     fireEvent.click(button);
@@ -318,14 +315,14 @@ it('mengubah pilihan periode (panah/type-ahead) tidak menambah baris; hanya tomb
     const pilih = document.getElementById('tambah-periode') as HTMLSelectElement;
     fireEvent.change(pilih, { target: { value: 'periode-2' } });
     fireEvent.change(pilih, { target: { value: 'periode-3' } });
-    expect(screen.queryByLabelText('Triwulan II: Mulai Review')).toBeNull();
-    expect(screen.queryByLabelText('Triwulan III: Mulai Review')).toBeNull();
+    expect(screen.queryByLabelText('Triwulan II: Mulai pengisian')).toBeNull();
+    expect(screen.queryByLabelText('Triwulan III: Mulai pengisian')).toBeNull();
     expect(pilih).toBe(screen.getByRole('combobox', { name: 'Pilih periode' }));
     const pilihan = () => Array.from(pilih.options).map((option) => option.textContent);
     expect(pilihan()).toEqual(['Pilih periode', 'Triwulan II', 'Triwulan III']);
     fireEvent.click(screen.getByRole('button', { name: 'Tambah' }));
-    expect(screen.getByLabelText<HTMLInputElement>('Triwulan III: Mulai Review').value).toBe('');
-    expect(screen.queryByLabelText('Triwulan II: Mulai Review')).toBeNull();
+    expect(screen.getByLabelText<HTMLInputElement>('Triwulan III: Mulai pengisian').value).toBe('');
+    expect(screen.queryByLabelText('Triwulan II: Mulai pengisian')).toBeNull();
     expect(pilih.value).toBe('');
     expect(pilihan()).toEqual(['Pilih periode', 'Triwulan II']);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Tambah' }).disabled).toBe(true);
@@ -441,7 +438,7 @@ it('panel aktivasi hanya untuk can.activate dan kalender dirty memblokir aktivas
 
     render(<Editor {...props} can={{ create: true, update: true, activate: true, close: false, revise_windows: false }} />);
     await screen.findByText('Siap diaktifkan');
-    fireEvent.change(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Target Selesai Review'), { target: { value: '2027-01-17' } });
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>('Triwulan IV: Selesai pengisian'), { target: { value: '2027-01-12' } });
     expect(screen.getByText(/Simpan atau batalkan perubahan kalender/)).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aktifkan jadwal' }).disabled).toBe(true);
 });
@@ -498,8 +495,8 @@ it('revisi jendela PIC hanya untuk can.revise_windows, mengubah tanggal saja, da
     expect(screen.queryByRole('button', { name: 'Revisi Jendela PIC' })).toBeNull();
     const selesai = screen.getByLabelText<HTMLInputElement>('Triwulan I: Selesai pengisian');
     expect(selesai.disabled).toBe(false);
+    expect(screen.queryAllByLabelText(/review/i)).toHaveLength(0);
     fireEvent.change(selesai, { target: { value: '2026-04-12' } });
-    fireEvent.change(screen.getByLabelText('Triwulan I: Mulai Review'), { target: { value: '2026-04-13' } });
     await userEvent.click(simpan);
     const dialog = screen.getByRole('dialog');
     const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan revisi' });
@@ -510,14 +507,18 @@ it('revisi jendela PIC hanya untuk can.revise_windows, mengubah tanggal saja, da
         expected_revisi: 4,
         alasan: 'Gangguan jaringan unit.',
         periode: [
-            { periode_id: 'periode-1', pengisian_mulai: '2026-04-01', pengisian_selesai: '2026-04-12', reviu_mulai: '2026-04-13', reviu_selesai: '2026-04-15' },
-            { periode_id: 'periode-4', pengisian_mulai: '2027-01-04', pengisian_selesai: '2027-01-11', reviu_mulai: '2027-01-12', reviu_selesai: '2027-01-18' },
+            { periode_id: 'periode-1', pengisian_mulai: '2026-04-01', pengisian_selesai: '2026-04-12' },
+            { periode_id: 'periode-4', pengisian_mulai: '2027-01-04', pengisian_selesai: '2027-01-11' },
         ],
     }, expect.anything());
+    const terkirim = vi.mocked(router.post).mock.calls[0][1] as { periode: Record<string, unknown>[] };
+    for (const item of terkirim.periode) {
+        expect(Object.keys(item).sort()).toEqual(['pengisian_mulai', 'pengisian_selesai', 'periode_id']);
+    }
 
     const options = vi.mocked(router.post).mock.calls[0][2];
     await act(async () => {
-        options?.onError?.({ 'periode.0.pengisian_selesai': 'Tanggal harus sama dengan atau setelah tanggal jendela sebelumnya.', penutupan: 'Penutupan paling cepat hari berikutnya setelah seluruh target selesai review.' });
+        options?.onError?.({ 'periode.0.pengisian_selesai': 'Tanggal harus sama dengan atau setelah tanggal jendela sebelumnya.', penutupan: 'Penutupan paling cepat hari berikutnya setelah jendela pengisian terakhir selesai.' });
     });
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(selesai.getAttribute('aria-invalid')).toBe('true');
@@ -536,7 +537,6 @@ it('revisi jendela PIC tetap mengirim token baseline form setelah ditolak basi d
     const { rerender } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={can} />);
     await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
     fireEvent.change(screen.getByLabelText('Triwulan I: Selesai pengisian'), { target: { value: '2026-04-12' } });
-    fireEvent.change(screen.getByLabelText('Triwulan I: Mulai Review'), { target: { value: '2026-04-13' } });
     const kirim = async () => {
         await userEvent.click(screen.getByRole('button', { name: 'Simpan revisi' }));
         const dialog = screen.getByRole('dialog');

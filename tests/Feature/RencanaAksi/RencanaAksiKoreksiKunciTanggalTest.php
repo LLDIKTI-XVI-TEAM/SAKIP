@@ -29,7 +29,7 @@ class RencanaAksiKoreksiKunciTanggalTest extends TestCase
     {
         $fixture = $this->buatFixtureManual();
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)
-            ->update(['pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30', 'reviu_mulai' => '2026-05-01', 'reviu_selesai' => '2026-05-15']);
+            ->update(['pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30']);
 
         return $fixture;
     }
@@ -60,7 +60,7 @@ class RencanaAksiKoreksiKunciTanggalTest extends TestCase
 
         // Pembukaan jendela di dalam sesi koreksi (ISS-14.03) disimulasikan langsung; kunci mengikuti tanggal berlaku.
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)
-            ->update(['pengisian_selesai' => '2027-01-10', 'reviu_mulai' => '2027-01-11', 'reviu_selesai' => '2027-01-20']);
+            ->update(['pengisian_selesai' => '2027-01-10']);
         $this->simpanTarget($fixture, $header, $fixture['periode1'], 12)->assertSessionHasNoErrors();
     }
 

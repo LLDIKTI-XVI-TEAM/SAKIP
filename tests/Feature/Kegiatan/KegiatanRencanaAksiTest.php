@@ -27,7 +27,7 @@ class KegiatanRencanaAksiTest extends TestCase
         $this->tw1 = Periode::findOrFail($this->snapshot->periode_mulai_id);
         $this->tw2 = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $this->tw2->id, 'pengisian_mulai' => '2026-04-01',
-            'pengisian_selesai' => '2026-06-30', 'reviu_mulai' => '2026-07-01', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_selesai' => '2026-06-30']);
     }
 
     public function test_satu_aksi_membuat_kegiatan_dan_klaim_tahap_ra(): void

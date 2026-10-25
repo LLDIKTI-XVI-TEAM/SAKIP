@@ -196,7 +196,7 @@ class DetailRekomendasiTest extends TestCase
         $nama = [1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV'][$urutan];
         $periode = Periode::create(['nama' => 'Triwulan '.$nama, 'urutan' => $urutan, 'aktif' => true, 'is_nilai_akhir' => $urutan === 4]);
         PeriodeJadwal::create(['jadwal_id' => ($jadwal ?? $this->jadwal)->id, 'periode_id' => $periode->id,
-            'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-15', 'reviu_mulai' => '2026-04-15', 'reviu_selesai' => '2026-05-01']);
+            'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-15']);
 
         return $periode;
     }

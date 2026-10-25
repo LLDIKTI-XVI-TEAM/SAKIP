@@ -52,7 +52,7 @@ class DashboardSummaryTest extends TestCase
         Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => true]);
         $next = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $next->id,
-            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
         $this->travelTo(now()->setDate(2026, 4, 1));
         $this->actingAs($this->actor)->get('/dashboard')->assertOk()->assertInertia(fn ($page) => $page
             ->where('activePeriode.id', $this->pengukuran->periode_id)->where('activePeriode.status', 'terakhir')->where('stats.total', 1)->has('statusIndikator', 1));
@@ -71,7 +71,7 @@ class DashboardSummaryTest extends TestCase
         Renstra::whereKey($this->jadwal->renstra_id)->update(['is_aktif' => true]);
         $next = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $next->id,
-            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
         $ratified = $this->pengukuran->replicate();
         $ratified->periode_id = $next->id;
         $ratified->status_alur = 'disahkan';

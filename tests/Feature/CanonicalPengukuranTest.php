@@ -163,7 +163,7 @@ class CanonicalPengukuranTest extends TestCase
     {
         [$n, $t] = $this->ratioContext();
         $tw2 = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
-        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw2->id, 'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw2->id, 'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
         $second = PengukuranKinerja::create(['indikator_id' => $this->pengukuran->indikator_id, 'tahun' => 2026, 'periode_id' => $tw2->id,
             'jadwal_snapshot_id' => $this->pengukuran->jadwal_snapshot_id, 'sumber_nilai' => 'komponen', 'created_by' => $this->actor->id]);
 

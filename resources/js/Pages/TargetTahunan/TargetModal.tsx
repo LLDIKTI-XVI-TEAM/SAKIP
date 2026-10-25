@@ -22,6 +22,17 @@ function record(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+const STATUS_SARAN: readonly string[] = ['disahkan', 'belum_disahkan', 'tidak_dapat_dihitung', 'negatif', 'belum_ada'];
+
+/** Hanya `disahkan` membawa angka dan periode; bentuk lain akan merusak kalimat keterangan saran. */
+function isSaranBaseline(value: unknown): boolean {
+    if (value === null) return true;
+    if (!record(value) || typeof value.status !== 'string' || !STATUS_SARAN.includes(value.status)) return false;
+    return value.status === 'disahkan'
+        ? typeof value.nilai === 'string' && typeof value.periode === 'string'
+        : value.nilai === null && value.periode === null;
+}
+
 /** Jangan memasangkan respons lama/malformed dengan form yang sedang dipilih. */
 function isEditor(value: unknown, id: string, year: number): value is TargetEditorData {
     if (!record(value) || !record(value.indikator) || !record(value.renstra) || !record(value.can)) return false;
@@ -42,7 +53,8 @@ function isEditor(value: unknown, id: string, year: number): value is TargetEdit
         && (value.read_only_reason === null || typeof value.read_only_reason === 'string')
         && typeof indikator.arah === 'string' && typeof value.status_deviasi === 'string'
         && (value.target_renstra === null || typeof value.target_renstra === 'string')
-        && (value.alasan_deviasi_renstra === null || typeof value.alasan_deviasi_renstra === 'string');
+        && (value.alasan_deviasi_renstra === null || typeof value.alasan_deviasi_renstra === 'string')
+        && isSaranBaseline(value.saran_baseline);
 }
 
 function LoadTargetModal({ pkId, indikatorId, tahun, onClose, onSaved }: TargetModalProps) {
