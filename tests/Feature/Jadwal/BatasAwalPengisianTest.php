@@ -156,17 +156,19 @@ class BatasAwalPengisianTest extends TestCase
         $this->assertEquals([$this->tw3->id => ['2026-09-01', '2026-10-20'], $this->ready['periode']->id => ['2026-10-22', '2027-01-11']], $this->jendelaTersimpan());
     }
 
-    public function test_revisi_yang_mengubah_jendela_tw4_memeriksa_batas_awal(): void
+    public function test_revisi_memeriksa_batas_awal_hanya_bila_pengisian_mulai_diubah(): void
     {
         $perencana = $this->jadwalAktif2026();
         $sebelum = $this->jendelaTersimpan();
         $pesan = 'Jendela pengisian paling cepat dibuka 1 Desember 2026, tanggal 1 bulan terakhir periode.';
 
         $this->revisi($perencana, '2026-10-10', '2026-11-30')->assertSessionHasErrors(['periode.1.pengisian_mulai' => $pesan]);
-        // Jendela yang tanggalnya diubah diperiksa utuh, walau hanya tanggal selesainya yang digeser.
-        $this->revisi($perencana, '2026-10-10', '2026-10-22', '2027-01-15')->assertSessionHasErrors(['periode.1.pengisian_mulai' => $pesan]);
         $this->assertEquals($sebelum, $this->jendelaTersimpan());
-        $this->assertSame(2, AuditLog::where('tindakan', 'jadwal.revisi_jendela_ditolak')->where('nilai_baru->alasan_penolakan', 'aturan_jadwal')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.revisi_jendela_ditolak')->where('nilai_baru->alasan_penolakan', 'aturan_jadwal')->count());
+
+        // Perpanjangan tanggal selesai saja tidak memaksa tanggal mulai 22 Oktober digeser.
+        $this->revisi($perencana, '2026-10-10', '2026-10-22', '2027-01-15')->assertSessionHasNoErrors();
+        $this->assertSame(['2026-10-22', '2027-01-15'], $this->jendelaTersimpan()[$this->ready['periode']->id]);
 
         $this->revisi($perencana, '2026-10-10', '2026-12-01', '2027-01-15')->assertSessionHasNoErrors();
         $this->assertSame(['2026-12-01', '2027-01-15'], $this->jendelaTersimpan()[$this->ready['periode']->id]);

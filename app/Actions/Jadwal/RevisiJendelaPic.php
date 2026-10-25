@@ -58,12 +58,12 @@ class RevisiJendelaPic
                 $jadwal->setRelation('periode', $windows->values());
                 $before = ['revisi' => $jadwal->revisi, 'periode' => $jadwal->draftAttributes()['periode']];
                 $lama = collect($before['periode'])->keyBy('periode_id');
-                $diubah = array_column(array_filter($requested, fn (array $window): bool => Arr::only($window, JadwalDraftRules::WINDOW_FIELDS)
-                    != Arr::only($lama[$window['periode_id']], JadwalDraftRules::WINDOW_FIELDS)), 'periode_id');
-                // Batas awal hanya untuk jendela yang tanggalnya diubah; jendela lain pada jadwal aktif tetap berlaku apa adanya.
+                // Batas awal hanya bila pengisian_mulai diubah: memperpanjang tanggal selesai tidak memaksa jendela yang sudah dibuka bergeser.
+                $mulaiDiubah = array_column(array_filter($requested, fn (array $window): bool => $window['pengisian_mulai']
+                    !== $lama[$window['periode_id']]['pengisian_mulai']), 'periode_id');
                 $metadata = Periode::whereIn('id', $ids)->get()->mapWithKeys(fn (Periode $periode): array => [$periode->id => [
                     'urutan' => $periode->urutan,
-                    ...(in_array($periode->id, $diubah, true) ? ['batas_awal_pengisian' => $periode->batasAwalPengisian($jadwal->tahun)] : []),
+                    ...(in_array($periode->id, $mulaiDiubah, true) ? ['batas_awal_pengisian' => $periode->batasAwalPengisian($jadwal->tahun)] : []),
                 ]])->all();
                 $this->rules->validate(['tahun' => $jadwal->tahun, 'penutupan' => $jadwal->penutupan->toDateString(), 'periode' => $requested], $metadata);
                 $changed = false;
