@@ -25,6 +25,31 @@ trait TargetRenstraFixtures
             ['nilai' => $nilai, 'expected_state' => $state ?? $this->targetRenstraState($indikator), ...$extra]);
     }
 
+    private function mulaiRevisi(User $aktor, string $renstraId): TestResponse
+    {
+        return $this->actingAs($aktor)->from('/perencanaan/sasaran-indikator')->post("/perencanaan/renstra/{$renstraId}/revisi-target");
+    }
+
+    /** @param array<string, array<int, ?string>> $nilai @param array<string, mixed> $extra */
+    private function simpanDrafRevisi(User $aktor, string $renstraId, ?int $versi, array $nilai, array $extra = []): TestResponse
+    {
+        return $this->actingAs($aktor)->from('/perencanaan/sasaran-indikator')->put("/perencanaan/renstra/{$renstraId}/revisi-target",
+            ['versi' => $versi, 'nilai' => $nilai, ...$extra]);
+    }
+
+    /** @param array<string, mixed> $extra */
+    private function simpanRevisi(User $aktor, string $renstraId, int $versi, ?string $justifikasi, array $extra = []): TestResponse
+    {
+        return $this->actingAs($aktor)->from('/perencanaan/sasaran-indikator')->post("/perencanaan/renstra/{$renstraId}/revisi-target/simpan",
+            ['versi' => $versi, 'justifikasi' => $justifikasi, ...$extra]);
+    }
+
+    /** @param array<string, mixed> $extra */
+    private function batalRevisi(User $aktor, string $renstraId, int $versi, array $extra = []): TestResponse
+    {
+        return $this->actingAs($aktor)->from('/perencanaan/sasaran-indikator')->delete("/perencanaan/renstra/{$renstraId}/revisi-target", ['versi' => $versi, ...$extra]);
+    }
+
     /** Mensimulasikan transisi Renstra di luar Action agar test fokus pada perilaku target Renstra. */
     private function ubahStatusRenstra(IndikatorKinerja $indikator, string $status): void
     {

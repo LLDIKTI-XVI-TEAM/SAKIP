@@ -21,6 +21,9 @@ use App\Actions\RencanaAksi\EnsureDraftRencanaAksi;
 use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\SimpanTargetPeriode;
 use App\Actions\Renstra\UpdateRenstraAction;
+use App\Actions\TargetRenstra\MulaiRevisiTargetRenstra;
+use App\Actions\TargetRenstra\SimpanDrafRevisiTargetRenstra;
+use App\Actions\TargetRenstra\SimpanRevisiTargetRenstra;
 use App\Actions\Unit\UpdateUnitAction;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
@@ -39,8 +42,10 @@ use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
+use App\Models\RevisiTargetRenstra;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
+use App\Models\TargetRenstra;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
@@ -1785,6 +1790,64 @@ class MutationConcurrencyTest extends TestCase
     public static function rekomendasiBersamaan(): array
     {
         return [['disetujui'], ['draf']];
+    }
+
+    /** Aktor berbeda agar yang diuji adalah lock draf revisi, bukan lock user; yang kalah membaca hasil pemenang dan ditolak 409. */
+    #[DataProvider('urutanRevisiTargetRenstra')]
+    public function test_simpan_revisi_dan_autosave_pada_draf_yang_sama_diserialkan_dan_yang_kalah_konflik(bool $simpanDulu): void
+    {
+        [$parent, $worker, $renstra, $indikator] = $this->revisiTargetRenstraFixture();
+        $draf = ['versi' => 2, 'nilai' => [$indikator->id => [2026 => '15']]];
+        $simpan = ['versi' => 2, 'justifikasi' => 'Revisi bersamaan.'];
+        $assignment = ['actor_id' => $worker->id, 'renstra_id' => $renstra->id, 'data' => $simpanDulu ? $draf : $simpan, 'expected_error_status' => 409];
+        $prepare = fn () => $simpanDulu
+            ? app(SimpanRevisiTargetRenstra::class)->handle($parent, $renstra->id, $simpan)
+            : app(SimpanDrafRevisiTargetRenstra::class)->handle($parent, $renstra->id, $draf);
+
+        $results = $this->race($simpanDulu ? 'revisi-target-draf' : 'revisi-target-simpan', $renstra->id, '', [$assignment], prepare: $prepare);
+
+        $this->assertSame(['conflict'], $results);
+        $this->assertSame(1, AuditLog::where('tindakan', 'target_renstra.revisi_ditolak')->get()->where('nilai_baru.alasan_penolakan', 'versi_usang')->count());
+        $revisi = RevisiTargetRenstra::where('renstra_id', $renstra->id)->sole();
+        $berlaku = TargetRenstra::where('indikator_id', $indikator->id)->where('tahun', 2026)->value('nilai');
+        if ($simpanDulu) {
+            // Revisi memakai isian sebelum autosave yang kalah; histori tidak tersentuh autosave.
+            $this->assertSame(['disimpan', 1, '12.000000000000'], [$revisi->status, $revisi->nomor, $berlaku]);
+            $this->assertSame(['12.000000000000'], $revisi->nilai()->pluck('nilai_baru')->all());
+        } else {
+            // Autosave menang: draf tetap terbuka dengan isian baru dan target berlaku tidak berubah.
+            $this->assertSame(['draf', 3, '10.000000000000'], [$revisi->status, $revisi->versi, $berlaku]);
+            $this->assertSame(['15.000000000000'], $revisi->nilai()->pluck('nilai_baru')->all());
+            $this->assertSame(0, AuditLog::where('tindakan', 'target_renstra.simpan')->count());
+        }
+    }
+
+    public static function urutanRevisiTargetRenstra(): array
+    {
+        return ['simpan revisi lebih dulu' => [true], 'autosave lebih dulu' => [false]];
+    }
+
+    /** @return array{User, User, Renstra, IndikatorKinerja} */
+    private function revisiTargetRenstraFixture(): array
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $perencanaan = Role::where('kode', 'perencanaan')->value('id');
+        [$parent, $worker] = array_map(function () use ($perencanaan): User {
+            $user = User::factory()->create(['status' => 'aktif']);
+            $user->roles()->attach($perencanaan, ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $user->id, 'created_at' => now()]);
+
+            return $user;
+        }, [1, 2]);
+        $renstra = Renstra::create(['kode' => 'R-REV', 'nama' => 'Renstra Revisi', 'tahun_mulai' => 2025, 'tahun_selesai' => 2029, 'status' => 'aktif', 'created_by' => $parent->id]);
+        $sasaran = SasaranStrategis::create(['renstra_id' => $renstra->id, 'kode' => 'S-REV', 'deskripsi' => 'Sasaran revisi']);
+        $unit = Unit::create(['nama' => 'Unit revisi', 'created_by' => $parent->id]);
+        $indikator = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaran->id, 'unit_id' => $unit->id, 'kode' => 'IKU-REV', 'nama' => 'Indikator revisi',
+            'satuan' => 'persen', 'presisi' => 2, 'tahun_mulai_berlaku' => 2025, 'created_by' => $parent->id, 'created_by_role' => 'perencanaan']);
+        TargetRenstra::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'nilai' => '10', 'updated_by' => $parent->id]);
+        app(MulaiRevisiTargetRenstra::class)->handle($parent, $renstra->id);
+        app(SimpanDrafRevisiTargetRenstra::class)->handle($parent, $renstra->id, ['versi' => 1, 'nilai' => [$indikator->id => [2026 => '12']]]);
+
+        return [$parent, $worker, $renstra, $indikator];
     }
 
     /**

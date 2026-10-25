@@ -4,10 +4,12 @@ namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
 use App\Models\Renstra;
+use App\Models\RevisiTargetRenstra;
 use App\Models\SasaranStrategis;
 use App\Models\User;
 use App\Services\Perencanaan\IndikatorPresenter;
 use App\Support\TargetRenstraState;
+use App\Support\TargetTahunanDecimal;
 use Illuminate\Support\Str;
 
 class IndexSasaranIndikator
@@ -85,7 +87,33 @@ class IndexSasaranIndikator
             'sasarans' => $sasarans,
             ...$this->presenter->formOptions($can['regulasi_read']),
             'can' => $can,
+            'revisi_target' => $this->revisiTarget($can, $selectedRenstra),
         ];
+    }
+
+    /**
+     * Draf revisi hanya untuk pemegang izin revisi; pembaca lain tetap melihat nilai berlaku saja. Sel draf dikunci per
+     * indikator lalu tahun, sama dengan bentuk payload autosave.
+     *
+     * @param  array<string, bool>  $can
+     * @return array{id: string, versi: int, justifikasi: ?string, dibuat_oleh: ?string, diubah_pada: ?string, nilai: array<string, array<int, ?string>>}|null
+     */
+    private function revisiTarget(array $can, ?Renstra $renstra): ?array
+    {
+        if ($renstra?->status !== Renstra::STATUS_AKTIF || ! $can['indikator_read'] || ! $can['target_update']) {
+            return null;
+        }
+        $draf = RevisiTargetRenstra::with(['nilai', 'pembuat:id,nama'])->where('renstra_id', $renstra->id)->where('status', RevisiTargetRenstra::STATUS_DRAF)->first();
+        if ($draf === null) {
+            return null;
+        }
+        $nilai = [];
+        foreach ($draf->nilai as $sel) {
+            $nilai[$sel->indikator_id][$sel->tahun] = TargetTahunanDecimal::normalize($sel->nilai_baru);
+        }
+
+        return ['id' => $draf->id, 'versi' => $draf->versi, 'justifikasi' => $draf->justifikasi, 'dibuat_oleh' => $draf->pembuat?->nama,
+            'diubah_pada' => $draf->updated_at?->toISOString(), 'nilai' => $nilai];
     }
 
     /**
