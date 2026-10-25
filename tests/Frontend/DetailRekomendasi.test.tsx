@@ -31,7 +31,7 @@ describe('Detail Rekomendasi Pimpinan', () => {
         expect(screen.getByText('Indikator pengujian')).toBeTruthy();
         expect(screen.getByText('Laporan sintetis')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Kelola di daftar' }).getAttribute('href')).toBe(props.kelola_url);
-        expect(screen.getByRole('link', { name: 'Kelola di daftar' }).textContent).toBe('');
+        expect(screen.getByRole('link', { name: 'Kelola di daftar' }).textContent).toBe('Kelola di daftar');
         expect(screen.getByRole('link', { name: 'Kembali ke daftar' }).getAttribute('href')).toBe(props.kelola_url);
         expect(screen.getByRole('link', { name: 'Lihat rekomendasi yang berlaku' }).getAttribute('href')).toBe('/rekomendasi/r2');
         const tabel = screen.getByRole('table');

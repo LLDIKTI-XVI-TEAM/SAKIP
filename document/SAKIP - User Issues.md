@@ -4449,7 +4449,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] Otorisasi `rekomendasi:tetapkan` lewat resolver; tidak ada audit baca.
 
 **D. Frontend / UX**
-- [x] Halaman `Rekomendasi/Show.tsx` dengan komponen Card, Badge, dan tabel riwayat berpola `block md:table`; tautan kembali bergaya tombol serta aksi ikon dengan tooltip dan label aksesibel pada daftar/detail.
+- [x] Halaman `Rekomendasi/Show.tsx` dengan komponen Card, Badge, dan tabel riwayat berpola `block md:table`; tombol Kembali ke daftar dan Kelola di daftar berikon serta berteks, dikelompokkan di kanan atas; aksi dalam tabel berupa ikon dengan tooltip dan label aksesibel.
 
 #### Automated Tests / Verification
 

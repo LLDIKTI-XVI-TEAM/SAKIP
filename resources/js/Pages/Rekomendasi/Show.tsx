@@ -48,6 +48,7 @@ const status: Record<RekomendasiDetail['status_tampilan'], { label: string; vari
 const namaPeran: Record<string, string> = { pimpinan: 'Pimpinan', perencanaan: 'Perencanaan', superadmin: 'Superadmin', admin: 'Admin', pegawai: 'Pegawai' };
 const linkClass = 'rounded font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25';
 const actionClass = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-primary/40 hover:bg-soft hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary/20';
+const navigationClass = 'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25';
 const cellClass = 'min-w-0 p-0 md:px-4 md:py-3.5';
 
 function PersetujuanCadangan({ data }: { data: RekomendasiDetail }) {
@@ -64,15 +65,13 @@ export default function Show({ rekomendasi, indikator, periode, berlaku_url, kel
         <AuthenticatedLayout title="Detail Rekomendasi Pimpinan" breadcrumbs={[{ label: 'Rekomendasi Pimpinan', href: kelola_url }, { label: 'Detail' }]}>
             <Head title={`Detail Rekomendasi · ${indikator.kode}`} />
             <div className="space-y-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href={kelola_url} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Link href={kelola_url} className={navigationClass}>
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar
                     </Link>
-                    <Tooltip content="Kelola di daftar" align="right">
-                        <Link href={kelola_url} aria-label="Kelola di daftar" className={actionClass}>
-                            <Edit3 className="h-4 w-4" aria-hidden="true" />
-                        </Link>
-                    </Tooltip>
+                    <Link href={kelola_url} className={navigationClass}>
+                        <Edit3 className="h-4 w-4" aria-hidden="true" />Kelola di daftar
+                    </Link>
                 </div>
 
                 <Card>
