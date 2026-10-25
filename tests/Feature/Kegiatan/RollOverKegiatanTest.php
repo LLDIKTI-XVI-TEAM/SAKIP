@@ -12,8 +12,10 @@ use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
+use App\Models\Unit;
 use App\Services\Kegiatan\TotalAnggaranKegiatan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
@@ -115,9 +117,7 @@ class RollOverKegiatanTest extends TestCase
 
     public function test_rantai_lanjutan_meneruskan_klaim_pengukuran_ke_ra_yang_sama(): void
     {
-        $tw3 = Periode::create(['nama' => 'Triwulan III', 'urutan' => 3, 'aktif' => true, 'is_nilai_akhir' => false]);
-        PeriodeJadwal::create(['jadwal_id' => $this->fixture['jadwal']->id, 'periode_id' => $tw3->id, 'pengisian_mulai' => '2026-03-01',
-            'pengisian_selesai' => '2026-09-30']);
+        $tw3 = $this->triwulanTiga();
         $this->pengukuran($this->fixture['periode2']);
         $tw3Pengukuran = $this->pengukuran($tw3);
         $this->tunda()->assertRedirect();
@@ -129,6 +129,57 @@ class RollOverKegiatanTest extends TestCase
         $c = Kegiatan::where('kegiatan_asal_id', $b->id)->sole();
         $klaim = KlaimKegiatan::where('kegiatan_id', $c->id)->sole();
         $this->assertSame([$this->header->id, 'pengukuran', $tw3Pengukuran->id], [$klaim->rencana_aksi_id, $klaim->sumber_klaim, $klaim->pengukuran_id]);
+    }
+
+    public function test_rantai_dengan_perantara_belum_diklaim_tetap_meneruskan_klaim_rantai_asal(): void
+    {
+        // A ditunda ke B dan B ke C sebelum baris pengukuran TW II maupun TW III ada: B dan C belum berklaim.
+        $tw3 = $this->triwulanTiga();
+        $this->tunda()->assertRedirect();
+        $b = Kegiatan::where('kegiatan_asal_id', $this->asal->id)->sole();
+        $this->tunda(['periode_tujuan_id' => $tw3->id], $b, 'perencanaan')->assertRedirect();
+        $c = Kegiatan::where('kegiatan_asal_id', $b->id)->sole();
+        $this->assertSame(0, KlaimKegiatan::whereIn('kegiatan_id', [$b->id, $c->id])->count());
+
+        // Baris TW III terbentuk: C diklaim dari klaim A walau perantara B belum diklaim.
+        $this->bentukDraf($tw3)->assertSessionHasNoErrors();
+        $klaimC = KlaimKegiatan::where('kegiatan_id', $c->id)->sole();
+        $this->assertSame([$this->header->id, 'pengukuran', PengukuranKinerja::where('periode_id', $tw3->id)->value('id')],
+            [$klaimC->rencana_aksi_id, $klaimC->sumber_klaim, $klaimC->pengukuran_id]);
+        $this->assertSame($b->id, AuditLog::where('tindakan', 'klaim_kegiatan.tambah')->sole()->nilai_baru['kegiatan_asal_id']);
+
+        // Baris TW II terbentuk kemudian: B ikut diklaim tanpa menggandakan klaim C.
+        $this->bentukDraf()->assertSessionHasNoErrors();
+        $this->assertSame([1, 1], [KlaimKegiatan::where('kegiatan_id', $b->id)->count(), KlaimKegiatan::where('kegiatan_id', $c->id)->count()]);
+    }
+
+    public function test_lanjutan_yang_dipindah_unit_tidak_diklaim_ke_ra_unit_asal(): void
+    {
+        $this->tunda()->assertRedirect();
+        $lanjutan = Kegiatan::where('kegiatan_asal_id', $this->asal->id)->sole();
+        // Lanjutan tanpa klaim masih boleh dipindah unit oleh SimpanKegiatan; klaim lintas unit tetap ditolak (Data Model §2.26).
+        $unitLain = Unit::create(['nama' => 'Unit lain', 'status' => 'aktif', 'created_by' => $this->fixture['perencanaan']->id]);
+        $lanjutan->forceFill(['unit_id' => $unitLain->id])->save();
+
+        $this->bentukDraf()->assertSessionHasNoErrors();
+
+        $this->assertFalse(KlaimKegiatan::where('kegiatan_id', $lanjutan->id)->exists());
+        $this->assertFalse(AuditLog::where('tindakan', 'klaim_kegiatan.tambah')->exists());
+    }
+
+    public function test_pembentukan_draf_mengunci_advisory_dan_header_ra_sebelum_indikator(): void
+    {
+        // Urutan sama dengan transisi ditunda (advisory → header RA) dan writer RA (header RA → indikator) agar klaim tertunda tidak deadlock.
+        DB::enableQueryLog();
+        $this->bentukDraf()->assertSessionHasNoErrors();
+        $sql = array_column(DB::getQueryLog(), 'query');
+        $posisi = fn (string $pola): ?int => array_key_first(array_filter($sql, fn (string $query): bool => preg_match($pola, $query) === 1));
+
+        $advisory = $posisi('/pg_advisory_xact_lock/');
+        $headerRa = $posisi('/from "rencana_aksi".*for key share/');
+        $indikator = $posisi('/from "indikator_kinerjas".*for update/');
+        $this->assertNotContains(null, [$advisory, $headerRa, $indikator]);
+        $this->assertTrue($advisory < $headerRa && $headerRa < $indikator, "advisory {$advisory}, header RA {$headerRa}, indikator {$indikator}");
     }
 
     public function test_periode_tujuan_terkunci_ditolak_bagi_pic_tetapi_tidak_bagi_perencanaan(): void
@@ -199,10 +250,19 @@ class RollOverKegiatanTest extends TestCase
             'jadwal_snapshot_id' => $this->fixture['snapshot']->id, 'sumber_nilai' => 'manual', 'status_alur' => $status, 'created_by' => $this->fixture['pic']->id]);
     }
 
-    private function bentukDraf(): TestResponse
+    private function bentukDraf(?Periode $periode = null): TestResponse
     {
         return $this->actingAs($this->fixture['perencanaan'])->post('/pengukuran/ensure-draft',
-            ['jadwal_snapshot_id' => $this->fixture['snapshot']->id, 'periode_id' => $this->fixture['periode2']->id]);
+            ['jadwal_snapshot_id' => $this->fixture['snapshot']->id, 'periode_id' => ($periode ?? $this->fixture['periode2'])->id]);
+    }
+
+    private function triwulanTiga(): Periode
+    {
+        $tw3 = Periode::create(['nama' => 'Triwulan III', 'urutan' => 3, 'aktif' => true, 'is_nilai_akhir' => false]);
+        PeriodeJadwal::create(['jadwal_id' => $this->fixture['jadwal']->id, 'periode_id' => $tw3->id, 'pengisian_mulai' => '2026-03-01',
+            'pengisian_selesai' => '2026-09-30']);
+
+        return $tw3;
     }
 
     private function persyaratanPerencanaan(): JenisBerkas

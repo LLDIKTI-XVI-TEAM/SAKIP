@@ -26,9 +26,10 @@ use Illuminate\Support\Facades\DB;
  * Isi lanjutan memakai `TambahKegiatanRencanaAksi::FIELD_SALIN` ditambah unit dan tahun; tanggal rencana,
  * justifikasi, data pelaksanaan, klaim, dan berkas tidak disalin.
  *
- * Klaim lanjutan diteruskan dari seluruh klaim kegiatan asal (tahap RA maupun pengukuran, satu per RA ×
- * komponen) agar rantai lanjutan tetap tertaut ke RA yang sama, dan selalu menunjuk baris pengukuran
- * indikator RA × tahun × periode lanjutan apa pun status alurnya; versi beku tidak disentuh.
+ * Klaim lanjutan diteruskan dari seluruh klaim rantai asalnya (asal, asal dari asal, dan seterusnya; tahap RA
+ * maupun pengukuran, satu per RA × komponen) agar rantai lanjutan tetap tertaut ke RA yang sama walau kegiatan
+ * perantara belum diklaim, hanya ke RA unit yang sama dengan lanjutan (Data Model §2.26), dan selalu menunjuk
+ * baris pengukuran indikator RA × tahun × periode lanjutan apa pun status alurnya; versi beku tidak disentuh.
  */
 class RollOverKegiatan
 {
@@ -97,8 +98,18 @@ class RollOverKegiatan
      */
     public function klaimkan(Kegiatan $lanjutan, User $aktor, ?PengukuranKinerja $hanya = null): array
     {
+        // Rantai asal lewat kegiatan_asal_id (C → B → A); UNION berhenti pada baris yang sudah dikunjungi bila data membentuk siklus.
+        $rantai = array_column(DB::select(<<<'SQL'
+            WITH RECURSIVE rantai (id) AS (
+                SELECT kegiatan_asal_id FROM kegiatan WHERE id = ? AND kegiatan_asal_id IS NOT NULL
+                UNION
+                SELECT asal.kegiatan_asal_id FROM kegiatan AS asal JOIN rantai ON asal.id = rantai.id WHERE asal.kegiatan_asal_id IS NOT NULL
+            )
+            SELECT id FROM rantai
+            SQL, [$lanjutan->id]), 'id');
         $sumber = KlaimKegiatan::join('rencana_aksi', 'rencana_aksi.id', '=', 'klaim_kegiatan.rencana_aksi_id')
-            ->where('klaim_kegiatan.kegiatan_id', $lanjutan->kegiatan_asal_id)->where('rencana_aksi.tahun', $lanjutan->tahun)
+            ->whereIn('klaim_kegiatan.kegiatan_id', $rantai)->where('rencana_aksi.tahun', $lanjutan->tahun)
+            ->where('rencana_aksi.unit_id', $lanjutan->unit_id)
             ->when($hanya, fn ($query) => $query->where('rencana_aksi.indikator_id', $hanya->indikator_id))
             ->orderBy('klaim_kegiatan.created_at')->orderBy('klaim_kegiatan.id')
             ->get(['klaim_kegiatan.rencana_aksi_id', 'klaim_kegiatan.komponen_id', 'klaim_kegiatan.arah_dampak', 'klaim_kegiatan.catatan', 'rencana_aksi.indikator_id'])
@@ -124,16 +135,15 @@ class RollOverKegiatan
 
     /**
      * Klaim lanjutan yang tertunda karena baris pengukuran periodenya belum ada saat ditunda (jalur kedua).
+     * Lanjutan dikunci bersama (`FOR SHARE`) agar unitnya tidak dipindahkan `SimpanKegiatan` sebelum klaim tersimpan;
+     * sesudah itu klaim yang ada menolak pemindahan.
      *
      * @return list<array{klaim: KlaimKegiatan, kegiatan_asal_id: string}>
      */
     public function klaimTertunda(PengukuranKinerja $pengukuran, User $aktor): array
     {
         $lanjutan = Kegiatan::where('periode_id', $pengukuran->periode_id)->where('tahun', $pengukuran->tahun)->whereNotNull('kegiatan_asal_id')
-            ->whereExists(fn ($query) => $query->from('klaim_kegiatan')->join('rencana_aksi', 'rencana_aksi.id', '=', 'klaim_kegiatan.rencana_aksi_id')
-                ->whereColumn('klaim_kegiatan.kegiatan_id', 'kegiatan.kegiatan_asal_id')
-                ->where('rencana_aksi.indikator_id', $pengukuran->indikator_id)->where('rencana_aksi.tahun', $pengukuran->tahun))
-            ->orderBy('id')->get();
+            ->orderBy('id')->sharedLock()->get();
 
         return $lanjutan->flatMap(fn (Kegiatan $kegiatan): array => array_map(
             fn (KlaimKegiatan $klaim): array => ['klaim' => $klaim, 'kegiatan_asal_id' => (string) $kegiatan->kegiatan_asal_id],
