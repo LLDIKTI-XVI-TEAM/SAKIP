@@ -1475,6 +1475,8 @@ kegiatan:update
 
 > **Q71 (23 Oktober 2026):** pada Renstra `aktif`, target Renstra hanya diubah melalui mode revisi seluruh tabel dengan satu justifikasi wajib per revisi. Q60 tetap berlaku untuk Renstra `draft`. Issue ini menggantikan ISS-02.10 AC-4 dan AC-5 untuk Renstra `aktif`.
 
+> **Status implementasi ([Issue #166](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/166)):** simpan langsung ditutup untuk Renstra `aktif`; mode revisi (mulai, autosave, simpan, batal) dan histori revisi per Renstra tersedia dengan tabel `revisi_target_renstra` dan `revisi_target_renstra_nilai` (Data Model §2.38). Klarifikasi PM 25 Oktober 2026 (Q71 §71.5): pengisian pertama pada Renstra `aktif` juga melalui mode revisi, pembatalan draf diaudit, serta draf dan histori memakai tabel yang sama dengan audit `target_renstra.simpan` per sel. Test utama: SkemaRevisiTargetRenstraTest, RevisiTargetRenstraTest, TargetRenstraTest (AC-1, AC-2), TargetRenstraInvariansiTest, MutationConcurrencyTest (simpan revisi bersamaan dengan autosave), serta Vitest RevisiTargetRenstra dan TargetRenstraTable. Checkbox menandai bukti lokal; QA SSO desktop/mobile dan CI exact HEAD dicatat pada PR.
+
 **Terkait User Story:** `US-02.13`  
 **Prioritas:** Tahap 2; prasyarat ISS-02.14  
 **Story Points:** Belum diestimasi  
@@ -1502,57 +1504,57 @@ kegiatan:update
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given Renstra `draft`, When target Renstra diisi atau diubah per indikator, Then tersimpan tanpa alasan seperti sekarang. *(Q71 §71.1 butir 1, Q60)*
-- [ ] **AC-2:** Given Renstra `aktif`, Then tombol Ubah per indikator tidak tersedia, dan request simpan langsung ditolak dengan arahan memakai mode revisi. *(Q71 §71.1 butir 2)*
-- [ ] **AC-3:** Given Renstra `aktif`, When Perencanaan memulai mode revisi, Then draf terbentuk berisi nilai yang berlaku dan seluruh indikator × tahun dapat diubah. *(Q71 §71.2 butir 1)*
-- [ ] **AC-4:** Given isian draf diubah, When halaman dimuat ulang, Then nilai draf tetap ada karena tersimpan otomatis di server. *(Q71 §71.2 butir 2)*
-- [ ] **AC-5:** Given draf terbuka, When pengguna lain berizin membuka mode revisi, Then ia melanjutkan draf yang sama; perubahan dari versi draf yang sudah usang ditolak 409. *(Q71 §71.2 butir 2)*
-- [ ] **AC-6:** Given justifikasi kosong, When Simpan, Then ditolak dan penolakannya diaudit; target Renstra tidak berubah. *(Q71 §71.2 butir 5)*
-- [ ] **AC-7:** Given justifikasi terisi dan ada perubahan, When Simpan, Then seluruh perubahan diterapkan dalam satu transaksi, nilai lama masuk histori, revisi bernomor n+1, dan audit memuat aktor, waktu, `dasar_izin`, justifikasi, serta nilai lama dan baru. *(Q71 §71.2 butir 3, §71.3 butir 4)*
-- [ ] **AC-8:** Given draf terbuka, When Batal, Then draf dibuang dan target Renstra tidak berubah. *(Q71 §71.2 butir 4)*
-- [ ] **AC-9:** Given draf tanpa perubahan nilai, When Simpan, Then ditolak. *(Q71 §71.2 butir 6)*
-- [ ] **AC-10:** Given histori dibuka, Then tampil daftar revisi per Renstra (nomor, waktu, aktor, justifikasi, perubahan per indikator × tahun), dan riwayat per indikator dari audit sebelum mode revisi tetap dapat dibaca. *(Q71 §71.3 butir 1–2)*
-- [ ] **AC-11:** Given draf terbuka, Then halaman Sasaran & Indikator dan pembanding target PK tetap memakai nilai yang berlaku. *(Q71 §71.2 butir 7)*
-- [ ] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When memulai, mengubah, menyimpan, atau membatalkan revisi lewat request langsung, Then ditolak 403.
+- [x] **AC-1:** Given Renstra `draft`, When target Renstra diisi atau diubah per indikator, Then tersimpan tanpa alasan seperti sekarang. *(Q71 §71.1 butir 1, Q60)*
+- [x] **AC-2:** Given Renstra `aktif`, Then tombol Ubah per indikator tidak tersedia, dan request simpan langsung ditolak dengan arahan memakai mode revisi. *(Q71 §71.1 butir 2)*
+- [x] **AC-3:** Given Renstra `aktif`, When Perencanaan memulai mode revisi, Then draf terbentuk berisi nilai yang berlaku dan seluruh indikator × tahun dapat diubah. *(Q71 §71.2 butir 1)*
+- [x] **AC-4:** Given isian draf diubah, When halaman dimuat ulang, Then nilai draf tetap ada karena tersimpan otomatis di server. *(Q71 §71.2 butir 2)*
+- [x] **AC-5:** Given draf terbuka, When pengguna lain berizin membuka mode revisi, Then ia melanjutkan draf yang sama; perubahan dari versi draf yang sudah usang ditolak 409. *(Q71 §71.2 butir 2)*
+- [x] **AC-6:** Given justifikasi kosong, When Simpan, Then ditolak dan penolakannya diaudit; target Renstra tidak berubah. *(Q71 §71.2 butir 5)*
+- [x] **AC-7:** Given justifikasi terisi dan ada perubahan, When Simpan, Then seluruh perubahan diterapkan dalam satu transaksi, nilai lama masuk histori, revisi bernomor n+1, dan audit memuat aktor, waktu, `dasar_izin`, justifikasi, serta nilai lama dan baru. *(Q71 §71.2 butir 3, §71.3 butir 4)*
+- [x] **AC-8:** Given draf terbuka, When Batal, Then draf dibuang dan target Renstra tidak berubah. *(Q71 §71.2 butir 4)*
+- [x] **AC-9:** Given draf tanpa perubahan nilai, When Simpan, Then ditolak. *(Q71 §71.2 butir 6)*
+- [x] **AC-10:** Given histori dibuka, Then tampil daftar revisi per Renstra (nomor, waktu, aktor, justifikasi, perubahan per indikator × tahun), dan riwayat per indikator dari audit sebelum mode revisi tetap dapat dibaca. *(Q71 §71.3 butir 1–2)*
+- [x] **AC-11:** Given draf terbuka, Then halaman Sasaran & Indikator dan pembanding target PK tetap memakai nilai yang berlaku. *(Q71 §71.2 butir 7)*
+- [x] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When memulai, mengubah, menyimpan, atau membatalkan revisi lewat request langsung, Then ditolak 403.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Buat tabel draf revisi (unik satu draf terbuka per Renstra) dan histori revisi (unik nomor per Renstra) beserta baris nilai per indikator × tahun; domain nilai mengikuti Q33.
+- [x] Buat tabel draf revisi (unik satu draf terbuka per Renstra) dan histori revisi (unik nomor per Renstra) beserta baris nilai per indikator × tahun; domain nilai mengikuti Q33.
 
 **B. Backend / Domain**
-- [ ] Action mulai revisi, simpan draf (autosave), simpan revisi, dan batal, dengan token konkurensi; controller tipis.
-- [ ] Tutup jalur simpan langsung `SimpanTargetRenstra` untuk Renstra `aktif` (AC-2); Renstra `draft` tidak berubah.
-- [ ] Action baca histori revisi; `BacaRiwayatTargetRenstra` tetap untuk perubahan sebelum mode revisi.
+- [x] Action mulai revisi, simpan draf (autosave), simpan revisi, dan batal, dengan token konkurensi; controller tipis.
+- [x] Tutup jalur simpan langsung `SimpanTargetRenstra` untuk Renstra `aktif` (AC-2); Renstra `draft` tidak berubah.
+- [x] Action baca histori revisi; `BacaRiwayatTargetRenstra` tetap untuk perubahan sebelum mode revisi.
 
 **C. Authorization & Audit**
-- [ ] Semua aksi dinilai `PermissionResolver` untuk `indikator:read` + `target:update`; React hanya membaca `can.*`.
-- [ ] Audit simpan revisi dan penolakannya; penolakan diaudit di luar transaksi.
+- [x] Semua aksi dinilai `PermissionResolver` untuk `indikator:read` + `target:update`; React hanya membaca `can.*`.
+- [x] Audit simpan revisi dan penolakannya; penolakan diaudit di luar transaksi.
 
 **D. Frontend / UX**
-- [ ] `TargetRenstraTable.tsx`: tombol Mode revisi untuk Renstra `aktif`, tabel isian seluruh indikator × tahun, indikator autosave, kotak justifikasi di bawah tabel, tombol Simpan dan Batal.
-- [ ] Modal histori revisi per Renstra; pola mobile `block md:table`, teks minimal 12px, label aksesibel.
+- [x] `TargetRenstraTable.tsx`: tombol Mode revisi untuk Renstra `aktif`, tabel isian seluruh indikator × tahun, indikator autosave, kotak justifikasi di bawah tabel, tombol Simpan dan Batal.
+- [x] Modal histori revisi per Renstra; pola mobile `block md:table`, teks minimal 12px, label aksesibel.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Pest Feature test membuktikan AC-1 dan AC-2 — Renstra `draft` tetap simpan langsung; Renstra `aktif` ditolak dengan kontrol positif.
-- [ ] TEST-2: Pest Feature test membuktikan AC-3 dan AC-4 — draf terbentuk dan nilai draf tersimpan di tabel draf (dibaca dari tabel mentah).
-- [ ] TEST-3: Pest Feature test membuktikan AC-5 — satu draf per Renstra dan 409 pada versi usang.
-- [ ] TEST-4: Pest Feature test membuktikan AC-6 dan AC-9 — tanpa justifikasi dan tanpa perubahan ditolak, penolakan diaudit.
-- [ ] TEST-5: Pest Feature test membuktikan AC-7 — perubahan atomik, histori, nomor revisi, dan audit.
-- [ ] TEST-6: Pest Feature test membuktikan AC-8 dan AC-11 — batal membuang draf; nilai berlaku tidak berubah selama draf terbuka.
-- [ ] TEST-7: Pest Feature test membuktikan AC-10 — histori revisi dan riwayat lama terbaca.
-- [ ] TEST-8: Vitest untuk mode revisi, autosave, dan kotak justifikasi.
-- [ ] SECURITY: AC-12 untuk setiap endpoint revisi, termasuk deny yang cocok.
+- [x] TEST-1: Pest Feature test membuktikan AC-1 dan AC-2 — Renstra `draft` tetap simpan langsung; Renstra `aktif` ditolak dengan kontrol positif.
+- [x] TEST-2: Pest Feature test membuktikan AC-3 dan AC-4 — draf terbentuk dan nilai draf tersimpan di tabel draf (dibaca dari tabel mentah).
+- [x] TEST-3: Pest Feature test membuktikan AC-5 — satu draf per Renstra dan 409 pada versi usang.
+- [x] TEST-4: Pest Feature test membuktikan AC-6 dan AC-9 — tanpa justifikasi dan tanpa perubahan ditolak, penolakan diaudit.
+- [x] TEST-5: Pest Feature test membuktikan AC-7 — perubahan atomik, histori, nomor revisi, dan audit.
+- [x] TEST-6: Pest Feature test membuktikan AC-8 dan AC-11 — batal membuang draf; nilai berlaku tidak berubah selama draf terbuka.
+- [x] TEST-7: Pest Feature test membuktikan AC-10 — histori revisi dan riwayat lama terbaca.
+- [x] TEST-8: Vitest untuk mode revisi, autosave, dan kotak justifikasi.
+- [x] SECURITY: AC-12 untuk setiap endpoint revisi, termasuk deny yang cocok.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Token, komponen, label, dan pola mobile dicek lewat Vitest; responsivitas menunggu smoke browser SSO.)*
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-02.14 · [Feature] Penolakan Target PK yang Menyimpang dan Alasan Perubahan Target PK
 
