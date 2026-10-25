@@ -8,6 +8,7 @@ use App\Models\Permission;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Periode\TanggalPeriodeRules;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 
 class ReplaceFinalPeriode
 {
-    public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit) {}
+    public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit, private readonly TanggalPeriodeRules $tanggal) {}
 
     /** Flag final lama dipertahankan untuk histori; dua row dan audit berubah dalam satu transaksi. @param array<string, mixed> $data */
     public function handle(User $actor, array $data): Periode
@@ -54,6 +55,8 @@ class ReplaceFinalPeriode
                 $old->save();
                 $new->aktif = true;
                 $new->is_nilai_akhir = true;
+                // Final lama sudah nonaktif di transaksi ini, sehingga rentangnya tidak dihitung sebagai tumpang tindih.
+                $this->tanggal->validate($new, 'periode_pengganti_id', 'Periode pengganti');
                 $new->revisi++;
                 $new->save();
                 $this->audit->catat(actor: $actor, tindakan: 'periode.ganti_nilai_akhir', objekTipe: 'periode', objekId: $new->id,

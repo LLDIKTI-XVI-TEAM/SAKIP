@@ -34,7 +34,13 @@ trait JadwalFixtures
 
     private function calendarMaster(int $order = 4, bool $final = true): Periode
     {
-        return Periode::create(['nama' => 'Triwulan '.$order, 'urutan' => $order, 'aktif' => true, 'is_nilai_akhir' => $final])->refresh();
+        // Periode aktif wajib bertanggal (Q70 §70.1); urutan di atas 4 memakai satu bulan penuh (5 = Mei) agar tidak beririsan dengan triwulan fixture.
+        $bulan = ($order - 1) % 12 + 1;
+        [$bulanMulai, $hariMulai, $bulanSelesai, $hariSelesai] = [1 => [1, 1, 3, 31], 2 => [4, 1, 6, 30], 3 => [7, 1, 9, 30], 4 => [10, 1, 12, 31]][$order]
+            ?? [$bulan, 1, $bulan, [2 => 28, 4 => 30, 6 => 30, 9 => 30, 11 => 30][$bulan] ?? 31];
+
+        return Periode::create(['nama' => 'Triwulan '.$order, 'urutan' => $order, 'aktif' => true, 'is_nilai_akhir' => $final,
+            'bulan_mulai' => $bulanMulai, 'hari_mulai' => $hariMulai, 'bulan_selesai' => $bulanSelesai, 'hari_selesai' => $hariSelesai])->refresh();
     }
 
     private function calendarPayload(Renstra $renstra, Periode $periode, int $year = 2026): array

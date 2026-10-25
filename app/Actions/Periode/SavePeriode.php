@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Jadwal\JadwalDraftRules;
+use App\Services\Periode\TanggalPeriodeRules;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,8 @@ use Illuminate\Validation\ValidationException;
 
 class SavePeriode
 {
-    public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit, private readonly JadwalDraftRules $rules) {}
+    public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit, private readonly JadwalDraftRules $rules,
+        private readonly TanggalPeriodeRules $tanggal) {}
 
     /** Menjaga tepat satu final aktif dan makna seluruh draft sebelum metadata global berubah. @param array<string, mixed> $data */
     public function handle(User $actor, array $data, ?Periode $periode = null): Periode
@@ -60,7 +62,8 @@ class SavePeriode
                 if ($periode && $current->urutan !== (int) $data['urutan']) {
                     $this->validateReferencedDrafts($current, (int) $data['urutan']);
                 }
-                $current->fill(array_intersect_key($data, array_flip(['nama', 'urutan', 'aktif', 'is_nilai_akhir'])));
+                $current->fill(array_intersect_key($data, array_flip(['nama', 'urutan', 'aktif', 'is_nilai_akhir', 'bulan_mulai', 'hari_mulai', 'bulan_selesai', 'hari_selesai'])));
+                $this->tanggal->validate($current);
                 if ($periode && ! $current->isDirty()) {
                     return $current;
                 }

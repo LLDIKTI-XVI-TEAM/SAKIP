@@ -28,6 +28,7 @@ abstract class PeriodeJadwalMutationRequest extends FormRequest
     {
         return [
             'required' => ':attribute wajib diisi.',
+            'required_if_accepted' => ':attribute wajib diisi untuk periode aktif.',
             'string' => ':attribute harus berupa teks.',
             'integer' => ':attribute harus berupa bilangan bulat.',
             'boolean' => ':attribute harus berupa pilihan ya atau tidak.',
@@ -54,6 +55,10 @@ abstract class PeriodeJadwalMutationRequest extends FormRequest
             'urutan' => 'Urutan',
             'aktif' => 'Status aktif',
             'is_nilai_akhir' => 'Penanda nilai akhir',
+            'bulan_mulai' => 'Bulan mulai',
+            'hari_mulai' => 'Tanggal mulai',
+            'bulan_selesai' => 'Bulan selesai',
+            'hari_selesai' => 'Tanggal selesai',
             'renstra_id' => 'Renstra',
             'tahun' => 'Tahun',
             'penutupan' => 'Tanggal penutupan',

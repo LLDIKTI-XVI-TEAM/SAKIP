@@ -22,13 +22,13 @@ class ListPeriode
 
         return DB::transaction(function () use ($actor, $filters): array {
             Periode::lockConfiguration();
-            $rows = Periode::query()->select(['id', 'nama', 'urutan', 'aktif', 'is_nilai_akhir', 'revisi'])
+            $rows = Periode::query()->select(['id', 'nama', 'urutan', 'aktif', 'is_nilai_akhir', 'revisi', 'bulan_mulai', 'hari_mulai', 'bulan_selesai', 'hari_selesai'])
                 ->withExists(['jendela as metadata_locked' => fn ($query) => $query->whereHas('jadwal', fn ($query) => $query->whereIn('status', ['aktif', 'ditutup']))])
                 ->when($filters['q'] ?? null, fn ($query, $q) => $query->where('nama', 'ilike', '%'.$q.'%'))
                 ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('aktif', $status === 'aktif'))
                 ->orderBy($filters['sort'] ?? 'urutan')->orderBy('id')->paginate(20, page: $filters['page'] ?? 1)->withQueryString()
                 ->through(fn (Periode $row): array => [...$row->masterAttributes(), 'metadata_locked' => (bool) $row->getAttribute('metadata_locked'),
-                    'metadata_locked_reason' => $row->getAttribute('metadata_locked') ? 'Dirujuk jadwal aktif atau ditutup; hanya nama dan status aktif yang dapat dikoreksi.' : null]);
+                    'metadata_locked_reason' => $row->getAttribute('metadata_locked') ? 'Dirujuk jadwal aktif atau ditutup; hanya nama, rentang tanggal, dan status aktif yang dapat dikoreksi.' : null]);
             $final = Periode::where('aktif', true)->where('is_nilai_akhir', true)->first(['id', 'nama', 'revisi']);
             $canUpdate = $this->policy->update($actor)->allowed();
 

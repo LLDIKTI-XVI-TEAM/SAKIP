@@ -18,12 +18,23 @@ class PeriodeSeeder extends Seeder
                 return false;
             }
 
-            foreach (['Triwulan I', 'Triwulan II', 'Triwulan III', 'Triwulan IV'] as $index => $nama) {
+            $triwulan = [
+                'Triwulan I' => [1, 1, 3, 31],
+                'Triwulan II' => [4, 1, 6, 30],
+                'Triwulan III' => [7, 1, 9, 30],
+                'Triwulan IV' => [10, 1, 12, 31],
+            ];
+            foreach (array_keys($triwulan) as $index => $nama) {
+                [$bulanMulai, $hariMulai, $bulanSelesai, $hariSelesai] = $triwulan[$nama];
                 Periode::create([
                     'nama' => $nama,
                     'urutan' => $index + 1,
                     'aktif' => true,
                     'is_nilai_akhir' => $index === 3,
+                    'bulan_mulai' => $bulanMulai,
+                    'hari_mulai' => $hariMulai,
+                    'bulan_selesai' => $bulanSelesai,
+                    'hari_selesai' => $hariSelesai,
                 ]);
             }
 
