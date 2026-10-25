@@ -7,7 +7,7 @@ import RekomendasiIndex, { type BarisRekomendasi } from '@/Pages/Rekomendasi/Ind
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
-    return { ...original, Head: () => null, usePage: () => ({ props: { pengaturan: {} } }) };
+    return { ...original, Head: () => null, Link: ({ href, children, ...props }: { href: string; children: ReactNode }) => <a href={href} {...props}>{children}</a>, usePage: () => ({ props: { pengaturan: {} } }) };
 });
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 
@@ -32,6 +32,20 @@ afterEach(() => {
 });
 
 describe('Halaman Rekomendasi Pimpinan', () => {
+    it('satu tautan detail mengutamakan rekomendasi berlaku lalu draf, dan baris kosong tetap dapat ditulis', () => {
+        const { rerender } = tampilkan();
+        const link = screen.getByRole('link', { name: 'Detail rekomendasi IKU 1.1' });
+        expect(link.getAttribute('href')).toBe(`/rekomendasi/${baris.berlaku?.id}`);
+        expect(link.textContent).toBe('');
+        expect(screen.getByRole('button', { name: 'Tinjau draf IKU 1.1' }).textContent).toBe('');
+        rerender(<RekomendasiIndex pilihan_jadwal={pilihan} filters={{ jadwal_id: 'jad-1', periode_id: 'per-1' }} persetujuan_cadangan={false}
+            rekomendasi={[{ ...baris, berlaku: null, riwayat: [] }]} />);
+        expect(screen.getByRole('link', { name: 'Detail rekomendasi IKU 1.1' }).getAttribute('href')).toBe('/rekomendasi/draf-1');
+        rerender(<RekomendasiIndex pilihan_jadwal={pilihan} filters={{ jadwal_id: 'jad-1', periode_id: 'per-1' }} persetujuan_cadangan={false}
+            rekomendasi={[{ ...baris, berlaku: null, riwayat: [], draf: null }]} />);
+        expect(screen.queryByRole('link')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Tulis rekomendasi IKU 1.1' })).toBeTruthy();
+    });
     it('menampilkan rekomendasi berlaku dengan penanda cadangan, draf, dan riwayat tanpa scroll horizontal', () => {
         tampilkan();
 

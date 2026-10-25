@@ -4400,6 +4400,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > Hasil rapat evaluasi 23 Oktober 2026 (butir 10). Tidak mengubah aturan Q45 dan Q51; tidak memerlukan keputusan Q baru. Isi halaman mengikuti rincian U-24 yang disetujui PM pada 24 Oktober 2026.
 
+> **Klarifikasi 25 Oktober 2026:** Q1–Q4 mengikuti [jawaban PM pada issue #171](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/171#issuecomment-6389473955). Q5 dikonfirmasi pada pembahasan implementasi: status diberi label **"Status pengukuran saat ini"**, terpisah dari nomor dan tanggal pengajuan sumber; bila sumbernya pengajuan terdahulu, tampil keterangan tersebut. Klarifikasi ini mempertahankan Q45, Q51, dan Q55.
+
+> **Status implementasi lokal (#171):** route dan Action detail, tautan daftar, metadata, rangkaian rekomendasi, pembaca tindak lanjut beku, serta pemisahan akses panel telah diimplementasikan. Bukti terkait: `DetailRekomendasiTest`, suite `tests/Feature/Rekomendasi`, Vitest `DetailRekomendasi`/`RekomendasiPimpinan`, dan smoke desktop/mobile. Checkbox AC/test/DoD menunjukkan verifikasi lokal; CI exact HEAD, persetujuan UAT, merge, dan deployment belum dinyatakan selesai.
+
 **Terkait User Story:** `US-09.03`  
 **Prioritas:** Tahap 2  
 **Story Points:** Belum diestimasi  
@@ -4425,38 +4429,38 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given halaman daftar Rekomendasi, Then setiap baris memiliki tautan ke halaman detail rekomendasinya.
-- [ ] **AC-2:** Given halaman detail, Then tampil indikator (kode dan nama), periode dan tahun, isi rekomendasi, rujukan sumber, status, penyusun dan waktu, serta penyetuju dan waktu dengan penanda jalur cadangan bila disetujui Perencanaan. *(Q51 §51.1)*
-- [ ] **AC-3:** Given rekomendasi pernah diubah setelah disetujui, Then baris-baris sebelumnya untuk indikator × periode yang sama tampil sebagai riwayat menurut waktu. *(Q51 §51.2 butir 3)*
-- [ ] **AC-4:** Given rekomendasi disetujui dan pengukuran periode berikutnya sudah memuat tindak lanjut, Then tindak lanjut itu tampil; bila belum, tampil keterangan "Belum ada tindak lanjut". *(Q45 §45.2 butir 3)*
-- [ ] **AC-5:** Given pengguna tanpa `rekomendasi:tetapkan`, When membuka URL detail langsung, Then ditolak 403.
-- [ ] **AC-6:** Given aksi setujui atau ubah tersedia di detail, Then aksi mengikuti aturan dan otorisasi ISS-09.01.
+- [x] **AC-1:** Given halaman daftar Rekomendasi, Then setiap baris yang memiliki rekomendasi memiliki satu tautan Detail ke rekomendasi berlaku, atau ke draf terbuka bila belum ada yang disetujui; baris tanpa rekomendasi hanya menampilkan aksi Tulis rekomendasi.
+- [x] **AC-2:** Given halaman detail, Then tampil indikator (kode dan nama), periode dan tahun, isi rekomendasi, rujukan sumber, status, penyusun dan waktu, serta penyetuju dan waktu dengan penanda jalur cadangan bila disetujui Perencanaan. *(Q51 §51.1)*
+- [x] **AC-3:** Given halaman detail, Then seluruh rekomendasi untuk indikator × tahun × periode yang sama tampil menurut waktu persetujuan dengan draf terbuka di akhir, beserta penanda rekomendasi yang dibuka dan yang berlaku; rekomendasi yang sudah digantikan berstatus Digantikan dan menautkan ke rekomendasi yang berlaku. Rangkaian dipaginasi agar payload tetap terbatas. *(Q51 §51.2 butir 3)*
+- [x] **AC-4:** Given rekomendasi disetujui dan versi pengajuan pengukuran periode berikutnya membekukan rekomendasi ini, Then tindak lanjut dari versi terbaru yang cocok tampil bersama nomor versi, tanggal diajukan, dan status pengukuran; draf pengukuran tidak ditampilkan; bila belum ada, tampil "Belum ada tindak lanjut". Panel dan payload tindak lanjut hanya tersedia bila `PengukuranKinerjaPolicy::view` mengizinkan. Status dilabeli "Status pengukuran saat ini" dan pengajuan sumber yang terdahulu diberi keterangan. *(Q45 §45.2 butir 3; Q55 §55.1 butir 5–6)*
+- [x] **AC-5:** Given pengguna tanpa `rekomendasi:tetapkan`, When membuka URL detail langsung, Then ditolak 403.
+- [x] **AC-6:** Given halaman detail, Then tidak ada aksi setujui atau ubah, dan tautan Kelola di daftar membuka daftar Rekomendasi pada jadwal dan periode yang sama.
 
 #### Implementation Tasks
 
 **B. Backend / Domain**
-- [ ] Route `GET /rekomendasi/{rekomendasi}` dan Action baca detail beserta riwayat dan tindak lanjut.
+- [x] Route `GET /rekomendasi/{rekomendasi}` dan Action baca detail beserta riwayat dan tindak lanjut.
 
 **C. Authorization & Audit**
-- [ ] Otorisasi `rekomendasi:tetapkan` lewat resolver; tidak ada audit baca.
+- [x] Otorisasi `rekomendasi:tetapkan` lewat resolver; tidak ada audit baca.
 
 **D. Frontend / UX**
-- [ ] Halaman `Rekomendasi/Show.tsx` dengan komponen Card, Badge, dan tabel riwayat berpola `block md:table`; tautan Detail pada `Rekomendasi/Index.tsx`.
+- [x] Halaman `Rekomendasi/Show.tsx` dengan komponen Card, Badge, dan tabel riwayat berpola `block md:table`; tautan kembali bergaya tombol serta aksi ikon dengan tooltip dan label aksesibel pada daftar/detail.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Pest Feature test membuktikan AC-2 dan AC-3.
-- [ ] TEST-2: Pest Feature test membuktikan AC-4.
-- [ ] TEST-3: Vitest membuktikan AC-1.
-- [ ] SECURITY: AC-5, termasuk deny yang cocok.
+- [x] TEST-1: Pest Feature test membuktikan AC-2 dan AC-3.
+- [x] TEST-2: Pest Feature test membuktikan AC-4, termasuk draf tidak tampil, kecocokan ID R1/R2, pengajuan terdahulu, lintas tahun, dan deny baca pengukuran per unit.
+- [x] TEST-3: Vitest membuktikan AC-1 dan AC-6.
+- [x] SECURITY: AC-5, termasuk deny yang cocok.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ---
 

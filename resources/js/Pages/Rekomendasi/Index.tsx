@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Edit3, Eye, Plus } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
@@ -9,6 +10,7 @@ import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
 import { Modal } from '@/Components/Modal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Tooltip } from '@/Components/Tooltip';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 
 export interface PersetujuanRekomendasi {
@@ -47,6 +49,7 @@ interface RekomendasiIndexProps {
 
 const namaPeran: Record<string, string> = { pimpinan: 'Pimpinan', perencanaan: 'Perencanaan', superadmin: 'Superadmin', admin: 'Admin', pegawai: 'Pegawai' };
 const cellClass = 'min-w-0 p-0 md:px-4 md:py-3.5';
+const actionClass = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-primary/40 hover:bg-soft hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary/20';
 
 function Persetujuan({ data }: { data: PersetujuanRekomendasi }) {
     const formatTanggal = useFormatTanggal();
@@ -161,6 +164,7 @@ export default function RekomendasiIndex({ pilihan_jadwal, filters, persetujuan_
                             </TableRow>
                         ) : rekomendasi.map((baris) => {
                             const aksi = baris.draf ? 'Tinjau draf' : baris.berlaku ? 'Ubah rekomendasi' : 'Tulis rekomendasi';
+                            const detailId = baris.berlaku?.id ?? baris.draf?.id;
 
                             return (
                                 <TableRow key={baris.indikator.id} className="grid min-w-0 grid-cols-1 gap-3 p-4 md:table-row">
@@ -194,9 +198,18 @@ export default function RekomendasiIndex({ pilihan_jadwal, filters, persetujuan_
                                         ) : <span className="text-xs text-muted">—</span>}
                                     </TableCell>
                                     <TableCell className={`${cellClass} md:text-right`}>
-                                        <Button type="button" size="sm" variant={baris.draf ? 'primary' : 'outline'} className="whitespace-nowrap" aria-label={`${aksi} ${baris.indikator.kode}`} onClick={() => setTerpilih(baris)}>
-                                            {aksi}
-                                        </Button>
+                                        <div className="flex items-center justify-end gap-1.5">
+                                            {detailId && <Tooltip content="Lihat detail" align="right">
+                                                <Link href={`/rekomendasi/${detailId}`} aria-label={`Detail rekomendasi ${baris.indikator.kode}`} className={actionClass}>
+                                                    <Eye className="h-4 w-4" aria-hidden="true" />
+                                                </Link>
+                                            </Tooltip>}
+                                            <Tooltip content={aksi} align="right">
+                                                <button type="button" className={`${actionClass} cursor-pointer`} aria-label={`${aksi} ${baris.indikator.kode}`} onClick={() => setTerpilih(baris)}>
+                                                    {baris.draf || baris.berlaku ? <Edit3 className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+                                                </button>
+                                            </Tooltip>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             );

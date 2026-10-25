@@ -1870,6 +1870,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > Hasil rapat evaluasi 23 Oktober 2026 (butir 10). Tidak mengubah aturan Q45 dan Q51; tidak memerlukan keputusan Q baru. Isi halaman mengikuti rincian U-24 yang disetujui PM pada 24 Oktober 2026.
 
+> **Klarifikasi 25 Oktober 2026:** Q1–Q4 mengikuti [jawaban PM pada issue #171](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/171#issuecomment-6389473955). Q5 dikonfirmasi pada pembahasan implementasi: status diberi label **"Status pengukuran saat ini"**, terpisah dari nomor dan tanggal pengajuan sumber; bila sumbernya pengajuan terdahulu, tampil keterangan tersebut. Klarifikasi ini mempertahankan Q45, Q51, dan Q55.
+
+> **Status implementasi lokal (#171):** route dan Action detail, tautan daftar, metadata, rangkaian rekomendasi, pembaca tindak lanjut beku, serta pemisahan akses panel telah diimplementasikan. Bukti terkait: `DetailRekomendasiTest`, suite `tests/Feature/Rekomendasi`, Vitest `DetailRekomendasi`/`RekomendasiPimpinan`, dan smoke desktop/mobile. Checkbox AC menunjukkan verifikasi lokal; CI exact HEAD, persetujuan UAT, merge, dan deployment belum dinyatakan selesai.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-09.03` |
@@ -1887,12 +1891,12 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given halaman daftar Rekomendasi, Then setiap baris memiliki tautan ke halaman detail rekomendasinya.
-- [ ] **AC-2:** Given halaman detail, Then tampil indikator (kode dan nama), periode dan tahun, isi rekomendasi, rujukan sumber, status, penyusun dan waktu, serta penyetuju dan waktu dengan penanda jalur cadangan bila disetujui Perencanaan. *(Q51 §51.1)*
-- [ ] **AC-3:** Given rekomendasi pernah diubah setelah disetujui, Then baris-baris sebelumnya untuk indikator × periode yang sama tampil sebagai riwayat menurut waktu. *(Q51 §51.2 butir 3)*
-- [ ] **AC-4:** Given rekomendasi disetujui dan pengukuran periode berikutnya sudah memuat tindak lanjut, Then tindak lanjut itu tampil; bila belum, tampil keterangan "Belum ada tindak lanjut". *(Q45 §45.2 butir 3)*
-- [ ] **AC-5:** Given pengguna tanpa `rekomendasi:tetapkan`, When membuka URL detail langsung, Then ditolak 403.
-- [ ] **AC-6:** Given aksi setujui atau ubah tersedia di detail, Then aksi mengikuti aturan dan otorisasi US-09.01.
+- [x] **AC-1:** Given halaman daftar Rekomendasi, Then setiap baris yang memiliki rekomendasi memiliki satu tautan Detail ke rekomendasi berlaku, atau ke draf terbuka bila belum ada yang disetujui; baris tanpa rekomendasi hanya menampilkan aksi Tulis rekomendasi.
+- [x] **AC-2:** Given halaman detail, Then tampil indikator (kode dan nama), periode dan tahun, isi rekomendasi, rujukan sumber, status, penyusun dan waktu, serta penyetuju dan waktu dengan penanda jalur cadangan bila disetujui Perencanaan. *(Q51 §51.1)*
+- [x] **AC-3:** Given halaman detail, Then seluruh rekomendasi untuk indikator × tahun × periode yang sama tampil menurut waktu persetujuan dengan draf terbuka di akhir, beserta penanda rekomendasi yang dibuka dan yang berlaku; rekomendasi yang sudah digantikan berstatus Digantikan dan menautkan ke rekomendasi yang berlaku. Rangkaian dipaginasi agar payload tetap terbatas. *(Q51 §51.2 butir 3)*
+- [x] **AC-4:** Given rekomendasi disetujui dan versi pengajuan pengukuran periode berikutnya membekukan rekomendasi ini, Then tindak lanjut dari versi terbaru yang cocok tampil bersama nomor versi, tanggal diajukan, dan status pengukuran; draf pengukuran tidak ditampilkan; bila belum ada, tampil "Belum ada tindak lanjut". Panel dan payload tindak lanjut hanya tersedia bila `PengukuranKinerjaPolicy::view` mengizinkan. Status dilabeli "Status pengukuran saat ini" dan pengajuan sumber yang terdahulu diberi keterangan. *(Q45 §45.2 butir 3; Q55 §55.1 butir 5–6)*
+- [x] **AC-5:** Given pengguna tanpa `rekomendasi:tetapkan`, When membuka URL detail langsung, Then ditolak 403.
+- [x] **AC-6:** Given halaman detail, Then tidak ada aksi setujui atau ubah, dan tautan Kelola di daftar membuka daftar Rekomendasi pada jadwal dan periode yang sama.
 
 **Business Rules / Catatan**
 

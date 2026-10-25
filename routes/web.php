@@ -225,6 +225,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Rekomendasi Pimpinan
     Route::get('/rekomendasi', [RekomendasiController::class, 'index'])->name('rekomendasi.index');
+    Route::get('/rekomendasi/{rekomendasi}', [RekomendasiController::class, 'show'])->whereUuid('rekomendasi')->name('rekomendasi.show');
     Route::post('/rekomendasi', [RekomendasiController::class, 'store'])->name('rekomendasi.store');
     Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
     Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
