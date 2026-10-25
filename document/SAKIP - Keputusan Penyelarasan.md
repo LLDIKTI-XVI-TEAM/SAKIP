@@ -2096,7 +2096,7 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 
 **Keputusan PM: 24 Oktober 2026 (WITA)**, saat perencanaan ISS-03.07. Melengkapi §70.1–§70.2 tanpa mengubah isinya.
 
-1. Pada revisi jendela PIC, batas awal jendela pengisian (§70.2 butir 2) hanya diperiksa untuk jendela yang tanggalnya diubah dalam revisi tersebut. Jendela lain pada jadwal aktif yang tidak diubah tetap berlaku apa adanya (§70.2 butir 7), sehingga jadwal 2026 tetap dapat direvisi.
+1. Pada revisi jendela PIC, batas awal jendela pengisian (§70.2 butir 2) hanya diperiksa bila `pengisian_mulai` jendela itu diubah dalam revisi tersebut. Perpanjangan `pengisian_selesai` saja tidak memaksa tanggal mulai yang sudah berlaku digeser, dan jendela lain pada jadwal aktif yang tidak diubah tetap berlaku apa adanya (§70.2 butir 7), sehingga jadwal 2026 tetap dapat direvisi. *(Diperjelas keputusan PM 25 Oktober 2026; semula diperiksa untuk setiap jendela yang tanggalnya diubah.)*
 2. Batas awal yang sama ikut diperiksa saat jadwal draf diaktifkan, memakai tanggal periode yang berlaku saat aktivasi. Draf yang melanggarnya tidak dapat diaktifkan karena kalender tidak valid sampai jendelanya diperbaiki.
 3. Rentang tanggal periode pada tampilan (§70.1 butir 3a) dihitung dari tanggal Master Periode yang berlaku saat ditampilkan dan tidak dibekukan pada snapshot. Perubahan tanggal periode tetap tidak mengubah data yang tersimpan (§70.1 butir 4).
 
