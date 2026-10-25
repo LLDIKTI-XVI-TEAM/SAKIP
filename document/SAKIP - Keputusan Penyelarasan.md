@@ -2137,8 +2137,14 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 - Q60 hanya berlaku untuk Renstra `draft`. Q40 §40.2 butir 3 diselaraskan: riwayat revisi target Renstra aktif dibaca dari histori revisi. Perubahan target Renstra pada Renstra `aktif` pindah dari Q43 §43.3 butir 5 ke Q43 §43.2 butir 3 (wajib alasan).
 - PRD §10.5 dan §25.1; Workflow §14; Data Model §2.35 (`target_renstra`) beserta tabel baru draf dan histori revisi; Plan 2.21; US/ISS-02.10 AC-4 dan AC-5 (digantikan untuk Renstra `aktif`), US/ISS-02.13 (baru).
 - Mode revisi menjadi jalur yang diwajibkan Q72 sebelum target PK yang menyimpang dapat disimpan.
-- Status implementasi: belum (ISS-02.13).
+- Status implementasi: sudah (ISS-02.13, Issue #166), termasuk klarifikasi §71.5.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+## 71.5 Klarifikasi penerapan (PM, 25 Oktober 2026)
+
+1. Pengisian pertama target Renstra pada Renstra `aktif`, yaitu sel yang semula kosong lalu diisi, juga melalui mode revisi dengan justifikasi. Tidak ada pengecualian, termasuk pengisian data awal 2026 pada Renstra 2025–2029.
+2. Membatalkan draf dicatat di `audit_log` sebagai `target_renstra.revisi_batal` beserta isian yang dibuang, karena draf dapat dilanjutkan pemegang izin lain. Membuka mode revisi dan penyimpanan otomatis draf tidak diaudit karena belum mengubah target. Penolakan aksi revisi dicatat sebagai `target_renstra.revisi_ditolak`.
+3. Draf dan histori memakai tabel yang sama: baris berstatus `draf` menjadi histori berstatus `disimpan` dengan nomor revisi saat disimpan, dan draf hanya memuat sel yang diubah. Penyimpanan revisi mencatat `target_renstra.simpan` per sel dengan justifikasi pada `audit_log.alasan` dan nomor revisi pada nilai baru, sehingga riwayat per indikator (§71.3 butir 2) juga memuat perubahan melalui mode revisi.
 
 ---
 
