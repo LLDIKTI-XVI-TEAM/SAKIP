@@ -1664,15 +1664,15 @@ kegiatan:update
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given editor target PK tahun T dibuka, baseline belum tersimpan, dan realisasi periode nilai akhir T−1 sudah disahkan, Then isian Baseline T−1 terisi nilai itu dengan keterangan sumbernya, dapat diubah, dan belum tersimpan sebelum Simpan. *(Q73 §73.1 butir 1)*
-- [ ] **AC-2:** Given realisasi periode nilai akhir T−1 belum disahkan atau sedang dibuka kembali, Then isian kosong dengan keterangan "Realisasi akhir {T−1} belum disahkan". *(Q73 §73.1 butir 2 dan 4)*
-- [ ] **AC-3:** Given realisasi periode nilai akhir T−1 disahkan tetapi tidak dapat diukur, Then isian kosong dengan keterangan "Realisasi akhir {T−1} tidak dapat diukur". *(Q73 §73.1 butir 2)*
-- [ ] **AC-4:** Given tidak ada pengukuran T−1 di SAKIP (mis. PK 2026), Then isian kosong dengan keterangan "Belum ada realisasi {T−1} di SAKIP". *(Q73 §73.1 butir 2)*
-- [ ] **AC-5:** Given baseline sudah tersimpan, Then nilai tersimpan yang tampil dan tidak ditimpa. *(Q73 §73.1 butir 3)*
-- [ ] **AC-6:** Given editor dibuka lalu ditutup tanpa Simpan, Then `target_kinerjas` tidak berubah. *(Q73 §73.1 butir 1)*
-- [ ] **AC-7:** Given tabel "Baseline dan target PK", Then tidak ada kolom Target Renstra; target Renstra tampil kecil di bawah Target PK, termasuk keterangan "target Renstra belum ada", dan lencana deviasi ikut di bawah Target PK. *(Q73 §73.2 butir 1–2)*
-- [ ] **AC-8:** Given layar 375 px, Then tabel memakai pola `block md:table` tanpa scroll horizontal dan teks minimal 12px.
-- [ ] **AC-9:** Given editor target PK, Then target Renstra tetap tampil sebagai pembanding. *(Q73 §73.2 butir 3)*
+- [x] **AC-1:** Given editor target PK tahun T dibuka, baseline kosong, dan realisasi periode nilai akhir T−1 sudah disahkan, Then isian Baseline T−1 terisi nilai itu dengan keterangan sumbernya, dapat diubah, dan belum tersimpan sebelum Simpan. *(Q73 §73.1 butir 1)*
+- [x] **AC-2:** Given realisasi periode nilai akhir T−1 belum disahkan atau sedang dibuka kembali, Then isian kosong dengan keterangan "Realisasi akhir {T−1} belum disahkan". *(Q73 §73.1 butir 2 dan 4)*
+- [x] **AC-3:** Given realisasi periode nilai akhir T−1 disahkan tetapi tidak dapat dihitung, Then isian kosong dengan keterangan "Realisasi akhir {T−1} tidak dapat dihitung". *(Q73 §73.1 butir 2)*
+- [x] **AC-4:** Given indikator tidak memiliki snapshot pada jadwal T−1 berstatus aktif/ditutup (mis. PK 2026, indikator baru), Then isian kosong dengan keterangan "Belum ada realisasi {T−1} di SAKIP". *(Q73 §73.1 butir 2)*
+- [x] **AC-5:** Given baseline tersimpan tidak kosong (termasuk 0), Then nilai tersimpan yang tampil dan tidak ditimpa. *(Q73 §73.1 butir 3)*
+- [x] **AC-6:** Given editor dibuka lalu ditutup tanpa Simpan, Then `target_kinerjas` tidak berubah. *(Q73 §73.1 butir 1)*
+- [x] **AC-7:** Given tabel "Baseline dan target PK", Then tidak ada kolom Target Renstra; target Renstra tampil kecil di bawah Target PK, termasuk keterangan "target Renstra belum ada", dan lencana deviasi ikut di bawah Target PK. *(Q73 §73.2 butir 1–2)*
+- [x] **AC-8:** Given layar 375 px, Then tabel memakai pola `block md:table` tanpa scroll horizontal dan teks minimal 12px.
+- [x] **AC-9:** Given editor target PK, Then target Renstra tetap tampil sebagai pembanding. *(Q73 §73.2 butir 3)*
 
 #### Implementation Tasks
 
@@ -1680,7 +1680,7 @@ kegiatan:update
 - [ ] Tidak ada migrasi.
 
 **B. Backend / Domain**
-- [ ] `ShowTargetTahunan`: bila baseline belum tersimpan, kirim saran baseline dari pengukuran periode `is_nilai_akhir` tahun T−1 berstatus disahkan, memakai nilai versi yang disahkan, beserta keterangan untuk AC-2–AC-4.
+- [ ] `ShowTargetTahunan`: bila baseline kosong, kirim saran baseline dari pengukuran periode `is_nilai_akhir` tahun T−1 berstatus disahkan, memakai nilai versi yang disahkan, beserta keterangan untuk AC-2–AC-4.
 
 **C. Authorization & Audit**
 - [ ] Tidak ada aksi baru; membuka editor tidak menulis audit.
@@ -1691,11 +1691,11 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Pest Feature test membuktikan AC-1 — saran dari realisasi disahkan; kontrol: indikator lain dan tahun lain tidak terbawa.
-- [ ] TEST-2: Pest Feature test membuktikan AC-2, AC-3, dan AC-4 — keterangan per kasus.
-- [ ] TEST-3: Pest Feature test membuktikan AC-5 dan AC-6 — tidak menimpa dan tidak menulis (dibaca dari tabel mentah).
-- [ ] TEST-4: Vitest membuktikan AC-7 dan AC-9 — tabel tanpa kolom Target Renstra; editor tetap menampilkan pembanding.
-- [ ] TEST-5: uji browser desktop 1280×800 dan mobile 375×812 untuk AC-7 dan AC-8.
+- [x] TEST-1: Pest Feature test membuktikan AC-1 — saran dari realisasi disahkan; kontrol: indikator lain dan tahun lain tidak terbawa.
+- [x] TEST-2: Pest Feature test membuktikan AC-2, AC-3, dan AC-4 — keterangan per kasus.
+- [x] TEST-3: Pest Feature test membuktikan AC-5 dan AC-6 — tidak menimpa dan tidak menulis (dibaca dari tabel mentah).
+- [x] TEST-4: Vitest membuktikan AC-7 dan AC-9 — tabel tanpa kolom Target Renstra; editor tetap menampilkan pembanding.
+- [x] TEST-5: uji browser desktop 1280×800 dan mobile 375×812 untuk AC-7 dan AC-8.
 
 #### Definition of Done
 
@@ -1744,7 +1744,7 @@ kegiatan:update
 - [ ] **AC-1:** Given tahun Y disiapkan, When jadwal tahunan dibuat, Then status awal `draft` dengan `rencana_aksi_mulai`, `rencana_aksi_selesai`, dan `penutupan`.
 - [ ] **AC-2:** Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
 - [ ] **AC-3:** Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
-- [ ] **AC-4:** Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat.
+- [ ] **AC-4:** Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2: jendela reviu dihapus dari jadwal; reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan tanpa penanda terlambat baru — ISS-03.07.)*
 - [ ] **AC-5:** Given tanggal tidak konsisten, When submit, Then server menolak.
 - [x] **AC-6:** Given lebih dari 12 periode dipilih, When jadwal disimpan, Then server menolak; satu jadwal tahunan memuat paling banyak 12 periode. *(Q35 §35.3; bukti `RencanaAksiMatrixLimitTest` pada PR #62.)*
 
@@ -1773,7 +1773,7 @@ kegiatan:update
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given tahun Y disiapkan, When jadwal tahunan dibuat, Then status awal `draft` dengan `rencana_aksi_mulai`, `rencana_aksi_selesai`, dan `penutupan`.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat.
+- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2; bukti pengganti pada TEST-4, TEST-6, dan TEST-7 ISS-03.07.)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal tidak konsisten, When submit, Then server menolak.
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given lebih dari 12 periode dipilih, When jadwal disimpan, Then server menolak. *(`RencanaAksiMatrixLimitTest`: 13 periode ditolak, 12 diterima.)*
 
@@ -3827,6 +3827,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### ISS-07.04 · [Feature] Pengisian oleh Perencanaan di Luar Deadline PIC
 
+> **Q70 (23 Oktober 2026):** AC-5 digantikan: jendela reviu dihapus, sehingga reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan dan penanda terlambat tidak lagi dibuat; penanda yang sudah tercatat tetap ditampilkan sebagai histori (ISS-03.07).
+
 **Terkait User Story:** `US-07.04`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
@@ -3854,7 +3856,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-2:** Given Perencanaan bekerja setelah deadline PIC tetapi sebelum penutupan/jendela koreksi sah, When mengisi data, Then diizinkan melalui izin global.
 - [ ] **AC-3:** Given Perencanaan submit, Then seluruh gerbang kelengkapan normal tetap berlaku kecuali jalur backfill eksplisit.
 - [ ] **AC-4:** Given submit oleh Perencanaan, Then `jalur_pengajuan = perencanaan` dibekukan pada versi untuk F2.
-- [ ] **AC-5:** Given reviu melewati `reviu_selesai`, Then proses masih dapat berlangsung sampai penutupan dengan penanda terlambat.
+- [ ] **AC-5:** Given reviu melewati `reviu_selesai`, Then proses masih dapat berlangsung sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2 butir 3–4: tanpa jendela reviu dan tanpa penanda terlambat baru — ISS-03.07.)*
 
 #### Implementation Tasks
 
@@ -3864,7 +3866,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **B. Backend / Domain**
 - [ ] Pengecualian Perencanaan hanya pada deadline PIC; kelengkapan, status, izin, deny, versioning, dan audit tetap berlaku.
-- [ ] Reviu setelah `reviu_selesai` sampai penutupan diberi penanda terlambat, bukan ditolak semata-mata oleh deadline review.
+- [ ] Reviu setelah `reviu_selesai` sampai penutupan diberi penanda terlambat, bukan ditolak semata-mata oleh deadline review. *(Digantikan Q70 §70.2 butir 3–4 — ISS-03.07.)*
 
 **C. Authorization & Audit**
 - [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:create`, `pengukuran:update` global melalui role Perencanaan.
@@ -3882,7 +3884,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan bekerja setelah deadline PIC tetapi sebelum penutupan/jendela koreksi sah, When mengisi data, Then diizinkan melalui izin global.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan submit, Then seluruh gerbang kelengkapan normal tetap berlaku kecuali jalur backfill eksplisit.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given submit oleh Perencanaan, Then `jalur_pengajuan = perencanaan` dibekukan pada versi untuk F2.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given reviu melewati `reviu_selesai`, Then proses masih dapat berlangsung sampai penutupan dengan penanda terlambat.
+- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given reviu melewati `reviu_selesai`, Then proses masih dapat berlangsung sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2; bukti pengganti pada TEST-6 dan TEST-7 ISS-03.07.)*
 
 #### Definition of Done
 
@@ -3998,6 +4000,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-08.01 · [Feature] Verifikasi & Pengembalian Pengukuran dengan F1
 
+> **Q70 (23 Oktober 2026):** AC-5 dan TEST-5 digantikan: aksi reviu baru tidak lagi diberi penanda reviu terlambat, dan verifikasi tidak lagi digerbangi jendela reviu; penanda yang sudah tercatat di audit tetap ditampilkan sebagai histori (ISS-03.07).
+
 > **Status implementasi (GitHub #83):** Inti verifikasi/pengembalian, F1, alasan wajib, reviu terlambat, peringatan nonblocking, pembacaan narasi/justifikasi beku, filter antrean, serta revisi/pengajuan ulang telah terimplementasi dan diuji; lihat [PR #144](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/144) untuk baseline, cakupan test, CI, dan bukti browser. Kontrak pembanding peringatan mengikuti Q61, berdasarkan keputusan PM 19 Oktober 2026. Status ini bukan persetujuan QA/UAT, merge, atau deployment.
 
 > **Batas completion:** AC-3 tetap terbuka untuk ketergantungan item notifikasi ISS-12.02; transisi pengembalian, alasan, audit, dan revisinya sudah teruji. Reader justifikasi versi beku teruji, sedangkan workflow perubahan status kegiatan tetap mengikuti ISS-06.04. Test utama: VerifikasiPengukuranTest, AntreanVerifikasiTest, VerticalSlice1Test, SahkanPengukuranTest, dan PengukuranWorkflow.
@@ -4033,7 +4037,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
 - [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
 - [x] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
-- [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
+- [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat. *(Berlaku untuk PR #144; digantikan Q70 §70.2 butir 4: penanda tidak lagi dibuat, penanda lama tetap ditampilkan — ISS-03.07.)*
 - [x] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
 - [x] **AC-7:** Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
 
@@ -4066,7 +4070,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; pengiriman notifikasi in-app diuji pada ISS-12.02.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengembalian tanpa alasan, Then ditolak.
-- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat. *(Berlaku untuk PR #144; digantikan Q70 §70.2 butir 4; bukti pengganti pada TEST-7 ISS-03.07.)*
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
 - [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
 - [x] JUSTIFIKASI KEGIATAN: Uji justifikasi kegiatan `ditunda` yang diklaim tampil sebagai catatan resmi saat verifikasi pengukuran (Q41 §41.4 butir 3).
@@ -6401,13 +6405,13 @@ Perubahan per request (tanpa nomor baris kode):
 
 ### ISS-15.01 · [UAT] Verifikasi Data Awal sebelum Penggunaan Pertama
 
-> **Q46, Q47, Q50, Q51 (13 Oktober 2026):** data awal 2026 diisi Perencanaan dari lima dokumen resmi 2026 (Renstra 2025–2029, Perjanjian Kinerja 2026, Rencana Aksi 2026, serta Laporan Kinerja Triwulan I dan II 2026) dan disiapkan di akhir tahap 1 (Q46 §46.1 butir 6, §46.3). Kegiatan data awal boleh tanpa anggaran (Q46 §46.1 butir 3), dan rekomendasi TW I–II dicatat langsung `disetujui` dengan penanda persetujuan cadangan serta rujukan laporan sumber pada `rekomendasi_pimpinan.rujukan_sumber` (Q51 §51.1 butir 5). Data berasumsi kerja tidak dipakai di produksi sebelum dikonfirmasi. AC-5 diselaraskan dengan US-15.01, AC-6 sampai AC-8 ditambahkan, dan UAT-5 diperbaiki agar tidak lagi menyebut role `pic` (Q32).
+> **Q46, Q47, Q50, Q51 (13 Oktober 2026):** data awal 2026 diisi Perencanaan dari lima dokumen resmi 2026 (Renstra 2025–2029, Perjanjian Kinerja 2026, Rencana Aksi 2026, serta Laporan Kinerja Triwulan I dan II 2026) dan disiapkan di akhir tahap 1 (Q46 §46.1 butir 6, §46.3). Kegiatan data awal boleh tanpa anggaran (Q46 §46.1 butir 3), dan rekomendasi TW I–II dicatat langsung `disetujui` dengan penanda persetujuan cadangan serta rujukan laporan sumber pada `rekomendasi_pimpinan.rujukan_sumber` (Q51 §51.1 butir 5). Data berasumsi kerja tidak dipakai di produksi sebelum dikonfirmasi. AC-5 diselaraskan dengan US-15.01, AC-6 sampai AC-8 ditambahkan, dan UAT-5 diperbaiki agar tidak lagi menyebut role `pic` (Q32). Data awal juga tunduk pada Q70–Q74 (tanggal periode, target PK mengikuti Renstra, baseline otomatis, kegiatan dari Rencana Aksi); gap implementasinya dicatat pada `SAKIP - Data Awal 2026.md`, bukan dikerjakan di issue ini.
 
 **Terkait User Story:** `US-15.01`  
 **Prioritas:** 🟡 P1 · akhir Tahap 1 (Q46 §46.3)  
 **Story Points:** 5  
 **Labels:** `uat`, `release-uat`, `P1`, `backend`  
-**Plan:** S.1, P.4  
+**Plan:** S.1, P.5  
 **PRD:** Pembuka, §12.6, §32  
 **Workflow:** §15  
 **Data Model/Entitas:** initial data
@@ -6426,26 +6430,28 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given tahun penggunaan pertama ditetapkan, Then daftar periode, indikator, unit/PIC, PK/target, dan data historis wajib harus didokumentasikan.
+- [x] **AC-1:** Given tahun penggunaan pertama ditetapkan, Then daftar periode, indikator, unit/PIC, PK/target, dan data historis wajib harus didokumentasikan.
 - [ ] **AC-2:** Given data belum lengkap, When aktivasi pertama dicoba, Then gate aplikasi dan checklist operasional harus menunjukkan kekurangan.
-- [ ] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
+- [x] **AC-3:** Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
 - [ ] **AC-4:** Given backfill dibutuhkan, Then menggunakan jalur backfill resmi dan bukan query database manual tanpa jejak.
-- [ ] **AC-5 (Q31):** Given data awal UAT disiapkan, Then minimal tersedia akun uji untuk lima role resmi; akun PIC tidak dianggap siap untuk seluruh skenario authorization sampai preset permission dan eligibility assignment dikonfirmasi.
+- [ ] **AC-5:** Given data awal UAT disiapkan, Then tersedia akun uji untuk lima role resmi (`superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`) dan satu PIC operasional (user ber-role `pegawai` dengan grant unit dan PJ); tidak ada role `pic`, dan akun PIC operasional tidak dianggap siap untuk seluruh skenario authorization sampai preset permission dan eligibility assignment dikonfirmasi. *(Q32; Q31)*
 - [ ] **AC-6:** Given data awal 2026 disiapkan, Then data memuat kode sasaran dan indikator mengikuti PK (S1–S4, IKU 1.1–IKU 4.1), sasaran S4 dan IKU 4.1 di bawah Renstra 2025–2029 tanpa target Renstra, target PK bernilai penuh, IKU 1.3 ditandai dinilai tahunan, target TW I–III kosong, kegiatan Rencana Aksi per triwulan (boleh tanpa anggaran, tercatat belum diisi), realisasi/narasi/rekomendasi TW I–II, dan TW III sebagai periode lampau. *(Q46 §46.1 butir 2, 3, dan 6, Q47 §47.1 butir 4 dan §47.2 butir 4, Q50 §50.2 dan §50.4–§50.5)*
 - [ ] **AC-7:** Given data yang masih memakai asumsi kerja data awal 2026 pada Keputusan Penyelarasan, Then data tersebut hanya dipakai untuk data uji dan rancangan data awal, dan tidak dipakai di produksi sebelum dikonfirmasi Perencanaan. *(Q46 §46.1 butir 6)*
 - [ ] **AC-8:** Given rekomendasi TW I–II 2026 dari laporan triwulan yang sudah ditandatangani Pimpinan, When dicatat Perencanaan sebagai data awal, Then rekomendasi langsung berstatus `disetujui` dengan penanda persetujuan cadangan dan rujukan laporan sumbernya. *(Q51 §51.1 butir 5)*
 
+> **Status per 24 Oktober 2026 (branch `docs/iss-15-01-data-awal-2026`):** AC-1 terpenuhi melalui `document/SAKIP - Data Awal 2026.md`; AC-3 dibuktikan `tests/Feature/Periode/SeedProduksiTanpaFixtureTest.php` (`php artisan test tests/Feature/Periode/SeedProduksiTanpaFixtureTest.php`; PASS 2 test / 34 assertion, 28 tabel domain; DB `sakip_test`, working tree @ `322b59a`, belum CI). AC-2 matriks tersedia tetapi belum dieksekusi; AC-4 jalur teraudit terdokumentasi tetapi pengisian data belum dilakukan; AC-5 sampai AC-8 menunggu akun/data Perencanaan. Status ini **bukan** UAT accepted atau deployment.
+
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
+- [x] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
 
 **B. Backend / Domain**
 - [ ] Implementasikan use-case **Verifikasi Data Awal sebelum Penggunaan Pertama** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
 - [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
+- [x] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
 
 #### Automated Tests / Verification
 
@@ -6453,13 +6459,13 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] UAT-2: Verifikasi manual/acceptance — Given data belum lengkap, When aktivasi pertama dicoba, Then gate aplikasi dan checklist operasional harus menunjukkan kekurangan.
 - [ ] UAT-3: Verifikasi manual/acceptance — Given data uji dan data konfigurasi produksi, Then keduanya dipisahkan dan seed produksi tidak membawa fixture testing.
 - [ ] UAT-4: Verifikasi manual/acceptance — Given backfill dibutuhkan, Then menggunakan jalur backfill resmi dan bukan query database manual tanpa jejak.
-- [ ] UAT-5 (Q31): Verifikasi akun UAT tersedia untuk `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`; catat blocker bila preset/eligibility PIC belum diputuskan.
+- [ ] UAT-5: Verifikasi akun UAT tersedia untuk `superadmin`, `admin`, `perencanaan`, `pimpinan`, dan `pegawai`, plus satu PIC operasional (role `pegawai` + grant unit + PJ); tidak ada role `pic`; catat blocker bila preset/eligibility PIC operasional belum diputuskan.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 
 ### ISS-15.02 · [Infrastructure] Kesiapan Infrastruktur dan Layanan Eksternal
@@ -6689,7 +6695,7 @@ Decision gate dianggap selesai bila:
 | `US-14.01` | `ISS-14.01` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.02` | `ISS-14.02` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.03` | `ISS-14.03` | Modul 3: 3.12 | §12.3, §12.6 | §13 | ✅ 1:1 |
-| `US-15.01` | `ISS-15.01` | S.1, P.4 | Pembuka, §12.6, §32 | §15 | ✅ 1:1 |
+| `US-15.01` | `ISS-15.01` | S.1, P.5 | Pembuka, §12.6, §32 | §15 | ✅ 1:1 |
 | `US-15.02` | `ISS-15.02` | P.1–P.4 | §6, §28, §34 | §22 | ✅ 1:1 |
 | `US-15.03` | `ISS-15.03` | P.4 | Pembuka, §32 | — | ✅ 1:1 |
 

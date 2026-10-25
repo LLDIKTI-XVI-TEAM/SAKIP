@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Pengaturan;
 
 use App\Models\Pengaturan;
 use App\Models\User;

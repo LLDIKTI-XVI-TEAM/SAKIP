@@ -8,7 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\PengaturanService;
+use App\Services\Pengaturan\PengaturanService;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;

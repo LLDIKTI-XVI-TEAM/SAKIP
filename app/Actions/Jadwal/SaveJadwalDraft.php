@@ -101,8 +101,6 @@ class SaveJadwalDraft
                     'periode_id' => $window['periode_id'],
                     'pengisian_mulai' => $window['pengisian_mulai'],
                     'pengisian_selesai' => $window['pengisian_selesai'],
-                    'reviu_mulai' => $window['reviu_mulai'],
-                    'reviu_selesai' => $window['reviu_selesai'],
                 ])->sortBy('periode_id')->values()->all();
                 if ($jadwal && ! $current->isDirty() && $before['periode'] === $nextWindows) {
                     return $current;

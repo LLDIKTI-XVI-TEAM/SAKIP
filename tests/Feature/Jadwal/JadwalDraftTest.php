@@ -85,8 +85,8 @@ class JadwalDraftTest extends TestCase
         $actor = $this->calendarActor();
         $data = $this->calendarPayload($this->calendarRenstra($actor), $this->calendarMaster());
         $data['periode'][] = $data['periode'][0];
-        unset($data['periode'][1]['reviu_selesai']);
-        $this->actingAs($actor)->post('/jadwal', $data)->assertSessionHasErrors(['periode.1.reviu_selesai', 'periode.0.periode_id']);
+        unset($data['periode'][1]['pengisian_selesai']);
+        $this->actingAs($actor)->post('/jadwal', $data)->assertSessionHasErrors(['periode.1.pengisian_selesai', 'periode.0.periode_id']);
         $this->assertSame(0, JadwalTahunan::count());
     }
 
@@ -102,11 +102,11 @@ class JadwalDraftTest extends TestCase
         $data = $this->calendarPayload($this->calendarRenstra($actor), $this->calendarMaster());
         $data['tahun'] = 10000;
         $data['penutupan'] = '2027-02-30';
-        unset($data['periode'][0]['reviu_mulai']);
+        unset($data['periode'][0]['pengisian_mulai']);
         $this->post('/jadwal', $data)->assertSessionHasErrors([
             'tahun' => 'Tahun harus berada antara 1 dan 9998.',
             'penutupan' => 'Tanggal penutupan harus berupa tanggal valid dengan format YYYY-MM-DD.',
-            'periode.0.reviu_mulai' => 'Tanggal mulai review wajib diisi.',
+            'periode.0.pengisian_mulai' => 'Tanggal mulai pengisian wajib diisi.',
         ]);
         $this->assertSame(0, JadwalTahunan::count());
     }
@@ -262,7 +262,7 @@ class JadwalDraftTest extends TestCase
         app(SaveJadwalDraft::class)->handle($actor, [...$data, 'revisi' => 1], $jadwal);
         $this->assertSame(1, $jadwal->fresh()->revisi);
         $this->assertSame(0, AuditLog::where('tindakan', 'jadwal.ubah')->count());
-        $data['periode'][0]['reviu_mulai'] = '2027-01-13';
+        $data['periode'][0]['pengisian_selesai'] = '2027-01-12';
         app(SaveJadwalDraft::class)->handle($actor, [...$data, 'revisi' => 1], $jadwal);
         $this->assertSame(2, $jadwal->fresh()->revisi);
         $this->assertSame($childId, PeriodeJadwal::sole()->id);
@@ -277,7 +277,7 @@ class JadwalDraftTest extends TestCase
         $jadwal = app(SaveJadwalDraft::class)->handle($actor, $data);
         $cases = [
             [fn () => $this->calendarMaster(5, true), 'periode_final_aktif_unik'],
-            [fn () => PeriodeJadwal::sole()->update(['reviu_mulai' => '2027-01-01']), 'jadwal_periode_urutan_tanggal'],
+            [fn () => PeriodeJadwal::sole()->update(['pengisian_selesai' => '2027-01-01']), 'jadwal_periode_urutan_tanggal'],
         ];
         foreach ($cases as [$write, $constraint]) {
             try {
@@ -292,5 +292,42 @@ class JadwalDraftTest extends TestCase
         // Jendela penyusunan RA sudah dihapus dari skema beserta CHECK urutannya.
         $this->assertSame([], array_intersect(['rencana_aksi_mulai', 'rencana_aksi_selesai'], Schema::getColumnListing('jadwal_tahunan')));
         $this->assertFalse(DB::table('pg_constraint')->where('conname', 'jadwal_tahunan_urutan_ra')->exists());
+
+        // Jendela reviu sudah dihapus dari skema (Q70); CHECK urutan tinggal menjaga jendela pengisian.
+        $this->assertSame([], array_intersect(['reviu_mulai', 'reviu_selesai'], Schema::getColumnListing('jadwal_periode')));
+    }
+
+    public function test_field_reviu_pada_jadwal_ditolak_dan_tidak_tersimpan(): void
+    {
+        $actor = $this->calendarActor();
+        $data = $this->calendarPayload($this->calendarRenstra($actor), $this->calendarMaster());
+        $denganReviu = $data;
+        $denganReviu['periode'][0] += ['reviu_mulai' => '2027-01-12', 'reviu_selesai' => '2027-01-18'];
+
+        $this->actingAs($actor)->post('/jadwal', $denganReviu)->assertSessionHasErrors('periode.0');
+        $this->assertSame(0, JadwalTahunan::count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.tambah_ditolak')->count());
+
+        // Kontrol positif: payload yang sama tanpa field reviu tersimpan, lalu ubah dengan field reviu tetap ditolak.
+        $this->post('/jadwal', $data)->assertSessionHasNoErrors();
+        $jadwal = JadwalTahunan::sole();
+        $sebelum = DB::table('jadwal_periode')->where('jadwal_id', $jadwal->id)->get()->toArray();
+        $this->put('/jadwal/'.$jadwal->id, [...$denganReviu, 'revisi' => $jadwal->revisi])->assertSessionHasErrors('periode.0');
+        $this->assertEquals($sebelum, DB::table('jadwal_periode')->where('jadwal_id', $jadwal->id)->get()->toArray());
+        $this->assertSame(1, $jadwal->fresh()->revisi);
+    }
+
+    public function test_penutupan_wajib_setelah_pengisian_selesai_terakhir(): void
+    {
+        $actor = $this->calendarActor();
+        $data = $this->calendarPayload($this->calendarRenstra($actor), $this->calendarMaster());
+
+        $this->actingAs($actor)->post('/jadwal', [...$data, 'penutupan' => '2027-01-11'])
+            ->assertSessionHasErrors(['penutupan' => 'Penutupan paling cepat hari berikutnya setelah jendela pengisian terakhir selesai.']);
+        $this->assertSame(0, JadwalTahunan::count());
+
+        // Kontrol positif: sehari setelah pengisian_selesai terakhir sudah sah tanpa menunggu tahap reviu.
+        $this->post('/jadwal', [...$data, 'penutupan' => '2027-01-12'])->assertSessionHasNoErrors();
+        $this->assertSame('2027-01-12', DB::table('jadwal_tahunan')->value('penutupan'));
     }
 }

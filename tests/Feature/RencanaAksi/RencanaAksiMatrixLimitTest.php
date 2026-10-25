@@ -130,8 +130,6 @@ class RencanaAksiMatrixLimitTest extends TestCase
                     'periode_revisi' => $master->revisi,
                     'pengisian_mulai' => "{$year}-{$mm}-01",
                     'pengisian_selesai' => "{$year}-{$mm}-05",
-                    'reviu_mulai' => "{$year}-{$mm}-06",
-                    'reviu_selesai' => "{$year}-{$mm}-10",
                 ];
 
                 continue;
@@ -141,8 +139,6 @@ class RencanaAksiMatrixLimitTest extends TestCase
                 'periode_revisi' => $master->revisi,
                 'pengisian_mulai' => ($year + 1).'-01-11',
                 'pengisian_selesai' => ($year + 1).'-01-12',
-                'reviu_mulai' => ($year + 1).'-01-13',
-                'reviu_selesai' => ($year + 1).'-01-14',
             ];
         }
 
@@ -206,8 +202,6 @@ class RencanaAksiMatrixLimitTest extends TestCase
                 'periode_id' => $periode->id,
                 'pengisian_mulai' => '2026-03-01',
                 'pengisian_selesai' => '2026-03-31',
-                'reviu_mulai' => '2026-04-01',
-                'reviu_selesai' => '2026-04-30',
             ]);
         }
         $snapshot = JadwalSnapshot::create([

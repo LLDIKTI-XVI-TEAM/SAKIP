@@ -25,12 +25,10 @@ class RevisiJendelaPicRequest extends PeriodeJadwalMutationRequest
             'expected_revisi' => ['required', 'integer', 'min:1', 'max:2147483647'],
             'alasan' => ['required', 'string', 'max:1000', AuditReason::validate(...)],
             'periode' => ['required', 'array', 'list', 'min:1', 'max:12'],
-            'periode.*' => ['required', 'array:periode_id,pengisian_mulai,pengisian_selesai,reviu_mulai,reviu_selesai'],
+            'periode.*' => ['required', 'array:periode_id,pengisian_mulai,pengisian_selesai'],
             'periode.*.periode_id' => ['required', 'uuid', 'distinct:ignore_case'],
             'periode.*.pengisian_mulai' => ['required', 'date_format:Y-m-d'],
             'periode.*.pengisian_selesai' => ['required', 'date_format:Y-m-d'],
-            'periode.*.reviu_mulai' => ['required', 'date_format:Y-m-d'],
-            'periode.*.reviu_selesai' => ['required', 'date_format:Y-m-d'],
         ];
     }
 

@@ -30,7 +30,7 @@ class RencanaAksiRevisiJendelaTest extends TestCase
     {
         $fixture = $this->buatFixtureManual();
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)
-            ->update(['pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30', 'reviu_mulai' => '2026-05-01', 'reviu_selesai' => '2026-05-15']);
+            ->update(['pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30']);
 
         return $fixture;
     }
@@ -56,7 +56,7 @@ class RencanaAksiRevisiJendelaTest extends TestCase
         // Kontrol positif: periode yang belum terkunci tetap dapat ditulis PIC.
         $this->simpanTarget($fixture, $header, $fixture['periode2'], 20)->assertSessionHasNoErrors();
 
-        $this->revisiTwI($fixture, '2026-04-10', '2026-04-11')
+        $this->revisiTwI($fixture, '2026-04-10')
             ->assertSessionHasNoErrors()->assertRedirect("/jadwal/{$fixture['jadwal']->id}");
 
         $this->simpanTarget($fixture, $header, $fixture['periode1'], 10)->assertSessionHasNoErrors();
@@ -79,7 +79,7 @@ class RencanaAksiRevisiJendelaTest extends TestCase
         $this->assertTrue(PeriodeTanpaTarget::isPeriodeLampau($fixture['jadwal']->fresh(), $tw1()));
         $this->simpanTarget($fixture, $header, $fixture['periode1'], 10)->assertSessionHasErrors('jendela');
 
-        $this->revisiTwI($fixture, '2026-04-10', '2026-04-11')->assertSessionHasNoErrors();
+        $this->revisiTwI($fixture, '2026-04-10')->assertSessionHasNoErrors();
 
         $this->assertFalse(PeriodeTanpaTarget::isPeriodeLampau($fixture['jadwal']->fresh(), $tw1()));
         $snapshot = $fixture['snapshot']->fresh();
@@ -94,7 +94,7 @@ class RencanaAksiRevisiJendelaTest extends TestCase
         $header = $this->buatDraf($fixture);
         $this->travelTo(now()->setDate(2026, 4, 8)->setTime(9, 0));
 
-        $this->revisiTwI($fixture, '2026-04-03', '2026-04-04')->assertSessionHasNoErrors();
+        $this->revisiTwI($fixture, '2026-04-03')->assertSessionHasNoErrors();
 
         $tw1 = PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->sole();
         // Revisi tanpa perubahan juga lolos tanpa error; pastikan batas baru benar-benar tersimpan.
@@ -111,7 +111,7 @@ class RencanaAksiRevisiJendelaTest extends TestCase
         $header = $this->buatDraf($fixture);
         $this->travelTo(now()->setDate(2026, 4, 8)->setTime(9, 0));
 
-        $this->revisiTwI($fixture, '2026-04-06', '2026-04-07')->assertSessionHasNoErrors();
+        $this->revisiTwI($fixture, '2026-04-06')->assertSessionHasNoErrors();
 
         $tw1 = PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->sole();
         $this->assertSame('2026-04-06', $tw1->pengisian_selesai->toDateString());
@@ -127,14 +127,14 @@ class RencanaAksiRevisiJendelaTest extends TestCase
      *
      * @param  array<string, mixed>  $fixture
      */
-    private function revisiTwI(array $fixture, string $pengisianSelesai, string $reviuMulai): TestResponse
+    private function revisiTwI(array $fixture, string $pengisianSelesai): TestResponse
     {
         return $this->actingAs($fixture['perencanaan'])->post("/jadwal/{$fixture['jadwal']->id}/revisi-jendela", [
             'expected_revisi' => $fixture['jadwal']->fresh()->revisi,
             'alasan' => 'Perpanjangan resmi TW I.',
             'periode' => [
-                ['periode_id' => $fixture['periode1']->id, 'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => $pengisianSelesai, 'reviu_mulai' => $reviuMulai, 'reviu_selesai' => '2026-04-30'],
-                ['periode_id' => $fixture['periode2']->id, 'pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30', 'reviu_mulai' => '2026-05-01', 'reviu_selesai' => '2026-05-15'],
+                ['periode_id' => $fixture['periode1']->id, 'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => $pengisianSelesai],
+                ['periode_id' => $fixture['periode2']->id, 'pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30'],
             ],
         ]);
     }

@@ -18,7 +18,7 @@ class ReturnPengukuran
         $decision = null;
         try {
             return DB::transaction(function () use ($actor, $id, $data, &$decision) {
-                [$actor, $p, , $period, $before] = $this->steps->lock($actor, $id, 'pengukuran:kembalikan', 'kembalikan', (int) $data['versi'], $decision);
+                [$actor, $p, , , $before] = $this->steps->lock($actor, $id, 'pengukuran:kembalikan', 'kembalikan', (int) $data['versi'], $decision);
                 $reason = trim((string) ($data['catatan'] ?? ''));
                 if ($reason === '') {
                     throw ValidationException::withMessages(['catatan' => 'Alasan pengembalian wajib diisi.']);
@@ -26,7 +26,7 @@ class ReturnPengukuran
                 $p->status_alur = 'dikembalikan';
 
                 return $this->steps->finish($actor, $p, 'pengukuran.kembalikan', $reason, $decision, $before,
-                    ['self_approval' => false, ...$this->steps->reviewTrail($period)]);
+                    ['self_approval' => false]);
             });
         } catch (Throwable $exception) {
             $this->steps->compensate($actor, $id, 'kembalikan', null, $decision, $exception);

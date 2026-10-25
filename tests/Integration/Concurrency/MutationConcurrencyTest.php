@@ -912,7 +912,7 @@ class MutationConcurrencyTest extends TestCase
         $schedule = JadwalTahunan::create(['renstra_id' => $indicator->sasaranStrategis->renstra_id, 'tahun' => $tahun,
             'penutupan' => '2099-12-31', 'status' => 'aktif', 'activated_at' => now()]);
         PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => "{$tahun}-01-01",
-            'pengisian_selesai' => "{$tahun}-06-30", 'reviu_mulai' => "{$tahun}-07-01", 'reviu_selesai' => "{$tahun}-12-31"]);
+            'pengisian_selesai' => "{$tahun}-06-30"]);
         $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
             'unit_id' => $indicator->unit_id, 'nama' => 'Indikator Race', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
             'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
@@ -1394,7 +1394,7 @@ class MutationConcurrencyTest extends TestCase
         UserPermissionGrant::create(['user_id' => $pic->id, 'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'),
             'unit_id' => $unit->id, 'alasan' => 'Hak pengajuan fixture.', 'diberikan_oleh' => $reviewer->id]);
         PeriodeJadwal::create(['jadwal_id' => $context->jadwal_id, 'periode_id' => $context->periode_mulai_id,
-            'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => '2026-03-15', 'reviu_mulai' => '2026-03-15', 'reviu_selesai' => '2026-04-15']);
+            'pengisian_mulai' => '2026-03-01', 'pengisian_selesai' => '2026-03-15']);
         $measurement = PengukuranKinerja::create(['indikator_id' => $plan->indikator_id, 'tahun' => $plan->tahun,
             'periode_id' => $context->periode_mulai_id, 'jadwal_snapshot_id' => $context->id, 'sumber_nilai' => 'manual',
             'progres_kegiatan' => 'Progres race.', 'kendala_masalah' => 'Kendala race.', 'strategi_tindak_lanjut' => 'Strategi race.', 'created_by' => $pic->id]);
@@ -1518,7 +1518,7 @@ class MutationConcurrencyTest extends TestCase
         $today = today(config('app.business_timezone'));
         $second = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
         PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $second->id, 'pengisian_mulai' => $today->copy()->subDay()->toDateString(),
-            'pengisian_selesai' => $today->copy()->addDay()->toDateString(), 'reviu_mulai' => $today->copy()->addDays(2)->toDateString(), 'reviu_selesai' => $today->copy()->addDays(30)->toDateString()]);
+            'pengisian_selesai' => $today->copy()->addDay()->toDateString()]);
         $existing = PengukuranKinerja::create(['indikator_id' => $indicator->id, 'tahun' => $schedule->tahun, 'periode_id' => $period->id,
             'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual', 'created_by' => $actor->id]);
         $creator = User::factory()->create(['status' => 'aktif']);
@@ -1550,7 +1550,7 @@ class MutationConcurrencyTest extends TestCase
         $schedule = JadwalTahunan::create(['renstra_id' => $indicator->sasaranStrategis->renstra_id, 'tahun' => $today->year,
             'penutupan' => '2099-12-31', 'status' => 'aktif', 'activated_at' => now()]);
         PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => $today->copy()->subDay()->toDateString(),
-            'pengisian_selesai' => $today->copy()->addDay()->toDateString(), 'reviu_mulai' => $today->copy()->addDays(2)->toDateString(), 'reviu_selesai' => $today->copy()->addDays(30)->toDateString()]);
+            'pengisian_selesai' => $today->copy()->addDay()->toDateString()]);
         $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
             'unit_id' => $indicator->unit_id, 'nama' => 'Indikator Ensure', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
             'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
@@ -1573,10 +1573,6 @@ class MutationConcurrencyTest extends TestCase
         $verifikator = User::factory()->create(['status' => 'aktif']);
         $verifikator->roles()->attach(Role::where('kode', 'perencanaan')->value('id'), ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
         app(VerifyPengukuran::class)->handle($verifikator, $measurement->id, ['versi' => 2]);
-        // Batas reviu diperpanjang terhadap jam nyata worker dengan urutan tanggal tetap sah; penutupan sudah 2099 pada fixture.
-        $snapshot = JadwalSnapshot::whereKey($measurement->jadwal_snapshot_id)->firstOrFail();
-        PeriodeJadwal::where('jadwal_id', $snapshot->jadwal_id)->where('periode_id', $measurement->periode_id)
-            ->update(['reviu_selesai' => '2099-12-31']);
         $pengesah = [];
         foreach ([1, 2] as $nomor) {
             $user = User::factory()->create(['status' => 'aktif']);
@@ -1628,7 +1624,7 @@ class MutationConcurrencyTest extends TestCase
         $schedule = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'renstra_pk_id' => $pk->id,
             'penutupan' => '2099-12-31', 'status' => 'aktif', 'activated_at' => now()]);
         PeriodeJadwal::create(['jadwal_id' => $schedule->id, 'periode_id' => $period->id, 'pengisian_mulai' => '2026-03-01',
-            'pengisian_selesai' => '2026-03-15', 'reviu_mulai' => '2026-03-15', 'reviu_selesai' => '2026-04-15']);
+            'pengisian_selesai' => '2026-03-15']);
         $snapshot = JadwalSnapshot::create(['jadwal_id' => $schedule->id, 'indikator_id' => $indicator->id, 'periode_mulai_id' => $period->id,
             'unit_id' => $indicator->unit_id, 'nama' => 'Indikator PJ', 'satuan' => 'poin', 'presisi' => 2, 'desimal_tampilan' => 2,
             'arah' => 'naik_baik', 'tipe_perhitungan' => 'manual', 'target' => 70]);
@@ -1765,7 +1761,7 @@ class MutationConcurrencyTest extends TestCase
             $lalu = JadwalTahunan::create(['renstra_id' => $jadwal->renstra_id, 'tahun' => 2025, 'renstra_pk_id' => $pk->id,
                 'penutupan' => '2025-12-31', 'status' => 'ditutup', 'activated_at' => '2025-01-01 00:00:00']);
             PeriodeJadwal::create(['jadwal_id' => $lalu->id, 'periode_id' => $previous->id, 'pengisian_mulai' => '2025-12-01',
-                'pengisian_selesai' => '2025-12-15', 'reviu_mulai' => '2025-12-15', 'reviu_selesai' => '2025-12-31']);
+                'pengisian_selesai' => '2025-12-15']);
             JadwalSnapshot::create([...$context->only(['indikator_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
                 'jadwal_id' => $lalu->id, 'periode_mulai_id' => $previous->id]);
 
@@ -1773,10 +1769,10 @@ class MutationConcurrencyTest extends TestCase
         }
         $previous = $measurement->periode;
         PeriodeJadwal::where('jadwal_id', $jadwal->id)->where('periode_id', $previous->id)->update([
-            'pengisian_mulai' => '2026-01-01', 'pengisian_selesai' => '2026-01-15', 'reviu_mulai' => '2026-01-15', 'reviu_selesai' => '2026-02-15']);
+            'pengisian_mulai' => '2026-01-01', 'pengisian_selesai' => '2026-01-15']);
         $next = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
         PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $next->id, 'pengisian_mulai' => '2026-03-01',
-            'pengisian_selesai' => '2026-03-15', 'reviu_mulai' => '2026-03-15', 'reviu_selesai' => '2026-04-15']);
+            'pengisian_selesai' => '2026-03-15']);
         $measurement->update(['periode_id' => $next->id]);
         $versi = RencanaAksiVersi::where('rencana_aksi_id', RencanaAksi::where('indikator_id', $indicator->id)->value('id'))->firstOrFail();
         RencanaAksiVersi::create([...$versi->only(['rencana_aksi_id', 'jadwal_snapshot_id', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),

@@ -124,7 +124,7 @@ class RencanaAksiAjukanTest extends TestCase
         // Kalender: TW I terkunci setelah 31 Maret, TW II mulai 15 April.
         $fixture = $this->buatFixtureManual();
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)
-            ->update(['pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30', 'reviu_mulai' => '2026-05-01', 'reviu_selesai' => '2026-05-15']);
+            ->update(['pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2026-04-30']);
         // Aktivasi dipatok sebelum batas TW I agar TW I bukan periode lampau (Q46).
         $fixture['jadwal']->forceFill(['activated_at' => '2026-02-15 01:00:00'])->save();
         $header = $this->buatDraf($fixture);
@@ -640,7 +640,7 @@ class RencanaAksiAjukanTest extends TestCase
         // PIC tetap tunduk pada kunci tanggal dalam sesi koreksi sampai jendela TW II dibuka resmi (Q41 §41.2 butir 6).
         $this->ajukan($kedua['pic'], $headerKedua, $diubahKedua)->assertSessionHasErrors('jendela');
         PeriodeJadwal::where('jadwal_id', $kedua['jadwal']->id)->where('periode_id', $kedua['periode2']->id)
-            ->update(['pengisian_selesai' => '2026-04-15', 'reviu_mulai' => '2026-04-16', 'reviu_selesai' => '2026-04-30']);
+            ->update(['pengisian_selesai' => '2026-04-15']);
         $this->ajukan($kedua['pic'], $headerKedua, $diubahKedua)->assertSessionHasNoErrors();
         $this->assertSame('diajukan', $headerKedua->fresh()->status_alur);
     }

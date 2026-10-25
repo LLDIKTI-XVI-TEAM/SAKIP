@@ -325,8 +325,6 @@ class RencanaAksiPreviewTokenSnapshotTest extends TestCase
                 'periode_id' => $periode->id,
                 'pengisian_mulai' => '2026-03-01',
                 'pengisian_selesai' => '2026-03-31',
-                'reviu_mulai' => '2026-04-01',
-                'reviu_selesai' => '2026-04-30',
             ]);
         }
         $snapshot = JadwalSnapshot::create([
@@ -399,8 +397,6 @@ class RencanaAksiPreviewTokenSnapshotTest extends TestCase
                 'periode_id' => $periode->id,
                 'pengisian_mulai' => '2026-03-01',
                 'pengisian_selesai' => '2026-03-31',
-                'reviu_mulai' => '2026-04-01',
-                'reviu_selesai' => '2026-04-30',
             ]);
         }
         PenugasanIndikator::create([
@@ -462,8 +458,6 @@ class RencanaAksiPreviewTokenSnapshotTest extends TestCase
                 'periode_id' => $periode->id,
                 'pengisian_mulai' => '2026-03-01',
                 'pengisian_selesai' => '2026-03-31',
-                'reviu_mulai' => '2026-04-01',
-                'reviu_selesai' => '2026-04-30',
             ]);
         }
         $snapshot = JadwalSnapshot::create([

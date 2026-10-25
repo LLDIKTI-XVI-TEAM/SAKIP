@@ -48,8 +48,8 @@ class JadwalRevisiJendelaTest extends TestCase
     private function jendela(array $ubah = []): array
     {
         $rows = [
-            ['periode_id' => $this->tw1->id, 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07', 'reviu_mulai' => '2026-04-08', 'reviu_selesai' => '2026-04-15'],
-            ['periode_id' => $this->ready['periode']->id, 'pengisian_mulai' => '2027-01-04', 'pengisian_selesai' => '2027-01-11', 'reviu_mulai' => '2027-01-12', 'reviu_selesai' => '2027-01-18'],
+            ['periode_id' => $this->tw1->id, 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07'],
+            ['periode_id' => $this->ready['periode']->id, 'pengisian_mulai' => '2027-01-04', 'pengisian_selesai' => '2027-01-11'],
         ];
         foreach ($ubah as $key => $value) {
             data_set($rows, $key, $value);
@@ -75,7 +75,6 @@ class JadwalRevisiJendelaTest extends TestCase
     {
         return PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->get()->mapWithKeys(fn (PeriodeJadwal $row): array => [$row->periode_id => [
             'pengisian_mulai' => $row->pengisian_mulai->toDateString(), 'pengisian_selesai' => $row->pengisian_selesai->toDateString(),
-            'reviu_mulai' => $row->reviu_mulai->toDateString(), 'reviu_selesai' => $row->reviu_selesai->toDateString(),
         ]])->all();
     }
 
@@ -89,14 +88,14 @@ class JadwalRevisiJendelaTest extends TestCase
         $this->assertSame($this->jadwal->revisi, $this->jadwal->fresh()->revisi);
         $this->assertSame(0, AuditLog::where('tindakan', 'jadwal.revisi_jendela')->count());
 
-        $this->revisi($perencana, ['periode' => $this->jendela(['0.pengisian_selesai' => '2026-04-12', '0.reviu_mulai' => '2026-04-13', '0.reviu_selesai' => '2026-04-20'])])
+        $this->revisi($perencana, ['periode' => $this->jendela(['0.pengisian_selesai' => '2026-04-12'])])
             ->assertSessionHasNoErrors()->assertRedirect("/jadwal/{$this->jadwal->id}");
 
         $fresh = $this->jadwal->fresh();
         $this->assertSame('aktif', $fresh->status);
         $this->assertSame($this->jadwal->revisi + 1, $fresh->revisi);
         $this->assertSame($this->jadwal->penutupan->toDateString(), $fresh->penutupan->toDateString());
-        $this->assertSame(['pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-12', 'reviu_mulai' => '2026-04-13', 'reviu_selesai' => '2026-04-20'], $this->jendelaTersimpan()[$this->tw1->id]);
+        $this->assertSame(['pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-12'], $this->jendelaTersimpan()[$this->tw1->id]);
         $this->assertSame(array_diff_key($this->jendela()[1], ['periode_id' => true]), $this->jendelaTersimpan()[$this->ready['periode']->id]);
         $this->assertSame($snapshot, $this->snapshotFingerprint());
 
@@ -132,7 +131,7 @@ class JadwalRevisiJendelaTest extends TestCase
             ->assertSessionHasErrors('periode.1.pengisian_mulai');
         $this->revisi($perencana, ['periode' => $this->jendela(['0.pengisian_selesai' => '2026-03-31'])])
             ->assertSessionHasErrors('periode.0.pengisian_selesai');
-        $this->revisi($perencana, ['periode' => $this->jendela(['1.reviu_selesai' => '2027-01-19'])])
+        $this->revisi($perencana, ['periode' => $this->jendela(['1.pengisian_selesai' => '2027-01-19'])])
             ->assertSessionHasErrors('penutupan');
 
         $this->assertSame($sebelum, $this->jendelaTersimpan());
@@ -195,8 +194,22 @@ class JadwalRevisiJendelaTest extends TestCase
         $this->assertSame($this->jadwal->revisi, $this->jadwal->fresh()->revisi);
         $this->assertSame(2, $this->penolakan('izin_ditolak'));
         // Kontrol positif: pemegang izin yang sah tetap dapat merevisi.
-        $this->revisi($this->activator(['jadwal:update']), ['periode' => $this->jendela(['0.reviu_selesai' => '2026-04-16'])])->assertSessionHasNoErrors();
+        $this->revisi($this->activator(['jadwal:update']), ['periode' => $this->jendela(['0.pengisian_selesai' => '2026-04-08'])])->assertSessionHasNoErrors();
         $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.revisi_jendela')->count());
+    }
+
+    public function test_field_reviu_pada_revisi_jendela_ditolak_tanpa_perubahan(): void
+    {
+        $perencana = $this->activator(['jadwal:update']);
+        $sebelum = $this->jendelaTersimpan();
+        $denganReviu = $this->jendela(['0.pengisian_selesai' => '2026-04-12']);
+        $denganReviu[0] += ['reviu_mulai' => '2026-04-13', 'reviu_selesai' => '2026-04-20'];
+
+        $this->revisi($perencana, ['periode' => $denganReviu])->assertSessionHasErrors('periode.0');
+
+        $this->assertSame($sebelum, $this->jendelaTersimpan());
+        $this->assertSame($this->jadwal->revisi, $this->jadwal->fresh()->revisi);
+        $this->assertSame(1, $this->penolakan('input_tidak_valid'));
     }
 
     public function test_editor_menawarkan_revisi_hanya_untuk_pemegang_izin_pada_jadwal_aktif(): void

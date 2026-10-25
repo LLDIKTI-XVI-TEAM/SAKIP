@@ -215,7 +215,7 @@ class RencanaAksiPeriodeLampauMatrixTest extends TestCase
         // Jadwal 2027 diaktivasi setelah seluruh pengisian selesai.
         $fixture['jadwal']->update(['tahun' => 2027, 'activated_at' => '2027-04-05 09:00:00', 'penutupan' => '2027-12-31']);
         $fixture['jadwal']->periode()->update(['pengisian_mulai' => '2027-03-01', 'pengisian_selesai' => '2027-03-31',
-            'reviu_mulai' => '2027-04-01', 'reviu_selesai' => '2027-04-30']);
+        ]);
         $header->update(['tahun' => 2027]);
         $this->travelTo(now()->setDate(2027, 3, 10)->setTime(9, 0));
 

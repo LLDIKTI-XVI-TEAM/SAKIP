@@ -79,20 +79,11 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
             penutupan: data.penutupan,
             ...(jadwal ? { revisi: data.revisi } : {}),
             periode: data.periode.map(
-                ({
+                ({ periode_id, periode_revisi, pengisian_mulai, pengisian_selesai }): JadwalPeriodeInput => ({
                     periode_id,
                     periode_revisi,
                     pengisian_mulai,
                     pengisian_selesai,
-                    reviu_mulai,
-                    reviu_selesai,
-                }): JadwalPeriodeInput => ({
-                    periode_id,
-                    periode_revisi,
-                    pengisian_mulai,
-                    pengisian_selesai,
-                    reviu_mulai,
-                    reviu_selesai,
                 }),
             ),
         }));
@@ -150,8 +141,6 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                     is_nilai_akhir: option.is_nilai_akhir,
                     pengisian_mulai: '',
                     pengisian_selesai: '',
-                    reviu_mulai: '',
-                    reviu_selesai: '',
                 },
             ].sort((a, b) => a.urutan - b.urutan || a.periode_id.localeCompare(b.periode_id)),
         }));

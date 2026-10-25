@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Pengaturan;
 
 use App\Http\Controllers\Controller;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\PengaturanService;
+use App\Services\Pengaturan\PengaturanService;
 use App\Support\PermissionCodes;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

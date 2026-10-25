@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Pengukuran;
 
-use App\Models\AuditLog;
 use App\Models\PenugasanIndikator;
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -29,13 +29,13 @@ class PengukuranRevisiJendelaTest extends TestCase
     }
 
     /** Revisi lewat endpoint resmi oleh Perencanaan; TW I tetap satu-satunya periode jadwal. */
-    private function revisiJendela(string $pengisianSelesai, string $reviuMulai, string $reviuSelesai = '2026-04-15'): void
+    private function revisiJendela(string $pengisianSelesai): void
     {
         $this->actingAs($this->userWithRole('perencanaan'))->post("/jadwal/{$this->jadwal->id}/revisi-jendela", [
             'expected_revisi' => $this->jadwal->fresh()->revisi,
             'alasan' => 'Perpanjangan resmi TW I.',
             'periode' => [['periode_id' => $this->pengukuran->periode_id, 'pengisian_mulai' => '2026-03-01',
-                'pengisian_selesai' => $pengisianSelesai, 'reviu_mulai' => $reviuMulai, 'reviu_selesai' => $reviuSelesai]],
+                'pengisian_selesai' => $pengisianSelesai]],
         ])->assertSessionHasNoErrors()->assertRedirect("/jadwal/{$this->jadwal->id}");
         $this->assertSame($pengisianSelesai, $this->jadwal->periode()->sole()->pengisian_selesai->toDateString());
     }
@@ -53,7 +53,7 @@ class PengukuranRevisiJendelaTest extends TestCase
         $this->simpanDraf($pic)->assertSessionHasErrors('versi');
         $this->assertNull($this->pengukuran->fresh()->nilai);
 
-        $this->revisiJendela('2026-03-25', '2026-03-26');
+        $this->revisiJendela('2026-03-25');
         $this->simpanDraf($pic)->assertSessionHasNoErrors();
         $this->assertEquals(70, $this->pengukuran->fresh()->nilai);
 
@@ -66,7 +66,7 @@ class PengukuranRevisiJendelaTest extends TestCase
     {
         $pic = $this->pic();
         $this->travelTo(now()->setDate(2026, 3, 20));
-        $this->revisiJendela('2026-03-25', '2026-03-26');
+        $this->revisiJendela('2026-03-25');
 
         $this->simpanDraf($this->userWithRole('pegawai'))->assertForbidden();
         $bukanPj = $this->userWithRole('pegawai');
@@ -108,14 +108,17 @@ class PengukuranRevisiJendelaTest extends TestCase
     public function test_revisi_tidak_mengubah_penanda_reviu_terlambat_yang_sudah_tercatat(): void
     {
         $this->actingAs($this->actor)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => 1, 'action' => 'ajukan', 'nilai' => 85])->assertSessionHasNoErrors();
+        // Penanda hanya ada pada jejak sebelum Q70; aksi reviu baru tidak lagi membuatnya.
+        $audit = app(AuditLogger::class)->catat(actor: $this->actor, tindakan: 'pengukuran.verifikasi', objekTipe: 'pengukuran', objekId: $this->pengukuran->id,
+            nilaiBaru: ['versi_pengajuan' => ['id' => $this->pengukuran->fresh()->latestVersion->id], 'self_approval' => false,
+                'reviu_terlambat' => true, 'reviu_selesai' => '2026-04-15', 'tanggal_reviu' => '2026-04-16'],
+            dasarIzin: ['permission' => 'pengukuran:verifikasi', 'fixture' => 'jejak sebelum Q70']);
+        $tersimpan = $audit->fresh()->nilai_baru;
         $this->travelTo(Carbon::parse('2026-04-16 09:00:00', 'Asia/Makassar'));
-        $this->actingAs($this->actor)->post('/verifikasi/'.$this->pengukuran->id.'/verifikasi', ['versi' => $this->pengukuran->fresh()->versi])->assertSessionHasNoErrors();
-        $audit = AuditLog::where('tindakan', 'pengukuran.verifikasi')->sole();
-        $this->assertTrue($audit->nilai_baru['reviu_terlambat']);
 
-        $this->revisiJendela('2026-03-15', '2026-03-15', '2026-04-30');
+        $this->revisiJendela('2026-04-20');
 
-        $this->assertSame($audit->nilai_baru, $audit->fresh()->nilai_baru);
+        $this->assertSame($tersimpan, $audit->fresh()->nilai_baru);
         $this->actingAs($this->actor)->get('/verifikasi/'.$this->pengukuran->id)->assertInertia(fn ($page) => $page->where('pengukuran.reviu_terlambat', true));
     }
 }

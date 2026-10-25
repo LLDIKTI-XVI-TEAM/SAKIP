@@ -88,7 +88,7 @@ class RekapIndikatorPeriodeTest extends TestCase
     {
         $next = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $next->id,
-            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
         $this->versi(['nilai' => '987654321', 'progres_kegiatan' => 'CANARY-RAHASIA'], false);
         $this->pengukuran->update(['nilai' => 987654321, 'status_perhitungan' => 'terhitung', 'progres_kegiatan' => 'CANARY-HEADER']);
 
@@ -252,7 +252,7 @@ class RekapIndikatorPeriodeTest extends TestCase
     {
         $next = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true]);
         PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $next->id,
-            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
         $newContext = JadwalSnapshot::create([...$this->context->only(['jadwal_id', 'indikator_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'target']),
             'nomor_versi' => 2, 'menggantikan_id' => $this->context->id, 'periode_mulai_id' => $next->id]);
         RencanaAksiVersi::create([...$this->planVersion->only(['rencana_aksi_id', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),

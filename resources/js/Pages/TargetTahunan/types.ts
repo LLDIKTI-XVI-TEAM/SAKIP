@@ -1,5 +1,12 @@
 import type { RecoveryState } from '@/lib/authRecovery';
 
+/** Saran baseline dari realisasi akhir tahun sebelumnya; hanya `disahkan` membawa nilai dan nama periode. */
+export interface SaranBaseline {
+    status: 'disahkan' | 'belum_disahkan' | 'tidak_dapat_dihitung' | 'negatif' | 'belum_ada';
+    nilai: string | null;
+    periode: string | null;
+}
+
 export interface TargetEditorData {
     indikator_id: string;
     tahun: number;
@@ -16,6 +23,8 @@ export interface TargetEditorData {
     target_renstra: string | null;
     alasan_deviasi_renstra: string | null;
     status_deviasi: string;
+    /** `null` berarti tanpa saran dan keterangan: baseline tersimpan, baca saja, tidak berhak membaca pengukuran, atau jadwal T−1 tanpa periode nilai akhir/versi efektif. */
+    saran_baseline: SaranBaseline | null;
 }
 
 export interface TargetEditorProps {

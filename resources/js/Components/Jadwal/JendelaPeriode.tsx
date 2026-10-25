@@ -11,8 +11,6 @@ import type { JadwalPeriode, PeriodeOption } from '@/types/periode-jadwal';
 const windowFields = [
     { key: 'pengisian_mulai', label: 'Mulai pengisian' },
     { key: 'pengisian_selesai', label: 'Selesai pengisian' },
-    { key: 'reviu_mulai', label: 'Mulai Review' },
-    { key: 'reviu_selesai', label: 'Target Selesai Review' },
 ] as const;
 
 interface JendelaPeriodeProps {
@@ -90,7 +88,7 @@ export function JendelaPeriode({
                 )}
             </CardHeader>
             <Table className="block w-full text-left text-sm lg:table lg:table-fixed">
-                <caption className="sr-only">Jendela pengisian dan review setiap periode</caption>
+                <caption className="sr-only">Jendela pengisian setiap periode</caption>
                 <TableHeader className="hidden lg:table-header-group">
                     <TableRow>
                         <TableHead rowSpan={2} className="w-[19%] whitespace-normal px-5">
@@ -99,13 +97,10 @@ export function JendelaPeriode({
                         <TableHead scope="colgroup" colSpan={2} className="whitespace-normal px-3">
                             Pengisian
                         </TableHead>
-                        <TableHead scope="colgroup" colSpan={2} className="whitespace-normal px-3">
-                            Review
-                        </TableHead>
                     </TableRow>
                     <TableRow>
-                        {/* Label input per sel tetap lengkap ("Mulai Review") untuk pembaca layar dan tampilan HP. */}
-                        {['Mulai', 'Selesai', 'Mulai', 'Target selesai'].map((label, index) => (
+                        {/* Label input per sel tetap lengkap ("Mulai pengisian") untuk pembaca layar dan tampilan HP. */}
+                        {['Mulai', 'Selesai'].map((label, index) => (
                             <TableHead key={index} className="h-auto whitespace-normal px-3 py-2">
                                 {label}
                             </TableHead>
@@ -115,7 +110,7 @@ export function JendelaPeriode({
                 <tbody className="block divide-y divide-border lg:table-row-group">
                     {periode.length === 0 && (
                         <tr className="block lg:table-row">
-                            <td colSpan={5} className="block p-6 text-center text-muted lg:table-cell">
+                            <td colSpan={3} className="block p-6 text-center text-muted lg:table-cell">
                                 Belum ada periode dipilih.
                                 {editable && ' Tambahkan periode untuk menyusun jendelanya.'}
                             </td>
@@ -178,8 +173,8 @@ export function JendelaPeriode({
             <div className="flex items-start gap-2 border-t border-border px-4 py-4 text-xs leading-relaxed text-muted sm:px-6">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 <p>
-                    Hanya periode terakhir boleh masuk tahun berikutnya. Akhir review adalah target; Perencanaan
-                    dapat menyelesaikan review sampai penutupan.
+                    Hanya periode terakhir boleh masuk tahun berikutnya. Perencanaan dapat memverifikasi pengukuran
+                    sejak diajukan sampai penutupan.
                 </p>
             </div>
         </Card>

@@ -1,17 +1,17 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\JenisBerkas;
 
+use App\Models\JenisBerkas;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Storage\UploadLimits;
 use App\Support\AuditReason;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class StoreJenisBerkasRequest extends FormRequest
+class UpdateJenisBerkasRequest extends FormRequest
 {
     /** @var array{allowed: bool, permission: string, reason: string, roles: list<string>, grants: list<string>, denies: list<string>}|null */
     private ?array $authorizationDecision = null;
@@ -21,7 +21,7 @@ class StoreJenisBerkasRequest extends FormRequest
         $user = $this->user()?->fresh();
 
         $this->authorizationDecision = $user !== null
-            ? app(PermissionResolver::class)->decide($user, 'jenis_berkas:create')
+            ? app(PermissionResolver::class)->decide($user, 'jenis_berkas:update')
             : null;
 
         return $this->authorizationDecision['allowed'] ?? false;
@@ -31,17 +31,17 @@ class StoreJenisBerkasRequest extends FormRequest
     {
         $user = $this->user()?->fresh();
         if ($user && $this->authorizationDecision !== null) {
+            $id = (string) ($this->route('id') ?? $this->route('jenis_berkas') ?? '');
             $rawAlasan = mb_substr(trim(AuditReason::sanitize($this->input('alasan'))), 0, 1000, 'UTF-8');
-            $nama = mb_substr(trim(AuditReason::sanitize($this->input('nama'))), 0, 255, 'UTF-8');
             $alasan = $rawAlasan !== ''
                 ? $rawAlasan
-                : 'Percobaan penambahan persyaratan jenis berkas ditolak karena tidak memiliki izin.'.($nama !== '' ? ' (Nama: '.$nama.')' : '');
+                : 'Percobaan pembaruan persyaratan jenis berkas ditolak karena tidak memiliki izin.';
 
             app(AuditLogger::class)->catat(
                 actor: $user,
-                tindakan: 'jenis_berkas.buat_ditolak',
+                tindakan: 'jenis_berkas.ubah_ditolak',
                 objekTipe: 'jenis_berkas',
-                objekId: (string) Str::uuid(),
+                objekId: $id,
                 alasan: $alasan,
                 dasarIzin: $this->authorizationDecision,
             );
@@ -73,6 +73,8 @@ class StoreJenisBerkasRequest extends FormRequest
 
     public function rules(): array
     {
+        $currentId = (string) ($this->route('id') ?? $this->route('jenis_berkas') ?? '');
+
         return [
             'nama' => ['required', 'string', 'max:255'],
             'tahap' => ['required', 'in:rencana_aksi,pengukuran,kegiatan_perencanaan'],
@@ -81,8 +83,12 @@ class StoreJenisBerkasRequest extends FormRequest
             'indikator_id' => [
                 'nullable',
                 'uuid',
-                Rule::exists('indikator_kinerjas', 'id')->where(function ($query) {
+                Rule::exists('indikator_kinerjas', 'id')->where(function ($query) use ($currentId) {
+                    $currentIndikatorId = JenisBerkas::where('id', $currentId)->value('indikator_id');
                     $query->where('status', 'aktif');
+                    if ($currentIndikatorId) {
+                        $query->orWhere('id', $currentIndikatorId);
+                    }
                 }),
             ],
             'wajib' => ['boolean'],
@@ -95,8 +101,8 @@ class StoreJenisBerkasRequest extends FormRequest
             'format_diizinkan' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(,[a-z0-9]+)*$/'],
             'ukuran_maks_kb' => ['nullable', 'integer', 'min:100', 'max:'.UploadLimits::maxKb()],
             'aktif' => ['sometimes', 'boolean'],
-            // Opsional (Q43 §43.3 butir 3); alasan kosong diisi teks baku oleh CreateJenisBerkasAction.
             'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],
+            'expected_updated_at' => ['required', 'date'],
         ];
     }
 
@@ -106,7 +112,7 @@ class StoreJenisBerkasRequest extends FormRequest
             'tahap.in' => 'Tahap Kegiatan (SPJ) belum didukung karena gerbang buktinya belum diimplementasikan.',
             'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah diarsipkan.',
             'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
-            'alasan.max' => 'Alasan penambahan persyaratan maksimal 1.000 karakter.',
+            'expected_updated_at.date' => 'Format timestamp versi tidak valid.',
         ];
     }
 
@@ -120,6 +126,7 @@ class StoreJenisBerkasRequest extends FormRequest
             if (! $izinkanFile && ! $izinkanTautan && ! $izinkanTeks) {
                 $validator->errors()->add('modes', 'Minimal satu mode bukti (file, tautan, atau teks) harus diizinkan.');
             }
+
         });
     }
 }
