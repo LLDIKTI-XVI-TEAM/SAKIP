@@ -636,23 +636,24 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given Renstra `draft`, When target Renstra diisi atau diubah per indikator, Then tersimpan tanpa alasan seperti sekarang. *(Q71 §71.1 butir 1, Q60)*
-- [ ] **AC-2:** Given Renstra `aktif`, Then tombol Ubah per indikator tidak tersedia, dan request simpan langsung ditolak dengan arahan memakai mode revisi. *(Q71 §71.1 butir 2)*
-- [ ] **AC-3:** Given Renstra `aktif`, When Perencanaan memulai mode revisi, Then draf terbentuk berisi nilai yang berlaku dan seluruh indikator × tahun dapat diubah. *(Q71 §71.2 butir 1)*
-- [ ] **AC-4:** Given isian draf diubah, When halaman dimuat ulang, Then nilai draf tetap ada karena tersimpan otomatis di server. *(Q71 §71.2 butir 2)*
-- [ ] **AC-5:** Given draf terbuka, When pengguna lain berizin membuka mode revisi, Then ia melanjutkan draf yang sama; perubahan dari versi draf yang sudah usang ditolak 409. *(Q71 §71.2 butir 2)*
-- [ ] **AC-6:** Given justifikasi kosong, When Simpan, Then ditolak dan penolakannya diaudit; target Renstra tidak berubah. *(Q71 §71.2 butir 5)*
-- [ ] **AC-7:** Given justifikasi terisi dan ada perubahan, When Simpan, Then seluruh perubahan diterapkan dalam satu transaksi, nilai lama masuk histori, revisi bernomor n+1, dan audit memuat aktor, waktu, `dasar_izin`, justifikasi, serta nilai lama dan baru. *(Q71 §71.2 butir 3, §71.3 butir 4)*
-- [ ] **AC-8:** Given draf terbuka, When Batal, Then draf dibuang dan target Renstra tidak berubah. *(Q71 §71.2 butir 4)*
-- [ ] **AC-9:** Given draf tanpa perubahan nilai, When Simpan, Then ditolak. *(Q71 §71.2 butir 6)*
-- [ ] **AC-10:** Given histori dibuka, Then tampil daftar revisi per Renstra (nomor, waktu, aktor, justifikasi, perubahan per indikator × tahun), dan riwayat per indikator dari audit sebelum mode revisi tetap dapat dibaca. *(Q71 §71.3 butir 1–2)*
-- [ ] **AC-11:** Given draf terbuka, Then halaman Sasaran & Indikator dan pembanding target PK tetap memakai nilai yang berlaku. *(Q71 §71.2 butir 7)*
-- [ ] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When memulai, mengubah, menyimpan, atau membatalkan revisi lewat request langsung, Then ditolak 403.
+- [x] **AC-1:** Given Renstra `draft`, When target Renstra diisi atau diubah per indikator, Then tersimpan tanpa alasan seperti sekarang. *(Q71 §71.1 butir 1, Q60)*
+- [x] **AC-2:** Given Renstra `aktif`, Then tombol Ubah per indikator tidak tersedia, dan request simpan langsung ditolak dengan arahan memakai mode revisi. *(Q71 §71.1 butir 2)*
+- [x] **AC-3:** Given Renstra `aktif`, When Perencanaan memulai mode revisi, Then draf terbentuk berisi nilai yang berlaku dan seluruh indikator × tahun dapat diubah. *(Q71 §71.2 butir 1)*
+- [x] **AC-4:** Given isian draf diubah, When halaman dimuat ulang, Then nilai draf tetap ada karena tersimpan otomatis di server. *(Q71 §71.2 butir 2)*
+- [x] **AC-5:** Given draf terbuka, When pengguna lain berizin membuka mode revisi, Then ia melanjutkan draf yang sama; perubahan dari versi draf yang sudah usang ditolak 409. *(Q71 §71.2 butir 2)*
+- [x] **AC-6:** Given justifikasi kosong, When Simpan, Then ditolak dan penolakannya diaudit; target Renstra tidak berubah. *(Q71 §71.2 butir 5)*
+- [x] **AC-7:** Given justifikasi terisi dan ada perubahan, When Simpan, Then seluruh perubahan diterapkan dalam satu transaksi, nilai lama masuk histori, revisi bernomor n+1, dan audit memuat aktor, waktu, `dasar_izin`, justifikasi, serta nilai lama dan baru. *(Q71 §71.2 butir 3, §71.3 butir 4)*
+- [x] **AC-8:** Given draf terbuka, When Batal, Then draf dibuang dan target Renstra tidak berubah. *(Q71 §71.2 butir 4)*
+- [x] **AC-9:** Given draf tanpa perubahan nilai, When Simpan, Then ditolak. *(Q71 §71.2 butir 6)*
+- [x] **AC-10:** Given histori dibuka, Then tampil daftar revisi per Renstra (nomor, waktu, aktor, justifikasi, perubahan per indikator × tahun), dan riwayat per indikator dari audit sebelum mode revisi tetap dapat dibaca. *(Q71 §71.3 butir 1–2)*
+- [x] **AC-11:** Given draf terbuka, Then halaman Sasaran & Indikator dan pembanding target PK tetap memakai nilai yang berlaku. *(Q71 §71.2 butir 7)*
+- [x] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When memulai, mengubah, menyimpan, atau membatalkan revisi lewat request langsung, Then ditolak 403.
 
 **Business Rules / Catatan**
 
 - Simpan revisi terjadi dalam satu transaksi dengan urutan lock yang sama dengan `SimpanTargetRenstra`; draf dan simpan memakai token konkurensi (409) bila draf berubah sejak dimuat.
 - Penolakan (tanpa justifikasi, tanpa perubahan, token kedaluwarsa) diaudit di luar transaksi.
+- Klarifikasi PM 25 Oktober 2026 (Q71 §71.5): pengisian pertama target Renstra pada Renstra `aktif` juga melalui mode revisi, pembatalan draf diaudit, serta draf dan histori memakai tabel yang sama. Status implementasi: [Issue #166](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/166) (ISS-02.13).
 - **Di luar cakupan:** versi penuh Renstra (Q40 §40.2 butir 4), lampiran revisi Renstra (tetap US-02.10), dan penolakan target PK (US-02.14).
 
 ### US-02.14 · Penolakan Target PK yang Menyimpang dan Alasan Perubahan Target PK
