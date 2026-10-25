@@ -19,12 +19,19 @@ class PeriodeManagementTest extends TestCase
 {
     use JadwalFixtures, RefreshDatabase;
 
+    /** Periode aktif wajib bertanggal sejak Q70 §70.1; rentang triwulan dipakai agar tidak tumpang tindih. */
+    private const TW1 = ['bulan_mulai' => 1, 'hari_mulai' => 1, 'bulan_selesai' => 3, 'hari_selesai' => 31];
+
+    private const TW3 = ['bulan_mulai' => 7, 'hari_mulai' => 1, 'bulan_selesai' => 9, 'hari_selesai' => 30];
+
+    private const TW4 = ['bulan_mulai' => 10, 'hari_mulai' => 1, 'bulan_selesai' => 12, 'hari_selesai' => 31];
+
     public function test_first_final_and_atomic_replacement(): void
     {
         $actor = $this->calendarActor();
-        $this->actingAs($actor)->post('/periode', ['nama' => 'Awal', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false])->assertSessionHasErrors('is_nilai_akhir');
-        $first = app(SavePeriode::class)->handle($actor, ['nama' => ' Final ', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true]);
-        $next = app(SavePeriode::class)->handle($actor, ['nama' => 'Pengganti', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => false]);
+        $this->actingAs($actor)->post('/periode', ['nama' => 'Awal', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false, ...self::TW1])->assertSessionHasErrors('is_nilai_akhir');
+        $first = app(SavePeriode::class)->handle($actor, ['nama' => ' Final ', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true, ...self::TW4]);
+        $next = app(SavePeriode::class)->handle($actor, ['nama' => 'Pengganti', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => false, ...self::TW3]);
         $this->actingAs($actor)->put('/periode/'.$first->id, ['nama' => 'Final', 'urutan' => 4, 'aktif' => false, 'is_nilai_akhir' => true, 'revisi' => 1])->assertSessionHasErrors('is_nilai_akhir');
         $data = ['periode_lama_id' => $first->id, 'revisi_lama' => 1, 'periode_pengganti_id' => $next->id, 'revisi_pengganti' => 1];
         app(ReplaceFinalPeriode::class)->handle($actor, $data);
@@ -46,7 +53,7 @@ class PeriodeManagementTest extends TestCase
         $renstra = $this->calendarRenstra($actor);
         $jadwal = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'status' => 'ditutup', 'penutupan' => '2027-01-19']);
         PeriodeJadwal::create(['jadwal_id' => $jadwal->id, ...$this->calendarPayload($renstra, $master)['periode'][0]]);
-        $data = ['nama' => 'Nama koreksi', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false, 'revisi' => 1];
+        $data = ['nama' => 'Nama koreksi', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false, 'revisi' => 1, ...self::TW1];
         app(SavePeriode::class)->handle($actor, $data, $master);
         $this->assertSame('Nama koreksi', $master->fresh()->nama);
         $this->actingAs($actor)->put('/periode/'.$master->id, [...$data, 'urutan' => 2, 'revisi' => 2])->assertSessionHasErrors('urutan');
@@ -65,7 +72,7 @@ class PeriodeManagementTest extends TestCase
         PeriodeJadwal::create(['jadwal_id' => $jadwal->id, ...$payload['periode'][0]]);
         PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $early->id, 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07']);
         foreach ([1, 0] as $order) {
-            $this->actingAs($actor)->put('/periode/'.$final->id, ['nama' => $final->nama, 'urutan' => $order, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1])->assertSessionHasErrors('urutan');
+            $this->actingAs($actor)->put('/periode/'.$final->id, ['nama' => $final->nama, 'urutan' => $order, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1, ...self::TW4])->assertSessionHasErrors('urutan');
         }
         $this->assertSame(4, $final->fresh()->urutan);
         $this->assertSame(2, PeriodeJadwal::where('jadwal_id', $jadwal->id)->count());
@@ -95,7 +102,7 @@ class PeriodeManagementTest extends TestCase
         $data = $this->calendarPayload($renstra, $master);
         $jadwal = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'penutupan' => '2027-01-19']);
         PeriodeJadwal::create(['jadwal_id' => $jadwal->id, ...$data['periode'][0]]);
-        $this->actingAs($actor)->put('/periode/'.$master->id, ['nama' => $master->nama, 'urutan' => 5, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1])->assertSessionDoesntHaveErrors();
+        $this->actingAs($actor)->put('/periode/'.$master->id, ['nama' => $master->nama, 'urutan' => 5, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1, ...self::TW4])->assertSessionDoesntHaveErrors();
         $this->assertSame(5, $master->fresh()->urutan);
     }
 

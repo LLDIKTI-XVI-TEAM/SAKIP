@@ -29,7 +29,7 @@ class IndexPengukuranTest extends TestCase
 
         $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page
             ->where('konteks', [['jadwal_id' => $this->jadwal->id, 'tahun' => 2026,
-                'periode' => ['id' => $tw1->id, 'nama_periode' => 'Triwulan I', 'urutan' => 1, 'tahun' => 2026, 'is_nilai_akhir' => false]]])
+                'periode' => ['id' => $tw1->id, 'nama_periode' => 'Triwulan I', 'urutan' => 1, 'tahun' => 2026, 'is_nilai_akhir' => false, 'tanggal' => ['bulan_mulai' => 1, 'hari_mulai' => 1, 'bulan_selesai' => 3, 'hari_selesai' => 31]]]])
             ->where('filters', ['jadwal_id' => null, 'periode_id' => null])->where('can.selectPeriod', true)
             ->where('pilihan_jadwal.0.id', $this->jadwal->id)->has('pilihan_jadwal.0.periode', 1)->missing('periode')
             ->has('pengukurans', 1)->where('pengukurans.0.jenis', 'existing')->where('pengukurans.0.pengukuran.id', $this->pengukuran->id)
@@ -320,7 +320,7 @@ class IndexPengukuranTest extends TestCase
         $this->pengukuran->periode->update(['nama' => 'Triwulan I Koreksi']);
 
         $this->daftar($this->actor)->assertOk()->assertInertia(fn ($page) => $page->where('pengukurans.0.pengukuran.status', 'diajukan')
-            ->where('pengukurans.0.periode', ['id' => $this->pengukuran->periode_id, 'nama_periode' => 'Triwulan I', 'urutan' => 1, 'tahun' => 2026, 'is_nilai_akhir' => false])
+            ->where('pengukurans.0.periode', ['id' => $this->pengukuran->periode_id, 'nama_periode' => 'Triwulan I', 'urutan' => 1, 'tahun' => 2026, 'is_nilai_akhir' => false, 'tanggal' => ['bulan_mulai' => 1, 'hari_mulai' => 1, 'bulan_selesai' => 3, 'hari_selesai' => 31]])
             ->where('pengukurans.0.indikator', ['kode' => 'I-UJI', 'nama' => 'Indikator Uji', 'satuan' => 'poin', 'desimal_tampilan' => 2])
             ->where('pengukurans.0.unit', ['id' => $this->unit->id, 'nama' => 'Unit Pengujian']));
     }

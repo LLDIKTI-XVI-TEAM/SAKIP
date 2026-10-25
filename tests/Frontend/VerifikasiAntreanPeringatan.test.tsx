@@ -24,7 +24,7 @@ const pengukuran: Pengukuran = {
         indikator_kinerja: { kode: 'IKU-UJI', nama: 'Indikator Uji', satuan: '%', tipe_perhitungan: 'manual', arah: 'naik_baik', presisi: 4, desimal_tampilan: 2 },
         unit_kerja: { id: 'unit-uji', nama: 'Unit Uji' }, pic: null,
     },
-    periode_jadwal: { id: 'periode-uji', urutan: 2, nama_periode: 'Triwulan II', tahun: 2026, is_nilai_akhir: false },
+    periode_jadwal: { id: 'periode-uji', urutan: 2, nama_periode: 'Triwulan II', tahun: 2026, is_nilai_akhir: false, tanggal: { bulan_mulai: 4, hari_mulai: 1, bulan_selesai: 6, hari_selesai: 30 } },
 };
 const pagination = { current_page: 3, last_page: 3, total: 41, prev_page_url: '/verifikasi?status=diajukan&page=2', next_page_url: null };
 const filters = { status: 'diajukan' as const, renstra_id: '', tahun: '', periode_id: '', unit_id: '' };

@@ -4,6 +4,7 @@ import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Select } from '@/Components/Select';
 import { Table, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import type { JadwalPeriode, PeriodeOption } from '@/types/periode-jadwal';
@@ -15,6 +16,8 @@ const windowFields = [
 
 interface JendelaPeriodeProps {
     periode: JadwalPeriode[];
+    /** Tahun jadwal untuk rentang periode; kosong bila tahun belum diisi. */
+    tahun?: number;
     errors: Record<string, string | undefined>;
     editable: boolean;
     disabled: boolean;
@@ -29,6 +32,7 @@ interface JendelaPeriodeProps {
 
 export function JendelaPeriode({
     periode,
+    tahun,
     errors,
     editable,
     disabled,
@@ -123,6 +127,7 @@ export function JendelaPeriode({
                         >
                             <td className="col-span-2 min-w-0 lg:px-5 lg:py-4">
                                 <span className="block break-words font-semibold">{item.nama}</span>
+                                <RentangPeriode tanggal={item} tahun={tahun} />
                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                     {item.is_nilai_akhir && (
                                         <Badge variant="secondary" size="sm">

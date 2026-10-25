@@ -67,8 +67,8 @@ trait RencanaAksiFixtures
             'created_by_role' => 'perencanaan',
         ]);
 
-        $periode1 = Periode::firstOrCreate(['nama' => 'Triwulan I', 'urutan' => 1], ['aktif' => true, 'is_nilai_akhir' => false]);
-        $periode2 = Periode::firstOrCreate(['nama' => 'Triwulan II', 'urutan' => 2], ['aktif' => true, 'is_nilai_akhir' => true]);
+        $periode1 = Periode::firstOrCreate(['nama' => 'Triwulan I', 'urutan' => 1], ['aktif' => true, 'is_nilai_akhir' => false, 'bulan_mulai' => 1, 'hari_mulai' => 1, 'bulan_selesai' => 3, 'hari_selesai' => 31]);
+        $periode2 = Periode::firstOrCreate(['nama' => 'Triwulan II', 'urutan' => 2], ['aktif' => true, 'is_nilai_akhir' => true, 'bulan_mulai' => 4, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30]);
         $jadwal = JadwalTahunan::create([
             'renstra_id' => $renstra->id,
             'tahun' => 2026,

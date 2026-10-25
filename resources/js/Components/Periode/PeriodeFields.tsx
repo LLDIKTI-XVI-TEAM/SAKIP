@@ -1,4 +1,6 @@
 import { Input } from '@/Components/Input';
+import { Select } from '@/Components/Select';
+import { NAMA_BULAN } from '@/lib/rentangPeriode';
 import type { PeriodeIndexProps, PeriodeSummary } from '@/types/periode-jadwal';
 
 export interface PeriodeFormValues {
@@ -6,7 +8,14 @@ export interface PeriodeFormValues {
     urutan: string;
     aktif: boolean;
     is_nilai_akhir: boolean;
+    hari_mulai: string;
+    bulan_mulai: string;
+    hari_selesai: string;
+    bulan_selesai: string;
 }
+
+const pilihanHari = [{ value: '', label: 'Pilih' }, ...Array.from({ length: 31 }, (_, index) => ({ value: String(index + 1), label: String(index + 1) }))];
+const pilihanBulan = [{ value: '', label: 'Pilih' }, ...NAMA_BULAN.map((nama, index) => ({ value: String(index + 1), label: nama }))];
 
 interface PeriodeFieldsProps {
     values: PeriodeFormValues;
@@ -44,6 +53,34 @@ export function PeriodeFields({ values, errors, editing, currentFinal, disabled,
                 error={errors.urutan}
                 disabled={disabled || editing?.metadata_locked}
             />
+            <fieldset className="space-y-3">
+                <legend className="text-sm font-medium text-ink">Rentang tanggal</legend>
+                <p className="text-xs text-muted">
+                    Berlaku setiap tahun dan wajib untuk periode aktif. Kosongkan keduanya bila periode belum dipakai.
+                </p>
+                {(['mulai', 'selesai'] as const).map((ujung) => (
+                    <div key={ujung} className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3">
+                        <Select
+                            name={`hari_${ujung}`}
+                            label={`Tanggal ${ujung}`}
+                            value={values[`hari_${ujung}`]}
+                            onChange={(event) => onChange(`hari_${ujung}`, event.target.value)}
+                            options={pilihanHari}
+                            error={errors[`hari_${ujung}`]}
+                            disabled={disabled}
+                        />
+                        <Select
+                            name={`bulan_${ujung}`}
+                            label={`Bulan ${ujung}`}
+                            value={values[`bulan_${ujung}`]}
+                            onChange={(event) => onChange(`bulan_${ujung}`, event.target.value)}
+                            options={pilihanBulan}
+                            error={errors[`bulan_${ujung}`]}
+                            disabled={disabled}
+                        />
+                    </div>
+                ))}
+            </fieldset>
             <div>
                 <label className="flex items-center gap-2 text-sm">
                     <input

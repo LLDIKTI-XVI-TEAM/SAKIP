@@ -48,7 +48,7 @@ class ShowJadwalEditor
                 /** @var PeriodeJadwal $child */
                 $child = $metadata->get($window['periode_id']);
 
-                return [...$window, ...$child->periode->only(['nama', 'urutan', 'aktif', 'is_nilai_akhir']), 'periode_revisi' => $child->periode->revisi];
+                return [...$window, ...$child->periode->only(['nama', 'urutan', 'aktif', 'is_nilai_akhir', ...Periode::TANGGAL]), 'periode_revisi' => $child->periode->revisi];
             })->sortBy('urutan')->values()->all();
 
             return ['jadwal' => [...$attributes, 'renstra' => $renstra->only(['id', 'nama', 'status', 'tahun_mulai', 'tahun_selesai']), 'periode' => $windows],
@@ -69,7 +69,7 @@ class ShowJadwalEditor
      */
     private function periodeOptions(): array
     {
-        $fields = ['id', 'nama', 'urutan', 'aktif', 'is_nilai_akhir', 'revisi'];
+        $fields = ['id', 'nama', 'urutan', 'aktif', 'is_nilai_akhir', 'revisi', ...Periode::TANGGAL];
 
         // shortcut: tanpa paginasi karena master periode global dan tidak bertambah per tahun (Data Model §2.14;
         // seed Triwulan I–IV), hanya yang aktif dikirim; ganti ke pencarian bila periode aktif melebihi ±50.

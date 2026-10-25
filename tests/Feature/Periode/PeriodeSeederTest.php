@@ -19,11 +19,11 @@ class PeriodeSeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->assertSame([
-            ['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false],
-            ['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false],
-            ['nama' => 'Triwulan III', 'urutan' => 3, 'aktif' => true, 'is_nilai_akhir' => false],
-            ['nama' => 'Triwulan IV', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true],
-        ], Periode::orderBy('urutan')->get(['nama', 'urutan', 'aktif', 'is_nilai_akhir'])->toArray());
+            ['nama' => 'Triwulan I', 'urutan' => 1, 'aktif' => true, 'is_nilai_akhir' => false, 'bulan_mulai' => 1, 'hari_mulai' => 1, 'bulan_selesai' => 3, 'hari_selesai' => 31],
+            ['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false, 'bulan_mulai' => 4, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30],
+            ['nama' => 'Triwulan III', 'urutan' => 3, 'aktif' => true, 'is_nilai_akhir' => false, 'bulan_mulai' => 7, 'hari_mulai' => 1, 'bulan_selesai' => 9, 'hari_selesai' => 30],
+            ['nama' => 'Triwulan IV', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true, 'bulan_mulai' => 10, 'hari_mulai' => 1, 'bulan_selesai' => 12, 'hari_selesai' => 31],
+        ], Periode::orderBy('urutan')->get(['nama', 'urutan', 'aktif', 'is_nilai_akhir', 'bulan_mulai', 'hari_mulai', 'bulan_selesai', 'hari_selesai'])->toArray());
         $before = Periode::orderBy('id')->get()->toArray();
 
         $this->seed(PeriodeSeeder::class);

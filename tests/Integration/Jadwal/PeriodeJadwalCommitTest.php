@@ -74,6 +74,7 @@ class PeriodeJadwalCommitTest extends TestCase
         $periode = $this->calendarMaster();
         $response = $this->actingAs($actor)->put('/periode/'.$periode->id, [
             'nama' => 'Final diperbarui', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1,
+            'bulan_mulai' => 10, 'hari_mulai' => 1, 'bulan_selesai' => 12, 'hari_selesai' => 31,
         ])->assertRedirect('/periode');
         $observer = $this->commitObserver();
         $this->assertSame('Final diperbarui', $observer->table('periode')->where('id', $periode->id)->value('nama'));

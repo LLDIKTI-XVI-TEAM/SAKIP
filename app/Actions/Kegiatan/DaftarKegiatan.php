@@ -35,7 +35,7 @@ class DaftarKegiatan
             $effectiveFilters['tahun'] = (string) $tahunDefault;
         }
 
-        $query = Kegiatan::with(['unit:id,nama', 'periode:id,nama,urutan'])->whereNotIn('unit_id', $this->resolver->unitDitolak($actor, 'kegiatan:read'))
+        $query = Kegiatan::with(['unit:id,nama', 'periode:id,nama,urutan,bulan_mulai,hari_mulai,bulan_selesai,hari_selesai'])->whereNotIn('unit_id', $this->resolver->unitDitolak($actor, 'kegiatan:read'))
             ->when($this->resolver->unitTerbaca($actor, 'kegiatan:read'), fn ($query, $terbaca) => $query->whereIn('unit_id', $terbaca));
         foreach (['tahun', 'unit_id', 'periode_id', 'status'] as $field) {
             if (isset($effectiveFilters[$field]) && $effectiveFilters[$field] !== '') {
@@ -82,7 +82,7 @@ class DaftarKegiatan
                 'tanggal_rencana' => $kegiatan->tanggal_rencana?->format('Y-m-d'),
                 'version_token' => $kegiatan->versionToken(),
                 'unit' => $kegiatan->unit->only(['id', 'nama']),
-                'periode' => $kegiatan->periode->only(['id', 'nama']),
+                'periode' => [...$kegiatan->periode->only(['id', 'nama']), 'tanggal' => $kegiatan->periode->only(Periode::TANGGAL)],
                 'can' => ['update' => $update, 'ubah_rencana' => $update && $kegiatan->status === 'rencana', 'ubah_status' => $ubahStatus],
                 'opsi_periode_tujuan' => in_array('ditunda', $ubahStatus, true) ? $pilihan['periode_tujuan'] : [],
             ];

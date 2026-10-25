@@ -5,6 +5,7 @@ namespace App\Actions\Pengukuran;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\PengukuranKinerja;
+use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
@@ -140,6 +141,7 @@ class IndexPengukuran
 
     private function periodDto(PeriodeJadwal $period, int $tahun): array
     {
-        return ['id' => $period->periode_id, 'nama_periode' => $period->periode->nama, 'urutan' => $period->periode->urutan, 'tahun' => $tahun, 'is_nilai_akhir' => $period->periode->is_nilai_akhir];
+        return ['id' => $period->periode_id, 'nama_periode' => $period->periode->nama, 'urutan' => $period->periode->urutan, 'tahun' => $tahun, 'is_nilai_akhir' => $period->periode->is_nilai_akhir,
+            'tanggal' => $period->periode->only(Periode::TANGGAL)];
     }
 }

@@ -57,7 +57,14 @@ class RevisiJendelaPic
                 }
                 $jadwal->setRelation('periode', $windows->values());
                 $before = ['revisi' => $jadwal->revisi, 'periode' => $jadwal->draftAttributes()['periode']];
-                $metadata = Periode::whereIn('id', $ids)->pluck('urutan', 'id')->map(fn ($urutan): array => ['urutan' => (int) $urutan])->all();
+                $lama = collect($before['periode'])->keyBy('periode_id');
+                // Batas awal hanya bila pengisian_mulai diubah: memperpanjang tanggal selesai tidak memaksa jendela yang sudah dibuka bergeser.
+                $mulaiDiubah = array_column(array_filter($requested, fn (array $window): bool => $window['pengisian_mulai']
+                    !== $lama[$window['periode_id']]['pengisian_mulai']), 'periode_id');
+                $metadata = Periode::whereIn('id', $ids)->get()->mapWithKeys(fn (Periode $periode): array => [$periode->id => [
+                    'urutan' => $periode->urutan,
+                    ...(in_array($periode->id, $mulaiDiubah, true) ? ['batas_awal_pengisian' => $periode->batasAwalPengisian($jadwal->tahun)] : []),
+                ]])->all();
                 $this->rules->validate(['tahun' => $jadwal->tahun, 'penutupan' => $jadwal->penutupan->toDateString(), 'periode' => $requested], $metadata);
                 $changed = false;
                 foreach ($requested as $window) {

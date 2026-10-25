@@ -85,6 +85,7 @@ const RENCANA_AKSI: RencanaAksiShowProps = {
             skor: { nilai: null, status_perhitungan: 'belum_diisi' },
             peringatan_turun: false,
             komponen_turun: [],
+            tanggal: null,
             batas_terkunci_pic: null,
             boleh_tanpa_target: false,
         },

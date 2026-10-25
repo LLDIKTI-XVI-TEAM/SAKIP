@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -87,7 +88,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                             </div>
                             <div className="min-w-0">
                                 <dt className="text-muted">Periode</dt>
-                                <dd className="mt-1 font-medium">{pengukuran.periode_jadwal.nama_periode} {pengukuran.periode_jadwal.tahun}</dd>
+                                <dd className="mt-1 font-medium">{pengukuran.periode_jadwal.nama_periode} {pengukuran.periode_jadwal.tahun}<RentangPeriode tanggal={pengukuran.periode_jadwal.tanggal} tahun={pengukuran.periode_jadwal.tahun} /></dd>
                             </div>
                         </dl>
                         {indikator.definisi_operasional && (

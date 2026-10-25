@@ -187,7 +187,8 @@ class JadwalDraftTest extends TestCase
         app(SaveJadwalDraft::class)->handle($actor, [...$changed, 'revisi' => 1], $jadwal);
         app(SaveJadwalDraft::class)->handle($actor, [...$data, 'revisi' => 2], $jadwal);
         $this->actingAs($actor)->put('/jadwal/'.$jadwal->id, [...$changed, 'revisi' => 1])->assertSessionHasErrors('jadwal');
-        app(SavePeriode::class)->handle($actor, ['nama' => 'Final koreksi', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1], $master);
+        app(SavePeriode::class)->handle($actor, ['nama' => 'Final koreksi', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1,
+            'bulan_mulai' => 10, 'hari_mulai' => 1, 'bulan_selesai' => 12, 'hari_selesai' => 31], $master);
         $this->actingAs($actor)->put('/jadwal/'.$jadwal->id, [...$changed, 'revisi' => 3])->assertSessionHasErrors('periode.0.periode_revisi');
         $this->assertSame(3, $jadwal->fresh()->revisi);
         $this->assertSame('2027-01-19', $jadwal->fresh()->penutupan->format('Y-m-d'));

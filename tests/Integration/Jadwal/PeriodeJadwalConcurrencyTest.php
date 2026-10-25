@@ -45,7 +45,7 @@ class PeriodeJadwalConcurrencyTest extends TestCase
     public function test_concurrent_initial_final_creation_has_one_winner(): void
     {
         $actors = [$this->calendarActor(), $this->calendarActor()];
-        $data = ['nama' => 'Final', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true];
+        $data = ['nama' => 'Final', 'urutan' => 4, 'aktif' => true, 'is_nilai_akhir' => true, 'bulan_mulai' => 10, 'hari_mulai' => 1, 'bulan_selesai' => 12, 'hari_selesai' => 31];
         $this->assertSame(['changed', 'is_nilai_akhir'], $this->race([
             ['actor_id' => $actors[0]->id, 'operation' => 'master', 'data' => $data],
             ['actor_id' => $actors[1]->id, 'operation' => 'master', 'data' => $data],
@@ -70,7 +70,7 @@ class PeriodeJadwalConcurrencyTest extends TestCase
     {
         $actor = $this->calendarActor();
         $this->assertSame(['changed', 'changed'], $this->race([
-            ['actor_id' => $actor->id, 'operation' => 'master', 'data' => ['nama' => 'Semester', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => true]],
+            ['actor_id' => $actor->id, 'operation' => 'master', 'data' => ['nama' => 'Semester', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => true, 'bulan_mulai' => 1, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30]],
             ['actor_id' => $actor->id, 'operation' => 'seed'],
         ], serialized: true));
         $this->assertSame('Semester', Periode::sole()->nama);
@@ -82,7 +82,7 @@ class PeriodeJadwalConcurrencyTest extends TestCase
         $actor = $this->calendarActor();
         $this->assertSame(['changed', 'is_nilai_akhir'], $this->race([
             ['actor_id' => $actor->id, 'operation' => 'seed'],
-            ['actor_id' => $actor->id, 'operation' => 'master', 'data' => ['nama' => 'Semester', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => true]],
+            ['actor_id' => $actor->id, 'operation' => 'master', 'data' => ['nama' => 'Semester', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => true, 'bulan_mulai' => 1, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30]],
         ], serialized: true));
         $this->assertSame(4, Periode::count());
         $this->assertSame('Triwulan IV', Periode::where('aktif', true)->where('is_nilai_akhir', true)->sole()->nama);
@@ -152,7 +152,7 @@ class PeriodeJadwalConcurrencyTest extends TestCase
         $data['periode'][] = ['periode_id' => $early->id, 'periode_revisi' => 1, 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07'];
         $this->assertSame(['changed', 'urutan'], $this->race([
             ['actor_id' => $actors[0]->id, 'operation' => 'save', 'data' => $data],
-            ['actor_id' => $actors[1]->id, 'operation' => 'master', 'id' => $final->id, 'data' => ['nama' => $final->nama, 'urutan' => 0, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1]],
+            ['actor_id' => $actors[1]->id, 'operation' => 'master', 'id' => $final->id, 'data' => ['nama' => $final->nama, 'urutan' => 0, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1, 'bulan_mulai' => 10, 'hari_mulai' => 1, 'bulan_selesai' => 12, 'hari_selesai' => 31]],
         ], serialized: true));
         $this->assertSame(4, $final->fresh()->urutan);
         $this->assertSame(2, PeriodeJadwal::count());
@@ -177,7 +177,8 @@ class PeriodeJadwalConcurrencyTest extends TestCase
         $data = $this->calendarPayload($this->calendarRenstra($actors[1]), $periode);
         $this->assertSame(['changed', 'periode.0.periode_revisi'], $this->race([
             ['actor_id' => $actors[0]->id, 'operation' => 'master', 'id' => $periode->id,
-                'data' => ['nama' => 'Final diperbarui', 'urutan' => 5, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1]],
+                'data' => ['nama' => 'Final diperbarui', 'urutan' => 5, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1,
+                    'bulan_mulai' => 10, 'hari_mulai' => 1, 'bulan_selesai' => 12, 'hari_selesai' => 31]],
             ['actor_id' => $actors[1]->id, 'operation' => 'save', 'data' => $data],
         ], serialized: true));
         $this->assertSame('Final diperbarui', $periode->fresh()->nama);

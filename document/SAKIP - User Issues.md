@@ -2155,60 +2155,70 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given Perencanaan menyimpan periode aktif, When tanggal mulai atau selesai kosong, Then ditolak; tanggal tersimpan sebagai hari dan bulan tanpa tahun. *(Q70 §70.1 butir 1–2)*
-- [ ] **AC-2:** Given tanggal mulai setelah tanggal selesai, atau dua periode aktif saling tumpang tindih, When disimpan, Then ditolak. *(Q70 §70.1 butir 2)*
-- [ ] **AC-3:** Given periode bertanggal, Then halaman Master Periode, jadwal, Rencana Aksi, kegiatan, dan pengukuran menampilkan rentangnya pada tahun terkait (mis. "1 Jan–31 Mar 2027"). *(Q70 §70.1 butir 3a)*
-- [ ] **AC-4:** Given form jadwal tahunan atau revisi jendela PIC, Then tidak ada isian reviu, dan `reviu_mulai`/`reviu_selesai` dalam request tidak disimpan. *(Q70 §70.2 butir 1)*
-- [ ] **AC-5:** Given `pengisian_mulai` sebelum tanggal 1 bulan terakhir periode (mis. Triwulan IV sebelum 1 Desember), When jadwal draf atau revisi jendela disimpan, Then ditolak; `pengisian_selesai` pada tahun berikutnya diterima. *(Q70 §70.2 butir 2)*
-- [ ] **AC-6:** Given pengukuran baru diajukan, When Perencanaan memverifikasi, mengembalikan, atau mengesahkannya pada hari yang sama, Then aksi tidak ditolak karena jendela reviu. *(Q70 §70.2 butir 3)*
-- [ ] **AC-7:** Given audit lama memuat penanda reviu terlambat, Then penanda itu tetap tampil; aksi reviu baru tidak membuat penanda. *(Q70 §70.2 butir 4)*
-- [ ] **AC-8:** Given `penutupan` tidak setelah `pengisian_selesai` periode terakhir, When jadwal disimpan, Then ditolak. *(Q70 §70.2 butir 5)*
-- [ ] **AC-9:** Given jadwal aktif yang jendelanya melanggar AC-5 (mis. jadwal 2026), Then jadwal tetap berlaku tanpa perubahan otomatis. *(Q70 §70.2 butir 7)*
-- [ ] **AC-10:** Given tanggal periode diubah, Then jadwal, kegiatan, dan pengukuran yang sudah tersimpan tidak berubah. *(Q70 §70.1 butir 4)*
+- [x] **AC-1:** Given Perencanaan menyimpan periode aktif, When tanggal mulai atau selesai kosong, Then ditolak; tanggal tersimpan sebagai hari dan bulan tanpa tahun. *(Q70 §70.1 butir 1–2)*
+- [x] **AC-2:** Given tanggal mulai setelah tanggal selesai, atau dua periode aktif saling tumpang tindih, When disimpan, Then ditolak. *(Q70 §70.1 butir 2)*
+- [x] **AC-3:** Given periode bertanggal, Then halaman Master Periode, jadwal, Rencana Aksi, kegiatan, dan pengukuran menampilkan rentangnya pada tahun terkait (mis. "1 Jan–31 Mar 2027"). *(Q70 §70.1 butir 3a)*
+- [x] **AC-4:** Given form jadwal tahunan atau revisi jendela PIC, Then tidak ada isian reviu, dan `reviu_mulai`/`reviu_selesai` dalam request tidak disimpan. *(Q70 §70.2 butir 1)*
+- [x] **AC-5:** Given `pengisian_mulai` sebelum tanggal 1 bulan terakhir periode (mis. Triwulan IV sebelum 1 Desember), When jadwal draf atau revisi jendela disimpan, Then ditolak; `pengisian_selesai` pada tahun berikutnya diterima. *(Q70 §70.2 butir 2)*
+- [x] **AC-6:** Given pengukuran baru diajukan, When Perencanaan memverifikasi, mengembalikan, atau mengesahkannya pada hari yang sama, Then aksi tidak ditolak karena jendela reviu. *(Q70 §70.2 butir 3)*
+- [x] **AC-7:** Given audit lama memuat penanda reviu terlambat, Then penanda itu tetap tampil; aksi reviu baru tidak membuat penanda. *(Q70 §70.2 butir 4)*
+- [x] **AC-8:** Given `penutupan` tidak setelah `pengisian_selesai` periode terakhir, When jadwal disimpan, Then ditolak. *(Q70 §70.2 butir 5)*
+- [x] **AC-9:** Given jadwal aktif yang jendelanya melanggar AC-5 (mis. jadwal 2026), Then jadwal tetap berlaku tanpa perubahan otomatis. *(Q70 §70.2 butir 7)*
+- [x] **AC-10:** Given tanggal periode diubah, Then jadwal, kegiatan, dan pengukuran yang sudah tersimpan tidak berubah. *(Q70 §70.1 butir 4)*
+
+> **Status implementasi — ISS-03.07 (#165):** centang menunjukkan bukti implementasi dan test otomatis pada PostgreSQL disposable, bukan persetujuan UAT, merge, atau deployment. Penghapusan jendela reviu (AC-4, AC-6–AC-8) dikerjakan pada PR #175; tanggal periode (AC-1–AC-3, AC-5, AC-9, AC-10) pada tahap kedua issue ini:
+> - `tests/Feature/Periode/TanggalPeriodeSkemaTest` (CHECK tanggal dan tanggal standar Triwulan I–IV dari migrasi) dan `TanggalPeriodeValidasiTest` (AC-1, AC-2, pergantian nilai akhir, audit nilai lama/baru, 403 dan deny);
+> - `tests/Feature/Periode/RentangPeriodeHalamanTest` serta `tests/Frontend/PeriodeIndex.test.tsx`, `JadwalEditor.test.tsx`, `RencanaAksiMatriks.test.tsx`, `Kegiatan.test.tsx`, `PengukuranWorkflow.test.tsx`, dan `rentangPeriode.test.ts` (AC-3);
+> - `tests/Feature/Jadwal/JadwalDraftTest` (AC-4 pada jadwal, AC-8), `JadwalRevisiJendelaTest` (AC-4 pada revisi jendela, 403 dan deny), dan `tests/Frontend/JadwalEditor.test.tsx` (tanpa isian reviu);
+> - `tests/Feature/Jadwal/BatasAwalPengisianTest` (AC-5 pada draf, revisi jendela, dan aktivasi; AC-9 pada jadwal aktif 2026);
+> - `tests/Feature/VerticalSlice1Test` (AC-6, AC-7);
+> - `tests/Feature/Periode/TanggalPeriodeDataTersimpanTest` (AC-10).
+>
+> Bukti QA SSO dan CI exact-HEAD dicatat pada PR masing-masing.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tambahkan kolom tanggal mulai dan selesai tanpa tahun pada `periode` (mis. bulan dan hari dalam kolom terpisah) dengan CHECK validitas tanggal; isi Triwulan I–IV yang sudah ada dengan tanggal standar (U-25).
-- [ ] Hapus `reviu_mulai` dan `reviu_selesai` dari `jadwal_periode` beserta CHECK yang memakainya (U-7).
+- [x] Tambahkan kolom tanggal mulai dan selesai tanpa tahun pada `periode` (mis. bulan dan hari dalam kolom terpisah) dengan CHECK validitas tanggal; isi Triwulan I–IV yang sudah ada dengan tanggal standar.
+- [x] Hapus `reviu_mulai` dan `reviu_selesai` dari `jadwal_periode` beserta CHECK yang memakainya.
 
 **B. Backend / Domain**
-- [ ] Tambahkan satu helper yang membentuk rentang tanggal periode untuk tahun tertentu; pakai di validasi jadwal dan nanti di validasi realisasi kegiatan.
-- [ ] Validasi tanggal periode di `SavePeriode` (AC-1, AC-2).
-- [ ] `JadwalDraftRules`: keluarkan `reviu_*` dari `WINDOW_FIELDS`, ubah syarat penutupan menjadi setelah `pengisian_selesai` terakhir, dan tambahkan batas awal `pengisian_mulai` (AC-5, AC-8).
-- [ ] `SaveJadwalDraft`, `StoreJadwalRequest`, `PeriodeJadwalMutationRequest`, `RevisiJendelaPic`, `RevisiJendelaPicRequest`: hapus field reviu.
-- [ ] `PengukuranKinerjaPolicy`: hapus gerbang "Jendela reviu periode ini belum dimulai" (AC-6).
-- [ ] `PengukuranMutationSteps`: berhenti membuat penanda `reviu_terlambat`; `PresentPengukuran` dan `StatusIndikatorDashboard` tetap membaca penanda lama dari audit (AC-7).
+- [x] Tambahkan satu helper yang membentuk rentang tanggal periode untuk tahun tertentu; pakai di validasi jadwal dan nanti di validasi realisasi kegiatan.
+- [x] Validasi tanggal periode di `SavePeriode` (AC-1, AC-2).
+- [x] `JadwalDraftRules`: keluarkan `reviu_*` dari `WINDOW_FIELDS`, ubah syarat penutupan menjadi setelah `pengisian_selesai` terakhir, dan tambahkan batas awal `pengisian_mulai` (AC-5, AC-8).
+- [x] `SaveJadwalDraft`, `StoreJadwalRequest`, `PeriodeJadwalMutationRequest`, `RevisiJendelaPic`, `RevisiJendelaPicRequest`: hapus field reviu.
+- [x] `PengukuranKinerjaPolicy`: hapus gerbang "Jendela reviu periode ini belum dimulai" (AC-6).
+- [x] `PengukuranMutationSteps`: berhenti membuat penanda `reviu_terlambat`; `PresentPengukuran` dan `StatusIndikatorDashboard` tetap membaca penanda lama dari audit (AC-7).
 
 **C. Authorization & Audit**
-- [ ] Perubahan tanggal periode dan jadwal tetap diaudit dengan nilai lama/baru dan `dasar_izin`.
+- [x] Perubahan tanggal periode dan jadwal tetap diaudit dengan nilai lama/baru dan `dasar_izin`.
 
 **D. Frontend / UX**
-- [ ] Master Periode: isian hari dan bulan untuk tanggal mulai dan selesai, berlabel aksesibel, teks minimal 12px.
-- [ ] Editor jadwal dan modal revisi jendela PIC: hapus kolom reviu; tampilkan rentang periode pada tahun jadwal di samping isian pengisian.
-- [ ] Tampilkan rentang periode pada Rencana Aksi, kegiatan, dan pengukuran (AC-3).
+- [x] Master Periode: isian hari dan bulan untuk tanggal mulai dan selesai, berlabel aksesibel, teks minimal 12px.
+- [x] Editor jadwal dan modal revisi jendela PIC: hapus kolom reviu; tampilkan rentang periode pada tahun jadwal di samping isian pengisian.
+- [x] Tampilkan rentang periode pada Rencana Aksi, kegiatan, dan pengukuran (AC-3).
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Pest Feature test membuktikan AC-1 — periode aktif tanpa tanggal ditolak; tanggal tersimpan tanpa tahun.
-- [ ] TEST-2: Pest Feature test membuktikan AC-2 — tanggal terbalik dan periode tumpang tindih ditolak, dengan kontrol positif.
-- [ ] TEST-3: Vitest membuktikan AC-3 — rentang periode tampil pada tahun terkait.
-- [ ] TEST-4: Pest Feature test membuktikan AC-4 — field reviu tidak disimpan pada jadwal dan revisi jendela.
-- [ ] TEST-5: Pest Feature test membuktikan AC-5 — batas awal 1 bulan terakhir periode, termasuk pengisian TW IV di Januari tahun berikutnya diterima.
-- [ ] TEST-6: Pest Feature test membuktikan AC-6 — verifikasi pada hari pengajuan tidak ditolak.
-- [ ] TEST-7: Pest Feature test membuktikan AC-7 — penanda lama tetap terbaca dan aksi baru tidak membuatnya.
-- [ ] TEST-8: Pest Feature test membuktikan AC-8 — syarat penutupan baru.
-- [ ] TEST-9: Pest Feature test membuktikan AC-9 dan AC-10 — data tersimpan tidak berubah.
-- [ ] SECURITY: request langsung tanpa `periode:update`/`jadwal:update` dan deny yang cocok menghasilkan 403.
+- [x] TEST-1: Pest Feature test membuktikan AC-1 — periode aktif tanpa tanggal ditolak; tanggal tersimpan tanpa tahun.
+- [x] TEST-2: Pest Feature test membuktikan AC-2 — tanggal terbalik dan periode tumpang tindih ditolak, dengan kontrol positif.
+- [x] TEST-3: Vitest membuktikan AC-3 — rentang periode tampil pada tahun terkait.
+- [x] TEST-4: Pest Feature test membuktikan AC-4 — field reviu tidak disimpan pada jadwal dan revisi jendela.
+- [x] TEST-5: Pest Feature test membuktikan AC-5 — batas awal 1 bulan terakhir periode, termasuk pengisian TW IV di Januari tahun berikutnya diterima.
+- [x] TEST-6: Pest Feature test membuktikan AC-6 — verifikasi pada hari pengajuan tidak ditolak.
+- [x] TEST-7: Pest Feature test membuktikan AC-7 — penanda lama tetap terbaca dan aksi baru tidak membuatnya.
+- [x] TEST-8: Pest Feature test membuktikan AC-8 — syarat penutupan baru.
+- [x] TEST-9: Pest Feature test membuktikan AC-9 dan AC-10 — data tersimpan tidak berubah.
+- [x] SECURITY: request langsung tanpa `periode:update`/`jadwal:update` dan deny yang cocok menghasilkan 403.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(Test lulus lokal; menunggu CI exact-HEAD tahap kedua.)*
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). *(Menunggu QA SSO desktop dan mobile tahap kedua.)*
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ---
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Jadwal;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -23,17 +24,44 @@ class JadwalDraftRules
 
     /**
      * Pemanggil memasok tanggal valid YYYY-MM-DD serta metadata otoritatif yang terlindungi lock.
+     * `batas_awal_pengisian` hanya diisi untuk jendela yang wajib diperiksa batas awalnya;
+     * nilai null berarti periode belum bertanggal sehingga batasnya tidak dapat dihitung.
      *
      * @param  array<string, mixed>  $data
-     * @param  array<string, array{urutan: int}>  $periodeMetadata
+     * @param  array<string, array{urutan: int, batas_awal_pengisian?: ?string}>  $periodeMetadata
      */
     public function validate(array $data, array $periodeMetadata): void
     {
         $this->validateSelectedMetadata($data, $periodeMetadata);
-        $errors = $this->kalenderErrors($data);
+        $errors = $this->batasAwalErrors($data, $periodeMetadata) + $this->kalenderErrors($data);
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array<string, array{urutan: int, batas_awal_pengisian?: ?string}>  $periodeMetadata
+     * @return array<string, string>
+     */
+    private function batasAwalErrors(array $data, array $periodeMetadata): array
+    {
+        $errors = [];
+        foreach ($data['periode'] as $index => $window) {
+            $metadata = $periodeMetadata[$window['periode_id']];
+            if (! array_key_exists('batas_awal_pengisian', $metadata)) {
+                continue;
+            }
+            $batas = $metadata['batas_awal_pengisian'];
+            if ($batas === null) {
+                $errors["periode.$index.periode_id"] = 'Lengkapi tanggal mulai dan selesai periode ini di Master Periode sebelum menyusun jadwal.';
+            } elseif ($window['pengisian_mulai'] < $batas) {
+                $tanggal = CarbonImmutable::parse($batas)->locale('id')->translatedFormat('j F Y');
+                $errors["periode.$index.pengisian_mulai"] = "Jendela pengisian paling cepat dibuka $tanggal, tanggal 1 bulan terakhir periode.";
+            }
+        }
+
+        return $errors;
     }
 
     /**

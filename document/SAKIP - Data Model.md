@@ -309,6 +309,10 @@ erDiagram
         int urutan
         boolean aktif
         boolean is_nilai_akhir
+        smallint bulan_mulai
+        smallint hari_mulai
+        smallint bulan_selesai
+        smallint hari_selesai
     }
 
     JADWAL_TAHUNAN {
@@ -918,9 +922,9 @@ Target PK per indikator per tahun.
 
 ### 2.14 `periode`
 
-Master satuan waktu pelaporan (global, tidak terikat Renstra/tahun tertentu).
+Master satuan waktu pelaporan (global, tidak terikat Renstra/tahun tertentu). Tanggal mulai dan selesai periode disimpan tanpa tahun dan berlaku setiap tahun (Q70 §70.1).
 
-**Seed awal:** pada tabel kosong, buat Triwulan I–IV aktif, urutan 1–4, hanya Triwulan IV bernilai akhir. Keempat baris dibuat dalam satu transaksi dengan lock konfigurasi master; tabel nonkosong dipertahankan tanpa penambahan/perubahan dan dilaporkan ke operator. Rujukan: [addendum seed ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md).
+**Seed awal:** pada tabel kosong, buat Triwulan I–IV aktif, urutan 1–4, bertanggal standar 1 Jan–31 Mar, 1 Apr–30 Jun, 1 Jul–30 Sep, dan 1 Okt–31 Des, hanya Triwulan IV bernilai akhir. Keempat baris dibuat dalam satu transaksi dengan lock konfigurasi master; tabel nonkosong dipertahankan tanpa penambahan/perubahan dan dilaporkan ke operator. Rujukan: [addendum seed ISS-03.01](SAKIP%20-%20Keputusan%20Penyelarasan.md).
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
@@ -929,6 +933,19 @@ Master satuan waktu pelaporan (global, tidak terikat Renstra/tahun tertentu).
 | `urutan` | int | not null | |
 | `aktif` | boolean | not null, default `true` | |
 | `is_nilai_akhir` | boolean | not null, default `false` | **Tepat satu** baris bernilai `true` di seluruh konfigurasi aktif — ditegakkan di level aplikasi (validasi sebelum simpan). Nilai periode ini **diisi manual**; tidak ada perhitungan agregasi otomatis dari periode-periode lain |
+| `bulan_mulai` | smallint | nullable | Bulan tanggal mulai (1–12), tanpa tahun (Q70 §70.1 butir 1) |
+| `hari_mulai` | smallint | nullable | Hari tanggal mulai; harus tersedia pada bulan tersebut setiap tahun, sehingga 29 Februari ditolak |
+| `bulan_selesai` | smallint | nullable | Bulan tanggal selesai (1–12), tanpa tahun |
+| `hari_selesai` | smallint | nullable | Hari tanggal selesai; aturan sama dengan `hari_mulai` |
+
+**Constraint:** CHECK `periode_tanggal_valid`: keempat kolom tanggal terisi atau kosong bersamaan; bulan 1–12; hari 1 sampai jumlah hari bulan tersebut pada tahun non-kabisat; dan (`bulan_mulai`, `hari_mulai`) tidak setelah (`bulan_selesai`, `hari_selesai`), sehingga satu periode tidak melintasi pergantian tahun. Migrasi #165 mengisi tanggal standar seed pada baris bernama persis `Triwulan I`–`Triwulan IV`; periode lain dilengkapi lewat Master Periode.
+
+**Aturan tanggal (level aplikasi, di bawah lock konfigurasi master eksklusif, Q70 §70.1 butir 2):**
+- Periode aktif wajib bertanggal, termasuk periode pengganti saat pergantian periode nilai akhir; periode nonaktif boleh belum bertanggal.
+- Rentang periode aktif tidak boleh tumpang tindih dengan rentang periode aktif lain; rentang yang bersebelahan diterima.
+- Rentang pada tahun Y dibentuk dari tanggal tanpa tahun ditambah Y. Rentang ini dipakai untuk keterangan pada tampilan periode, jadwal, rencana aksi, kegiatan, dan pengukuran (dihitung dari tanggal master yang berlaku saat ditampilkan dan tidak dibekukan pada snapshot, Q70 §70.4 butir 3), untuk batas awal jendela pengisian (§2.16), dan untuk validasi tanggal realisasi kegiatan (Q74 §74.2 butir 3, menyusul ISS-06.03).
+- Perubahan tanggal periode tidak mengubah jadwal, kegiatan, maupun pengukuran yang sudah tersimpan, dan tidak memvalidasi ulang draf jadwal; validasi memakai tanggal yang berlaku saat data disimpan atau diaktifkan (Q70 §70.1 butir 4).
+- Perubahan tanggal dicatat di `audit_log` (`periode.ubah`) dengan nilai lama/baru dan `dasar_izin`.
 
 **Catatan relasi:** baris pada tabel ini bersifat global lintas tahun/Renstra. Daftar periode yang *diharapkan* pada satu jadwal tahun tertentu — beserta jendela pengisiannya — ditentukan oleh baris `jadwal_periode` (lihat §2.16), bukan langsung oleh tabel ini. Periode yang sama juga menjadi satuan waktu bagi `rencana_aksi_target` (§2.24) dan `kegiatan` (§2.25).
 
@@ -996,6 +1013,7 @@ Daftar periode yang diharapkan pada suatu `jadwal_tahunan`, beserta jendela wakt
 **Aturan integritas:**
 - Batas `pengisian_selesai` bersifat mutlak hanya bagi PIC dengan izin ber-scope unit (grant, §2.7). Peran **Perencanaan** (izin global lewat `role_permissions`, §2.5) dikecualikan dari batas ini dan tetap dapat mengisi/mengubah pengukuran sampai `jadwal_tahunan.penutupan` tercapai.
 - **Tanpa jendela reviu (Q70 §70.2):** verifikasi, pengembalian, dan pengesahan pengukuran dapat dilakukan sejak pengukuran diajukan sampai `jadwal_tahunan.penutupan`. Penanda reviu terlambat tidak lagi dibuat; penanda yang sudah tercatat di `audit_log` tetap ditampilkan sebagai histori.
+- **Batas awal jendela pengisian (Q70 §70.2 butir 2 dan 7, §70.4 butir 1–2):** `pengisian_mulai` tidak boleh sebelum tanggal 1 bulan terakhir periode pada tahun jadwal (mis. Triwulan IV 1 Desember), dihitung dari tanggal periode (§2.14); batas akhir tidak diatur, sehingga pengisian Triwulan IV pada Januari tahun berikutnya sah. Ditegakkan di level aplikasi saat draf disimpan (seluruh jendela; periode yang belum bertanggal ditolak), saat revisi jendela PIC (hanya bila `pengisian_mulai` jendela itu diubah; perpanjangan `pengisian_selesai` saja tidak diperiksa), dan saat aktivasi memakai tanggal periode yang berlaku (kalender tidak valid). Jadwal yang sudah aktif tidak diubah otomatis.
 - Indikator berstatus `arsip` **tidak dihitung** sebagai kewajiban pengisian pada kombinasi indikator × periode manapun di tabel ini.
 - Periode dengan `periode.is_nilai_akhir = true` (mis. "Tahunan") tetap dapat memiliki baris di tabel ini seperti periode lain; nilainya diisi manual, tidak dihitung otomatis dari agregasi periode-periode lain (lihat §2.14).
 - Rencana aksi disusun **setelah** daftar periode pada jadwal tahunan tersusun (target periode pada rencana aksi butuh daftar periode ini) — lihat §2.23.
@@ -1890,9 +1908,10 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `renstra_pk_versi` (rancangan Q40) | unique(`renstra_pk_id`, `nomor_versi`); level aplikasi: `nomor_surat`, `tanggal_surat`, `periode_mulai_id`, `alasan`, dan persetujuan wajib pada versi revisi; baris tidak diubah setelah terbentuk (§2.36) |
 | `renstra_pk_versi_target` (rancangan Q40) | unique(`renstra_pk_versi_id`, `indikator_id`); `nilai` nullable, nonnegatif, finite (§2.37) |
 | `penanggung_jawab` | index non-unique (`indikator_id`, `tanggal_mulai_berlaku`); unique per tanggal dilepas oleh Q34 butir 1 ([#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70)), penugasan pada tanggal sama diurutkan dengan `urutan`, lihat §2.19 |
+| `periode` | CHECK `periode_tanggal_valid` (tanggal tanpa tahun terisi atau kosong bersamaan, sah setiap tahun, mulai tidak setelah selesai; Q70 §70.1); level aplikasi: periode aktif wajib bertanggal dan rentangnya tidak tumpang tindih dengan periode aktif lain (§2.14) |
 | `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat; penanda `tidak_dapat_dipenuhi` saat unggahan file dimatikan tidak lagi terjadi sejak Q44, histori) |
-| `jadwal_periode` | unique(`jadwal_id`, `periode_id`); CHECK `jadwal_periode_urutan_tanggal` (`pengisian_mulai <= pengisian_selesai`, Q70; §2.16) |
+| `jadwal_periode` | unique(`jadwal_id`, `periode_id`); CHECK `jadwal_periode_urutan_tanggal` (`pengisian_mulai <= pengisian_selesai`, Q70; §2.16); level aplikasi: `pengisian_mulai` paling cepat tanggal 1 bulan terakhir periode (Q70 §70.2 butir 2; §2.16) |
 | `jadwal_snapshot` | unique(`jadwal_id`, `indikator_id`, `nomor_versi`) — versi 1 tetap dibuat idempoten per (`jadwal_id`, `indikator_id`); koreksi (Q35) dan revisi PK berversi (rancangan Q40) menambah versi baru (§2.17) |
 | `pengukuran` | unique(`indikator_id`, `tahun`, `periode_id`); CHECK `nilai_status_cocok` antara `status_perhitungan` dan `nilai`, diperluas untuk `belum_dapat_diukur` (rancangan Q47, §2.20) |
 | `pengaturan` | unique(`kunci`) |

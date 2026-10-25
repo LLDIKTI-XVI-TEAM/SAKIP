@@ -2,6 +2,7 @@ import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { Search, Eye, Paperclip } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Tooltip } from '@/Components/Tooltip';
@@ -76,7 +77,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination, filters 
                                             <div className="text-muted mt-0.5 leading-relaxed">
                                                 {iku?.nama}
                                             </div>
-                                            <div className="mt-1 text-xs text-muted">{p.periode_jadwal.nama_periode} {p.periode_jadwal.tahun}</div>
+                                            <div className="mt-1 text-xs text-muted">{p.periode_jadwal.nama_periode} {p.periode_jadwal.tahun}<RentangPeriode tanggal={p.periode_jadwal.tanggal} tahun={p.periode_jadwal.tahun} /></div>
                                         </TableCell>
                                         <TableCell className="px-6 py-4">
                                             <div className="font-medium text-ink">{unit?.nama}</div>

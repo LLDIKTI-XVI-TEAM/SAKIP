@@ -1,5 +1,6 @@
 import { Badge } from '@/Components/Badge';
 import { Input } from '@/Components/Input';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { peranKomponenLabel } from '@/lib/indikator';
 import type { RencanaAksiKomponen, RencanaAksiPeriode } from './types';
@@ -9,6 +10,8 @@ interface MatriksTargetProps {
     tipePerhitungan: string;
     komponen: RencanaAksiKomponen[];
     periode: RencanaAksiPeriode[];
+    /** Tahun Rencana Aksi untuk rentang periode. */
+    tahun: number;
     desimalTampilan: number;
     satuan: string;
     /** True bila seluruh matriks hanya-baca (can.update false atau sedang menyimpan). */
@@ -48,6 +51,7 @@ export default function MatriksTarget({
     tipePerhitungan,
     komponen,
     periode,
+    tahun,
     desimalTampilan,
     satuan,
     disabled,
@@ -104,6 +108,7 @@ export default function MatriksTarget({
                             <TableRow key={baris.id} className="grid gap-2 bg-soft/40 p-4 md:table-row">
                                 <TableHead scope="row" className="h-auto p-0 text-sm normal-case tracking-normal md:px-4 md:py-3.5">
                                     {baris.nama ?? 'Periode'}
+                                    <RentangPeriode tanggal={baris.tanggal} tahun={tahun} />
                                 </TableHead>
                                 <TableCell colSpan={kolom.length} className="p-0 text-muted md:px-4 md:py-3.5">
                                     <Badge variant="muted" size="sm">Tidak berlaku</Badge>
@@ -131,6 +136,7 @@ export default function MatriksTarget({
                                     {/* Perencanaan tetap dapat menyunting setelah batas PIC, jadi badgenya menyebut PIC agar tidak terbaca sebagai kunci bagi dirinya. */}
                                     {batas !== null && <Badge variant="muted" size="sm">{terkunciAktor ? 'Terkunci' : 'Terkunci bagi PIC'}</Badge>}
                                 </span>
+                                <RentangPeriode tanggal={baris.tanggal} tahun={tahun} />
                             </TableHead>
                             {kolom.map((sel) => {
                                 const key = kunciSel(baris.id, sel.komponen_id);

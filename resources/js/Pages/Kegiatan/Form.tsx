@@ -10,6 +10,7 @@ import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { formatRentangPeriode } from '@/lib/rentangPeriode';
 import { bantuanAnggaran } from '@/lib/rupiah';
 import { statusKegiatanConfig, type KegiatanFormProps, type RencanaKegiatan, type StatusTujuan } from '@/types/kegiatan';
 import { BerkasPerencanaanPanel } from './Partials/BerkasPerencanaanPanel';
@@ -62,6 +63,8 @@ export default function Form({ kegiatan, unitOptions, periodeOptions, opsiPeriod
             onFinish: () => { submitting.current = false; },
         });
     };
+    const periodeDipilih = periodeOptions.find((option) => option.id === data.periode_id);
+    const rentangPeriode = formatRentangPeriode(periodeDipilih?.tanggal ?? null, /^\d{4}$/.test(data.tahun) ? Number(data.tahun) : undefined) ?? undefined;
     return <AuthenticatedLayout title={title} breadcrumbs={[{ label: 'Kegiatan', href: '/kegiatan' }, { label: title }]}>
         <Head title={title} />
         <div className="mx-auto max-w-5xl space-y-5">
@@ -117,7 +120,7 @@ export default function Form({ kegiatan, unitOptions, periodeOptions, opsiPeriod
                         <fieldset disabled={terkunci || form.processing || blocked} className="grid gap-5 sm:grid-cols-2">
                             <Select id="unit_id" label="Unit" required hoverScroll value={data.unit_id} onChange={(e) => form.setData('unit_id', e.target.value)} error={errors.unit_id} options={[{ value: '', label: 'Pilih unit' }, ...unitOptions.map((o) => ({ value: o.id, label: o.nama }))]} />
                             <Input label="Tahun" type="number" required min={1} max={9999} value={data.tahun} onChange={(e) => form.setData('tahun', e.target.value)} error={errors.tahun} />
-                            <Select id="periode_id" label="Periode" required value={data.periode_id} onChange={(e) => form.setData('periode_id', e.target.value)} error={errors.periode_id} options={[{ value: '', label: 'Pilih periode' }, ...periodeOptions.map((o) => ({ value: o.id, label: o.nama }))]} />
+                            <Select id="periode_id" label="Periode" required value={data.periode_id} onChange={(e) => form.setData('periode_id', e.target.value)} error={errors.periode_id} helperText={rentangPeriode} options={[{ value: '', label: 'Pilih periode' }, ...periodeOptions.map((o) => ({ value: o.id, label: o.nama }))]} />
                             <Input label="Tanggal rencana" type="date" value={data.tanggal_rencana} onChange={(e) => form.setData('tanggal_rencana', e.target.value)} error={errors.tanggal_rencana} />
                             <div className="sm:col-span-2"><Input label="Nama kegiatan" required maxLength={500} placeholder="Contoh: Rapat Koordinasi Penyusunan Laporan Kinerja" value={data.nama} onChange={(e) => form.setData('nama', e.target.value)} error={errors.nama} /></div>
                             <div className="sm:col-span-2"><Textarea label="Tujuan" maxLength={10000} placeholder="Jelaskan tujuan pelaksanaan kegiatan secara ringkas..." value={data.tujuan} onChange={(e) => form.setData('tujuan', e.target.value)} error={errors.tujuan} /></div>

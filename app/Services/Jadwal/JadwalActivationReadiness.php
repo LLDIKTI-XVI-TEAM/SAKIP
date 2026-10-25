@@ -170,7 +170,10 @@ class JadwalActivationReadiness
             return false;
         }
         try {
-            $this->rules->validate($data, $jadwal->periode->mapWithKeys(fn (PeriodeJadwal $window): array => [$window->periode_id => ['urutan' => $window->periode->urutan]])->all());
+            // Batas awal memakai tanggal periode saat aktivasi agar draf lama tidak aktif dengan jendela yang melanggarnya.
+            $this->rules->validate($data, $jadwal->periode->mapWithKeys(fn (PeriodeJadwal $window): array => [$window->periode_id => [
+                'urutan' => $window->periode->urutan, 'batas_awal_pengisian' => $window->periode->batasAwalPengisian($jadwal->tahun),
+            ]])->all());
         } catch (ValidationException) {
             return false;
         }

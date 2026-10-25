@@ -78,6 +78,7 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
                 skor: { nilai: '50.00', status_perhitungan: 'terhitung' },
                 peringatan_turun: false,
                 komponen_turun: [],
+                tanggal: null,
                 batas_terkunci_pic: null,
                 boleh_tanpa_target: false,
             },
@@ -94,6 +95,7 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
                 skor: { nilai: '80.00', status_perhitungan: 'terhitung' },
                 peringatan_turun: false,
                 komponen_turun: [],
+                tanggal: null,
                 batas_terkunci_pic: null,
                 boleh_tanpa_target: false,
             },
@@ -127,6 +129,16 @@ afterEach(() => {
 });
 
 describe('Rencana aksi matriks target', () => {
+    it('menampilkan rentang periode pada tahun Rencana Aksi di samping nama periode', () => {
+        const awal = buatPayload();
+        const periode = awal.periode.map((baris, index) => ({
+            ...baris,
+            tanggal: index === 0 ? { bulan_mulai: 1, hari_mulai: 1, bulan_selesai: 3, hari_selesai: 31 } : null,
+        }));
+        render(<RencanaAksiShow rencanaAksi={{ ...awal, periode }} />);
+        expect(screen.getByText('1 Jan–31 Mar 2026')).toBeTruthy();
+    });
+
     it('reaktif dari payload server tanpa hitung ulang di React', async () => {
         const user = userEvent.setup();
         render(<RencanaAksiShow rencanaAksi={buatPayload()} />);
@@ -169,6 +181,7 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: '50.00', status_perhitungan: 'terhitung' },
                     peringatan_turun: false,
                     komponen_turun: [],
+                    tanggal: null,
                     batas_terkunci_pic: null,
                     boleh_tanpa_target: false,
                 },
@@ -185,6 +198,7 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: '30.00', status_perhitungan: 'terhitung' },
                     peringatan_turun: true,
                     komponen_turun: [PEMBILANG],
+                    tanggal: null,
                     batas_terkunci_pic: null,
                     boleh_tanpa_target: false,
                 },
@@ -232,6 +246,7 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: '0.00', status_perhitungan: 'terhitung' },
                     peringatan_turun: false,
                     komponen_turun: [],
+                    tanggal: null,
                     batas_terkunci_pic: null,
                     boleh_tanpa_target: false,
                 },
@@ -245,6 +260,7 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: null, status_perhitungan: 'belum_diisi' },
                     peringatan_turun: false,
                     komponen_turun: [],
+                    tanggal: null,
                     batas_terkunci_pic: null,
                     boleh_tanpa_target: false,
                 },
@@ -258,6 +274,7 @@ describe('Rencana aksi matriks target', () => {
                     skor: { nilai: null, status_perhitungan: 'belum_diisi' },
                     peringatan_turun: false,
                     komponen_turun: [],
+                    tanggal: null,
                     batas_terkunci_pic: null,
                     boleh_tanpa_target: false,
                 },

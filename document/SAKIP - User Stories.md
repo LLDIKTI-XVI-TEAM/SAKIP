@@ -933,16 +933,16 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given Perencanaan menyimpan periode aktif, When tanggal mulai atau selesai kosong, Then ditolak; tanggal tersimpan sebagai hari dan bulan tanpa tahun. *(Q70 §70.1 butir 1–2)*
-- [ ] **AC-2:** Given tanggal mulai setelah tanggal selesai, atau dua periode aktif saling tumpang tindih, When disimpan, Then ditolak. *(Q70 §70.1 butir 2)*
-- [ ] **AC-3:** Given periode bertanggal, Then halaman Master Periode, jadwal, Rencana Aksi, kegiatan, dan pengukuran menampilkan rentangnya pada tahun terkait (mis. "1 Jan–31 Mar 2027"). *(Q70 §70.1 butir 3a)*
-- [ ] **AC-4:** Given form jadwal tahunan atau revisi jendela PIC, Then tidak ada isian reviu, dan `reviu_mulai`/`reviu_selesai` dalam request tidak disimpan. *(Q70 §70.2 butir 1)*
-- [ ] **AC-5:** Given `pengisian_mulai` sebelum tanggal 1 bulan terakhir periode (mis. Triwulan IV sebelum 1 Desember), When jadwal draf atau revisi jendela disimpan, Then ditolak; `pengisian_selesai` pada tahun berikutnya diterima. *(Q70 §70.2 butir 2)*
-- [ ] **AC-6:** Given pengukuran baru diajukan, When Perencanaan memverifikasi, mengembalikan, atau mengesahkannya pada hari yang sama, Then aksi tidak ditolak karena jendela reviu. *(Q70 §70.2 butir 3)*
-- [ ] **AC-7:** Given audit lama memuat penanda reviu terlambat, Then penanda itu tetap tampil; aksi reviu baru tidak membuat penanda. *(Q70 §70.2 butir 4)*
-- [ ] **AC-8:** Given `penutupan` tidak setelah `pengisian_selesai` periode terakhir, When jadwal disimpan, Then ditolak. *(Q70 §70.2 butir 5)*
-- [ ] **AC-9:** Given jadwal aktif yang jendelanya melanggar AC-5 (mis. jadwal 2026), Then jadwal tetap berlaku tanpa perubahan otomatis. *(Q70 §70.2 butir 7)*
-- [ ] **AC-10:** Given tanggal periode diubah, Then jadwal, kegiatan, dan pengukuran yang sudah tersimpan tidak berubah. *(Q70 §70.1 butir 4)*
+- [x] **AC-1:** Given Perencanaan menyimpan periode aktif, When tanggal mulai atau selesai kosong, Then ditolak; tanggal tersimpan sebagai hari dan bulan tanpa tahun. *(Q70 §70.1 butir 1–2)*
+- [x] **AC-2:** Given tanggal mulai setelah tanggal selesai, atau dua periode aktif saling tumpang tindih, When disimpan, Then ditolak. *(Q70 §70.1 butir 2)*
+- [x] **AC-3:** Given periode bertanggal, Then halaman Master Periode, jadwal, Rencana Aksi, kegiatan, dan pengukuran menampilkan rentangnya pada tahun terkait (mis. "1 Jan–31 Mar 2027"). *(Q70 §70.1 butir 3a)*
+- [x] **AC-4:** Given form jadwal tahunan atau revisi jendela PIC, Then tidak ada isian reviu, dan `reviu_mulai`/`reviu_selesai` dalam request tidak disimpan. *(Q70 §70.2 butir 1)*
+- [x] **AC-5:** Given `pengisian_mulai` sebelum tanggal 1 bulan terakhir periode (mis. Triwulan IV sebelum 1 Desember), When jadwal draf atau revisi jendela disimpan, Then ditolak; `pengisian_selesai` pada tahun berikutnya diterima. *(Q70 §70.2 butir 2)*
+- [x] **AC-6:** Given pengukuran baru diajukan, When Perencanaan memverifikasi, mengembalikan, atau mengesahkannya pada hari yang sama, Then aksi tidak ditolak karena jendela reviu. *(Q70 §70.2 butir 3)*
+- [x] **AC-7:** Given audit lama memuat penanda reviu terlambat, Then penanda itu tetap tampil; aksi reviu baru tidak membuat penanda. *(Q70 §70.2 butir 4)*
+- [x] **AC-8:** Given `penutupan` tidak setelah `pengisian_selesai` periode terakhir, When jadwal disimpan, Then ditolak. *(Q70 §70.2 butir 5)*
+- [x] **AC-9:** Given jadwal aktif yang jendelanya melanggar AC-5 (mis. jadwal 2026), Then jadwal tetap berlaku tanpa perubahan otomatis. *(Q70 §70.2 butir 7)*
+- [x] **AC-10:** Given tanggal periode diubah, Then jadwal, kegiatan, dan pengukuran yang sudah tersimpan tidak berubah. *(Q70 §70.1 butir 4)*
 
 **Business Rules / Catatan**
 

@@ -1,9 +1,14 @@
 import type { BadgeVariant } from '@/Components/Badge';
 import type { PaginationLinkItem } from '@/Components/Pagination';
+import type { TanggalPeriode } from '@/types/periode-jadwal';
 
 export interface KegiatanOption {
     id: string;
     nama: string;
+}
+
+export interface PeriodeKegiatanOption extends KegiatanOption {
+    tanggal: TanggalPeriode;
 }
 
 /** Status tujuan form status pelaksanaan (Q69 §69.1); pilihannya dihitung server per kegiatan. */
@@ -38,7 +43,7 @@ export interface KegiatanFormProps {
     /** Panel berkas tahap perencanaan kegiatan (Q42 §42.3). */
     berkasPerencanaan?: BerkasPerencanaanKegiatan | null;
     unitOptions: KegiatanOption[];
-    periodeOptions: KegiatanOption[];
+    periodeOptions: PeriodeKegiatanOption[];
     opsiPeriodeTujuan: KegiatanOption[];
     /** `ubah_rencana` false berarti data rencana baca-saja (Q69 §69.3); `ubah_status` kosong berarti tanpa aksi status. */
     can: { ubah_rencana: boolean; ubah_status: StatusTujuan[] };
@@ -52,7 +57,7 @@ export interface KegiatanIndexItem {
     status: string;
     tanggal_rencana: string | null;
     unit: KegiatanOption;
-    periode: KegiatanOption;
+    periode: PeriodeKegiatanOption;
     can: { update: boolean; ubah_rencana: boolean; ubah_status: StatusTujuan[] };
     opsi_periode_tujuan: KegiatanOption[];
     unit_id?: string;
