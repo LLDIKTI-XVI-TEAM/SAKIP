@@ -1640,7 +1640,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q70 (23 Oktober 2026):** AC-5 digantikan: jendela reviu dihapus, sehingga reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan dan penanda terlambat tidak lagi dibuat; penanda yang sudah tercatat tetap ditampilkan sebagai histori (US-03.07).
 
-> **Status implementasi — issue #184:** AC-1–AC-4 memiliki bukti test pada PR #<n>; rincian test dan batas bukti tercatat pada [ISS-07.04](SAKIP%20-%20User%20Issues.md#iss-0704--feature-pengisian-oleh-perencanaan-di-luar-deadline-pic). Centang bukan persetujuan QA/UAT atau deployment.
+> **Status implementasi — issue #184:** AC-1–AC-4 memiliki bukti test pada PR #192; rincian test dan batas bukti tercatat pada [ISS-07.04](SAKIP%20-%20User%20Issues.md#iss-0704--feature-pengisian-oleh-perencanaan-di-luar-deadline-pic). Centang bukan persetujuan QA/UAT atau deployment.
 
 | Field | Detail |
 |---|---|
