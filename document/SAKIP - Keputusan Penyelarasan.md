@@ -2180,9 +2180,9 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 
 ## 73.1 Baseline terisi otomatis
 
-1. Saat editor target PK tahun T dibuka dan baseline belum pernah disimpan, isian Baseline T−1 terisi otomatis dari realisasi pengukuran periode nilai akhir tahun T−1 yang sudah disahkan. Angka tetap dapat diubah dan baru tersimpan setelah Simpan.
-2. Bila realisasi periode nilai akhir tahun T−1 belum disahkan, tidak dapat diukur, atau belum ada di SAKIP (termasuk PK 2026), isian kosong dengan keterangan. Teksnya "Realisasi akhir {T−1} belum disahkan", "Realisasi akhir {T−1} tidak dapat diukur", atau "Belum ada realisasi {T−1} di SAKIP".
-3. Isian otomatis tidak menimpa baseline yang sudah tersimpan.
+1. Saat editor target PK tahun T dibuka dan baseline kosong, isian Baseline T−1 terisi otomatis dari realisasi pengukuran periode nilai akhir tahun T−1 yang sudah disahkan. Angka tetap dapat diubah dan baru tersimpan setelah Simpan.
+2. Bila realisasi periode nilai akhir tahun T−1 belum disahkan, tidak dapat dihitung, atau belum ada di SAKIP (termasuk PK 2026), isian kosong dengan keterangan. Teksnya "Realisasi akhir {T−1} belum disahkan", "Realisasi akhir {T−1} tidak dapat dihitung", atau "Belum ada realisasi {T−1} di SAKIP".
+3. Isian otomatis tidak menimpa baseline tersimpan tidak kosong (termasuk 0).
 4. Nilai diambil dari versi pengukuran yang disahkan; pengukuran yang sedang dibuka kembali diperlakukan belum disahkan.
 
 ## 73.2 Tabel target PK
@@ -2194,7 +2194,7 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 ## 73.3 Dampak dan traceability
 
 - PRD §14.10; Workflow §3.3; Data Model §2.13 (baseline) dan §2.20 (`pengukuran`, dibaca); US/ISS-02.11 AC-1 dan AC-3 (tampilan tabel), US/ISS-02.15 (baru). Tidak ada migrasi.
-- Status implementasi: belum (ISS-02.15).
+- Status implementasi: sudah (ISS-02.15, PR #176).
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---

@@ -20,7 +20,7 @@ export function TargetPkTable({ pkId, tahun, sasaran, canUpdate, jadwalStatus }:
     return <section aria-labelledby="target-pk-heading" className="space-y-4">
         <div>
             <h2 id="target-pk-heading" className="text-base font-semibold text-ink">Baseline dan target PK {tahun}</h2>
-            <p className="mt-0.5 text-sm text-muted">Baseline adalah data pendukung, bukan isi dokumen PK. Target Renstra tahun yang sama tampil sebagai pembanding.</p>
+            <p className="mt-0.5 text-sm text-muted">Baseline adalah data pendukung, bukan isi dokumen PK. Target Renstra tahun yang sama tampil kecil di bawah Target PK.</p>
             <p className="mt-0.5 text-xs text-muted">{ANJURAN_TARGET_RENSTRA}</p>
         </div>
         {(jadwalStatus === 'aktif' || jadwalStatus === 'ditutup') && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">
@@ -43,7 +43,6 @@ export function TargetPkTable({ pkId, tahun, sasaran, canUpdate, jadwalStatus }:
                             <TableHead>Indikator</TableHead>
                             <TableHead className="text-right">Baseline (data pendukung)</TableHead>
                             <TableHead className="text-right">Target PK {tahun}</TableHead>
-                            <TableHead className="text-right">Target Renstra {tahun}</TableHead>
                             <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -61,13 +60,11 @@ export function TargetPkTable({ pkId, tahun, sasaran, canUpdate, jadwalStatus }:
                             <TableCell className="min-w-0 p-0 tabular-nums md:px-4 md:py-3.5 md:text-right">
                                 <span className="mb-1 block text-xs text-muted md:hidden">Target PK {tahun}</span>
                                 {nilai(indikator.target_tahunan, indikator)}
-                            </TableCell>
-                            <TableCell className="min-w-0 p-0 tabular-nums md:px-4 md:py-3.5 md:text-right">
-                                <span className="mb-1 block text-xs text-muted md:hidden">Target Renstra {tahun}</span>
-                                {indikator.target_renstra === null
-                                    ? <span className="text-xs text-muted">Target Renstra belum ada</span>
-                                    : formatNilai(indikator.target_renstra, indikator.desimal_tampilan)}
-                                {indikator.status_deviasi === 'menyimpang' && <span className="mt-1 block"><Badge variant="warning">{labelDeviasi(indikator.arah)}</Badge></span>}
+                                <span className="mt-1 block text-xs text-muted">
+                                    {indikator.target_renstra === null ? 'Target Renstra belum ada' : `Renstra: ${formatNilai(indikator.target_renstra, indikator.desimal_tampilan)}`}
+                                </span>
+                                {/* Kolom kanan kartu HP sempit; lencana boleh dua baris agar tidak terpotong kartu. */}
+                                {indikator.status_deviasi === 'menyimpang' && <span className="mt-1 block"><Badge variant="warning" className="whitespace-normal leading-tight">{labelDeviasi(indikator.arah)}</Badge></span>}
                             </TableCell>
                             <TableCell className="col-span-2 p-0 md:px-4 md:py-3.5 md:text-right">
                                 {canUpdate && !indikator.read_only_reason

@@ -1664,15 +1664,15 @@ kegiatan:update
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given editor target PK tahun T dibuka, baseline belum tersimpan, dan realisasi periode nilai akhir T−1 sudah disahkan, Then isian Baseline T−1 terisi nilai itu dengan keterangan sumbernya, dapat diubah, dan belum tersimpan sebelum Simpan. *(Q73 §73.1 butir 1)*
-- [ ] **AC-2:** Given realisasi periode nilai akhir T−1 belum disahkan atau sedang dibuka kembali, Then isian kosong dengan keterangan "Realisasi akhir {T−1} belum disahkan". *(Q73 §73.1 butir 2 dan 4)*
-- [ ] **AC-3:** Given realisasi periode nilai akhir T−1 disahkan tetapi tidak dapat diukur, Then isian kosong dengan keterangan "Realisasi akhir {T−1} tidak dapat diukur". *(Q73 §73.1 butir 2)*
-- [ ] **AC-4:** Given tidak ada pengukuran T−1 di SAKIP (mis. PK 2026), Then isian kosong dengan keterangan "Belum ada realisasi {T−1} di SAKIP". *(Q73 §73.1 butir 2)*
-- [ ] **AC-5:** Given baseline sudah tersimpan, Then nilai tersimpan yang tampil dan tidak ditimpa. *(Q73 §73.1 butir 3)*
-- [ ] **AC-6:** Given editor dibuka lalu ditutup tanpa Simpan, Then `target_kinerjas` tidak berubah. *(Q73 §73.1 butir 1)*
-- [ ] **AC-7:** Given tabel "Baseline dan target PK", Then tidak ada kolom Target Renstra; target Renstra tampil kecil di bawah Target PK, termasuk keterangan "target Renstra belum ada", dan lencana deviasi ikut di bawah Target PK. *(Q73 §73.2 butir 1–2)*
-- [ ] **AC-8:** Given layar 375 px, Then tabel memakai pola `block md:table` tanpa scroll horizontal dan teks minimal 12px.
-- [ ] **AC-9:** Given editor target PK, Then target Renstra tetap tampil sebagai pembanding. *(Q73 §73.2 butir 3)*
+- [x] **AC-1:** Given editor target PK tahun T dibuka, baseline kosong, dan realisasi periode nilai akhir T−1 sudah disahkan, Then isian Baseline T−1 terisi nilai itu dengan keterangan sumbernya, dapat diubah, dan belum tersimpan sebelum Simpan. *(Q73 §73.1 butir 1)*
+- [x] **AC-2:** Given realisasi periode nilai akhir T−1 belum disahkan atau sedang dibuka kembali, Then isian kosong dengan keterangan "Realisasi akhir {T−1} belum disahkan". *(Q73 §73.1 butir 2 dan 4)*
+- [x] **AC-3:** Given realisasi periode nilai akhir T−1 disahkan tetapi tidak dapat dihitung, Then isian kosong dengan keterangan "Realisasi akhir {T−1} tidak dapat dihitung". *(Q73 §73.1 butir 2)*
+- [x] **AC-4:** Given indikator tidak memiliki snapshot pada jadwal T−1 berstatus aktif/ditutup (mis. PK 2026, indikator baru), Then isian kosong dengan keterangan "Belum ada realisasi {T−1} di SAKIP". *(Q73 §73.1 butir 2)*
+- [x] **AC-5:** Given baseline tersimpan tidak kosong (termasuk 0), Then nilai tersimpan yang tampil dan tidak ditimpa. *(Q73 §73.1 butir 3)*
+- [x] **AC-6:** Given editor dibuka lalu ditutup tanpa Simpan, Then `target_kinerjas` tidak berubah. *(Q73 §73.1 butir 1)*
+- [x] **AC-7:** Given tabel "Baseline dan target PK", Then tidak ada kolom Target Renstra; target Renstra tampil kecil di bawah Target PK, termasuk keterangan "target Renstra belum ada", dan lencana deviasi ikut di bawah Target PK. *(Q73 §73.2 butir 1–2)*
+- [x] **AC-8:** Given layar 375 px, Then tabel memakai pola `block md:table` tanpa scroll horizontal dan teks minimal 12px.
+- [x] **AC-9:** Given editor target PK, Then target Renstra tetap tampil sebagai pembanding. *(Q73 §73.2 butir 3)*
 
 #### Implementation Tasks
 
@@ -1680,7 +1680,7 @@ kegiatan:update
 - [ ] Tidak ada migrasi.
 
 **B. Backend / Domain**
-- [ ] `ShowTargetTahunan`: bila baseline belum tersimpan, kirim saran baseline dari pengukuran periode `is_nilai_akhir` tahun T−1 berstatus disahkan, memakai nilai versi yang disahkan, beserta keterangan untuk AC-2–AC-4.
+- [ ] `ShowTargetTahunan`: bila baseline kosong, kirim saran baseline dari pengukuran periode `is_nilai_akhir` tahun T−1 berstatus disahkan, memakai nilai versi yang disahkan, beserta keterangan untuk AC-2–AC-4.
 
 **C. Authorization & Audit**
 - [ ] Tidak ada aksi baru; membuka editor tidak menulis audit.
@@ -1691,11 +1691,11 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Pest Feature test membuktikan AC-1 — saran dari realisasi disahkan; kontrol: indikator lain dan tahun lain tidak terbawa.
-- [ ] TEST-2: Pest Feature test membuktikan AC-2, AC-3, dan AC-4 — keterangan per kasus.
-- [ ] TEST-3: Pest Feature test membuktikan AC-5 dan AC-6 — tidak menimpa dan tidak menulis (dibaca dari tabel mentah).
-- [ ] TEST-4: Vitest membuktikan AC-7 dan AC-9 — tabel tanpa kolom Target Renstra; editor tetap menampilkan pembanding.
-- [ ] TEST-5: uji browser desktop 1280×800 dan mobile 375×812 untuk AC-7 dan AC-8.
+- [x] TEST-1: Pest Feature test membuktikan AC-1 — saran dari realisasi disahkan; kontrol: indikator lain dan tahun lain tidak terbawa.
+- [x] TEST-2: Pest Feature test membuktikan AC-2, AC-3, dan AC-4 — keterangan per kasus.
+- [x] TEST-3: Pest Feature test membuktikan AC-5 dan AC-6 — tidak menimpa dan tidak menulis (dibaca dari tabel mentah).
+- [x] TEST-4: Vitest membuktikan AC-7 dan AC-9 — tabel tanpa kolom Target Renstra; editor tetap menampilkan pembanding.
+- [x] TEST-5: uji browser desktop 1280×800 dan mobile 375×812 untuk AC-7 dan AC-8.
 
 #### Definition of Done
 
