@@ -2,7 +2,6 @@
 
 namespace App\Actions\Kegiatan;
 
-use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\Periode;
@@ -151,24 +150,15 @@ class UbahStatusKegiatan
         return $tujuan;
     }
 
-    /**
-     * Periode tujuan yang sudah terkunci bagi PIC pada jadwal RA mana pun yang mengklaim kegiatan asal ditolak;
-     * jalur Perencanaan dikecualikan sampai penutupan, yang sudah dijaga gerbang tahun (Q69 §69.5 butir 2,
-     * Q41 §41.2). Tanpa RA pengklaim tidak ada RA yang menerima klaim lanjutan, sehingga tidak ada kunci periode.
-     */
+    /** Periode tujuan yang terkunci bagi PIC ditolak (`RollOverKegiatan::tujuanTerkunci`); jalur Perencanaan dikecualikan sampai penutupan, yang sudah dijaga gerbang tahun. */
     private function pastikanTujuanTerbuka(Kegiatan $kegiatan, Periode $tujuan, PermissionDecision $decision): void
     {
         if ($this->jendela->jalurPerencanaan($decision)) {
             return;
         }
-        $jadwal = JadwalTahunan::whereIn('id', RencanaAksi::whereIn('id', KlaimKegiatan::where('kegiatan_id', $kegiatan->id)->select('rencana_aksi_id'))
-            ->select('jadwal_tahunan_id'))->orderBy('id')->get();
-        $hariIni = today(config('app.business_timezone'))->toDateString();
-        foreach ($jadwal as $item) {
-            $terkunci = $this->jendela->rincianTerkunci($item, [$tujuan->id], $hariIni);
-            if ($terkunci !== []) {
-                throw ValidationException::withMessages(['periode_tujuan_id' => "Periode tujuan terkunci bagi PIC setelah batas pengisian lewat: {$terkunci[0]['nama']} (batas {$terkunci[0]['batas']})."]);
-            }
+        $terkunci = $this->rollOver->tujuanTerkunci($kegiatan, [(string) $tujuan->id]);
+        if ($terkunci !== []) {
+            throw ValidationException::withMessages(['periode_tujuan_id' => "Periode tujuan terkunci bagi PIC setelah batas pengisian lewat: {$terkunci[0]['nama']} (batas {$terkunci[0]['batas']})."]);
         }
     }
 

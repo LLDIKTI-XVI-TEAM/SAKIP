@@ -117,7 +117,7 @@ class RollOverKegiatanTest extends TestCase
     {
         $tw3 = Periode::create(['nama' => 'Triwulan III', 'urutan' => 3, 'aktif' => true, 'is_nilai_akhir' => false]);
         PeriodeJadwal::create(['jadwal_id' => $this->fixture['jadwal']->id, 'periode_id' => $tw3->id, 'pengisian_mulai' => '2026-03-01',
-            'pengisian_selesai' => '2026-09-30', 'reviu_mulai' => '2026-10-01', 'reviu_selesai' => '2026-10-15']);
+            'pengisian_selesai' => '2026-09-30']);
         $this->pengukuran($this->fixture['periode2']);
         $tw3Pengukuran = $this->pengukuran($tw3);
         $this->tunda()->assertRedirect();
@@ -136,6 +136,10 @@ class RollOverKegiatanTest extends TestCase
         // Lewat pengisian_selesai Triwulan II (31 Maret) pada jadwal RA pengklaim (Q69 §69.5 butir 2).
         $this->travelTo(now()->setDate(2026, 4, 15)->setTime(9, 0));
         $jumlah = Kegiatan::count();
+        // Daftar dan form tidak menawarkan Tunda bila satu-satunya periode tujuan terkunci bagi PIC; Perencanaan tetap ditawari.
+        $this->assertSame([false, [], false, []], $this->pilihanTunda('pic', $this->asal));
+        $tujuan = [['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II']];
+        $this->assertSame([true, $tujuan, true, $tujuan], $this->pilihanTunda('perencanaan', $this->asal));
 
         $this->tunda(json: true)->assertUnprocessable()->assertJsonValidationErrors('periode_tujuan_id');
 
@@ -146,6 +150,7 @@ class RollOverKegiatanTest extends TestCase
         // Kontrol: kegiatan tanpa RA pengklaim tidak memiliki kunci periode Rencana Aksi.
         $bebas = Kegiatan::create(['unit_id' => $this->fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $this->fixture['periode1']->id,
             'nama' => 'Kegiatan tanpa klaim', 'anggaran' => 0, 'created_by' => $this->fixture['pic']->id]);
+        $this->assertSame([true, $tujuan, true, $tujuan], $this->pilihanTunda('pic', $bebas));
         $this->tunda(kegiatan: $bebas)->assertRedirect();
 
         // Perencanaan dikecualikan dari kunci periode sampai penutupan (Q41 §41.2).
@@ -204,6 +209,17 @@ class RollOverKegiatanTest extends TestCase
     {
         return JenisBerkas::create(['nama' => 'RAB', 'tahap' => 'kegiatan_perencanaan', 'mode' => 'file', 'wajib' => true,
             'format_diizinkan' => 'xlsx,pdf', 'ukuran_maks_kb' => 10240, 'aktif' => true, 'created_by' => $this->fixture['perencanaan']->id]);
+    }
+
+    /** @return array{bool, list<array{id: string, nama: string}>, bool, list<array{id: string, nama: string}>} Tunda dan periode tujuan di daftar lalu form. */
+    private function pilihanTunda(string $aktor, Kegiatan $kegiatan): array
+    {
+        $this->actingAs($this->fixture[$aktor]);
+        $baris = collect($this->get('/kegiatan?tahun=2026')->assertOk()->viewData('page')['props']['kegiatan']['data'])->firstWhere('id', $kegiatan->id);
+        $form = $this->get("/kegiatan/{$kegiatan->id}/edit")->assertOk()->viewData('page')['props'];
+
+        return [in_array('ditunda', $baris['can']['ubah_status'], true), $baris['opsi_periode_tujuan'],
+            in_array('ditunda', $form['can']['ubah_status'], true), $form['opsiPeriodeTujuan']];
     }
 
     /** @param array<string, mixed> $data */

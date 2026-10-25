@@ -3,11 +3,14 @@
 namespace App\Services\Kegiatan;
 
 use App\Actions\Kegiatan\TambahKegiatanRencanaAksi;
+use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\PengukuranKinerja;
 use App\Models\Periode;
+use App\Models\RencanaAksi;
 use App\Models\User;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
@@ -16,8 +19,10 @@ use Illuminate\Support\Facades\DB;
  * (Q41 §41.4 butir 2, Q69 §69.5). Caller: `UbahStatusKegiatan` (pembentukan dan klaim jalur pertama)
  * dan `EnsureDraftPengukuran` (klaim jalur kedua saat baris pengukuran periode tujuan terbentuk).
  *
- * Dipanggil di dalam transaksi Action yang sudah mengunci kegiatan asal dan memvalidasi periode tujuan;
+ * Mutasi dipanggil di dalam transaksi Action yang sudah mengunci kegiatan asal dan memvalidasi periode tujuan;
  * Service ini tidak membuka transaksi, tidak memeriksa izin, dan tidak menulis audit (audit milik Action).
+ * Kunci periode tujuan bagi PIC (`tujuanTerkunci`, `saringTujuan`) dipakai bersama oleh Action dan tampilan
+ * (`DaftarKegiatan`, `FormKegiatan`) agar periode yang pasti ditolak tidak ditawarkan.
  * Isi lanjutan memakai `TambahKegiatanRencanaAksi::FIELD_SALIN` ditambah unit dan tahun; tanggal rencana,
  * justifikasi, data pelaksanaan, klaim, dan berkas tidak disalin.
  *
@@ -27,6 +32,8 @@ use Illuminate\Support\Facades\DB;
  */
 class RollOverKegiatan
 {
+    public function __construct(private readonly JendelaTulisRencanaAksi $jendela) {}
+
     /**
      * Menyerialkan pembentukan lanjutan dengan pembentukan baris pengukuran pada tahun × periode yang sama,
      * sehingga salah satu jalur selalu melihat hasil jalur lain dan tidak ada lanjutan yang tertinggal tanpa klaim.
@@ -35,6 +42,44 @@ class RollOverKegiatan
     public static function kunciPeriode(int $tahun, string $periodeId): void
     {
         DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['sakip:kegiatan-lanjutan:'.$tahun.':'.strtolower($periodeId)]);
+    }
+
+    /**
+     * Periode tujuan yang terkunci bagi PIC pada jadwal RA mana pun yang mengklaim kegiatan asal (Q69 §69.5 butir 2,
+     * Q41 §41.2), terurut per jadwal lalu urutan periode. Jalur Perencanaan dikecualikan oleh pemanggil; tanpa RA
+     * pengklaim tidak ada RA yang menerima klaim lanjutan, sehingga tidak ada kunci periode.
+     *
+     * @param  list<string>  $periodeIds
+     * @return list<array{id: string, nama: string, batas: string, urutan: int}>
+     */
+    public function tujuanTerkunci(Kegiatan $asal, array $periodeIds): array
+    {
+        $hariIni = today(config('app.business_timezone'))->toDateString();
+
+        return JadwalTahunan::whereIn('id', RencanaAksi::whereIn('id', KlaimKegiatan::where('kegiatan_id', $asal->id)->select('rencana_aksi_id'))
+            ->select('jadwal_tahunan_id'))->orderBy('id')->get()
+            ->flatMap(fn (JadwalTahunan $jadwal): array => $this->jendela->rincianTerkunci($jadwal, $periodeIds, $hariIni))->values()->all();
+    }
+
+    /**
+     * Pilihan status tampilan tanpa periode tujuan yang terkunci bagi PIC; Tunda tidak ditawarkan bila tidak ada
+     * periode tujuan tersisa. Action tetap memeriksa ulang di bawah lock.
+     *
+     * @param  array{status: list<string>, periode_tujuan: list<array{id: string, nama: string}>}  $pilihan  Hasil `Kegiatan::pilihanStatus`.
+     * @return array{status: list<string>, periode_tujuan: list<array{id: string, nama: string}>}
+     */
+    public function saringTujuan(Kegiatan $asal, array $pilihan, bool $jalurPerencanaan): array
+    {
+        if ($jalurPerencanaan || ! in_array('ditunda', $pilihan['status'], true)) {
+            return $pilihan;
+        }
+        $terkunci = array_column($this->tujuanTerkunci($asal, array_column($pilihan['periode_tujuan'], 'id')), 'id');
+        $tujuan = array_values(array_filter($pilihan['periode_tujuan'], fn (array $periode): bool => ! in_array($periode['id'], $terkunci, true)));
+
+        return [
+            'status' => $tujuan === [] ? array_values(array_diff($pilihan['status'], ['ditunda'])) : $pilihan['status'],
+            'periode_tujuan' => $tujuan,
+        ];
     }
 
     public function buat(Kegiatan $asal, Periode $tujuan, User $aktor): Kegiatan
