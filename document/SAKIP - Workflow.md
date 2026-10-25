@@ -523,7 +523,7 @@ flowchart TD
 
 > **Q41 (13 Oktober 2026):** Rencana Aksi tidak lagi terikat jendela penyusunan. `rencana_aksi_mulai`/`rencana_aksi_selesai` tidak lagi menjadi batas PIC dan dihapus dari form jadwal; PIC efektif dengan grant yang sah dapat menyusun, mengubah, dan mengajukan RA sejak jadwal aktif sampai `penutupan`, dengan kunci per triwulan (lihat aturan di bawah dan §7). Jadwal hanya mengikat pelaporan realisasi melalui jendela pengisian per periode. Q18 tetap berlaku untuk jendela pengisian pengukuran.
 
-> **Q70 (23 Oktober 2026):** jendela reviu (`reviu_mulai`, `reviu_selesai`) dihapus dari `jadwal_periode` dan dari revisi jendela PIC. Verifikasi, pengembalian, dan pengesahan pengukuran dapat dilakukan sejak pengukuran diajukan sampai `penutupan`; penanda reviu terlambat tidak lagi dibuat, sedangkan penanda yang sudah tercatat di audit tetap ditampilkan sebagai histori. `penutupan` wajib setelah `pengisian_selesai` periode terakhir (Q70 §70.2; ISS-03.07).
+> **Q70 (23 Oktober 2026):** jendela reviu (`reviu_mulai`, `reviu_selesai`) dihapus dari `jadwal_periode` dan dari revisi jendela PIC. Verifikasi, pengembalian, dan pengesahan pengukuran dapat dilakukan sejak pengukuran diajukan sampai `penutupan`; penanda reviu terlambat tidak lagi dibuat, sedangkan penanda yang sudah tercatat di audit tetap ditampilkan sebagai histori. `penutupan` wajib setelah `pengisian_selesai` periode terakhir (Q70 §70.2; ISS-03.07). Tanggal mulai dan selesai periode disimpan tanpa tahun di Master Periode, dan `pengisian_mulai` paling cepat tanggal 1 bulan terakhir periode pada tahun jadwal (Q70 §70.1, §70.2 butir 2).
 
 Jendela waktu pengisian tidak lagi melekat pada `jadwal_tahunan` secara langsung, melainkan pada tabel pivot `jadwal_periode` yang menghubungkan satu Jadwal Tahunan dengan tiap Periode yang diharapkan pada tahun itu. Susunan ini memungkinkan setiap periode (mis. Triwulan I, II, III, IV) memiliki jendela pengisian masing-masing, alih-alih satu jendela tunggal untuk seluruh tahun. `jadwal_tahunan` sendiri sempat juga membawa jendela tingkat tahun untuk penyusunan rencana aksi — digantikan Q41.
 
@@ -533,6 +533,8 @@ periode (master global)          jadwal_tahunan (payung tahun)
   - urutan                          - penutupan (pembekuan akhir tahun)
   - aktif                           - status: draft / aktif / ditutup
   - is_nilai_akhir                  - renstra_pk_id, activated_at, closed_at
+  - tanggal mulai/selesai
+    (hari dan bulan, tanpa tahun)
 
               \                          /
                \                        /
@@ -549,8 +551,11 @@ periode (master global)          jadwal_tahunan (payung tahun)
      master periode aktif) dan mengisi jendela pengisian_mulai/selesai untuk masing-masing
      periode → tersimpan sebagai baris jadwal_periode
   3. Sistem memvalidasi urutan tanggal logis: pengisian_mulai ≤ pengisian_selesai per baris,
-     jendela pengisian antarperiode tidak tumpang tindih, dan penutupan setelah
-     pengisian_selesai periode terakhir (Q70 §70.2 butir 5)
+     jendela pengisian antarperiode tidak tumpang tindih, penutupan setelah
+     pengisian_selesai periode terakhir (Q70 §70.2 butir 5), dan pengisian_mulai tidak
+     sebelum tanggal 1 bulan terakhir periode pada tahun jadwal, mis. Triwulan IV 1 Desember
+     (Q70 §70.2 butir 2) → periode yang belum bertanggal ditolak dengan arahan melengkapinya
+     di Master Periode
   4. [Digantikan Q41] Jendela rencana_aksi_mulai / rencana_aksi_selesai tidak lagi diisi pada
      form jadwal — semula jendela tingkat tahun karena rencana aksi disusun sekali per
      indikator × tahun (§7); kini RA disusun sejak jadwal aktif sampai penutupan dengan kunci
@@ -564,6 +569,8 @@ periode (master global)          jadwal_tahunan (payung tahun)
 - `jadwal_tahunan.penutupan` **tetap ada** dan berlaku sebagai pembekuan akhir di tingkat tahun, terpisah dari jendela per periode — sekaligus batas akhir penyusunan, perubahan, dan pengajuan Rencana Aksi (Q41); lihat §11 dan §13 untuk perannya dalam batas akses Perencanaan. Penutupan jadwal hanya menghentikan mutasi data kinerja; unggahan arsip PDF dokumen resmi tetap dapat dilakukan setelah jadwal ditutup karena tidak mengubah data (Q48 §48.2 butir 5, §25).
 - **Kunci per triwulan pada Rencana Aksi (Q41)** menggantikan deadline mutlak jendela rencana aksi: periode P terkunci bagi PIC setelah `jadwal_periode.pengisian_selesai` periode P terlewati (tanggal bisnis Asia/Makassar). Setiap perubahan RA oleh PIC — simpan draf, pengajuan, dan versi setelah dikembalikan atau dibuka kembali — tidak boleh mengubah target maupun daftar kegiatan periode yang terkunci; pelanggaran ditolak sebagai validasi bisnis (422) dan diaudit. **Perencanaan dikecualikan** sampai `jadwal_tahunan.penutupan` (permission `rencana_aksi:create`/`update`/`ajukan` bersifat global tanpa scope unit). Periode lampau 2026 pada saat aktivasi jadwal sudah terkunci bagi PIC sejak aktivasi (§15). Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC (Q41 §41.2 butir 5). Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan (Q41 §41.2 butir 6).
 - Nilai periode dengan `is_nilai_akhir = true` (mis. Tahunan) diisi manual oleh yang berwenang — tidak ada perhitungan agregasi otomatis dari periode-periode di bawahnya.
+- **Tanggal periode (Q70 §70.1):** Perencanaan mengisi tanggal mulai dan selesai setiap periode sekali di Master Periode; tanggal berlaku setiap tahun. Periode aktif wajib bertanggal dan rentangnya tidak boleh tumpang tindih dengan periode aktif lain. Halaman jadwal, Rencana Aksi, kegiatan, dan pengukuran menampilkan rentang periode pada tahun terkait, dihitung dari tanggal master yang berlaku saat ditampilkan. Perubahan tanggal periode tidak mengubah jadwal, kegiatan, maupun pengukuran yang sudah tersimpan (Q70 §70.1 butir 4).
+- **Batas awal jendela pengisian (Q70 §70.2 butir 2 dan 7, §70.4 butir 1–2):** diperiksa saat draf disimpan, saat revisi jendela PIC hanya untuk jendela yang tanggalnya diubah, dan saat aktivasi memakai tanggal periode yang berlaku; draf yang melanggarnya tidak dapat diaktifkan karena kalender tidak valid. Jadwal yang sudah aktif, mis. jadwal 2026, tidak diubah otomatis.
 
 ---
 
