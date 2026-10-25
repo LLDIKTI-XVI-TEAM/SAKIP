@@ -113,12 +113,12 @@ class JadwalRevisiJendelaTest extends TestCase
         $this->assertCount(2, $audit->nilai_baru['periode']);
     }
 
-    public function test_revisi_menerima_pengisian_pertama_awal_tahun(): void
+    public function test_revisi_menerima_pengisian_pertama_sejak_batas_awal_periode(): void
     {
-        // Jadwal tidak lagi memuat jendela Rencana Aksi, jadi pengisian pertama boleh dimulai di awal tahun.
-        $this->revisi($this->activator(['jadwal:update']), ['periode' => $this->jendela(['0.pengisian_mulai' => '2026-01-10'])])->assertSessionHasNoErrors();
+        // Jadwal tidak memuat jendela Rencana Aksi; pengisian pertama dibatasi hanya oleh tanggal 1 bulan terakhir periode (Q70).
+        $this->revisi($this->activator(['jadwal:update']), ['periode' => $this->jendela(['0.pengisian_mulai' => '2026-03-01'])])->assertSessionHasNoErrors();
 
-        $this->assertSame('2026-01-10', $this->jendelaTersimpan()[$this->tw1->id]['pengisian_mulai']);
+        $this->assertSame('2026-03-01', $this->jendelaTersimpan()[$this->tw1->id]['pengisian_mulai']);
     }
 
     public function test_pelanggaran_kalender_ditolak_per_kolom_tanpa_perubahan_parsial(): void

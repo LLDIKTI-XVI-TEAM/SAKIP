@@ -95,7 +95,9 @@ class SaveJadwalDraft
                         throw ValidationException::withMessages(["periode.$index.periode_revisi" => 'Periode sudah berubah. Periksa data terbaru sebelum menyimpan kembali.']);
                     }
                 }
-                $this->rules->validate($data, $selected->map(fn (Periode $master): array => ['urutan' => $master->urutan])->all());
+                $this->rules->validate($data, $selected->map(fn (Periode $master): array => [
+                    'urutan' => $master->urutan, 'batas_awal_pengisian' => $master->batasAwalPengisian((int) $data['tahun']),
+                ])->all());
                 $current->fill(array_intersect_key($data, array_flip(['renstra_id', 'tahun', 'penutupan'])));
                 $nextWindows = collect($data['periode'])->map(fn (array $window): array => [
                     'periode_id' => $window['periode_id'],

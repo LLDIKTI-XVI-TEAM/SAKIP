@@ -58,7 +58,9 @@ class RencanaAksiMatrixLimitTest extends TestCase
         $renstra = $this->calendarRenstra($actor);
         $masters = [];
         for ($i = 1; $i <= 12; $i++) {
-            $masters[] = Periode::create(['nama' => 'Bulan '.$i, 'urutan' => $i, 'aktif' => true, 'is_nilai_akhir' => $i === 12])->refresh();
+            // Satu bulan penuh per periode; tanggal 28 sah untuk setiap bulan.
+            $masters[] = Periode::create(['nama' => 'Bulan '.$i, 'urutan' => $i, 'aktif' => true, 'is_nilai_akhir' => $i === 12,
+                'bulan_mulai' => $i, 'hari_mulai' => 1, 'bulan_selesai' => $i, 'hari_selesai' => 28])->refresh();
         }
         $data = $this->payloadBanyakPeriode($renstra, $masters, 2026);
 
