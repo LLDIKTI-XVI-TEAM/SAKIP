@@ -29,7 +29,7 @@ class PengukuranPeriodeLampauTest extends TestCase
         RenstraPk::whereKey($this->jadwal->renstra_pk_id)->update(['tahun' => $tahun, 'tanggal_pk' => "$tahun-01-01"]);
         $this->jadwal->update(['tahun' => $tahun, 'penutupan' => "$tahun-12-31", 'activated_at' => $lampau ? "$tahun-03-16 00:00:00" : "$tahun-03-15 01:00:00"]);
         foreach ($this->jadwal->periode as $window) {
-            $window->update(collect($window->only(['pengisian_mulai', 'pengisian_selesai', 'reviu_mulai', 'reviu_selesai']))
+            $window->update(collect($window->only(['pengisian_mulai', 'pengisian_selesai']))
                 ->map(fn ($tanggal) => $tanggal->setYear($tahun)->toDateString())->all());
         }
         $this->plan->update(['tahun' => $tahun, 'snapshot_draf_id' => $this->context->id]);

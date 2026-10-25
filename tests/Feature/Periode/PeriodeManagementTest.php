@@ -63,7 +63,7 @@ class PeriodeManagementTest extends TestCase
         $payload = $this->calendarPayload($renstra, $final);
         $jadwal = JadwalTahunan::create(array_diff_key($payload, ['periode' => true]));
         PeriodeJadwal::create(['jadwal_id' => $jadwal->id, ...$payload['periode'][0]]);
-        PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $early->id, 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07', 'reviu_mulai' => '2026-04-08', 'reviu_selesai' => '2026-04-15']);
+        PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $early->id, 'pengisian_mulai' => '2026-04-01', 'pengisian_selesai' => '2026-04-07']);
         foreach ([1, 0] as $order) {
             $this->actingAs($actor)->put('/periode/'.$final->id, ['nama' => $final->nama, 'urutan' => $order, 'aktif' => true, 'is_nilai_akhir' => true, 'revisi' => 1])->assertSessionHasErrors('urutan');
         }

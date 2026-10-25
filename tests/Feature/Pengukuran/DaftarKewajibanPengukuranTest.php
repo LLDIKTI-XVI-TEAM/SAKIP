@@ -28,7 +28,7 @@ class DaftarKewajibanPengukuranTest extends TestCase
         $this->tw1 = PeriodeJadwal::where('jadwal_id', $this->jadwal->id)->firstOrFail();
         $periode = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false]);
         $this->tw2 = PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $periode->id,
-            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15', 'reviu_mulai' => '2026-06-15', 'reviu_selesai' => '2026-07-15']);
+            'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
     }
 
     /** Baris satu indikator, dikunci per periode. */

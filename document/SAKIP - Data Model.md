@@ -331,8 +331,6 @@ erDiagram
         uuid periode_id FK
         date pengisian_mulai
         date pengisian_selesai
-        date reviu_mulai
-        date reviu_selesai
     }
 
     JADWAL_SNAPSHOT {
@@ -932,13 +930,13 @@ Master satuan waktu pelaporan (global, tidak terikat Renstra/tahun tertentu).
 | `aktif` | boolean | not null, default `true` | |
 | `is_nilai_akhir` | boolean | not null, default `false` | **Tepat satu** baris bernilai `true` di seluruh konfigurasi aktif — ditegakkan di level aplikasi (validasi sebelum simpan). Nilai periode ini **diisi manual**; tidak ada perhitungan agregasi otomatis dari periode-periode lain |
 
-**Catatan relasi:** baris pada tabel ini bersifat global lintas tahun/Renstra. Daftar periode yang *diharapkan* pada satu jadwal tahun tertentu — beserta jendela pengisian dan reviunya — ditentukan oleh baris `jadwal_periode` (lihat §2.16), bukan langsung oleh tabel ini. Periode yang sama juga menjadi satuan waktu bagi `rencana_aksi_target` (§2.24) dan `kegiatan` (§2.25).
+**Catatan relasi:** baris pada tabel ini bersifat global lintas tahun/Renstra. Daftar periode yang *diharapkan* pada satu jadwal tahun tertentu — beserta jendela pengisiannya — ditentukan oleh baris `jadwal_periode` (lihat §2.16), bukan langsung oleh tabel ini. Periode yang sama juga menjadi satuan waktu bagi `rencana_aksi_target` (§2.24) dan `kegiatan` (§2.25).
 
 ---
 
 ### 2.15 `jadwal_tahunan`
 
-Jendela penutupan tingkat tahun dan (opsional) persetujuan pimpinan, per Renstra per tahun; jendela penyusunan rencana aksi digantikan Q41 (lihat kolom `rencana_aksi_mulai`/`rencana_aksi_selesai`). Daftar periode yang diharapkan pada tahun tersebut beserta jendela pengisian/reviu masing-masing periode disimpan terpisah pada `jadwal_periode` (§2.16) — pemisahan ini memungkinkan satu jadwal tahunan memiliki susunan periode yang berbeda dari tahun lain (mis. Triwulan I–IV pada satu tahun, kombinasi lain pada tahun berikutnya) tanpa mengubah struktur tabel ini.
+Jendela penutupan tingkat tahun dan (opsional) persetujuan pimpinan, per Renstra per tahun; jendela penyusunan rencana aksi digantikan Q41 (lihat kolom `rencana_aksi_mulai`/`rencana_aksi_selesai`). Daftar periode yang diharapkan pada tahun tersebut beserta jendela pengisian masing-masing periode disimpan terpisah pada `jadwal_periode` (§2.16) — pemisahan ini memungkinkan satu jadwal tahunan memiliki susunan periode yang berbeda dari tahun lain (mis. Triwulan I–IV pada satu tahun, kombinasi lain pada tahun berikutnya) tanpa mengubah struktur tabel ini.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
@@ -950,7 +948,7 @@ Jendela penutupan tingkat tahun dan (opsional) persetujuan pimpinan, per Renstra
 | `persetujuan_selesai` | date | nullable | **-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)** |
 | `rencana_aksi_mulai` | — | — | **Dihapus oleh migrasi #159:** tidak dipakai sejak Q41 dan dihapus dari form jadwal, lalu dari skema beserta CHECK `jadwal_tahunan_urutan_ra` (§6). Semula: awal jendela penyusunan `rencana_aksi` tingkat tahun, disusun setelah `jadwal_periode` tersusun dan sebelum jendela pengisian periode pertama dibuka (digantikan Q41) |
 | `rencana_aksi_selesai` | — | — | **Dihapus oleh migrasi #159:** sejak Q41 tidak lagi menjadi batas PIC; PIC menulis rencana aksi sejak jadwal `aktif` sampai `penutupan` dengan kunci per periode (§2.16, §2.23). Kolom kemudian dihapus dari skema beserta CHECK `jadwal_tahunan_urutan_ra` (§6). Semula: batas mutlak bagi PIC (izin ber-scope unit lewat grant, §2.7) untuk menyusun/mengubah/mengajukan `rencana_aksi`, dengan Perencanaan dikecualikan (digantikan Q41) |
-| `penutupan` | date | not null | Tanggal batas akhir seluruh aktivitas jadwal tahun ini — termasuk batas akhir bagi Perencanaan mengisi/mengubah pengukuran maupun rencana aksi, dan batas akhir bagi PIC menulis rencana aksi (Q41) (lihat §2.16, §2.23) |
+| `penutupan` | date | not null | Tanggal batas akhir seluruh aktivitas jadwal tahun ini — termasuk batas akhir bagi Perencanaan mengisi/mengubah pengukuran maupun rencana aksi, batas akhir verifikasi/pengembalian/pengesahan pengukuran (Q17, Q70 §70.2 butir 3), dan batas akhir bagi PIC menulis rencana aksi (Q41) (lihat §2.16, §2.23). Wajib **setelah** `pengisian_selesai` terakhir pada `jadwal_periode` jadwal ini (Q70 §70.2 butir 5; ditegakkan di level aplikasi saat draf dan revisi jendela disimpan) |
 | `status` | enum(`draft`,`aktif`,`ditutup`) | not null, default `draft` | |
 | `renstra_pk_id` | uuid | FK → renstra_pk.id | **Wajib diisi saat aktivasi** |
 | `activated_at` | timestamp | nullable | Diisi otomatis saat transisi ke `aktif`. Pada aktivasi Jadwal 2026, kolom ini mencatat **waktu aktivasi sebenarnya**. Periode yang jendelanya telah berakhir dihitung sebagai periode lampau; sistem tidak memalsukan tanggal aktivasi dan tidak memakai flag backfill. |
@@ -981,7 +979,7 @@ Keunikan berlaku per pasangan Renstra–tahun; aturan rentang/status Renstra pad
 
 ### 2.16 `jadwal_periode`
 
-Daftar periode yang diharapkan pada suatu `jadwal_tahunan`, beserta jendela waktu pengisian dan reviu masing-masing periode. Tabel ini adalah **sumber kebenaran tunggal** untuk menentukan periode apa saja yang wajib diisi pada tahun tersebut (mis. Triwulan I–IV, atau Semester I–II) — status tampilan "Belum mengisi"/"Tidak mengisi" pada dashboard dihitung dari kombinasi indikator × periode yang diharapkan menurut tabel ini, bukan dari seluruh baris `periode` global yang ada.
+Daftar periode yang diharapkan pada suatu `jadwal_tahunan`, beserta jendela waktu pengisian masing-masing periode (jendela reviu dihapus Q70 §70.2). Tabel ini adalah **sumber kebenaran tunggal** untuk menentukan periode apa saja yang wajib diisi pada tahun tersebut (mis. Triwulan I–IV, atau Semester I–II) — status tampilan "Belum mengisi"/"Tidak mengisi" pada dashboard dihitung dari kombinasi indikator × periode yang diharapkan menurut tabel ini, bukan dari seluruh baris `periode` global yang ada.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
@@ -990,13 +988,14 @@ Daftar periode yang diharapkan pada suatu `jadwal_tahunan`, beserta jendela wakt
 | `periode_id` | uuid | FK → periode.id | |
 | `pengisian_mulai` | date | not null | |
 | `pengisian_selesai` | date | not null | Batas mutlak bagi PIC (izin `pengukuran:create`/`update` yang di-scope per unit lewat grant, lihat §2.7) untuk membuat/mengubah/mengajukan pengukuran pada periode ini. Setelah tanggal ini terlampaui, PIC tidak dapat lagi membuat/mengubah/mengajukan pengukuran periode berjalan. Sejak Q41 tanggal ini juga mengunci periode tersebut pada rencana aksi bagi PIC (lihat aturan integritas di bawah dan §2.23) |
-| `reviu_mulai` | date | not null | |
-| `reviu_selesai` | date | not null | |
+| `reviu_mulai` | — | — | **Dihapus oleh migrasi #165 (Q70 §70.2 butir 6):** jendela reviu dihapus dari jadwal dan dari revisi jendela PIC; nilai lama tetap tercatat di payload audit. Semula: awal jendela verifikasi/pengesahan oleh Perencanaan, yang menggerbangi verifikasi sebelum tanggal ini |
+| `reviu_selesai` | — | — | **Dihapus oleh migrasi #165 (Q70 §70.2 butir 6):** penanda reviu terlambat tidak lagi dibuat (Q70 §70.2 butir 4). Semula: target akhir reviu; aksi reviu setelah tanggal ini diberi penanda terlambat, dan `penutupan` wajib setelah tanggal ini |
 
-**Constraint:** `unique(jadwal_id, periode_id)` — satu periode hanya boleh muncul sekali per jadwal tahunan.
+**Constraint:** `unique(jadwal_id, periode_id)` — satu periode hanya boleh muncul sekali per jadwal tahunan. CHECK `jadwal_periode_urutan_tanggal`: `pengisian_mulai <= pengisian_selesai` (semula juga mengurutkan kolom reviu; dipersempit oleh migrasi #165).
 
 **Aturan integritas:**
 - Batas `pengisian_selesai` bersifat mutlak hanya bagi PIC dengan izin ber-scope unit (grant, §2.7). Peran **Perencanaan** (izin global lewat `role_permissions`, §2.5) dikecualikan dari batas ini dan tetap dapat mengisi/mengubah pengukuran sampai `jadwal_tahunan.penutupan` tercapai.
+- **Tanpa jendela reviu (Q70 §70.2):** verifikasi, pengembalian, dan pengesahan pengukuran dapat dilakukan sejak pengukuran diajukan sampai `jadwal_tahunan.penutupan`. Penanda reviu terlambat tidak lagi dibuat; penanda yang sudah tercatat di `audit_log` tetap ditampilkan sebagai histori.
 - Indikator berstatus `arsip` **tidak dihitung** sebagai kewajiban pengisian pada kombinasi indikator × periode manapun di tabel ini.
 - Periode dengan `periode.is_nilai_akhir = true` (mis. "Tahunan") tetap dapat memiliki baris di tabel ini seperti periode lain; nilainya diisi manual, tidak dihitung otomatis dari agregasi periode-periode lain (lihat §2.14).
 - Rencana aksi disusun **setelah** daftar periode pada jadwal tahunan tersusun (target periode pada rencana aksi butuh daftar periode ini) — lihat §2.23.
@@ -1893,7 +1892,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `penanggung_jawab` | index non-unique (`indikator_id`, `tanggal_mulai_berlaku`); unique per tanggal dilepas oleh Q34 butir 1 ([#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70)), penugasan pada tanggal sama diurutkan dengan `urutan`, lihat §2.19 |
 | `jadwal_tahunan` | unique (`renstra_id`, `tahun`) lintas status `draft`, `aktif`, dan `ditutup` (addendum ISS-03.01) |
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat; penanda `tidak_dapat_dipenuhi` saat unggahan file dimatikan tidak lagi terjadi sejak Q44, histori) |
-| `jadwal_periode` | unique(`jadwal_id`, `periode_id`) |
+| `jadwal_periode` | unique(`jadwal_id`, `periode_id`); CHECK `jadwal_periode_urutan_tanggal` (`pengisian_mulai <= pengisian_selesai`, Q70; §2.16) |
 | `jadwal_snapshot` | unique(`jadwal_id`, `indikator_id`, `nomor_versi`) — versi 1 tetap dibuat idempoten per (`jadwal_id`, `indikator_id`); koreksi (Q35) dan revisi PK berversi (rancangan Q40) menambah versi baru (§2.17) |
 | `pengukuran` | unique(`indikator_id`, `tahun`, `periode_id`); CHECK `nilai_status_cocok` antara `status_perhitungan` dan `nilai`, diperluas untuk `belum_dapat_diukur` (rancangan Q47, §2.20) |
 | `pengaturan` | unique(`kunci`) |

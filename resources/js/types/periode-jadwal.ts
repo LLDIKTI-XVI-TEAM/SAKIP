@@ -58,8 +58,6 @@ export interface JadwalPeriodeInput {
     periode_revisi: number;
     pengisian_mulai: string;
     pengisian_selesai: string;
-    reviu_mulai: string;
-    reviu_selesai: string;
 }
 
 export interface JadwalPeriode extends JadwalPeriodeInput {

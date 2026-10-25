@@ -17,7 +17,7 @@ class ApprovePengukuran
         $decision = null;
         try {
             return DB::transaction(function () use ($actor, $id, $data, &$decision) {
-                [$actor, $p, , $period, $before] = $this->steps->lock($actor, $id, 'pengukuran:sahkan', 'sahkan', (int) $data['versi'], $decision);
+                [$actor, $p, , , $before] = $this->steps->lock($actor, $id, 'pengukuran:sahkan', 'sahkan', (int) $data['versi'], $decision);
                 // F2: pengaju jalur Perencanaan boleh mengesahkan pengajuannya sendiri, tetapi jejaknya wajib tercatat.
                 $version = $p->latestVersion;
                 $selfApproval = $version->diajukan_by === $actor->id && $version->jalur_pengajuan === 'perencanaan';
@@ -25,7 +25,7 @@ class ApprovePengukuran
                 $p->status_alur = 'disahkan';
 
                 return $this->steps->finish($actor, $p, 'pengukuran.sahkan', 'Mengesahkan pengukuran.', $decision, $before,
-                    ['self_approval' => $selfApproval, ...$this->steps->reviewTrail($period)]);
+                    ['self_approval' => $selfApproval]);
             });
         } catch (Throwable $exception) {
             $this->steps->compensate($actor, $id, 'sahkan', null, $decision, $exception);

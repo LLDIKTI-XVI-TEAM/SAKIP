@@ -128,18 +128,9 @@ class PengukuranMutationSteps
         $this->appendEvidence($actor, $p, $data['bukti'] ?? null, $path, $decision);
     }
 
-    /** Bekukan tenggat yang berlaku saat aksi reviu; revisi jadwal belakangan tidak mengubah jejak reviu. */
-    public function reviewTrail(PeriodeJadwal $period): array
-    {
-        $reviewDate = today(config('app.business_timezone'))->toDateString();
-
-        return ['reviu_terlambat' => $reviewDate > $period->reviu_selesai->toDateString(),
-            'reviu_selesai' => $period->reviu_selesai->toDateString(), 'tanggal_reviu' => $reviewDate];
-    }
-
     /**
      * Naikkan versi sekali, catat riwayat bila status berubah, lalu tulis audit sukses pada batas transaksi yang sama.
-     * `$extra` melengkapi state sesudah (self_approval, jejak reviu) tanpa mengubah header.
+     * `$extra` melengkapi state sesudah (self_approval) tanpa mengubah header.
      */
     public function finish(User $actor, PengukuranKinerja $p, string $event, string $reason, array $decision, array $before, array $extra): PengukuranKinerja
     {
