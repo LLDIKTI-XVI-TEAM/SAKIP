@@ -3532,6 +3532,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
 - [ ] **AC-8:** Given dashboard, verifikasi, atau laporan menaut ke kegiatan, Then tautan menuju halaman kegiatan Rencana Aksi.
 - [ ] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
+- [ ] **AC-10:** Given kegiatan yang ditunda beserta kegiatan lanjutannya, Then halaman kegiatan Rencana Aksi menampilkan penanda "Ditunda → periode" pada kegiatan asal dan "Lanjutan dari periode" pada kegiatan lanjutan. Penanda menjadi tautan ke baris pasangannya bila baris itu tampil di halaman yang sama. *(Q41 §41.4 butir 2; keputusan PM 25 Oktober 2026, [review PR #174](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/174#issuecomment-6395070460))*
 
 #### Implementation Tasks
 
@@ -3558,6 +3559,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] TEST-4: Pest Feature test membuktikan AC-6 — penolakan lintas unit dengan kontrol positif.
 - [ ] TEST-5: Pest Feature test membuktikan AC-7 dan AC-9.
 - [ ] TEST-6: uji browser desktop dan mobile untuk alur Rencana Aksi → Kegiatan.
+- [ ] TEST-7: Vitest dan Pest Feature test membuktikan AC-10 — penanda asal/lanjutan dua arah, tautan hanya bila baris pasangannya tampil, dan props asal/lanjutan dari server.
 
 #### Definition of Done
 
