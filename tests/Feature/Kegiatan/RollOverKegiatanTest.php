@@ -167,6 +167,49 @@ class RollOverKegiatanTest extends TestCase
         $this->assertFalse(AuditLog::where('tindakan', 'klaim_kegiatan.tambah')->exists());
     }
 
+    public function test_klaim_asal_yang_ditambahkan_belakangan_diteruskan_ke_lanjutan(): void
+    {
+        // Klaim tetap boleh pada setiap status (Q69 §69.3 butir 3): klaim asal dihapus sebelum ditunda lalu dibuat ulang.
+        $pengukuran = $this->pengukuran($this->fixture['periode2']);
+        KlaimKegiatan::where('kegiatan_id', $this->asal->id)->delete();
+        $this->tunda()->assertRedirect();
+        $lanjutan = Kegiatan::where('kegiatan_asal_id', $this->asal->id)->sole();
+        $this->assertFalse(KlaimKegiatan::where('kegiatan_id', $lanjutan->id)->exists());
+
+        $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->asal->id}/klaim",
+            ['rencana_aksi_id' => $this->header->id, 'arah_dampak' => 'menambah'])->assertSessionHasNoErrors();
+
+        $klaim = KlaimKegiatan::where('kegiatan_id', $lanjutan->id)->sole();
+        $this->assertSame([$this->header->id, 'pengukuran', $pengukuran->id], [$klaim->rencana_aksi_id, $klaim->sumber_klaim, $klaim->pengukuran_id]);
+        $audit = AuditLog::where('tindakan', 'klaim_kegiatan.tambah')->where('objek_id', $klaim->id)->sole();
+        $this->assertSame([$this->fixture['pic']->id, $this->asal->id], [$audit->actor_id, $audit->nilai_baru['kegiatan_asal_id']]);
+    }
+
+    public function test_daftar_kegiatan_menilai_kunci_periode_tujuan_tanpa_query_per_baris(): void
+    {
+        $hitung = function (): array {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->actingAs($this->fixture['pic'])->get('/kegiatan?tahun=2026')->assertOk();
+
+            return array_column(DB::getQueryLog(), 'query');
+        };
+        $tambah = function (string $nama): void {
+            $kegiatan = Kegiatan::create(['unit_id' => $this->fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $this->fixture['periode1']->id,
+                'nama' => $nama, 'anggaran' => 0, 'created_by' => $this->fixture['pic']->id]);
+            KlaimKegiatan::create(['rencana_aksi_id' => $this->header->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
+                'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->fixture['pic']->id, 'created_at' => now()]);
+        };
+        // Pembanding sudah memuat satu baris berklaim agar query sekali per halaman ikut terhitung di kedua sisi;
+        // permintaan pertama hanya memanaskan cache izin.
+        $tambah('Bimtek');
+        $hitung();
+        $awal = $hitung();
+        array_map($tambah, ['Monev', 'Rapat', 'Rakor']);
+
+        $this->assertCount(count($awal), $hitung());
+    }
+
     public function test_pembentukan_draf_mengunci_advisory_dan_header_ra_sebelum_indikator(): void
     {
         // Urutan sama dengan transisi ditunda (advisory → header RA) dan writer RA (header RA → indikator) agar klaim tertunda tidak deadlock.

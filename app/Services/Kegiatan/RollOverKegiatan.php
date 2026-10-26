@@ -63,18 +63,47 @@ class RollOverKegiatan
     }
 
     /**
+     * Periode terkunci bagi PIC per kegiatan untuk satu halaman daftar: satu query jadwal pengklaim, lalu satu penilaian per jadwal,
+     * sehingga jumlah query tidak tumbuh per baris. Kegiatan tanpa RA pengklaim tidak muncul (tanpa kunci).
+     *
+     * @param  list<string>  $kegiatanIds
+     * @param  list<string>  $periodeIds
+     * @return array<string, list<string>>
+     */
+    public function periodeTerkunciPerKegiatan(array $kegiatanIds, array $periodeIds): array
+    {
+        $pengklaim = KlaimKegiatan::join('rencana_aksi', 'rencana_aksi.id', '=', 'klaim_kegiatan.rencana_aksi_id')
+            ->whereIn('klaim_kegiatan.kegiatan_id', $kegiatanIds)->distinct()->get(['klaim_kegiatan.kegiatan_id', 'rencana_aksi.jadwal_tahunan_id']);
+        if ($pengklaim->isEmpty()) {
+            return [];
+        }
+        $hariIni = today(config('app.business_timezone'))->toDateString();
+        $perJadwal = JadwalTahunan::whereIn('id', $pengklaim->pluck('jadwal_tahunan_id')->unique()->values()->all())->get()
+            ->mapWithKeys(fn (JadwalTahunan $jadwal): array => [(string) $jadwal->id => array_column($this->jendela->rincianTerkunci($jadwal, $periodeIds, $hariIni), 'id')]);
+
+        $hasil = [];
+        foreach ($pengklaim as $baris) {
+            $id = (string) $baris->kegiatan_id;
+            $hasil[$id] = array_values(array_unique([...($hasil[$id] ?? []), ...($perJadwal[(string) $baris->getAttribute('jadwal_tahunan_id')] ?? [])]));
+        }
+
+        return $hasil;
+    }
+
+    /**
      * Pilihan status tampilan tanpa periode tujuan yang terkunci bagi PIC; Tunda tidak ditawarkan bila tidak ada
      * periode tujuan tersisa. Action tetap memeriksa ulang di bawah lock.
      *
      * @param  array{status: list<string>, periode_tujuan: list<array{id: string, nama: string}>}  $pilihan  Hasil `Kegiatan::pilihanStatus`.
+     * @param  list<string>|null  $terkunci  Periode terkunci yang sudah dihitung per halaman (`periodeTerkunciPerKegiatan`); null dihitung di sini.
      * @return array{status: list<string>, periode_tujuan: list<array{id: string, nama: string}>}
      */
-    public function saringTujuan(Kegiatan $asal, array $pilihan, bool $jalurPerencanaan): array
+    public function saringTujuan(Kegiatan $asal, array $pilihan, bool $jalurPerencanaan, ?array $terkunci = null): array
     {
         if ($jalurPerencanaan || ! in_array('ditunda', $pilihan['status'], true)) {
             return $pilihan;
         }
-        $terkunci = array_column($this->tujuanTerkunci($asal, array_column($pilihan['periode_tujuan'], 'id')), 'id');
+        $terkunci ??= array_column($this->tujuanTerkunci($asal, array_column($pilihan['periode_tujuan'], 'id')), 'id');
         $tujuan = array_values(array_filter($pilihan['periode_tujuan'], fn (array $periode): bool => ! in_array($periode['id'], $terkunci, true)));
 
         return [
@@ -98,17 +127,8 @@ class RollOverKegiatan
      */
     public function klaimkan(Kegiatan $lanjutan, User $aktor, ?PengukuranKinerja $hanya = null): array
     {
-        // Rantai asal lewat kegiatan_asal_id (C → B → A); UNION berhenti pada baris yang sudah dikunjungi bila data membentuk siklus.
-        $rantai = array_column(DB::select(<<<'SQL'
-            WITH RECURSIVE rantai (id) AS (
-                SELECT kegiatan_asal_id FROM kegiatan WHERE id = ? AND kegiatan_asal_id IS NOT NULL
-                UNION
-                SELECT asal.kegiatan_asal_id FROM kegiatan AS asal JOIN rantai ON asal.id = rantai.id WHERE asal.kegiatan_asal_id IS NOT NULL
-            )
-            SELECT id FROM rantai
-            SQL, [$lanjutan->id]), 'id');
         $sumber = KlaimKegiatan::join('rencana_aksi', 'rencana_aksi.id', '=', 'klaim_kegiatan.rencana_aksi_id')
-            ->whereIn('klaim_kegiatan.kegiatan_id', $rantai)->where('rencana_aksi.tahun', $lanjutan->tahun)
+            ->whereIn('klaim_kegiatan.kegiatan_id', self::rantaiAsal((string) $lanjutan->id))->where('rencana_aksi.tahun', $lanjutan->tahun)
             ->where('rencana_aksi.unit_id', $lanjutan->unit_id)
             ->when($hanya, fn ($query) => $query->where('rencana_aksi.indikator_id', $hanya->indikator_id))
             ->orderBy('klaim_kegiatan.created_at')->orderBy('klaim_kegiatan.id')
@@ -131,6 +151,66 @@ class RollOverKegiatan
         }
 
         return $dibuat;
+    }
+
+    /**
+     * Asal, asal dari asal, dan seterusnya (C → B → A); UNION berhenti pada baris yang sudah dikunjungi bila data membentuk siklus.
+     *
+     * @return list<string>
+     */
+    public static function rantaiAsal(string $kegiatanId): array
+    {
+        return array_column(DB::select(<<<'SQL'
+            WITH RECURSIVE rantai (id) AS (
+                SELECT kegiatan_asal_id FROM kegiatan WHERE id = ? AND kegiatan_asal_id IS NOT NULL
+                UNION
+                SELECT asal.kegiatan_asal_id FROM kegiatan AS asal JOIN rantai ON asal.id = rantai.id WHERE asal.kegiatan_asal_id IS NOT NULL
+            )
+            SELECT id FROM rantai
+            SQL, [$kegiatanId]), 'id');
+    }
+
+    /**
+     * Header RA yang mengklaim kegiatan atau rantai asalnya, terurut: tujuan klaim lanjutan yang dibentuk transisi `ditunda`.
+     *
+     * @return list<string>
+     */
+    public static function headerRantai(string $kegiatanId): array
+    {
+        return KlaimKegiatan::whereIn('kegiatan_id', [$kegiatanId, ...self::rantaiAsal($kegiatanId)])->distinct()->orderBy('rencana_aksi_id')
+            ->pluck('rencana_aksi_id')->map(fn ($id): string => (string) $id)->all();
+    }
+
+    /**
+     * Klaim asal yang ditambahkan setelah lanjutannya terbentuk (Q69 §69.3 butir 3) diteruskan ke setiap lanjutan dalam rantainya yang
+     * baris pengukuran indikator RA × tahun × periodenya sudah ada; tanpa ini klaim hanya terbentuk pada transisi dan pembentukan baris.
+     * Dipanggil di bawah lock header RA dan kegiatan asal oleh gerbang klaim; lanjutan dikunci bersama seperti jalur kedua.
+     *
+     * @return list<array{klaim: KlaimKegiatan, kegiatan_asal_id: string}>
+     */
+    public function klaimTurunan(Kegiatan $asal, RencanaAksi $header, User $aktor): array
+    {
+        $turunan = array_column(DB::select(<<<'SQL'
+            WITH RECURSIVE turunan (id) AS (
+                SELECT id FROM kegiatan WHERE kegiatan_asal_id = ?
+                UNION
+                SELECT lanjutan.id FROM kegiatan AS lanjutan JOIN turunan ON lanjutan.kegiatan_asal_id = turunan.id
+            )
+            SELECT id FROM turunan
+            SQL, [$asal->id]), 'id');
+        if ($turunan === []) {
+            return [];
+        }
+
+        return Kegiatan::whereIn('id', $turunan)->orderBy('id')->sharedLock()->get()->flatMap(function (Kegiatan $lanjutan) use ($header, $aktor): array {
+            $pengukuran = PengukuranKinerja::where('indikator_id', $header->indikator_id)->where('tahun', $lanjutan->tahun)
+                ->where('periode_id', $lanjutan->periode_id)->first();
+
+            return $pengukuran === null ? [] : array_map(
+                fn (KlaimKegiatan $klaim): array => ['klaim' => $klaim, 'kegiatan_asal_id' => (string) $lanjutan->kegiatan_asal_id],
+                $this->klaimkan($lanjutan, $aktor, $pengukuran),
+            );
+        })->values()->all();
     }
 
     /**

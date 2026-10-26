@@ -67,7 +67,9 @@ class UbahStatusKegiatan
                 Periode::lockConfiguration();
                 // Header RA pengklaim dikunci sebelum jadwal dan kegiatan, searah gerbang klaim dan pengajuan RA.
                 $headerIds = GerbangBerkasKegiatan::headerPengklaim((string) $kegiatan->id);
-                RencanaAksi::whereIn('id', $headerIds)->orderBy('id')->lockForUpdate()->get();
+                // Saat ditunda, header RA rantai asal juga dikunci dalam satu urutan karena klaim lanjutan disisipkan ke sana.
+                $kunciHeader = $data['status'] === 'ditunda' ? RollOverKegiatan::headerRantai((string) $kegiatan->id) : [];
+                RencanaAksi::whereIn('id', [...$headerIds, ...$kunciHeader])->orderBy('id')->lockForUpdate()->get();
                 // Tahun dari binding hanya kandidat; dicek ulang setelah kegiatan terkunci.
                 $ditutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
                 $terkunci = Kegiatan::whereKey($kegiatan->id)->lockForUpdate()->firstOrFail();
