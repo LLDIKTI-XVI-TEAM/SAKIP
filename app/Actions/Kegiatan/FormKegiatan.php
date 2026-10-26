@@ -9,11 +9,14 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Kegiatan\GerbangBerkasKegiatan;
+use App\Services\Kegiatan\RollOverKegiatan;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\PermissionDecision;
 
 class FormKegiatan
 {
-    public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit) {}
+    public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit,
+        private readonly RollOverKegiatan $rollOver, private readonly JendelaTulisRencanaAksi $jendela) {}
 
     /** Pilihan unit diturunkan dari izin kegiatan; tidak mensyaratkan hak pengelolaan master unit. @return array<string,mixed> */
     public function handle(User $actor, Kegiatan $kegiatan): array
@@ -35,7 +38,9 @@ class FormKegiatan
         $periodeAktif = Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama', 'urutan', ...Periode::TANGGAL]);
         // Aturan sama dengan DaftarKegiatan: aksi status tidak ditawarkan untuk tahun yang pasti ditolak.
         $tahunDitutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
-        $pilihan = $kegiatan->loadMissing('periode:id,nama,urutan')->pilihanStatus($periodeAktif);
+        // Periode tujuan yang terkunci bagi PIC tidak ditawarkan (Q69 §69.5 butir 2); `$decision` terakhir adalah `kegiatan:update`.
+        $pilihan = $this->rollOver->saringTujuan($kegiatan, $kegiatan->loadMissing('periode:id,nama,urutan')->pilihanStatus($periodeAktif),
+            $this->jendela->jalurPerencanaan($decision));
         $ubahStatus = $tahunDitutup ? [] : $pilihan['status'];
 
         return [

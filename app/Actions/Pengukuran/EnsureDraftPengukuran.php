@@ -2,16 +2,20 @@
 
 namespace App\Actions\Pengukuran;
 
+use App\Actions\Kegiatan\TambahKlaimKegiatan;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\PeriodeJadwal;
+use App\Models\RencanaAksi;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
+use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Kegiatan\RollOverKegiatan;
 use App\Services\Perencanaan\IndikatorArsipGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -22,14 +26,18 @@ use Throwable;
 class EnsureDraftPengukuran
 {
     public function __construct(private PermissionResolver $resolver, private PengukuranKinerjaPolicy $policy,
-        private IndikatorArsipGuard $arsipGuard, private PengukuranMutationSteps $steps) {}
+        private IndikatorArsipGuard $arsipGuard, private PengukuranMutationSteps $steps,
+        private RollOverKegiatan $rollOver, private AuditLogger $audit) {}
 
     /**
      * Bentuk satu header draf untuk kewajiban snapshot × periode, atau kembalikan header indikator × tahun × periode yang sudah ada.
      *
-     * Urutan lock: aktor → role aktif (shared) → indikator (exclusive) → calon header → unit → jadwal → snapshot → periode jadwal (shared).
+     * Urutan lock: aktor → role aktif (shared) → advisory kegiatan lanjutan tahun × periode → header RA indikator × tahun (key share)
+     * → indikator (exclusive) → calon header → unit → jadwal → snapshot → periode jadwal (shared) → kegiatan lanjutan (shared).
      * Aktor dan indikator diambil sebelum konteks jadwal, sama seperti mutasi pengukuran dan aktivasi jadwal, sehingga tidak ada
-     * antrean terbalik; indikator eksklusif menyerialkan pembentukan dengan pergantian PJ dan arsip. Header yang muncul selama
+     * antrean terbalik; indikator eksklusif menyerialkan pembentukan dengan pergantian PJ dan arsip. Advisory dan header RA mendahului
+     * indikator karena klaim lanjutan tertunda menyisipkan klaim ke header RA itu: urutannya sama dengan transisi `ditunda`
+     * (advisory → header RA) dan writer RA (header RA → indikator), sehingga tidak ada deadlock. Header yang muncul selama
      * menunggu menjadikan permintaan replay: cukup izin baca pada unit header yang dijepit, tanpa guard pembentukan.
      * Unique indikator × tahun × periode tetap pengaman akhir.
      */
@@ -45,6 +53,8 @@ class EnsureDraftPengukuran
                 PeriodeJadwal::where('jadwal_id', $requested->jadwal_id)->where('periode_id', $periodeId)->firstOrFail();
                 $actor = User::lockForUpdate()->findOrFail($actor->id);
                 $actor->lockActiveRoles();
+                RollOverKegiatan::kunciPeriode((int) $requested->jadwal->tahun, $periodeId);
+                RencanaAksi::where('indikator_id', $requested->indikator_id)->where('tahun', $requested->jadwal->tahun)->orderBy('id')->lock('for key share')->get();
                 $indicator = IndikatorKinerja::lockForUpdate()->findOrFail($requested->indikator_id);
                 $existing = PengukuranKinerja::where('indikator_id', $indicator->id)->where('tahun', $requested->jadwal->tahun)
                     ->where('periode_id', $periodeId)->lockForUpdate()->first();
@@ -90,6 +100,15 @@ class EnsureDraftPengukuran
                     'status_perhitungan' => 'belum_diisi', 'nilai' => null, 'status_alur' => 'draft', 'versi' => 1, 'created_by' => $actor->id]);
                 $this->steps->writeAudit($actor, $created->id, 'pengukuran.buat', 'Membuat draf pengukuran.', $decision, null,
                     $created->only(['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id', 'sumber_nilai', 'status_perhitungan', 'status_alur', 'versi']));
+                // Kegiatan lanjutan yang ditunda sebelum baris ini ada diklaim sekarang (Q69 §69.5 butir 4) di bawah advisory di atas.
+                foreach ($this->rollOver->klaimTertunda($created, $actor) as $baris) {
+                    $this->audit->catat(
+                        actor: $actor, tindakan: 'klaim_kegiatan.tambah', objekTipe: 'klaim_kegiatan', objekId: (string) $baris['klaim']->id,
+                        nilaiBaru: [...TambahKlaimKegiatan::atributAudit($baris['klaim']), 'pengukuran_id' => $baris['klaim']->pengukuran_id,
+                            'kegiatan_asal_id' => $baris['kegiatan_asal_id']],
+                        alasan: 'Klaim tahap pengukuran kegiatan lanjutan.', dasarIzin: $decision,
+                    );
+                }
 
                 return $created;
             });

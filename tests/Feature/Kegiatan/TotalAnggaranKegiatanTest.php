@@ -16,7 +16,8 @@ use Tests\TestCase;
  * Penjumlahan anggaran kegiatan (Q42 §42.2 butir 2, 4, 6): anggaran kosong
  * tidak dihitung tetapi menandai total, kegiatan bersama tampil penuh per
  * IKU tetapi dihitung sekali per unit/tahun, dan kegiatan asal yang ditunda
- * tidak ikut dihitung setelah salah satu lanjutan dalam rantainya diklaim (Q69 §69.6).
+ * tidak ikut dihitung setelah salah satu lanjutan dalam rantainya diklaim dalam
+ * lingkup total yang sama (Q69 §69.6 butir 4).
  */
 class TotalAnggaranKegiatanTest extends TestCase
 {
@@ -92,10 +93,34 @@ class TotalAnggaranKegiatanTest extends TestCase
         $this->assertSame('700000', $this->total->perRencanaAksi($this->header)['total']);
         $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
 
-        // Klaim ke Rencana Aksi IKU lain pun memindahkan hitungan ke lanjutan.
+        // Klaim ke Rencana Aksi IKU lain memindahkan hitungan unit ke lanjutan, tetapi total RA asal tetap memuat asal (Q69 §69.6 butir 4).
         $this->klaim($lanjutan, $this->headerIkuLain());
-        $this->assertSame('0', $this->total->perRencanaAksi($this->header)['total']);
+        $this->assertSame('700000', $this->total->perRencanaAksi($this->header)['total']);
         $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
+
+        // Setelah diklaim ke RA yang sama, asal dikecualikan dan anggarannya terhitung pada lanjutan.
+        $this->klaim($lanjutan);
+        $hasil = $this->total->perRencanaAksi($this->header);
+        $this->assertSame(['700000', '0', '700000'], [$hasil['total'], $hasil['per_periode'][$this->fixture['periode1']->id]['total'], $hasil['per_periode'][$this->fixture['periode2']->id]['total']]);
+    }
+
+    public function test_pengecualian_asal_kegiatan_bersama_dinilai_per_lingkup_total(): void
+    {
+        // Kegiatan bersama ditunda; lanjutannya baru diklaim ke RA IKU A karena baris pengukuran IKU B periode tujuan belum ada.
+        $asal = $this->kegiatan('Kegiatan bersama', 2500000, null, ['status' => 'ditunda']);
+        $headerLain = $this->headerIkuLain();
+        $this->klaim($asal);
+        $this->klaim($asal, $headerLain);
+        $lanjutan = $this->kegiatan('Kegiatan bersama', 2500000, $this->fixture['periode2'], ['kegiatan_asal_id' => $asal->id]);
+        $this->klaim($lanjutan);
+
+        // IKU A: asal diganti lanjutan; IKU B: asal tetap terhitung; unit: dihitung sekali.
+        $hasil = $this->total->perRencanaAksi($this->header);
+        $this->assertSame(['2500000', '0', '2500000'], [$hasil['total'], $hasil['per_periode'][$this->fixture['periode1']->id]['total'], $hasil['per_periode'][$this->fixture['periode2']->id]['total']]);
+        $this->assertSame('2500000', $this->total->perRencanaAksi($headerLain)['total']);
+        $this->assertSame('2500000', $this->total->perIku((string) $this->fixture['indikator']->id, 2026)['total']);
+        $this->assertSame('2500000', $this->total->perIku((string) $headerLain->indikator_id, 2026)['total']);
+        $this->assertSame('2500000', $this->total->perUnitTahun((string) $this->fixture['unit']->id, 2026)['total']);
     }
 
     public function test_rantai_penundaan_menghitung_anggaran_sekali(): void
