@@ -4404,7 +4404,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > Hasil rapat evaluasi 23 Oktober 2026 (butir 10). Tidak mengubah aturan Q45 dan Q51; tidak memerlukan keputusan Q baru. Isi halaman mengikuti rincian U-24 yang disetujui PM pada 24 Oktober 2026.
 
-> **Klarifikasi 25 Oktober 2026:** Q1–Q4 mengikuti [jawaban PM pada issue #171](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/171#issuecomment-6389473955). Q5 dikonfirmasi pada pembahasan implementasi: status diberi label **"Status pengukuran saat ini"**, terpisah dari nomor dan tanggal pengajuan sumber; bila sumbernya pengajuan terdahulu, tampil keterangan tersebut. Klarifikasi ini mempertahankan Q45, Q51, dan Q55.
+> **Klarifikasi 25–26 Oktober 2026:** Q1–Q4 mengikuti [jawaban PM pada issue #171](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/171#issuecomment-6389473955). Q5 mengikuti [keputusan PM 26 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/171#issuecomment-6409415067): status diberi label **"Status pengukuran saat ini"**, terpisah dari nomor dan tanggal pengajuan sumber; bila sumbernya pengajuan terdahulu, tampil keterangan tersebut. Klarifikasi ini mempertahankan Q45, Q51, dan Q55.
 
 > **Status implementasi lokal (#171):** route dan Action detail, tautan daftar, metadata, rangkaian rekomendasi, pembaca tindak lanjut beku, serta pemisahan akses panel telah diimplementasikan. Bukti terkait: `DetailRekomendasiTest`, suite `tests/Feature/Rekomendasi`, Vitest `DetailRekomendasi`/`RekomendasiPimpinan`, dan smoke desktop/mobile. Checkbox AC/test/DoD menunjukkan verifikasi lokal; CI exact HEAD, persetujuan UAT, merge, dan deployment belum dinyatakan selesai.
 

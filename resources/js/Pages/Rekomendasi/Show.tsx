@@ -53,7 +53,7 @@ const cellClass = 'min-w-0 p-0 md:px-4 md:py-3.5';
 
 function PersetujuanCadangan({ data }: { data: RekomendasiDetail }) {
     return data.persetujuan_cadangan && data.disetujui_oleh_role
-        ? <Badge variant="warning" size="sm">Persetujuan cadangan · {namaPeran[data.disetujui_oleh_role] ?? data.disetujui_oleh_role}</Badge>
+        ? <Badge variant="warning">Persetujuan cadangan · {namaPeran[data.disetujui_oleh_role] ?? data.disetujui_oleh_role}</Badge>
         : null;
 }
 
