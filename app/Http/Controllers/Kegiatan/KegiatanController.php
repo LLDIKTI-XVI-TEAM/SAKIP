@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Kegiatan;
 
+use App\Actions\Kegiatan\CatatRealisasiKegiatan;
 use App\Actions\Kegiatan\DaftarBerkasPerencanaanKegiatan;
 use App\Actions\Kegiatan\DaftarKegiatan;
 use App\Actions\Kegiatan\DaftarKlaimKegiatan;
@@ -9,6 +10,7 @@ use App\Actions\Kegiatan\FormKegiatan;
 use App\Actions\Kegiatan\SimpanKegiatan;
 use App\Actions\Kegiatan\UbahStatusKegiatan;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Kegiatan\CatatRealisasiKegiatanRequest;
 use App\Http\Requests\Kegiatan\DaftarKegiatanRequest;
 use App\Http\Requests\Kegiatan\SimpanKegiatanRequest;
 use App\Http\Requests\Kegiatan\UbahStatusKegiatanRequest;
@@ -61,5 +63,12 @@ class KegiatanController extends Controller
             'tidak_terlaksana' => 'Kegiatan ditandai tidak terlaksana.',
             default => 'Kegiatan dibatalkan.',
         });
+    }
+
+    public function realisasi(CatatRealisasiKegiatanRequest $request, Kegiatan $kegiatan, CatatRealisasiKegiatan $action): RedirectResponse
+    {
+        $hasil = $action->handle($request->user(), $kegiatan, $request->validated());
+
+        return back()->with('success', $hasil['terlaksana'] ? 'Kegiatan ditandai terlaksana.' : 'Realisasi kegiatan disimpan.');
     }
 }
