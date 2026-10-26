@@ -10,13 +10,11 @@ use App\Models\User;
 use App\Policies\KegiatanPolicy;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
-use App\Services\Kegiatan\RollOverKegiatan;
 use App\Support\PermissionDecision;
 
 class DaftarKegiatan
 {
-    public function __construct(private readonly PermissionResolver $resolver, private readonly KegiatanPolicy $policy, private readonly AuditLogger $audit,
-        private readonly RollOverKegiatan $rollOver) {}
+    public function __construct(private readonly PermissionResolver $resolver, private readonly KegiatanPolicy $policy, private readonly AuditLogger $audit) {}
 
     /** Penolakan halaman mempertahankan keputusan server, tanpa mempercayai filter unit klien. */
     public function catatPenolakan(User $actor, PermissionDecision $decision): void
@@ -61,17 +59,13 @@ class DaftarKegiatan
         $tahunDitutup = JadwalTahunan::whereIn('tahun', $page->getCollection()->pluck('tahun')->unique()->values())->where('status', '!=', 'draft')->get()
             ->filter(fn (JadwalTahunan $jadwal): bool => $jadwal->tahunDitutup())->pluck('tahun')->unique()->all();
         $periodeAktif = Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama', 'urutan']);
-        $tujuanTerkunci = $this->rollOver->periodeTerkunciPerKegiatan($page->getCollection()->pluck('id')->map(fn ($id): string => (string) $id)->all(),
-            $periodeAktif->pluck('id')->map(fn ($id): string => (string) $id)->all());
 
-        $page->through(function (Kegiatan $kegiatan) use ($boleh, $decisions, $activeUnitIds, $tahunDitutup, $periodeAktif, $tujuanTerkunci): array {
+        $page->through(function (Kegiatan $kegiatan) use ($boleh, $activeUnitIds, $tahunDitutup, $periodeAktif): array {
             // Allow dari role tidak bergantung status unit; writer tetap mensyaratkan unit aktif.
             $update = $boleh($kegiatan->unit_id, 'kegiatan:update') && $activeUnitIds->contains($kegiatan->unit_id)
                 && ! in_array($kegiatan->tahun, $tahunDitutup, true);
             // Pilihan status dihitung server (Q69 §69.1); React hanya merender.
-            // Periode tujuan yang terkunci bagi PIC tidak ditawarkan (Q69 §69.5 butir 2); jalur Perencanaan dari allow peran.
-            $pilihan = $update ? $this->rollOver->saringTujuan($kegiatan, $kegiatan->pilihanStatus($periodeAktif),
-                ($decisions[$kegiatan->unit_id]['kegiatan:update']['roles'] ?? []) !== [], $tujuanTerkunci[(string) $kegiatan->id] ?? []) : $kegiatan->pilihanStatus($periodeAktif);
+            $pilihan = $kegiatan->pilihanStatus($periodeAktif);
             $ubahStatus = $update ? $pilihan['status'] : [];
 
             return [

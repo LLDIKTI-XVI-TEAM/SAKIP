@@ -8,7 +8,6 @@ use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Kegiatan\GerbangKlaimKegiatan;
-use App\Services\Kegiatan\RollOverKegiatan;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
@@ -29,7 +28,6 @@ class TambahKlaimKegiatan
         private readonly GerbangKlaimKegiatan $gerbang,
         private readonly KonteksBekuRencanaAksi $konteks,
         private readonly AuditLogger $audit,
-        private readonly RollOverKegiatan $rollOver,
     ) {}
 
     /**
@@ -79,15 +77,6 @@ class TambahKlaimKegiatan
                     alasan: 'Klaim kegiatan terhadap rencana aksi.',
                     dasarIzin: $dasarIzin,
                 );
-                // Klaim tetap boleh pada setiap status (Q69 §69.3 butir 3): lanjutan yang baris pengukurannya sudah ada ikut diklaim.
-                foreach ($this->rollOver->klaimTurunan($kegiatan, $konteks['header'], $konteks['pengunci']) as $baris) {
-                    $this->audit->catat(
-                        actor: $konteks['pengunci'], tindakan: 'klaim_kegiatan.tambah', objekTipe: 'klaim_kegiatan', objekId: (string) $baris['klaim']->id,
-                        nilaiBaru: [...self::atributAudit($baris['klaim']), 'pengukuran_id' => $baris['klaim']->pengukuran_id,
-                            'kegiatan_asal_id' => $baris['kegiatan_asal_id']],
-                        alasan: 'Klaim tahap pengukuran kegiatan lanjutan.', dasarIzin: $dasarIzin,
-                    );
-                }
 
                 return $klaim;
             });
