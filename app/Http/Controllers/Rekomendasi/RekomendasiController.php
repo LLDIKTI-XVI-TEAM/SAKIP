@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Rekomendasi;
 
 use App\Actions\Rekomendasi\IndexRekomendasi;
+use App\Actions\Rekomendasi\ShowRekomendasi;
 use App\Actions\Rekomendasi\TetapkanRekomendasi;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Rekomendasi\TetapkanRekomendasiRequest;
+use App\Models\RekomendasiPimpinan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,5 +26,10 @@ class RekomendasiController extends Controller
         Inertia::flash('success', $row->status === 'disetujui' ? 'Rekomendasi berhasil disetujui.' : 'Draf rekomendasi berhasil disimpan.');
 
         return back();
+    }
+
+    public function show(Request $request, RekomendasiPimpinan $rekomendasi, ShowRekomendasi $action): Response
+    {
+        return Inertia::render('Rekomendasi/Show', $action->handle($request->user(), $rekomendasi, $request->query()));
     }
 }
