@@ -61,7 +61,7 @@ function baris(id: string, kegiatanId: string, ubah: Partial<KegiatanRencanaAksi
     return {
         id, kegiatan_id: kegiatanId, periode_id: P1, nama: 'Kegiatan uji', status: 'rencana', komponen_id: null,
         arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false,
-        asal: null, lanjutan: null, ...ubah,
+        ...ubah,
     };
 }
 

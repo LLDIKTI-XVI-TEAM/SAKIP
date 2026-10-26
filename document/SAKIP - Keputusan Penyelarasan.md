@@ -1999,7 +1999,6 @@ Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring 
 1. Memperjelas Q42 §42.2 butir 6: kegiatan asal `ditunda` dikecualikan dari total anggaran setelah kegiatan lanjutannya diklaim. Sebelum lanjutan diklaim, kegiatan asal tetap terhitung, sehingga anggarannya tidak hilang dari total di antara penundaan dan klaim.
 2. Total hanya menghitung kegiatan yang diklaim, sehingga anggaran tidak terhitung dua kali. Total yang sudah dibekukan pada versi Rencana Aksi tidak berubah (Q42 §42.2 butir 6).
 3. Pada rantai penundaan (kegiatan lanjutan yang juga ditunda), kegiatan asal `ditunda` dikecualikan dari total bila salah satu kegiatan dalam rantai lanjutannya (lanjutan, lanjutan dari lanjutan, dan seterusnya) sudah diklaim, meskipun lanjutan langsungnya tidak diklaim, sehingga anggaran tidak terhitung dua kali (butir 2). Contoh: A diklaim dan ditunda ke B; B tidak diklaim dan ditunda ke C; setelah C diklaim, hanya C yang terhitung. (PM, 23 Oktober 2026, [review PR #163](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/163#issuecomment-6369997787))
-4. Pengecualian kegiatan asal `ditunda` pada butir 1 dan 3 dinilai per lingkup total. Pada total per Rencana Aksi dan per IKU, kegiatan asal hanya dikecualikan bila salah satu kegiatan dalam rantai lanjutannya sudah diklaim ke Rencana Aksi yang sama (per Rencana Aksi) atau ke Rencana Aksi IKU yang sama (per IKU). Pada total per unit/tahun, yang menghitung kegiatan unik, kegiatan asal dikecualikan bila rantai lanjutannya diklaim ke Rencana Aksi mana pun. Total yang dibekukan pada versi Rencana Aksi menilai pengecualian dari klaim tahap Rencana Aksi yang dibekukan (Q42 §42.2 butir 9). Contoh: kegiatan bersama K diklaim Rencana Aksi IKU A dan IKU B lalu ditunda. Lanjutannya baru diklaim ke Rencana Aksi IKU A karena baris pengukuran IKU B pada periode tujuan belum ada. Total IKU B tetap memuat K, total IKU A memuat lanjutan, dan total unit menghitung anggarannya sekali. (PM, 25 Oktober 2026, [review PR #174](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/174#issuecomment-6395070460))
 
 ## 69.7 Akibat
 
@@ -2025,7 +2024,7 @@ Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring 
   - isi lanjutan mengikuti §69.5 butir 1.
 - **Data Model:** §2.32 tidak berubah, karena `kegiatan.ubah_status` dan `kegiatan.geser_periode` sudah tercantum. Kolom `kegiatan` tidak berubah dan tidak ada migrasi.
 - **design-system.md:** `kegiatanStatusBadgeMap` diselaraskan dengan peta status kegiatan di kode (`rencana`, `terlaksana`, `tidak_terlaksana`, `ditunda`, `batal`).
-- **Status implementasi:** bagian ISS-06.04 diterapkan ([Issue #136](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136)) dan bagian ISS-06.05 diterapkan ([Issue #137](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/137)); bagian ISS-06.03 belum diterapkan.
+- **Status implementasi:** bagian ISS-06.04 diterapkan ([Issue #136](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/136)); bagian ISS-06.03 dan ISS-06.05 belum diterapkan.
   - §69.1 (selain transisi ke `terlaksana`), §69.2–§69.4, §69.5 (selain kunci periode tujuan dan klaim), dan §69.6: ISS-06.04;
   - transisi ke `terlaksana` dan data pelaksanaan: ISS-06.03;
   - kunci periode tujuan dan klaim lanjutan: ISS-06.05.

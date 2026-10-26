@@ -70,7 +70,7 @@ function buatRencanaAksi(ubah: Partial<RencanaAksiShow> = {}): RencanaAksiShow {
 function baris(ubah: Partial<KegiatanRencanaAksiItem> & Pick<KegiatanRencanaAksiItem, 'id' | 'kegiatan_id' | 'periode_id'>): KegiatanRencanaAksiItem {
     return {
         nama: 'Kegiatan uji', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null, anggaran: '0',
-        sumber_klaim: 'rencana_aksi', kegiatan_bersama: false, asal: null, lanjutan: null,
+        sumber_klaim: 'rencana_aksi', kegiatan_bersama: false,
         ...ubah,
     };
 }
@@ -138,30 +138,6 @@ it('menampilkan total anggaran dan menandai kegiatan yang anggarannya belum diis
     expect(screen.getByText(/^Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
     // Baris tanpa anggaran tetap terlihat sebagai "belum diisi", bukan Rp0.
     expect(screen.getByText('Anggaran: Belum diisi')).toBeTruthy();
-});
-
-it('menautkan penanda roll-over dua arah hanya bila baris pasangannya tampil di halaman', () => {
-    const tentang = { status: 'rencana', komponen_id: null, arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', kegiatan_bersama: false };
-    render(
-        <KegiatanRencanaAksi
-            rencanaAksi={buatRencanaAksi()}
-            kegiatan={{
-                daftar: [
-                    { ...tentang, id: 'k1', kegiatan_id: 'asal', periode_id: P1, nama: 'Bimtek', status: 'ditunda', sumber_klaim: 'rencana_aksi', asal: null, lanjutan: { id: 'lanjut', periode_id: P2 } },
-                    { ...tentang, id: 'k2', kegiatan_id: 'lanjut', periode_id: P2, nama: 'Bimtek', sumber_klaim: 'pengukuran', asal: { id: 'asal', periode_id: P1 }, lanjutan: null },
-                    { ...tentang, id: 'k3', kegiatan_id: 'lain', periode_id: P3, nama: 'Rapat', sumber_klaim: 'pengukuran', asal: { id: 'tak-terlihat', periode_id: P2 }, lanjutan: null },
-                ],
-                total: TOTAL_KOSONG,
-                can: { tambah: false, kelola: false },
-            }}
-        />,
-    );
-
-    expect(screen.getByRole('link', { name: 'Ditunda → Triwulan II' }).getAttribute('href')).toBe('#kegiatan-lanjut');
-    expect(screen.getByRole('link', { name: 'Lanjutan dari Triwulan I' }).getAttribute('href')).toBe('#kegiatan-asal');
-    // Pasangan di luar daftar halaman menjadi teks biasa tanpa tautan.
-    expect(screen.queryByRole('link', { name: 'Lanjutan dari Triwulan II' })).toBeNull();
-    expect(screen.getByText('Lanjutan dari Triwulan II')).toBeTruthy();
 });
 
 it('menampilkan galat validasi server pada modal tambah tanpa membuang draf', async () => {

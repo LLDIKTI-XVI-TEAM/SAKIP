@@ -3238,49 +3238,49 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Acceptance Criteria (QA/UAT)
 
-- [x] **AC-1:** Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
-- [x] **AC-2:** Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
-- [x] **AC-3:** Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
-- [x] **AC-4:** Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`. *(Q69 §69.5 butir 4)*
-- [x] **AC-5:** Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
+- [ ] **AC-1:** Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
+- [ ] **AC-2:** Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
+- [ ] **AC-3:** Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
+- [ ] **AC-4:** Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`. *(Q69 §69.5 butir 4)*
+- [ ] **AC-5:** Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [x] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
-- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [ ] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `audit_log`.
+- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [x] Implementasikan use-case **Roll-Over Kegiatan ke Periode Berikutnya** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [ ] Implementasikan use-case **Roll-Over Kegiatan ke Periode Berikutnya** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update` melalui transisi `ditunda` ISS-06.04; kegiatan lanjutan dibentuk sistem sehingga `kegiatan:create` tidak disyaratkan (Q69 §69.4 butir 1).
-- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update` melalui transisi `ditunda` ISS-06.04; kegiatan lanjutan dibentuk sistem sehingga `kegiatan:create` tidak disyaratkan (Q69 §69.4 butir 1).
+- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [x] Buat/rapikan page dan reusable component React untuk **Roll-Over Kegiatan ke Periode Berikutnya**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [ ] Buat/rapikan page dan reusable component React untuk **Roll-Over Kegiatan ke Periode Berikutnya**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
-- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
-- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
-- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
-- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`. *(Q69 §69.5 butir 4)*
-- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
-- [x] TAHUN SAMA DAN BERKAS: Uji kegiatan lanjutan ke periode pada tahun lain ditolak, berkas asal termasuk RAB tidak ikut disalin, dan persyaratan tahap perencanaan kegiatan tidak diperiksa ulang untuk lanjutan yang diklaim tahap pengukuran (Q41 §41.4 butir 5).
-- [x] ANGGARAN: Uji kegiatan lanjutan menyalin anggaran kegiatan asal yang dapat diubah, kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), dan total pada versi RA yang dibekukan tidak berubah (Q42 §42.2 butir 6).
+- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
+- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
+- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
+- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`. *(Q69 §69.5 butir 4)*
+- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
+- [ ] TAHUN SAMA DAN BERKAS: Uji kegiatan lanjutan ke periode pada tahun lain ditolak, berkas asal termasuk RAB tidak ikut disalin, dan persyaratan tahap perencanaan kegiatan tidak diperiksa ulang untuk lanjutan yang diklaim tahap pengukuran (Q41 §41.4 butir 5).
+- [ ] ANGGARAN: Uji kegiatan lanjutan menyalin anggaran kegiatan asal yang dapat diubah, kegiatan asal `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), dan total pada versi RA yang dibekukan tidak berubah (Q42 §42.2 butir 6).
 
 #### Definition of Done
 
-- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-06.06 · [Feature] Koreksi Klaim Kegiatan Berdasarkan Sumber Versi
 
@@ -3542,7 +3542,6 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
 - [ ] **AC-8:** Given dashboard, verifikasi, atau laporan menaut ke kegiatan, Then tautan menuju halaman kegiatan Rencana Aksi.
 - [x] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
-- [x] **AC-10:** Given kegiatan yang ditunda beserta kegiatan lanjutannya, Then halaman kegiatan Rencana Aksi menampilkan penanda "Ditunda → periode" pada kegiatan asal dan "Lanjutan dari periode" pada kegiatan lanjutan. Penanda menjadi tautan ke baris pasangannya bila baris itu tampil di halaman yang sama. *(Q41 §41.4 butir 2; keputusan PM 25 Oktober 2026, [review PR #174](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/174#issuecomment-6395070460))*
 
 #### Implementation Tasks
 
@@ -3569,7 +3568,6 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] TEST-4: Pest Feature test membuktikan AC-6 — penolakan lintas unit dengan kontrol positif.
 - [ ] TEST-5: Pest Feature test membuktikan AC-7 dan AC-9.
 - [ ] TEST-6: uji browser desktop dan mobile untuk alur Rencana Aksi → Kegiatan.
-- [x] TEST-7: Vitest dan Pest Feature test membuktikan AC-10 — penanda asal/lanjutan dua arah, tautan hanya bila baris pasangannya tampil, dan props asal/lanjutan dari server.
 
 #### Definition of Done
 

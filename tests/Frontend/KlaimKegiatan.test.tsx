@@ -44,7 +44,7 @@ const TOTAL_KOSONG = { total: '0', belum_diisi: 0, per_periode: {} };
 it('panel RA menampilkan total presisi di atas batas Number dan total nol untuk periode tanpa kegiatan', () => {
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
         kegiatan={{ daftar: [{ id: 'k1', periode_id: 'tw1', kegiatan_id: 'keg-1', nama: 'Besar', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null,
-            anggaran: '999999999999999', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false, asal: null, lanjutan: null }],
+            anggaran: '999999999999999', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
         total: { total: '9999999999999991', belum_diisi: 0, per_periode: { tw1: { total: '9999999999999991', belum_diisi: 0 } } }, can: { tambah: false, kelola: false } }} />);
 
     expect(screen.getByText(/^Total Rp\s?9\.999\.999\.999\.999\.991$/)).toBeTruthy();
@@ -57,8 +57,8 @@ it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan kla
     const baris = { periode_id: 'tw1', status: 'rencana', komponen_id: null, arah_dampak: 'menambah' as const, catatan: null };
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
         kegiatan={{ daftar: [
-            { ...baris, id: 'k1', kegiatan_id: 'keg-1', nama: 'Workshop', anggaran: '1500000', sumber_klaim: 'rencana_aksi', kegiatan_bersama: true, asal: null, lanjutan: null },
-            { ...baris, id: 'k2', kegiatan_id: 'keg-2', nama: 'Rapat', anggaran: null, sumber_klaim: 'pengukuran', kegiatan_bersama: false, asal: null, lanjutan: null },
+            { ...baris, id: 'k1', kegiatan_id: 'keg-1', nama: 'Workshop', anggaran: '1500000', sumber_klaim: 'rencana_aksi', kegiatan_bersama: true },
+            { ...baris, id: 'k2', kegiatan_id: 'keg-2', nama: 'Rapat', anggaran: null, sumber_klaim: 'pengukuran', kegiatan_bersama: false },
         ], total: { total: '1500000', belum_diisi: 1, per_periode: { tw1: { total: '1500000', belum_diisi: 1 } } }, can: { tambah: false, kelola: true } }} />);
 
     const [workshop, rapat] = screen.getAllByRole('listitem').map((item) => within(item));
@@ -111,7 +111,7 @@ it('tanpa rencana aksi yang dapat diklaim tidak menampilkan form dan menjelaskan
 it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke periode terbuka lain', () => {
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II'), periode('tw3', 'Triwulan III')]}
         komponen={[]} terkunci={['tw1']}
-        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Rapat lama', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false, asal: null, lanjutan: null }],
+        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Rapat lama', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
             total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
 
     expect(screen.queryByRole('button', { name: /Tambah kegiatan Triwulan I$/ })).toBeNull();
@@ -135,7 +135,7 @@ it('pembaca RA melihat komponen snapshot, arah dampak, dan catatan tanpa akses k
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]}
         komponen={[{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }]}
         terkunci={['tw1']} kegiatan={{ daftar: [
-            { id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: 'komp-1', arah_dampak: 'mengurangi', catatan: 'Mengurangi kendala pelaksanaan', anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false, asal: null, lanjutan: null },
+            { id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: 'komp-1', arah_dampak: 'mengurangi', catatan: 'Mengurangi kendala pelaksanaan', anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false },
         ], total: TOTAL_KOSONG, can: { tambah: false, kelola: false } }} />);
 
     const row = within(screen.getByRole('listitem'));
@@ -152,7 +152,7 @@ it.each([
     ['komponen-lama', 'Komponen tidak tersedia pada snapshot'],
 ])('menjelaskan komponen %s tanpa menghilangkan klaim', (komponenId, label) => {
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
-        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: komponenId, arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false, asal: null, lanjutan: null }],
+        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: komponenId, arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
             total: TOTAL_KOSONG, can: { tambah: false, kelola: false } }} />);
 
     const row = within(screen.getByRole('listitem'));
@@ -172,7 +172,7 @@ it('menahan kelola klaim saat target kotor dan mengaktifkannya kembali sesudah b
     const props = {
         rencanaAksiId: 'ra-1', periode: [periode('tw1', 'Triwulan I')], komponen: [], terkunci: [],
         kegiatan: { daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana' as const,
-            komponen_id: null, arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi' as const, kegiatan_bersama: false, asal: null, lanjutan: null }], total: TOTAL_KOSONG, can: { tambah: false, kelola: true } },
+            komponen_id: null, arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi' as const, kegiatan_bersama: false }], total: TOTAL_KOSONG, can: { tambah: false, kelola: true } },
     };
     const { rerender } = render(<KegiatanPanel {...props} kotor />);
 
@@ -184,21 +184,4 @@ it('menahan kelola klaim saat target kotor dan mengaktifkannya kembali sesudah b
     expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('aria-disabled')).toBe('false');
     expect(screen.queryByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeNull();
     expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
-});
-
-it('panel RA menautkan kegiatan ditunda dan lanjutannya dua arah, dan menampilkan teks biasa bila pasangannya tidak ada di panel', () => {
-    const baris = { status: 'rencana', komponen_id: null, arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', kegiatan_bersama: false };
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II'), periode('tw3', 'Triwulan III')]} komponen={[]} terkunci={[]}
-        kegiatan={{ daftar: [
-            { ...baris, id: 'k1', kegiatan_id: 'asal', periode_id: 'tw1', nama: 'Bimtek', status: 'ditunda', sumber_klaim: 'rencana_aksi', asal: null, lanjutan: { id: 'lanjut', periode_id: 'tw2' } },
-            { ...baris, id: 'k2', kegiatan_id: 'lanjut', periode_id: 'tw2', nama: 'Bimtek', sumber_klaim: 'pengukuran', asal: { id: 'asal', periode_id: 'tw1' }, lanjutan: null },
-            { ...baris, id: 'k3', kegiatan_id: 'lain', periode_id: 'tw3', nama: 'Rapat', sumber_klaim: 'pengukuran', asal: { id: 'tak-terlihat', periode_id: 'tw2' }, lanjutan: null },
-        ], total: TOTAL_KOSONG, can: { tambah: false, kelola: false } }} />);
-
-    expect(screen.getByRole('link', { name: 'Ditunda → Triwulan II' }).getAttribute('href')).toBe('#kegiatan-lanjut');
-    expect(screen.getByRole('link', { name: 'Lanjutan dari Triwulan I' }).getAttribute('href')).toBe('#kegiatan-asal');
-    expect(document.getElementById('kegiatan-asal')?.textContent).toContain('Ditunda → Triwulan II');
-    expect(document.getElementById('kegiatan-lanjut')?.textContent).toContain('Lanjutan dari Triwulan I');
-    expect(screen.queryByRole('link', { name: 'Lanjutan dari Triwulan II' })).toBeNull();
-    expect(screen.getByText('Lanjutan dari Triwulan II')).toBeTruthy();
 });

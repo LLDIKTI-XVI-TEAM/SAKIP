@@ -158,7 +158,7 @@ class UbahStatusKegiatanTest extends TestCase
         $geser = AuditLog::where('tindakan', 'kegiatan.geser_periode')->sole();
         $this->assertSame(['kegiatan', $lanjutan->id, 'Pembentukan kegiatan lanjutan dari kegiatan yang ditunda.'], [$geser->objek_tipe, $geser->objek_id, $geser->alasan]);
         $this->assertNilai(['kegiatan_asal_id' => $this->kegiatan->id, 'periode_asal_id' => $this->fixture['periode1']->id,
-            'periode_tujuan_id' => $this->fixture['periode2']->id, 'klaim' => []], $geser->nilai_baru);
+            'periode_tujuan_id' => $this->fixture['periode2']->id], $geser->nilai_baru);
         $this->assertEquals(AuditLog::where('tindakan', 'kegiatan.ubah_status')->sole()->dasar_izin, $geser->dasar_izin);
         $this->assertFalse(AuditLog::where('tindakan', 'kegiatan.roll_over')->exists());
     }

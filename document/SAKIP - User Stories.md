@@ -1396,11 +1396,11 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [x] **AC-1:** Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
-- [x] **AC-2:** Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
-- [x] **AC-3:** Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
-- [x] **AC-4:** Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`. *(Q69 §69.5 butir 4)*
-- [x] **AC-5:** Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
+- [ ] **AC-1:** Given kegiatan ditunda, When roll-over dibuat ke periode tujuan, Then baris kegiatan baru dibuat dengan `kegiatan_asal_id` menunjuk kegiatan lama.
+- [ ] **AC-2:** Given baris baru dibuat, Then kegiatan asal tetap `ditunda` dan tidak dihapus.
+- [ ] **AC-3:** Given periode tujuan tidak valid/lebih awal, When roll-over dicoba, Then ditolak.
+- [ ] **AC-4:** Given roll-over selesai, Then audit `kegiatan.geser_periode` menyimpan pasangan asal–tujuan; klaim tahap pengukuran untuk kegiatan lanjutan yang dibuat dalam transaksi yang sama ditambahkan ke payload-nya, sedangkan klaim yang dibuat kemudian, saat baris pengukuran periode tujuan terbentuk, diaudit sebagai `klaim_kegiatan.tambah` yang merujuk kegiatan asal. Tidak ada tindakan audit `kegiatan.roll_over`. *(Q69 §69.5 butir 4)*
+- [ ] **AC-5:** Given kegiatan lanjutan dibuat, Then kegiatan tersebut diklaim ke Rencana Aksi pada tahap pengukuran (`sumber_klaim = pengukuran`), dan RA yang sudah disahkan tidak dibuka kembali untuk memindahkan kegiatan. *(Q41 §41.4 butir 2–3)*
 
 **Business Rules / Catatan**
 
@@ -1529,7 +1529,6 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
 - [ ] **AC-8:** Given dashboard, verifikasi, atau laporan menaut ke kegiatan, Then tautan menuju halaman kegiatan Rencana Aksi.
 - [ ] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
-- [ ] **AC-10:** Given kegiatan yang ditunda beserta kegiatan lanjutannya, Then halaman kegiatan Rencana Aksi menampilkan penanda "Ditunda → periode" pada kegiatan asal dan "Lanjutan dari periode" pada kegiatan lanjutan. Penanda menjadi tautan ke baris pasangannya bila baris itu tampil di halaman yang sama. *(Q41 §41.4 butir 2; keputusan PM 25 Oktober 2026)*
 
 **Business Rules / Catatan**
 
