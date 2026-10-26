@@ -49,13 +49,6 @@ function teksTotal({ total, belum_diisi }: TotalAnggaran): string {
     return belum_diisi > 0 ? `${formatRupiah(total)} (${belum_diisi} kegiatan belum diisi)` : formatRupiah(total);
 }
 
-/** Penanda roll-over; menjadi tautan ke baris pasangannya bila baris itu tampil di panel. */
-function TautanRollOverText({ label, target }: { label: string; target: string | null }) {
-    return target
-        ? <a href={`#kegiatan-${target}`} className="block rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">{label}</a>
-        : <p className="text-xs text-muted">{label}</p>;
-}
-
 /** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
 function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
     return errs.status_alur ?? errs.jendela ?? errs.unit_id ?? errs.indikator_id;
@@ -125,9 +118,6 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
     // Galat per elemen (`salin_ke_periode_ids.0`) ditampilkan sebagai satu pesan grup.
     const galatSalin = fieldErrors.salin_ke_periode_ids ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('salin_ke_periode_ids.'))?.[1];
     const namaPeriode = (id: string): string => periode.find((item) => item.id === id)?.nama ?? 'Periode';
-    // Anchor hanya pada baris pertama per kegiatan; tautan roll-over hanya bila barisnya ada di panel ini.
-    const anchor = new Set(kegiatan.daftar.filter((row, index, all) => all.findIndex((other) => other.kegiatan_id === row.kegiatan_id) === index).map((row) => row.id));
-    const adaDiPanel = (id: string): boolean => kegiatan.daftar.some((row) => row.kegiatan_id === id);
 
     return (
         <Card>
@@ -169,12 +159,10 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                         const komponenKlaim = komponen.find((item) => item.komponen_id === row.komponen_id);
 
                                         return (
-                                            <li key={row.id} id={anchor.has(row.id) ? `kegiatan-${row.kegiatan_id}` : undefined} className="flex scroll-mt-4 flex-wrap items-start justify-between gap-2 py-2">
+                                            <li key={row.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
                                                 <div className="min-w-0 space-y-1">
                                                     <p className="break-words text-sm text-ink">{row.nama}</p>
                                                     <p className="text-xs text-muted">Anggaran: {formatRupiah(row.anggaran)}</p>
-                                                    {row.lanjutan && <TautanRollOverText label={`Ditunda → ${namaPeriode(row.lanjutan.periode_id)}`} target={adaDiPanel(row.lanjutan.id) ? row.lanjutan.id : null} />}
-                                                    {row.asal && <TautanRollOverText label={`Lanjutan dari ${namaPeriode(row.asal.periode_id)}`} target={adaDiPanel(row.asal.id) ? row.asal.id : null} />}
                                                     {(row.kegiatan_bersama || row.sumber_klaim === 'pengukuran') && (
                                                         <span className="flex flex-wrap gap-1">
                                                             {row.kegiatan_bersama && <Badge variant="info">Kegiatan bersama</Badge>}
