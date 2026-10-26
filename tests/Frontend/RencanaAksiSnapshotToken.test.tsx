@@ -100,6 +100,7 @@ const RENCANA_AKSI: RencanaAksiShowProps = {
         periode_id: null,
     },
     koreksi: { aktif: false, periode_ids: [] },
+    periode_dapat_ditulis: ['per-f4-1'],
     pengajuan: { siap: true, alasan: [] },
     versi_pengajuan: null,
     can: { view: true, update: true, submit: false },

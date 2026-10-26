@@ -139,6 +139,8 @@ export interface RencanaAksiShow {
     koreksi: RencanaAksiKoreksi;
     /** Periode terkunci bagi aktor (batas pengisian lewat); kosong bagi Perencanaan. UI hanya-baca + tak dikirim. Opsional agar payload lama tetap terbaca sebagai tidak terkunci. */
     periode_terkunci?: string[];
+    /** Periode yang dapat ditulis aktor (efektif ∩ lingkup koreksi − terkunci). Batas capability tambah kegiatan; kosong = tidak dapat menulis. */
+    periode_dapat_ditulis: string[];
     deviasi_pk: RencanaAksiDeviasiPk;
     pengajuan: RencanaAksiPengajuan;
     /** Versi pengajuan terbaru (nomor terbesar); null bila belum pernah diajukan. */

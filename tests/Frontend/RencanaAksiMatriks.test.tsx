@@ -110,6 +110,8 @@ function buatPayload(overrides?: Partial<RencanaAksiPayload>): RencanaAksiPayloa
             periode_id: PERIODE_2,
         },
         koreksi: { aktif: false, periode_ids: [] },
+        // Bawaan: kedua periode efektif terbuka; test kunci menimpanya eksplisit.
+        periode_dapat_ditulis: [PERIODE_1, PERIODE_2],
         pengajuan: { siap: true, alasan: [] },
         versi_pengajuan: null,
         can: { view: true, update: true, submit: false },
@@ -409,7 +411,7 @@ describe('Tanda kunci periode, target kosong, dan dinilai tahunan', () => {
     };
 
     it('PIC: periode lewat batas berbadge Terkunci dengan alasan bertanggal yang terhubung ke input', () => {
-        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }), periode_terkunci: [PERIODE_1] })} />);
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }), periode_terkunci: [PERIODE_1], periode_dapat_ditulis: [PERIODE_2] })} />);
 
         expect(screen.getByText('Terkunci').closest('th')?.textContent).toContain('Triwulan I');
         const alasan = screen.getByText('Batas pengisian 31 Maret 2026 sudah lewat. Target diisi Tim Perencanaan.');
@@ -422,14 +424,14 @@ describe('Tanda kunci periode, target kosong, dan dinilai tahunan', () => {
     });
 
     it('PIC: periode terkunci yang boleh tanpa target tidak menyebut target diisi Tim Perencanaan', () => {
-        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31', boleh_tanpa_target: true }), periode_terkunci: [PERIODE_1] })} />);
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31', boleh_tanpa_target: true }), periode_terkunci: [PERIODE_1], periode_dapat_ditulis: [PERIODE_2] })} />);
 
         expect(screen.getByText('Batas pengisian 31 Maret 2026 sudah lewat.')).toBeTruthy();
         expect(screen.queryByText(/Target diisi Tim Perencanaan/)).toBeNull();
     });
 
     it('Perencanaan: periode lewat batas PIC tetap dapat disunting dan berbadge Terkunci bagi PIC', () => {
-        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }), periode_terkunci: [] })} />);
+        render(<RencanaAksiShow rencanaAksi={buatPayload({ periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }), periode_terkunci: [], periode_dapat_ditulis: [PERIODE_1, PERIODE_2] })} />);
 
         expect(screen.getByText('Terkunci bagi PIC')).toBeTruthy();
         const alasan = screen.getByText('Batas pengisian PIC 31 Maret 2026 sudah lewat.');
@@ -446,6 +448,7 @@ describe('Tanda kunci periode, target kosong, dan dinilai tahunan', () => {
                 rencanaAksi={buatPayload({
                     periode: periodeDenganTw1({ batas_terkunci_pic: '2026-03-31' }),
                     periode_terkunci: [],
+                    periode_dapat_ditulis: [PERIODE_2],
                     koreksi: { aktif: true, periode_ids: [PERIODE_2] },
                 })}
             />,

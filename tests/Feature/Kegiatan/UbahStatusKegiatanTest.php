@@ -400,49 +400,54 @@ class UbahStatusKegiatanTest extends TestCase
         return $this->fixture['periode1']->id;
     }
 
-    public function test_daftar_dan_form_mengirim_pilihan_status_dari_server(): void
+    public function test_halaman_edit_mengirim_pilihan_status_dari_server(): void
     {
-        $pendukung = $this->baris('Kegiatan pendukung');
+        $pendukung = $this->form($this->kegiatan);
         $this->assertSame([['ditunda', 'tidak_terlaksana', 'batal'], true], [$pendukung['can']['ubah_status'], $pendukung['can']['ubah_rencana']]);
-        $this->assertSame([['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II']], $pendukung['opsi_periode_tujuan']);
-        $this->assertSame('Triwulan I', $this->form($this->kegiatan)['kegiatan']['periode_nama']);
+        $this->assertSame([['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II']], $pendukung['opsiPeriodeTujuan']);
+        $this->assertSame('Triwulan I', $pendukung['kegiatan']['periode_nama']);
 
         // Periode aktif terakhir: tanpa Tunda dan tanpa opsi periode tujuan.
         $kedua = $this->kegiatanLain('Kegiatan triwulan dua', $this->fixture['periode2']->id);
-        $barisKedua = $this->baris('Kegiatan triwulan dua');
-        $this->assertSame([['tidak_terlaksana', 'batal'], []], [$barisKedua['can']['ubah_status'], $barisKedua['opsi_periode_tujuan']]);
+        $this->klaim($kedua);
+        $formKedua = $this->form($kedua);
+        $this->assertSame([['tidak_terlaksana', 'batal'], []], [$formKedua['can']['ubah_status'], $formKedua['opsiPeriodeTujuan']]);
 
         $this->ubah(['status' => 'batal'])->assertRedirect();
-        $batal = $this->baris('Kegiatan pendukung');
-        $this->assertSame([[], false, true], [$batal['can']['ubah_status'], $batal['can']['ubah_rencana'], $batal['can']['update']]);
         $form = $this->form($this->kegiatan);
-        $this->assertSame(['Narasumber berhalangan.', []], [$form['kegiatan']['justifikasi'], $form['can']['ubah_status']]);
+        $this->assertSame(['Narasumber berhalangan.', [], false], [$form['kegiatan']['justifikasi'], $form['can']['ubah_status'], $form['can']['ubah_rencana']]);
 
         $ketiga = $this->kegiatanLain('Kegiatan ditunda', $this->fixture['periode1']->id);
+        $this->klaim($ketiga);
         $this->ubah($this->tunda(), $ketiga)->assertRedirect();
         $this->assertSame('Triwulan II', $this->form($ketiga)['kegiatan']['periode_tujuan']);
 
         $this->fixture['jadwal']->update(['status' => 'ditutup', 'closed_at' => now()]);
-        $this->assertSame([], $this->baris('Kegiatan triwulan dua')['can']['ubah_status']);
         $this->assertSame([], $this->form($kedua)['can']['ubah_status']);
 
+        // Tanpa izin ubah, form tidak menampilkan status apa pun tetapi menolak 403 + audit (fail-closed).
         $this->fixture['jadwal']->update(['status' => 'aktif', 'closed_at' => null]);
         $this->deny($this->fixture['pic'], 'kegiatan:update', $this->fixture['unit']->id);
-        $this->assertSame([], $this->baris('Kegiatan triwulan dua')['can']['ubah_status']);
-    }
-
-    /** @return array<string, mixed> */
-    private function baris(string $nama): array
-    {
-        $props = $this->actingAs($this->fixture['pic'])->get('/kegiatan?tahun=2026')->assertOk()->viewData('page')['props'];
-
-        return collect($props['kegiatan']['data'])->firstWhere('nama', $nama);
+        $this->actingAs($this->fixture['pic'])->get($this->formUrl($kedua))->assertForbidden();
+        $this->assertSame('kegiatan:update', AuditLog::where('tindakan', 'kegiatan.form_ditolak')->where('objek_id', $kedua->id)->sole()->dasar_izin['permission']);
     }
 
     /** @return array<string, mixed> */
     private function form(Kegiatan $kegiatan): array
     {
-        return $this->actingAs($this->fixture['pic'])->get("/kegiatan/{$kegiatan->id}/edit")->assertOk()->viewData('page')['props'];
+        return $this->actingAs($this->fixture['pic'])->get($this->formUrl($kegiatan))->assertOk()->viewData('page')['props'];
+    }
+
+    private function formUrl(Kegiatan $kegiatan): string
+    {
+        return route('rencana-aksi.kegiatan.edit', ['rencanaAksi' => $this->header->id, 'kegiatan' => $kegiatan->id]);
+    }
+
+    /** Klaim kegiatan ad-hoc ke RA draf agar dapat dibuka lewat halaman edit kegiatan RA. */
+    private function klaim(Kegiatan $kegiatan): void
+    {
+        KlaimKegiatan::create(['rencana_aksi_id' => $this->header->id, 'kegiatan_id' => $kegiatan->id,
+            'arah_dampak' => 'menambah', 'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->fixture['pic']->id, 'created_at' => now()]);
     }
 
     private function kegiatanLain(string $nama, string $periodeId): Kegiatan

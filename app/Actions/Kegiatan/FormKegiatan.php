@@ -36,7 +36,7 @@ class FormKegiatan
         // Q54 §54.3: unit tujuan pemindahan juga harus terbaca agar hasil simpan tetap terlihat.
         $unitOptions = $units->filter(fn (Unit $unit) => $decisions[$unit->id]['kegiatan:update']['allowed'] && $decisions[$unit->id]['kegiatan:read']['allowed'])->values();
         $periodeAktif = Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama', 'urutan', ...Periode::TANGGAL]);
-        // Aturan sama dengan DaftarKegiatan: aksi status tidak ditawarkan untuk tahun yang pasti ditolak.
+        // Aturan sama dengan halaman kegiatan Rencana Aksi: aksi status tidak ditawarkan untuk tahun yang pasti ditolak.
         $tahunDitutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
         // Periode tujuan yang terkunci bagi PIC tidak ditawarkan (Q69 §69.5 butir 2); `$decision` terakhir adalah `kegiatan:update`.
         $pilihan = $this->rollOver->saringTujuan($kegiatan, $kegiatan->loadMissing('periode:id,nama,urutan')->pilihanStatus($periodeAktif),

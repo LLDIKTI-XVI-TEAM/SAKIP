@@ -21,8 +21,11 @@ use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
+use App\Http\Controllers\Kegiatan\AlihkanKegiatanLama;
 use App\Http\Controllers\Kegiatan\BerkasKegiatanController;
+use App\Http\Controllers\Kegiatan\EditKegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KegiatanController;
+use App\Http\Controllers\Kegiatan\KegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
 use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
 use App\Http\Controllers\Laporan\RekapIndikatorPeriodeController;
@@ -122,7 +125,10 @@ Route::middleware(['auth', EnsurePenanggungJawabActorIsActive::class])->group(fu
 });
 
 Route::middleware(['auth', EnsureKegiatanActorIsActive::class])->group(function () {
-    Route::post('/kegiatan', [KegiatanController::class, 'store'])->name('kegiatan.store');
+    // Permukaan baca kegiatan berkonteks Rencana Aksi (Q74 §74.1); tulisnya tetap memakai URL lama.
+    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan', KegiatanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.kegiatan.index');
+    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan/{kegiatan}', EditKegiatanRencanaAksi::class)->whereUuid(['rencanaAksi', 'kegiatan'])
+        ->name('rencana-aksi.kegiatan.edit');
     Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
     Route::post('/kegiatan/{kegiatan}/status', [KegiatanController::class, 'ubahStatus'])->whereUuid('kegiatan')->name('kegiatan.status');
 });
@@ -200,9 +206,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/renstra/{renstra}/berkas/{berkas}/download', DownloadBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.download');
     Route::get('/renstra/{renstra}', ShowRenstra::class)->whereUuid('renstra')->name('renstra.show');
 
-    // Rencana kegiatan unit.
-    Route::get('/kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
-    Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
+    // Tautan lama dipertahankan sebagai pengalihan ke halaman kegiatan Rencana Aksi terkait (Q74 §74.1 butir 5).
+    Route::get('/kegiatan', [AlihkanKegiatanLama::class, 'index'])->name('kegiatan.index');
+    Route::get('/kegiatan/{kegiatan}/edit', [AlihkanKegiatanLama::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
     Route::post('/kegiatan/{kegiatan}/berkas', [BerkasKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.berkas.store');
     Route::delete('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'destroy'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.destroy');
     Route::get('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'download'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.download');

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Periode;
 
 use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -31,10 +32,15 @@ class RentangPeriodeHalamanTest extends TestCase
         });
         $this->get('/rencana-aksi/'.$this->plan->id)->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('rencanaAksi.periode.0.tanggal', self::TANGGAL));
-        $this->get('/kegiatan?tahun=2026')->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('kegiatan.data.0.periode.tanggal', self::TANGGAL));
-        $this->get("/kegiatan/$kegiatan->id/edit")->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('periodeOptions.0.tanggal', self::TANGGAL));
+        // Permukaan kegiatan berkonteks Rencana Aksi (Q74 §74.1): tanggal periode ikut lewat props halaman RA.
+        KlaimKegiatan::create(['rencana_aksi_id' => $this->plan->id, 'kegiatan_id' => $kegiatan->id,
+            'arah_dampak' => 'menambah', 'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->actor->id, 'created_at' => now()]);
+        $this->get("/rencana-aksi/{$this->plan->id}/kegiatan")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('RencanaAksi/Kegiatan')
+                ->where('rencanaAksi.periode.0.tanggal', self::TANGGAL));
+        $this->get("/rencana-aksi/{$this->plan->id}/kegiatan/{$kegiatan->id}")->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('RencanaAksi/KegiatanEdit')
+                ->where('periodeOptions.0.tanggal', self::TANGGAL));
         $this->get('/pengukuran')->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('pengukurans.0.periode.tanggal', self::TANGGAL));
         $this->get('/pengukuran/'.$this->pengukuran->id.'/edit')->assertOk()

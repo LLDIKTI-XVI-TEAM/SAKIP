@@ -115,7 +115,7 @@ it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke pe
             total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
 
     expect(screen.queryByRole('button', { name: /Tambah kegiatan Triwulan I$/ })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/kegiatan/keg-1/edit');
+    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
 
     fireEvent.click(screen.getByRole('button', { name: /Tambah kegiatan Triwulan II$/ }));
     const dialog = within(screen.getByRole('dialog'));
@@ -183,7 +183,7 @@ it('menahan kelola klaim saat target kotor dan mengaktifkannya kembali sesudah b
     rerender(<KegiatanPanel {...props} kotor={false} />);
     expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('aria-disabled')).toBe('false');
     expect(screen.queryByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/kegiatan/keg-1/edit');
+    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
 });
 
 it('panel RA menautkan kegiatan ditunda dan lanjutannya dua arah, dan menampilkan teks biasa bila pasangannya tidak ada di panel', () => {

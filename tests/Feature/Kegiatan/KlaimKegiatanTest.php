@@ -218,24 +218,26 @@ class KlaimKegiatanTest extends TestCase
 
     public function test_halaman_kegiatan_memuat_panel_klaim_sesuai_gerbang(): void
     {
-        $edit = '/kegiatan/'.$this->kegiatan->id.'/edit';
-        $this->actingAs($this->actor)->get($edit)->assertOk()->assertInertia(fn ($page) => $page
-            ->has('klaim.daftar', 0)
+        $edit = $this->halamanUbah($this->kegiatan);
+
+        $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        $this->get($edit)->assertOk()->assertInertia(fn ($page) => $page
+            ->has('klaim.daftar', 1)
             ->where('klaim.can.tambah', true)
             ->where('klaim.opsiRencanaAksi.0.id', $this->rencanaAksi->id)
             ->where('klaim.opsiRencanaAksi.0.komponen.0.id', $this->komponen->id));
 
         $this->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertSessionHasNoErrors();
         $this->get($edit)->assertInertia(fn ($page) => $page
-            ->where('klaim.daftar.0.komponen', 'PEMBILANG — pembilang')
-            ->where('klaim.daftar.0.can.hapus', true));
+            ->has('klaim.daftar', 2)
+            ->where('klaim.daftar', fn ($daftar) => collect($daftar)->contains(fn ($row) => $row['komponen'] === 'PEMBILANG — pembilang' && $row['can']['hapus'] === true)));
 
         // RA yang sudah diajukan tidak lagi ditawarkan dan klaimnya tidak dapat dihapus.
         $this->rencanaAksi->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
         $this->get($edit)->assertInertia(fn ($page) => $page
             ->has('klaim.opsiRencanaAksi', 0)
             ->where('klaim.can.tambah', false)
-            ->where('klaim.daftar.0.can.hapus', false));
+            ->where('klaim.daftar', fn ($daftar) => collect($daftar)->every(fn ($row) => $row['can']['hapus'] === false)));
     }
 
     public function test_deny_baca_ra_pada_unit_menyembunyikan_panel_klaim(): void
@@ -243,7 +245,7 @@ class KlaimKegiatanTest extends TestCase
         $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
         $this->denyPermission($this->actor, 'rencana_aksi:read', $this->unit->id);
 
-        $this->get('/kegiatan/'.$this->kegiatan->id.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('klaim', null));
+        $this->get($this->halamanUbah($this->kegiatan))->assertOk()->assertInertia(fn ($page) => $page->where('klaim', null));
     }
 
     public function test_akun_nonaktif_ditolak_tanpa_mutasi_dan_percobaannya_diaudit(): void
@@ -271,7 +273,7 @@ class KlaimKegiatanTest extends TestCase
 
     public function test_opsi_klaim_hanya_kombinasi_yang_tersedia_dan_label_dari_snapshot(): void
     {
-        $edit = '/kegiatan/'.$this->kegiatan->id.'/edit';
+        $edit = $this->halamanUbah($this->kegiatan);
         $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
         // Master berubah setelah aktivasi; label klaim tetap dari snapshot beku RA.
         $this->komponen->update(['label' => 'Label master baru']);
@@ -283,7 +285,13 @@ class KlaimKegiatanTest extends TestCase
         $this->get($edit)->assertInertia(fn ($page) => $page
             ->has('klaim.opsiRencanaAksi', 0)
             ->where('klaim.can.tambah', false)
-            ->where('klaim.daftar.1.komponen', 'PEMBILANG — pembilang'));
+            ->where('klaim.daftar', fn ($daftar) => collect($daftar)->contains(fn ($row) => $row['komponen'] === 'PEMBILANG — pembilang')));
+    }
+
+    /** Halaman ubah kegiatan berkonteks Rencana Aksi pengklaimnya (Q74 §74.1). */
+    private function halamanUbah(Kegiatan $kegiatan): string
+    {
+        return '/rencana-aksi/'.$this->rencanaAksi->id.'/kegiatan/'.$kegiatan->id;
     }
 
     private function url(?Kegiatan $kegiatan = null): string

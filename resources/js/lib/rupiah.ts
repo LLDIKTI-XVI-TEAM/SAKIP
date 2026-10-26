@@ -11,3 +11,8 @@ export function formatRupiah(nilai: string | number | null | undefined): string 
 export function bantuanAnggaran(nilai: string): string {
     return nilai === '' ? 'Wajib diisi dalam rupiah; isi 0 bila kegiatan tanpa anggaran.' : formatRupiah(nilai);
 }
+
+/** Total anggaran beserta penanda kegiatan yang anggarannya belum diisi (Q42 §42.2 butir 2). */
+export function teksTotalAnggaran({ total, belum_diisi }: { total: string; belum_diisi: number }): string {
+    return belum_diisi > 0 ? `${formatRupiah(total)} (${belum_diisi} kegiatan belum diisi)` : formatRupiah(total);
+}

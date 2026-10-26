@@ -13,11 +13,14 @@ use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Props panel kegiatan per periode pada halaman Rencana Aksi (Q42 §42.1):
- * daftar kegiatan yang diklaim RA (tahap RA dan pengukuran) beserta anggaran,
- * penanda kegiatan bersama, total (Q42 §42.2), dan capability tambah. Akses
- * halaman sudah diputuskan `IndexRencanaAksi`; periode, komponen, dan
- * periode terkunci bagi aktor memakai props halaman yang sama.
+ * Props daftar kegiatan per periode untuk panel Rencana Aksi dan halaman
+ * kegiatan Rencana Aksi (Q42 §42.1): kegiatan yang diklaim RA (tahap RA dan
+ * pengukuran) beserta anggaran, penanda kegiatan bersama, total (Q42 §42.2),
+ * capability tambah, dan capability kelola. Akses halaman sudah diputuskan
+ * pemanggil; periode, komponen, dan periode terkunci bagi aktor memakai props
+ * halaman Rencana Aksi yang sama. Capability tambah dinilai terhadap periode
+ * yang dapat ditulis aktor sehingga klaim baru tidak ditawarkan saat semua
+ * periode terkunci.
  */
 class DaftarKegiatanRencanaAksi
 {
@@ -32,9 +35,14 @@ class DaftarKegiatanRencanaAksi
      * agar detail kegiatan, termasuk anggaran dan total, tidak terbaca lewat
      * halaman RA (Q42 §42.5).
      *
+     * `$periodeDapatDitulis` berasal dari `IndexRencanaAksi` (efektif ∩ lingkup
+     * koreksi − terkunci). Daftar kosong berarti tidak ada periode yang dapat
+     * ditulis, sehingga capability tambah fail-closed.
+     *
+     * @param  list<string>  $periodeDapatDitulis
      * @return array<string, mixed>|null
      */
-    public function handle(User $actor, string $id): ?array
+    public function handle(User $actor, string $id, array $periodeDapatDitulis): ?array
     {
         $header = RencanaAksi::findOrFail($id);
         $unitId = (string) $header->unit_id;
@@ -44,8 +52,9 @@ class DaftarKegiatanRencanaAksi
 
         // Capability di luar snapshot READ ONLY: gerbang klaim mengambil row lock (`FOR SHARE`) yang ditolak transaksi read-only.
         $can = [
-            'tambah' => $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE),
-            // Pengelolaan klaim per kegiatan berada di halaman Kegiatan; tautan hanya bila izin ubah kegiatan ada.
+            'tambah' => $periodeDapatDitulis !== []
+                && $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE, $periodeDapatDitulis),
+            // Pengelolaan klaim dan berkas per kegiatan berada di halaman kegiatan Rencana Aksi; tautan hanya bila izin ubah kegiatan ada.
             'kelola' => $this->resolver->allows($actor, PermissionCodes::KEGIATAN_UPDATE, $unitId),
         ];
 

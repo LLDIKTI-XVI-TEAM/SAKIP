@@ -185,31 +185,6 @@ class RollOverKegiatanTest extends TestCase
         $this->assertSame([$this->fixture['pic']->id, $this->asal->id], [$audit->actor_id, $audit->nilai_baru['kegiatan_asal_id']]);
     }
 
-    public function test_daftar_kegiatan_menilai_kunci_periode_tujuan_tanpa_query_per_baris(): void
-    {
-        $hitung = function (): array {
-            DB::flushQueryLog();
-            DB::enableQueryLog();
-            $this->actingAs($this->fixture['pic'])->get('/kegiatan?tahun=2026')->assertOk();
-
-            return array_column(DB::getQueryLog(), 'query');
-        };
-        $tambah = function (string $nama): void {
-            $kegiatan = Kegiatan::create(['unit_id' => $this->fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $this->fixture['periode1']->id,
-                'nama' => $nama, 'anggaran' => 0, 'created_by' => $this->fixture['pic']->id]);
-            KlaimKegiatan::create(['rencana_aksi_id' => $this->header->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
-                'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->fixture['pic']->id, 'created_at' => now()]);
-        };
-        // Pembanding sudah memuat satu baris berklaim agar query sekali per halaman ikut terhitung di kedua sisi;
-        // permintaan pertama hanya memanaskan cache izin.
-        $tambah('Bimtek');
-        $hitung();
-        $awal = $hitung();
-        array_map($tambah, ['Monev', 'Rapat', 'Rakor']);
-
-        $this->assertCount(count($awal), $hitung());
-    }
-
     public function test_pembentukan_draf_mengunci_advisory_dan_header_ra_sebelum_indikator(): void
     {
         // Urutan sama dengan transisi ditunda (advisory → header RA) dan writer RA (header RA → indikator) agar klaim tertunda tidak deadlock.
@@ -230,10 +205,10 @@ class RollOverKegiatanTest extends TestCase
         // Lewat pengisian_selesai Triwulan II (31 Maret) pada jadwal RA pengklaim (Q69 §69.5 butir 2).
         $this->travelTo(now()->setDate(2026, 4, 15)->setTime(9, 0));
         $jumlah = Kegiatan::count();
-        // Daftar dan form tidak menawarkan Tunda bila satu-satunya periode tujuan terkunci bagi PIC; Perencanaan tetap ditawari.
-        $this->assertSame([false, [], false, []], $this->pilihanTunda('pic', $this->asal));
+        // Form tidak menawarkan Tunda bila satu-satunya periode tujuan terkunci bagi PIC; Perencanaan tetap ditawari.
+        $this->assertSame([false, []], $this->pilihanTunda('pic', $this->asal));
         $tujuan = [['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II']];
-        $this->assertSame([true, $tujuan, true, $tujuan], $this->pilihanTunda('perencanaan', $this->asal));
+        $this->assertSame([true, $tujuan], $this->pilihanTunda('perencanaan', $this->asal));
 
         $this->tunda(json: true)->assertUnprocessable()->assertJsonValidationErrors('periode_tujuan_id');
 
@@ -241,10 +216,10 @@ class RollOverKegiatanTest extends TestCase
         $ditolak = AuditLog::where('tindakan', 'kegiatan.ubah_status_ditolak')->sole();
         $this->assertSame('Periode tujuan terkunci bagi PIC setelah batas pengisian lewat: Triwulan II (batas 2026-03-31).', $ditolak->alasan);
 
-        // Kontrol: kegiatan tanpa RA pengklaim tidak memiliki kunci periode Rencana Aksi.
+        // Kontrol: kegiatan tanpa RA pengklaim tidak memiliki kunci periode Rencana Aksi. Halaman edit
+        // kegiatan RA mensyaratkan klaim RA (404 tanpa klaim), sehingga kontrol dibuktikan lewat aksi.
         $bebas = Kegiatan::create(['unit_id' => $this->fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $this->fixture['periode1']->id,
             'nama' => 'Kegiatan tanpa klaim', 'anggaran' => 0, 'created_by' => $this->fixture['pic']->id]);
-        $this->assertSame([true, $tujuan, true, $tujuan], $this->pilihanTunda('pic', $bebas));
         $this->tunda(kegiatan: $bebas)->assertRedirect();
 
         // Perencanaan dikecualikan dari kunci periode sampai penutupan (Q41 §41.2).
@@ -271,7 +246,7 @@ class RollOverKegiatanTest extends TestCase
         $this->assertSame(['2500000', ['total' => '2500000', 'belum_diisi' => 0]],
             [$total->perRencanaAksi($this->header->fresh())['total'], $total->perRencanaAksi($this->header->fresh())['per_periode'][$this->fixture['periode2']->id]]);
 
-        $token = $this->actingAs($this->fixture['pic'])->get("/kegiatan/{$lanjutan->id}/edit")->assertOk()->viewData('page')['props']['kegiatan']['version_token'];
+        $token = $this->actingAs($this->fixture['pic'])->get($this->formUrl($lanjutan))->assertOk()->viewData('page')['props']['kegiatan']['version_token'];
         $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$lanjutan->id}", [
             ...$lanjutan->only(['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana']),
             'anggaran' => 3000000, 'expected_state' => $token,
@@ -314,15 +289,18 @@ class RollOverKegiatanTest extends TestCase
             'format_diizinkan' => 'xlsx,pdf', 'ukuran_maks_kb' => 10240, 'aktif' => true, 'created_by' => $this->fixture['perencanaan']->id]);
     }
 
-    /** @return array{bool, list<array{id: string, nama: string}>, bool, list<array{id: string, nama: string}>} Tunda dan periode tujuan di daftar lalu form. */
+    /** @return array{bool, list<array{id: string, nama: string}>} Tunda dan periode tujuan di halaman edit kegiatan RA. */
     private function pilihanTunda(string $aktor, Kegiatan $kegiatan): array
     {
         $this->actingAs($this->fixture[$aktor]);
-        $baris = collect($this->get('/kegiatan?tahun=2026')->assertOk()->viewData('page')['props']['kegiatan']['data'])->firstWhere('id', $kegiatan->id);
-        $form = $this->get("/kegiatan/{$kegiatan->id}/edit")->assertOk()->viewData('page')['props'];
+        $form = $this->get($this->formUrl($kegiatan))->assertOk()->viewData('page')['props'];
 
-        return [in_array('ditunda', $baris['can']['ubah_status'], true), $baris['opsi_periode_tujuan'],
-            in_array('ditunda', $form['can']['ubah_status'], true), $form['opsiPeriodeTujuan']];
+        return [in_array('ditunda', $form['can']['ubah_status'], true), $form['opsiPeriodeTujuan']];
+    }
+
+    private function formUrl(Kegiatan $kegiatan): string
+    {
+        return route('rencana-aksi.kegiatan.edit', ['rencanaAksi' => $this->header->id, 'kegiatan' => $kegiatan->id]);
     }
 
     /** @param array<string, mixed> $data */

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Save } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
@@ -8,11 +8,11 @@ import { Button } from '@/Components/Button';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { arahLabel, tipePerhitunganLabel } from '@/lib/indikator';
+import { teksTotalAnggaran } from '@/lib/rupiah';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import type { IndikatorArah, IndikatorTipePerhitungan } from '@/types/sasaran-indikator';
 import AjukanPanel from './AjukanPanel';
 import BuktiPanel from './BuktiPanel';
-import KegiatanPanel from './KegiatanPanel';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
 import type { RencanaAksiBukti, RencanaAksiKegiatan, RencanaAksiShow } from './types';
@@ -243,6 +243,9 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
     );
     const namaPeriode = (periodeId: string): string =>
         rencanaAksi.periode.find((baris) => baris.id === periodeId)?.nama ?? 'Periode';
+    // Jumlah kegiatan unik yang diklaim ke RA ini; beberapa klaim komponen pada
+    // kegiatan yang sama tidak dihitung ganda. Angka tampilan, bukan formula.
+    const jumlahKegiatan = new Set((kegiatan?.daftar ?? []).map((row) => row.kegiatan_id)).size;
 
     return (
         <AuthenticatedLayout
@@ -509,19 +512,41 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                     />
                 )}
 
-                {/* Di luar form target agar form modal kegiatan tidak bersarang. */}
+                {/* Ringkasan baca-saja: tambah/ubah/klaim/berkas kegiatan hanya di halaman kegiatan RA (Q74 §74.1). */}
                 {kegiatan && (
-                    <KegiatanPanel
-                        rencanaAksiId={rencanaAksi.id}
-                        periode={rencanaAksi.periode.filter((item) => item.efektif)}
-                        komponen={rencanaAksi.komponen}
-                        // Selaras matriks target: dalam sesi koreksi hanya periode lingkup koreksi yang dapat diubah.
-                        terkunci={rencanaAksi.periode
-                            .filter((item) => item.efektif && ((rencanaAksi.periode_terkunci ?? []).includes(item.id) || !dapatDisuntingPeriode(rencanaAksi.koreksi, item.id)))
-                            .map((item) => item.id)}
-                        kegiatan={kegiatan}
-                        kotor={kotor}
-                    />
+                    <Card>
+                        <CardHeader>
+                            <div className="min-w-0 flex-1 space-y-1">
+                                <CardTitle>Kegiatan</CardTitle>
+                                <p className="text-sm text-muted">
+                                    Kegiatan dibuat, diubah, dan dikelola beserta klaim, berkas, dan status pelaksanaannya di halaman
+                                    kegiatan rencana aksi ini.
+                                </p>
+                            </div>
+                            <Link
+                                href={`/rencana-aksi/${rencanaAksi.id}/kegiatan`}
+                                className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                            >
+                                <ClipboardList className="h-4 w-4" aria-hidden="true" />
+                                Buka halaman kegiatan
+                            </Link>
+                        </CardHeader>
+                        <CardContent>
+                            <dl className="grid gap-5 text-sm sm:grid-cols-2">
+                                <div>
+                                    <dt className="text-muted">Jumlah kegiatan</dt>
+                                    <dd className="mt-1 font-medium">{jumlahKegiatan}</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-muted">Total anggaran</dt>
+                                    <dd className="mt-1 font-medium">{teksTotalAnggaran(kegiatan.total)}</dd>
+                                </div>
+                            </dl>
+                            {kegiatan.daftar.length === 0 && (
+                                <p className="mt-4 text-sm text-muted">Belum ada kegiatan yang diklaim ke rencana aksi ini.</p>
+                            )}
+                        </CardContent>
+                    </Card>
                 )}
 
                 {/* Di luar form target agar form modal bukti tidak bersarang. */}

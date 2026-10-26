@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * Mutasi dipanggil di dalam transaksi Action yang sudah mengunci kegiatan asal dan memvalidasi periode tujuan;
  * Service ini tidak membuka transaksi, tidak memeriksa izin, dan tidak menulis audit (audit milik Action).
  * Kunci periode tujuan bagi PIC (`tujuanTerkunci`, `saringTujuan`) dipakai bersama oleh Action dan tampilan
- * (`DaftarKegiatan`, `FormKegiatan`) agar periode yang pasti ditolak tidak ditawarkan.
+ * (`FormKegiatan` dan halaman kegiatan Rencana Aksi) agar periode yang pasti ditolak tidak ditawarkan.
  * Isi lanjutan memakai `TambahKegiatanRencanaAksi::FIELD_SALIN` ditambah unit dan tahun; tanggal rencana,
  * justifikasi, data pelaksanaan, klaim, dan berkas tidak disalin.
  *
