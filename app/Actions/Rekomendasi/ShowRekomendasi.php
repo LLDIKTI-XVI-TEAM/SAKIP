@@ -41,7 +41,8 @@ class ShowRekomendasi
             ->first(['s.nama', 's.unit_id', 'i.kode', 'u.nama as unit', 'j.id as jadwal_id', 'p.nama as periode', 'p.urutan']);
         abort_unless($context, 404);
         $this->authorize($actor, $context->unit_id);
-        Validator::make($query, ['riwayat_page' => ['nullable', 'integer', 'min:1']])->validate();
+        $query = Validator::make($query, ['riwayat_page' => ['nullable', 'integer', 'min:1'],
+            'iku_page' => ['nullable', 'integer', 'min:1'], 'cari_iku' => ['nullable', 'string', 'max:100']])->validate();
 
         $berlakuId = $this->berlaku->untuk($row->indikator_id, $row->tahun, $row->periode_id)?->id;
         $row->load(['penyusun:id,nama', 'penyetuju:id,nama']);
@@ -57,10 +58,12 @@ class ShowRekomendasi
 
         return [
             'rekomendasi' => $this->tampilan($row, $berlakuId),
-            'indikator' => ['kode' => $context->kode, 'nama' => $context->nama, 'unit' => $context->unit],
+            'indikator' => ['id' => $row->indikator_id, 'kode' => $context->kode, 'nama' => $context->nama, 'unit' => $context->unit],
             'periode' => ['nama' => $context->periode, 'tahun' => $row->tahun],
             'berlaku_url' => $berlakuId ? '/rekomendasi/'.$berlakuId : null,
             'kelola_url' => '/rekomendasi?'.http_build_query(['jadwal_id' => $context->jadwal_id, 'periode_id' => $row->periode_id]),
+            'pencarian_iku' => $query['cari_iku'] ?? '',
+            'pilihan_iku' => $this->pilihanIku($actor, $row, $context, $query['cari_iku'] ?? ''),
             'riwayat' => $riwayat,
             'can' => ['viewFollowUp' => $bolehBaca],
             ...($bolehBaca ? ['tindak_lanjut' => $pengukuran ? $this->tindakLanjut($row, $pengukuran) : null] : []),
@@ -72,6 +75,33 @@ class ShowRekomendasi
         if (! $this->resolver->allows($actor, PermissionCodes::REKOMENDASI_TETAPKAN, $unitId)) {
             throw new AuthorizationException('Anda tidak memiliki izin membaca rekomendasi pimpinan ini.');
         }
+    }
+
+    /** Pilihan memakai snapshot efektif dan izin yang sama dengan detail, bukan unit master saat ini. @return array<string, mixed> */
+    private function pilihanIku(User $actor, RekomendasiPimpinan $row, object $context, string $cari): array
+    {
+        $snapshots = DB::table('jadwal_snapshot as s')->join('periode as p', 'p.id', '=', 's.periode_mulai_id')
+            ->where('s.jadwal_id', $context->jadwal_id)->where('p.urutan', '<=', $context->urutan)
+            ->selectRaw('DISTINCT ON (s.indikator_id) s.indikator_id, s.nama, s.unit_id')
+            ->orderBy('s.indikator_id')->orderByDesc('s.nomor_versi');
+        // Rekomendasi berlaku didahulukan; IKU tanpa persetujuan menautkan ke draf terbuka.
+        $rekomendasi = DB::table('rekomendasi_pimpinan')->where('tahun', $row->tahun)->where('periode_id', $row->periode_id)
+            ->selectRaw('DISTINCT ON (indikator_id) indikator_id, id, status')
+            ->orderBy('indikator_id')->orderByRaw("(status = 'disetujui') DESC")->orderByDesc('disetujui_pada')->orderByDesc('id');
+
+        $halaman = DB::query()->fromSub($snapshots, 's')->joinSub($rekomendasi, 'r', 'r.indikator_id', '=', 's.indikator_id')
+            ->join('indikator_kinerjas as i', 'i.id', '=', 's.indikator_id')
+            ->whereNotIn('s.unit_id', $this->resolver->unitDitolak($actor, PermissionCodes::REKOMENDASI_TETAPKAN))
+            ->when($cari !== '', fn (Builder $q) => $q->where(fn (Builder $q) => $q
+                ->where('i.kode', 'ilike', '%'.$cari.'%')->orWhere('s.nama', 'ilike', '%'.$cari.'%')))
+            ->orderBy('i.kode')->orderBy('s.indikator_id')
+            ->simplePaginate(20, ['s.indikator_id', 'i.kode', 's.nama', 'r.id as rekomendasi_id', 'r.status'], 'iku_page')
+            ->withQueryString();
+
+        return ['data' => array_map(fn (object $r) => ['id' => $r->indikator_id, 'kode' => $r->kode, 'nama' => $r->nama,
+            'status' => $r->status, 'url' => '/rekomendasi/'.$r->rekomendasi_id], $halaman->items()),
+            'current_page' => $halaman->currentPage(), 'per_page' => $halaman->perPage(),
+            'prev_page_url' => $halaman->previousPageUrl(), 'next_page_url' => $halaman->nextPageUrl()];
     }
 
     /** @return array<string, mixed> */

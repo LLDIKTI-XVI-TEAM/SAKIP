@@ -184,6 +184,70 @@ class DetailRekomendasiTest extends TestCase
             ->has('riwayat.data', 2)->where('riwayat.data.1.id', $draf->id));
     }
 
+    public function test_pilih_iku_memakai_konteks_yang_sama_dan_menyaring_deny_unit_snapshot_terbaru(): void
+    {
+        $dibuka = $this->rekomendasi('Dibuka.', now()->subDays(2));
+        $terbaru = $this->rekomendasi('Berlaku.', now()->subDay());
+        $this->rekomendasi('Draf tidak menggantikan yang berlaku.');
+        $periodeLain = $this->periode(2);
+        $ditolak = Unit::create(['nama' => 'Unit ditolak', 'created_by' => $this->actor->id]);
+        $this->deny('rekomendasi:tetapkan', 'lain');
+        DB::table('user_permission_denied')->where('user_id', $this->actor->id)->update(['unit_id' => $ditolak->id]);
+        $draf = null;
+        foreach (['DRAF', 'DENY', 'TAHUN', 'PERIODE', 'KOSONG', 'MENDATANG'] as $kode) {
+            $indikator = $this->pengukuran->indikator->replicate();
+            $indikator->kode = $kode;
+            $indikator->save();
+            $snapshot = $this->context->replicate();
+            $snapshot->indikator_id = $indikator->id;
+            if ($kode === 'MENDATANG') {
+                $snapshot->periode_mulai_id = $periodeLain->id;
+            }
+            $snapshot->save();
+            if ($kode === 'DENY') {
+                $baru = $snapshot->replicate();
+                $baru->nomor_versi = 2;
+                $baru->unit_id = $ditolak->id;
+                $baru->save();
+            }
+            if ($kode !== 'KOSONG') {
+                $r = $this->rekomendasi('Isi '.$kode, null, ['indikator_id' => $indikator->id,
+                    'tahun' => $kode === 'TAHUN' ? 2025 : 2026,
+                    'periode_id' => $kode === 'PERIODE' ? $periodeLain->id : $dibuka->periode_id]);
+                if ($kode === 'DRAF') {
+                    $draf = $r;
+                }
+            }
+        }
+
+        $this->actingAs($this->actor)->get('/rekomendasi/'.$dibuka->id)->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('indikator.id', $dibuka->indikator_id)->has('pilihan_iku.data', 2)
+            ->where('pilihan_iku.data.0.kode', 'DRAF')->where('pilihan_iku.data.0.url', '/rekomendasi/'.$draf->id)
+            ->where('pilihan_iku.data.0.status', 'draf')->where('pilihan_iku.data.1.url', '/rekomendasi/'.$terbaru->id));
+    }
+
+    public function test_pilih_iku_dipaginasi_dan_dapat_dicari_berdasarkan_kode_atau_nama_snapshot(): void
+    {
+        $r = $this->rekomendasi('Dibuka.');
+        for ($i = 1; $i <= 21; $i++) {
+            $indikator = $this->pengukuran->indikator->replicate();
+            $indikator->kode = sprintf('IKU-%02d', $i);
+            $indikator->save();
+            $snapshot = $this->context->replicate();
+            $snapshot->indikator_id = $indikator->id;
+            $snapshot->nama = 'Nama beku '.$i;
+            $snapshot->save();
+            $this->rekomendasi('Draf.', null, ['indikator_id' => $indikator->id]);
+        }
+        $this->actingAs($this->actor)->get('/rekomendasi/'.$r->id)->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('pilihan_iku.data', 20)->where('pilihan_iku.per_page', 20));
+        $this->get('/rekomendasi/'.$r->id.'?iku_page=2')->assertOk()->assertInertia(fn (Assert $page) => $page->has('pilihan_iku.data', 2));
+        foreach (['IKU-21', 'Nama beku 21'] as $cari) {
+            $this->get('/rekomendasi/'.$r->id.'?cari_iku='.urlencode($cari))->assertOk()->assertInertia(fn (Assert $page) => $page
+                ->has('pilihan_iku.data', 1)->where('pilihan_iku.data.0.kode', 'IKU-21')->where('pencarian_iku', $cari));
+        }
+    }
+
     private function rekomendasi(string $isi, mixed $disetujuiPada = null, array $extra = []): RekomendasiPimpinan
     {
         return RekomendasiPimpinan::create(['indikator_id' => $this->pengukuran->indikator_id, 'tahun' => 2026, 'periode_id' => $this->pengukuran->periode_id,

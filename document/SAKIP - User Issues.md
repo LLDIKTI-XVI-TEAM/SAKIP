@@ -4438,7 +4438,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] **AC-3:** Given halaman detail, Then seluruh rekomendasi untuk indikator × tahun × periode yang sama tampil menurut waktu persetujuan dengan draf terbuka di akhir, beserta penanda rekomendasi yang dibuka dan yang berlaku; rekomendasi yang sudah digantikan berstatus Digantikan dan menautkan ke rekomendasi yang berlaku. Rangkaian dipaginasi agar payload tetap terbatas. *(Q51 §51.2 butir 3)*
 - [x] **AC-4:** Given rekomendasi disetujui dan versi pengajuan pengukuran periode berikutnya membekukan rekomendasi ini, Then tindak lanjut dari versi terbaru yang cocok tampil bersama nomor versi, tanggal diajukan, dan status pengukuran; draf pengukuran tidak ditampilkan; bila belum ada, tampil "Belum ada tindak lanjut". Panel dan payload tindak lanjut hanya tersedia bila `PengukuranKinerjaPolicy::view` mengizinkan. Status dilabeli "Status pengukuran saat ini" dan pengajuan sumber yang terdahulu diberi keterangan. *(Q45 §45.2 butir 3; Q55 §55.1 butir 5–6)*
 - [x] **AC-5:** Given pengguna tanpa `rekomendasi:tetapkan`, When membuka URL detail langsung, Then ditolak 403.
-- [x] **AC-6:** Given halaman detail, Then tidak ada aksi setujui atau ubah, dan tautan Kelola di daftar membuka daftar Rekomendasi pada jadwal dan periode yang sama.
+- [x] **AC-6:** Given halaman detail, Then tidak ada aksi setujui atau ubah; Kembali ke daftar mempertahankan jadwal dan periode, sedangkan Pilih IKU membuka rekomendasi berlaku atau draf IKU tujuan pada tahun dan periode yang sama. Pilihan dapat dicari dan dipaginasi server-side serta mematuhi deny unit snapshot efektif. *(Revisi navigasi disetujui pengguna 27 Oktober 2026, menggantikan tombol duplikat Kelola di daftar.)*
 
 #### Implementation Tasks
 
@@ -4449,7 +4449,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] Otorisasi `rekomendasi:tetapkan` lewat resolver; tidak ada audit baca.
 
 **D. Frontend / UX**
-- [x] Halaman `Rekomendasi/Show.tsx` dengan komponen Card, Badge, dan tabel riwayat berpola `block md:table`; tombol Kembali ke daftar dan Kelola di daftar berikon serta berteks, dikelompokkan di kanan atas; aksi dalam tabel berupa ikon dengan tooltip dan label aksesibel.
+- [x] Halaman `Rekomendasi/Show.tsx` dengan komponen Card, Badge, dan tabel riwayat berpola `block md:table`; tombol Kembali ke daftar dan Pilih IKU berikon serta berteks, dikelompokkan di kanan atas; dialog Pilih IKU memakai pencarian server dan pagination 20 baris; aksi dalam tabel berupa ikon dengan tooltip dan label aksesibel.
 
 #### Automated Tests / Verification
 

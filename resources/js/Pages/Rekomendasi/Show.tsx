@@ -1,11 +1,15 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Edit3, Eye } from 'lucide-react';
+import { useState } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, ArrowLeftRight, Eye } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { Badge, type BadgeVariant } from '@/Components/Badge';
 import { Pagination, type PaginationLinkItem } from '@/Components/Pagination';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { Tooltip } from '@/Components/Tooltip';
+import { Button } from '@/Components/Button';
+import { Input } from '@/Components/Input';
+import { Modal } from '@/Components/Modal';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 
 interface RekomendasiDetail {
@@ -23,10 +27,17 @@ interface RekomendasiDetail {
 
 export interface RekomendasiShowProps {
     rekomendasi: RekomendasiDetail;
-    indikator: { kode: string; nama: string; unit: string };
+    indikator: { id: string; kode: string; nama: string; unit: string };
     periode: { nama: string; tahun: number };
     berlaku_url: string | null;
     kelola_url: string;
+    pencarian_iku: string;
+    pilihan_iku: {
+        data: { id: string; kode: string; nama: string; status: 'draf' | 'disetujui'; url: string }[];
+        current_page: number;
+        prev_page_url: string | null;
+        next_page_url: string | null;
+    };
     riwayat: { data: RekomendasiDetail[]; links: PaginationLinkItem[]; from: number | null; to: number | null; total: number };
     can: { viewFollowUp: boolean };
     tindak_lanjut?: {
@@ -57,9 +68,11 @@ function PersetujuanCadangan({ data }: { data: RekomendasiDetail }) {
         : null;
 }
 
-export default function Show({ rekomendasi, indikator, periode, berlaku_url, kelola_url, riwayat, can, tindak_lanjut }: RekomendasiShowProps) {
+export default function Show({ rekomendasi, indikator, periode, berlaku_url, kelola_url, pencarian_iku, pilihan_iku, riwayat, can, tindak_lanjut }: RekomendasiShowProps) {
     const formatTanggal = useFormatTanggal();
     const penanda = status[rekomendasi.status_tampilan];
+    const [pilihIku, setPilihIku] = useState(false);
+    const pencarian = useForm({ cari_iku: pencarian_iku });
 
     return (
         <AuthenticatedLayout title="Detail Rekomendasi Pimpinan" breadcrumbs={[{ label: 'Rekomendasi Pimpinan', href: kelola_url }, { label: 'Detail' }]}>
@@ -69,10 +82,37 @@ export default function Show({ rekomendasi, indikator, periode, berlaku_url, kel
                     <Link href={kelola_url} className={navigationClass}>
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar
                     </Link>
-                    <Link href={kelola_url} className={navigationClass}>
-                        <Edit3 className="h-4 w-4" aria-hidden="true" />Kelola di daftar
-                    </Link>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPilihIku(true)} aria-haspopup="dialog">
+                        <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />Pilih IKU
+                    </Button>
                 </div>
+
+                <Modal isOpen={pilihIku} onClose={() => setPilihIku(false)} title="Pilih IKU" size="lg"
+                    description={`${periode.nama} ${periode.tahun} · Pilih IKU untuk membuka rekomendasi berlaku atau drafnya.`}>
+                    <form className="mb-4 flex items-end gap-2" onSubmit={(event) => {
+                        event.preventDefault();
+                        pencarian.get(`/rekomendasi/${rekomendasi.id}`, { preserveState: true, preserveScroll: true });
+                    }}>
+                        <Input label="Cari IKU" placeholder="Kode atau nama IKU" maxLength={100} value={pencarian.data.cari_iku}
+                            onChange={(event) => pencarian.setData('cari_iku', event.target.value)} error={pencarian.errors.cari_iku} />
+                        <Button type="submit" isLoading={pencarian.processing}>Cari</Button>
+                    </form>
+                    <div aria-busy={pencarian.processing} className="divide-y divide-border">
+                        {pilihan_iku.data.map((item) => <Link key={item.id} href={item.url}
+                            className="flex min-w-0 items-start justify-between gap-3 rounded-lg p-3 transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
+                            <span className="min-w-0"><span className="block text-sm font-semibold text-ink">{item.kode}</span>
+                                <span className="mt-1 block break-words text-sm text-muted">{item.nama}</span>
+                                {item.id === indikator.id && <span className="mt-1 block text-xs font-semibold text-muted">IKU saat ini</span>}</span>
+                            <Badge variant={item.status === 'draf' ? 'muted' : 'success'}>{item.status === 'draf' ? 'Draf' : 'Berlaku'}</Badge>
+                        </Link>)}
+                        {pilihan_iku.data.length === 0 && <p className="py-6 text-sm text-muted">Tidak ada IKU yang cocok dan memiliki rekomendasi pada periode ini.</p>}
+                    </div>
+                    {(pilihan_iku.prev_page_url || pilihan_iku.next_page_url) && <nav aria-label="Halaman pilihan IKU" className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
+                        {pilihan_iku.prev_page_url ? <Link href={pilihan_iku.prev_page_url} preserveState preserveScroll className={navigationClass}>Sebelumnya</Link> : <span />}
+                        <span className="text-xs text-muted">Halaman {pilihan_iku.current_page}</span>
+                        {pilihan_iku.next_page_url ? <Link href={pilihan_iku.next_page_url} preserveState preserveScroll className={navigationClass}>Berikutnya</Link> : <span />}
+                    </nav>}
+                </Modal>
 
                 <Card>
                     <CardHeader className="items-start">
