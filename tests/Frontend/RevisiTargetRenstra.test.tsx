@@ -178,10 +178,11 @@ it('Batal revisi meminta konfirmasi lalu menghapus draf dengan versinya', () => 
     expect((hapus.mock.calls[0][1] as { data: unknown; preserveState?: boolean })).toMatchObject({ data: { versi: 2 }, preserveState: true });
 });
 
-it('histori revisi dimuat saat dibuka dan menampilkan revisi bernomor beserta perubahannya', async () => {
+it('histori revisi tampil sebagai daftar tertutup dan setiap revisi dibuka untuk melihat justifikasi dan perubahannya', async () => {
+    const ubah = (tahun: number, lama: string | null, baru: string) => ({ indikator: { kode: 'IKU-1', nama: 'Persentase lulusan', desimal_tampilan: 2 }, tahun, nilai_lama: lama, nilai_baru: baru });
     const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ terpotong: false, items: [
-        { nomor: 2, waktu: '2026-10-25T09:00:00+08:00', aktor: 'Rina Perencana', justifikasi: 'Target terlampaui.',
-            perubahan: [{ indikator: { kode: 'IKU-1', nama: 'Persentase lulusan', desimal_tampilan: 2 }, tahun: 2026, nilai_lama: '10', nilai_baru: '12.5' }] },
+        { nomor: 2, waktu: '2026-10-25T09:00:00+08:00', aktor: 'Rina Perencana', justifikasi: 'Target terlampaui.', perubahan: [ubah(2026, '10', '12.5')] },
+        { nomor: 1, waktu: '2026-10-20T09:00:00+08:00', aktor: null, justifikasi: 'Pengisian awal.', perubahan: [ubah(2027, null, '5'), ubah(2028, null, '6')] },
     ] }) }));
     vi.stubGlobal('fetch', fetchMock);
     tampilkan({ revisi: null, canEdit: false });
@@ -190,9 +191,21 @@ it('histori revisi dimuat saat dibuka dan menampilkan revisi bernomor beserta pe
     const dialog = await screen.findByRole('dialog');
     expect((fetchMock.mock.calls[0] as unknown[])[0]).toBe('/perencanaan/renstra/r-1/revisi-target/histori');
     await waitFor(() => expect(within(dialog).getByText('Revisi ke-2')).toBeTruthy());
-    expect(within(dialog).getByText('Target terlampaui.')).toBeTruthy();
-    expect(within(dialog).getByText('12,50')).toBeTruthy();
-    expect(within(dialog).getByText('10,00')).toBeTruthy();
+    const ringkasan = (nomor: number) => within(dialog).getByText(`Revisi ke-${nomor}`).closest('summary');
+    const butir = (nomor: number) => ringkasan(nomor)?.closest('details') as HTMLDetailsElement | null | undefined;
+    // jsdom tetap merender isi details yang tertutup, jadi status open yang membuktikan isi terlipat.
+    expect([butir(2)?.open, butir(1)?.open]).toEqual([false, false]);
+    expect(ringkasan(2)?.textContent).toContain('Rina Perencana');
+    expect(ringkasan(2)?.textContent).toContain('1 perubahan');
+    expect(ringkasan(2)?.textContent).not.toContain('Target terlampaui.');
+    expect(ringkasan(1)?.textContent).toContain('—');
+    expect(ringkasan(1)?.textContent).toContain('2 perubahan');
+
+    fireEvent.click(ringkasan(2)!);
+    expect([butir(2)?.open, butir(1)?.open]).toEqual([true, false]);
+    expect(within(butir(2)!).getByText('Target terlampaui.')).toBeTruthy();
+    expect(within(butir(2)!).getByText('12,50')).toBeTruthy();
+    expect(within(butir(2)!).getByText('10,00')).toBeTruthy();
 });
 
 it('histori kosong dan gagal memberi pesan jelas', async () => {

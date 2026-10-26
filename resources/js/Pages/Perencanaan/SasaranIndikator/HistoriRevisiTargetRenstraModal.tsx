@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Modal } from '@/Components/Modal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
@@ -33,34 +34,42 @@ export function HistoriRevisiTargetRenstraModal({ renstra, onClose }: { renstra:
                     : <div className="space-y-4">
                         {data.terpotong && <p className="text-sm text-muted">Menampilkan 100 revisi terbaru.</p>}
                         <ol className="space-y-4">
-                            {data.items.map((revisi) => <li key={revisi.nomor} className="rounded-lg border border-border p-4">
-                                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                    <h3 className="text-sm font-semibold text-ink">Revisi ke-{revisi.nomor}</h3>
-                                    <span className="text-xs text-muted">{formatTanggal(revisi.waktu, { withTime: true })} · {revisi.aktor ?? '—'}</span>
-                                </div>
-                                <p className="mt-2 whitespace-pre-line break-words text-sm text-ink">{revisi.justifikasi}</p>
-                                <Table wrapperClassName="mt-3 overflow-x-visible" className="block md:table">
-                                    <caption className="sr-only">Perubahan pada revisi ke-{revisi.nomor}</caption>
-                                    <TableHeader className="hidden md:table-header-group">
-                                        <TableRow>
-                                            <TableHead>Indikator</TableHead>
-                                            <TableHead>Tahun</TableHead>
-                                            <TableHead className="text-right">Nilai lama</TableHead>
-                                            <TableHead className="text-right">Nilai baru</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody className="block md:table-row-group">
-                                        {revisi.perubahan.map((p) => {
-                                            const nilai = (value: string | null) => value === null ? '—' : formatNilai(value, p.indikator.desimal_tampilan);
-                                            return <TableRow key={`${p.indikator.kode}-${p.tahun}`} className="grid grid-cols-2 gap-2 py-3 md:table-row">
-                                                <TableCell className={`col-span-2 ${sel}`}><span className="font-mono text-xs">{p.indikator.kode}</span> <span className="text-ink">{p.indikator.nama}</span></TableCell>
-                                                <TableCell className={`col-span-2 ${sel}`}><span className={labelHp}>Tahun</span>{p.tahun}</TableCell>
-                                                <TableCell className={`${sel} tabular-nums md:text-right`}><span className={labelHp}>Lama</span><span>{nilai(p.nilai_lama)}</span></TableCell>
-                                                <TableCell className={`${sel} tabular-nums md:text-right`}><span className={labelHp}>Baru</span><span>{nilai(p.nilai_baru)}</span></TableCell>
-                                            </TableRow>;
-                                        })}
-                                    </TableBody>
-                                </Table>
+                            {/* Tiap revisi terlipat agar histori yang panjang tetap ringkas; justifikasi dan tabel muncul saat dibuka. */}
+                            {data.items.map((revisi) => <li key={revisi.nomor} className="rounded-lg border border-border">
+                                <details className="group">
+                                    <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 rounded-lg p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 [&::-webkit-details-marker]:hidden">
+                                        <h3 className="text-sm font-semibold text-ink">Revisi ke-{revisi.nomor}</h3>
+                                        <span className="flex items-center gap-2 text-xs text-muted">
+                                            {formatTanggal(revisi.waktu, { withTime: true })} · {revisi.aktor ?? '—'} · {revisi.perubahan.length} perubahan
+                                            <ChevronDown aria-hidden className="size-4 shrink-0 transition-transform group-open:rotate-180" />
+                                        </span>
+                                    </summary>
+                                    <div className="border-t border-border p-4">
+                                        <p className="whitespace-pre-line break-words text-sm text-ink">{revisi.justifikasi}</p>
+                                        <Table wrapperClassName="mt-3 overflow-x-visible" className="block md:table">
+                                            <caption className="sr-only">Perubahan pada revisi ke-{revisi.nomor}</caption>
+                                            <TableHeader className="hidden md:table-header-group">
+                                                <TableRow>
+                                                    <TableHead>Indikator</TableHead>
+                                                    <TableHead>Tahun</TableHead>
+                                                    <TableHead className="text-right">Nilai lama</TableHead>
+                                                    <TableHead className="text-right">Nilai baru</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody className="block md:table-row-group">
+                                                {revisi.perubahan.map((p) => {
+                                                    const nilai = (value: string | null) => value === null ? '—' : formatNilai(value, p.indikator.desimal_tampilan);
+                                                    return <TableRow key={`${p.indikator.kode}-${p.tahun}`} className="grid grid-cols-2 gap-2 py-3 md:table-row">
+                                                        <TableCell className={`col-span-2 ${sel}`}><span className="font-mono text-xs">{p.indikator.kode}</span> <span className="text-ink">{p.indikator.nama}</span></TableCell>
+                                                        <TableCell className={`col-span-2 ${sel}`}><span className={labelHp}>Tahun</span>{p.tahun}</TableCell>
+                                                        <TableCell className={`${sel} tabular-nums md:text-right`}><span className={labelHp}>Lama</span><span>{nilai(p.nilai_lama)}</span></TableCell>
+                                                        <TableCell className={`${sel} tabular-nums md:text-right`}><span className={labelHp}>Baru</span><span>{nilai(p.nilai_baru)}</span></TableCell>
+                                                    </TableRow>;
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </details>
                             </li>)}
                         </ol>
                     </div>}
