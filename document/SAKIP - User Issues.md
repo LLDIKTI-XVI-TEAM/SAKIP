@@ -3533,16 +3533,16 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given pengguna mana pun, Then sidebar tidak memuat menu Kegiatan. *(Q74 §74.1 butir 1)*
-- [ ] **AC-2:** Given detail Rencana Aksi (mis. IKU 1.2), When tombol Kegiatan diklik, Then terbuka halaman kegiatan Rencana Aksi itu, berisi kegiatan per periode. *(Q74 §74.1 butir 2)*
-- [ ] **AC-3:** Given pengguna dengan `kegiatan:create` pada unit Rencana Aksi, When mencatat rencana kegiatan di halaman itu, Then kegiatan tersimpan dan langsung terhubung ke Rencana Aksi; endpoint pembuatan kegiatan tanpa konteks Rencana Aksi tidak lagi tersedia. *(Q74 §74.1 butir 2)*
-- [ ] **AC-4:** Given kegiatan pada halaman itu, When diedit, termasuk berkas perencanaan dan klaim, Then perubahan dilakukan di halaman Rencana Aksi tanpa pindah ke `/kegiatan/{id}/edit`. *(Q74 §74.1 butir 3)*
-- [ ] **AC-5:** Given tautan lama `/kegiatan` atau `/kegiatan/{id}/edit`, Then pengguna dialihkan ke halaman kegiatan Rencana Aksi terkait. *(Q74 §74.1 butir 5)*
-- [ ] **AC-6:** Given grant `kegiatan:update` hanya pada unit A, When kegiatan unit B dimutasi lewat halaman baru, Then ditolak 403; pengguna tanpa `kegiatan:create` tidak melihat tombol dan request langsungnya ditolak. *(Q74 §74.1 butir 4)*
+- [x] **AC-1:** Given pengguna mana pun, Then sidebar tidak memuat menu Kegiatan. *(Q74 §74.1 butir 1)*
+- [x] **AC-2:** Given detail Rencana Aksi (mis. IKU 1.2), When tombol Kegiatan diklik, Then terbuka halaman kegiatan Rencana Aksi itu, berisi kegiatan per periode. *(Q74 §74.1 butir 2)*
+- [x] **AC-3:** Given pengguna dengan `kegiatan:create` pada unit Rencana Aksi, When mencatat rencana kegiatan di halaman itu, Then kegiatan tersimpan dan langsung terhubung ke Rencana Aksi; endpoint pembuatan kegiatan tanpa konteks Rencana Aksi tidak lagi tersedia. *(Q74 §74.1 butir 2)*
+- [x] **AC-4:** Given kegiatan pada halaman itu, When diedit, termasuk berkas perencanaan dan klaim, Then perubahan dilakukan di halaman Rencana Aksi tanpa pindah ke `/kegiatan/{id}/edit`. *(Q74 §74.1 butir 3)*
+- [x] **AC-5:** Given tautan lama `/kegiatan` atau `/kegiatan/{id}/edit`, Then pengguna dialihkan ke halaman kegiatan Rencana Aksi terkait. *(Q74 §74.1 butir 5)*
+- [x] **AC-6:** Given grant `kegiatan:update` hanya pada unit A, When kegiatan unit B dimutasi lewat halaman baru, Then ditolak 403; pengguna tanpa `kegiatan:create` tidak melihat tombol dan request langsungnya ditolak. *(Q74 §74.1 butir 4)*
 - [ ] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
 - [ ] **AC-8:** Given dashboard, verifikasi, atau laporan menaut ke kegiatan, Then tautan menuju halaman kegiatan Rencana Aksi.
-- [ ] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
-- [ ] **AC-10:** Given kegiatan yang ditunda beserta kegiatan lanjutannya, Then halaman kegiatan Rencana Aksi menampilkan penanda "Ditunda → periode" pada kegiatan asal dan "Lanjutan dari periode" pada kegiatan lanjutan. Penanda menjadi tautan ke baris pasangannya bila baris itu tampil di halaman yang sama. *(Q41 §41.4 butir 2; keputusan PM 25 Oktober 2026, [review PR #174](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/174#issuecomment-6395070460))*
+- [x] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
+- [x] **AC-10:** Given kegiatan yang ditunda beserta kegiatan lanjutannya, Then halaman kegiatan Rencana Aksi menampilkan penanda "Ditunda → periode" pada kegiatan asal dan "Lanjutan dari periode" pada kegiatan lanjutan. Penanda menjadi tautan ke baris pasangannya bila baris itu tampil di halaman yang sama. *(Q41 §41.4 butir 2; keputusan PM 25 Oktober 2026, [review PR #174](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/174#issuecomment-6395070460))*
 
 #### Implementation Tasks
 
@@ -3550,35 +3550,35 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] Tidak ada migrasi. Sebelum rilis, daftar kegiatan tanpa klaim Rencana Aksi diserahkan ke Perencanaan untuk ditautkan (U-22).
 
 **B. Backend / Domain**
-- [ ] Route dan Action halaman kegiatan Rencana Aksi (mis. `/rencana-aksi/{id}/kegiatan`, U-26) yang memakai ulang Action kegiatan, klaim, dan berkas yang ada.
-- [ ] Hapus route `GET /kegiatan` (index) dan `POST /kegiatan` (buat tanpa Rencana Aksi); alihkan `/kegiatan` dan `/kegiatan/{id}/edit` (AC-5).
+- [x] Route dan Action halaman kegiatan Rencana Aksi (mis. `/rencana-aksi/{id}/kegiatan`, U-26) yang memakai ulang Action kegiatan, klaim, dan berkas yang ada.
+- [x] Hapus route `GET /kegiatan` (index) dan `POST /kegiatan` (buat tanpa Rencana Aksi); alihkan `/kegiatan` dan `/kegiatan/{id}/edit` (AC-5).
 
 **C. Authorization & Audit**
-- [ ] Otorisasi tetap lewat Policy/PermissionResolver yang ada; React hanya membaca `can.*`.
+- [x] Otorisasi tetap lewat Policy/PermissionResolver yang ada; React hanya membaca `can.*`.
 
 **D. Frontend / UX**
-- [ ] Hapus item `kegiatan` dari `sidebarNavigation.ts`.
-- [ ] Tombol Kegiatan pada `RencanaAksi/Show.tsx`; halaman kegiatan Rencana Aksi yang memakai ulang `KegiatanPanel`, `BerkasPerencanaanPanel`, dan `KlaimPanel`.
+- [x] Hapus item `kegiatan` dari `sidebarNavigation.ts`.
+- [x] Tombol Kegiatan pada `RencanaAksi/Show.tsx`; halaman kegiatan Rencana Aksi yang memakai ulang `KegiatanPanel`, `BerkasPerencanaanPanel`, dan `KlaimPanel`.
 - [ ] Perbarui tautan di dashboard, verifikasi, dan laporan (AC-8).
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Vitest membuktikan AC-1 — sidebar tanpa menu Kegiatan.
-- [ ] TEST-2: Pest Feature test membuktikan AC-2 dan AC-3 — halaman dan pembuatan kegiatan dari Rencana Aksi; endpoint lama tidak tersedia.
-- [ ] TEST-3: Pest Feature test membuktikan AC-4 dan AC-5 — edit di halaman Rencana Aksi dan pengalihan tautan lama.
-- [ ] TEST-4: Pest Feature test membuktikan AC-6 — penolakan lintas unit dengan kontrol positif.
+- [x] TEST-1: Vitest membuktikan AC-1 — sidebar tanpa menu Kegiatan.
+- [x] TEST-2: Pest Feature test membuktikan AC-2 dan AC-3 — halaman dan pembuatan kegiatan dari Rencana Aksi; endpoint lama tidak tersedia.
+- [x] TEST-3: Pest Feature test membuktikan AC-4 dan AC-5 — edit di halaman Rencana Aksi dan pengalihan tautan lama.
+- [x] TEST-4: Pest Feature test membuktikan AC-6 — penolakan lintas unit dengan kontrol positif.
 - [ ] TEST-5: Pest Feature test membuktikan AC-7 dan AC-9.
 - [ ] TEST-6: uji browser desktop dan mobile untuk alur Rencana Aksi → Kegiatan.
-- [ ] TEST-7: Vitest dan Pest Feature test membuktikan AC-10 — penanda asal/lanjutan dua arah, tautan hanya bila baris pasangannya tampil, dan props asal/lanjutan dari server.
+- [x] TEST-7: Vitest dan Pest Feature test membuktikan AC-10 — penanda asal/lanjutan dua arah, tautan hanya bila baris pasangannya tampil, dan props asal/lanjutan dari server.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ---
 
