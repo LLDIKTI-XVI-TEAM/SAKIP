@@ -59,6 +59,8 @@ final class PermissionCodes
 
     public const JADWAL_TUTUP = 'jadwal:tutup';
 
+    public const JADWAL_BUKA_KEMBALI = 'jadwal:buka_kembali';
+
     // Rekomendasi Pimpinan
     public const REKOMENDASI_TETAPKAN = 'rekomendasi:tetapkan';
 

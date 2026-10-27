@@ -36,6 +36,13 @@ class JadwalTahunanPolicy
         return $this->resolver->allows($user, PermissionCodes::JADWAL_TUTUP) ? Response::allow() : Response::deny();
     }
 
+    /** Izin efektif saja; status jadwal dan kelayakan indikator dinilai ulang server di dalam transaksi. */
+    public function tambahIndikator(User $user): Response
+    {
+        return $this->resolver->allows($user, PermissionCodes::JADWAL_BUKA_KEMBALI) && $this->resolver->allows($user, PermissionCodes::INDIKATOR_READ)
+            ? Response::allow() : Response::deny();
+    }
+
     public function create(User $user): Response
     {
         return $this->resolver->allows($user, PermissionCodes::JADWAL_CREATE) ? Response::allow() : Response::deny();

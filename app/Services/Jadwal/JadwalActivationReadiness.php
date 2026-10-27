@@ -20,11 +20,14 @@ use Illuminate\Validation\ValidationException;
  * Membaca konteks dan menilai prasyarat serta empat gerbang aktivasi jadwal.
  *
  * Dipisah dari Action karena dipakai bersama oleh ReadJadwalActivation (pratinjau
- * GET) dan ActivateJadwal (mutasi), sehingga keduanya menilai aturan yang sama.
+ * GET), ActivateJadwal (mutasi), TambahIndikatorJadwal (kelayakan satu indikator
+ * pada jadwal aktif), dan ShowJadwalEditor (daftar kandidat indikator belum
+ * terjadwal), sehingga semuanya memakai aturan kelayakan dan "dapat dibekukan" yang sama.
  * Service tidak memeriksa izin, tidak membuka transaksi, tidak mengunci baris, dan
  * tidak menulis apa pun termasuk default pengaturan atau penanda pengecualian.
- * Caller menyediakan isolasi: snapshot REPEATABLE READ untuk pratinjau, atau
- * lock sumber sesuai urutan ActivateJadwal sebelum context() dipanggil untuk mutasi.
+ * Caller menyediakan isolasi: snapshot REPEATABLE READ untuk pratinjau, transaksi
+ * shared lock untuk props editor, atau lock sumber sesuai urutan masing-masing
+ * Action mutasi sebelum context() dipanggil.
  * Hasil evaluate() aman untuk aktor activation-only: hanya agregat, tanpa nama,
  * nilai target, formula, maupun identitas lampiran.
  */
@@ -102,8 +105,7 @@ class JadwalActivationReadiness
             $blockers[] = ['code' => 'penutupan_lewat', 'message' => 'Tanggal penutupan sudah lewat. Perbaiki tanggal penutupan sebelum aktivasi.'];
         }
         // Hanya pasangan yang akan disalin; snapshot existing tidak dibekukan ulang.
-        $inconsistent = $context['baru']->filter(fn (IndikatorKinerja $indikator): bool => mb_strlen($indikator->nama) > self::SNAPSHOT_NAMA_MAX
-            || ! $this->perhitungan->validateDefinisiKomponen($indikator)['is_valid'])->count();
+        $inconsistent = $context['baru']->filter(fn (IndikatorKinerja $indikator): bool => ! $this->dapatDibekukan($indikator))->count();
         if ($inconsistent > 0) {
             $blockers[] = ['code' => 'data_tidak_konsisten', 'message' => "$inconsistent indikator memiliki data sumber yang tidak dapat dibekukan (nama terlalu panjang atau komponen tidak sesuai tipe perhitungan). Perbaiki pada modul indikator."];
         }
@@ -155,6 +157,12 @@ class JadwalActivationReadiness
                 default => $gate('G4', 'gagal', 'Perjanjian Kinerja belum memiliki lampiran.', 0),
             },
         ];
+    }
+
+    /** Sumber dapat disalin ke snapshot tanpa dipotong dan dengan definisi komponen yang valid untuk tipe perhitungannya. */
+    public function dapatDibekukan(IndikatorKinerja $indikator): bool
+    {
+        return mb_strlen($indikator->nama) <= self::SNAPSHOT_NAMA_MAX && $this->perhitungan->validateDefinisiKomponen($indikator)['is_valid'];
     }
 
     /** Baris absen dan target null sama-sama belum memenuhi G2; nilai 0 sah. @param array<string, mixed> $context */

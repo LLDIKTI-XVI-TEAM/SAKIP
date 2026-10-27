@@ -11,6 +11,7 @@ import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { PenutupanPanel } from '@/Components/Jadwal/PenutupanPanel';
 import { RevisiJendela, RevisiJendelaPanel } from '@/Components/Jadwal/RevisiJendela';
+import { TambahIndikatorPanel } from '@/Components/Jadwal/TambahIndikatorPanel';
 import { Select } from '@/Components/Select';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { statusJadwal } from '@/lib/jadwal';
@@ -32,7 +33,16 @@ export default function Editor(props: JadwalEditorProps) {
     return <JadwalEditor key={props.jadwal?.id ?? 'create'} {...props} />;
 }
 
-function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_options }: JadwalEditorProps) {
+function JadwalEditor({
+    jadwal,
+    can,
+    read_only_reason,
+    renstra_options,
+    periode_options,
+    indikator_belum_terjadwal,
+    periode_mulai_default,
+    perjanjian_kinerja_id,
+}: JadwalEditorProps) {
     const form = useForm<JadwalForm>({
         renstra_id: jadwal?.renstra_id ?? '',
         tahun: jadwal ? String(jadwal.tahun) : '',
@@ -367,6 +377,18 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                             const first = jadwal.periode[0]?.periode_id;
                             requestAnimationFrame(() => document.getElementById(`periode-${first}-pengisian_mulai`)?.focus());
                         }}
+                    />
+                </div>
+            )}
+            {jadwal && can.tambah_indikator && indikator_belum_terjadwal.length > 0 && (
+                <div className="mt-5">
+                    <TambahIndikatorPanel
+                        jadwalId={jadwal.id}
+                        tahun={jadwal.tahun}
+                        periode={jadwal.periode}
+                        kandidat={indikator_belum_terjadwal}
+                        periodeMulaiDefault={periode_mulai_default}
+                        perjanjianKinerjaId={perjanjian_kinerja_id}
                     />
                 </div>
             )}
