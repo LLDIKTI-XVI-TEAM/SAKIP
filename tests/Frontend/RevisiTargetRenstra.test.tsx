@@ -165,6 +165,25 @@ it('Simpan revisi ditahan selama ada perubahan belum terkirim, lalu mengirim ver
     expect(screen.getByText('Tidak ada nilai yang berubah, revisi tidak dapat disimpan.')).toBeTruthy();
 });
 
+it('Simpan revisi terkunci selama autosave terakhir ditolak, lalu terbuka lagi setelah isian tersimpan', () => {
+    vi.useFakeTimers();
+    tampilkan();
+    const simpan = () => screen.getByRole('button', { name: 'Simpan revisi' }) as HTMLButtonElement;
+    fireEvent.change(input(2026)!, { target: { value: '12,5' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    act(() => { opsi(put).onError({ 'nilai.ind-1.2026': 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.' }); });
+    expect(screen.getByRole('status').textContent).toBe('Draf belum tersimpan. Periksa isian yang ditandai.');
+    // Simpan hanya mengirim versi dan justifikasi, jadi menyimpan sekarang akan memakai isian lama di server.
+    fireEvent.click(simpan());
+    expect([simpan().disabled, post.mock.calls.length]).toEqual([true, 0]);
+
+    fireEvent.change(input(2026)!, { target: { value: '12.5' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    expect(put).toHaveBeenCalledTimes(2);
+    act(() => { opsi(put, 1).onSuccess(); });
+    expect([simpan().disabled, screen.queryByRole('alert')]).toEqual([false, null]);
+});
+
 it('Batal revisi meminta konfirmasi lalu menghapus draf dengan versinya', () => {
     tampilkan();
     fireEvent.click(screen.getByRole('button', { name: 'Batal revisi' }));

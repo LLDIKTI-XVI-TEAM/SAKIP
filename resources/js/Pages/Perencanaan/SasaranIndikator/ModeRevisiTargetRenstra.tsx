@@ -163,7 +163,8 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
             />
             <div className="flex flex-wrap justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setKonfirmasiBatal(true)} disabled={sibuk || konflik}>Batal revisi</Button>
-                <Button type="button" onClick={simpan} disabled={kotor || konflik || draf.processing || batalForm.processing} isLoading={simpanForm.processing}>Simpan revisi</Button>
+                {/* Simpan memakai isian di server, jadi ditahan selama isian terakhir belum tersimpan atau ditolak. */}
+                <Button type="button" onClick={simpan} disabled={kotor || konflik || draf.hasErrors || draf.processing || batalForm.processing} isLoading={simpanForm.processing}>Simpan revisi</Button>
             </div>
         </Card>
 
