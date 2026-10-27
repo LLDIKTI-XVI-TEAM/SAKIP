@@ -50,7 +50,8 @@ const nilaiAwal = (kegiatan: RencanaKegiatan) => ({
  * yang sama.
  */
 export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, periodeOptions, opsiPeriodeTujuan, can, klaim, berkasPerencanaan }: KegiatanEditProps) {
-    const form = useForm(nilaiAwal(kegiatan));
+    // `rencana_aksi_id` tidak ditampilkan; dikirim agar server mengalihkan kembali ke form RA dengan token versi baru.
+    const form = useForm({ ...nilaiAwal(kegiatan), rencana_aksi_id: rencanaAksi.id });
     // preserveState mempertahankan form.data setelah status berubah; data terkunci merender nilai server, bukan draf (Q69 §69.3).
     const terkunci = !can.ubah_rencana;
     const data = terkunci ? nilaiAwal(kegiatan) : form.data;

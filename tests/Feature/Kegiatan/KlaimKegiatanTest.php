@@ -340,12 +340,21 @@ class KlaimKegiatanTest extends TestCase
             ->where('klaim.daftar', fn ($daftar) => collect($daftar)->every(fn ($row) => $row['can']['hapus'] === false)));
     }
 
-    public function test_deny_baca_ra_pada_unit_menyembunyikan_panel_klaim(): void
+    public function test_deny_baca_ra_pada_unit_menolak_halaman_ubah_kegiatan_dengan_403(): void
     {
         $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+
+        // Kontrol positif: tanpa deny, aktor berizin menerima identitas RA dan panel klaim.
+        $this->get($this->halamanUbah($this->kegiatan))->assertOk()->assertInertia(fn ($page) => $page
+            ->component('RencanaAksi/KegiatanEdit')
+            ->where('rencanaAksi.id', $this->rencanaAksi->id)
+            ->has('klaim.daftar', 1));
+
         $this->denyPermission($this->actor, 'rencana_aksi:read', $this->unit->id);
 
-        $this->get($this->halamanUbah($this->kegiatan))->assertOk()->assertInertia(fn ($page) => $page->where('klaim', null));
+        // Policy baca RA menolak halaman ubah sebelum identitas/klaim RA dikirim.
+        $this->get($this->halamanUbah($this->kegiatan))->assertForbidden()
+            ->assertDontSee($this->indikator->kode);
     }
 
     public function test_akun_nonaktif_ditolak_tanpa_mutasi_dan_percobaannya_diaudit(): void

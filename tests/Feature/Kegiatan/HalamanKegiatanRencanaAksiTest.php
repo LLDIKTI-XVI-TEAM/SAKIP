@@ -54,8 +54,114 @@ class HalamanKegiatanRencanaAksiTest extends TestCase
             ->where('kegiatan.daftar.0.periode_id', $this->tw1->id)
             ->where('kegiatan.daftar.0.nama', 'Rapat koordinasi')
             ->where('kegiatan.daftar.0.anggaran', '0')
-            ->where('kegiatan.can', ['tambah' => true, 'kelola' => true])
+            // `tautkan` = gerbang bisnis klaim tahap RA (izin ubah RA + kegiatan, status, jendela).
+            ->where('kegiatan.can', ['tambah' => true, 'kelola' => true, 'tautkan' => true])
             ->has('kegiatan.total.per_periode'));
+    }
+
+    public function test_kandidat_tautan_hanya_kegiatan_unit_dan_tahun_ra_yang_belum_diklaim(): void
+    {
+        // Terklaim RA ini, terklaim RA lain, unit lain, dan tahun lain tidak boleh menjadi kandidat.
+        $diklaim = $this->kegiatan(['nama' => 'Sudah diklaim RA ini']);
+        $this->klaim($diklaim);
+        $raLain = $this->rencanaAksiLain($this->unit);
+        $diklaimLain = $this->kegiatan(['nama' => 'Sudah diklaim RA lain']);
+        $this->klaim($diklaimLain, $raLain);
+        $unitLain = Unit::create(['nama' => 'Unit Lain', 'status' => 'aktif', 'created_by' => $this->actor->id]);
+        $this->kegiatan(['unit_id' => $unitLain->id, 'nama' => 'Unit lain']);
+        $this->kegiatan(['tahun' => 2027, 'nama' => 'Tahun lain']);
+
+        // Kandidat: dua kegiatan bebas klaim pada dua periode. Kegiatan lanjutan
+        // tetap tidak ditawarkan walau belum diklaim karena klaimnya milik tahap
+        // pengukuran, bukan klaim tahap RA (Q41 §41.4 butir 2).
+        $beta = $this->kegiatan(['nama' => 'Beta', 'periode_id' => $this->tw1->id]);
+        $alpha = $this->kegiatan(['nama' => 'Alpha', 'periode_id' => $this->tw2->id]);
+        $asal = $this->kegiatan(['nama' => 'Asal ditunda', 'status' => 'ditunda', 'justifikasi' => 'Kendala pelaksanaan']);
+        $this->klaim($asal);
+        $lanjutan = $this->kegiatan(['nama' => 'Gamma', 'periode_id' => $this->tw2->id, 'kegiatan_asal_id' => $asal->id]);
+
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            // Urutan periode (urutan, id) lalu nama kegiatan; lanjutan tidak ikut.
+            ->where('kegiatan.kegiatan_tanpa_klaim', fn ($daftar) => collect($daftar)->pluck('id')->all()
+                === [$beta->id, $alpha->id])
+            ->where('kegiatan.kegiatan_tanpa_klaim', fn ($daftar) => collect($daftar)->pluck('id')->doesntContain($lanjutan->id))
+            // Field publik kandidat, tanpa kolom internal kegiatan.
+            ->where('kegiatan.kegiatan_tanpa_klaim.0', fn ($baris) => collect($baris)->keys()->sort()->values()->all()
+                === ['id', 'kegiatan_asal_id', 'nama', 'periode_id', 'periode_nama', 'status'])
+            ->where('kegiatan.kegiatan_tanpa_klaim.0.nama', 'Beta')
+            ->where('kegiatan.kegiatan_tanpa_klaim.0.periode_nama', 'Triwulan I')
+            ->where('kegiatan.kegiatan_tanpa_klaim.0.kegiatan_asal_id', null)
+            ->where('kegiatan.kegiatan_tanpa_klaim.1.nama', 'Alpha')
+            ->where('kegiatan.kegiatan_tanpa_klaim.1.periode_id', $this->tw2->id)
+            ->where('kegiatan.kegiatan_tanpa_klaim.1.periode_nama', 'Triwulan II'));
+    }
+
+    public function test_capability_tautkan_menuntut_izin_ubah_kegiatan_dan_izin_ubah_ra(): void
+    {
+        $this->klaim($this->kegiatan());
+        $pic = $this->createPicPegawai();
+        $this->grantUnitPermission($pic, 'kegiatan:update');
+
+        // PIC efektif dengan kedua izin: penawaran tautan muncul.
+        $this->actingAs($pic)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('kegiatan.can.kelola', true)
+            ->where('kegiatan.can.tautkan', true));
+
+        // Izin ubah RA dicabut: kelola tetap boleh, penawaran tautan fail-closed.
+        $this->denyPermission($pic, 'rencana_aksi:update');
+
+        $this->actingAs($pic)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('kegiatan.can.kelola', true)
+            ->where('kegiatan.can.tautkan', false));
+
+        // Izin ubah kegiatan juga dicabut: keduanya fail-closed.
+        $this->denyPermission($pic, 'kegiatan:update');
+
+        $this->actingAs($pic)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('kegiatan.can.kelola', false)
+            ->where('kegiatan.can.tautkan', false));
+    }
+
+    public function test_capability_tautkan_tunduk_pada_gerbang_bisnis_rencana_aksi(): void
+    {
+        $this->klaim($this->kegiatan());
+
+        // Kontrol positif: aktor berizin penuh dan RA dapat disunting.
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('kegiatan.can.tautkan', true));
+
+        // Izin tetap ada, tetapi RA tidak dapat disunting: penawaran tautan fail-closed.
+        $this->rencanaAksi->update(['status_alur' => RencanaAksi::STATUS_DISAHKAN]);
+
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.status_alur', RencanaAksi::STATUS_DISAHKAN)
+            ->where('kegiatan.can.tambah', false)
+            ->where('kegiatan.can.kelola', true)
+            ->where('kegiatan.can.tautkan', false));
+    }
+
+    public function test_penautan_lewat_endpoint_klaim_menghilangkan_kegiatan_dari_daftar_tanpa_klaim(): void
+    {
+        $kandidat = $this->kegiatan(['nama' => 'Alpha belum tertaut']);
+        $tetap = $this->kegiatan(['nama' => 'Beta tetap']);
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('kegiatan.kegiatan_tanpa_klaim', fn ($daftar) => collect($daftar)->pluck('id')->all()
+                === [$kandidat->id, $tetap->id]));
+
+        $this->actingAs($this->actor)->post("/kegiatan/{$kandidat->id}/klaim", [
+            'rencana_aksi_id' => $this->rencanaAksi->id, 'komponen_id' => null,
+            'arah_dampak' => 'menambah', 'catatan' => 'Penautan kegiatan tanpa klaim.',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $klaim = KlaimKegiatan::where('kegiatan_id', $kandidat->id)->sole();
+        $audit = AuditLog::where('tindakan', 'klaim_kegiatan.tambah')->where('objek_id', $klaim->id)->sole();
+        $this->assertSame($this->actor->id, $audit->actor_id);
+
+        // Redirect muat ulang halaman: kandidat yang tertaut hilang, kegiatan masuk daftar RA.
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('kegiatan.kegiatan_tanpa_klaim', fn ($daftar) => collect($daftar)->pluck('id')->all() === [$tetap->id])
+            ->where('kegiatan.daftar', fn ($daftar) => collect($daftar)->contains(
+                fn ($baris) => $baris['kegiatan_id'] === (string) $kandidat->id)));
     }
 
     public function test_halaman_kegiatan_ra_tanpa_izin_baca_menyembunyikan_daftar(): void
@@ -182,6 +288,28 @@ class HalamanKegiatanRencanaAksiTest extends TestCase
 
         $this->actingAs($this->actor)->get($this->url($lain))->assertNotFound();
         $this->actingAs($this->actor)->get('/rencana-aksi/'.(string) Str::uuid().'/kegiatan/'.$kegiatan->id)->assertNotFound();
+    }
+
+    public function test_deny_baca_rencana_aksi_menolak_halaman_ubah_tanpa_membocorkan_identitas_ra(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $this->klaim($kegiatan);
+        // Peran pegawai memberi `kegiatan:read` dan `rencana_aksi:read`; tulis kegiatan lewat grant unit.
+        $pegawai = $this->createUserWithRole('pegawai');
+        $this->grantUnitPermission($pegawai, 'kegiatan:update');
+
+        // Kontrol positif: tanpa deny, identitas RA dan panel klaim tersedia.
+        $this->actingAs($pegawai)->get($this->url($kegiatan))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('RencanaAksi/KegiatanEdit')
+            ->where('rencanaAksi.id', $this->rencanaAksi->id)
+            ->where('rencanaAksi.kode', $this->indikator->kode)
+            ->has('klaim.daftar', 1));
+
+        $this->denyPermission($pegawai, 'rencana_aksi:read', $this->unit->id);
+
+        // Gate baca RA menolak setelah gerbang kegiatan lolos, sebelum props identitas RA dikirim.
+        $this->actingAs($pegawai)->get($this->url($kegiatan))->assertForbidden()
+            ->assertDontSee($this->indikator->kode);
     }
 
     public function test_lintas_unit_ditolak_403_dengan_audit_dan_kontrol_positif(): void

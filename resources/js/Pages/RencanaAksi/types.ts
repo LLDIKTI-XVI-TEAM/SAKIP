@@ -292,8 +292,29 @@ export interface TotalAnggaran {
     belum_diisi: number;
 }
 
+/**
+ * Kegiatan unit+tahun RA yang belum diklaim rencana aksi mana pun
+ * (`DaftarKegiatanRencanaAksi::kegiatanTanpaKlaim`): kandidat penautan
+ * kegiatan lama, mis. lanjutan hasil tunda. Server tetap penentu kelayakan.
+ */
+export interface KegiatanTanpaKlaim {
+    id: string;
+    nama: string;
+    periode_id: string;
+    status: string;
+    /** Terisi bila kegiatan merupakan lanjutan/turunan kegiatan lain. */
+    kegiatan_asal_id: string | null;
+    periode_nama: string;
+}
+
 export interface RencanaAksiKegiatan {
     daftar: KegiatanRencanaAksiItem[];
     total: TotalAnggaran & { per_periode: Record<string, TotalAnggaran> };
-    can: { tambah: boolean; kelola: boolean };
+    /** Kandidat penautan; absen/kosong menyembunyikan kartu. Opsional agar payload lama tetap terbaca. */
+    kegiatan_tanpa_klaim?: KegiatanTanpaKlaim[];
+    /**
+     * `tautkan` menuntut izin ubah kegiatan sekaligus izin ubah RA tujuan.
+     * Opsional agar payload lama tetap terbaca sebagai tanpa izin.
+     */
+    can: { tambah: boolean; kelola: boolean; tautkan?: boolean };
 }

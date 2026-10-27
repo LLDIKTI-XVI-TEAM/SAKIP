@@ -85,6 +85,23 @@ it('mengirim field rencana beserta anggaran rupiah tanpa status', () => {
     expect(data).not.toHaveProperty('status');
 });
 
+it('menyertakan rencana_aksi_id konteks pada payload simpan kegiatan', () => {
+    render(<KegiatanEdit {...props} rencanaAksi={{ id: 'ra-7', tahun: 2026 }} />);
+
+    fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Nama hasil koreksi' } });
+    kirim();
+
+    const [url, data] = vi.mocked(router.post).mock.calls[0];
+    // URL mutasi lama dipertahankan; konteks RA hanya menumpang di payload.
+    expect(url).toBe('/kegiatan/kegiatan-1');
+    expect(data).toMatchObject({
+        rencana_aksi_id: 'ra-7', nama: 'Nama hasil koreksi', unit_id: 'unit-a', periode_id: 'periode-4', tahun: 2026,
+    });
+    // Field konteks tidak menggantikan field form yang sudah ada.
+    expect(data).toHaveProperty('expected_state', 'v1');
+    expect(data).not.toHaveProperty('status');
+});
+
 it('menampilkan galat server yang terhubung ke field dan mempertahankan koreksi pengguna', async () => {
     render(<KegiatanEdit {...props} />);
 

@@ -6,13 +6,16 @@ use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\RencanaAksi;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Props halaman ubah kegiatan dalam konteks Rencana Aksi pengklaimnya
  * (Q74 §74.1). `FormKegiatan` dievaluasi lebih dulu agar otorisasi per unit dan
- * audit penolakan tetap menjadi miliknya; baru setelah itu kegiatan dipastikan
- * benar-benar diklaim RA tersebut, sehingga props kegiatan tidak dapat dibuka
- * lewat UUID Rencana Aksi lain.
+ * audit penolakan tetap menjadi miliknya; baru setelah itu izin baca Rencana
+ * Aksi ditegakkan Policy yang sama dengan halaman RA, sehingga identitas,
+ * klaim, dan berkas header tidak terkirim kepada aktor yang tidak berhak
+ * membacanya. Kegiatan juga dipastikan benar-benar diklaim RA tersebut,
+ * sehingga props kegiatan tidak dapat dibuka lewat UUID Rencana Aksi lain.
  */
 class FormKegiatanRencanaAksi
 {
@@ -26,6 +29,9 @@ class FormKegiatanRencanaAksi
     public function handle(User $actor, RencanaAksi $rencanaAksi, Kegiatan $kegiatan): array
     {
         $props = $this->form->handle($actor, $kegiatan);
+
+        // Penolakan tidak memuat identitas RA: gate berjalan sebelum relasi, klaim, dan berkas dimuat.
+        Gate::forUser($actor)->authorize('view', $rencanaAksi);
 
         abort_unless(
             KlaimKegiatan::where('kegiatan_id', $kegiatan->id)->where('rencana_aksi_id', $rencanaAksi->id)->exists(),
