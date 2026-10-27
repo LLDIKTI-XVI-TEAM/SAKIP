@@ -102,6 +102,33 @@ it('menyertakan rencana_aksi_id konteks pada payload simpan kegiatan', () => {
     expect(data).not.toHaveProperty('status');
 });
 
+it('menyinkronkan token dan isian form hanya saat versi server berubah tanpa membuang draf', async () => {
+    const awal: RencanaKegiatan = { ...rencana, nama: 'Rencana awal', tujuan: 'Tujuan awal', version_token: 'v1' };
+    const { rerender } = render(<KegiatanEdit {...props} kegiatan={awal} />);
+
+    fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Draf belum disimpan' } });
+    kirim();
+    const [, pertama, opsiPertama] = vi.mocked(router.post).mock.calls[0];
+    expect(pertama).toMatchObject({ nama: 'Draf belum disimpan', expected_state: 'v1' });
+    await act(async () => { opsiPertama?.onFinish?.(undefined as never); });
+
+    // Kontrol: render ulang dengan token yang sama (mis. partial reload) tidak menghidrasi ulang form.
+    rerender(<KegiatanEdit {...props} kegiatan={{ ...awal, nama: 'Nama lain dari server' }} />);
+    expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Draf belum disimpan');
+
+    // Token server berubah (simpan sukses mengarahkan kembali ke form): isian dan token ikut diperbarui.
+    rerender(<KegiatanEdit {...props} kegiatan={{ ...awal, nama: 'Nama hasil simpan', tujuan: 'Tujuan hasil simpan', version_token: 'v2' }} />);
+    expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Nama hasil simpan');
+    expect(screen.getByLabelText<HTMLTextAreaElement>(/Tujuan/).value).toBe('Tujuan hasil simpan');
+
+    kirim();
+    const [, kedua] = vi.mocked(router.post).mock.calls[1];
+    expect(kedua).toMatchObject({
+        nama: 'Nama hasil simpan', tujuan: 'Tujuan hasil simpan', expected_state: 'v2', rencana_aksi_id: 'ra-1',
+    });
+    expect(router.post).toHaveBeenCalledTimes(2);
+});
+
 it('menampilkan galat server yang terhubung ke field dan mempertahankan koreksi pengguna', async () => {
     render(<KegiatanEdit {...props} />);
 

@@ -90,6 +90,17 @@ function kegiatanTautan(kandidatPenautan: KegiatanTanpaKlaim[], tautkan = true):
     return { ...tanpaDaftar, kegiatan_tanpa_klaim: kandidatPenautan, can: { tambah: false, kelola: false, tautkan } };
 }
 
+/** Cakupan kartu penautan; setiap baris punya kontrol arah dampak dan tombolnya sendiri. */
+type Kartu = ReturnType<typeof within>;
+
+const arahBaris = (kartu: Kartu, nama: string) => kartu.getByLabelText(`Arah dampak kegiatan ${nama}`) as HTMLSelectElement;
+const tombolTautkan = (kartu: Kartu, nama: string) => kartu.getByRole('button', { name: `Tautkan kegiatan ${nama} ke rencana aksi ini` }) as HTMLButtonElement;
+
+/** Arah dampak wajib dipilih per baris sebelum penautan dapat dikirim. */
+function pilihArahBaris(kartu: Kartu, nama: string, arah: string): void {
+    fireEvent.change(arahBaris(kartu, nama), { target: { value: arah } });
+}
+
 it('menampilkan state tanpa data, bukan galat, ketika aktor tidak berhak membaca kegiatan', () => {
     render(<KegiatanRencanaAksi rencanaAksi={buatRencanaAksi()} kegiatan={null} />);
 
@@ -295,7 +306,7 @@ it('hanya merender kandidat penautan dari periode yang dapat ditulis', () => {
     expect(kartu.getAllByRole('button', { name: /^Tautkan kegiatan/ })).toHaveLength(2);
 });
 
-it('menampilkan nama, periode, status, dan penanda lanjutan pada kandidat penautan', () => {
+it('menampilkan nama, periode, status, dan pemilih arah dampak per kandidat penautan', () => {
     render(
         <KegiatanRencanaAksi
             rencanaAksi={buatRencanaAksi()}
@@ -308,19 +319,28 @@ it('menampilkan nama, periode, status, dan penanda lanjutan pada kandidat penaut
         />,
     );
 
-    const [baru, lanjutan] = within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' })).getAllByRole('listitem');
+    const kartu = within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' }));
+    const [baru, lanjutan] = kartu.getAllByRole('listitem');
     expect(within(baru).getByText('Rapat koordinasi')).toBeTruthy();
     expect(within(baru).getByText('Triwulan I')).toBeTruthy();
     expect(within(baru).getByText('Terlaksana')).toBeTruthy();
-    expect(within(baru).queryByText('Lanjutan')).toBeNull();
 
     expect(within(lanjutan).getByText('Bimtek lanjutan')).toBeTruthy();
     expect(within(lanjutan).getByText('Triwulan I')).toBeTruthy();
     expect(within(lanjutan).getByText('Ditunda')).toBeTruthy();
-    expect(within(lanjutan).getByText('Lanjutan')).toBeTruthy();
+
+    // Badge "Lanjutan" dihapus: `kegiatan_asal_id` tidak lagi dikonsumsi UI walau payload masih mengirimnya.
+    expect(kartu.queryByText('Lanjutan')).toBeNull();
+
+    // Setiap baris menawarkan pilihan arah dampak dengan placeholder, tanpa nilai bawaan tersembunyi.
+    for (const [baris, nama] of [[baru, 'Rapat koordinasi'], [lanjutan, 'Bimtek lanjutan']] as const) {
+        const arah = within(baris).getByLabelText<HTMLSelectElement>(`Arah dampak kegiatan ${nama}`);
+        expect(arah.value).toBe('');
+        expect(Array.from(arah.options, (opsi) => opsi.textContent)).toEqual(['Pilih arah dampak', 'Menambah', 'Mengurangi']);
+    }
 });
 
-it('mengirim klaim penautan dengan arah dampak valid dan menahan tombol selama proses', async () => {
+it('menonaktifkan tombol tautkan sampai arah dampak barisnya dipilih', () => {
     render(
         <KegiatanRencanaAksi
             rencanaAksi={buatRencanaAksi()}
@@ -332,40 +352,111 @@ it('mengirim klaim penautan dengan arah dampak valid dan menahan tombol selama p
     );
 
     const kartu = within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' }));
-    const tombol = (nama: string) => kartu.getByRole<HTMLButtonElement>('button', { name: `Tautkan kegiatan ${nama} ke rencana aksi ini` });
 
-    fireEvent.click(tombol('Kandidat Satu'));
+    // Tanpa pilihan, tombol tidak dapat diklik dan tidak mengirim permintaan apa pun.
+    expect(arahBaris(kartu, 'Kandidat Satu').value).toBe('');
+    expect(tombolTautkan(kartu, 'Kandidat Satu').disabled).toBe(true);
+    expect(tombolTautkan(kartu, 'Kandidat Dua').disabled).toBe(true);
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Satu'));
+    expect(router.post).not.toHaveBeenCalled();
+
+    // Pilihan hanya membuka tombol baris itu; baris lain tetap menunggu arahnya sendiri.
+    pilihArahBaris(kartu, 'Kandidat Satu', 'mengurangi');
+    expect(tombolTautkan(kartu, 'Kandidat Satu').disabled).toBe(false);
+    expect(tombolTautkan(kartu, 'Kandidat Dua').disabled).toBe(true);
+
+    // Mengembalikan pilihan ke placeholder menutup lagi tombol baris tersebut.
+    pilihArahBaris(kartu, 'Kandidat Satu', '');
+    expect(tombolTautkan(kartu, 'Kandidat Satu').disabled).toBe(true);
+});
+
+it('mengirim klaim penautan dengan arah dampak pilihan baris dan menahan tombol selama proses', async () => {
+    render(
+        <KegiatanRencanaAksi
+            rencanaAksi={buatRencanaAksi()}
+            kegiatan={kegiatanTautan([
+                kandidatTautan({ id: 'keg-1', periode_id: P1, nama: 'Kandidat Satu' }),
+                kandidatTautan({ id: 'keg-2', periode_id: P2, nama: 'Kandidat Dua', periode_nama: 'Triwulan II' }),
+            ])}
+        />,
+    );
+
+    const kartu = within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' }));
+
+    // Kedua baris dipilih lebih dulu agar status tombol baris lain hanya ditentukan oleh proses berjalan.
+    pilihArahBaris(kartu, 'Kandidat Satu', 'mengurangi');
+    pilihArahBaris(kartu, 'Kandidat Dua', 'menambah');
+    expect(tombolTautkan(kartu, 'Kandidat Dua').disabled).toBe(false);
+
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Satu'));
 
     const [url, data, options] = vi.mocked(router.post).mock.calls[0];
     expect(url).toBe('/kegiatan/keg-1/klaim');
-    // Hanya klaim yang dikirim: RA tujuan, catatan penanda, dan arah dampak.
-    // UI pemilih arah per baris menyusul; test tidak mengunci `menambah` sebagai
-    // kontrak permanen — yang dijaga adalah bentuk payload dan nilai arah yang sah.
-    // TODO(UI arah dampak per baris): setelah pemilih tersedia, pilih `mengurangi`
-    // pada baris lalu tegaskan payload mengikuti pilihan pengguna.
+    // Hanya klaim yang dikirim: RA tujuan, catatan penanda, dan arah dampak pilihan baris itu.
     const payload = data as { rencana_aksi_id?: string; arah_dampak?: string; catatan?: string };
     expect(Object.keys(payload).sort()).toEqual(['arah_dampak', 'catatan', 'rencana_aksi_id']);
-    expect(payload).toMatchObject({ rencana_aksi_id: RA_ID, catatan: 'Penautan kegiatan tanpa klaim.' });
-    expect(['menambah', 'mengurangi'].includes(payload.arah_dampak ?? '')).toBe(true);
+    expect(payload).toMatchObject({ rencana_aksi_id: RA_ID, arah_dampak: 'mengurangi', catatan: 'Penautan kegiatan tanpa klaim.' });
     expect(options).toMatchObject({ preserveScroll: true });
 
     // Selama permintaan berjalan tombol aktif ditahan dan status proses terbaca pembaca layar.
-    expect(tombol('Kandidat Satu').disabled).toBe(true);
-    expect(tombol('Kandidat Satu').textContent).toContain('Menautkan…');
+    expect(tombolTautkan(kartu, 'Kandidat Satu').disabled).toBe(true);
+    expect(tombolTautkan(kartu, 'Kandidat Satu').textContent).toContain('Menautkan…');
     expect(kartu.getByRole('status').textContent).toBe('Menautkan kegiatan Kandidat Satu…');
     expect(kartu.getByText('Kandidat Satu').closest('li')?.getAttribute('aria-busy')).toBe('true');
     // Kandidat lain ikut ditahan agar dua penautan tidak berjalan bersamaan.
-    expect(tombol('Kandidat Dua').disabled).toBe(true);
+    expect(tombolTautkan(kartu, 'Kandidat Dua').disabled).toBe(true);
 
     // Klik berulang selama proses tidak mengirim permintaan kedua.
-    fireEvent.click(tombol('Kandidat Satu'));
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Satu'));
     expect(router.post).toHaveBeenCalledTimes(1);
 
     await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onFinish?.(undefined as never); });
-    expect(tombol('Kandidat Satu').disabled).toBe(false);
-    expect(tombol('Kandidat Satu').textContent).toContain('Tautkan');
+    expect(tombolTautkan(kartu, 'Kandidat Satu').disabled).toBe(false);
+    expect(tombolTautkan(kartu, 'Kandidat Satu').textContent).toContain('Tautkan');
     expect(kartu.getByRole('status').textContent).toBe('');
     expect(kartu.getByText('Kandidat Satu').closest('li')?.getAttribute('aria-busy')).toBe('false');
+
+    // Baris lain membawa pilihan arahnya sendiri, bukan nilai baris pertama.
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Dua'));
+    const [urlKedua, dataKedua] = vi.mocked(router.post).mock.calls[1];
+    expect(urlKedua).toBe('/kegiatan/keg-2/klaim');
+    expect((dataKedua as { arah_dampak?: string }).arah_dampak).toBe('menambah');
+});
+
+it('menampilkan galat arah dampak pada field barisnya tanpa alert umum', async () => {
+    render(
+        <KegiatanRencanaAksi
+            rencanaAksi={buatRencanaAksi()}
+            kegiatan={kegiatanTautan([
+                kandidatTautan({ id: 'keg-1', periode_id: P1, nama: 'Kandidat Satu' }),
+                kandidatTautan({ id: 'keg-2', periode_id: P2, nama: 'Kandidat Dua', periode_nama: 'Triwulan II' }),
+            ])}
+        />,
+    );
+
+    const kartu = within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' }));
+    pilihArahBaris(kartu, 'Kandidat Satu', 'menambah');
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Satu'));
+
+    await act(async () => {
+        vi.mocked(router.post).mock.calls[0][2]?.onError?.({ arah_dampak: 'Arah dampak tidak sesuai jenjang kegiatan.' });
+        vi.mocked(router.post).mock.calls[0][2]?.onFinish?.(undefined as never);
+    });
+
+    const arahSatu = arahBaris(kartu, 'Kandidat Satu');
+    const deskripsi = document.getElementById(arahSatu.getAttribute('aria-describedby') ?? '');
+    expect(arahSatu.getAttribute('aria-invalid')).toBe('true');
+    expect(deskripsi?.getAttribute('role')).toBe('alert');
+    expect(deskripsi?.textContent).toBe('Arah dampak tidak sesuai jenjang kegiatan.');
+    // Hanya galat field yang tampil; alert umum tidak menduplikasi pesan yang sama.
+    expect(kartu.getAllByRole('alert').map((alert) => alert.textContent)).toEqual(['Arah dampak tidak sesuai jenjang kegiatan.']);
+    // Galat milik baris ini saja, bukan seluruh kartu.
+    expect(arahBaris(kartu, 'Kandidat Dua').getAttribute('aria-invalid')).toBeNull();
+
+    // Memilih arah baru membersihkan galat lama yang merujuk pilihan sebelumnya.
+    pilihArahBaris(kartu, 'Kandidat Satu', 'mengurangi');
+    expect(arahBaris(kartu, 'Kandidat Satu').getAttribute('aria-invalid')).toBeNull();
+    expect(kartu.queryByText('Arah dampak tidak sesuai jenjang kegiatan.')).toBeNull();
 });
 
 it('menampilkan galat 422, penolakan 403, dan gangguan koneksi penautan tanpa menelannya', async () => {
@@ -380,7 +471,10 @@ it('menampilkan galat 422, penolakan 403, dan gangguan koneksi penautan tanpa me
     );
 
     const kartu = within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' }));
-    const klik = (nama: string) => fireEvent.click(kartu.getByRole('button', { name: `Tautkan kegiatan ${nama} ke rencana aksi ini` }));
+    // Arah dipilih sekali per baris; nilai itu dipakai ulang oleh setiap klik berikutnya.
+    pilihArahBaris(kartu, 'Kandidat Satu', 'menambah');
+    pilihArahBaris(kartu, 'Kandidat Dua', 'mengurangi');
+    const klik = (nama: string) => fireEvent.click(tombolTautkan(kartu, nama));
     const opsi = (indeks: number) => vi.mocked(router.post).mock.calls[indeks][2];
 
     // 422 terikat ke `rencana_aksi_id` (mis. RA tujuan sudah tidak dapat diklaim).
@@ -430,8 +524,10 @@ it('mengandalkan muat ulang props setelah penautan sukses tanpa menyisakan state
     const { rerender } = render(<KegiatanRencanaAksi rencanaAksi={buatRencanaAksi()} kegiatan={kegiatanTautan([kandidatSatu, kandidatDua])} />);
 
     const kartu = () => within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' }));
-    const tombol = (nama: string) => kartu().getByRole<HTMLButtonElement>('button', { name: `Tautkan kegiatan ${nama} ke rencana aksi ini` });
+    const tombol = (nama: string) => tombolTautkan(kartu(), nama);
 
+    pilihArahBaris(kartu(), 'Kandidat Satu', 'mengurangi');
+    pilihArahBaris(kartu(), 'Kandidat Dua', 'menambah');
     fireEvent.click(tombol('Kandidat Satu'));
 
     // Sukses tidak menyisakan galat maupun status proses; daftar menunggu props baru.
