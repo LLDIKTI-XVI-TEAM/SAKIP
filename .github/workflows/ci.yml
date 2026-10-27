@@ -55,7 +55,7 @@ jobs:
       - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: '8.3'
-          extensions: mbstring, bcmath, pdo_pgsql
+          extensions: mbstring, bcmath, pdo_pgsql, gd, zip, dom, simplexml, xml, xmlreader, xmlwriter
           coverage: none
           tools: composer:v2
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
@@ -82,7 +82,7 @@ jobs:
       - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: '8.3'
-          extensions: mbstring, bcmath, pdo_pgsql
+          extensions: mbstring, bcmath, pdo_pgsql, gd, zip, dom, simplexml, xml, xmlreader, xmlwriter
           coverage: none
           tools: composer:v2
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
@@ -133,7 +133,7 @@ jobs:
       - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: '8.3'
-          extensions: mbstring, bcmath, pdo_pgsql
+          extensions: mbstring, bcmath, pdo_pgsql, gd, zip, dom, simplexml, xml, xmlreader, xmlwriter
           coverage: none
           tools: composer:v2
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5

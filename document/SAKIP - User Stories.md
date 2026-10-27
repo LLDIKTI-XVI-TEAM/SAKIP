@@ -1981,6 +1981,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### US-10.03 · Ekspor Laporan Kinerja ke Excel
 
+> **Implementasi lokal 27 Oktober 2026:** ekspor rekap memakai dua sheet (`Rekap` dan `Kegiatan`), seluruh hasil filter dengan ACL server, nilai penuh dan penanda historis, serta audit keberhasilan. Mengikuti [keputusan PM K1–K7](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/177#issuecomment-6438390296) dan klarifikasi pengguna: kedua izin baca/ekspor wajib; sasaran pada pengukuran resmi yang tidak tercatat tidak diisi dari RA. Pelengkapan produser snapshot dan penerimaan format ISS-10.04 tetap terpisah. Checklist AC di bawah menunjukkan verifikasi lokal. Status ini tidak menyatakan merge, CI, UAT, atau deployment.
+
+> **Review lokal 27 Oktober 2026:** dua fallback label historis pada XLSX diperbaiki: status perhitungan kosong pada versi resmi dan metadata komponen yang hilang kini memakai "Tidak tercatat pada versi ini"; "Tidak berlaku" tetap khusus indikator tanpa komponen. Kedua regresi dibuktikan RED lalu GREEN; focused rekap/kalkulasi 50 test (519 assertions), Pint dan PHPStan lulus. Full suite 2.419 kasus pada verifikasi awal dijalankan sebelum perbaikan; tidak dijalankan ulang setelah perubahan fallback ini. Tidak ada perubahan frontend pada perbaikan review.
+
 > **Q47, Q48 (13 Oktober 2026):** keluaran dokumen resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat melalui US-10.05 dengan permission `laporan:ekspor` yang sama (Q48 §48.1 butir 6); ekspor rekap pada story ini tetap berlaku. Penanda "Belum dapat diukur" dan "Tanpa target periode" pada ekspor mengikuti rekap US-10.02 dan tidak diubah menjadi 0 (Q47 §47.3–§47.4).
 
 | Field | Detail |
@@ -1999,11 +2003,11 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given filter laporan dipilih, When ekspor dijalankan, Then `.xlsx` memisahkan baseline, target, realisasi, persentase, narasi, rekomendasi, dan status bukti.
-- [ ] **AC-2:** Given Pimpinan memiliki `laporan:ekspor`, When ekspor dilakukan, Then berhasil sesuai scope baca.
-- [ ] **AC-3:** Given Admin bawaan tidak memiliki `laporan:ekspor`, When endpoint dipanggil, Then 403 kecuali Admin menerima grant eksplisit yang sah.
-- [ ] **AC-4:** Given data resmi historis diekspor, Then file membaca versi disahkan dan konteks beku.
-- [ ] **AC-5:** Given nilai tidak dapat dihitung, Then ekspor menandainya secara eksplisit dan tidak mengubah menjadi 0.
+- [x] **AC-1:** Given filter laporan dipilih, When ekspor dijalankan, Then `.xlsx` memisahkan baseline, target, realisasi, persentase, narasi, rekomendasi, dan status bukti.
+- [x] **AC-2:** Given Pimpinan memiliki `laporan:ekspor`, When ekspor dilakukan, Then berhasil sesuai scope baca.
+- [x] **AC-3:** Given Admin bawaan tidak memiliki `laporan:ekspor`, When endpoint dipanggil, Then 403 kecuali Admin menerima grant eksplisit yang sah.
+- [x] **AC-4:** Given data resmi historis diekspor, Then file membaca versi disahkan dan konteks beku.
+- [x] **AC-5:** Given nilai tidak dapat dihitung, Then ekspor menandainya secara eksplisit dan tidak mengubah menjadi 0.
 
 ### US-10.04 · Penerimaan Contoh Keluaran Excel untuk UAT
 

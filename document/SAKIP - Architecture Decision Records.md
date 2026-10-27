@@ -25,6 +25,7 @@ ADR-0001 sampai ADR-0006 merekam keputusan yang **sudah berlaku pada source-of-t
 6. ADR-0006 — Private File Storage dan Authorized Streaming.
 7. ADR-0007 — Target Manual Rencana Aksi Menggunakan `komponen_id = NULL`.
 8. ADR-0008 — Kolom Alasan Deviasi Target PK pada Rencana Aksi.
+9. ADR-0009 — PhpSpreadsheet untuk Ekspor Excel di Server.
 
 ---
 
@@ -769,5 +770,57 @@ Ditolak karena alasan tidak queryable untuk payload baca/preview dan tidak tampi
 - `document/SAKIP - User Issues.md` ISS-05.01 AC-6, ISS-05.03.
 - `document/SAKIP - Keputusan Penyelarasan.md` Q34.
 
+
+---
+
+# ADR-0009 — PhpSpreadsheet untuk Ekspor Excel di Server
+
+- **Status keputusan:** Accepted
+- **Tanggal keputusan:** 25 Oktober 2026, keputusan PM K1 pada issue #177.
+- **Scope:** pembentukan berkas `.xlsx` rekap dan fondasi keluaran resmi ISS-10.05.
+
+## Context
+
+Rekap dan keluaran resmi memerlukan kolom angka, narasi, beberapa sheet, serta format sel. Volume dibatasi data satu lembaga. Sumber laporan harus konsisten dengan versi disahkan, snapshot historis, dan hak akses aktor. Sebelum perubahan ini belum tersedia pustaka pembentuk Excel dalam dependency proyek.
+
+## Decision
+
+Gunakan `phpoffice/phpspreadsheet` secara langsung, tanpa paket pembungkus. Versi awal terkunci pada **5.10.0**, lisensi **MIT**, memerlukan PHP `^8.2`; runtime proyek tetap PHP 8.3. Pemilihan paket disahkan PM melalui K1, bukan inferensi dari implementasi.
+
+- Pembentukan workbook berada di Action server `EksporRekapIndikatorPeriode`, menggunakan PhpSpreadsheet secara langsung.
+- `PembacaRekapIndikatorPeriode` memiliki query, pemilihan versi, ACL, dan proyeksi yang digunakan halaman serta ekspor. Halaman memakai pagination; ekspor mengonsumsi batch dalam satu transaksi `REPEATABLE READ, READ ONLY`.
+- Workbook rekap terdiri dari sheet `Rekap` dan `Kegiatan`, terhubung kolom kunci tanpa formula atau hyperlink. Formatnya sementara sampai penerimaan ISS-10.04.
+- Nilai numerik sumber dipertahankan; format tampilan tidak membulatkan nilai tersimpan. Nilai lebih dari 15 digit signifikan ditulis sebagai teks presisi penuh. Sel narasi/kode ditulis sebagai teks eksplisit agar tidak menjadi formula.
+- Berkas diserialisasi ke stream memori sebelum respons dikirim; tidak disimpan sebagai arsip atau berkas sementara aplikasi. Workbook dilepas setelah pemakaian.
+- Audit `laporan.ekspor` dicatat setelah pembentukan berhasil dan transaksi baca selesai, tanpa isi berkas maupun `dasar_izin`. Hasil kosong menjawab 422 tanpa berkas dan tanpa audit keberhasilan.
+
+## Alternatives Considered
+
+- **OpenSpout:** dipertimbangkan PM, tidak dipilih pada K1. Kebutuhan beberapa keluaran dan format sel menjadi dasar pemilihan PhpSpreadsheet.
+- **Maatwebsite Excel:** tidak dipilih karena kebutuhan dapat dipenuhi langsung oleh PhpSpreadsheet tanpa lapisan integrasi tambahan.
+- **Pembentukan di browser:** tidak digunakan; query, pemilihan versi, kalkulasi, dan authorization tetap dimiliki server sesuai Plan P.3.
+
+## Consequences
+
+- `composer.json` dan `composer.lock` memuat dependency baru; pemeriksaan keamanan mencakup seluruh lockfile.
+- Ekstensi PHP mengikuti persyaratan paket terkunci, termasuk GD, ZIP, DOM, SimpleXML, XMLReader, dan XMLWriter. CI menyatakannya eksplisit. Base PHP pada Containerfile menyediakan keluarga XML; GD/ZIP sudah dipasang eksplisit.
+- Workbook memakai memori proses; pembacaan DB tetap per batch. Batas ini sesuai asumsi volume satu lembaga pada keputusan PM. Optimasi volume lebih besar memerlukan pengukuran, bukan penambahan queue/cache spekulatif.
+- Tipe sel angka/teks serta penanda historis harus diuji dengan membaca ulang berkas. Jumlah baris fisik `Rekap` mengikuti jumlah komponen; indikator manual tetap satu baris.
+- Perubahan pustaka atau mekanisme penyimpanan/delivery memerlukan evaluasi ulang terhadap keamanan, format, dan konsistensi histori.
+
+## Verification
+
+- Feature test membaca workbook memakai PhpSpreadsheet reader: versi sah, pemisahan komponen/narasi, hasil melampaui pagination, role/grant/deny, privasi kegiatan, angka besar, penanda, serta audit.
+- Regression test memastikan sasaran historis yang tidak tercatat tidak diisi dari RA, dan angka resmi tidak mengikuti perubahan draf/master.
+- Test React serta browser smoke memeriksa capability, filter aktif, loading, kegagalan, dan respons berkas di desktop/mobile.
+- Penerimaan format tetap berada pada ISS-10.04; test otomatis bukan persetujuan UAT.
+
+## References
+
+- [Issue #177, keputusan PM K1 dan K2](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/177).
+- [Keputusan PM K3–K7, 27 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/177#issuecomment-6438390296).
+- PRD §24; Plan 8.2/8.4/8.5 dan P.3; System Architecture §14.2; Q48 §48.3.
+- [Dokumentasi PhpSpreadsheet](https://phpspreadsheet.readthedocs.io/en/latest/) dan lisensi pada `composer.lock`.
+- `tests/Feature/Laporan/RekapIndikatorPeriodeTest.php`; `tests/Frontend/LaporanRekap.test.tsx`.
 
 ---

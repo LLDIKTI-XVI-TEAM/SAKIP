@@ -1,4 +1,5 @@
-import { Fragment, useState, type FormEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Download } from 'lucide-react';
 import { Head, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge, type BadgeVariant } from '@/Components/Badge';
@@ -112,12 +113,68 @@ function RincianBaris({ row }: { row: BarisRekap }) {
     </div>;
 }
 
-export default function Rekap({ filters, jadwal, pilihan_jadwal, pilihan_periode, baris, pagination }: RekapProps) {
+export default function Rekap({ filters, jadwal, pilihan_jadwal, pilihan_periode, baris, pagination, can, ada_data_ekspor }: RekapProps) {
     const form = useForm({ ...filters });
     const [failure, setFailure] = useState('');
+    const [downloadFailure, setDownloadFailure] = useState('');
+    const [downloading, setDownloading] = useState(false);
+    const downloadRequest = useRef<AbortController | null>(null);
+    const filterChanged = form.data.jadwal_id !== filters.jadwal_id || form.data.periode_id !== filters.periode_id;
+    useEffect(() => () => downloadRequest.current?.abort(), []);
+
+    const download = async () => {
+        if (downloadRequest.current || form.processing || filterChanged || !can.ekspor || !ada_data_ekspor) return;
+        const controller = new AbortController();
+        downloadRequest.current = controller;
+        setDownloading(true);
+        setDownloadFailure('');
+        try {
+            // Unduhan adalah respons berkas; jangan kirim sebagai kunjungan atau props Inertia.
+            const response = await fetch(`/laporan/rekap/ekspor?${new URLSearchParams(filters)}`, {
+                headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: controller.signal,
+            });
+            if (response.redirected || response.status === 401 || response.status === 419) {
+                throw new Error('Sesi Anda berakhir. Muat ulang halaman dan masuk kembali.');
+            }
+            if (response.status === 403) {
+                throw new Error('Anda tidak memiliki izin untuk mengekspor laporan ini. Muat ulang halaman untuk memeriksa akses Anda.');
+            }
+            if (response.status === 422) {
+                const payload: unknown = await response.json().catch(() => null);
+                let message = 'Filter ekspor tidak valid. Terapkan kembali filter lalu coba lagi.';
+                if (payload && typeof payload === 'object' && 'errors' in payload && payload.errors && typeof payload.errors === 'object') {
+                    for (const messages of Object.values(payload.errors)) {
+                        if (Array.isArray(messages) && typeof messages[0] === 'string') { message = messages[0]; break; }
+                    }
+                }
+                throw new Error(message);
+            }
+            if (!response.ok || !response.headers.get('Content-Type')?.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+                throw new Error('Berkas Excel belum dapat disiapkan. Coba lagi atau hubungi pengelola.');
+            }
+            const blob = await response.blob();
+            if (controller.signal.aborted) return;
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] ?? `rekap-kinerja-${jadwal?.tahun ?? ''}.xlsx`;
+            document.body.append(anchor);
+            anchor.click();
+            anchor.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                setDownloadFailure(error instanceof TypeError ? 'Unduhan gagal. Periksa koneksi lalu coba lagi.'
+                    : error instanceof Error ? error.message : 'Unduhan gagal. Coba lagi.');
+            }
+        } finally {
+            if (!controller.signal.aborted) setDownloading(false);
+            downloadRequest.current = null;
+        }
+    };
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        if (form.processing) return;
+        if (form.processing || downloading) return;
         setFailure('');
         form.get('/laporan/rekap', {
             preserveState: false, preserveScroll: true,
@@ -132,14 +189,14 @@ export default function Rekap({ filters, jadwal, pilihan_jadwal, pilihan_periode
             <Card className="p-4 sm:p-5">
                 <form onSubmit={submit} aria-label="Filter rekapitulasi" aria-busy={form.processing} className="space-y-4">
                     <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                        <Select label="Tahun / jadwal" labelClassName="sr-only" value={form.data.jadwal_id} disabled={form.processing || pilihan_jadwal.length === 0} error={form.errors.jadwal_id}
+                        <Select label="Tahun / jadwal" labelClassName="sr-only" value={form.data.jadwal_id} disabled={form.processing || downloading || pilihan_jadwal.length === 0} error={form.errors.jadwal_id}
                             options={pilihan_jadwal.length ? [{ value: '', label: 'Pilih tahun / jadwal' }, ...pilihan_jadwal.map((j) => ({ value: j.id, label: j.label }))] : [{ value: '', label: 'Belum ada jadwal' }]}
                             onChange={(event) => { form.setData({ jadwal_id: event.target.value, periode_id: '' }); }} />
-                        <Select label="Periode" labelClassName="sr-only" value={form.data.periode_id} disabled={form.processing || form.data.jadwal_id !== filters.jadwal_id} error={form.errors.periode_id}
+                        <Select label="Periode" labelClassName="sr-only" value={form.data.periode_id} disabled={form.processing || downloading || form.data.jadwal_id !== filters.jadwal_id} error={form.errors.periode_id}
                             options={[{ value: '', label: 'Semua periode efektif' }, ...pilihan_periode.map((p) => ({ value: p.id, label: p.nama }))]}
                             helperText={form.data.jadwal_id !== filters.jadwal_id ? 'Terapkan jadwal untuk memuat pilihan periodenya.' : undefined}
                             onChange={(event) => form.setData('periode_id', event.target.value)} />
-                        <Button type="submit" className="h-[42px] justify-self-start" isLoading={form.processing} disabled={!form.data.jadwal_id}>Terapkan</Button>
+                        <Button type="submit" className="h-[42px] justify-self-start" isLoading={form.processing} disabled={downloading || !form.data.jadwal_id}>Terapkan</Button>
                     </div>
                     {failure && <p role="alert" className="text-sm text-danger">{failure}</p>}
                 </form>
@@ -148,7 +205,18 @@ export default function Rekap({ filters, jadwal, pilihan_jadwal, pilihan_periode
                 <div className="space-y-3 border-b border-border px-4 py-4 sm:px-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <h2 className="min-w-0 break-words text-base font-semibold">{jadwal ? `${jadwal.renstra} · ${jadwal.tahun}` : 'Rekapitulasi indikator'}</h2>
+                        {can.ekspor && <div className="flex min-w-0 flex-col items-start gap-2 sm:items-end">
+                            <Button type="button" variant="outline" onClick={download} isLoading={downloading}
+                                aria-busy={downloading} aria-describedby={!ada_data_ekspor ? 'ekspor-kosong' : filterChanged ? 'ekspor-filter' : undefined}
+                                disabled={form.processing || filterChanged || !ada_data_ekspor || !jadwal}>
+                                {!downloading && <Download className="h-4 w-4" aria-hidden="true" />}{downloading ? 'Menyiapkan Excel…' : 'Unduh Excel'}
+                            </Button>
+                            {!ada_data_ekspor ? <p id="ekspor-kosong" className="text-sm text-muted">Tidak ada data untuk diekspor</p>
+                                : filterChanged ? <p id="ekspor-filter" className="text-sm text-muted">Terapkan filter terlebih dahulu untuk mengunduh Excel.</p> : null}
+                            {downloading && <p role="status" className="text-sm text-muted">Berkas Excel sedang disiapkan.</p>}
+                        </div>}
                     </div>
+                    {downloadFailure && <p role="alert" className="text-sm text-danger">{downloadFailure}</p>}
                     <div aria-label="Legenda rekapitulasi" className="flex flex-wrap gap-x-5 gap-y-2 text-xs leading-relaxed text-muted"><span><strong className="font-medium text-ink">Belum disahkan:</strong> belum ada realisasi resmi.</span><span><strong className="font-medium text-ink">Tanpa target periode:</strong> capaian persen tidak dihitung.</span><span><strong className="font-medium text-ink">Belum dapat diukur:</strong> nilai belum tersedia.</span></div>
                 </div>
                 {baris.length === 0 ? <p role="status" className="px-5 py-12 text-center text-sm text-muted">{jadwal ? 'Belum ada indikator pada jadwal dan periode yang dipilih.' : 'Belum ada jadwal pelaporan yang dapat ditampilkan.'}</p> : <Table aria-label="Matriks rekapitulasi indikator dan periode" className="block lg:table lg:table-fixed" wrapperClassName="overflow-visible">
