@@ -126,6 +126,45 @@ class RevisiTargetRenstraTest extends TestCase
             ->where("revisi_target.nilai.{$dua->id}.2028", '7'));
     }
 
+    /** Draf pengganti mulai lagi dari versi 1, sehingga tab dari draf lama dapat membawa nomor versi yang sama. */
+    #[DataProvider('aksiDariDrafLama')]
+    public function test_aksi_dari_draf_yang_sudah_diganti_ditolak_409_walau_nomor_versinya_sama(string $aksi): void
+    {
+        [$aktor, $renstra, $satu] = $this->renstraAktif();
+        $kedua = $this->calendarActor(['indikator:read', 'target:update']);
+        $this->mulaiRevisi($aktor, $renstra->id);
+        $this->simpanDrafRevisi($aktor, $renstra->id, 1, [$satu->id => [2026 => '11']])->assertSessionHasNoErrors();
+        $lama = $this->draf($renstra->id)->id;
+        $this->batalRevisi($kedua, $renstra->id, 2)->assertSessionHasNoErrors();
+        $this->mulaiRevisi($kedua, $renstra->id)->assertSessionHasNoErrors();
+        $this->simpanDrafRevisi($kedua, $renstra->id, 1, [$satu->id => [2026 => '50']], ['justifikasi' => 'Draf B.'])->assertSessionHasNoErrors();
+        $baru = $this->draf($renstra->id);
+        $this->assertSame([2, false], [(int) $baru->versi, $baru->id === $lama]);
+
+        $respons = match ($aksi) {
+            'draf' => $this->simpanDrafRevisi($aktor, $renstra->id, 2, [$satu->id => [2026 => '77']], ['revisi_id' => $lama, 'justifikasi' => 'Tab A.']),
+            'simpan' => $this->simpanRevisi($aktor, $renstra->id, 2, 'Justifikasi dari tab A.', ['revisi_id' => $lama]),
+            'batal' => $this->batalRevisi($aktor, $renstra->id, 2, ['revisi_id' => $lama]),
+        };
+
+        $respons->assertSessionHasErrors(['versi' => self::KONFLIK]);
+        $this->assertSame(1, $this->auditDitolak($aksi, 'versi_usang'));
+        $draf = $this->draf($renstra->id);
+        $this->assertSame([$baru->id, 'draf', 2, 'Draf B.'], [$draf->id, $draf->status, (int) $draf->versi, $draf->justifikasi]);
+        $this->assertEquals(["{$satu->id}:2026" => '50.000000000000'], $this->selDraf($baru->id));
+        $this->assertEquals(["{$satu->id}:2026" => '10.000000000000'], $this->targetBerlaku());
+
+        // Token tanpa identitas draf ditolak; token draf yang berlaku tetap diterima.
+        $this->simpanDrafRevisi($kedua, $renstra->id, 2, [$satu->id => [2026 => '51']], ['revisi_id' => null])->assertSessionHasErrors(['revisi_id']);
+        $this->simpanDrafRevisi($kedua, $renstra->id, 2, [$satu->id => [2026 => '51']])->assertSessionHasNoErrors();
+        $this->assertEquals(["{$satu->id}:2026" => '51.000000000000'], $this->selDraf($baru->id));
+    }
+
+    public static function aksiDariDrafLama(): array
+    {
+        return ['autosave' => ['draf'], 'simpan' => ['simpan'], 'batal' => ['batal']];
+    }
+
     public function test_versi_usang_atau_draf_yang_tidak_ada_ditolak_409_tanpa_mengubah_draf(): void
     {
         [$aktor, $renstra, $satu] = $this->renstraAktif();
@@ -136,7 +175,7 @@ class RevisiTargetRenstraTest extends TestCase
         $this->mulaiRevisi($aktor, $renstra->id);
         $this->mulaiRevisi($kedua, $renstra->id);
         $this->simpanDrafRevisi($aktor, $renstra->id, 1, [$satu->id => [2026 => '11']])->assertSessionHasNoErrors();
-        $this->actingAs($kedua)->putJson("/perencanaan/renstra/{$renstra->id}/revisi-target", ['versi' => 1, 'nilai' => [$satu->id => [2026 => '99']]])
+        $this->actingAs($kedua)->putJson("/perencanaan/renstra/{$renstra->id}/revisi-target", ['revisi_id' => $this->idDrafTerbuka($renstra->id), 'versi' => 1, 'nilai' => [$satu->id => [2026 => '99']]])
             ->assertStatus(409)->assertJsonValidationErrors(['versi' => self::KONFLIK]);
         $this->withHeader('X-Inertia', 'true');
         $this->simpanDrafRevisi($kedua, $renstra->id, 1, [$satu->id => [2026 => '99']])->assertStatus(303)->assertSessionHasErrors(['versi']);

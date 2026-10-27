@@ -110,7 +110,7 @@ it('autosave mengirim sel yang diubah dan justifikasi setelah jeda, dengan versi
 
     expect(put).toHaveBeenCalledTimes(1);
     expect(put.mock.calls[0][0]).toBe('/perencanaan/renstra/r-1/revisi-target');
-    expect(put.mock.calls[0][1]).toEqual({ versi: 2, nilai: { 'ind-1': { 2026: '12,5', 2028: null } }, justifikasi: 'Target terlampaui.' });
+    expect(put.mock.calls[0][1]).toEqual({ revisi_id: 'rev-1', versi: 2, nilai: { 'ind-1': { 2026: '12,5', 2028: null } }, justifikasi: 'Target terlampaui.' });
     expect(opsi(put)).toMatchObject({ preserveState: true, only: ['revisi_target'] });
     expect(screen.getByRole('button', { name: 'Simpan revisi' })).toBeTruthy();
 });
@@ -157,7 +157,7 @@ it('Simpan revisi ditahan selama ada perubahan belum terkirim, lalu mengirim ver
     fireEvent.click(simpan());
     expect(post).toHaveBeenCalledTimes(1);
     expect(post.mock.calls[0][0]).toBe('/perencanaan/renstra/r-1/revisi-target/simpan');
-    expect(post.mock.calls[0][1]).toEqual({ versi: 2, justifikasi: 'Draf alasan' });
+    expect(post.mock.calls[0][1]).toEqual({ revisi_id: 'rev-1', versi: 2, justifikasi: 'Draf alasan' });
     // Tab Target Renstra tetap terbuka setelah revisi disimpan.
     expect(opsi(post)).toMatchObject({ preserveState: true });
     act(() => { opsi(post).onError({ justifikasi: 'Justifikasi revisi wajib diisi.', nilai: 'Tidak ada nilai yang berubah, revisi tidak dapat disimpan.' }); });
@@ -175,7 +175,7 @@ it('Batal revisi meminta konfirmasi lalu menghapus draf dengan versinya', () => 
 
     expect(hapus).toHaveBeenCalledTimes(1);
     expect(hapus.mock.calls[0][0]).toBe('/perencanaan/renstra/r-1/revisi-target');
-    expect((hapus.mock.calls[0][1] as { data: unknown; preserveState?: boolean })).toMatchObject({ data: { versi: 2 }, preserveState: true });
+    expect((hapus.mock.calls[0][1] as { data: unknown; preserveState?: boolean })).toMatchObject({ data: { revisi_id: 'rev-1', versi: 2 }, preserveState: true });
 });
 
 it('histori revisi tampil sebagai daftar tertutup dan setiap revisi dibuka untuk melihat justifikasi dan perubahannya', async () => {

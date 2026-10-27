@@ -1796,9 +1796,9 @@ class MutationConcurrencyTest extends TestCase
     #[DataProvider('urutanRevisiTargetRenstra')]
     public function test_simpan_revisi_dan_autosave_pada_draf_yang_sama_diserialkan_dan_yang_kalah_konflik(bool $simpanDulu): void
     {
-        [$parent, $worker, $renstra, $indikator] = $this->revisiTargetRenstraFixture();
-        $draf = ['versi' => 2, 'nilai' => [$indikator->id => [2026 => '15']]];
-        $simpan = ['versi' => 2, 'justifikasi' => 'Revisi bersamaan.'];
+        [$parent, $worker, $renstra, $indikator, $revisiId] = $this->revisiTargetRenstraFixture();
+        $draf = ['revisi_id' => $revisiId, 'versi' => 2, 'nilai' => [$indikator->id => [2026 => '15']]];
+        $simpan = ['revisi_id' => $revisiId, 'versi' => 2, 'justifikasi' => 'Revisi bersamaan.'];
         $assignment = ['actor_id' => $worker->id, 'renstra_id' => $renstra->id, 'data' => $simpanDulu ? $draf : $simpan, 'expected_error_status' => 409];
         $prepare = fn () => $simpanDulu
             ? app(SimpanRevisiTargetRenstra::class)->handle($parent, $renstra->id, $simpan)
@@ -1827,7 +1827,7 @@ class MutationConcurrencyTest extends TestCase
         return ['simpan revisi lebih dulu' => [true], 'autosave lebih dulu' => [false]];
     }
 
-    /** @return array{User, User, Renstra, IndikatorKinerja} */
+    /** @return array{User, User, Renstra, IndikatorKinerja, string} */
     private function revisiTargetRenstraFixture(): array
     {
         $this->seed(AccessCatalogSeeder::class);
@@ -1844,10 +1844,10 @@ class MutationConcurrencyTest extends TestCase
         $indikator = IndikatorKinerja::create(['sasaran_strategis_id' => $sasaran->id, 'unit_id' => $unit->id, 'kode' => 'IKU-REV', 'nama' => 'Indikator revisi',
             'satuan' => 'persen', 'presisi' => 2, 'tahun_mulai_berlaku' => 2025, 'created_by' => $parent->id, 'created_by_role' => 'perencanaan']);
         TargetRenstra::create(['indikator_id' => $indikator->id, 'tahun' => 2026, 'nilai' => '10', 'updated_by' => $parent->id]);
-        app(MulaiRevisiTargetRenstra::class)->handle($parent, $renstra->id);
-        app(SimpanDrafRevisiTargetRenstra::class)->handle($parent, $renstra->id, ['versi' => 1, 'nilai' => [$indikator->id => [2026 => '12']]]);
+        $revisi = app(MulaiRevisiTargetRenstra::class)->handle($parent, $renstra->id);
+        app(SimpanDrafRevisiTargetRenstra::class)->handle($parent, $renstra->id, ['revisi_id' => $revisi->id, 'versi' => 1, 'nilai' => [$indikator->id => [2026 => '12']]]);
 
-        return [$parent, $worker, $renstra, $indikator];
+        return [$parent, $worker, $renstra, $indikator, $revisi->id];
     }
 
     /**

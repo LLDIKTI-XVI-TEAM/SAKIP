@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
  */
 class BatalRevisiTargetRenstra
 {
-    public const FIELDS = ['versi'];
+    public const FIELDS = ['revisi_id', 'versi'];
 
     public function __construct(private readonly GerbangRevisiTargetRenstra $gerbang, private readonly AuditLogger $audit) {}
 
@@ -26,9 +26,10 @@ class BatalRevisiTargetRenstra
             if (array_diff(array_keys($data), self::FIELDS) !== []) {
                 throw ValidationException::withMessages(['nilai' => 'Permintaan memuat field yang tidak didukung.']);
             }
-            $data = Validator::make($data, ['versi' => ['required', 'integer', 'min:1']], ['versi.*' => 'Data form tidak valid. Muat ulang form.'])->validate();
+            $data = Validator::make($data, ['revisi_id' => ['required', 'uuid'], 'versi' => ['required', 'integer', 'min:1']],
+                ['revisi_id.*' => 'Data form tidak valid. Muat ulang form.', 'versi.*' => 'Data form tidak valid. Muat ulang form.'])->validate();
             $renstra = $this->gerbang->renstraAktif($renstraId);
-            $draf = $this->gerbang->drafTerkunci($renstra, (int) $data['versi']);
+            $draf = $this->gerbang->drafTerkunci($renstra, $data['revisi_id'], (int) $data['versi']);
 
             $sel = $draf->nilai()->orderBy('indikator_id')->orderBy('tahun')->get()->map(fn ($s): array => [
                 'indikator_id' => $s->indikator_id, 'tahun' => $s->tahun, 'nilai' => TargetTahunanDecimal::normalize($s->nilai_baru),

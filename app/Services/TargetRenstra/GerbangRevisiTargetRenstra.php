@@ -102,10 +102,11 @@ class GerbangRevisiTargetRenstra
         return $next;
     }
 
-    public function drafTerkunci(Renstra $renstra, int $versi): RevisiTargetRenstra
+    /** Token = id draf + versi: draf pengganti mulai lagi dari versi 1, jadi versi saja dapat cocok dengan tab dari draf lama. */
+    public function drafTerkunci(Renstra $renstra, string $revisiId, int $versi): RevisiTargetRenstra
     {
         $draf = RevisiTargetRenstra::where('renstra_id', $renstra->id)->where('status', RevisiTargetRenstra::STATUS_DRAF)->lockForUpdate()->first();
-        if ($draf === null || $draf->versi !== $versi) {
+        if ($draf === null || $draf->id !== strtolower($revisiId) || $draf->versi !== $versi) {
             throw ValidationException::withMessages(['versi' => self::KONFLIK])->status(409);
         }
 

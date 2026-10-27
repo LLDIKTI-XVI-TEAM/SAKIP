@@ -20,7 +20,7 @@ use Illuminate\Validation\ValidationException;
 class SimpanDrafRevisiTargetRenstra
 {
     /** Field kontrak; field lain ditolak agar tidak diterapkan diam-diam. */
-    public const FIELDS = ['versi', 'nilai', 'justifikasi'];
+    public const FIELDS = ['revisi_id', 'versi', 'nilai', 'justifikasi'];
 
     public function __construct(private readonly GerbangRevisiTargetRenstra $gerbang) {}
 
@@ -33,12 +33,14 @@ class SimpanDrafRevisiTargetRenstra
             }
             // Number JSON ditolak agar nilai tidak pernah melewati float.
             $data = Validator::make($data, [
+                'revisi_id' => ['required', 'uuid'],
                 'versi' => ['required', 'integer', 'min:1'],
                 'nilai' => ['present', 'array'],
                 'nilai.*' => ['array'],
                 'nilai.*.*' => ['nullable', 'string', 'max:40'],
                 'justifikasi' => ['sometimes', 'nullable', 'string', 'max:1000'],
             ], [
+                'revisi_id.*' => 'Data form tidak valid. Muat ulang form.',
                 'versi.*' => 'Data form tidak valid. Muat ulang form.',
                 'nilai.present' => 'Data target belum lengkap. Muat ulang form.',
                 'nilai.array' => 'Data target belum lengkap. Muat ulang form.',
@@ -48,7 +50,7 @@ class SimpanDrafRevisiTargetRenstra
                 'justifikasi.max' => 'Justifikasi maksimal 1.000 karakter.',
             ])->validate();
             $renstra = $this->gerbang->renstraAktif($renstraId);
-            $draf = $this->gerbang->drafTerkunci($renstra, (int) $data['versi']);
+            $draf = $this->gerbang->drafTerkunci($renstra, $data['revisi_id'], (int) $data['versi']);
 
             $baris = array_map(fn (array $sel): array => ['id' => (string) Str::uuid(), 'revisi_id' => $draf->id, ...$sel], $this->sel($renstra, $data['nilai']));
             RevisiTargetRenstraNilai::upsert($baris, ['revisi_id', 'indikator_id', 'tahun'], ['nilai_baru']);

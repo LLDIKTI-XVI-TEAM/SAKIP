@@ -23,7 +23,7 @@ use Illuminate\Validation\ValidationException;
  */
 class SimpanRevisiTargetRenstra
 {
-    public const FIELDS = ['versi', 'justifikasi'];
+    public const FIELDS = ['revisi_id', 'versi', 'justifikasi'];
 
     public function __construct(private readonly GerbangRevisiTargetRenstra $gerbang, private readonly PenulisTargetRenstra $penulis) {}
 
@@ -35,9 +35,11 @@ class SimpanRevisiTargetRenstra
                 throw ValidationException::withMessages(['nilai' => 'Permintaan memuat field yang tidak didukung.']);
             }
             $data = Validator::make($data, [
+                'revisi_id' => ['required', 'uuid'],
                 'versi' => ['required', 'integer', 'min:1'],
                 'justifikasi' => ['required', 'string', 'max:1000', AuditReason::validate(...)],
             ], [
+                'revisi_id.*' => 'Data form tidak valid. Muat ulang form.',
                 'versi.*' => 'Data form tidak valid. Muat ulang form.',
                 'justifikasi.required' => 'Justifikasi revisi wajib diisi.',
                 'justifikasi.string' => 'Justifikasi revisi wajib diisi.',
@@ -50,7 +52,7 @@ class SimpanRevisiTargetRenstra
             SasaranStrategis::where('renstra_id', $renstraId)->orderBy('id')->sharedLock()->get();
             $renstra = $this->gerbang->renstraAktif($renstraId);
             $target = TargetRenstra::whereIn('indikator_id', $indikator->keys())->orderBy('indikator_id')->orderBy('tahun')->lockForUpdate()->get()->groupBy('indikator_id');
-            $draf = $this->gerbang->drafTerkunci($renstra, (int) $data['versi']);
+            $draf = $this->gerbang->drafTerkunci($renstra, $data['revisi_id'], (int) $data['versi']);
 
             $perubahan = [];
             foreach ($draf->nilai()->orderBy('indikator_id')->orderBy('tahun')->get() as $sel) {

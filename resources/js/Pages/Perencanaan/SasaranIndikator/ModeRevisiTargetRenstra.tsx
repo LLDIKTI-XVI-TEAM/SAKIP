@@ -60,6 +60,7 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
             setKotor(false);
             // Sel yang pernah disentuh dikirim ulang setiap kali; server menyimpannya idempoten.
             draf.transform((data) => ({
+                revisi_id: revisi.id,
                 versi: revisi.versi,
                 nilai: Object.fromEntries(Object.entries(data.nilai).map(([id, tahunan]) => [id,
                     Object.fromEntries(Object.entries(tahunan).map(([tahun, nilai]) => [tahun, nilai === '' ? null : nilai]))])),
@@ -69,15 +70,15 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                 onSuccess: () => setTersimpanPada(new Date().toISOString()), onError: tanganiGalat });
         }, JEDA_AUTOSAVE);
         return () => clearTimeout(timer);
-    }, [kotor, konflik, draf, url, revisi.versi]);
+    }, [kotor, konflik, draf, url, revisi.id, revisi.versi]);
 
     const simpan = () => {
-        simpanForm.transform(() => ({ versi: revisi.versi, justifikasi: draf.data.justifikasi }));
+        simpanForm.transform(() => ({ revisi_id: revisi.id, versi: revisi.versi, justifikasi: draf.data.justifikasi }));
         // preserveState: tab Target Renstra pada halaman induk tetap terbuka setelah draf selesai.
         simpanForm.post(`${url}/simpan`, { preserveScroll: true, preserveState: true, onError: tanganiGalat });
     };
     const batal = () => {
-        batalForm.transform(() => ({ versi: revisi.versi }));
+        batalForm.transform(() => ({ revisi_id: revisi.id, versi: revisi.versi }));
         batalForm.delete(url, { preserveScroll: true, preserveState: true, onError: (errors) => { setKonfirmasiBatal(false); tanganiGalat(errors); } });
     };
 
