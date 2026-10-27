@@ -1829,7 +1829,7 @@ Revisi target Renstra pada Renstra `aktif` (Q71; ISS-02.13). Baris berstatus `dr
 | `status` | enum(`draf`, `disimpan`) | not null, default `draf` | |
 | `nomor` | int | nullable; wajib `>= 1` bila `disimpan`, kosong bila `draf` | Nomor revisi urut per Renstra (revisi ke-1, ke-2, dan seterusnya) |
 | `justifikasi` | text | nullable; wajib berisi teks bila `disimpan` | Satu justifikasi per revisi; ikut tersimpan otomatis selama draf |
-| `versi` | int | not null, default 1, `>= 1` | Token konkurensi draf; naik setiap penyimpanan otomatis dan saat disimpan. Permintaan dari versi usang ditolak sebagai konflik (409) |
+| `versi` | int | not null, default 1, `>= 1` | Token konkurensi draf bersama `id`; naik setiap penyimpanan otomatis dan saat disimpan. Autosave, simpan, dan batal membawa `id` draf dan `versi`; permintaan dari draf lain (termasuk draf pengganti yang mulai lagi dari versi 1) atau dari versi usang ditolak sebagai konflik (409) |
 | `dibuat_oleh` | uuid | FK → users.id, not null | Pembuka draf |
 | `disimpan_oleh` | uuid | FK → users.id; wajib bila `disimpan`, kosong bila `draf` | |
 | `disimpan_pada` | timestamp(6) | wajib bila `disimpan`, kosong bila `draf` | |
