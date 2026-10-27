@@ -1357,9 +1357,13 @@ Jendela pengisian berlaku per periode (§4), bukan satu jendela untuk seluruh ta
        formal pada masanya
   4. Begitu tanggal hari ini melewati pengisian_selesai periode tsb:
      → PIC TIDAK DAPAT LAGI membuat, mengubah, atau mengajukan pengukuran untuk periode itu
-     → Deadline ini bersifat mutlak — tidak ada jendela toleransi tambahan bagi PIC
-     → Satu-satunya jalur lanjutan adalah Perencanaan mengisikan sendiri (langkah 5) atau
-       jadwal:buka_kembali (§13) bila koreksi diperlukan setelah penutupan
+     → Tidak ada jendela toleransi otomatis bagi PIC; batas yang berlaku adalah
+       pengisian_selesai terkini, termasuk hasil revisi resmi jendela pengisian oleh
+       Perencanaan (Q18, ISS-03.06)
+     → Jalur lanjutan: revisi resmi jendela pengisian oleh Perencanaan (Q18, ISS-03.06),
+       Perencanaan mengisikan sendiri (langkah 5), atau setelah penutupan
+       jadwal:buka_kembali (§13); dalam sesi koreksi itu PIC hanya bekerja bila jendela
+       pengisiannya dibuka kembali secara resmi (Q19, ISS-14.03)
 
 📋 Perencanaan (akses pengukuran:create/update bersifat GLOBAL, tanpa scope unit)
   5. Dikecualikan dari batas jendela periode — dapat membuat/mengubah/mengajukan pengukuran
@@ -1389,7 +1393,7 @@ flowchart TD
     A[Hari ini] --> B{Periode berjalan:\ndalam jendela pengisian\njadwal_periode?}
     B -- Ya, PIC dalam jendela --> C[PIC dapat isi nilai komponen\natau nyatakan belum dapat diukur - Q47,\nisi narasi - Q45, klaim kegiatan,\nlengkapi bukti dukung]
     B -- Lewat pengisian_selesai --> D{Siapa yang mencoba mengisi?}
-    D -- PIC --> E[DITOLAK - deadline mutlak\ntidak ada jendela toleransi]
+    D -- PIC --> E[DITOLAK - tanpa toleransi otomatis,\ndibuka lagi hanya lewat revisi\nresmi jendela pengisian - Q18]
     D -- Perencanaan --> F[DIIZINKAN - permission global,\ntanpa batas jendela periode]
     F --> G{Sudah melewati\njadwal.penutupan?}
     G -- Ya --> H[DITOLAK - satu-satunya jalur\nadalah jadwal:buka_kembali - §13]
