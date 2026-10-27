@@ -9,6 +9,7 @@ use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
+use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Services\Kegiatan\TotalAnggaranKegiatan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,7 +46,10 @@ class PelaksanaanKegiatanTest extends TestCase
 
     public function test_gerbang_terlaksana_memakai_union_persyaratan_global_dan_indikator_yang_diklaim(): void
     {
-        $global = $this->persyaratan(['nama' => 'Daftar hadir', 'indikator_id' => null]);
+        // Persyaratan global ditetapkan Perencanaan lewat Persyaratan Berkas (PRD §15.6 butir 3).
+        $this->actingAs($this->fixture['perencanaan'])->post('/jenis-berkas', ['nama' => 'Daftar hadir', 'tahap' => 'kegiatan', 'wajib' => true,
+            'izinkan_teks' => true])->assertSessionHasNoErrors();
+        $global = JenisBerkas::where('nama', 'Daftar hadir')->sole();
         $khusus = $this->persyaratan(['nama' => 'Dokumentasi', 'indikator_id' => $this->fixture['indikator']->id]);
         // Persyaratan indikator yang tidak diklaim dan persyaratan tahap perencanaan tidak ikut gerbang ini.
         $lain = $this->fixture['indikator']->replicate();
@@ -80,7 +84,7 @@ class PelaksanaanKegiatanTest extends TestCase
         $this->assertNull($catat->nilai_lama['tanggal_realisasi']);
         $this->assertSame(['2026-03-15', '750000', 25], [$catat->nilai_baru['tanggal_realisasi'], (string) $catat->nilai_baru['biaya_terpakai'], $catat->nilai_baru['realisasi_peserta']]);
         $status = AuditLog::where('tindakan', 'kegiatan.ubah_status')->sole();
-        $this->assertSame([['status' => 'rencana'], ['status' => 'terlaksana']], [$status->nilai_lama, $status->nilai_baru]);
+        $this->assertSame([['status' => 'rencana', 'justifikasi' => null], ['status' => 'terlaksana']], [$status->nilai_lama, $status->nilai_baru]);
         $this->assertSame('kegiatan:update', $status->dasar_izin['permission']);
     }
 
@@ -139,6 +143,8 @@ class PelaksanaanKegiatanTest extends TestCase
         $this->kegiatan->forceFill(['status' => 'tidak_terlaksana', 'justifikasi' => 'Hujan'])->save();
         $this->realisasi(['tandai_terlaksana' => true])->assertRedirect();
         $this->assertSame('terlaksana', $this->kegiatan->fresh()->status);
+        // Justifikasi status sebelumnya ikut tercatat pada audit transisi (Q69 §69.2 butir 3).
+        $this->assertSame(['status' => 'tidak_terlaksana', 'justifikasi' => 'Hujan'], AuditLog::where('tindakan', 'kegiatan.ubah_status')->sole()->nilai_lama);
 
         foreach (['ditunda', 'batal'] as $status) {
             $this->kegiatan->forceFill(['status' => $status])->save();
@@ -154,6 +160,54 @@ class PelaksanaanKegiatanTest extends TestCase
         $this->realisasi()->assertForbidden();
         $this->assertNull($this->kegiatan->fresh()->tanggal_realisasi);
         $this->assertSame(2, AuditLog::where('tindakan', 'kegiatan.catat_realisasi_ditolak')->count());
+    }
+
+    public function test_tahun_ditutup_unit_nonaktif_dan_akun_nonaktif_ditolak_serta_diaudit(): void
+    {
+        $this->fixture['jadwal']->update(['status' => 'ditutup', 'closed_at' => now()]);
+        $this->realisasi()->assertUnprocessable()->assertJsonValidationErrors(['status' => 'Tahun kegiatan sudah ditutup']);
+        $this->fixture['jadwal']->update(['status' => 'aktif', 'closed_at' => null]);
+
+        $this->fixture['unit']->update(['status' => 'nonaktif']);
+        $this->realisasi()->assertUnprocessable()->assertJsonValidationErrors(['status' => 'Unit kegiatan harus tetap aktif.']);
+        $this->fixture['unit']->update(['status' => 'aktif']);
+
+        $this->fixture['pic']->update(['status' => 'nonaktif']);
+        $this->actingAs($this->fixture['pic'])->withHeader('X-Inertia', 'true')->post("/kegiatan/{$this->kegiatan->id}/realisasi", [
+            'tanggal_realisasi' => '2026-03-15', 'expected_state' => $this->kegiatan->fresh()->versionToken(),
+        ])->assertForbidden();
+
+        $this->assertNull($this->kegiatan->fresh()->tanggal_realisasi);
+        $alasan = AuditLog::where('tindakan', 'kegiatan.catat_realisasi_ditolak')->pluck('alasan')->all();
+        $this->assertCount(3, $alasan);
+        $this->assertContains('Akun tidak aktif saat mencatat realisasi kegiatan.', $alasan);
+        $this->assertSame('inactive_user', AuditLog::where('alasan', 'Akun tidak aktif saat mencatat realisasi kegiatan.')->sole()->dasar_izin['alasan']);
+        $this->assertFalse(AuditLog::where('tindakan', 'kegiatan.ubah_ditolak')->exists());
+    }
+
+    public function test_periode_lampau_2026_mengecualikan_gerbang_bukti_hanya_pada_jalur_perencanaan(): void
+    {
+        $this->persyaratan(['nama' => 'Daftar hadir', 'indikator_id' => null]);
+        // TW I lampau: jendela pengisian (s.d. 31 Maret) berakhir sebelum aktivasi jadwal 2026 (Q46 §46.1).
+        $this->fixture['jadwal']->forceFill(['activated_at' => '2026-04-15 00:00:00'])->save();
+
+        // PIC tidak pernah dikecualikan (Q63 §63.1 butir 2).
+        $this->realisasi(['tandai_terlaksana' => true])->assertUnprocessable()->assertJsonValidationErrors('bukti');
+        $this->assertSame('rencana', $this->kegiatan->fresh()->status);
+
+        $this->realisasi(['tandai_terlaksana' => true], $this->fixture['perencanaan'])->assertRedirect();
+        $this->assertSame('terlaksana', $this->kegiatan->fresh()->status);
+        $this->assertSame('periode_lampau', AuditLog::where('tindakan', 'kegiatan.ubah_status')->sole()->nilai_baru['pengecualian_bukti']);
+    }
+
+    public function test_perencanaan_pada_periode_bukan_lampau_tetap_melewati_gerbang_bukti(): void
+    {
+        $this->persyaratan(['nama' => 'Daftar hadir', 'indikator_id' => null]);
+        // Aktivasi sebelum jendela TW I berakhir: periode normal.
+        $this->fixture['jadwal']->forceFill(['activated_at' => '2026-03-15 00:00:00'])->save();
+
+        $this->realisasi(['tandai_terlaksana' => true], $this->fixture['perencanaan'])->assertUnprocessable()->assertJsonValidationErrors('bukti');
+        $this->assertSame('rencana', $this->kegiatan->fresh()->status);
     }
 
     public function test_klaim_baru_setelah_terlaksana_menandai_kebutuhan_koreksi(): void
@@ -211,9 +265,9 @@ class PelaksanaanKegiatanTest extends TestCase
     }
 
     /** @param array<string, mixed> $data */
-    private function realisasi(array $data = []): TestResponse
+    private function realisasi(array $data = [], ?User $aktor = null): TestResponse
     {
-        return $this->actingAs($this->fixture['pic'])->postJson("/kegiatan/{$this->kegiatan->id}/realisasi", [
+        return $this->actingAs($aktor ?? $this->fixture['pic'])->postJson("/kegiatan/{$this->kegiatan->id}/realisasi", [
             'tanggal_realisasi' => '2026-03-15', 'biaya_terpakai' => 750000, 'realisasi_peserta' => 25,
             'expected_state' => $this->kegiatan->fresh()->versionToken(), ...$data,
         ]);

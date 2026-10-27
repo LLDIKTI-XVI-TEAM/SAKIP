@@ -75,7 +75,7 @@ class StoreJenisBerkasRequest extends FormRequest
     {
         return [
             'nama' => ['required', 'string', 'max:255'],
-            'tahap' => ['required', 'in:rencana_aksi,pengukuran,kegiatan_perencanaan'],
+            'tahap' => ['required', 'in:rencana_aksi,pengukuran,kegiatan_perencanaan,kegiatan'],
             // Penanda hanya bermakna pada tahap perencanaan kegiatan (Q42 §42.3 butir 3); tahap lain selalu false.
             'hanya_kegiatan_beranggaran' => ['exclude_unless:tahap,kegiatan_perencanaan', 'boolean'],
             'indikator_id' => [
@@ -103,7 +103,7 @@ class StoreJenisBerkasRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tahap.in' => 'Tahap Kegiatan (SPJ) belum didukung karena gerbang buktinya belum diimplementasikan.',
+            'tahap.in' => 'Pilih tahap persyaratan yang tersedia.',
             'indikator_id.exists' => 'Indikator kinerja yang dipilih tidak valid atau sudah diarsipkan.',
             'format_diizinkan.regex' => 'Format file yang diizinkan harus berupa daftar ekstensi tanpa spasi atau titik dan dipisahkan dengan koma (contoh: pdf,docx,xlsx).',
             'alasan.max' => 'Alasan penambahan persyaratan maksimal 1.000 karakter.',

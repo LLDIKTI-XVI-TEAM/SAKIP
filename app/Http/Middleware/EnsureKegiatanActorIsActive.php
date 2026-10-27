@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Actions\Kegiatan\CatatRealisasiKegiatan;
 use App\Actions\Kegiatan\SimpanKegiatan;
 use App\Actions\Kegiatan\UbahStatusKegiatan;
 use App\Models\Kegiatan;
@@ -11,7 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureKegiatanActorIsActive extends EnsureUserIsActive
 {
-    public function __construct(private readonly SimpanKegiatan $action, private readonly UbahStatusKegiatan $ubahStatus) {}
+    public function __construct(private readonly SimpanKegiatan $action, private readonly UbahStatusKegiatan $ubahStatus,
+        private readonly CatatRealisasiKegiatan $realisasi) {}
 
     /** Delegasikan audit ke use case sebelum guard mengirim respons penolakan. */
     protected function rejectInactive(Request $request, ?User $actor): Response
@@ -20,6 +22,8 @@ class EnsureKegiatanActorIsActive extends EnsureUserIsActive
             $kegiatan = $request->route('kegiatan');
             if ($request->routeIs('kegiatan.status') && $kegiatan instanceof Kegiatan) {
                 $this->ubahStatus->catatPenolakan($actor, $kegiatan, 'Akun tidak aktif saat mengubah status kegiatan.');
+            } elseif ($request->routeIs('kegiatan.realisasi') && $kegiatan instanceof Kegiatan) {
+                $this->realisasi->catatPenolakan($actor, $kegiatan, 'Akun tidak aktif saat mencatat realisasi kegiatan.');
             } else {
                 $this->action->catatPenolakan(
                     $actor, $kegiatan instanceof Kegiatan ? $kegiatan : null, $request->input('unit_id'),

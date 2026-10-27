@@ -23,6 +23,12 @@ class AnggaranKegiatan
             return true;
         }
 
+        return self::periodeLampau($tahun, $periodeId);
+    }
+
+    /** Kegiatan tidak bertaut jadwal: periode lampau bila lampau pada jadwal tahun itu mana pun (Q46 §46.1, hanya 2026). */
+    public static function periodeLampau(int $tahun, string $periodeId): bool
+    {
         return JadwalTahunan::where('tahun', $tahun)->where('status', '!=', 'draft')->get()
             ->contains(fn (JadwalTahunan $jadwal): bool => PeriodeTanpaTarget::isPeriodeLampau(
                 $jadwal, PeriodeJadwal::where('jadwal_id', $jadwal->id)->where('periode_id', $periodeId)->first(),

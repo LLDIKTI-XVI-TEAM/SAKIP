@@ -274,7 +274,7 @@ it('menawarkan tahap Rencana Aksi di urutan pertama dan mengirimkannya sebagai r
     await user.click(screen.getByRole('button', { name: /Tambah persyaratan/ }));
 
     const tahap = document.getElementById('jb-tahap') as HTMLSelectElement;
-    expect(Array.from(tahap.options).map((option) => option.value)).toEqual(['rencana_aksi', 'pengukuran', 'kegiatan_perencanaan']);
+    expect(Array.from(tahap.options).map((option) => option.value)).toEqual(['rencana_aksi', 'pengukuran', 'kegiatan_perencanaan', 'kegiatan']);
     await user.selectOptions(tahap, 'rencana_aksi');
     expect(screen.queryByLabelText('Hanya kegiatan beranggaran')).toBeNull();
     await user.type(screen.getByLabelText(/Nama persyaratan/), 'Kerangka Acuan Kerja');

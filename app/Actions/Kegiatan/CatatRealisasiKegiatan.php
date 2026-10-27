@@ -10,8 +10,10 @@ use App\Models\User;
 use App\Policies\KegiatanPolicy;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Services\Kegiatan\AnggaranKegiatan;
 use App\Services\Kegiatan\GerbangBerkasKegiatan;
 use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,7 @@ class CatatRealisasiKegiatan
         private readonly KegiatanPolicy $policy,
         private readonly AuditLogger $audit,
         private readonly PersyaratanPerencanaanKegiatan $persyaratan,
+        private readonly JendelaTulisRencanaAksi $jendela,
     ) {}
 
     /** Audit penolakan; `$kurang` berisi persyaratan bukti yang belum terpenuhi bila gerbang terlaksana menolak. */
@@ -40,7 +43,8 @@ class CatatRealisasiKegiatan
      * Satu use case aksi pelaksanaan (Q69 §69.3 butir 4, Q74 §74.2): data realisasi boleh disimpan bertahap selama
      * `rencana`/`tidak_terlaksana` dan diperbarui setelah `terlaksana` tanpa mengubah status (Q45 §45.1 butir 4).
      * Penandaan `terlaksana` mewajibkan tanggal, biaya terpakai, dan peserta riil, lalu gerbang bukti tahap
-     * pelaksanaan (PRD §15.6, Q22). Urutan lock sama dengan `UbahStatusKegiatan` dan gerbang berkas/klaim,
+     * pelaksanaan (PRD §15.6, Q22); gerbang bukti dikecualikan untuk periode lampau 2026 hanya pada jalur
+     * Perencanaan (Q46 §46.1 butir 4, Q63 §63.1 butir 2). Urutan lock sama dengan `UbahStatusKegiatan` dan gerbang berkas/klaim,
      * sehingga bukti dan klaim tidak berubah di antara penilaian gerbang dan penyimpanan.
      *
      * @param  array<string, mixed>  $data  Hasil validasi `CatatRealisasiKegiatanRequest`.
@@ -94,7 +98,9 @@ class CatatRealisasiKegiatan
                 if ($baru['tanggal_realisasi'] !== null) {
                     $this->pastikanDalamRentang($terkunci, (string) $baru['tanggal_realisasi']);
                 }
-                if ($transisi) {
+                $dikecualikan = $transisi && $this->jendela->jalurPerencanaan($decision)
+                    && AnggaranKegiatan::periodeLampau((int) $terkunci->tahun, (string) $terkunci->periode_id);
+                if ($transisi && ! $dikecualikan) {
                     $evaluasi = $this->persyaratan->evaluasi($terkunci, PersyaratanPerencanaanKegiatan::indikatorDiklaim((string) $terkunci->id),
                         null, PersyaratanPerencanaanKegiatan::TAHAP_PELAKSANAAN);
                     $kurang = PersyaratanPerencanaanKegiatan::kurang($evaluasi);
@@ -115,7 +121,7 @@ class CatatRealisasiKegiatan
                     RencanaAksi::whereIn('id', $headerIds)->whereIn('status_alur', RencanaAksi::STATUS_DAPAT_DISUNTING)->increment('versi');
                     $this->audit->catat(
                         actor: $aktor, tindakan: 'kegiatan.ubah_status', objekTipe: 'kegiatan', objekId: (string) $terkunci->id,
-                        nilaiLama: ['status' => $statusLama], nilaiBaru: ['status' => 'terlaksana'],
+                        nilaiLama: ['status' => $statusLama, 'justifikasi' => $terkunci->justifikasi], nilaiBaru: ['status' => 'terlaksana', ...($dikecualikan ? ['pengecualian_bukti' => 'periode_lampau'] : [])],
                         alasan: 'Perubahan status pelaksanaan kegiatan.', dasarIzin: $decision->toAuditBasis(),
                     );
                 }
