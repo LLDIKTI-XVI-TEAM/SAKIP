@@ -828,7 +828,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 ### US-03.04 · Penambahan Indikator Baru di Tengah Tahun & Periode Mulai Berlaku
 
-> **Status implementasi — issue #188:** AC-1–AC-5 memiliki bukti test pada PR #<n>; rincian test dan batas bukti tercatat pada [ISS-03.04](SAKIP%20-%20User%20Issues.md#iss-0304--feature-penambahan-indikator-baru-di-tengah-tahun--periode-mulai-berlaku). Centang bukan persetujuan QA/UAT atau deployment.
+> **Status implementasi — issue #188:** AC-1–AC-5 memiliki bukti test pada PR #197; rincian test dan batas bukti tercatat pada [ISS-03.04](SAKIP%20-%20User%20Issues.md#iss-0304--feature-penambahan-indikator-baru-di-tengah-tahun--periode-mulai-berlaku). Centang bukan persetujuan QA/UAT atau deployment.
 
 | Field | Detail |
 |---|---|
