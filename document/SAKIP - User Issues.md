@@ -3074,31 +3074,31 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim** pada tahap `kegiatan` (pelaksanaan). *(Q22, Q42 §42.4 butir 2)*
-- [ ] **AC-2:** Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
-- [ ] **AC-3:** Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)* *(Diperbarui Q74 §74.2: biaya terpakai ditambahkan.)*
-- [ ] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
-- [ ] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
-- [ ] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
+- [x] **AC-1:** Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim** pada tahap `kegiatan` (pelaksanaan). *(Q22, Q42 §42.4 butir 2)*
+- [x] **AC-2:** Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
+- [x] **AC-3:** Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)* *(Diperbarui Q74 §74.2: biaya terpakai ditambahkan.)*
+- [x] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
+- [x] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
+- [x] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
 - [ ] **AC-7:** Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
-- [ ] **AC-8:** Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
-- [ ] **AC-9:** Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
-- [ ] **AC-10:** Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
+- [x] **AC-8:** Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
+- [x] **AC-9:** Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
+- [x] **AC-10:** Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `klaim_kegiatan`, `jenis_berkas`, `berkas`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `kegiatan`, `klaim_kegiatan`, `jenis_berkas`, `berkas`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Gerbang status `terlaksana` harus menghitung union persyaratan global kegiatan dan persyaratan semua indikator yang diklaim pada tahap `kegiatan` (pelaksanaan); tahap `kegiatan_perencanaan` diperiksa saat pengajuan RA (ISS-06.08, Q42 §42.4).
-- [ ] Klaim baru setelah kegiatan terlaksana harus memicu evaluasi bukti tambahan.
+- [x] Gerbang status `terlaksana` harus menghitung union persyaratan global kegiatan dan persyaratan semua indikator yang diklaim pada tahap `kegiatan` (pelaksanaan); tahap `kegiatan_perencanaan` diperiksa saat pengajuan RA (ISS-06.08, Q42 §42.4).
+- [x] Klaim baru setelah kegiatan terlaksana harus memicu evaluasi bukti tambahan.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update` + capability bukti induk.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update` + capability bukti induk.
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
 - [ ] Buat/rapikan page dan reusable component React untuk **Pelaksanaan Kegiatan & Gerbang Bukti Gabungan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
@@ -3106,22 +3106,22 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 **E. Tambahan Q74 §74.2**
-- [ ] Migrasi kolom biaya terpakai (rupiah, nonnegatif, nullable untuk kegiatan yang belum terlaksana) pada `kegiatan`.
-- [ ] Action catat realisasi dengan validasi rentang periode memakai helper rentang dari ISS-03.07.
+- [x] Migrasi kolom biaya terpakai (rupiah, nonnegatif, nullable untuk kegiatan yang belum terlaksana) pada `kegiatan`.
+- [x] Action catat realisasi dengan validasi rentang periode memakai helper rentang dari ISS-03.07.
 - [ ] Form realisasi di halaman kegiatan Rencana Aksi (ISS-06.09).
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim** pada tahap `kegiatan` (pelaksanaan). *(Q22, Q42 §42.4 butir 2)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)*
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim** pada tahap `kegiatan` (pelaksanaan). *(Q22, Q42 §42.4 butir 2)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
 - [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
-- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
-- [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
-- [ ] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
+- [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
+- [x] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
 
 #### Definition of Done
 
@@ -3130,6 +3130,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+
+**Status implementasi (2026-10-26):** dikerjakan dalam dua PR. PR pertama menerapkan backend aksi pelaksanaan: kolom `biaya_terpakai`, aksi catat realisasi (data bertahap selama `rencana`/`tidak_terlaksana`, pembaruan setelah `terlaksana` tanpa mengubah status), gerbang bukti gabungan tahap `kegiatan`, validasi rentang tanggal periode, tahap `kegiatan` pada Persyaratan Berkas, unggah bukti pelaksanaan pada endpoint berkas kegiatan (hapus/ganti ditolak setelah `terlaksana`), pengecualian gerbang bukti untuk periode lampau 2026 hanya pada jalur Perencanaan (Q46 §46.1 butir 4, Q63 §63.1 butir 2), dan penanda perlu koreksi (AC-4) yang dihitung server dari klaim saat ini sebagai props form kegiatan; tampilannya, isian realisasi pada props kegiatan, dan unduh bukti pelaksanaan menyusul bersama form realisasi di halaman kegiatan Rencana Aksi (AC-7) pada PR kedua setelah ISS-06.09. Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT.
 
 ### ISS-06.04 · [Feature] Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan
 

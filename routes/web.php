@@ -126,6 +126,7 @@ Route::middleware(['auth', EnsureKegiatanActorIsActive::class])->group(function 
     Route::post('/kegiatan', [KegiatanController::class, 'store'])->name('kegiatan.store');
     Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
     Route::post('/kegiatan/{kegiatan}/status', [KegiatanController::class, 'ubahStatus'])->whereUuid('kegiatan')->name('kegiatan.status');
+    Route::post('/kegiatan/{kegiatan}/realisasi', [KegiatanController::class, 'realisasi'])->whereUuid('kegiatan')->name('kegiatan.realisasi');
 });
 
 // Daftar kegiatan tahap RA: akun nonaktif dicatat sebagai percobaan klaim yang ditolak.

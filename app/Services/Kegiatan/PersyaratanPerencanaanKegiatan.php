@@ -6,13 +6,15 @@ use App\Actions\Pengukuran\EvaluateEvidence;
 use App\Models\BuktiDukung;
 use App\Models\JenisBerkas;
 use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
  * Persyaratan tahap perencanaan kegiatan per kegiatan (Q42 §42.3–§42.4):
  * persyaratan global ditambah persyaratan khusus indikator yang diminta,
- * dinilai dengan evaluator bukti bersama. Persyaratan bertanda
+ * dinilai dengan evaluator bukti bersama. Union yang sama dipakai tahap
+ * pelaksanaan (`kegiatan`) saat kegiatan ditandai terlaksana (Q22, Q42 §42.4 butir 2). Persyaratan bertanda
  * `hanya_kegiatan_beranggaran` hanya berlaku bila anggaran lebih dari 0;
  * anggaran kosong (belum diisi) tidak memenuhi syarat itu, dan gerbang
  * pengajuan menolaknya lewat pesan anggaran belum diisi.
@@ -20,6 +22,8 @@ use Illuminate\Support\Collection;
 class PersyaratanPerencanaanKegiatan
 {
     public const TAHAP = 'kegiatan_perencanaan';
+
+    public const TAHAP_PELAKSANAAN = 'kegiatan';
 
     private const TANPA_INDIKATOR = '00000000-0000-0000-0000-000000000000';
 
@@ -30,12 +34,12 @@ class PersyaratanPerencanaanKegiatan
      * @param  Collection<int, BuktiDukung>|null  $bukti  Bukti berlaku kegiatan; dimuat bila tidak diberikan.
      * @return list<array<string, mixed>>
      */
-    public function evaluasi(Kegiatan $kegiatan, array $indikatorIds, ?Collection $bukti = null): array
+    public function evaluasi(Kegiatan $kegiatan, array $indikatorIds, ?Collection $bukti = null, string $tahap = self::TAHAP): array
     {
         $bukti ??= self::buktiBerlaku((string) $kegiatan->id)->get();
         // UUID nol tidak cocok indikator mana pun sehingga evaluator hanya memuat persyaratan global.
         $hasil = collect($indikatorIds === [] ? [self::TANPA_INDIKATOR] : array_values(array_unique($indikatorIds)))
-            ->flatMap(fn (string $indikatorId): array => $this->evidence->untuk(self::TAHAP, $indikatorId, $bukti))
+            ->flatMap(fn (string $indikatorId): array => $this->evidence->untuk($tahap, $indikatorId, $bukti))
             ->unique('id')->values();
         $khususBeranggaran = JenisBerkas::whereIn('id', $hasil->pluck('id'))->where('hanya_kegiatan_beranggaran', true)->pluck('id')->all();
         // Cast decimal:0 menormalkan nol menjadi "0" dan CHECK menolak negatif; null berarti belum diisi.
@@ -56,6 +60,18 @@ class PersyaratanPerencanaanKegiatan
     {
         return array_values(array_map(fn (array $item): string => (string) $item['nama'],
             array_filter($evaluasi, fn (array $item): bool => $item['wajib'] && ! $item['pemenuhan']['terpenuhi'])));
+    }
+
+    /**
+     * Indikator seluruh RA yang mengklaim kegiatan, tahap RA maupun pengukuran (Q22: "indikator yang diklaim").
+     *
+     * @return list<string>
+     */
+    public static function indikatorDiklaim(string $kegiatanId): array
+    {
+        return KlaimKegiatan::join('rencana_aksi', 'rencana_aksi.id', '=', 'klaim_kegiatan.rencana_aksi_id')
+            ->where('klaim_kegiatan.kegiatan_id', $kegiatanId)->distinct()->orderBy('rencana_aksi.indikator_id')
+            ->pluck('rencana_aksi.indikator_id')->map(fn ($id): string => (string) $id)->all();
     }
 
     /** @return Builder<BuktiDukung> */

@@ -16,6 +16,9 @@ class Kegiatan extends Model
 
     public const RENCANA_FIELDS = ['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana', 'anggaran'];
 
+    /** Data pelaksanaan (Q69 §69.3 butir 4, Q74 §74.2): diisi lewat aksi catat realisasi, bukan form rencana. */
+    public const REALISASI_FIELDS = ['tanggal_realisasi', 'biaya_terpakai', 'realisasi_peserta', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut'];
+
     /**
      * Transisi milik form status pelaksanaan (Q69 §69.1); transisi ke `terlaksana` milik aksi pelaksanaan.
      * Status yang tidak menjadi kunci bersifat final. Urutan nilai = urutan tampil menu.
@@ -27,9 +30,9 @@ class Kegiatan extends Model
 
     protected $table = 'kegiatan';
 
-    protected $fillable = ['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana', 'anggaran', 'tanggal_realisasi', 'status', 'realisasi_peserta', 'justifikasi', 'kegiatan_asal_id', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut', 'created_by'];
+    protected $fillable = ['unit_id', 'tahun', 'periode_id', 'nama', 'tujuan', 'sasaran_peserta', 'keterangan_peserta', 'lokasi', 'tanggal_rencana', 'anggaran', 'tanggal_realisasi', 'biaya_terpakai', 'status', 'realisasi_peserta', 'justifikasi', 'kegiatan_asal_id', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut', 'created_by'];
 
-    protected $casts = ['tahun' => 'integer', 'sasaran_peserta' => 'integer', 'tanggal_rencana' => 'date', 'tanggal_realisasi' => 'date', 'anggaran' => 'decimal:0'];
+    protected $casts = ['tahun' => 'integer', 'sasaran_peserta' => 'integer', 'tanggal_rencana' => 'date', 'tanggal_realisasi' => 'date', 'anggaran' => 'decimal:0', 'biaya_terpakai' => 'decimal:0'];
 
     public function unit(): BelongsTo
     {

@@ -1691,9 +1691,10 @@ class JenisBerkasTest extends TestCase
     }
 
     /**
-     * TEST-38: Store jenis berkas menerima tahap 'rencana_aksi' (gerbang bukti RA sudah ada) dan menolak tahap 'kegiatan' (SPJ) yang gerbangnya belum ada.
+     * TEST-38: Store jenis berkas menerima tahap 'rencana_aksi' dan tahap 'kegiatan' (SPJ), yang diperiksa gerbang
+     * pelaksanaan saat kegiatan ditandai terlaksana (PRD §15.6 butir 3); tahap tak dikenal ditolak.
      */
-    public function test_store_jenis_berkas_rejects_unsupported_tahap(): void
+    public function test_store_jenis_berkas_menerima_tahap_kegiatan_dan_menolak_tahap_tak_dikenal(): void
     {
         $response = $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
             'nama' => 'Persyaratan Tahap Rencana Aksi',
@@ -1710,13 +1711,20 @@ class JenisBerkasTest extends TestCase
             'izinkan_file' => true,
         ]);
 
-        $responseKegiatan->assertSessionHasErrors('tahap');
+        $responseKegiatan->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('jenis_berkas', ['nama' => 'Persyaratan Tahap Kegiatan', 'tahap' => 'kegiatan', 'hanya_kegiatan_beranggaran' => false]);
+
+        $this->actingAs($this->perencanaan)->post('/jenis-berkas', [
+            'nama' => 'Persyaratan Tahap Lain',
+            'tahap' => 'lainnya',
+            'izinkan_file' => true,
+        ])->assertSessionHasErrors('tahap');
     }
 
     /**
-     * TEST-39: Update jenis berkas ke tahap 'rencana_aksi' diterima lewat jalur ubah substantif (alasan + optimistic lock); tahap 'kegiatan' tetap ditolak.
+     * TEST-39: Update jenis berkas ke tahap 'rencana_aksi' lalu 'kegiatan' diterima lewat jalur ubah substantif (alasan + optimistic lock).
      */
-    public function test_update_jenis_berkas_rejects_unsupported_tahap(): void
+    public function test_update_jenis_berkas_menerima_tahap_kegiatan(): void
     {
         $jb = JenisBerkas::create([
             'nama' => 'Persyaratan Valid Tahap',
@@ -1745,8 +1753,8 @@ class JenisBerkasTest extends TestCase
             'expected_updated_at' => $jb->updated_at->toISOString(),
         ]);
 
-        $responseKegiatan->assertSessionHasErrors('tahap');
-        $this->assertSame('rencana_aksi', $jb->fresh()->tahap);
+        $responseKegiatan->assertSessionHasNoErrors();
+        $this->assertSame('kegiatan', $jb->fresh()->tahap);
     }
 
     public function test_optimistic_lock_fails_safely_if_record_timestamp_is_null(): void
