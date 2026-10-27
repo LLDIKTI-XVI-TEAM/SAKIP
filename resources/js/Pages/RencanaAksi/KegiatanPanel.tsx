@@ -60,6 +60,10 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
     const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm<FormKegiatan>(KOSONG);
     const fieldErrors = errors as Record<string, string | undefined>;
     const terbukaBagiAktor = periode.filter((item) => !terkunci.includes(item.id));
+    // Satu kegiatan dapat muncul sebagai beberapa baris klaim komponen; anchor `#kegiatan-{id}` hanya dipasang di baris pertama agar tidak duplikat.
+    const barisAnchor = new Set(kegiatan.daftar
+        .filter((row, index, semua) => semua.findIndex((lain) => lain.kegiatan_id === row.kegiatan_id) === index)
+        .map((row) => row.id));
 
     const buka = (periodeId: string): void => {
         clearErrors();
@@ -154,7 +158,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                         const komponenKlaim = komponen.find((item) => item.komponen_id === row.komponen_id);
 
                                         return (
-                                            <li key={row.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                                            <li key={row.id} id={barisAnchor.has(row.id) ? `kegiatan-${row.kegiatan_id}` : undefined} className="flex scroll-mt-4 flex-wrap items-start justify-between gap-2 py-2">
                                                 <div className="min-w-0 space-y-1">
                                                     <p className="break-words text-sm text-ink">{row.nama}</p>
                                                     <p className="text-xs text-muted">Anggaran: {formatRupiah(row.anggaran)}</p>
@@ -172,8 +176,13 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                     <Badge variant={status.variant}>{status.label}</Badge>
                                                     {/* Klaim pengukuran dikelola lewat siklus pengukuran, bukan halaman kegiatan Rencana Aksi. */}
                                                     {kegiatan.can.kelola && row.sumber_klaim === 'rencana_aksi' && (
-                                                        <Link href={`/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}`} aria-disabled={kotor} onBefore={() => !kotor} className="rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">
-                                                            Kelola klaim
+                                                        <Link
+                                                            href={`/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}`}
+                                                            aria-disabled={kotor}
+                                                            onBefore={() => !kotor}
+                                                            className={`rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25${kotor ? ' pointer-events-none opacity-50' : ''}`}
+                                                        >
+                                                            Kelola kegiatan
                                                         </Link>
                                                     )}
                                                 </span>

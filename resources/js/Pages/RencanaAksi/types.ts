@@ -258,6 +258,17 @@ export interface RencanaAksiPreview {
     deviasi_pk: RencanaAksiDeviasiPk;
 }
 
+/**
+ * Identitas RA pengklaim pada halaman ubah kegiatan (`KegiatanEdit`).
+ * `kode` opsional: payload server saat ini hanya mengirim `id` dan `tahun`,
+ * jadi breadcrumb memakai fallback tahun bila kode tidak tersedia.
+ */
+export interface RencanaAksiIdentitas {
+    id: string;
+    tahun: number;
+    kode?: string | null;
+}
+
 /** Kegiatan yang diklaim RA (tahap RA atau pengukuran) per periode. */
 export interface KegiatanRencanaAksiItem {
     id: string;

@@ -140,6 +140,39 @@ it('menampilkan total anggaran dan menandai kegiatan yang anggarannya belum diis
     expect(screen.getByText('Anggaran: Belum diisi')).toBeTruthy();
 });
 
+it('memberi anchor id hanya pada baris pertama tiap kegiatan walau klaim komponennya lebih dari satu', () => {
+    render(
+        <KegiatanRencanaAksi
+            rencanaAksi={buatRencanaAksi({ komponen: [{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }] })}
+            kegiatan={{
+                daftar: [
+                    // Dua klaim untuk kegiatan yang sama (komponen berbeda) hanya boleh punya satu anchor.
+                    baris({ id: 'k1', kegiatan_id: 'keg-1', periode_id: P1, nama: 'Workshop' }),
+                    baris({ id: 'k2', kegiatan_id: 'keg-1', periode_id: P1, nama: 'Workshop', komponen_id: 'komp-1' }),
+                    baris({ id: 'k3', kegiatan_id: 'keg-2', periode_id: P2, nama: 'Rapat' }),
+                ],
+                total: TOTAL_KOSONG,
+                can: { tambah: false, kelola: false },
+            }}
+        />,
+    );
+
+    const [pertama, kedua, ketiga] = screen.getAllByRole('listitem');
+    // Anchor menempel di baris pertama kegiatan (klaim tanpa komponen) dan dapat ditemukan lewat getElementById.
+    expect(pertama.id).toBe('kegiatan-keg-1');
+    expect(document.getElementById('kegiatan-keg-1')).toBe(pertama);
+    expect(within(pertama).getByText('Tanpa komponen tertentu')).toBeTruthy();
+
+    // Baris klaim komponen kedua untuk kegiatan yang sama tidak menduplikasi id.
+    expect(within(kedua).getByText('P — Pembilang')).toBeTruthy();
+    expect(kedua.id).toBe('');
+    expect(document.querySelectorAll('[id="kegiatan-keg-1"]')).toHaveLength(1);
+
+    // Kegiatan lain tetap mendapat anchor sendiri.
+    expect(ketiga.id).toBe('kegiatan-keg-2');
+    expect(document.getElementById('kegiatan-keg-2')).toBe(ketiga);
+});
+
 it('menampilkan galat validasi server pada modal tambah tanpa membuang draf', async () => {
     render(<KegiatanRencanaAksi rencanaAksi={buatRencanaAksi()} kegiatan={{ ...tanpaDaftar, can: { tambah: true, kelola: false } }} />);
 

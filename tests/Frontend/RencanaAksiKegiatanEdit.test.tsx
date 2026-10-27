@@ -12,7 +12,12 @@ vi.mock('@inertiajs/react', async (original) => ({
     usePage: () => ({ url: '/rencana-aksi/ra-1/kegiatan/kegiatan-1', props: { auth: {}, pengaturan: {}, flash: {} } }),
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
-    AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
+    AuthenticatedLayout: ({ children, breadcrumbs }: { children: ReactNode; breadcrumbs?: { label: string }[] }) => (
+        <main>
+            <nav aria-label="Breadcrumb">{breadcrumbs?.map((item) => <span key={item.label}>{item.label}</span>)}</nav>
+            {children}
+        </main>
+    ),
 }));
 
 beforeEach(() => {
@@ -46,6 +51,19 @@ it('merender halaman ubah dengan tautan kembali ke halaman kegiatan rencana aksi
     expect(screen.getByText('Status pelaksanaan')).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Fasilitasi unit');
     expect(screen.getByRole('link', { name: 'Kembali ke kegiatan rencana aksi' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan');
+});
+
+it('breadcrumb memakai kode indikator bila tersedia dan jatuh ke tahun bila tidak', () => {
+    const { rerender } = render(<KegiatanEdit {...props} rencanaAksi={{ id: 'ra-1', tahun: 2026 }} />);
+
+    const breadcrumb = () => within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+    // Payload tanpa kode (bentuk lama) tetap terbaca sebagai tahun.
+    expect(breadcrumb().getByText('Tahun 2026')).toBeTruthy();
+
+    rerender(<KegiatanEdit {...props} rencanaAksi={{ id: 'ra-1', tahun: 2026, kode: 'IKU 1.3' }} />);
+
+    expect(breadcrumb().getByText('IKU 1.3 · 2026')).toBeTruthy();
+    expect(breadcrumb().queryByText('Tahun 2026')).toBeNull();
 });
 
 it('mengirim field rencana beserta anggaran rupiah tanpa status', () => {

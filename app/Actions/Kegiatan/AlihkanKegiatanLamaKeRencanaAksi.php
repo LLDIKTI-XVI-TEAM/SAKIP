@@ -8,14 +8,14 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Support\PermissionCodes;
-use Illuminate\Http\RedirectResponse;
 
 /**
  * Tautan ubah lama diarahkan ke halaman kegiatan Rencana Aksi pemilik klaim
  * tertua (`created_at`, lalu `id`) agar tujuan deterministik ketika satu
  * kegiatan diklaim beberapa Rencana Aksi. Kegiatan tanpa klaim RA belum
- * tertaut, sehingga diarahkan ke daftar Rencana Aksi dengan penjelasan —
- * bukan 404 — agar operator mengetahui penautan manual diperlukan.
+ * tertaut, sehingga use case mengembalikan `null` dan pemanggil mengarahkan
+ * ke daftar Rencana Aksi dengan penjelasan — bukan 404 — agar operator
+ * mengetahui penautan manual diperlukan.
  *
  * Izin `kegiatan:read` pada unit kegiatan diperiksa lebih dulu: klaim hanya
  * dibaca setelah izin lolos, sehingga pengguna tanpa izin tidak dapat
@@ -30,7 +30,8 @@ class AlihkanKegiatanLamaKeRencanaAksi
         private readonly AuditLogger $audit,
     ) {}
 
-    public function handle(User $actor, Kegiatan $kegiatan): RedirectResponse
+    /** Id RA tujuan pengalihan; `null` bila kegiatan belum diklaim Rencana Aksi. */
+    public function handle(User $actor, Kegiatan $kegiatan): ?string
     {
         $decision = $this->resolver->resolve($actor, PermissionCodes::KEGIATAN_READ, (string) $kegiatan->unit_id);
 
@@ -49,11 +50,6 @@ class AlihkanKegiatanLamaKeRencanaAksi
             ->orderBy('id')
             ->value('rencana_aksi_id');
 
-        if ($rencanaAksi === null) {
-            return redirect()->route('rencana-aksi.index')->with('message', 'Kegiatan belum tertaut ke Rencana Aksi.');
-        }
-
-        // Anchor baris mengikuti penanda daftar kegiatan agar pengguna langsung melihat kegiatannya.
-        return redirect()->to(route('rencana-aksi.kegiatan.index', ['rencanaAksi' => (string) $rencanaAksi]).'#kegiatan-'.$kegiatan->id);
+        return $rencanaAksi === null ? null : (string) $rencanaAksi;
     }
 }

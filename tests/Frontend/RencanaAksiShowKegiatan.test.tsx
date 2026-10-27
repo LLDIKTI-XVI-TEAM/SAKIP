@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { router } from '@inertiajs/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import RencanaAksiShow from '@/Pages/RencanaAksi/Show';
 import type { KegiatanRencanaAksiItem, RencanaAksiShow as RencanaAksiPayload } from '@/Pages/RencanaAksi/types';
@@ -13,12 +14,12 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
     AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main>,
 }));
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 const RA_ID = 'ra-1';
 const P1 = 'tw1';
 
-function buatPayload(): RencanaAksiPayload {
+function buatPayload(ubah: Partial<RencanaAksiPayload> = {}): RencanaAksiPayload {
     return {
         id: RA_ID,
         tahun: 2026,
@@ -52,8 +53,9 @@ function buatPayload(): RencanaAksiPayload {
         deviasi_pk: { dapat_dinilai: true, ada: false, alasan_diperlukan: false, alasan_terisi: false, skor_periode_terakhir: '100.00', target_pk: '100', periode_id: P1 },
         pengajuan: { siap: true, alasan: [] },
         versi_pengajuan: null,
-        // Halaman rincian hanya-baca untuk ringkasan kegiatan; tidak ada form target yang perlu disimpan.
+        // Halaman rincian hanya-baca untuk ringkasan kegiatan; test yang membuka form target menimpanya lewat `ubah`.
         can: { view: true, update: false, submit: false },
+        ...ubah,
     };
 }
 
@@ -91,6 +93,45 @@ it('menampilkan ringkasan kegiatan dan tautan ke halaman kegiatan, tanpa form ta
     expect(screen.queryByText('Kegiatan per Periode')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Simpan kegiatan' })).toBeNull();
     expect(screen.queryByLabelText(/^Nama kegiatan/)).toBeNull();
+});
+
+it('menahan tautan halaman kegiatan selama form target kotor dan menjelaskan alasannya', () => {
+    const visit = vi.spyOn(router, 'visit').mockImplementation(() => undefined);
+    render(
+        <RencanaAksiShow
+            rencanaAksi={buatPayload({ can: { view: true, update: true, submit: false } })}
+            kegiatan={{
+                daftar: [baris('k1', 'keg-1')],
+                total: { total: '0', belum_diisi: 0, per_periode: { [P1]: { total: '0', belum_diisi: 0 } } },
+                can: { tambah: false, kelola: true },
+            }}
+        />,
+    );
+
+    const tautan = screen.getByRole('link', { name: 'Buka halaman kegiatan' });
+    const petunjuk = 'Simpan atau buang perubahan target sebelum membuka halaman kegiatan.';
+    // Form bersih: navigasi ke halaman kegiatan tetap terbuka.
+    expect(tautan.getAttribute('aria-disabled')).not.toBe('true');
+    expect(screen.queryByText(petunjuk)).toBeNull();
+
+    // Form target kotor: uraian dikirim bersama target, jadi perubahannya menahan navigasi.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Uraian rencana aksi' }), { target: { value: 'Perubahan belum disimpan' } });
+
+    expect(tautan.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByText(petunjuk)).toBeTruthy();
+
+    // Link Inertia tetap memanggil router.visit; navigasi dibatalkan oleh gate `onBefore`, bukan oleh absennya visit.
+    fireEvent.click(tautan);
+    const panggilan = visit.mock.calls.at(-1);
+    expect(panggilan?.[0]).toBe('/rencana-aksi/ra-1/kegiatan');
+    expect(panggilan?.[1]?.onBefore?.({} as never)).toBe(false);
+
+    // Draf dikembalikan: gate membuka navigasi lagi dan petunjuk hilang.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Uraian rencana aksi' }), { target: { value: '' } });
+    expect(tautan.getAttribute('aria-disabled')).not.toBe('true');
+    expect(screen.queryByText(petunjuk)).toBeNull();
+    fireEvent.click(tautan);
+    expect(visit.mock.calls.at(-1)?.[1]?.onBefore?.({} as never)).toBe(true);
 });
 
 it('tidak menampilkan kartu kegiatan bila aktor tidak berhak membacanya', () => {

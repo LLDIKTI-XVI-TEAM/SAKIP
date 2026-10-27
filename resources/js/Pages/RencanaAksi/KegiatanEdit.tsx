@@ -16,6 +16,7 @@ import { BerkasPerencanaanPanel } from '@/Pages/Kegiatan/Partials/BerkasPerencan
 import { KlaimPanel } from '@/Pages/Kegiatan/Partials/KlaimPanel';
 import { StatusKegiatanModal, aksiStatusKegiatan } from '@/Pages/Kegiatan/Partials/StatusKegiatanModal';
 import { statusKegiatanConfig, type KegiatanFormProps, type RencanaKegiatan, type StatusTujuan } from '@/types/kegiatan';
+import type { RencanaAksiIdentitas } from './types';
 
 /**
  * Props halaman ubah kegiatan dalam konteks Rencana Aksi (Q74 §74.1):
@@ -25,7 +26,7 @@ import { statusKegiatanConfig, type KegiatanFormProps, type RencanaKegiatan, typ
  */
 export interface KegiatanEditProps extends KegiatanFormProps {
     /** Identitas RA pengklaim; hanya dipakai untuk navigasi kembali ke konteks RA. */
-    rencanaAksi: { id: string; tahun: number };
+    rencanaAksi: RencanaAksiIdentitas;
 }
 
 const nilaiAwal = (kegiatan: RencanaKegiatan) => ({
@@ -96,7 +97,7 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
             title={title}
             breadcrumbs={[
                 { label: 'Rencana Aksi', href: '/rencana-aksi' },
-                { label: `Tahun ${rencanaAksi.tahun}`, href: `/rencana-aksi/${rencanaAksi.id}` },
+                { label: rencanaAksi.kode ? `${rencanaAksi.kode} · ${rencanaAksi.tahun}` : `Tahun ${rencanaAksi.tahun}`, href: `/rencana-aksi/${rencanaAksi.id}` },
                 { label: 'Kegiatan', href: halamanKegiatan },
                 { label: title },
             ]}
@@ -171,7 +172,7 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
                         </form>
                     </CardContent>
                 </Card>
-                {klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} />}
+                {klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} rencanaAksiKonteks={rencanaAksi.id} />}
                 {berkasPerencanaan && <BerkasPerencanaanPanel kegiatanId={kegiatan.id} berkas={berkasPerencanaan} />}
             </div>
         </AuthenticatedLayout>

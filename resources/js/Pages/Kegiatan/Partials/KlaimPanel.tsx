@@ -12,6 +12,8 @@ import { ARAH_DAMPAK_OPTIONS, type ArahDampak, type KlaimKegiatanItem, type Klai
 interface KlaimPanelProps {
     kegiatanId: string;
     klaim: KlaimKegiatanPanel;
+    /** Konteks RA asal halaman ubah kegiatan; diteruskan ke server agar pengalihan kembali ke daftar kegiatan RA tepat. */
+    rencanaAksiKonteks?: string;
 }
 
 /** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
@@ -25,7 +27,7 @@ function komponenAwal(opsi: OpsiRencanaAksi | undefined): string {
 }
 
 /** Panel klaim kegiatan ke Rencana Aksi (PRD §16): hanya penjelasan dukungan, tidak mengubah nilai capaian. */
-export function KlaimPanel({ kegiatanId, klaim }: KlaimPanelProps) {
+export function KlaimPanel({ kegiatanId, klaim, rencanaAksiKonteks }: KlaimPanelProps) {
     const { data, setData, post, processing, errors, clearErrors } = useForm<{
         rencana_aksi_id: string;
         komponen_id: string;
@@ -81,7 +83,7 @@ export function KlaimPanel({ kegiatanId, klaim }: KlaimPanelProps) {
         setMenghapus(true);
         setGalatHapus(undefined);
         router.delete(`/kegiatan/${kegiatanId}/klaim/${hapusTarget.id}`, {
-            data: { alasan },
+            data: { alasan, rencana_aksi_konteks: rencanaAksiKonteks },
             preserveScroll: true,
             onSuccess: () => tutupHapus(),
             onError: (errs) => setGalatHapus(errs.alasan ?? galatBisnis(errs) ?? 'Penghapusan klaim gagal.'),

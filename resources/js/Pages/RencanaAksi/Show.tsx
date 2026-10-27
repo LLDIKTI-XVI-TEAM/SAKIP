@@ -516,16 +516,21 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                 {kegiatan && (
                     <Card>
                         <CardHeader>
-                            <div className="min-w-0 flex-1 space-y-1">
+                            <div className="min-w-0 flex-[1_1_16rem] space-y-1">
                                 <CardTitle>Kegiatan</CardTitle>
                                 <p className="text-sm text-muted">
                                     Kegiatan dibuat, diubah, dan dikelola beserta klaim, berkas, dan status pelaksanaannya di halaman
                                     kegiatan rencana aksi ini.
                                 </p>
+                                {kotor && (
+                                    <p className="text-sm text-muted">Simpan atau buang perubahan target sebelum membuka halaman kegiatan.</p>
+                                )}
                             </div>
                             <Link
                                 href={`/rencana-aksi/${rencanaAksi.id}/kegiatan`}
-                                className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                                aria-disabled={kotor}
+                                onBefore={() => !kotor}
+                                className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25${kotor ? ' pointer-events-none opacity-50' : ''}`}
                             >
                                 <ClipboardList className="h-4 w-4" aria-hidden="true" />
                                 Buka halaman kegiatan

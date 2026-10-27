@@ -165,6 +165,8 @@ class HalamanKegiatanRencanaAksiTest extends TestCase
         $this->actingAs($this->actor)->get($this->url($kegiatan))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('RencanaAksi/KegiatanEdit')
             ->where('rencanaAksi.id', $this->rencanaAksi->id)
+            ->where('rencanaAksi.tahun', 2026)
+            ->where('rencanaAksi.kode', $this->indikator->kode)
             ->where('kegiatan.id', $kegiatan->id)
             ->where('kegiatan.version_token', fn (string $token) => strlen($token) === 64)
             ->has('klaim.daftar', 1)

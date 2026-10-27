@@ -27,13 +27,20 @@ class HapusKlaimKegiatan
         private readonly AuditLogger $audit,
     ) {}
 
-    public function handle(User $actor, string $kegiatanId, string $klaimId, string $alasan): void
+    /**
+     * Hasil berisi id RA klaim yang dihapus dan jumlah klaim tersisa untuk
+     * pasangan (RA, kegiatan) itu, agar pemanggil dapat memilih tujuan
+     * pengalihan ketika RA tersebut tidak lagi memuat kegiatan yang diubah.
+     *
+     * @return array{rencana_aksi_id: string, sisa_klaim: int}
+     */
+    public function handle(User $actor, string $kegiatanId, string $klaimId, string $alasan): array
     {
         /** @var array<string, mixed>|null $dasarIzin */
         $dasarIzin = null;
 
         try {
-            DB::transaction(function () use ($actor, $kegiatanId, $klaimId, $alasan, &$dasarIzin): void {
+            return DB::transaction(function () use ($actor, $kegiatanId, $klaimId, $alasan, &$dasarIzin): array {
                 // Klaim kegiatan lain dijawab 404 agar keberadaannya tidak bocor; RA dibaca dari klaim, bukan input.
                 $headerId = KlaimKegiatan::whereKey($klaimId)->where('kegiatan_id', $kegiatanId)->firstOrFail()->rencana_aksi_id;
                 $konteks = $this->gerbang->kunci($actor, (string) $headerId, $kegiatanId, PermissionCodes::KEGIATAN_UPDATE, [], $dasarIzin);
@@ -48,6 +55,9 @@ class HapusKlaimKegiatan
                 $sebelum = TambahKlaimKegiatan::atributAudit($klaim);
                 $klaim->delete();
                 $konteks['header']->increment('versi');
+                // Hitungan memakai pasangan yang sama dengan guard halaman ubah RA,
+                // sehingga pemanggil tahu apakah konteks RA itu masih dapat dibuka.
+                $sisaKlaim = KlaimKegiatan::where('rencana_aksi_id', $headerId)->where('kegiatan_id', $kegiatanId)->count();
                 $this->audit->catat(
                     actor: $konteks['pengunci'],
                     tindakan: 'klaim_kegiatan.hapus',
@@ -57,6 +67,8 @@ class HapusKlaimKegiatan
                     alasan: AlasanAudit::sanitasi($alasan, 'Penghapusan klaim kegiatan.'),
                     dasarIzin: $dasarIzin,
                 );
+
+                return ['rencana_aksi_id' => (string) $headerId, 'sisa_klaim' => $sisaKlaim];
             });
         } catch (Throwable $exception) {
             if (($exception instanceof AuthorizationException || $exception instanceof ValidationException)
