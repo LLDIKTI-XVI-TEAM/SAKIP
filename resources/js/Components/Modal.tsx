@@ -70,7 +70,7 @@ export const Modal: React.FC<ModalProps> = ({
             }
 
             const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-                'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]):not(:disabled)'
+                'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), details > summary, [tabindex]:not([tabindex="-1"]):not(:disabled)'
             );
             if (focusable.length > 0) {
                 focusable[0].focus();
@@ -99,7 +99,8 @@ export const Modal: React.FC<ModalProps> = ({
             if (e.key === 'Tab' && modalRef.current) {
                 const focusables = Array.from(
                     modalRef.current.querySelectorAll<HTMLElement>(
-                        'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]):not(:disabled)'
+                        // summary fokus secara bawaan; tanpanya isi details di dalam modal tidak terjangkau keyboard.
+                        'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), details > summary, [tabindex]:not([tabindex="-1"]):not(:disabled)'
                     )
                 ).filter((el) => el.offsetParent !== null);
 

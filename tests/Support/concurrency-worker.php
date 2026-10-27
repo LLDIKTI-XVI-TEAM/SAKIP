@@ -18,6 +18,8 @@ use App\Actions\Rekomendasi\TetapkanRekomendasi;
 use App\Actions\RencanaAksi\KembalikanRencanaAksi;
 use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
+use App\Actions\TargetRenstra\SimpanDrafRevisiTargetRenstra;
+use App\Actions\TargetRenstra\SimpanRevisiTargetRenstra;
 use App\Actions\Unit\CreateUnitAction;
 use App\Actions\Unit\DeleteUnitAction;
 use App\Actions\Unit\UpdateUnitAction;
@@ -107,6 +109,8 @@ try {
             'bootstrap' => app(BootstrapSuperadmin::class)->handle($identity, 'Operator Pengujian', 'Fixture konkurensi bootstrap', 'test-process:'.getmypid()),
             'rencana-sahkan' => app(SahkanRencanaAksi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['rencana_aksi_id'], $assignment['data']),
             'rekomendasi-tetapkan' => app(TetapkanRekomendasi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['data'])->status,
+            'revisi-target-draf' => app(SimpanDrafRevisiTargetRenstra::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['renstra_id'], $assignment['data'])->versi,
+            'revisi-target-simpan' => app(SimpanRevisiTargetRenstra::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['renstra_id'], $assignment['data'])->nomor,
             default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
         };
         $result = match ($argv[1]) {
@@ -147,6 +151,8 @@ try {
             'pengukuran-sahkan' => 'versi',
             // Kombinasi rekomendasi diserialkan; yang kalah membaca hasil pemenang dan ditolak sebagai konflik versi.
             'rekomendasi-tetapkan' => 'konflik',
+            // Draf revisi diserialkan; yang kalah membaca draf segar dan ditolak pada token versi.
+            'revisi-target-draf', 'revisi-target-simpan' => 'versi',
             default => null,
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {

@@ -3,10 +3,11 @@
 namespace App\Actions\TargetRenstra;
 
 use App\Http\Requests\TargetRenstra\SimpanTargetRenstraRequest;
-use App\Models\TargetRenstra;
+use App\Models\Renstra;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Services\TargetRenstra\PenulisTargetRenstra;
 use App\Support\PermissionCodes;
 use App\Support\TargetRenstraState;
 use App\Support\TargetTahunanDecimal;
@@ -16,10 +17,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
-/** Satu simpan per indikator untuk semua tahun Renstra; tanpa alasan, tetapi setiap tahun yang berubah diaudit. */
+/** Simpan langsung khusus Renstra draft, satu indikator untuk semua tahun; tanpa alasan, tetapi setiap tahun yang berubah diaudit. */
 class SimpanTargetRenstra
 {
-    public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit) {}
+    public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit, private readonly PenulisTargetRenstra $penulis) {}
 
     /**
      * ACL → indikator → sasaran → Renstra → baris target; lock indikator juga menserialkan insert pertama per tahun.
@@ -46,6 +47,10 @@ class SimpanTargetRenstra
                 if (($reason = TargetTahunanState::readOnlyReason($state)) !== null) {
                     throw ValidationException::withMessages(['nilai' => $reason]);
                 }
+                // Diperiksa sebelum token agar edit yang terbuka sejak sebelum aktivasi mendapat arahan, bukan 409.
+                if ($state['renstra']->status === Renstra::STATUS_AKTIF) {
+                    throw ValidationException::withMessages(['nilai' => 'Target Renstra pada Renstra aktif hanya dapat diubah melalui Mode revisi.']);
+                }
                 $indikator = $state['indikator'];
                 $before = TargetRenstraState::values($state['rows']);
                 if (! hash_equals(TargetRenstraState::token($indikator, $state['renstra'], $before), $data['expected_state'])) {
@@ -67,12 +72,7 @@ class SimpanTargetRenstra
                 ksort($changes);
 
                 foreach ($changes as $tahun => $next) {
-                    $current = $state['rows'][$tahun] ?? null;
-                    $row = $current ?? new TargetRenstra(['indikator_id' => $indikator->id, 'tahun' => $tahun]);
-                    $row->fill(['nilai' => $next, 'updated_by' => $actor->id])->save();
-                    $this->audit->catat(actor: $actor, tindakan: 'target_renstra.simpan', objekTipe: 'target_renstra', objekId: $row->id,
-                        nilaiLama: $current ? ['indikator_id' => $indikator->id, 'tahun' => $tahun, 'nilai' => $before[$tahun]] : null,
-                        nilaiBaru: ['indikator_id' => $indikator->id, 'tahun' => $tahun, 'nilai' => $next], dasarIzin: $basis);
+                    $this->penulis->tulis($actor, $indikator->id, $tahun, $state['rows'][$tahun] ?? null, $before[$tahun] ?? null, $next, $basis);
                 }
 
                 return ['indikator_id' => $indikator->id, 'renstra_id' => $state['renstra']->id, 'tahun' => array_keys($changes)];
