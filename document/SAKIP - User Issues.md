@@ -1953,13 +1953,15 @@ kegiatan:update
 - **Otorisasi:** `jadwal:buka_kembali` untuk penambahan snapshot beralasan pada jadwal aktif; permission indikator terkait.
 - **Dampak Data:** `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
 
+> **Status implementasi — issue #188 (2026-10-27):** centang menunjukkan bukti implementasi dan test pada PR #<n>, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `TambahIndikatorJadwalTest::test_snapshot_baru_memakai_periode_mulai_pilihan_anggota_jadwal`, `TambahIndikatorJadwalTest::test_periode_mulai_wajib_dan_harus_anggota_jadwal`; AC-2 `TambahIndikatorJadwalTest::test_periode_sebelum_mulai_tidak_berlaku_di_dashboard_pengukuran_rencana_aksi_dan_rekap`; AC-3 `TambahIndikatorJadwalTest::test_snapshot_lama_tidak_berubah_dan_indikator_terjadwal_ditolak`, `JadwalActivationTest::test_existing_draft_snapshots_are_kept_and_only_missing_pairs_are_created`, `SnapshotFinalisasiDatabaseTest`; AC-4 `TambahIndikatorJadwalTest::test_jendela_pic_dan_baris_jadwal_tidak_berubah`; AC-5 `TambahIndikatorJadwalTest::test_audit_memuat_alasan_detail_dan_dasar_izin`, `TambahIndikatorJadwalTest::test_izin_dicek_dan_penolakan_teraudit_di_luar_rollback`, `TambahIndikatorJadwalTest::test_jadwal_bukan_aktif_atau_lewat_penutupan_ditolak`.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 #### Implementation Tasks
 
@@ -1985,11 +1987,11 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 #### Definition of Done
 
