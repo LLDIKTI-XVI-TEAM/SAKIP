@@ -18,7 +18,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Batas bersama aksi revisi target Renstra (Q71): izin dinilai ulang di dalam transaksi, penolakan diaudit di luar rollback.
- * Urutan lock Renstra → draf; simpan revisi mengunci indikator lebih dulu, sejalan dengan TargetRenstraState::lock.
+ * Urutan lock indikator → Renstra → draf, sejalan dengan TargetRenstraState::lock: simpan revisi dan autosave mengunci indikator
+ * lebih dulu karena sel baru mengambil KEY SHARE indikator lewat foreign key.
  */
 class GerbangRevisiTargetRenstra
 {

@@ -49,6 +49,14 @@ class SimpanDrafRevisiTargetRenstra
                 'nilai.*.*.max' => 'Angka target terlalu panjang.',
                 'justifikasi.max' => 'Justifikasi maksimal 1.000 karakter.',
             ])->validate();
+            foreach (array_keys($data['nilai']) as $id) {
+                if (! is_string($id) || ! Str::isUuid($id)) {
+                    throw ValidationException::withMessages(['nilai' => 'Indikator tidak dikenal. Muat ulang form.']);
+                }
+            }
+            // Sel baru mengambil KEY SHARE indikator lewat foreign key; diambil di depan agar urutannya indikator → Renstra → draf
+            // seperti simpan revisi. Bila diambil setelah lock draf, autosave dan simpan revisi bersamaan dapat deadlock.
+            IndikatorKinerja::whereIn('id', array_map('strtolower', array_keys($data['nilai'])))->orderBy('id')->lock('for key share')->get();
             $renstra = $this->gerbang->renstraAktif($renstraId);
             $draf = $this->gerbang->drafTerkunci($renstra, $data['revisi_id'], (int) $data['versi']);
 
@@ -66,11 +74,6 @@ class SimpanDrafRevisiTargetRenstra
      */
     private function sel(Renstra $renstra, array $nilai): array
     {
-        foreach (array_keys($nilai) as $id) {
-            if (! is_string($id) || ! Str::isUuid($id)) {
-                throw ValidationException::withMessages(['nilai' => 'Indikator tidak dikenal. Muat ulang form.']);
-            }
-        }
         $indikator = IndikatorKinerja::with('targetRenstra')->whereIn('id', array_map('strtolower', array_keys($nilai)))
             ->whereHas('sasaranStrategis', fn ($query) => $query->where('renstra_id', $renstra->id))->get()->keyBy('id');
 

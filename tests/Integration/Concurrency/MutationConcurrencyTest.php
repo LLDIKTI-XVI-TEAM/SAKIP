@@ -1822,6 +1822,30 @@ class MutationConcurrencyTest extends TestCase
         }
     }
 
+    /**
+     * Sel baru mengambil KEY SHARE indikator lewat foreign key. Autosave yang mengunci draf lebih dulu deadlock (40P01) dengan
+     * simpan revisi yang sudah mengunci indikator; dengan urutan lock yang sama, autosave menunggu lalu ditolak 409.
+     */
+    public function test_simpan_revisi_dan_autosave_sel_baru_diserialkan_tanpa_deadlock(): void
+    {
+        [$parent, $worker, $renstra, $indikator, $revisiId] = $this->revisiTargetRenstraFixture();
+        $assignment = ['actor_id' => $worker->id, 'renstra_id' => $renstra->id, 'data' => ['revisi_id' => $revisiId, 'versi' => 2,
+            'nilai' => [$indikator->id => [2027 => '20']]], 'expected_error_status' => 409];
+        $nomor = null;
+
+        // Parent mengunci indikator seperti langkah pertama simpan revisi, lalu menyelesaikan simpan selagi worker menunggu.
+        $results = $this->race('revisi-target-draf', $renstra->id, '', [$assignment],
+            prepare: fn () => IndikatorKinerja::whereKey($indikator->id)->lockForUpdate()->firstOrFail(),
+            assertBlocked: function () use ($parent, $renstra, $revisiId, &$nomor): void {
+                $nomor = app(SimpanRevisiTargetRenstra::class)->handle($parent, $renstra->id, ['revisi_id' => $revisiId, 'versi' => 2, 'justifikasi' => 'Revisi bersamaan.'])->nomor;
+            });
+
+        $this->assertSame([1, ['conflict']], [$nomor, $results]);
+        $revisi = RevisiTargetRenstra::where('renstra_id', $renstra->id)->sole();
+        $this->assertSame(['disimpan', ['12.000000000000']], [$revisi->status, $revisi->nilai()->pluck('nilai_baru')->all()]);
+        $this->assertSame(1, AuditLog::where('tindakan', 'target_renstra.revisi_ditolak')->get()->where('nilai_baru.alasan_penolakan', 'versi_usang')->count());
+    }
+
     public static function urutanRevisiTargetRenstra(): array
     {
         return ['simpan revisi lebih dulu' => [true], 'autosave lebih dulu' => [false]];
