@@ -57,8 +57,10 @@ function tampilkan({ status = 'aktif' as RenstraOption['status'], canEdit = true
 
 const input = (tahun: number, kode = 'IKU-1') => screen.queryByRole('textbox', { name: `Target ${tahun} ${kode}` }) as HTMLInputElement | null;
 const opsi = (spy: ReturnType<typeof vi.spyOn>, index = 0) => spy.mock.calls[index][2] as {
-    preserveState?: boolean; only?: string[]; onError: (errors: Record<string, string>) => void; onSuccess: () => void;
+    preserveState?: boolean; only?: string[]; onError: (errors: Record<string, string>) => void; onSuccess: (page?: unknown) => void;
 };
+/** Halaman hasil reload setelah autosave; Inertia memberikannya ke onSuccess. */
+const halaman = (revisi: Partial<RevisiTargetRenstra>) => ({ props: { revisi_target: draf(revisi) } });
 
 it('Renstra aktif tanpa draf menawarkan Mode revisi hanya bagi pemegang izin; histori terbuka bagi pembaca', () => {
     const view = tampilkan({ revisi: null });
@@ -180,8 +182,24 @@ it('Simpan revisi terkunci selama autosave terakhir ditolak, lalu terbuka lagi s
     fireEvent.change(input(2026)!, { target: { value: '12.5' } });
     act(() => { vi.advanceTimersByTime(900); });
     expect(put).toHaveBeenCalledTimes(2);
-    act(() => { opsi(put, 1).onSuccess(); });
+    act(() => { opsi(put, 1).onSuccess(halaman({ versi: 3 })); });
     expect([simpan().disabled, screen.queryByRole('alert')]).toEqual([false, null]);
+});
+
+it('reload setelah autosave yang membawa versi lebih baru dari hasil PUT ini menghentikan autosave untuk rekonsiliasi', () => {
+    vi.useFakeTimers();
+    tampilkan();
+    const simpan = () => screen.getByRole('button', { name: 'Simpan revisi' }) as HTMLButtonElement;
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    // Pengguna lain menyimpan di antara PUT ini (versi 2 → 3) dan reload, sehingga reload membawa versi 4.
+    act(() => { opsi(put).onSuccess(halaman({ versi: 4, nilai: { 'ind-1': { 2026: '99' } } })); });
+
+    expect(screen.getByRole('alert').textContent).toContain(KONFLIK);
+    expect(simpan().disabled).toBe(true);
+    fireEvent.change(input(2026)!, { target: { value: '13' } });
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(put).toHaveBeenCalledTimes(1);
 });
 
 it('Batal revisi meminta konfirmasi lalu menghapus draf dengan versinya', () => {

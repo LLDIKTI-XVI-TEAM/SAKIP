@@ -66,8 +66,15 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                     Object.fromEntries(Object.entries(tahunan).map(([tahun, nilai]) => [tahun, nilai === '' ? null : nilai]))])),
                 justifikasi: data.justifikasi === '' ? null : data.justifikasi,
             }));
-            draf.put(url, { preserveScroll: true, preserveState: true, only: ['revisi_target'],
-                onSuccess: () => setTersimpanPada(new Date().toISOString()), onError: tanganiGalat });
+            draf.put(url, { preserveScroll: true, preserveState: true, only: ['revisi_target'], onError: tanganiGalat, onSuccess: (page) => {
+                // Reload membaca draf terbaru: versi selain hasil PUT ini berarti ada perubahan lain yang belum terlihat di isian lokal.
+                const terbaru = (page.props as { revisi_target?: RevisiTargetRenstra | null }).revisi_target;
+                if (terbaru?.id !== revisi.id || terbaru.versi !== revisi.versi + 1) {
+                    setKonflik(true);
+                    return;
+                }
+                setTersimpanPada(new Date().toISOString());
+            } });
         }, JEDA_AUTOSAVE);
         return () => clearTimeout(timer);
     }, [kotor, konflik, draf, url, revisi.id, revisi.versi]);
