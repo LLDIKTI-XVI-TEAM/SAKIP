@@ -27,6 +27,7 @@ afterEach(() => {
 });
 
 const KONFLIK = 'Draf revisi sudah berubah oleh pengguna lain atau tidak lagi terbuka. Muat ulang untuk melanjutkan.';
+const BELUM_PASTI = 'Hasil penyimpanan otomatis terakhir belum dapat dipastikan. Muat ulang untuk memeriksa draf terbaru sebelum melanjutkan.';
 
 function indikator(overrides: Partial<IndikatorKinerjaItem> = {}): IndikatorKinerjaItem {
     return {
@@ -58,6 +59,7 @@ function tampilkan({ status = 'aktif' as RenstraOption['status'], canEdit = true
 const input = (tahun: number, kode = 'IKU-1') => screen.queryByRole('textbox', { name: `Target ${tahun} ${kode}` }) as HTMLInputElement | null;
 const opsi = (spy: ReturnType<typeof vi.spyOn>, index = 0) => spy.mock.calls[index][2] as {
     preserveState?: boolean; only?: string[]; onError: (errors: Record<string, string>) => void; onSuccess: (page?: unknown) => void;
+    onNetworkError?: (error: Error) => unknown; onHttpException?: (response: unknown) => unknown; onCancel?: () => unknown;
 };
 /** Halaman hasil reload setelah autosave; Inertia memberikannya ke onSuccess. */
 const halaman = (revisi: Partial<RevisiTargetRenstra>) => ({ props: { revisi_target: draf(revisi) } });
@@ -200,6 +202,50 @@ it('reload setelah autosave yang membawa versi lebih baru dari hasil PUT ini men
     fireEvent.change(input(2026)!, { target: { value: '13' } });
     act(() => { vi.advanceTimersByTime(2000); });
     expect(put).toHaveBeenCalledTimes(1);
+});
+
+// false mencegah dialog atau error bawaan Inertia; pembatalan tidak memiliki perilaku bawaan untuk dicegah.
+it.each([
+    ['gagal jaringan', (o: ReturnType<typeof opsi>) => o.onNetworkError?.(new Error('offline')), false],
+    ['mendapat respons HTTP 500', (o: ReturnType<typeof opsi>) => o.onHttpException?.({ status: 500, data: '<html></html>', headers: {} }), false],
+    ['dibatalkan', (o: ReturnType<typeof opsi>) => o.onCancel?.(), undefined],
+])('autosave yang %s menahan Simpan revisi sampai draf dimuat ulang', (_, gagal, kembalian) => {
+    vi.useFakeTimers();
+    tampilkan();
+    const tombol = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    let hasil: unknown = 'tidak dipanggil';
+    act(() => { hasil = gagal(opsi(put)); });
+
+    // Hasil PUT tidak diketahui: Simpan memakai isian di server yang mungkin belum memuat isian terakhir di layar.
+    expect(hasil).toBe(kembalian);
+    expect(screen.getByRole('alert').textContent).toContain(BELUM_PASTI);
+    expect(screen.getByRole('status').textContent).toBe('Penyimpanan terakhir belum terkonfirmasi.');
+    expect([tombol('Simpan revisi').disabled, tombol('Batal revisi').disabled, input(2026)!.readOnly]).toEqual([true, true, true]);
+    fireEvent.change(input(2026)!, { target: { value: '13' } });
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(put).toHaveBeenCalledTimes(1);
+    fireEvent.click(tombol('Muat ulang'));
+    expect(reload).toHaveBeenCalledTimes(1);
+});
+
+it('sesi atau token CSRF kedaluwarsa saat autosave memakai pemulihan sesi dan tetap menahan Simpan revisi', () => {
+    vi.useFakeTimers();
+    tampilkan();
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    let hasil: unknown;
+    act(() => { hasil = opsi(put).onHttpException?.({ status: 419, headers: {},
+        data: { recovery: { reason: 'csrf_mismatch', rejected: { method: 'PUT', path: '/perencanaan/renstra/r-1/revisi-target', before_action: true } } } }); });
+
+    expect(hasil).toBe(false);
+    // Penolakan cocok dengan method dan path autosave ini, jadi dinyatakan ditolak sebelum Action.
+    expect(screen.getByRole('heading', { name: 'Verifikasi keamanan diperlukan' })).toBeTruthy();
+    expect(screen.getByText(/Permintaan perubahan ini ditolak/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Simpan revisi' }) as HTMLButtonElement).disabled).toBe(true);
+    // Pemulihan sesi menyediakan Muat ulang halaman sendiri; Muat ulang draf tidak ditawarkan bersamaan.
+    expect(screen.queryByRole('button', { name: 'Muat ulang' })).toBeNull();
 });
 
 it('Batal revisi meminta konfirmasi lalu menghapus draf dengan versinya', () => {

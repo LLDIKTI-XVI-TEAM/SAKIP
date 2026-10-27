@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from '@inertiajs/react';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
@@ -7,11 +8,13 @@ import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { Textarea } from '@/Components/Textarea';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import type { IndikatorKinerjaItem, RenstraOption, RevisiTargetRenstra, SasaranStrategisItem } from '@/types/sasaran-indikator';
 
 const KONFLIK = 'Draf revisi sudah berubah oleh pengguna lain atau tidak lagi terbuka. Muat ulang untuk melanjutkan.';
+const BELUM_PASTI = 'Hasil penyimpanan otomatis terakhir belum dapat dipastikan. Muat ulang untuk memeriksa draf terbaru sebelum melanjutkan.';
 const JEDA_AUTOSAVE = 800;
 
 type Isian = Record<string, Record<string, string>>;
@@ -35,12 +38,17 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
     const batalForm = useForm({});
     const [kotor, setKotor] = useState(false);
     const [konflik, setKonflik] = useState(false);
+    const [belumPasti, setBelumPasti] = useState(false);
+    const recovery = useAuthRecovery();
+    const { handleHttpException } = recovery;
     // Draf yang baru dibuka belum berisi apa pun; waktu pembuatannya bukan bukti isian tersimpan.
     const [tersimpanPada, setTersimpanPada] = useState(Object.keys(revisi.nilai).length > 0 || revisi.justifikasi ? revisi.diubah_pada : null);
     const [konfirmasiBatal, setKonfirmasiBatal] = useState(false);
     const galat: Record<string, string | undefined> = { ...draf.errors, ...simpanForm.errors, ...batalForm.errors };
     const years = Array.from({ length: renstra.tahun_selesai - renstra.tahun_mulai + 1 }, (_, i) => renstra.tahun_mulai + i);
     const sibuk = draf.processing || simpanForm.processing || batalForm.processing;
+    // Isian dan aksi ditahan sampai draf dimuat ulang (atau sesi dipulihkan) bila hasil autosave ditolak atau belum pasti.
+    const terhenti = konflik || belumPasti || recovery.recovery !== null;
     const tanganiGalat = (errors: Record<string, string>) => { if (errors.versi) setKonflik(true); };
 
     // Sel draf bernilai null berarti dikosongkan; sel tanpa entri draf memakai nilai berlaku.
@@ -55,7 +63,7 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
     };
 
     useEffect(() => {
-        if (!kotor || konflik || draf.processing) return;
+        if (!kotor || terhenti || draf.processing) return;
         const timer = setTimeout(() => {
             setKotor(false);
             // Sel yang pernah disentuh dikirim ulang setiap kali; server menyimpannya idempoten.
@@ -74,10 +82,17 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                     return;
                 }
                 setTersimpanPada(new Date().toISOString());
-            } });
+            },
+            // Seperti simpan langsung target Renstra: hasil ambigu tidak dikirim ulang otomatis dan Simpan ditahan sampai draf dimuat ulang.
+            onHttpException: (response) => {
+                if (!handleHttpException(response, { effectiveMethod: 'put', path: url, mutation: true })) setBelumPasti(true);
+                return false;
+            },
+            onNetworkError: () => { setBelumPasti(true); return false; },
+            onCancel: () => setBelumPasti(true) });
         }, JEDA_AUTOSAVE);
         return () => clearTimeout(timer);
-    }, [kotor, konflik, draf, url, revisi.id, revisi.versi]);
+    }, [kotor, terhenti, draf, url, revisi.id, revisi.versi, handleHttpException]);
 
     const simpan = () => {
         simpanForm.transform(() => ({ revisi_id: revisi.id, versi: revisi.versi, justifikasi: draf.data.justifikasi }));
@@ -91,11 +106,13 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
 
     const status = draf.processing ? 'Menyimpan draf…'
         : konflik ? 'Perubahan terakhir belum tersimpan.'
-            : kotor ? 'Ada perubahan yang belum tersimpan.'
-                : Object.keys(draf.errors).length > 0 ? 'Draf belum tersimpan. Periksa isian yang ditandai.'
-                    : tersimpanPada ? `Draf tersimpan otomatis ${formatTanggal(tersimpanPada, { withTime: true })}.` : 'Draf belum memiliki isian.';
+            : terhenti ? 'Penyimpanan terakhir belum terkonfirmasi.'
+                : kotor ? 'Ada perubahan yang belum tersimpan.'
+                    : Object.keys(draf.errors).length > 0 ? 'Draf belum tersimpan. Periksa isian yang ditandai.'
+                        : tersimpanPada ? `Draf tersimpan otomatis ${formatTanggal(tersimpanPada, { withTime: true })}.` : 'Draf belum memiliki isian.';
 
     return <div className="space-y-6">
+        <AuthRecoveryNotice recovery={recovery.recovery} />
         <Card className="space-y-2 p-4 md:p-5">
             <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-base font-semibold text-ink">Mode revisi target Renstra</h2>
@@ -105,11 +122,11 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                 Draf dibuka oleh {revisi.dibuat_oleh ?? '—'}. Isian tersimpan otomatis; target Renstra yang berlaku baru berubah setelah Simpan revisi.
             </p>
             <p role="status" aria-live="polite" className="text-xs text-muted">{status}</p>
-            {konflik && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
-                <span>{KONFLIK}</span>
+            {(konflik || belumPasti) && !recovery.recovery && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
+                <span>{konflik ? KONFLIK : BELUM_PASTI}</span>
                 <Button type="button" size="sm" variant="outline" onClick={onMuatUlang}>Muat ulang</Button>
             </div>}
-            {(galat.nilai || galat.renstra) && !konflik && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">{galat.nilai ?? galat.renstra}</p>}
+            {(galat.nilai || galat.renstra) && !terhenti && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">{galat.nilai ?? galat.renstra}</p>}
         </Card>
 
         {sasarans.map((sasaran) => <Card key={sasaran.id}>
@@ -146,7 +163,7 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                                         autoComplete="off"
                                         className="md:min-w-24 md:text-right"
                                         value={draf.data.nilai[ind.id]?.[tahun] ?? nilaiAwal(ind, tahun)}
-                                        readOnly={konflik || simpanForm.processing || batalForm.processing}
+                                        readOnly={terhenti || simpanForm.processing || batalForm.processing}
                                         onChange={(event) => ubah(ind.id, tahun, event.target.value)}
                                         error={galat[`nilai.${ind.id}.${tahun}`]}
                                     />}
@@ -164,14 +181,14 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                 maxLength={1000}
                 helperText="Satu justifikasi untuk seluruh perubahan pada revisi ini."
                 value={draf.data.justifikasi}
-                readOnly={konflik || simpanForm.processing || batalForm.processing}
+                readOnly={terhenti || simpanForm.processing || batalForm.processing}
                 onChange={(event) => { draf.setData('justifikasi', event.target.value); setKotor(true); }}
                 error={galat.justifikasi}
             />
             <div className="flex flex-wrap justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setKonfirmasiBatal(true)} disabled={sibuk || konflik}>Batal revisi</Button>
-                {/* Simpan memakai isian di server, jadi ditahan selama isian terakhir belum tersimpan atau ditolak. */}
-                <Button type="button" onClick={simpan} disabled={kotor || konflik || draf.hasErrors || draf.processing || batalForm.processing} isLoading={simpanForm.processing}>Simpan revisi</Button>
+                <Button type="button" variant="outline" onClick={() => setKonfirmasiBatal(true)} disabled={sibuk || terhenti}>Batal revisi</Button>
+                {/* Simpan memakai isian di server, jadi ditahan selama isian terakhir belum tersimpan, ditolak, atau belum pasti. */}
+                <Button type="button" onClick={simpan} disabled={kotor || terhenti || draf.hasErrors || draf.processing || batalForm.processing} isLoading={simpanForm.processing}>Simpan revisi</Button>
             </div>
         </Card>
 
