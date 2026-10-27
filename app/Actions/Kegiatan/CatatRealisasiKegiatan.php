@@ -110,8 +110,9 @@ class CatatRealisasiKegiatan
                 }
 
                 $lama = $this->realisasi($terkunci);
-                $statusLama = $terkunci->status;
-                $terkunci->forceFill($transisi ? [...$baru, 'status' => 'terlaksana'] : $baru)->save();
+                $statusLama = $terkunci->only(['status', 'justifikasi']);
+                // Justifikasi hanya bermakna untuk status non-terlaksana; nilai lamanya tetap di audit (Q69 §69.2 butir 5).
+                $terkunci->forceFill($transisi ? [...$baru, 'status' => 'terlaksana', 'justifikasi' => null] : $baru)->save();
                 $this->audit->catat(
                     actor: $aktor, tindakan: 'kegiatan.catat_realisasi', objekTipe: 'kegiatan', objekId: (string) $terkunci->id,
                     nilaiLama: $lama, nilaiBaru: $this->realisasi($terkunci), alasan: 'Pencatatan realisasi kegiatan.', dasarIzin: $decision->toAuditBasis(),
@@ -121,7 +122,7 @@ class CatatRealisasiKegiatan
                     RencanaAksi::whereIn('id', $headerIds)->whereIn('status_alur', RencanaAksi::STATUS_DAPAT_DISUNTING)->increment('versi');
                     $this->audit->catat(
                         actor: $aktor, tindakan: 'kegiatan.ubah_status', objekTipe: 'kegiatan', objekId: (string) $terkunci->id,
-                        nilaiLama: ['status' => $statusLama, 'justifikasi' => $terkunci->justifikasi], nilaiBaru: ['status' => 'terlaksana', ...($dikecualikan ? ['pengecualian_bukti' => 'periode_lampau'] : [])],
+                        nilaiLama: $statusLama, nilaiBaru: ['status' => 'terlaksana', 'justifikasi' => null, ...($dikecualikan ? ['pengecualian_bukti' => 'periode_lampau'] : [])],
                         alasan: 'Perubahan status pelaksanaan kegiatan.', dasarIzin: $decision->toAuditBasis(),
                     );
                 }

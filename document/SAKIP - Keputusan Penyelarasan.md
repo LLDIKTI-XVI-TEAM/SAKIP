@@ -1957,6 +1957,7 @@ Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring 
 2. Justifikasi diisi pada form status kegiatan, bukan pada modal alasan audit. Server menolak justifikasi yang kosong setelah spasi di tepinya dibuang, serta menerapkan batas panjang dan penolakan karakter kontrol yang sama dengan isian teks kegiatan lainnya.
 3. Audit `kegiatan.ubah_status` mencatat status dan justifikasi lama serta baru.
 4. Justifikasi tidak dapat diubah tanpa transisi status. Pada status final, justifikasi ikut final.
+5. Transisi ke `terlaksana` mengosongkan `kegiatan.justifikasi`; nilai lamanya tercatat pada audit `kegiatan.ubah_status` (keputusan PM 27 Oktober 2026, review PR #195).
 
 ## 69.3 Data rencana dan data pelaksanaan
 

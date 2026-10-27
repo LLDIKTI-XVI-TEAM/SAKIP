@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\UserPermissionDeny;
 use App\Services\Kegiatan\TotalAnggaranKegiatan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
@@ -84,7 +85,8 @@ class PelaksanaanKegiatanTest extends TestCase
         $this->assertNull($catat->nilai_lama['tanggal_realisasi']);
         $this->assertSame(['2026-03-15', '750000', 25], [$catat->nilai_baru['tanggal_realisasi'], (string) $catat->nilai_baru['biaya_terpakai'], $catat->nilai_baru['realisasi_peserta']]);
         $status = AuditLog::where('tindakan', 'kegiatan.ubah_status')->sole();
-        $this->assertSame([['status' => 'rencana', 'justifikasi' => null], ['status' => 'terlaksana']], [$status->nilai_lama, $status->nilai_baru]);
+        // Kontrol: dari `rencana` justifikasi lama memang kosong.
+        $this->assertEquals([['status' => 'rencana', 'justifikasi' => null], ['status' => 'terlaksana', 'justifikasi' => null]], [$status->nilai_lama, $status->nilai_baru]);
         $this->assertSame('kegiatan:update', $status->dasar_izin['permission']);
     }
 
@@ -140,11 +142,18 @@ class PelaksanaanKegiatanTest extends TestCase
 
     public function test_tidak_terlaksana_dapat_menjadi_terlaksana_tetapi_status_final_menolak_realisasi(): void
     {
-        $this->kegiatan->forceFill(['status' => 'tidak_terlaksana', 'justifikasi' => 'Hujan'])->save();
+        $this->kegiatan->forceFill(['status' => 'tidak_terlaksana', 'justifikasi' => 'Canary-justifikasi-hujan'])->save();
         $this->realisasi(['tandai_terlaksana' => true])->assertRedirect();
-        $this->assertSame('terlaksana', $this->kegiatan->fresh()->status);
-        // Justifikasi status sebelumnya ikut tercatat pada audit transisi (Q69 §69.2 butir 3).
-        $this->assertSame(['status' => 'tidak_terlaksana', 'justifikasi' => 'Hujan'], AuditLog::where('tindakan', 'kegiatan.ubah_status')->sole()->nilai_lama);
+        // Transisi ke terlaksana mengosongkan justifikasi; nilai lamanya hanya ada di audit (Q69 §69.2 butir 3 dan 5).
+        $baris = DB::table('kegiatan')->where('id', $this->kegiatan->id)->first(['status', 'justifikasi']);
+        $this->assertSame(['terlaksana', null], [$baris->status, $baris->justifikasi]);
+        $audit = AuditLog::where('tindakan', 'kegiatan.ubah_status')->sole();
+        $this->assertEquals(['status' => 'tidak_terlaksana', 'justifikasi' => 'Canary-justifikasi-hujan'], $audit->nilai_lama);
+        $this->assertEquals(['status' => 'terlaksana', 'justifikasi' => null], $audit->nilai_baru);
+
+        // Pembaruan realisasi setelah terlaksana tidak menyentuh justifikasi.
+        $this->realisasi(['realisasi_peserta' => 30])->assertRedirect();
+        $this->assertSame(1, AuditLog::where('tindakan', 'kegiatan.ubah_status')->count());
 
         foreach (['ditunda', 'batal'] as $status) {
             $this->kegiatan->forceFill(['status' => $status])->save();

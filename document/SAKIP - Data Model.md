@@ -1312,7 +1312,7 @@ Aktivitas konkret yang dilaksanakan unit pada suatu periode, sebagai bukti pendu
 | `anggaran` | numeric | nullable hanya untuk data lama, data awal 2026, dan periode lampau 2026; nonnegatif (`>= 0`) | **Rupiah, wajib sejak Q42:** diisi saat kegiatan dibuat atau diubah; `0` sah dan kegiatan beranggaran nol tetap dapat diklaim; `null` hanya pada data sebelum Q42 dan diperlakukan sebagai belum diisi, tidak dihitung sebagai `0` (Q42 §42.2 butir 1–2). Kegiatan data awal 2026 dan kegiatan pada periode lampau juga boleh tanpa anggaran (tercatat belum diisi), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output (Q46 §46.1 butir 3). Status implementasi: input dan validasi (bilangan bulat 0 sampai 15 digit) serta CHECK `kegiatan_anggaran_nonnegatif` diterapkan ISS-06.08; penjumlahan diterapkan ISS-06.08 (§2.26). Semula: kolom tersedia tanpa jalur pengisian sampai fase lanjutan (digantikan Q42) |
 | `status` | enum(`rencana`,`terlaksana`,`tidak_terlaksana`,`ditunda`,`batal`) | not null, default `rencana` | |
 | `realisasi_peserta` | int | nullable | |
-| `justifikasi` | text | nullable | **Wajib** diisi bila `status` bernilai `tidak_terlaksana`, `ditunda`, atau `batal` |
+| `justifikasi` | text | nullable | **Wajib** diisi bila `status` bernilai `tidak_terlaksana`, `ditunda`, atau `batal`; kosong pada status `rencana` dan `terlaksana` |
 | `kegiatan_asal_id` | uuid | FK → kegiatan.id, nullable | Menandai kegiatan lanjutan hasil geser periode |
 | `uraian_pelaksanaan` | text | nullable | |
 | `kendala` | text | nullable | |
