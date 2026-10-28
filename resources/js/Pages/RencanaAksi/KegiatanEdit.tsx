@@ -1,10 +1,10 @@
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Lock } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
-import { Card, CardContent } from '@/Components/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
@@ -13,6 +13,7 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { formatRentangPeriode } from '@/lib/rentangPeriode';
 import { bantuanAnggaran } from '@/lib/rupiah';
 import { BerkasPerencanaanPanel } from '@/Pages/Kegiatan/Partials/BerkasPerencanaanPanel';
+import { RealisasiKegiatanPanel } from '@/Pages/Kegiatan/Partials/RealisasiKegiatanPanel';
 import { KlaimPanel } from '@/Pages/Kegiatan/Partials/KlaimPanel';
 import { StatusKegiatanModal, aksiStatusKegiatan } from '@/Pages/Kegiatan/Partials/StatusKegiatanModal';
 import { statusKegiatanConfig, type KegiatanFormProps, type RencanaKegiatan, type StatusTujuan } from '@/types/kegiatan';
@@ -49,8 +50,17 @@ const nilaiAwal = (kegiatan: RencanaKegiatan) => ({
  * Rencana Aksi, sehingga klaim, berkas, dan status tetap di gerbang server
  * yang sama.
  */
-export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, periodeOptions, opsiPeriodeTujuan, can, klaim, berkasPerencanaan }: KegiatanEditProps) {
+export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, periodeOptions, opsiPeriodeTujuan, can, klaim, berkasPerencanaan, berkasPelaksanaan, pelaksanaan }: KegiatanEditProps) {
     const form = useForm(nilaiAwal(kegiatan));
+    const { isDirty, setData, setDefaults, data: { expected_state } } = form;
+    // Realisasi dapat disimpan pada halaman yang sama: hanya form bersih yang menyerap token dan data baru.
+    useEffect(() => {
+        if (!isDirty && expected_state !== kegiatan.version_token) {
+            const terbaru = nilaiAwal(kegiatan);
+            setDefaults(terbaru);
+            setData(terbaru);
+        }
+    }, [kegiatan, isDirty, expected_state, setData, setDefaults]);
     // preserveState mempertahankan form.data setelah status berubah; data terkunci merender nilai server, bukan draf (Q69 §69.3).
     const terkunci = !can.ubah_rencana;
     const data = terkunci ? nilaiAwal(kegiatan) : form.data;
@@ -75,10 +85,14 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
         submitting.current = true;
         form.transform((data) => ({ ...data, tahun: Number(data.tahun), sasaran_peserta: data.sasaran_peserta === '' ? null : Number(data.sasaran_peserta), anggaran: data.anggaran === '' ? null : data.anggaran }));
         form.post(path, {
-            // 'errors': sukses me-remount komponen dengan props/token baru (draf bersih), gagal validasi
-            // mempertahankan draf dan pesan error sehingga konflik penyimpanan tidak menghapus isian pengguna.
-            preserveState: 'errors',
+            // Dua form berbagi halaman: sukses hanya menyegarkan form ini, bukan membuang draf realisasi.
+            preserveState: true,
             preserveScroll: true,
+            onSuccess: (page) => {
+                const tersimpan = nilaiAwal(page.props.kegiatan as RencanaKegiatan);
+                form.setDefaults(tersimpan);
+                form.setData(tersimpan);
+            },
             onError: () => requestAnimationFrame(() => summary.current?.focus()),
             onHttpException: (response) => {
                 if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path, mutation: true })) {
@@ -147,12 +161,13 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
                     onClose={() => setAksiStatus(null)}
                 />}
                 <Card>
+                    <CardHeader><CardTitle>Catat rencana kegiatan</CardTitle></CardHeader>
                     <CardContent className="p-4 sm:p-6">
                         <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
                         {terkunci
                             ? <p className="mb-5 flex items-center gap-2 text-sm text-muted"><Lock className="h-4 w-4" aria-hidden="true" />Data rencana terkunci karena status sudah berubah.</p>
                             : <p className="mb-6 text-sm text-muted">Catat rencana kegiatan untuk unit dan periode aktif.</p>}
-                        <form onSubmit={submit} className="space-y-5" aria-busy={form.processing}>
+                        <form onSubmit={submit} aria-label="Catat rencana kegiatan" className="space-y-5" aria-busy={form.processing}>
                             {!terkunci && (form.hasErrors || failure) && <div ref={summary} tabIndex={-1} role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger-dark focus:outline-none focus:ring-2 focus:ring-danger/30">
                                 {failure || form.errors.expected_state || 'Periksa kembali isian yang ditandai sebelum menyimpan.'}
                             </div>}
@@ -177,6 +192,8 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
                 </Card>
                 {klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} rencanaAksiKonteks={rencanaAksi.id} />}
                 {berkasPerencanaan && <BerkasPerencanaanPanel kegiatanId={kegiatan.id} berkas={berkasPerencanaan} />}
+                <RealisasiKegiatanPanel key={kegiatan.id} kegiatan={kegiatan} can={can} pelaksanaan={pelaksanaan} halamanUbah={halamanUbah} />
+                {berkasPelaksanaan && <BerkasPerencanaanPanel kegiatanId={kegiatan.id} berkas={berkasPelaksanaan} tahap="pelaksanaan" />}
             </div>
         </AuthenticatedLayout>
     );

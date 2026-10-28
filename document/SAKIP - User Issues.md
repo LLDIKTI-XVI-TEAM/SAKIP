@@ -3080,7 +3080,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
 - [x] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
 - [x] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
-- [ ] **AC-7:** Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
+- [x] **AC-7:** Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
 - [x] **AC-8:** Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
 - [x] **AC-9:** Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
 - [x] **AC-10:** Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
@@ -3097,18 +3097,18 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **C. Authorization & Audit**
 - [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `kegiatan:update` + capability bukti induk.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pelaksanaan Kegiatan & Gerbang Bukti Gabungan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Pelaksanaan Kegiatan & Gerbang Bukti Gabungan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 **E. Tambahan Q74 §74.2**
 - [x] Migrasi kolom biaya terpakai (rupiah, nonnegatif, nullable untuk kegiatan yang belum terlaksana) pada `kegiatan`.
 - [x] Action catat realisasi dengan validasi rentang periode memakai helper rentang dari ISS-03.07.
-- [ ] Form realisasi di halaman kegiatan Rencana Aksi (ISS-06.09).
+- [x] Form realisasi di halaman kegiatan Rencana Aksi (ISS-06.09).
 
 #### Automated Tests / Verification
 
@@ -3118,20 +3118,20 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
 - [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
 - [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
 - [x] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
-**Status implementasi (2026-10-26):** dikerjakan dalam dua PR. PR pertama menerapkan backend aksi pelaksanaan: kolom `biaya_terpakai`, aksi catat realisasi (data bertahap selama `rencana`/`tidak_terlaksana`, pembaruan setelah `terlaksana` tanpa mengubah status), gerbang bukti gabungan tahap `kegiatan`, validasi rentang tanggal periode, tahap `kegiatan` pada Persyaratan Berkas, unggah bukti pelaksanaan pada endpoint berkas kegiatan (hapus/ganti ditolak setelah `terlaksana`), pengecualian gerbang bukti untuk periode lampau 2026 hanya pada jalur Perencanaan (Q46 §46.1 butir 4, Q63 §63.1 butir 2), dan penanda perlu koreksi (AC-4) yang dihitung server dari klaim saat ini sebagai props form kegiatan; tampilannya, isian realisasi pada props kegiatan, dan unduh bukti pelaksanaan menyusul bersama form realisasi di halaman kegiatan Rencana Aksi (AC-7) pada PR kedua setelah ISS-06.09. Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT.
+**Status implementasi (2026-10-28):** bagian pertama (PR #195) menyediakan backend pelaksanaan. Bagian kedua melengkapi form realisasi terpisah di detail kegiatan Rencana Aksi hasil ISS-06.09 (PR #194), props realisasi dan capability server, tampilan kebutuhan koreksi dari klaim terkini, panel bukti pelaksanaan, serta unduhan privat khusus tahap pelaksanaan tanpa mengubah route RAB. Data realisasi disimpan bertahap atau ditandai terlaksana memakai aksi existing; form bersih menyerap token baru, sedangkan draf yang sudah diubah tetap terlindungi pemeriksaan konflik. Bukti setelah terlaksana tetap append-only. Verifikasi lokal: regresi PostgreSQL disposable 166 test/1.709 assertion, focused test props/unduh 4 test/105 assertion, dan frontend 67 test pada 5 file; peringatan backend berasal dari `.env` yang sengaja tidak ada pada container QA. Browser desktop 1280×720 dan mobile 390×844 membuktikan simpan biaya 0, validasi isian/bukti wajib, unggah bukti teks, transisi terlaksana, penguncian rencana/hapus/ganti, serta penanda koreksi sesudah klaim tambahan. Checklist mencerminkan implementasi dan verifikasi teknis, bukan penerimaan UAT atau deployment.
 
 ### ISS-06.04 · [Feature] Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan
 

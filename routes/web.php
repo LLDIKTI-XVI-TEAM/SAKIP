@@ -221,6 +221,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/kegiatan/{kegiatan}/berkas', [BerkasKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.berkas.store');
     Route::delete('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'destroy'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.destroy');
     Route::get('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'download'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.download');
+    Route::get('/kegiatan/{kegiatan}/pelaksanaan/berkas/{berkas}', [BerkasKegiatanController::class, 'downloadPelaksanaan'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.pelaksanaan.berkas.download');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
     Route::post('/pengukuran/ensure-draft', EnsureDraftPengukuran::class)->name('pengukuran.ensure-draft');

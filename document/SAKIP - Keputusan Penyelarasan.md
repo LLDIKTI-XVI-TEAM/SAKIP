@@ -2234,7 +2234,7 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 - PRD §15.1–§15.6; Workflow §8; Data Model §2.25 (`kegiatan`: kolom baru biaya terpakai) dan §2.26 (`klaim_kegiatan`); Plan 12.2 dan 12.11; US/ISS-06.01, US/ISS-06.03 (diperbarui), US/ISS-06.09 (baru).
 - Kode terdampak: `sidebarNavigation.ts` (item `kegiatan`), halaman `Kegiatan/Index.tsx`, `Kegiatan/Form.tsx`, `Kegiatan/Partials/*`, `RencanaAksi/KegiatanPanel.tsx`, `StoreKegiatanRencanaAksi`, dan route `/kegiatan*`.
 - PR #163 (ISS-06.04, Q69) mengubah status kegiatan pada halaman Kegiatan; ISS-06.09 menyesuaikan setelah PR itu merge.
-- Status implementasi: ISS-06.09 implemented (menunggu merge dan QA; AC-7 tanpa test langsung dan TEST-6 browser belum terbukti). §74.2 butir 2–6 diterapkan PR pertama ISS-06.03 (backend aksi pelaksanaan); §74.2 butir 1 (form realisasi di halaman kegiatan Rencana Aksi) belum (PR kedua ISS-06.03).
+- Status implementasi (28 Oktober 2026): ISS-06.09 telah merge melalui PR #194. Backend §74.2 butir 2–6 diterapkan PR pertama ISS-06.03 (PR #195); bagian kedua ISS-06.03 melengkapi §74.2 butir 1, props realisasi, penanda koreksi, dan panel/unduh bukti pelaksanaan pada halaman kegiatan Rencana Aksi. Automated test dan browser smoke desktop/mobile telah diverifikasi; bukan penerimaan UAT atau deployment.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---

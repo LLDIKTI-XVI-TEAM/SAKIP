@@ -14,6 +14,7 @@ import type { BerkasKegiatanItem, BerkasKegiatanMode, BerkasPerencanaanKegiatan,
 interface Props {
     kegiatanId: string;
     berkas: BerkasPerencanaanKegiatan;
+    tahap?: 'perencanaan' | 'pelaksanaan';
 }
 
 const MODE: BerkasKegiatanMode[] = ['file', 'tautan', 'teks'];
@@ -23,8 +24,8 @@ const modeBoleh = (req: PersyaratanPerencanaanKegiatan) => MODE.filter((mode) =>
 /** Galat gerbang tulis (422) yang tidak terikat ke field form. */
 const galatBisnis = (errs: Record<string, string | undefined>) => errs.berkas ?? errs.tahun ?? errs.unit_id ?? errs.jenis_berkas_id ?? errs.menggantikan_id;
 
-/** Berkas tahap perencanaan kegiatan, mis. RAB (Q42 §42.3); diperiksa saat rencana aksi pengklaim diajukan. */
-export function BerkasPerencanaanPanel({ kegiatanId, berkas }: Props) {
+/** Panel bukti dua tahap kegiatan; capability dan pemenuhan selalu berasal dari gerbang server. */
+export function BerkasPerencanaanPanel({ kegiatanId, berkas, tahap = 'perencanaan' }: Props) {
     const { persyaratan, alasan_tolak_unggah, alasan_tolak_ganti, alasan_tolak_hapus } = berkas;
     const [target, setTarget] = useState<{ req: PersyaratanPerencanaanKegiatan; ganti: BerkasKegiatanItem | null } | null>(null);
     const [hapus, setHapus] = useState<BerkasKegiatanItem | null>(null);
@@ -67,10 +68,12 @@ export function BerkasPerencanaanPanel({ kegiatanId, berkas }: Props) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Berkas perencanaan kegiatan</CardTitle>
+                <CardTitle>Berkas {tahap} kegiatan</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <p className="text-sm text-muted">Persyaratan wajib diperiksa saat rencana aksi yang mengklaim kegiatan ini diajukan.</p>
+                <p className="text-sm text-muted">{tahap === 'perencanaan'
+                    ? 'Persyaratan wajib diperiksa saat rencana aksi yang mengklaim kegiatan ini diajukan.'
+                    : 'Bukti wajib gabungan dari persyaratan global dan indikator yang diklaim diperiksa saat kegiatan ditandai terlaksana.'}</p>
                 {alasan_tolak_unggah && <p className="text-sm text-muted">{alasan_tolak_unggah}</p>}
                 <ul className="space-y-4">
                     {persyaratan.map((req) => (
@@ -108,7 +111,7 @@ export function BerkasPerencanaanPanel({ kegiatanId, berkas }: Props) {
                                     {req.berkas.map((item) => (
                                         <BerkasLampiranItem
                                             key={item.id}
-                                            berkas={{ ...item, mime: null, download_url: item.mode === 'file' ? `/kegiatan/${kegiatanId}/berkas/${item.id}` : null }}
+                                            berkas={{ ...item, mime: null, download_url: item.mode === 'file' ? `/kegiatan/${kegiatanId}/${tahap === 'pelaksanaan' ? 'pelaksanaan/' : ''}berkas/${item.id}` : null }}
                                             action={<>
                                                 {!alasan_tolak_ganti && (
                                                     <Button type="button" variant="ghost" size="sm" onClick={() => buka(req, item)}
@@ -185,8 +188,8 @@ export function BerkasPerencanaanPanel({ kegiatanId, berkas }: Props) {
 
             <AuditReasonModal
                 open={hapus !== null}
-                title="Hapus berkas perencanaan"
-                description={`Berkas "${hapus?.nama_asli ?? 'perencanaan kegiatan'}" akan dihapus dari kegiatan ini.`}
+                title={`Hapus berkas ${tahap}`}
+                description={`Berkas "${hapus?.nama_asli ?? `${tahap} kegiatan`}" akan dihapus dari kegiatan ini.`}
                 reason={alasanHapus}
                 error={galatHapus}
                 busy={menghapus}

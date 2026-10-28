@@ -20,8 +20,7 @@ class KegiatanController extends Controller
         $data = $request->validated();
         $action->handle($request->user(), $data, (string) $kegiatan->id);
 
-        // Form pengirim memakai `preserveState: 'errors'`: sukses mereset token form, konflik mempertahankan
-        // draf dan pesan galat, sehingga tidak perlu memuat ulang form dengan token versi baru di sini.
+        // Form pengirim menyegarkan tokennya setelah sukses; draf form lain dan isian konflik tetap dipertahankan.
         return back()->with('success', 'Rencana kegiatan berhasil diperbarui.');
     }
 

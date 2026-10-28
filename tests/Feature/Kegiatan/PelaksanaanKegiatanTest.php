@@ -7,6 +7,7 @@ use App\Models\BuktiDukung;
 use App\Models\JenisBerkas;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
+use App\Models\PengukuranKinerja;
 use App\Models\Permission;
 use App\Models\RencanaAksi;
 use App\Models\User;
@@ -14,6 +15,7 @@ use App\Models\UserPermissionDeny;
 use App\Services\Kegiatan\TotalAnggaranKegiatan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
@@ -271,6 +273,80 @@ class PelaksanaanKegiatanTest extends TestCase
         $this->assertSame('1000000', $total->perRencanaAksi($this->header)['total']);
         $this->assertSame('1000000', $total->perRencanaAksi($this->header)['per_periode'][$this->fixture['periode1']->id]['total']);
         $this->assertSame('1000000', $total->perIku($this->fixture['indikator']->id, 2026)['total']);
+    }
+
+    public function test_halaman_ra_memuat_realisasi_terpisah_dan_capability_dari_server(): void
+    {
+        $this->realisasi(['biaya_terpakai' => 0, 'uraian_pelaksanaan' => 'Sesi pertama'])->assertRedirect();
+        $this->form()->assertInertia(fn ($page) => $page->component('RencanaAksi/KegiatanEdit')
+            ->where('kegiatan.tanggal_realisasi', '2026-03-15')->where('kegiatan.biaya_terpakai', '0')
+            ->where('kegiatan.realisasi_peserta', 25)->where('kegiatan.uraian_pelaksanaan', 'Sesi pertama')
+            ->where('kegiatan.kendala', null)->where('kegiatan.strategi_tindaklanjut', null)
+            ->where('can.catat_realisasi', true)->where('can.tandai_terlaksana', true)
+            ->where('pelaksanaan.rentang', ['mulai' => '2026-01-01', 'selesai' => '2026-03-31']));
+
+        $this->realisasi(['tandai_terlaksana' => true])->assertRedirect();
+        $this->form()->assertInertia(fn ($page) => $page->where('can.catat_realisasi', true)->where('can.tandai_terlaksana', false)
+            ->where('can.ubah_rencana', false));
+        $this->kegiatan->update(['status' => 'ditunda']);
+        $this->form()->assertInertia(fn ($page) => $page->where('can.catat_realisasi', false)->where('can.tandai_terlaksana', false));
+    }
+
+    public function test_panel_pelaksanaan_memakai_klaim_pengukuran_dan_mengunci_hapus_ganti_setelah_terlaksana(): void
+    {
+        $syarat = $this->persyaratan(['nama' => 'Laporan pelaksanaan', 'indikator_id' => $this->fixture['indikator']->id]);
+        $this->persyaratan(['nama' => 'RAB', 'tahap' => 'kegiatan_perencanaan']);
+        $pengukuran = PengukuranKinerja::create(['indikator_id' => $this->fixture['indikator']->id, 'tahun' => 2026,
+            'periode_id' => $this->fixture['periode1']->id, 'jadwal_snapshot_id' => $this->fixture['snapshot']->id,
+            'sumber_nilai' => 'manual', 'created_by' => $this->fixture['pic']->id]);
+        KlaimKegiatan::where('kegiatan_id', $this->kegiatan->id)->update(['sumber_klaim' => 'pengukuran', 'pengukuran_id' => $pengukuran->id]);
+        $this->bukti($syarat)->assertSessionHasNoErrors();
+        $this->header->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
+        $this->form()->assertInertia(fn ($page) => $page->has('berkasPelaksanaan.persyaratan', 1)
+            ->where('berkasPelaksanaan.persyaratan.0.nama', 'Laporan pelaksanaan')->has('berkasPelaksanaan.persyaratan.0.berkas', 1)
+            ->where('berkasPelaksanaan.alasan_tolak_ganti', null));
+        $this->realisasi(['tandai_terlaksana' => true])->assertRedirect();
+        $this->form()->assertInertia(fn ($page) => $page->where('berkasPelaksanaan.alasan_tolak_unggah', null)
+            ->where('berkasPelaksanaan.alasan_tolak_ganti', fn ($alasan) => is_string($alasan))
+            ->where('berkasPelaksanaan.alasan_tolak_hapus', fn ($alasan) => is_string($alasan)));
+    }
+
+    public function test_unduh_pelaksanaan_terisolasi_dari_rab_induk_lain_dan_berkas_tidak_berlaku(): void
+    {
+        Storage::fake('local');
+        $syarat = $this->persyaratan(['nama' => 'Dokumentasi']);
+        Storage::disk('local')->put('pelaksanaan.pdf', 'bukti sintetis');
+        $bukti = BuktiDukung::create(['berkasable_type' => 'kegiatan', 'berkasable_id' => $this->kegiatan->id,
+            'jenis_berkas_id' => $syarat->id, 'mode' => 'file', 'path' => 'pelaksanaan.pdf', 'nama_asli' => 'dokumentasi.pdf',
+            'uploaded_by' => $this->fixture['pic']->id, 'created_at' => now()]);
+        $url = "/kegiatan/{$this->kegiatan->id}/pelaksanaan/berkas/{$bukti->id}";
+        $this->actingAs($this->fixture['pic'])->get($url)->assertDownload('dokumentasi.pdf')->assertHeader('Cache-Control', 'no-store, private');
+        $this->actingAs($this->penggunaDenganPeran('pegawai'))->get($url)->assertForbidden();
+        $this->actingAs($this->fixture['pic']);
+        $this->get("/kegiatan/{$this->kegiatan->id}/berkas/{$bukti->id}")->assertNotFound();
+        $syarat->update(['tahap' => 'kegiatan_perencanaan']);
+        $this->get($url)->assertNotFound();
+        $syarat->update(['tahap' => 'kegiatan']);
+        $bukti->update(['berkasable_id' => $this->header->id]);
+        $this->get($url)->assertNotFound();
+        $bukti->update(['berkasable_id' => $this->kegiatan->id, 'dihapus_pada' => now()]);
+        $this->get($url)->assertNotFound();
+    }
+
+    public function test_deny_baca_berkas_menutup_props_dan_unduh_pelaksanaan(): void
+    {
+        Storage::fake('local');
+        $syarat = $this->persyaratan(['nama' => 'Dokumentasi']);
+        Storage::disk('local')->put('pelaksanaan.pdf', 'bukti sintetis');
+        $bukti = BuktiDukung::create(['berkasable_type' => 'kegiatan', 'berkasable_id' => $this->kegiatan->id,
+            'jenis_berkas_id' => $syarat->id, 'mode' => 'file', 'path' => 'pelaksanaan.pdf', 'nama_asli' => 'dokumentasi.pdf',
+            'uploaded_by' => $this->fixture['pic']->id, 'created_at' => now()]);
+        $this->actingAs($this->penggunaDenganPeran('pimpinan'))->get("/kegiatan/{$this->kegiatan->id}/pelaksanaan/berkas/{$bukti->id}")->assertDownload();
+        UserPermissionDeny::create(['user_id' => $this->fixture['pic']->id,
+            'permission_id' => Permission::where('kode', 'berkas:read')->value('id'), 'unit_id' => $this->fixture['unit']->id,
+            'alasan' => 'Pengujian deny', 'ditetapkan_oleh' => $this->fixture['perencanaan']->id]);
+        $this->form()->assertInertia(fn ($page) => $page->where('berkasPelaksanaan.persyaratan.0.berkas', []));
+        $this->get("/kegiatan/{$this->kegiatan->id}/pelaksanaan/berkas/{$bukti->id}")->assertForbidden();
     }
 
     /** @param array<string, mixed> $data */

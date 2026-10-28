@@ -34,6 +34,12 @@ export interface RencanaKegiatan {
     periode_nama: string;
     /** Nama periode kegiatan lanjutan bila kegiatan ini sudah ditunda. */
     periode_tujuan: string | null;
+    tanggal_realisasi: string | null;
+    biaya_terpakai: string | null;
+    realisasi_peserta: number | null;
+    uraian_pelaksanaan: string | null;
+    kendala: string | null;
+    strategi_tindaklanjut: string | null;
 }
 
 export interface KegiatanFormProps {
@@ -42,11 +48,17 @@ export interface KegiatanFormProps {
     klaim?: KlaimKegiatanPanel | null;
     /** Panel berkas tahap perencanaan kegiatan (Q42 §42.3). */
     berkasPerencanaan?: BerkasPerencanaanKegiatan | null;
+    berkasPelaksanaan?: BerkasPerencanaanKegiatan | null;
+    pelaksanaan: {
+        perlu_koreksi: boolean;
+        persyaratan_kurang: string[];
+        rentang: { mulai: string; selesai: string } | null;
+    };
     unitOptions: KegiatanOption[];
     periodeOptions: PeriodeKegiatanOption[];
     opsiPeriodeTujuan: KegiatanOption[];
     /** `ubah_rencana` false berarti data rencana baca-saja (Q69 §69.3); `ubah_status` kosong berarti tanpa aksi status. */
-    can: { ubah_rencana: boolean; ubah_status: StatusTujuan[] };
+    can: { ubah_rencana: boolean; ubah_status: StatusTujuan[]; catat_realisasi: boolean; tandai_terlaksana: boolean };
 }
 
 export interface KegiatanIndexItem {
