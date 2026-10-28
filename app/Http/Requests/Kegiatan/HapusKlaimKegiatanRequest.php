@@ -53,6 +53,8 @@ class HapusKlaimKegiatanRequest extends FormRequest
         return [
             // Teks rusak ditolak, bukan diganti diam-diam oleh sanitasi audit.
             'alasan' => ['required', 'string', 'min:3', 'max:1000', AuditReason::validate(...)],
+            // Konteks halaman (opsional): id RA yang sedang dibuka saat klaim dihapus.
+            'rencana_aksi_konteks' => ['nullable', 'uuid'],
         ];
     }
 

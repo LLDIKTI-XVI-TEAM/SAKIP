@@ -296,7 +296,8 @@ class PelaksanaanKegiatanTest extends TestCase
 
     private function form(): TestResponse
     {
-        return $this->actingAs($this->fixture['pic'])->get("/kegiatan/{$this->kegiatan->id}/edit")->assertOk();
+        return $this->actingAs($this->fixture['pic'])
+            ->get("/rencana-aksi/{$this->header->id}/kegiatan/{$this->kegiatan->id}")->assertOk();
     }
 
     /** @param array<string, mixed> $atribut */

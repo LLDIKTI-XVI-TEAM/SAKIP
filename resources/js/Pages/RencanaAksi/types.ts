@@ -139,6 +139,8 @@ export interface RencanaAksiShow {
     koreksi: RencanaAksiKoreksi;
     /** Periode terkunci bagi aktor (batas pengisian lewat); kosong bagi Perencanaan. UI hanya-baca + tak dikirim. Opsional agar payload lama tetap terbaca sebagai tidak terkunci. */
     periode_terkunci?: string[];
+    /** Periode yang dapat ditulis aktor (efektif ∩ lingkup koreksi − terkunci). Batas capability tambah kegiatan; kosong = tidak dapat menulis. */
+    periode_dapat_ditulis: string[];
     deviasi_pk: RencanaAksiDeviasiPk;
     pengajuan: RencanaAksiPengajuan;
     /** Versi pengajuan terbaru (nomor terbesar); null bila belum pernah diajukan. */
@@ -256,6 +258,17 @@ export interface RencanaAksiPreview {
     deviasi_pk: RencanaAksiDeviasiPk;
 }
 
+/**
+ * Identitas RA pengklaim pada halaman ubah kegiatan (`KegiatanEdit`).
+ * `kode` opsional: payload server saat ini hanya mengirim `id` dan `tahun`,
+ * jadi breadcrumb memakai fallback tahun bila kode tidak tersedia.
+ */
+export interface RencanaAksiIdentitas {
+    id: string;
+    tahun: number;
+    kode?: string | null;
+}
+
 /** Kegiatan yang diklaim RA (tahap RA atau pengukuran) per periode. */
 export interface KegiatanRencanaAksiItem {
     id: string;
@@ -279,8 +292,29 @@ export interface TotalAnggaran {
     belum_diisi: number;
 }
 
+/**
+ * Kegiatan unit+tahun RA yang belum diklaim rencana aksi mana pun
+ * (`DaftarKegiatanRencanaAksi::kegiatanTanpaKlaim`): kandidat penautan
+ * kegiatan lama, mis. lanjutan hasil tunda. Server tetap penentu kelayakan.
+ */
+export interface KegiatanTanpaKlaim {
+    id: string;
+    nama: string;
+    periode_id: string;
+    status: string;
+    /** Terisi bila kegiatan merupakan lanjutan/turunan kegiatan lain. */
+    kegiatan_asal_id: string | null;
+    periode_nama: string;
+}
+
 export interface RencanaAksiKegiatan {
     daftar: KegiatanRencanaAksiItem[];
     total: TotalAnggaran & { per_periode: Record<string, TotalAnggaran> };
-    can: { tambah: boolean; kelola: boolean };
+    /** Kandidat penautan; absen/kosong menyembunyikan kartu. Opsional agar payload lama tetap terbaca. */
+    kegiatan_tanpa_klaim?: KegiatanTanpaKlaim[];
+    /**
+     * `tautkan` menuntut izin ubah kegiatan sekaligus izin ubah RA tujuan.
+     * Opsional agar payload lama tetap terbaca sebagai tanpa izin.
+     */
+    can: { tambah: boolean; kelola: boolean; tautkan?: boolean };
 }

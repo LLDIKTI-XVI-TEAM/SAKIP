@@ -150,8 +150,9 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         expect(pelaksanaan.type).toBe('group');
         if (pelaksanaan.type === 'group') {
             expect(pelaksanaan.group.label).toBe('Pelaksanaan & Evaluasi');
-            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Kegiatan', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan', 'Rekomendasi Pimpinan', 'Rekapitulasi']);
-            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'kegiatan', 'pengukuran', 'verifikasi', 'rekomendasi', 'laporan_read']);
+            // Kegiatan bukan menu mandiri lagi: permukaannya ada di dalam Rencana Aksi (Q74 §74.1).
+            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan', 'Rekomendasi Pimpinan', 'Rekapitulasi']);
+            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'pengukuran', 'verifikasi', 'rekomendasi', 'laporan_read']);
         }
 
         expect(masterData.type).toBe('group');
@@ -205,7 +206,9 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
             hrefs.add(item.href);
         });
 
-        expect(allItems).toHaveLength(22); // 1 menu langsung + 21 submenu
+        expect(allItems).toHaveLength(21); // 1 menu langsung + 20 submenu
+        // Menu Kegiatan mandiri sudah dilebur ke dalam halaman Rencana Aksi.
+        expect(allItems.some((item) => item.href === '/kegiatan' || item.label === 'Kegiatan')).toBe(false);
     });
 });
 

@@ -8,9 +8,9 @@ import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
-import { bantuanAnggaran, formatRupiah } from '@/lib/rupiah';
+import { bantuanAnggaran, formatRupiah, teksTotalAnggaran } from '@/lib/rupiah';
 import { ARAH_DAMPAK_OPTIONS, statusKegiatanConfig, type ArahDampak } from '@/types/kegiatan';
-import type { RencanaAksiKegiatan, RencanaAksiKomponen, RencanaAksiPeriode, TotalAnggaran } from './types';
+import type { RencanaAksiKegiatan, RencanaAksiKomponen, RencanaAksiPeriode } from './types';
 
 interface KegiatanPanelProps {
     rencanaAksiId: string;
@@ -44,11 +44,6 @@ const KOSONG: FormKegiatan = {
     lokasi: '', tanggal_rencana: '', komponen_id: '', arah_dampak: 'menambah', catatan: '',
 };
 
-/** Total anggaran beserta penanda kegiatan yang anggarannya belum diisi (Q42 §42.2 butir 2). */
-function teksTotal({ total, belum_diisi }: TotalAnggaran): string {
-    return belum_diisi > 0 ? `${formatRupiah(total)} (${belum_diisi} kegiatan belum diisi)` : formatRupiah(total);
-}
-
 /** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
 function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
     return errs.status_alur ?? errs.jendela ?? errs.unit_id ?? errs.indikator_id;
@@ -65,6 +60,10 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
     const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm<FormKegiatan>(KOSONG);
     const fieldErrors = errors as Record<string, string | undefined>;
     const terbukaBagiAktor = periode.filter((item) => !terkunci.includes(item.id));
+    // Satu kegiatan dapat muncul sebagai beberapa baris klaim komponen; anchor `#kegiatan-{id}` hanya dipasang di baris pertama agar tidak duplikat.
+    const barisAnchor = new Set(kegiatan.daftar
+        .filter((row, index, semua) => semua.findIndex((lain) => lain.kegiatan_id === row.kegiatan_id) === index)
+        .map((row) => row.id));
 
     const buka = (periodeId: string): void => {
         clearErrors();
@@ -124,7 +123,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
             <CardHeader>
                 <CardTitle>Kegiatan per Periode</CardTitle>
                 <p className="text-sm text-muted">Kegiatan yang ditambahkan di sini langsung diklaim ke rencana aksi ini. Klaim menjelaskan dukungan kegiatan dan tidak mengubah nilai target atau pengukuran.</p>
-                <p className="text-sm text-ink">Total anggaran rencana aksi: <span className="font-semibold">{teksTotal(kegiatan.total)}</span></p>
+                <p className="text-sm text-ink">Total anggaran rencana aksi: <span className="font-semibold">{teksTotalAnggaran(kegiatan.total)}</span></p>
             </CardHeader>
             <CardContent className="space-y-4">
                 {kotor && (kegiatan.can.tambah || kegiatan.can.kelola) && <p className="text-sm text-muted">Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.</p>}
@@ -142,7 +141,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                     {item.nama ?? 'Periode'}
                                     {kunci && <Badge variant="muted">Terkunci</Badge>}
                                 </h3>
-                                <p className="text-xs text-muted">Total {teksTotal(totalPeriode)}</p>
+                                <p className="text-xs text-muted">Total {teksTotalAnggaran(totalPeriode)}</p>
                                 {kegiatan.can.tambah && !kunci && (
                                     <Button type="button" size="sm" variant="outline" disabled={kotor} onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
                                         <Plus className="h-4 w-4" aria-hidden="true" />
@@ -159,7 +158,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                         const komponenKlaim = komponen.find((item) => item.komponen_id === row.komponen_id);
 
                                         return (
-                                            <li key={row.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                                            <li key={row.id} id={barisAnchor.has(row.id) ? `kegiatan-${row.kegiatan_id}` : undefined} className="flex scroll-mt-4 flex-wrap items-start justify-between gap-2 py-2">
                                                 <div className="min-w-0 space-y-1">
                                                     <p className="break-words text-sm text-ink">{row.nama}</p>
                                                     <p className="text-xs text-muted">Anggaran: {formatRupiah(row.anggaran)}</p>
@@ -175,10 +174,15 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                 </div>
                                                 <span className="flex items-center gap-2">
                                                     <Badge variant={status.variant}>{status.label}</Badge>
-                                                    {/* Klaim pengukuran dikelola lewat siklus pengukuran, bukan halaman Kegiatan. */}
+                                                    {/* Klaim pengukuran dikelola lewat siklus pengukuran, bukan halaman kegiatan Rencana Aksi. */}
                                                     {kegiatan.can.kelola && row.sumber_klaim === 'rencana_aksi' && (
-                                                        <Link href={`/kegiatan/${row.kegiatan_id}/edit`} aria-disabled={kotor} onBefore={() => !kotor} className="rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">
-                                                            Kelola klaim
+                                                        <Link
+                                                            href={`/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}`}
+                                                            aria-disabled={kotor}
+                                                            onBefore={() => !kotor}
+                                                            className={`rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25${kotor ? ' pointer-events-none opacity-50' : ''}`}
+                                                        >
+                                                            Kelola kegiatan
                                                         </Link>
                                                     )}
                                                 </span>

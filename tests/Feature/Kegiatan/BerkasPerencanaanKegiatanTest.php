@@ -64,7 +64,7 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         $audit = AuditLog::where('tindakan', 'berkas.unggah')->where('objek_id', $berkas->id)->sole();
         $this->assertSame($this->kegiatan->id, $audit->nilai_baru['kegiatan_id']);
         $this->assertSame('kegiatan:update', $audit->dasar_izin['permission']);
-        $this->actingAs($this->fixture['pic'])->get("/kegiatan/{$this->kegiatan->id}/edit")->assertOk()->assertInertia(fn ($page) => $page
+        $this->actingAs($this->fixture['pic'])->get($this->formUrl())->assertOk()->assertInertia(fn ($page) => $page
             ->where('berkasPerencanaan.persyaratan.0.id', $this->rab->id)
             ->where('berkasPerencanaan.persyaratan.0.pemenuhan.terpenuhi', true)
             ->where('berkasPerencanaan.persyaratan.0.berkas.0.id', $berkas->id)
@@ -164,7 +164,7 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         // Berkas yang dibekukan versi RA harus tetap berlaku, jadi penggantian ditolak seperti penghapusan (pola Q36).
         $this->ganti($berkas, 'Nilai satuan diperbaiki')->assertSessionHasErrors('berkas');
         $this->assertFalse(BuktiDukung::where('menggantikan_id', $berkas->id)->exists());
-        $this->actingAs($this->fixture['pic'])->get("/kegiatan/{$this->kegiatan->id}/edit")->assertInertia(fn ($page) => $page
+        $this->actingAs($this->fixture['pic'])->get($this->formUrl())->assertInertia(fn ($page) => $page
             ->where('berkasPerencanaan.alasan_tolak_ganti', fn ($alasan) => str_contains((string) $alasan, 'tidak dapat dihapus atau diganti'))
             ->where('berkasPerencanaan.alasan_tolak_unggah', null));
         // Unggahan baru tetap diterima, mis. persyaratan indikator lain atas kegiatan bersama (Q42 §42.4 butir 4).
@@ -269,9 +269,15 @@ class BerkasPerencanaanKegiatanTest extends TestCase
             'permission_id' => Permission::where('kode', 'berkas:read')->value('id'), 'unit_id' => $this->fixture['unit']->id,
             'alasan' => 'Pengujian deny baca berkas', 'ditetapkan_oleh' => $perencanaan->id, 'created_at' => now()]);
         $this->actingAs($perencanaan)->get("/kegiatan/{$this->kegiatan->id}/berkas/{$rab->id}")->assertForbidden();
-        $this->actingAs($perencanaan)->get("/kegiatan/{$this->kegiatan->id}/edit")->assertOk()
+        $this->actingAs($perencanaan)->get($this->formUrl())->assertOk()
             ->assertInertia(fn ($page) => $page->where('berkasPerencanaan.persyaratan.0.berkas', [])
                 ->where('berkasPerencanaan.persyaratan.0.pemenuhan.terpenuhi', true));
+    }
+
+    /** Halaman ubah kegiatan dalam konteks Rencana Aksi pengklaimnya (Q74 §74.1). */
+    private function formUrl(): string
+    {
+        return route('rencana-aksi.kegiatan.edit', ['rencanaAksi' => $this->header->id, 'kegiatan' => $this->kegiatan->id]);
     }
 
     private function unggah(?UploadedFile $file = null, ?JenisBerkas $persyaratan = null)

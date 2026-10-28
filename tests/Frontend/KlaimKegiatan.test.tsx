@@ -69,8 +69,8 @@ it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan kla
     expect(rapat.getByText('Klaim pengukuran')).toBeTruthy();
     expect(rapat.queryByText('Kegiatan bersama')).toBeNull();
     // Klaim pengukuran tidak dapat dikelola di halaman Kegiatan, sehingga tautannya tidak ditawarkan.
-    expect(workshop.getByRole('link', { name: 'Kelola klaim' })).toBeTruthy();
-    expect(rapat.queryByRole('link', { name: 'Kelola klaim' })).toBeNull();
+    expect(workshop.getByRole('link', { name: 'Kelola kegiatan' })).toBeTruthy();
+    expect(rapat.queryByRole('link', { name: 'Kelola kegiatan' })).toBeNull();
     expect(screen.getByText(/Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)/)).toBeTruthy();
     expect(screen.getByText(/^Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
 });
@@ -102,6 +102,19 @@ it('hapus klaim memerlukan alasan sebelum dikirim', async () => {
     expect(options?.data).toEqual({ alasan: 'Klaim keliru' });
 });
 
+it('meneruskan konteks rencana aksi asal saat menghapus klaim', async () => {
+    render(<KlaimPanel kegiatanId="keg-1" klaim={panel} rencanaAksiKonteks="ra-1" />);
+    fireEvent.click(screen.getByRole('button', { name: /Hapus klaim ke IKU-1/ }));
+    const dialog = within(screen.getByRole('dialog'));
+    fireEvent.change(dialog.getByRole('textbox'), { target: { value: 'Klaim keliru' } });
+    await act(async () => { fireEvent.click(dialog.getByRole('button', { name: 'Hapus' })); });
+
+    const [url, options] = vi.mocked(router.delete).mock.calls[0];
+    expect(url).toBe('/kegiatan/keg-1/klaim/k1');
+    // Server memakai konteks ini untuk memilih kembali ke daftar kegiatan RA, bukan halaman ubah yang sudah 404.
+    expect(options?.data).toEqual({ alasan: 'Klaim keliru', rencana_aksi_konteks: 'ra-1' });
+});
+
 it('tanpa rencana aksi yang dapat diklaim tidak menampilkan form dan menjelaskan alasannya', () => {
     render(<KlaimPanel kegiatanId="keg-1" klaim={{ ...panel, opsiRencanaAksi: [], can: { tambah: false }, daftar: [] }} />);
     expect(screen.queryByRole('button', { name: 'Tambah klaim' })).toBeNull();
@@ -115,7 +128,7 @@ it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke pe
             total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
 
     expect(screen.queryByRole('button', { name: /Tambah kegiatan Triwulan I$/ })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/kegiatan/keg-1/edit');
+    expect(screen.getByRole('link', { name: 'Kelola kegiatan' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
 
     fireEvent.click(screen.getByRole('button', { name: /Tambah kegiatan Triwulan II$/ }));
     const dialog = within(screen.getByRole('dialog'));
@@ -143,7 +156,7 @@ it('pembaca RA melihat komponen snapshot, arah dampak, dan catatan tanpa akses k
     expect(row.getByText('P — Pembilang')).toBeTruthy();
     expect(row.getByText('Mengurangi')).toBeTruthy();
     expect(row.getByText('Mengurangi kendala pelaksanaan')).toBeTruthy();
-    expect(row.queryByRole('link', { name: 'Kelola klaim' })).toBeNull();
+    expect(row.queryByRole('link', { name: 'Kelola kegiatan' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Tambah kegiatan/ })).toBeNull();
 });
 
@@ -168,7 +181,7 @@ it('menonaktifkan tambah kegiatan selama form target berubah belum disimpan', ()
     expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
 });
 
-it('menahan kelola klaim saat target kotor dan mengaktifkannya kembali sesudah bersih', () => {
+it('menahan kelola kegiatan saat target kotor dan mengaktifkannya kembali sesudah bersih', () => {
     const props = {
         rencanaAksiId: 'ra-1', periode: [periode('tw1', 'Triwulan I')], komponen: [], terkunci: [],
         kegiatan: { daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana' as const,
@@ -176,12 +189,12 @@ it('menahan kelola klaim saat target kotor dan mengaktifkannya kembali sesudah b
     };
     const { rerender } = render(<KegiatanPanel {...props} kotor />);
 
-    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('link', { name: 'Kelola kegiatan' }).getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('link', { name: 'Kelola klaim' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Kelola kegiatan' }));
 
     rerender(<KegiatanPanel {...props} kotor={false} />);
-    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('aria-disabled')).toBe('false');
+    expect(screen.getByRole('link', { name: 'Kelola kegiatan' }).getAttribute('aria-disabled')).toBe('false');
     expect(screen.queryByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Kelola klaim' }).getAttribute('href')).toBe('/kegiatan/keg-1/edit');
+    expect(screen.getByRole('link', { name: 'Kelola kegiatan' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
 });

@@ -80,6 +80,7 @@ function buatPayload(ubah: Partial<RencanaAksiPayload> = {}): RencanaAksiPayload
         komponen: [],
         periode,
         koreksi: { aktif: false, periode_ids: [] },
+        periode_dapat_ditulis: [P1, P2],
         deviasi_pk: {
             dapat_dinilai: true,
             ada: false,

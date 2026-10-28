@@ -326,20 +326,33 @@ class RencanaAksiKegiatanPengajuanTest extends TestCase
         }
     }
 
+    /**
+     * Endpoint tambah kegiatan global sudah dihapus (Q74 §74.1), sehingga aturan
+     * `AnggaranKegiatan::bolehKosong` diuji lewat ubah — jalur yang tidak melewati
+     * gerbang periode Rencana Aksi: kosong sah untuk periode lampau (Q46 §46.1 butir 3)
+     * dan wajib diisi pada periode berjalan.
+     */
     public function test_kegiatan_periode_lampau_boleh_tanpa_anggaran_sedangkan_periode_berjalan_wajib(): void
     {
         $fixture = $this->buatFixtureManual();
+        // Aktivasi 15 April 2026: Triwulan I (batas 31 Maret) lampau, Triwulan II (batas 30 Juni) berjalan.
         $fixture['jadwal']->update(['activated_at' => '2026-04-15 09:00:00']);
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-06-30']);
-        $this->grant($fixture['pic'], 'kegiatan:create', $fixture['unit']->id, $fixture['perencanaan']);
-        $kirim = fn (Periode $periode) => $this->actingAs($fixture['pic'])->post('/kegiatan', [
-            'unit_id' => $fixture['unit']->id, 'tahun' => 2026, 'periode_id' => $periode->id, 'nama' => 'Kegiatan tanpa anggaran', 'anggaran' => null,
+        $this->grant($fixture['pic'], 'kegiatan:update', $fixture['unit']->id, $fixture['perencanaan']);
+
+        $buat = fn (Periode $periode): Kegiatan => Kegiatan::create(['unit_id' => $fixture['unit']->id, 'tahun' => 2026,
+            'periode_id' => $periode->id, 'nama' => 'Kegiatan tanpa anggaran', 'anggaran' => 0, 'created_by' => $fixture['pic']->id]);
+        $lampau = $buat($fixture['periode1']);
+        $berjalan = $buat($fixture['periode2']);
+        $ubah = fn (Kegiatan $kegiatan): TestResponse => $this->actingAs($fixture['pic'])->post("/kegiatan/{$kegiatan->id}", [
+            ...$kegiatan->rencanaAttributes(), 'anggaran' => null, 'expected_state' => $kegiatan->fresh()->versionToken(),
         ]);
 
-        $kirim($fixture['periode1'])->assertSessionHasNoErrors();
-        $this->assertNull(Kegiatan::sole()->anggaran);
-        $kirim($fixture['periode2'])->assertSessionHasErrors(['anggaran' => AnggaranKegiatan::PESAN_WAJIB]);
-        $this->assertDatabaseCount('kegiatan', 1);
+        $ubah($lampau)->assertSessionHasNoErrors();
+        $this->assertNull($lampau->fresh()->anggaran);
+
+        $ubah($berjalan)->assertSessionHasErrors(['anggaran' => AnggaranKegiatan::PESAN_WAJIB]);
+        $this->assertSame('0', $berjalan->fresh()->anggaran);
     }
 
     public function test_pic_menambah_kegiatan_dari_ra_tanpa_anggaran_ditolak_tanpa_mutasi(): void

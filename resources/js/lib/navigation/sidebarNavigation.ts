@@ -171,13 +171,6 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     canKey: 'rencanaAksi',
                 },
                 {
-                    id: 'kegiatan',
-                    label: 'Kegiatan',
-                    href: '/kegiatan',
-                    icon: CalendarDays,
-                    canKey: 'kegiatan',
-                },
-                {
                     id: 'pengukuran',
                     label: 'Pengukuran Kinerja',
                     href: '/pengukuran',
