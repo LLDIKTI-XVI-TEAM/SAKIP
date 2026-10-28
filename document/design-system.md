@@ -485,6 +485,8 @@ export default function ModalAlasan({
 | Komponen | Path | Gunakan untuk |
 |----------|------|---------------|
 | `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell` | `Components/Table.tsx` | Seluruh tabel daftar; jangan menulis `<table>` dengan kelas header sendiri |
+| `TableEmptyRow`, `TableCellLabel`, `tableCellResponsive` | `Components/Table.tsx` | Tabel dengan pola mobile `block md:table` (setiap baris menjadi kartu): baris kosong selebar tabel (ikon, judul, keterangan dan aksi opsional), label kolom yang hanya tampil di mobile, dan kelas sel tanpa padding mobile |
+| `TableActionLink` | `Components/Table.tsx` | Tautan ikon di kolom aksi tabel; `label` menjadi `aria-label` dan `tooltip` wajib diisi |
 | `Pagination` | `Components/Pagination.tsx` | Paginator Laravel (`links`, `from`, `to`, `total`); label sebelumnya/berikutnya diterjemahkan tanpa `dangerouslySetInnerHTML` |
 | `ActionMenu` | `Components/ActionMenu.tsx` | Dropdown aksi (kolom aksi tabel, tombol "Tambah" bercabang); item dari pemanggil, aksi berbahaya diberi `danger` |
 | `Tooltip` | `Components/Tooltip.tsx` | Tombol ikon; wajib disertai `aria-label` pada tombolnya |
@@ -764,7 +766,7 @@ Jika PJ belum punya grant yang dibutuhkan, tampilkan warning non-blocking dan st
 
 ### UI Peran & Izin
 
-Halaman read-only menampilkan card/table per role dengan permission preset. Tidak ada checkbox editable, tombol Save, Tambah Izin, Cabut Izin, atau Modal Alasan untuk role-permission. Perubahan preset adalah concern rilis kode/seeder.
+Halaman read-only menampilkan tabel daftar peran (nama, jumlah izin tersimpan, status); setelah peran dipilih, halaman menampilkan tabel izin tersimpan peran tersebut dengan pencarian dan paginasi. Tidak ada checkbox editable, tombol Save, Tambah Izin, Cabut Izin, atau Modal Alasan untuk role-permission. Perubahan preset adalah concern rilis kode/seeder.
 
 ### UI Logout
 
