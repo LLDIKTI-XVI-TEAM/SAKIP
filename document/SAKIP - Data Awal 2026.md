@@ -74,7 +74,7 @@ Kode mengikuti PK, Rencana Aksi, dan laporan triwulan (Q50 §50.4): **S1–S4** 
 | Baseline 2026 | — belum ada | Tindak lanjut "Baseline 2026" (realisasi 2025 dari LKj 2025) | Menunggu Perencanaan | PK → editor target PK (Q73) | — |
 | Penanda dinilai tahunan | Hanya **IKU 1.3** | Q47 §47.1 butir 4 | Dikonfirmasi dokumen | Sasaran & Indikator → penanda dinilai tahunan | — |
 
-> **Q72:** penolakan target PK yang menyimpang dari target Renstra dan alasan perubahan target PK (Q72) sudah diterapkan ISS-02.14 (PR #<n>): nilai target PK 2026 yang menyimpang ditolak sampai target Renstra direvisi.
+> **Q72:** penolakan target PK yang menyimpang dari target Renstra dan alasan perubahan target PK (Q72) sudah diterapkan ISS-02.14 (PR #206): nilai target PK 2026 yang menyimpang ditolak sampai target Renstra direvisi.
 
 ### 2.3 Target periode dan Rencana Aksi
 
@@ -228,7 +228,7 @@ Izin yang dipakai: `rekomendasi:tetapkan` (dimiliki preset Perencanaan dan Pimpi
 | Q70 §70.1 tanggal periode | Belum (ISS-03.07) | Tanggal periode tidak dapat diisi | Tunggu ISS-03.07 |
 | Q70 §70.2 hapus jendela reviu | Belum (ISS-03.07) | Form jadwal/revisi jendela PIC masih memakai jendela reviu | Tunggu ISS-03.07 |
 | Q71 revisi target Renstra | Sudah (ISS-02.13) | Renstra 2025–2029 berstatus `aktif`, sehingga target Renstra data awal diisi lewat Mode revisi sebagai revisi ke-1 dengan justifikasi yang merujuk dokumen Renstra (Q71 §71.5 butir 1) | Isi lewat Mode revisi setelah ISS-02.13 merge |
-| Q72 target PK menyimpang ditolak | Sudah (ISS-02.14, PR #<n>) | Target PK 2026 yang menyimpang dari target Renstra 2026 ditolak; perubahan target PK yang sudah tersimpan wajib alasan | Revisi target Renstra lewat Mode revisi lebih dulu bila target PK 2026 menyimpang (Q72 §72.1) |
+| Q72 target PK menyimpang ditolak | Sudah (ISS-02.14, PR #206) | Target PK 2026 yang menyimpang dari target Renstra 2026 ditolak; perubahan target PK yang sudah tersimpan wajib alasan | Revisi target Renstra lewat Mode revisi lebih dulu bila target PK 2026 menyimpang (Q72 §72.1) |
 | Q73 baseline otomatis | Belum (ISS-02.15) | Baseline 2026 diisi manual/menunggu LKj 2025 | Tunggu ISS-02.15 |
 | Q74 kegiatan dari RA + biaya terpakai | Belum (ISS-06.09, ISS-06.03) | Alur kegiatan masih memakai halaman Kegiatan | Tunggu ISS-06.09; ISS-06.03 (form realisasi) |
 | Konfirmasi tertulis Q38–Q52, Q70–Q74 | Menunggu | Nilai resmi belum final | Catat pada tindak lanjut |

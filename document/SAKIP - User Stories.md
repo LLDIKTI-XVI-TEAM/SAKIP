@@ -660,7 +660,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 > **Q72 (23 Oktober 2026):** target PK yang menyimpang dari target Renstra menurut arah indikator ditolak sampai target Renstra direvisi (Q71); alasan perubahan target PK wajib dan menggantikan `alasan_deviasi_renstra`. Story ini menggantikan US-02.11 AC-3, AC-4, dan AC-8.
 
-> **Status implementasi — issue #167:** AC-1–AC-12 memiliki bukti test pada PR #<n>; rincian test dan batas bukti tercatat pada [ISS-02.14](SAKIP%20-%20User%20Issues.md#iss-0214--feature-penolakan-target-pk-yang-menyimpang-dan-alasan-perubahan-target-pk). Centang bukan persetujuan QA/UAT, merge, atau deployment.
+> **Status implementasi — issue #167:** AC-1–AC-12 memiliki bukti test pada PR #206; rincian test dan batas bukti tercatat pada [ISS-02.14](SAKIP%20-%20User%20Issues.md#iss-0214--feature-penolakan-target-pk-yang-menyimpang-dan-alasan-perubahan-target-pk). Centang bukan persetujuan QA/UAT, merge, atau deployment.
 
 | Field | Detail |
 |---|---|
