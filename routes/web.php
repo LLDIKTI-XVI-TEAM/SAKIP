@@ -28,6 +28,7 @@ use App\Http\Controllers\Kegiatan\KegiatanController;
 use App\Http\Controllers\Kegiatan\KegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
 use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
+use App\Http\Controllers\Laporan\EksporRekapIndikatorPeriodeController;
 use App\Http\Controllers\Laporan\RekapIndikatorPeriodeController;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
@@ -187,6 +188,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/akses/peran/{user}/status', UserStatus::class)->whereUuid('user')->name('user-status.update');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
     Route::get('/laporan/rekap', RekapIndikatorPeriodeController::class)->name('laporan.rekap');
+    Route::get('/laporan/rekap/ekspor', EksporRekapIndikatorPeriodeController::class)->name('laporan.rekap.ekspor');
 
     // Regulasi
     Route::get('/regulasi', IndexRegulasi::class)->name('regulasi.index');

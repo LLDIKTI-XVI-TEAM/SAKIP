@@ -39,6 +39,8 @@ export interface BarisRekap {
 }
 
 export interface RekapProps {
+    can: { ekspor: boolean };
+    ada_data_ekspor: boolean;
     filters: { jadwal_id: string; periode_id: string };
     jadwal: { id: string; tahun: number; status: string; renstra: string } | null;
     pilihan_jadwal: { id: string; label: string }[];
