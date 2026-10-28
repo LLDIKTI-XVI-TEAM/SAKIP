@@ -67,26 +67,22 @@ function baris(id: string, kegiatanId: string, ubah: Partial<KegiatanRencanaAksi
     };
 }
 
-it('menampilkan ringkasan kegiatan dan tautan ke halaman kegiatan, tanpa form tambah di halaman rincian', () => {
+it('menampilkan tautan ke halaman kegiatan tanpa kartu ringkasan maupun form tambah di halaman rincian', () => {
     render(
         <RencanaAksiShow
             rencanaAksi={buatPayload()}
             kegiatan={{
-                // Dua baris untuk kegiatan yang sama tidak dihitung ganda.
-                daftar: [baris('k1', 'keg-1'), baris('k2', 'keg-1', { periode_id: P1 }), baris('k3', 'keg-2')],
+                daftar: [baris('k1', 'keg-1'), baris('k3', 'keg-2')],
                 total: { total: '2500000', belum_diisi: 1, per_periode: { [P1]: { total: '2500000', belum_diisi: 1 } } },
                 can: { tambah: true, kelola: true },
             }}
         />,
     );
 
-    const ringkasan = screen.getByText('Kegiatan').closest('div')!.parentElement!.parentElement!;
-    expect(within(ringkasan).getByText('Jumlah kegiatan')).toBeTruthy();
-    // Dua baris klaim untuk kegiatan yang sama dihitung sekali.
-    expect(within(ringkasan).getByText('Jumlah kegiatan').closest('div')!.querySelector('dd')?.textContent).toBe('2');
-    expect(within(ringkasan).getByText('Total anggaran').closest('div')!.querySelector('dd')?.textContent).toMatch(/^Rp\s2\.500\.000 \(1 kegiatan belum diisi\)$/);
-
     expect(screen.getByRole('link', { name: 'Buka halaman kegiatan' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan');
+    // Keputusan PM 28 Oktober 2026: kartu ringkasan (jumlah, total anggaran) dihapus; tombol pindah ke kanan atas.
+    expect(screen.queryByRole('heading', { name: 'Kegiatan' })).toBeNull();
+    expect(screen.queryByText('Jumlah kegiatan')).toBeNull();
 
     // Tambah/ubah/klaim kegiatan hanya di halaman kegiatan RA (Q74 §74.1).
     expect(screen.queryByRole('button', { name: /Tambah kegiatan/ })).toBeNull();
@@ -134,9 +130,8 @@ it('menahan tautan halaman kegiatan selama form target kotor dan menjelaskan ala
     expect(visit.mock.calls.at(-1)?.[1]?.onBefore?.({} as never)).toBe(true);
 });
 
-it('tidak menampilkan kartu kegiatan bila aktor tidak berhak membacanya', () => {
+it('tidak menampilkan tautan halaman kegiatan bila aktor tidak berhak membacanya', () => {
     render(<RencanaAksiShow rencanaAksi={buatPayload()} kegiatan={null} />);
 
-    expect(screen.queryByText('Kegiatan')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Buka halaman kegiatan' })).toBeNull();
 });

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, ClipboardList, Save } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ClipboardList, Info, Save } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
@@ -8,11 +8,11 @@ import { Button } from '@/Components/Button';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { arahLabel, tipePerhitunganLabel } from '@/lib/indikator';
-import { teksTotalAnggaran } from '@/lib/rupiah';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import type { IndikatorArah, IndikatorTipePerhitungan } from '@/types/sasaran-indikator';
 import AjukanPanel from './AjukanPanel';
 import BuktiPanel from './BuktiPanel';
+import JudulLangkah from './JudulLangkah';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
 import type { RencanaAksiBukti, RencanaAksiKegiatan, RencanaAksiShow } from './types';
@@ -22,7 +22,7 @@ interface ShowProps {
     rencanaAksi: RencanaAksiShow;
     /** Null bila aktor tidak berhak melihat bukti; panel disembunyikan. */
     bukti?: RencanaAksiBukti | null;
-    /** Null bila aktor tidak boleh membaca kegiatan unit ini; panel disembunyikan. */
+    /** Null bila aktor tidak boleh membaca kegiatan unit ini; tombol halaman kegiatan disembunyikan. */
     kegiatan?: RencanaAksiKegiatan | null;
 }
 
@@ -243,23 +243,46 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
     );
     const namaPeriode = (periodeId: string): string =>
         rencanaAksi.periode.find((baris) => baris.id === periodeId)?.nama ?? 'Periode';
-    // Jumlah kegiatan unik yang diklaim ke RA ini; beberapa klaim komponen pada
-    // kegiatan yang sama tidak dihitung ganda. Angka tampilan, bukan formula.
-    const jumlahKegiatan = new Set((kegiatan?.daftar ?? []).map((row) => row.kegiatan_id)).size;
+    // Urutan kartu mengikuti alur kerja; nomor langkah hanya untuk penyunting selama RA dapat diajukan.
+    const langkah = ['target', 'uraian', ...(bukti ? ['bukti'] : []), ...(dapatDiajukan ? ['ajukan'] : [])];
+    const nomor = (bagian: string): number | undefined => (dapatDiajukan && canUpdate ? langkah.indexOf(bagian) + 1 : undefined);
+
+    const infoVersi = !dapatDiajukan && rencanaAksi.versi_pengajuan !== null;
+    const infoHanyaBaca = !canUpdate && !terkunciSemua;
+    const infoKoreksi = koreksi.aktif && !terkunciSemua;
+    const infoTerkunci = !koreksi.aktif && terkunci.size > 0 && !terkunciSemua;
+    const kelasInfo = 'flex items-start gap-2.5 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm text-info-dark';
+    const kelasPeringatan = 'flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-dark';
 
     return (
         <AuthenticatedLayout
             title={`Rencana Aksi ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`}
             breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: `${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}` }]}
-            headerActions={
-                <Link href="/rencana-aksi" className="ml-auto inline-flex h-9 shrink-0 translate-y-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Kembali ke daftar
-                </Link>
-            }
         >
             <Head title={`Rencana Aksi ${rencanaAksi.indikator.kode}`} />
             <div className="space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Link href="/rencana-aksi" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20">
+                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                        Kembali ke daftar
+                    </Link>
+                    {/* Kegiatan dikelola di halaman kegiatan RA (Q74 §74.1); `kegiatan` null bila aktor tidak boleh membacanya. */}
+                    {kegiatan && (
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            {kotor && <p className="text-xs text-muted">Simpan atau buang perubahan target sebelum membuka halaman kegiatan.</p>}
+                            <Link
+                                href={`/rencana-aksi/${rencanaAksi.id}/kegiatan`}
+                                aria-disabled={kotor}
+                                onBefore={() => !kotor}
+                                className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25${kotor ? ' pointer-events-none opacity-50' : ''}`}
+                            >
+                                <ClipboardList className="h-4 w-4" aria-hidden="true" />
+                                Buka halaman kegiatan
+                            </Link>
+                        </div>
+                    )}
+                </div>
+
                 <Card>
                     <CardHeader>
                         <div className="min-w-0 flex-1 space-y-1.5">
@@ -275,23 +298,11 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <dl className="grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                        {/* Enam data dalam baris penuh: siapa dan kapan, lalu cara menilai. */}
+                        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm lg:grid-cols-3">
                             <div>
                                 <dt className="text-muted">Unit penanggung jawab</dt>
                                 <dd className="mt-1 font-medium">{rencanaAksi.unit?.nama ?? '—'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-muted">Cara hitung</dt>
-                                <dd className="mt-1 font-medium">
-                                    {tipePerhitunganLabel[rencanaAksi.tipe_perhitungan as IndikatorTipePerhitungan] ?? rencanaAksi.tipe_perhitungan}
-                                </dd>
-                                <dd className="text-xs text-muted">{arahLabel[rencanaAksi.indikator.arah as IndikatorArah] ?? rencanaAksi.indikator.arah}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-muted">Target PK tahunan</dt>
-                                <dd className="mt-1 font-medium">
-                                    {rencanaAksi.target_pk === null ? 'Belum tersedia' : `${formatNilai(rencanaAksi.target_pk, desimal)} ${satuan}`}
-                                </dd>
                             </div>
                             <div>
                                 <dt className="text-muted">Penanggung jawab</dt>
@@ -301,37 +312,64 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                                 <dt className="text-muted">Penutupan jadwal</dt>
                                 <dd className="mt-1 font-medium">{rencanaAksi.jadwal.penutupan ? formatTanggal(rencanaAksi.jadwal.penutupan) : '—'}</dd>
                             </div>
+                            <div>
+                                <dt className="text-muted">Cara hitung</dt>
+                                <dd className="mt-1 font-medium">
+                                    {tipePerhitunganLabel[rencanaAksi.tipe_perhitungan as IndikatorTipePerhitungan] ?? rencanaAksi.tipe_perhitungan}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-muted">Arah</dt>
+                                <dd className="mt-1 font-medium">{arahLabel[rencanaAksi.indikator.arah as IndikatorArah] ?? rencanaAksi.indikator.arah}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-muted">Target PK tahunan</dt>
+                                <dd className="mt-1 font-medium">
+                                    {rencanaAksi.target_pk === null ? 'Belum tersedia' : `${formatNilai(rencanaAksi.target_pk, desimal)} ${satuan}`}
+                                </dd>
+                            </div>
                         </dl>
                     </CardContent>
                 </Card>
 
-                {/* Status beku: isi yang direviu adalah versi pengajuan, bukan draf hidup. */}
-                {!dapatDiajukan && rencanaAksi.versi_pengajuan && (
-                    <div role="status" className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
-                        <p>
-                            Diajukan sebagai versi {rencanaAksi.versi_pengajuan.nomor} oleh {rencanaAksi.versi_pengajuan.diajukan_oleh ?? '—'} pada{' '}
-                            {formatTanggal(rencanaAksi.versi_pengajuan.diajukan_at)}.
-                            {rencanaAksi.status_alur === 'diajukan' ? ' Menunggu verifikasi Tim Perencanaan.' : ''}
-                        </p>
-                    </div>
-                )}
-
-                {!canUpdate && !terkunciSemua && (
-                    <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
-                        Formulir hanya dapat dibaca sesuai status dan izin akses Anda.
-                    </p>
-                )}
-                {koreksi.aktif && !terkunciSemua && (
-                    <p className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark" role="note">
-                        Sesi koreksi aktif: hanya {periodeDapatDisunting.length} dari {periodeEfektif.length} periode dalam lingkup yang dapat
-                        disunting; baris lain dikunci dan tidak dikirim.
-                    </p>
-                )}
-                {!koreksi.aktif && terkunci.size > 0 && !terkunciSemua && (
-                    <p className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark" role="note">
-                        Hanya {periodeDapatDisunting.length} dari {periodeEfektif.length} periode yang dapat
-                        disunting; periode terkunci hanya-baca dan tidak dikirim.
-                    </p>
+                {(infoVersi || infoHanyaBaca || infoKoreksi || infoTerkunci) && (
+                    <section aria-label="Pemberitahuan" className="space-y-2">
+                        {/* Status beku: isi yang direviu adalah versi pengajuan, bukan draf hidup. */}
+                        {infoVersi && rencanaAksi.versi_pengajuan && (
+                            <div role="status" className={kelasInfo}>
+                                <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                <p>
+                                    Diajukan sebagai versi {rencanaAksi.versi_pengajuan.nomor} oleh {rencanaAksi.versi_pengajuan.diajukan_oleh ?? '—'} pada{' '}
+                                    {formatTanggal(rencanaAksi.versi_pengajuan.diajukan_at)}.
+                                    {rencanaAksi.status_alur === 'diajukan' ? ' Menunggu verifikasi Tim Perencanaan.' : ''}
+                                </p>
+                            </div>
+                        )}
+                        {infoHanyaBaca && (
+                            <div className={kelasInfo}>
+                                <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                <p>Formulir hanya dapat dibaca sesuai status dan izin akses Anda.</p>
+                            </div>
+                        )}
+                        {infoKoreksi && (
+                            <div role="note" className={kelasPeringatan}>
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                <p>
+                                    Sesi koreksi aktif: hanya {periodeDapatDisunting.length} dari {periodeEfektif.length} periode dalam lingkup yang dapat
+                                    disunting; baris lain dikunci dan tidak dikirim.
+                                </p>
+                            </div>
+                        )}
+                        {infoTerkunci && (
+                            <div role="note" className={kelasPeringatan}>
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                <p>
+                                    Hanya {periodeDapatDisunting.length} dari {periodeEfektif.length} periode yang dapat
+                                    disunting; periode terkunci hanya-baca dan tidak dikirim.
+                                </p>
+                            </div>
+                        )}
+                    </section>
                 )}
 
                 <form onSubmit={submit} className="space-y-6" aria-busy={processing}>
@@ -352,12 +390,12 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                         </div>
                     )}
                     {requestError !== '' && (
-                        <p role="alert" className="text-sm text-danger">{requestError}</p>
+                        <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger">{requestError}</p>
                     )}
 
-                    <Card>
+                    <Card role="region" aria-labelledby="ra-langkah-target">
                         <CardHeader>
-                            <CardTitle>Target per periode</CardTitle>
+                            <JudulLangkah id="ra-langkah-target" nomor={nomor('target')}>Target per periode</JudulLangkah>
                         </CardHeader>
                         {kosong ? (
                             <CardContent>
@@ -420,9 +458,9 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                         )}
                     </Card>
 
-                    <Card>
+                    <Card role="region" aria-labelledby="ra-langkah-uraian">
                         <CardHeader>
-                            <CardTitle>Uraian dan alasan deviasi</CardTitle>
+                            <JudulLangkah id="ra-langkah-uraian" nomor={nomor('uraian')}>Uraian dan alasan deviasi</JudulLangkah>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {/* Catatan deviasi diletakkan di samping kolom alasannya agar tindakan dan informasinya berdekatan. */}
@@ -485,22 +523,25 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                                 aria-describedby={fieldErrors.alasan_deviasi_pk ? 'rencana-aksi-errors' : undefined}
                             />
                         </CardContent>
+                        {/* Uraian dan alasan disimpan bersama target, jadi tombolnya di kaki kartu isian terakhir. */}
+                        {canUpdate && !kosong && !terkunciSemua && (
+                            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border px-6 py-4">
+                                {terlaluSering && (
+                                    <p role="alert" className="text-sm text-danger">Terlalu sering menyimpan. Coba lagi sebentar.</p>
+                                )}
+                                <Button type="submit" variant="primary" size="sm" isLoading={processing} disabled={processing || requestError !== ''}>
+                                    <Save className="h-4 w-4" aria-hidden="true" />
+                                    Simpan Target
+                                </Button>
+                            </div>
+                        )}
                     </Card>
-
-                    {canUpdate && !kosong && !terkunciSemua && (
-                        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
-                            {terlaluSering && (
-                                <p role="alert" className="text-sm text-danger">Terlalu sering menyimpan. Coba lagi sebentar.</p>
-                            )}
-                            <Button type="submit" variant="primary" size="sm" isLoading={processing} disabled={processing || requestError !== ''}>
-                                <Save className="h-4 w-4" aria-hidden="true" />
-                                Simpan Target
-                            </Button>
-                        </div>
-                    )}
                 </form>
 
-                {/* Di luar form target: pengajuan memakai data tersimpan dan form sendiri. */}
+                {/* Di luar form target agar form modal bukti tidak bersarang. */}
+                {bukti && <BuktiPanel rencanaAksiId={rencanaAksi.id} bukti={bukti} nomor={nomor('bukti')} />}
+
+                {/* Paling akhir karena syaratnya merangkum target, uraian, kegiatan, dan bukti; memakai data tersimpan dan form sendiri. */}
                 {dapatDiajukan && (
                     <AjukanPanel
                         rencanaAksiId={rencanaAksi.id}
@@ -509,53 +550,9 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                         canSubmit={rencanaAksi.can.submit}
                         kotor={kotor}
                         onMuatUlang={muatUlang}
+                        nomor={nomor('ajukan')}
                     />
                 )}
-
-                {/* Ringkasan baca-saja: tambah/ubah/klaim/berkas kegiatan hanya di halaman kegiatan RA (Q74 §74.1). */}
-                {kegiatan && (
-                    <Card>
-                        <CardHeader>
-                            <div className="min-w-0 flex-[1_1_16rem] space-y-1">
-                                <CardTitle>Kegiatan</CardTitle>
-                                <p className="text-sm text-muted">
-                                    Kegiatan dibuat, diubah, dan dikelola beserta klaim, berkas, dan status pelaksanaannya di halaman
-                                    kegiatan rencana aksi ini.
-                                </p>
-                                {kotor && (
-                                    <p className="text-sm text-muted">Simpan atau buang perubahan target sebelum membuka halaman kegiatan.</p>
-                                )}
-                            </div>
-                            <Link
-                                href={`/rencana-aksi/${rencanaAksi.id}/kegiatan`}
-                                aria-disabled={kotor}
-                                onBefore={() => !kotor}
-                                className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25${kotor ? ' pointer-events-none opacity-50' : ''}`}
-                            >
-                                <ClipboardList className="h-4 w-4" aria-hidden="true" />
-                                Buka halaman kegiatan
-                            </Link>
-                        </CardHeader>
-                        <CardContent>
-                            <dl className="grid gap-5 text-sm sm:grid-cols-2">
-                                <div>
-                                    <dt className="text-muted">Jumlah kegiatan</dt>
-                                    <dd className="mt-1 font-medium">{jumlahKegiatan}</dd>
-                                </div>
-                                <div>
-                                    <dt className="text-muted">Total anggaran</dt>
-                                    <dd className="mt-1 font-medium">{teksTotalAnggaran(kegiatan.total)}</dd>
-                                </div>
-                            </dl>
-                            {kegiatan.daftar.length === 0 && (
-                                <p className="mt-4 text-sm text-muted">Belum ada kegiatan yang diklaim ke rencana aksi ini.</p>
-                            )}
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Di luar form target agar form modal bukti tidak bersarang. */}
-                {bukti && <BuktiPanel rencanaAksiId={rencanaAksi.id} bukti={bukti} />}
             </div>
         </AuthenticatedLayout>
     );
