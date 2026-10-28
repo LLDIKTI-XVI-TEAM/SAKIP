@@ -28,6 +28,7 @@ const role = {
     kode: "pegawai",
     nama: "Pegawai",
     aktif: true,
+    jumlah_izin: 7,
 };
 const props: RolePermissionIndexProps = {
     roles: [role],
@@ -414,7 +415,7 @@ it("pilihan role mereset pagination melalui GET dan empty state tetap jelas", as
             filters={{ role: null, q: "" }}
         />,
     );
-    expect(screen.getByText("Pilih peran untuk melihat izin bawaannya.")).not.toBeNull();
+    expect(screen.getByRole("table", { name: "Daftar peran resmi beserta jumlah izin bawaan" })).not.toBeNull();
     await userEvent
         .setup()
         .selectOptions(screen.getByRole("combobox", { name: "Peran" }), role.id);
@@ -423,6 +424,51 @@ it("pilihan role mereset pagination melalui GET dan empty state tetap jelas", as
         { role: role.id, q: "" },
         expect.any(Object),
     );
+});
+
+const nonaktif = { ...role, id: "33333333-3333-4333-8333-333333333333", kode: "admin", nama: "Admin", aktif: false, jumlah_izin: 0 };
+const landing: RolePermissionIndexProps = {
+    ...props,
+    roles: [role, nonaktif],
+    selectedRole: null,
+    permissions: [],
+    pagination: { links: [], from: null, to: null, total: 0 },
+    filters: { role: null, q: "" },
+};
+
+it("tanpa peran terpilih menampilkan tabel daftar peran dengan jumlah izin, status, dan tautan lihat izin", () => {
+    render(<RolePermissionIndex {...landing} />);
+    expect(screen.getByRole("heading", { name: "Daftar peran", level: 2 })).not.toBeNull();
+    const table = screen.getByRole("table", { name: "Daftar peran resmi beserta jumlah izin bawaan" });
+    expect(table.className).toContain("md:table");
+    expect(within(table).getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Peran", "Jumlah izin", "Status", "Aksi"]);
+    const [, pegawai, admin] = within(table).getAllByRole("row");
+    // Label kolom mobile ikut terbaca sebagai teks sel.
+    expect(within(pegawai).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["Pegawai", "Jumlah izin7", "StatusAktif", "Lihat izin"]);
+    expect(within(admin).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["Admin", "Jumlah izin0", "StatusNonaktif", "Lihat izin"]);
+    expect(within(pegawai).getByRole("link", { name: "Lihat izin Pegawai" }).getAttribute("href")).toBe(`/akses/izin-peran?role=${role.id}`);
+    expect(screen.queryByText("Belum ada peran dipilih")).toBeNull();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Halaman izin" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Tambah|Cabut|Simpan/ })).toBeNull();
+});
+
+it("lihat izin memuat peran lewat GET dan mengunci pilihan peran selama memuat", async () => {
+    const visit = vi.spyOn(router, "visit").mockImplementation(() => undefined);
+    render(<RolePermissionIndex {...landing} />);
+    await userEvent.setup().click(screen.getByRole("link", { name: "Lihat izin Pegawai" }));
+    expect(visit).toHaveBeenCalledWith(`/akses/izin-peran?role=${role.id}`, expect.objectContaining({ method: "get" }));
+    const options = visit.mock.calls[0][1];
+    const select = screen.getByRole<HTMLSelectElement>("combobox", { name: "Peran" });
+    act(() => options?.onStart?.({} as PendingVisit));
+    expect(select.disabled).toBe(true);
+    act(() => options?.onFinish?.({} as ActiveVisit));
+    expect(select.disabled).toBe(false);
+});
+
+it("daftar peran kosong tetap memberi keterangan", () => {
+    render(<RolePermissionIndex {...landing} roles={[]} />);
+    expect(screen.getByText("Peran resmi belum tersedia.")).not.toBeNull();
 });
 
 it("hasil kosong dan role nonaktif tetap ditampilkan sebagai metadata", () => {

@@ -1,5 +1,5 @@
 import { Head, router, usePage } from "@inertiajs/react";
-import { KeyRound, SearchX } from "lucide-react";
+import { Eye, KeyRound, SearchX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/Components/Badge";
 import { Button } from "@/Components/Button";
@@ -7,12 +7,22 @@ import { Card, CardHeader } from "@/Components/Card";
 import { Input } from "@/Components/Input";
 import { Pagination } from "@/Components/Pagination";
 import { Select } from "@/Components/Select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/Components/Table";
+import {
+    Table,
+    TableActionLink,
+    TableBody,
+    TableCell,
+    TableCellLabel,
+    TableEmptyRow,
+    TableHead,
+    TableHeader,
+    TableRow,
+    tableCellResponsive,
+} from "@/Components/Table";
 import { AuthenticatedLayout } from "@/Layouts/AuthenticatedLayout";
 import { classifyRecovery } from "@/lib/authRecovery";
 import type { RolePermissionIndexProps } from "@/types/role-permission";
 
-const cellClass = "min-w-0 p-0 md:px-4 md:py-3.5";
 const failureText = {
     network: "Hasil pencarian belum diperbarui. Periksa koneksi, lalu coba lagi.",
     denied: "Akses ke daftar izin ditolak. Periksa akses sebelum mencoba kembali.",
@@ -201,7 +211,7 @@ export default function RolePermissionIndex({
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h2 className="text-base font-semibold tracking-tight text-ink">
-                                    {selectedRole ? `Izin bawaan ${selectedRole.nama}` : "Izin bawaan peran"}
+                                    {selectedRole ? `Izin bawaan ${selectedRole.nama}` : "Daftar peran"}
                                 </h2>
                                 {selectedRole && !selectedRole.aktif && (
                                     <Badge variant="muted">Peran nonaktif</Badge>
@@ -233,28 +243,24 @@ export default function RolePermissionIndex({
                             </TableHeader>
                             <TableBody className="block md:table-row-group">
                                 {permissions.length === 0 && (
-                                    <TableRow className="block md:table-row">
-                                        <TableCell colSpan={3} className="block py-12 text-center md:table-cell">
-                                            <SearchX className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                                            {/* Halaman kosong padahal total > 0 berarti nomor halaman melampaui halaman terakhir, mis. bookmark lama. */}
-                                            <p className="mt-2 text-sm font-semibold text-ink">
-                                                {pagination.total > 0
-                                                    ? "Tidak ada izin di halaman ini."
-                                                    : filters.q ? "Tidak ada izin yang cocok dengan pencarian." : "Peran ini belum memiliki izin bawaan."}
-                                            </p>
-                                            {pagination.total > 0 ? (
-                                                <Button type="button" variant="outline" size="sm" className="mt-4" disabled={stale} onClick={() => navigate({})}>
-                                                    Ke halaman pertama
-                                                </Button>
-                                            ) : filters.q && (
-                                                <p className="mt-1 text-xs text-muted">Coba kata kunci kode atau keterangan lain.</p>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
+                                    // Halaman kosong padahal total > 0 berarti nomor halaman melampaui halaman terakhir, mis. bookmark lama.
+                                    <TableEmptyRow
+                                        colSpan={3}
+                                        icon={SearchX}
+                                        title={pagination.total > 0
+                                            ? "Tidak ada izin di halaman ini."
+                                            : filters.q ? "Tidak ada izin yang cocok dengan pencarian." : "Peran ini belum memiliki izin bawaan."}
+                                        description={pagination.total === 0 && filters.q ? "Coba kata kunci kode atau keterangan lain." : undefined}
+                                        action={pagination.total > 0 && (
+                                            <Button type="button" variant="outline" size="sm" disabled={stale} onClick={() => navigate({})}>
+                                                Ke halaman pertama
+                                            </Button>
+                                        )}
+                                    />
                                 )}
                                 {permissions.map((permission) => (
                                     <TableRow key={permission.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
-                                        <TableCell className={`col-span-2 ${cellClass}`}>
+                                        <TableCell className={`col-span-2 ${tableCellResponsive}`}>
                                             <p className="break-all font-mono text-xs font-semibold text-ink">
                                                 {permission.kode}
                                             </p>
@@ -267,14 +273,14 @@ export default function RolePermissionIndex({
                                                 </div>
                                             )}
                                         </TableCell>
-                                        <TableCell className={cellClass}>
-                                            <span className="mr-2 text-muted md:hidden">Scope</span>
+                                        <TableCell className={tableCellResponsive}>
+                                            <TableCellLabel>Scope</TableCellLabel>
                                             {permission.butuh_scope === "unit"
                                                 ? <Badge variant="info">Unit</Badge>
                                                 : <span className="text-ink">Global</span>}
                                         </TableCell>
-                                        <TableCell className={cellClass}>
-                                            <span className="mr-2 text-muted md:hidden">Status</span>
+                                        <TableCell className={tableCellResponsive}>
+                                            <TableCellLabel>Status</TableCellLabel>
                                             <Badge variant={permission.aktif ? "success" : "muted"}>
                                                 {permission.aktif ? "Aktif" : "Nonaktif"}
                                             </Badge>
@@ -284,11 +290,48 @@ export default function RolePermissionIndex({
                             </TableBody>
                         </Table>
                     ) : (
-                        <div className="px-6 py-14 text-center">
-                            <KeyRound className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
-                            <p className="mt-2 text-sm font-semibold text-ink">Belum ada peran dipilih</p>
-                            <p className="mt-1 text-xs text-muted">Pilih peran untuk melihat izin bawaannya.</p>
-                        </div>
+                        <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                            <caption className="sr-only">Daftar peran resmi beserta jumlah izin bawaan</caption>
+                            <TableHeader className="max-md:sr-only">
+                                <TableRow>
+                                    <TableHead>Peran</TableHead>
+                                    <TableHead>Jumlah izin</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Aksi</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody className="block md:table-row-group">
+                                {roles.length === 0 && <TableEmptyRow colSpan={4} icon={KeyRound} title="Peran resmi belum tersedia." />}
+                                {roles.map((role) => (
+                                    <TableRow key={role.id} className="grid min-w-0 grid-cols-2 gap-3 p-4 md:table-row">
+                                        <TableCell className={`col-span-2 ${tableCellResponsive}`}>
+                                            <p className="break-words text-sm font-semibold text-ink">{role.nama}</p>
+                                        </TableCell>
+                                        <TableCell className={tableCellResponsive}>
+                                            <TableCellLabel>Jumlah izin</TableCellLabel>
+                                            {role.jumlah_izin}
+                                        </TableCell>
+                                        <TableCell className={tableCellResponsive}>
+                                            <TableCellLabel>Status</TableCellLabel>
+                                            <Badge variant={role.aktif ? "success" : "muted"}>
+                                                {role.aktif ? "Aktif" : "Nonaktif"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className={`col-span-2 text-right ${tableCellResponsive}`}>
+                                            {/* Memakai callback yang sama dengan dropdown agar pilihan peran terkunci selama memuat. */}
+                                            <TableActionLink
+                                                href={`/akses/izin-peran?role=${role.id}`}
+                                                label={`Lihat izin ${role.nama}`}
+                                                tooltip="Lihat izin"
+                                                icon={Eye}
+                                                onStart={navigationEvents.onStart}
+                                                onFinish={navigationEvents.onFinish}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     )}
                 </Card>
                 {selectedRole && (

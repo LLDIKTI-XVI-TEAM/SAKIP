@@ -70,6 +70,23 @@ class RolePermissionManagementTest extends TestCase
             ->assertOk()->assertInertia(fn (Assert $page) => $page->has('permissions', 1)->where('permissions.0.kode', 'delegasi:update'));
     }
 
+    public function test_role_list_reports_persisted_permission_count_including_inactive_or_legacy(): void
+    {
+        $count = fn (string $kode) => DB::table('role_permissions')->where('role_id', Role::where('kode', $kode)->value('id'))->count();
+        [$pegawaiBefore, $adminBefore] = [$count('pegawai'), $count('admin')];
+        $pegawai = Role::where('kode', 'pegawai')->sole();
+        $legacy = Permission::create(['kode' => 'legacy:read', 'entitas' => 'legacy', 'aksi' => 'read', 'butuh_scope' => 'global', 'aktif' => false]);
+        $pegawai->permissions()->attach($legacy->id, ['id' => Str::uuid(), 'created_at' => now()]);
+        Role::where('kode', 'admin')->sole()->permissions()->detach(Permission::where('kode', 'audit:read')->value('id'));
+
+        $this->get('/akses/izin-peran')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('roles.0.jumlah_izin', $count('superadmin'))->where('roles.1.jumlah_izin', $adminBefore - 1)
+            ->where('roles.2.jumlah_izin', $count('perencanaan'))->where('roles.3.jumlah_izin', $count('pimpinan'))
+            ->where('roles.4.jumlah_izin', $pegawaiBefore + 1));
+        $this->get('/akses/izin-peran?role='.$pegawai->id)->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('selectedRole.jumlah_izin', $pegawaiBefore + 1)->where('pagination.total', $pegawaiBefore + 1));
+    }
+
     public function test_search_treats_percent_and_underscore_as_literal_text(): void
     {
         $role = Role::where('kode', 'superadmin')->sole();
