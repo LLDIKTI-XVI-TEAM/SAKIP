@@ -7,6 +7,7 @@ import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
+import { teksTotalAnggaran } from '@/lib/rupiah';
 import { ARAH_DAMPAK_OPTIONS, statusKegiatanConfig, type ArahDampak } from '@/types/kegiatan';
 import KegiatanPanel from './KegiatanPanel';
 import type { KegiatanTanpaKlaim, RencanaAksiKegiatan, RencanaAksiKomponen, RencanaAksiShow } from './types';
@@ -262,6 +263,8 @@ export default function KegiatanRencanaAksi({ rencanaAksi, kegiatan }: KegiatanR
     const kandidatTautan = kegiatan === null
         ? []
         : (kegiatan.kegiatan_tanpa_klaim ?? []).filter((item) => dapatDitulis.has(item.periode_id));
+    // Kegiatan unik; beberapa klaim komponen pada kegiatan yang sama tidak dihitung ganda. Angka tampilan, bukan formula.
+    const jumlahKegiatan = new Set((kegiatan?.daftar ?? []).map((row) => row.kegiatan_id)).size;
 
     return (
         <AuthenticatedLayout
@@ -271,15 +274,14 @@ export default function KegiatanRencanaAksi({ rencanaAksi, kegiatan }: KegiatanR
                 { label: `${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`, href: halamanRencanaAksi },
                 { label: 'Kegiatan' },
             ]}
-            headerActions={
-                <Link href={halamanRencanaAksi} className="ml-auto inline-flex h-9 shrink-0 translate-y-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Kembali ke rincian
-                </Link>
-            }
         >
             <Head title={judul} />
             <div className="space-y-5">
+                <Link href={halamanRencanaAksi} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20">
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Kembali ke rincian rencana aksi
+                </Link>
+
                 <Card>
                     <CardHeader>
                         <div className="min-w-0 flex-1 space-y-1.5">
@@ -291,19 +293,27 @@ export default function KegiatanRencanaAksi({ rencanaAksi, kegiatan }: KegiatanR
                         <Badge status={rencanaAksi.status_alur} />
                     </CardHeader>
                     <CardContent>
-                        <dl className="grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm lg:grid-cols-4">
                             <div>
                                 <dt className="text-muted">Unit penanggung jawab</dt>
                                 <dd className="mt-1 font-medium">{rencanaAksi.unit?.nama ?? '—'}</dd>
                             </div>
                             <div>
-                                <dt className="text-muted">Periode efektif</dt>
-                                <dd className="mt-1 font-medium">{periode.length > 0 ? `${periode.length} periode` : 'Belum ada'}</dd>
-                            </div>
-                            <div>
                                 <dt className="text-muted">Penanggung jawab</dt>
                                 <dd className="mt-1 font-medium">{rencanaAksi.penanggung_jawab?.nama ?? '—'}</dd>
                             </div>
+                            {kegiatan && (
+                                <>
+                                    <div>
+                                        <dt className="text-muted">Jumlah kegiatan</dt>
+                                        <dd className="mt-1 font-medium">{jumlahKegiatan}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-muted">Total anggaran</dt>
+                                        <dd className="mt-1 font-medium">{teksTotalAnggaran(kegiatan.total)}</dd>
+                                    </div>
+                                </>
+                            )}
                         </dl>
                     </CardContent>
                 </Card>
