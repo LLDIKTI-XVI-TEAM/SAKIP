@@ -3529,6 +3529,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Dampak Data:** tidak ada migrasi.
 - **Keputusan terkait:** Q74 §74.1, Q41 (kunci per periode), Q42, Q49.
 - **Rule:** halaman kegiatan Rencana Aksi menegakkan kunci per periode Q41 sama seperti panel Kegiatan saat ini.
+- **Dependensi lanjutan:** kegiatan lanjutan hasil "tunda" tidak ditautkan dari kartu penautan karena Q41 §41.4 butir 2 menetapkan klaim tahap pengukuran. Klaim tersebut mengikuti ISS-06.05; sampai alur itu tersedia, lanjutan tanpa klaim belum punya jalur UI.
 - **Di luar cakupan:** form realisasi (perubahan ISS-06.03).
 
 #### Acceptance Criteria (QA/UAT)
@@ -3542,6 +3543,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
 - [ ] **AC-8:** Given dashboard, verifikasi, atau laporan menaut ke kegiatan, Then tautan menuju halaman kegiatan Rencana Aksi.
 - [x] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
+- [x] **AC-10:** Given kegiatan pada unit dan tahun Rencana Aksi yang belum diklaim Rencana Aksi mana pun dan bukan kegiatan lanjutan, When pengguna dengan izin klaim membuka halaman kegiatan Rencana Aksi berstatus draf atau dikembalikan, Then kegiatan dapat ditautkan dengan arah dampak, komponen, dan catatan pilihan pengguna; Rencana Aksi berstatus lain tidak menawarkan penautan. *(U-22; keputusan PM 27 Oktober 2026, review PR #194)*
 
 #### Implementation Tasks
 
@@ -3551,6 +3553,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 **B. Backend / Domain**
 - [x] Route dan Action halaman kegiatan Rencana Aksi (mis. `/rencana-aksi/{id}/kegiatan`, U-26) yang memakai ulang Action kegiatan, klaim, dan berkas yang ada.
 - [x] Hapus route `GET /kegiatan` (index) dan `POST /kegiatan` (buat tanpa Rencana Aksi); alihkan `/kegiatan` dan `/kegiatan/{id}/edit` (AC-5).
+- [x] Kandidat penautan kegiatan tanpa klaim (non-lanjutan) pada unit dan tahun Rencana Aksi, disaring periode yang dapat ditulis sebelum batas 50, dengan capability memakai gerbang klaim (AC-10).
 
 **C. Authorization & Audit**
 - [x] Otorisasi tetap lewat Policy/PermissionResolver yang ada; React hanya membaca `can.*`.
@@ -3568,6 +3571,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] TEST-4: Pest Feature test membuktikan AC-6 — penolakan lintas unit dengan kontrol positif.
 - [ ] TEST-5: Pest Feature test membuktikan AC-7 dan AC-9.
 - [ ] TEST-6: uji browser desktop dan mobile untuk alur Rencana Aksi → Kegiatan.
+- [x] TEST-7: Pest Feature test membuktikan AC-10 — kandidat hanya kegiatan non-lanjutan pada periode dapat ditulis (termasuk regresi 50 kandidat terkunci), `can.tautkan` false pada RA yang tidak dapat diklaim, dan Vitest membuktikan payload penautan memakai arah dampak/komponen/catatan pilihan pengguna.
 
 #### Definition of Done
 

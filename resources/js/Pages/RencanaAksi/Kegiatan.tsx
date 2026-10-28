@@ -5,10 +5,11 @@ import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { Input } from '@/Components/Input';
 import { Select } from '@/Components/Select';
 import { ARAH_DAMPAK_OPTIONS, statusKegiatanConfig, type ArahDampak } from '@/types/kegiatan';
 import KegiatanPanel from './KegiatanPanel';
-import type { KegiatanTanpaKlaim, RencanaAksiKegiatan, RencanaAksiShow } from './types';
+import type { KegiatanTanpaKlaim, RencanaAksiKegiatan, RencanaAksiKomponen, RencanaAksiShow } from './types';
 
 /**
  * Props halaman kegiatan satu Rencana Aksi. Payload `rencanaAksi` sama dengan
@@ -21,35 +22,64 @@ export interface KegiatanRencanaAksiProps {
     kegiatan: RencanaAksiKegiatan | null;
 }
 
-/** Galat klaim (422) yang tidak terikat field arah dampak; `arah_dampak` tampil pada Select barisnya. */
+/**
+ * Galat klaim (422) yang tidak terikat field baris; `arah_dampak`, `komponen_id`,
+ * dan `catatan` tampil pada kontrol barisnya masing-masing.
+ */
 function pesanGalatTautan(errors: Record<string, string | undefined>): string {
-    return errors.rencana_aksi_id ?? errors.komponen_id ?? errors.catatan
-        ?? errors.jendela ?? errors.status_alur ?? errors.unit_id ?? errors.indikator_id
+    return errors.rencana_aksi_id ?? errors.jendela ?? errors.status_alur ?? errors.unit_id ?? errors.indikator_id
         ?? 'Penautan kegiatan gagal. Muat ulang halaman untuk melihat data terbaru.';
 }
 
+/** Field klaim yang galatnya tampil pada kontrol baris penautan, bukan alert kartu. */
+type FieldTautan = 'arah_dampak' | 'komponen_id' | 'catatan';
+type GalatBaris = Partial<Record<FieldTautan, string>>;
+
 interface KegiatanBelumTertautProps {
     rencanaAksiId: string;
+    /** Komponen indikator beku RA tujuan; penautan boleh tanpa komponen. */
+    komponen: RencanaAksiKomponen[];
     /** Sudah disaring ke periode yang dapat ditulis aktor; server tetap penentu. */
     kandidat: KegiatanTanpaKlaim[];
 }
 
 /**
  * Jalur penautan kegiatan lama tanpa klaim lewat endpoint klaim yang sudah ada:
- * tanpa komponen, arah dampak dipilih per kegiatan, catatan penanda. Redirect
- * `back()` memuat ulang props halaman, jadi kandidat yang tertaut hilang dari
- * daftar tanpa state tambahan di klien.
+ * arah dampak wajib per kegiatan, komponen dan catatan opsional mengikuti isian
+ * `KlaimPanel`. Redirect `back()` memuat ulang props halaman, jadi kandidat yang
+ * tertaut hilang dari daftar tanpa state tambahan di klien.
  */
-function KegiatanBelumTertaut({ rencanaAksiId, kandidat }: KegiatanBelumTertautProps) {
+function KegiatanBelumTertaut({ rencanaAksiId, komponen, kandidat }: KegiatanBelumTertautProps) {
     const judulId = useId();
     const [menautkan, setMenautkan] = useState<string | null>(null);
     const [galat, setGalat] = useState('');
-    const [galatArah, setGalatArah] = useState<Record<string, string>>({});
+    const [galatBaris, setGalatBaris] = useState<Record<string, GalatBaris>>({});
     const [arah, setArah] = useState<Record<string, ArahDampak | ''>>({});
+    const [komponenId, setKomponenId] = useState<Record<string, string>>({});
+    const [catatan, setCatatan] = useState<Record<string, string>>({});
     const namaMenautkan = kandidat.find((item) => item.id === menautkan)?.nama ?? '';
+    const opsiKomponen = [
+        { value: '', label: 'Tanpa komponen' },
+        ...komponen.map((item) => ({ value: item.komponen_id, label: `${item.kode} — ${item.label}` })),
+    ];
 
-    const hapusGalatArah = (kegiatanId: string): void => {
-        setGalatArah((sebelum) => {
+    const hapusGalat = (kegiatanId: string, field: FieldTautan): void => {
+        setGalatBaris((sebelum) => {
+            if (sebelum[kegiatanId]?.[field] === undefined) return sebelum;
+            const sisaBaris = { ...sebelum[kegiatanId] };
+            delete sisaBaris[field];
+            const sisa = { ...sebelum };
+            if (Object.keys(sisaBaris).length > 0) {
+                sisa[kegiatanId] = sisaBaris;
+            } else {
+                delete sisa[kegiatanId];
+            }
+            return sisa;
+        });
+    };
+
+    const hapusGalatBaris = (kegiatanId: string): void => {
+        setGalatBaris((sebelum) => {
             if (sebelum[kegiatanId] === undefined) return sebelum;
             const sisa = { ...sebelum };
             delete sisa[kegiatanId];
@@ -60,29 +90,51 @@ function KegiatanBelumTertaut({ rencanaAksiId, kandidat }: KegiatanBelumTertautP
     const pilihArah = (kegiatanId: string, nilai: string): void => {
         setArah((sebelum) => ({ ...sebelum, [kegiatanId]: nilai as ArahDampak | '' }));
         // Galat arah lama merujuk pilihan sebelumnya; pilihan baru belum tentu salah.
-        hapusGalatArah(kegiatanId);
+        hapusGalat(kegiatanId, 'arah_dampak');
     };
 
-    const tautkan = (kegiatanId: string, arahDampak: ArahDampak | ''): void => {
-        if (menautkan !== null || arahDampak === '') return;
+    const pilihKomponen = (kegiatanId: string, nilai: string): void => {
+        setKomponenId((sebelum) => ({ ...sebelum, [kegiatanId]: nilai }));
+        hapusGalat(kegiatanId, 'komponen_id');
+    };
+
+    const ubahCatatan = (kegiatanId: string, nilai: string): void => {
+        setCatatan((sebelum) => ({ ...sebelum, [kegiatanId]: nilai }));
+        hapusGalat(kegiatanId, 'catatan');
+    };
+
+    const tautkan = (kegiatanId: string): void => {
+        const arahDipilih = arah[kegiatanId] ?? '';
+        if (menautkan !== null || arahDipilih === '') return;
         setMenautkan(kegiatanId);
         setGalat('');
-        hapusGalatArah(kegiatanId);
+        hapusGalatBaris(kegiatanId);
+        // Kosong berarti tanpa komponen/catatan: string kosong tidak setara null pada validasi uuid/nullable.
+        const catatanBaris = (catatan[kegiatanId] ?? '').trim();
         router.post(`/kegiatan/${kegiatanId}/klaim`, {
             rencana_aksi_id: rencanaAksiId,
-            arah_dampak: arahDampak,
-            catatan: 'Penautan kegiatan tanpa klaim.',
+            arah_dampak: arahDipilih,
+            komponen_id: komponenId[kegiatanId] || null,
+            catatan: catatanBaris === '' ? null : catatanBaris,
         }, {
             preserveScroll: true,
             onSuccess: () => setGalat(''),
             onError: (errors) => {
                 const daftarGalat = errors as Record<string, string | undefined>;
-                const pesanArah = daftarGalat.arah_dampak;
-                if (pesanArah) {
-                    setGalatArah((sebelum) => ({ ...sebelum, [kegiatanId]: pesanArah }));
+                const galatArahBaru = daftarGalat.arah_dampak;
+                const galatKomponenBaru = daftarGalat.komponen_id;
+                const galatCatatanBaru = daftarGalat.catatan;
+                const galatField: GalatBaris = {
+                    ...(galatArahBaru ? { arah_dampak: galatArahBaru } : {}),
+                    ...(galatKomponenBaru ? { komponen_id: galatKomponenBaru } : {}),
+                    ...(galatCatatanBaru ? { catatan: galatCatatanBaru } : {}),
+                };
+                if (Object.keys(galatField).length > 0) {
+                    setGalatBaris((sebelum) => ({ ...sebelum, [kegiatanId]: { ...(sebelum[kegiatanId] ?? {}), ...galatField } }));
                 }
-                // Galat arah dampak tampil di field barisnya; alert umum hanya untuk galat lain.
-                const adaGalatLain = Object.entries(daftarGalat).some(([kunci, pesan]) => kunci !== 'arah_dampak' && Boolean(pesan));
+                // Galat field tampil di kontrol barisnya; alert umum hanya untuk galat lain.
+                const adaGalatLain = Object.entries(daftarGalat).some(([kunci, pesan]) => Boolean(pesan)
+                    && kunci !== 'arah_dampak' && kunci !== 'komponen_id' && kunci !== 'catatan');
                 setGalat(adaGalatLain ? pesanGalatTautan(daftarGalat) : '');
             },
             onHttpException: (response) => {
@@ -105,7 +157,7 @@ function KegiatanBelumTertaut({ rencanaAksiId, kandidat }: KegiatanBelumTertautP
                 <div className="min-w-0 flex-1 space-y-1.5">
                     <CardTitle id={judulId}>Kegiatan belum tertaut</CardTitle>
                     <p className="text-sm text-muted">
-                        Kegiatan unit dan tahun yang sama yang belum diklaim rencana aksi mana pun. Pilih arah dampak tiap kegiatan, lalu tautkan. Penautan hanya menambah klaim; nilai target dan pengukuran tidak berubah.
+                        Kegiatan unit dan tahun yang sama yang belum diklaim rencana aksi mana pun. Pilih arah dampak tiap kegiatan, lengkapi komponen dan catatan bila perlu, lalu tautkan. Penautan hanya menambah klaim; nilai target dan pengukuran tidak berubah.
                     </p>
                 </div>
             </CardHeader>
@@ -117,6 +169,7 @@ function KegiatanBelumTertaut({ rencanaAksiId, kandidat }: KegiatanBelumTertautP
                         const status = statusKegiatanConfig[item.status] ?? { label: item.status, variant: 'muted' as const };
                         const sedangMenautkan = menautkan === item.id;
                         const arahDipilih = arah[item.id] ?? '';
+                        const galatKolom = galatBaris[item.id] ?? {};
 
                         return (
                             <li key={item.id} aria-busy={sedangMenautkan} className="flex flex-wrap items-start justify-between gap-3 p-3">
@@ -125,7 +178,7 @@ function KegiatanBelumTertaut({ rencanaAksiId, kandidat }: KegiatanBelumTertautP
                                     <p className="text-xs text-muted">{item.periode_nama}</p>
                                     <Badge variant={status.variant} size="sm">{status.label}</Badge>
                                 </div>
-                                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-start">
+                                <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
                                     <div className="w-full shrink-0 sm:w-48">
                                         <Select
                                             id={`tautkan-arah-${item.id}`}
@@ -135,7 +188,32 @@ function KegiatanBelumTertaut({ rencanaAksiId, kandidat }: KegiatanBelumTertautP
                                             value={arahDipilih}
                                             onChange={(e) => pilihArah(item.id, e.target.value)}
                                             options={[{ value: '', label: 'Pilih arah dampak' }, ...ARAH_DAMPAK_OPTIONS]}
-                                            error={galatArah[item.id]}
+                                            error={galatKolom.arah_dampak}
+                                            disabled={sedangMenautkan}
+                                        />
+                                    </div>
+                                    <div className="w-full shrink-0 sm:w-56">
+                                        <Select
+                                            id={`tautkan-komponen-${item.id}`}
+                                            label="Komponen (opsional)"
+                                            aria-label={`Komponen kegiatan ${item.nama}`}
+                                            hoverScroll
+                                            value={komponenId[item.id] ?? ''}
+                                            onChange={(e) => pilihKomponen(item.id, e.target.value)}
+                                            options={opsiKomponen}
+                                            error={galatKolom.komponen_id}
+                                            disabled={sedangMenautkan}
+                                        />
+                                    </div>
+                                    <div className="w-full sm:min-w-[12rem] sm:flex-1">
+                                        <Input
+                                            id={`tautkan-catatan-${item.id}`}
+                                            label="Catatan (opsional)"
+                                            aria-label={`Catatan klaim kegiatan ${item.nama}`}
+                                            maxLength={255}
+                                            value={catatan[item.id] ?? ''}
+                                            onChange={(e) => ubahCatatan(item.id, e.target.value)}
+                                            error={galatKolom.catatan}
                                             disabled={sedangMenautkan}
                                         />
                                     </div>
@@ -148,7 +226,7 @@ function KegiatanBelumTertaut({ rencanaAksiId, kandidat }: KegiatanBelumTertautP
                                         isLoading={sedangMenautkan}
                                         disabled={arahDipilih === '' || menautkan !== null}
                                         aria-label={`Tautkan kegiatan ${item.nama} ke rencana aksi ini`}
-                                        onClick={() => tautkan(item.id, arahDipilih)}
+                                        onClick={() => tautkan(item.id)}
                                     >
                                         {sedangMenautkan ? 'Menautkan…' : 'Tautkan'}
                                     </Button>
@@ -252,7 +330,11 @@ export default function KegiatanRencanaAksi({ rencanaAksi, kegiatan }: KegiatanR
                             kotor={false}
                         />
                         {kegiatan.can.tautkan === true && kandidatTautan.length > 0 && (
-                            <KegiatanBelumTertaut rencanaAksiId={rencanaAksi.id} kandidat={kandidatTautan} />
+                            <KegiatanBelumTertaut
+                                rencanaAksiId={rencanaAksi.id}
+                                komponen={rencanaAksi.komponen}
+                                kandidat={kandidatTautan}
+                            />
                         )}
                     </>
                 )}

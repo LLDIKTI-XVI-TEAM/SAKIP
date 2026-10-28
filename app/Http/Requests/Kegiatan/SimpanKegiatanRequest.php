@@ -64,8 +64,6 @@ class SimpanKegiatanRequest extends FormRequest
             'lokasi' => ['nullable', 'string', 'max:255', 'not_regex:/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u'],
             'tanggal_rencana' => ['nullable', 'date_format:Y-m-d'],
             'anggaran' => ['nullable', 'integer', 'between:0,999999999999999'],
-            // Konteks halaman pengirim: hanya dipakai controller untuk kembali ke form RA dengan token baru; Action mengabaikannya.
-            'rencana_aksi_id' => ['nullable', 'uuid', Rule::exists('rencana_aksi', 'id')],
             'expected_state' => [$this->route('kegiatan') ? 'required' : 'nullable', 'string', 'size:64'],
         ];
     }
@@ -79,7 +77,6 @@ class SimpanKegiatanRequest extends FormRequest
             'anggaran.integer' => 'Anggaran harus berupa rupiah bulat tanpa sen.',
             'anggaran.between' => 'Anggaran harus rupiah nonnegatif paling banyak 15 digit.',
             'sasaran_peserta.between' => 'Sasaran peserta harus berupa jumlah nonnegatif yang dapat disimpan.',
-            'rencana_aksi_id.exists' => 'Rencana aksi tujuan tidak ditemukan.',
             'expected_state.required' => 'Muat ulang kegiatan sebelum menyimpan perubahan.',
             '*.not_regex' => 'Teks mengandung karakter kontrol yang tidak dapat disimpan.',
         ];

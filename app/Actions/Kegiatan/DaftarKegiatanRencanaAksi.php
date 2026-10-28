@@ -39,7 +39,8 @@ class DaftarKegiatanRencanaAksi
      *
      * `$periodeDapatDitulis` berasal dari `IndexRencanaAksi` (efektif ∩ lingkup
      * koreksi − terkunci). Daftar kosong berarti tidak ada periode yang dapat
-     * ditulis, sehingga capability tambah dan tautkan fail-closed.
+     * ditulis, sehingga capability tambah dan tautkan fail-closed serta kandidat
+     * penautan kosong tanpa query.
      *
      * `can.tautkan` memakai gerbang bisnis klaim, bukan resolver permission
      * saja: gerbang yang sama dengan penambahan klaim tahap RA menuntut izin
@@ -70,13 +71,13 @@ class DaftarKegiatanRencanaAksi
                 && $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_UPDATE, $periodeDapatDitulis),
         ];
 
-        return DB::transaction(function () use ($header, $can): array {
+        return DB::transaction(function () use ($header, $can, $periodeDapatDitulis): array {
             // Daftar, penanda, dan total dibaca dari satu snapshot; bila dipanggil di dalam transaksi lain, isolasi milik caller.
             if (DB::transactionLevel() === 1) {
                 DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
             }
 
-            return [...$this->baca($header), 'can' => $can];
+            return [...$this->baca($header, $periodeDapatDitulis), 'can' => $can];
         });
     }
 
@@ -84,9 +85,10 @@ class DaftarKegiatanRencanaAksi
      * Daftar, total, dan kandidat penautan dihitung sekali per halaman di dalam
      * snapshot yang sama, bukan per baris daftar.
      *
+     * @param  list<string>  $periodeDapatDitulis
      * @return array{daftar: list<array<string, mixed>>, total: array<string, mixed>, kegiatan_tanpa_klaim: list<array<string, mixed>>}
      */
-    private function baca(RencanaAksi $header): array
+    private function baca(RencanaAksi $header, array $periodeDapatDitulis): array
     {
         $daftar = KlaimKegiatan::query()
             ->join('kegiatan', 'kegiatan.id', '=', 'klaim_kegiatan.kegiatan_id')
@@ -114,7 +116,7 @@ class DaftarKegiatanRencanaAksi
             ])->values()->all(),
             'total' => $this->anggaran->perRencanaAksi($header),
             // Jalur penautan kegiatan existing yang belum punya klaim apa pun.
-            'kegiatan_tanpa_klaim' => $this->kegiatanTanpaKlaim($header),
+            'kegiatan_tanpa_klaim' => $this->kegiatanTanpaKlaim($header, $periodeDapatDitulis),
         ];
     }
 
@@ -124,19 +126,30 @@ class DaftarKegiatanRencanaAksi
      * pada tahap pengukuran, bukan sebagai klaim tahap RA (Q41 §41.4 butir 2),
      * sehingga tidak boleh ditawarkan sebagai kandidat penautan.
      *
+     * Filter periode yang dapat ditulis dipasang sebelum `limit`: kegiatan pada
+     * periode terkunci tidak boleh menghabiskan kuota 50 baris sehingga kandidat
+     * sah pada periode lain tidak pernah muncul. Tanpa periode yang dapat
+     * ditulis tidak ada kandidat, sehingga query dilewati sama sekali.
+     *
      * Satu query dengan join periode untuk urutan dan nama periode; nama
      * periode ikut diproyeksikan agar tidak ada query per baris. Dibatasi 50
      * baris agar payload halaman tetap wajar.
      *
+     * @param  list<string>  $periodeDapatDitulis
      * @return list<array{id: string, nama: string, periode_id: string, status: string, kegiatan_asal_id: string|null, periode_nama: string}>
      */
-    private function kegiatanTanpaKlaim(RencanaAksi $header): array
+    private function kegiatanTanpaKlaim(RencanaAksi $header, array $periodeDapatDitulis): array
     {
+        if ($periodeDapatDitulis === []) {
+            return [];
+        }
+
         return Kegiatan::query()
             ->join('periode', 'periode.id', '=', 'kegiatan.periode_id')
             ->where('kegiatan.unit_id', (string) $header->unit_id)
             ->where('kegiatan.tahun', (int) $header->tahun)
             ->whereNull('kegiatan.kegiatan_asal_id')
+            ->whereIn('kegiatan.periode_id', $periodeDapatDitulis)
             ->whereNotExists(fn (Builder $q) => $q->selectRaw('1')->from('klaim_kegiatan')
                 ->whereColumn('klaim_kegiatan.kegiatan_id', 'kegiatan.id'))
             ->orderBy('periode.urutan')

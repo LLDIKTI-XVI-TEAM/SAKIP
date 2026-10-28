@@ -94,6 +94,8 @@ function kegiatanTautan(kandidatPenautan: KegiatanTanpaKlaim[], tautkan = true):
 type Kartu = ReturnType<typeof within>;
 
 const arahBaris = (kartu: Kartu, nama: string) => kartu.getByLabelText(`Arah dampak kegiatan ${nama}`) as HTMLSelectElement;
+const komponenBaris = (kartu: Kartu, nama: string) => kartu.getByLabelText(`Komponen kegiatan ${nama}`) as HTMLSelectElement;
+const catatanBaris = (kartu: Kartu, nama: string) => kartu.getByLabelText(`Catatan klaim kegiatan ${nama}`) as HTMLInputElement;
 const tombolTautkan = (kartu: Kartu, nama: string) => kartu.getByRole('button', { name: `Tautkan kegiatan ${nama} ke rencana aksi ini` }) as HTMLButtonElement;
 
 /** Arah dampak wajib dipilih per baris sebelum penautan dapat dikirim. */
@@ -392,10 +394,10 @@ it('mengirim klaim penautan dengan arah dampak pilihan baris dan menahan tombol 
 
     const [url, data, options] = vi.mocked(router.post).mock.calls[0];
     expect(url).toBe('/kegiatan/keg-1/klaim');
-    // Hanya klaim yang dikirim: RA tujuan, catatan penanda, dan arah dampak pilihan baris itu.
-    const payload = data as { rencana_aksi_id?: string; arah_dampak?: string; catatan?: string };
-    expect(Object.keys(payload).sort()).toEqual(['arah_dampak', 'catatan', 'rencana_aksi_id']);
-    expect(payload).toMatchObject({ rencana_aksi_id: RA_ID, arah_dampak: 'mengurangi', catatan: 'Penautan kegiatan tanpa klaim.' });
+    // Hanya klaim yang dikirim: RA tujuan, arah dampak pilihan baris itu, dan field opsional null.
+    const payload = data as { rencana_aksi_id?: string; arah_dampak?: string; komponen_id?: string | null; catatan?: string | null };
+    expect(Object.keys(payload).sort()).toEqual(['arah_dampak', 'catatan', 'komponen_id', 'rencana_aksi_id']);
+    expect(payload).toMatchObject({ rencana_aksi_id: RA_ID, arah_dampak: 'mengurangi', komponen_id: null, catatan: null });
     expect(options).toMatchObject({ preserveScroll: true });
 
     // Selama permintaan berjalan tombol aktif ditahan dan status proses terbaca pembaca layar.
@@ -420,7 +422,56 @@ it('mengirim klaim penautan dengan arah dampak pilihan baris dan menahan tombol 
     fireEvent.click(tombolTautkan(kartu, 'Kandidat Dua'));
     const [urlKedua, dataKedua] = vi.mocked(router.post).mock.calls[1];
     expect(urlKedua).toBe('/kegiatan/keg-2/klaim');
-    expect((dataKedua as { arah_dampak?: string }).arah_dampak).toBe('menambah');
+    // Komponen dan catatan baris pertama tidak bocor: baris ini tetap tanpa komponen/catatan.
+    expect(dataKedua).toMatchObject({ arah_dampak: 'menambah', komponen_id: null, catatan: null });
+});
+
+it('mengirim komponen dan catatan terpangkas, lalu null saat komponen dikembalikan ke "Tanpa komponen"', async () => {
+    render(
+        <KegiatanRencanaAksi
+            rencanaAksi={buatRencanaAksi({
+                komponen: [
+                    { komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 },
+                    { komponen_id: 'komp-2', kode: 'N', label: 'Penyebut', peran: 'penyebut', bobot: '1', urutan: 2 },
+                ],
+            })}
+            kegiatan={kegiatanTautan([kandidatTautan({ id: 'keg-1', periode_id: P1, nama: 'Kandidat Satu' })])}
+        />,
+    );
+
+    const kartu = within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' }));
+
+    // Bawaan baris: tanpa komponen dan catatan kosong, bukan nilai tersembunyi.
+    expect(komponenBaris(kartu, 'Kandidat Satu').value).toBe('');
+    expect(Array.from(komponenBaris(kartu, 'Kandidat Satu').options, (opsi) => opsi.textContent))
+        .toEqual(['Tanpa komponen', 'P — Pembilang', 'N — Penyebut']);
+    expect(catatanBaris(kartu, 'Kandidat Satu').value).toBe('');
+    expect(catatanBaris(kartu, 'Kandidat Satu').maxLength).toBe(255);
+
+    pilihArahBaris(kartu, 'Kandidat Satu', 'menambah');
+    fireEvent.change(komponenBaris(kartu, 'Kandidat Satu'), { target: { value: 'komp-1' } });
+    // Spasi tepi bukan bagian catatan: server menerima teks terpangkas.
+    fireEvent.change(catatanBaris(kartu, 'Kandidat Satu'), { target: { value: '  Catatan rapat koordinasi  ' } });
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Satu'));
+
+    const [url, data, options] = vi.mocked(router.post).mock.calls[0];
+    expect(url).toBe('/kegiatan/keg-1/klaim');
+    expect(Object.keys(data as object).sort()).toEqual(['arah_dampak', 'catatan', 'komponen_id', 'rencana_aksi_id']);
+    expect(data).toMatchObject({
+        rencana_aksi_id: RA_ID, arah_dampak: 'menambah', komponen_id: 'komp-1', catatan: 'Catatan rapat koordinasi',
+    });
+
+    await act(async () => { options?.onFinish?.(undefined as never); });
+
+    // Kembali ke "Tanpa komponen" dan catatan berisi spasi saja: keduanya dikirim null,
+    // bukan string kosong yang akan gagal validasi uuid/nullable.
+    fireEvent.change(komponenBaris(kartu, 'Kandidat Satu'), { target: { value: '' } });
+    fireEvent.change(catatanBaris(kartu, 'Kandidat Satu'), { target: { value: '   ' } });
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Satu'));
+
+    const [, dataKedua] = vi.mocked(router.post).mock.calls[1];
+    expect(dataKedua).toMatchObject({ rencana_aksi_id: RA_ID, arah_dampak: 'menambah', komponen_id: null, catatan: null });
+    expect(router.post).toHaveBeenCalledTimes(2);
 });
 
 it('menampilkan galat arah dampak pada field barisnya tanpa alert umum', async () => {
@@ -457,6 +508,69 @@ it('menampilkan galat arah dampak pada field barisnya tanpa alert umum', async (
     pilihArahBaris(kartu, 'Kandidat Satu', 'mengurangi');
     expect(arahBaris(kartu, 'Kandidat Satu').getAttribute('aria-invalid')).toBeNull();
     expect(kartu.queryByText('Arah dampak tidak sesuai jenjang kegiatan.')).toBeNull();
+});
+
+it('menampilkan galat komponen dan catatan pada kontrol barisnya tanpa menandai baris lain', async () => {
+    render(
+        <KegiatanRencanaAksi
+            rencanaAksi={buatRencanaAksi({
+                komponen: [{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }],
+            })}
+            kegiatan={kegiatanTautan([
+                kandidatTautan({ id: 'keg-1', periode_id: P1, nama: 'Kandidat Satu' }),
+                kandidatTautan({ id: 'keg-2', periode_id: P2, nama: 'Kandidat Dua', periode_nama: 'Triwulan II' }),
+            ])}
+        />,
+    );
+
+    const kartu = within(screen.getByRole('region', { name: 'Kegiatan belum tertaut' }));
+    pilihArahBaris(kartu, 'Kandidat Satu', 'menambah');
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Satu'));
+
+    await act(async () => {
+        vi.mocked(router.post).mock.calls[0][2]?.onError?.({ komponen_id: 'Komponen bukan milik indikator rencana aksi ini.' });
+        vi.mocked(router.post).mock.calls[0][2]?.onFinish?.(undefined as never);
+    });
+
+    const komponenSatu = komponenBaris(kartu, 'Kandidat Satu');
+    const deskripsiKomponen = document.getElementById(komponenSatu.getAttribute('aria-describedby') ?? '');
+    expect(komponenSatu.getAttribute('aria-invalid')).toBe('true');
+    expect(deskripsiKomponen?.getAttribute('role')).toBe('alert');
+    expect(deskripsiKomponen?.textContent).toBe('Komponen bukan milik indikator rencana aksi ini.');
+    // Galat komponen tidak menular ke kontrol lain pada baris yang sama maupun baris lain.
+    expect(arahBaris(kartu, 'Kandidat Satu').getAttribute('aria-invalid')).toBeNull();
+    expect(catatanBaris(kartu, 'Kandidat Satu').getAttribute('aria-invalid')).toBeNull();
+    expect(komponenBaris(kartu, 'Kandidat Dua').getAttribute('aria-invalid')).toBeNull();
+    expect(catatanBaris(kartu, 'Kandidat Dua').getAttribute('aria-invalid')).toBeNull();
+    // Hanya galat field; alert umum kartu tidak menduplikasi pesan.
+    expect(kartu.getAllByRole('alert').map((alert) => alert.textContent)).toEqual(['Komponen bukan milik indikator rencana aksi ini.']);
+
+    // Mengganti komponen membersihkan galat lama yang merujuk pilihan sebelumnya.
+    fireEvent.change(komponenBaris(kartu, 'Kandidat Satu'), { target: { value: 'komp-1' } });
+    expect(komponenBaris(kartu, 'Kandidat Satu').getAttribute('aria-invalid')).toBeNull();
+    expect(kartu.queryByText('Komponen bukan milik indikator rencana aksi ini.')).toBeNull();
+
+    // Submisi berikutnya membawa galat catatan pada Input baris yang sama, bukan Select.
+    fireEvent.click(tombolTautkan(kartu, 'Kandidat Satu'));
+    await act(async () => {
+        vi.mocked(router.post).mock.calls[1][2]?.onError?.({ catatan: 'Catatan klaim tidak boleh melebihi 255 karakter.' });
+        vi.mocked(router.post).mock.calls[1][2]?.onFinish?.(undefined as never);
+    });
+
+    const catatanSatu = catatanBaris(kartu, 'Kandidat Satu');
+    const deskripsiCatatan = document.getElementById(catatanSatu.getAttribute('aria-describedby') ?? '');
+    expect(catatanSatu.getAttribute('aria-invalid')).toBe('true');
+    expect(deskripsiCatatan?.getAttribute('role')).toBe('alert');
+    expect(deskripsiCatatan?.textContent).toBe('Catatan klaim tidak boleh melebihi 255 karakter.');
+    expect(arahBaris(kartu, 'Kandidat Satu').getAttribute('aria-invalid')).toBeNull();
+    expect(komponenBaris(kartu, 'Kandidat Satu').getAttribute('aria-invalid')).toBeNull();
+    expect(catatanBaris(kartu, 'Kandidat Dua').getAttribute('aria-invalid')).toBeNull();
+    expect(kartu.getAllByRole('alert').map((alert) => alert.textContent)).toEqual(['Catatan klaim tidak boleh melebihi 255 karakter.']);
+
+    // Mengetik catatan baru membersihkan galat lama.
+    fireEvent.change(catatanBaris(kartu, 'Kandidat Satu'), { target: { value: 'Catatan baru' } });
+    expect(catatanBaris(kartu, 'Kandidat Satu').getAttribute('aria-invalid')).toBeNull();
+    expect(kartu.queryByRole('alert')).toBeNull();
 });
 
 it('menampilkan galat 422, penolakan 403, dan gangguan koneksi penautan tanpa menelannya', async () => {

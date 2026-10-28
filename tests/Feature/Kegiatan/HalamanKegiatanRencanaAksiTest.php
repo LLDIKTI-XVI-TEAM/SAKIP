@@ -96,6 +96,65 @@ class HalamanKegiatanRencanaAksiTest extends TestCase
             ->where('kegiatan.kegiatan_tanpa_klaim.1.periode_nama', 'Triwulan II'));
     }
 
+    /**
+     * Filter periode dapat ditulis dipasang sebelum `limit(50)` (P2-1): kandidat
+     * pada periode terkunci tidak boleh menghabiskan kuota sehingga kandidat
+     * sah pada periode terbuka tidak pernah muncul.
+     */
+    public function test_kandidat_terkunci_tidak_menghabiskan_kuota_lima_puluh(): void
+    {
+        $pic = $this->pic();
+        // tw1 sudah lewat batas pengisiannya, tw2 masih berjalan: hanya tw2 dapat ditulis PIC.
+        $this->travelTo(now()->setDate(2026, 4, 15)->setTime(9, 0));
+
+        // Bulk insert: 51 kandidat pada periode terkunci dan 1 kandidat pada periode terbuka.
+        $now = now();
+        $terkunci = [];
+        foreach (range(1, 51) as $urutan) {
+            $terkunci[] = [
+                'id' => (string) Str::uuid(),
+                'unit_id' => $this->unit->id,
+                'tahun' => 2026,
+                'periode_id' => $this->tw1->id,
+                'nama' => sprintf('Kegiatan terkunci %02d', $urutan),
+                'tujuan' => null,
+                'sasaran_peserta' => null,
+                'keterangan_peserta' => null,
+                'lokasi' => null,
+                'tanggal_rencana' => null,
+                'anggaran' => 0,
+                'status' => 'rencana',
+                'kegiatan_asal_id' => null,
+                'created_by' => $this->actor->id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        $terbukaId = (string) Str::uuid();
+        Kegiatan::insert([...$terkunci, [...$terkunci[0], 'id' => $terbukaId, 'periode_id' => $this->tw2->id, 'nama' => 'Kandidat periode terbuka']]);
+
+        $this->actingAs($pic)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.periode_dapat_ditulis', [$this->tw2->id])
+            // Tanpa filter sebelum limit, 50 baris periode terkunci mengisi kuota dan kandidat ini hilang.
+            ->where('kegiatan.kegiatan_tanpa_klaim', fn ($daftar) => collect($daftar)->pluck('id')->all() === [$terbukaId])
+            ->where('kegiatan.kegiatan_tanpa_klaim.0.periode_id', $this->tw2->id));
+    }
+
+    /** Tanpa periode dapat ditulis tidak ada kandidat penautan sama sekali (fail-closed). */
+    public function test_kandidat_penautan_kosong_saat_tidak_ada_periode_dapat_ditulis(): void
+    {
+        $pic = $this->pic();
+        // Kedua periode sudah lewat batas pengisian: tidak ada periode yang dapat ditulis PIC.
+        $this->travelTo(now()->setDate(2026, 7, 15)->setTime(9, 0));
+        $this->kegiatan(['nama' => 'Kandidat periode satu']);
+        $this->kegiatan(['nama' => 'Kandidat periode dua', 'periode_id' => $this->tw2->id]);
+
+        $this->actingAs($pic)->get($this->url())->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.periode_dapat_ditulis', [])
+            ->where('kegiatan.kegiatan_tanpa_klaim', [])
+            ->where('kegiatan.can.tautkan', false));
+    }
+
     public function test_capability_tautkan_menuntut_izin_ubah_kegiatan_dan_izin_ubah_ra(): void
     {
         $this->klaim($this->kegiatan());

@@ -23,7 +23,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Support\TargetTahunanFixtures;
@@ -400,89 +399,37 @@ class KegiatanHttpTest extends TestCase
         $this->assertSame('2000000', (string) $lanjutan->fresh()->anggaran);
     }
 
-    public function test_ubah_dengan_rencana_aksi_id_mengalihkan_ke_halaman_ubah_ra(): void
+    /**
+     * `rencana_aksi_id` sudah bukan bagian kontrak simpan (form RA memakai
+     * `preserveState: 'errors'`), sehingga nilainya diabaikan: tidak divalidasi
+     * dan tidak mengalihkan respons ke halaman ubah RA. Semua jalur tetap
+     * `back()` ke halaman pengirim dengan pesan sukses.
+     */
+    public function test_ubah_mengabaikan_field_rencana_aksi_id_dan_tetap_kembali_ke_pengirim(): void
     {
         $rencanaAksi = $this->rencanaAksiUji();
         $kegiatan = $this->kegiatan();
-        $halamanUbah = route('rencana-aksi.kegiatan.edit', [
-            'rencanaAksi' => $rencanaAksi->id, 'kegiatan' => $kegiatan->id,
-        ]);
+        $kembali = $this->halamanKegiatan($rencanaAksi->id);
 
-        $this->actingAs($this->perencanaan)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
-            'nama' => 'Rencana berkonteks RA', 'rencana_aksi_id' => $rencanaAksi->id,
-            'expected_state' => $kegiatan->fresh()->versionToken(),
-        ]))->assertRedirect($halamanUbah)
-            ->assertSessionHas('success', 'Rencana kegiatan berhasil diperbarui.');
-        $this->assertSame('Rencana berkonteks RA', $kegiatan->fresh()->nama);
-
-        // Tanpa `rencana_aksi_id`, form non-RA tetap memakai `back()` seperti sebelumnya.
-        $asal = $this->halamanKegiatan();
-        $this->from($asal)->actingAs($this->perencanaan)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
-            'nama' => 'Rencana tanpa konteks', 'expected_state' => $kegiatan->fresh()->versionToken(),
-        ]))->assertRedirect($asal)->assertSessionHasNoErrors();
-        $this->assertSame('Rencana tanpa konteks', $kegiatan->fresh()->nama);
-    }
-
-    public function test_simpan_dua_kali_memakai_token_baru_dari_halaman_ubah_ra(): void
-    {
-        $rencanaAksi = $this->rencanaAksiUji();
-        $kegiatan = $this->kegiatan();
-        KlaimKegiatan::create([
-            'rencana_aksi_id' => $rencanaAksi->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah',
-            'sumber_klaim' => 'rencana_aksi', 'created_by' => $this->perencanaan->id, 'created_at' => now(),
-        ]);
-        $halamanUbah = route('rencana-aksi.kegiatan.edit', [
-            'rencanaAksi' => $rencanaAksi->id, 'kegiatan' => $kegiatan->id,
-        ]);
-
-        $tokenAwal = $kegiatan->fresh()->versionToken();
-        $this->actingAs($this->perencanaan)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
-            'nama' => 'Rencana langkah pertama', 'rencana_aksi_id' => $rencanaAksi->id,
-            'expected_state' => $tokenAwal,
-        ]))->assertRedirect($halamanUbah)->assertSessionHasNoErrors();
-
-        // Halaman edit hasil redirect membawa token versi baru, bukan token sebelum simpan.
-        $tokenBaru = null;
-        $this->actingAs($this->perencanaan)->get($halamanUbah)->assertOk()->assertInertia(
-            function (Assert $page) use (&$tokenBaru, $kegiatan): void {
-                $page->component('RencanaAksi/KegiatanEdit')
-                    ->where('kegiatan.id', $kegiatan->id)
-                    ->where('kegiatan.version_token', function (string $token) use (&$tokenBaru): bool {
-                        $tokenBaru = $token;
-
-                        return strlen($token) === 64;
-                    });
-            },
-        );
-        $this->assertNotNull($tokenBaru);
-        $this->assertNotSame($tokenAwal, $tokenBaru);
-
-        $this->from($halamanUbah)->actingAs($this->perencanaan)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
-            'nama' => 'Rencana langkah kedua', 'rencana_aksi_id' => $rencanaAksi->id,
-            'expected_state' => $tokenBaru,
-        ]))->assertRedirect($halamanUbah)->assertSessionHasNoErrors();
-        $this->assertSame('Rencana langkah kedua', $kegiatan->fresh()->nama);
-    }
-
-    public function test_rencana_aksi_id_tidak_sah_ditolak_validasi_tanpa_mutasi(): void
-    {
-        $kegiatan = $this->kegiatan();
-        $payload = array_replace($this->payload(), [
-            'nama' => 'Tidak boleh tersimpan', 'expected_state' => $kegiatan->fresh()->versionToken(),
-        ]);
-
-        foreach (['bukan-uuid', (string) Str::uuid()] as $rencanaAksiId) {
-            $this->actingAs($this->perencanaan)
-                ->postJson("/kegiatan/{$kegiatan->id}", [...$payload, 'rencana_aksi_id' => $rencanaAksiId])
-                ->assertUnprocessable()->assertJsonValidationErrors('rencana_aksi_id');
+        // Nilai sah maupun rusak sama-sama di luar kontrak: tidak ada 422 field itu.
+        foreach (['nilai sah' => $rencanaAksi->id, 'nilai rusak' => 'bukan-uuid'] as $label => $rencanaAksiId) {
+            $this->from($kembali)->actingAs($this->perencanaan)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
+                'nama' => "Rencana field lama ({$label})", 'rencana_aksi_id' => $rencanaAksiId,
+                'expected_state' => $kegiatan->fresh()->versionToken(),
+            ]))->assertRedirect($kembali)->assertSessionHasNoErrors()
+                ->assertSessionHas('success', 'Rencana kegiatan berhasil diperbarui.');
         }
+        $this->assertSame('Rencana field lama (nilai rusak)', $kegiatan->fresh()->nama);
 
-        $this->assertSame('Rencana awal', $kegiatan->fresh()->nama);
-        $this->assertDatabaseCount('kegiatan', 1);
-        $this->assertFalse(AuditLog::where('tindakan', 'kegiatan.ubah')->exists());
+        // Tanpa field lama, respons tetap kembali ke halaman pengirim.
+        $this->from($kembali)->actingAs($this->perencanaan)->post("/kegiatan/{$kegiatan->id}", array_replace($this->payload(), [
+            'nama' => 'Rencana tanpa field lama', 'expected_state' => $kegiatan->fresh()->versionToken(),
+        ]))->assertRedirect($kembali)->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Rencana kegiatan berhasil diperbarui.');
+        $this->assertSame('Rencana tanpa field lama', $kegiatan->fresh()->nama);
     }
 
-    /** Rencana Aksi draf pada unit uji hanya untuk membuktikan konteks redirect form kegiatan. */
+    /** Rencana Aksi draf pada unit uji sebagai konteks halaman pengirim dan nilai `rencana_aksi_id` lama. */
     private function rencanaAksiUji(): RencanaAksi
     {
         $indikator = $this->targetIndicator($this->perencanaan);

@@ -1529,6 +1529,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
 - [ ] **AC-8:** Given dashboard, verifikasi, atau laporan menaut ke kegiatan, Then tautan menuju halaman kegiatan Rencana Aksi.
 - [ ] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
+- [ ] **AC-10:** Given kegiatan pada unit dan tahun Rencana Aksi yang belum diklaim Rencana Aksi mana pun dan bukan kegiatan lanjutan, When pengguna dengan izin klaim membuka halaman kegiatan Rencana Aksi berstatus draf atau dikembalikan, Then kegiatan dapat ditautkan dengan arah dampak, komponen, dan catatan pilihan pengguna; Rencana Aksi berstatus lain tidak menawarkan penautan. *(U-22; keputusan PM 27 Oktober 2026)*
 
 **Business Rules / Catatan**
 

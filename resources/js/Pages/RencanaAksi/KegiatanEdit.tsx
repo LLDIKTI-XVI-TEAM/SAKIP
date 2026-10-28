@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Lock } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -50,18 +50,7 @@ const nilaiAwal = (kegiatan: RencanaKegiatan) => ({
  * yang sama.
  */
 export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, periodeOptions, opsiPeriodeTujuan, can, klaim, berkasPerencanaan }: KegiatanEditProps) {
-    // `rencana_aksi_id` tidak ditampilkan; dikirim agar server mengalihkan kembali ke form RA dengan token versi baru.
-    const form = useForm({ ...nilaiAwal(kegiatan), rencana_aksi_id: rencanaAksi.id });
-    const { setData, clearErrors } = form;
-    // Simpan sukses mengarahkan kembali ke halaman ini dengan preserveState, sehingga token form tetap token lama.
-    // Sinkronkan hanya saat token server berubah agar draf pengguna tidak hilang oleh render biasa.
-    const tokenTerakhir = useRef(kegiatan.version_token);
-    useEffect(() => {
-        if (tokenTerakhir.current === kegiatan.version_token) return;
-        tokenTerakhir.current = kegiatan.version_token;
-        setData({ ...nilaiAwal(kegiatan), rencana_aksi_id: rencanaAksi.id });
-        clearErrors();
-    }, [kegiatan, rencanaAksi.id, setData, clearErrors]);
+    const form = useForm(nilaiAwal(kegiatan));
     // preserveState mempertahankan form.data setelah status berubah; data terkunci merender nilai server, bukan draf (Q69 §69.3).
     const terkunci = !can.ubah_rencana;
     const data = terkunci ? nilaiAwal(kegiatan) : form.data;
@@ -86,6 +75,9 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
         submitting.current = true;
         form.transform((data) => ({ ...data, tahun: Number(data.tahun), sasaran_peserta: data.sasaran_peserta === '' ? null : Number(data.sasaran_peserta), anggaran: data.anggaran === '' ? null : data.anggaran }));
         form.post(path, {
+            // 'errors': sukses me-remount komponen dengan props/token baru (draf bersih), gagal validasi
+            // mempertahankan draf dan pesan error sehingga konflik penyimpanan tidak menghapus isian pengguna.
+            preserveState: 'errors',
             preserveScroll: true,
             onError: () => requestAnimationFrame(() => summary.current?.focus()),
             onHttpException: (response) => {

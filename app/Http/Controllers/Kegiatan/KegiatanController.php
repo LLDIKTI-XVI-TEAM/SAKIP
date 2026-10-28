@@ -18,16 +18,8 @@ class KegiatanController extends Controller
         $data = $request->validated();
         $action->handle($request->user(), $data, (string) $kegiatan->id);
 
-        // Form RA mengirim identitas header; muat ulang form dengan token versi baru agar simpan
-        // berikutnya tidak ditolak sebagai data basi. Tanpa header, tetap kembali ke pengirim.
-        $rencanaAksiId = $data['rencana_aksi_id'] ?? null;
-        if (is_string($rencanaAksiId) && $rencanaAksiId !== '') {
-            return redirect()->route('rencana-aksi.kegiatan.edit', [
-                'rencanaAksi' => strtolower($rencanaAksiId), 'kegiatan' => (string) $kegiatan->id,
-            ])->with('success', 'Rencana kegiatan berhasil diperbarui.');
-        }
-
-        // Kembali ke form pengirim agar konteks Rencana Aksi tetap; fallback redirect ke beranda.
+        // Form pengirim memakai `preserveState: 'errors'`: sukses mereset token form, konflik mempertahankan
+        // draf dan pesan galat, sehingga tidak perlu memuat ulang form dengan token versi baru di sini.
         return back()->with('success', 'Rencana kegiatan berhasil diperbarui.');
     }
 
