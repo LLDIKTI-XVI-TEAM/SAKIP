@@ -8,6 +8,7 @@ use App\Models\PenugasanIndikator;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\User;
+use App\Services\Jadwal\SesiKoreksiJadwal;
 use App\Support\PermissionDecision;
 use Carbon\CarbonInterface;
 
@@ -22,10 +23,9 @@ use Carbon\CarbonInterface;
  * `aktif` sampai `penutupan`; periode P terkunci bagi PIC setelah
  * `pengisian_selesai` P terlewati — termasuk periode lampau saat aktivasi
  * (tanggalnya sudah lewat sehingga otomatis terkunci) dan hasil revisi resmi
- * jendela (Q18) karena yang dibaca selalu nilai berlaku. Dalam sesi koreksi
- * sah pascapenutupan, periode wajib berada dalam lingkup koreksi dan kunci
- * tanggal tetap berlaku bagi PIC, sehingga PIC hanya menulis periode yang
- * jendela pengisiannya dibuka kembali secara resmi (Q19, Q41 §41.2 butir 6).
+ * jendela (Q18) karena yang dibaca selalu nilai berlaku. Sesi koreksi
+ * hanya membuka jalur Perencanaan pada waktu dan lingkup sah; pembukaan
+ * PIC memerlukan aksi resmi terpisah, bukan perubahan tanggal saja.
  *
  * Dipisah agar gerbang tulis (`EnsureDraftRencanaAksi`,
  * `SimpanTargetPeriode`, `AjukanRencanaAksi`, `GerbangBuktiRencanaAksi`,
@@ -84,7 +84,7 @@ class JendelaTulisRencanaAksi
     public function penilaian(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null, ?CarbonInterface $pada = null): array
     {
         $pada ??= now();
-        if ($this->tahunDitutup($jadwal, $pada) && ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds, $pada)) {
+        if ($this->tahunDitutup($jadwal, $pada) && (! $this->jalurPerencanaan($keputusan) || ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds, $pada))) {
             return ['jenis' => 'penutupan', 'pesan' => "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.", 'terkunci' => []];
         }
 
@@ -110,7 +110,7 @@ class JendelaTulisRencanaAksi
 
     /**
      * Tahun terkunci menurut aturan bersama jadwal: status `ditutup` atau
-     * tanggal `penutupan` terlewati pada tanggal bisnis `$pada` (default sekarang).
+     * tanggal `penutupan` terlewati, atau metadata sesi koreksi sudah ada.
      */
     public function tahunDitutup(JadwalTahunan $jadwal, ?CarbonInterface $pada = null): bool
     {
@@ -123,16 +123,7 @@ class JendelaTulisRencanaAksi
      */
     public function sesiKoreksiAktif(IndikatorKinerja $indikator, JadwalTahunan $jadwal, ?CarbonInterface $pada = null): bool
     {
-        if (! $jadwal->koreksi_mulai instanceof CarbonInterface || ! $jadwal->koreksi_sampai instanceof CarbonInterface) {
-            return false;
-        }
-        if (! ($pada ?? now())->betweenIncluded($jadwal->koreksi_mulai, $jadwal->koreksi_sampai)) {
-            return false;
-        }
-        $lingkup = $jadwal->lingkup_koreksi ?? [];
-
-        return in_array('rencana_aksi', $lingkup['jenis_objek'] ?? [], true)
-            && in_array($indikator->id, $lingkup['indikator_ids'] ?? [], true);
+        return SesiKoreksiJadwal::berlaku($jadwal, 'rencana_aksi', (string) $indikator->id, pada: $pada);
     }
 
     /**
@@ -222,8 +213,7 @@ class JendelaTulisRencanaAksi
      */
     private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $periodeIds, CarbonInterface $pada): bool
     {
-        return $this->sesiKoreksiAktif($indikator, $jadwal, $pada)
-            && array_diff($periodeIds, $this->periodeLingkupKoreksi($jadwal)) === [];
+        return SesiKoreksiJadwal::berlaku($jadwal, 'rencana_aksi', (string) $indikator->id, $periodeIds, $pada);
     }
 
     private function tanggalBisnis(CarbonInterface $pada): string

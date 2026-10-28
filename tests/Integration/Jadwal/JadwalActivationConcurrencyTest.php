@@ -4,7 +4,9 @@ namespace Tests\Integration\Jadwal;
 
 use App\Actions\Access\CreateDeny;
 use App\Actions\Jadwal\ActivateJadwal;
+use App\Actions\Jadwal\BukaKembaliJadwal;
 use App\Actions\Jadwal\SaveJadwalDraft;
+use App\Actions\Jadwal\TutupJadwal;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
 use App\Actions\Perencanaan\PindahUnitIndikator;
@@ -290,6 +292,28 @@ class JadwalActivationConcurrencyTest extends TestCase
     {
         return ['operation' => 'activate', 'actor_id' => ($actor ?? $this->activator())->id, 'id' => $this->ready['jadwal']->id,
             'data' => $this->activationPayload($expectedRevisi ? ['expected_revisi' => $expectedRevisi] : [])];
+    }
+
+    public function test_dua_pembukaan_sesi_hanya_mencatat_satu_transisi_dan_menolak_penulis_basi(): void
+    {
+        $this->readyJadwal();
+        $jadwal = app(ActivateJadwal::class)->handle($this->activator(), $this->ready['jadwal']->id, $this->activationPayload());
+        $jadwal = JadwalTahunan::findOrFail($this->ready['jadwal']->id);
+        app(TutupJadwal::class)->handle($this->activator(['jadwal:tutup']), $jadwal->id, ['expected_revisi' => $jadwal->revisi, 'alasan' => 'Penutupan fixture']);
+        $actors = [$this->activator(['jadwal:buka_kembali']), $this->activator(['jadwal:buka_kembali'])];
+        $data = ['expected_revisi' => $jadwal->fresh()->revisi, 'alasan' => 'Koreksi resmi',
+            'koreksi_mulai' => '2026-10-07T08:00', 'koreksi_sampai' => '2026-10-08T17:00',
+            'lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [JadwalSnapshot::sole()->indikator_id], 'periode_ids' => [$this->ready['periode']->id]]];
+        $before = $this->snapshotFingerprint();
+        DB::beginTransaction();
+        app(BukaKembaliJadwal::class)->handle($actors[0], $jadwal->id, $data);
+        $result = $this->raceAgainstOpenTransaction(['operation' => 'reopen_jadwal', 'actor_id' => $actors[1]->id, 'id' => $jadwal->id, 'data' => $data]);
+        $this->assertSame(['outcome' => 'validation', 'fields' => ['jadwal']], $result);
+        $this->assertSame('aktif', $jadwal->fresh()->status);
+        $this->assertSame($data['expected_revisi'] + 1, $jadwal->fresh()->revisi);
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.buka_kembali')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.buka_kembali_ditolak')->count());
+        $this->assertSame($before, $this->snapshotFingerprint());
     }
 
     private function newIndicatorPayload(): array

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Jadwal;
 
 use App\Actions\Jadwal\ActivateJadwal;
+use App\Actions\Jadwal\BukaKembaliJadwal;
 use App\Actions\Jadwal\ListJadwal;
 use App\Actions\Jadwal\ReadJadwalActivation;
 use App\Actions\Jadwal\RevisiJendelaPic;
@@ -11,6 +12,7 @@ use App\Actions\Jadwal\ShowJadwalEditor;
 use App\Actions\Jadwal\TutupJadwal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Jadwal\ActivateJadwalRequest;
+use App\Http\Requests\Jadwal\BukaKembaliJadwalRequest;
 use App\Http\Requests\Jadwal\RevisiJendelaPicRequest;
 use App\Http\Requests\Jadwal\StoreJadwalRequest;
 use App\Http\Requests\Jadwal\TutupJadwalRequest;
@@ -64,6 +66,14 @@ class JadwalController extends Controller
     {
         $action->handle($request->user(), $jadwal, $request->validated());
         Inertia::flash('success', 'Jendela PIC berhasil direvisi.');
+
+        return redirect()->route('jadwal.show', $jadwal);
+    }
+
+    public function reopen(BukaKembaliJadwalRequest $request, string $jadwal, BukaKembaliJadwal $action): RedirectResponse
+    {
+        $action->handle($request->user(), $jadwal, $request->validated());
+        Inertia::flash('success', 'Jadwal dibuka kembali untuk sesi koreksi.');
 
         return redirect()->route('jadwal.show', $jadwal);
     }

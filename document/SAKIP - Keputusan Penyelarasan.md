@@ -2348,3 +2348,14 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 3. Pengajuan pengukuran selama RA dibuka kembali tetap ditahan sampai versi baru disahkan (PRD §14.9); banner tidak lagi menyatakan versi lama tetap berlaku.
 4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
 5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.
+
+## Addendum ISS-14.02 — Refinement Sesi Koreksi Perencanaan
+
+**Disetujui pengguna 28 Oktober 2026 (WITA) sebelum implementasi issue #182.** Pencatatan ini bukan nomor Q baru, ratifikasi PM/Tim Perencanaan, UAT, merge, atau deployment. Q19, Q35 §35.2, Q41 §41.2 dan Q52 tetap menjadi dasar; rincian implementasi berikut menyelesaikan pertanyaan refinement issue tersebut:
+
+1. Lingkup wajib eksplisit dengan daftar tidak kosong `jenis_objek` (`rencana_aksi`, `pengukuran`), `indikator_ids` yang memiliki snapshot jadwal, dan `periode_ids` anggota jadwal. Tidak ada wildcard atau dimensi unit baru; izin dasar dan deny tetap diperiksa.
+2. Kegiatan, klaim dan berkas kegiatan tetap terkunci, termasuk saat jenis data Rencana Aksi tercakup (Q52 §52.3).
+3. Jadwal `ditutup → aktif` hanya membuka sesi koreksi, termasuk sebelum `penutupan` asli. Sesi berlaku pada status `aktif` dan rentang inklusif; sesudah akhir sesi seluruh koreksi ditolak meskipun status masih aktif. Tutup ulang manual segera menghentikan akses; tanpa scheduler baru.
+4. PIC tetap ditolak pada sesi yang dibuat issue ini, sekalipun jendela lama masih berjalan atau tanggalnya diubah langsung. Pembukaan PIC resmi tetap melalui ISS-14.03, bukan ditambahkan pada issue ini.
+5. Buka-kembali tidak membentuk snapshot otomatis. Indikator baru memakai ISS-03.04 dengan periode mulai eksplisit; ketentuan lama Workflow §5/§13 dan Plan 3.7/3.9 tentang pembentukan snapshot saat buka-kembali diselaraskan.
+6. Input waktu WITA disimpan UTC; awal harus sebelum akhir, kedua batas inklusif, sesi mendatang boleh dijadwalkan. `closed_at` direset, nilai sebelumnya tetap di audit; `penutupan` dan `activated_at` dipertahankan.

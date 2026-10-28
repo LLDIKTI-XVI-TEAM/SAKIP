@@ -39,7 +39,7 @@ class RencanaAksiWriteGuardTest extends TestCase
         $this->assertDatabaseCount('rencana_aksi_target', 0);
 
         $fixture['jadwal']->update([
-            'status' => 'ditutup',
+            'status' => 'aktif',
             'penutupan' => '2026-03-05',
             'koreksi_mulai' => '2026-03-01 00:00:00',
             'koreksi_sampai' => '2026-03-31 23:59:59',
@@ -50,7 +50,7 @@ class RencanaAksiWriteGuardTest extends TestCase
             ],
         ]);
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
@@ -61,7 +61,7 @@ class RencanaAksiWriteGuardTest extends TestCase
         $this->assertSame(1, $header->fresh()->versi);
         $this->assertDatabaseCount('rencana_aksi_target', 0);
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,

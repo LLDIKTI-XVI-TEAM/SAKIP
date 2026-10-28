@@ -2,6 +2,7 @@
 
 namespace App\Actions\Jadwal;
 
+use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
@@ -22,12 +23,14 @@ class ShowJadwalEditor
         $canCreate = $this->policy->create($actor)->allowed();
         $canActivate = $this->policy->activate($actor)->allowed();
         $canClose = $this->policy->close($actor)->allowed();
+        $canReopen = $this->policy->reopen($actor)->allowed();
         if ($jadwal === null) {
-            return ['jadwal' => null, 'can' => ['create' => $canCreate, 'update' => false, 'activate' => false, 'close' => false, 'revise_windows' => false], 'read_only_reason' => null,
+            return ['jadwal' => null, 'can' => ['create' => $canCreate, 'update' => false, 'activate' => false, 'close' => false, 'revise_windows' => false, 'reopen' => false], 'read_only_reason' => null,
+                'koreksi' => null, 'koreksi_indikator_options' => [],
                 'renstra_options' => $this->renstraOptions(), 'periode_options' => $this->periodeOptions()];
         }
 
-        return DB::transaction(function () use ($actor, $jadwal, $canCreate, $canActivate, $canClose): array {
+        return DB::transaction(function () use ($actor, $jadwal, $canCreate, $canActivate, $canClose, $canReopen): array {
             Periode::lockConfiguration();
             $original = JadwalTahunan::findOrFail($jadwal->id);
             $renstra = Renstra::whereKey($original->renstra_id)->sharedLock()->firstOrFail();
@@ -36,6 +39,16 @@ class ShowJadwalEditor
                 throw ValidationException::withMessages(['jadwal' => 'Jadwal sudah berubah. Muat kembali data terbaru.']);
             }
             $current->load('periode.periode');
+            $koreksi = $current->koreksi_mulai && $current->koreksi_sampai ? [
+                'status' => match (true) {
+                    $current->status !== 'aktif' => 'ditutup',
+                    now()->lt($current->koreksi_mulai) => 'terjadwal',
+                    now()->gt($current->koreksi_sampai) => 'berakhir',
+                    default => 'berjalan',
+                },
+                'mulai' => $current->koreksi_mulai->toIso8601String(), 'sampai' => $current->koreksi_sampai->toIso8601String(),
+                'lingkup' => $current->lingkup_koreksi,
+            ] : null;
             $reason = match (true) {
                 ! in_array($renstra->status, ['draft', 'aktif'], true) => 'Renstra nonaktif atau diarsipkan. Kalender hanya dapat dibaca.',
                 $current->status !== 'draft' || $current->is_terkunci => 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.',
@@ -55,7 +68,16 @@ class ShowJadwalEditor
                 // can.activate hanya izin; kalender read-only tetap dapat diaktifkan bila readiness server lolos.
                 // can.close dan can.revise_windows memuat status agar tombol tidak ditawarkan untuk jadwal yang pasti ditolak.
                 'can' => ['create' => $canCreate, 'update' => $reason === null, 'activate' => $canActivate, 'close' => $canClose && $current->status === 'aktif',
-                    'revise_windows' => $current->status === 'aktif' && ! $current->tahunDitutup() && $this->policy->update($actor)->allowed()],
+                    'revise_windows' => $current->status === 'aktif' && ! $current->tahunDitutup() && $this->policy->update($actor)->allowed(),
+                    'reopen' => $canReopen && $current->status === 'ditutup'],
+                'koreksi' => $koreksi,
+                // Hanya metadata snapshot terakhir per indikator; pembaca sesi menerima indikator tercakup saja.
+                'koreksi_indikator_options' => ($canReopen && $current->status === 'ditutup') || $koreksi !== null
+                    ? JadwalSnapshot::where('jadwal_id', $current->id)
+                        ->when(! ($canReopen && $current->status === 'ditutup'), fn ($query) => $query->whereIn('indikator_id', $current->lingkup_koreksi['indikator_ids'] ?? []))
+                        ->distinct('indikator_id')->orderBy('indikator_id')->orderByDesc('nomor_versi')->get(['indikator_id', 'nama'])
+                        ->map(fn (JadwalSnapshot $snapshot): array => ['id' => $snapshot->indikator_id, 'nama' => $snapshot->nama])->values()->all()
+                    : [],
                 'read_only_reason' => $reason,
                 'renstra_options' => $reason === null ? $this->renstraOptions() : [],
                 'periode_options' => $reason === null ? $this->periodeOptions() : []];

@@ -19,22 +19,14 @@ class RencanaAksiProducerReviewTest extends TestCase
     {
         $f = $this->buatFixtureManual();
         $header = $this->drafManual($f);
+        // Provenance PIC dibentuk sebelum jadwal masuk sesi koreksi.
+        $this->actingAs($f['pic'])->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertRedirect()->assertSessionHasNoErrors();
         $f['jadwal']->update([
             'penutupan' => '2026-03-15', 'koreksi_mulai' => '2026-03-16 00:00:00', 'koreksi_sampai' => '2026-03-31 23:59:59',
             'lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$f['indikator']->id], 'periode_ids' => [$f['periode2']->id]],
         ]);
         $this->travelTo(now()->setDate(2026, 3, 20)->setTime(9, 0));
 
-        // Mutasi target tetap dibatasi periode sesi koreksi walau header belum diajukan.
-        $this->actingAs($f['pic'])->postJson("/rencana-aksi/{$header->id}/target", [
-            'expected_versi' => 2, 'expected_snapshot_id' => $f['snapshot']->id, 'expected_snapshot_versi' => 1,
-            'targets' => [$this->manual($f['periode1'], 50)],
-        ])->assertUnprocessable();
-
-        // Pengajuan dinilai terhadap periode yang berubah dibanding versi sah
-        // terakhir; tanpa pembanding dinilai kosong sehingga lingkup parsial
-        // menerima pengajuan awal ini.
-        $this->actingAs($f['pic'])->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 2])->assertRedirect()->assertSessionHasNoErrors();
         $versi = $header->versions()->sole();
         $beku = $versi->getRawOriginal('snapshot');
         $this->assertCount(2, $versi->snapshot['target_periode']);
@@ -50,7 +42,13 @@ class RencanaAksiProducerReviewTest extends TestCase
         $this->postJson("/rencana-aksi/{$header->id}/verifikasi", $tokens)->assertSuccessful();
         $this->assertSame([], app(GerbangReviewRencanaAksi::class)->businessErrors($f['perencanaan'], $header->fresh(), $versi, 'sahkan'));
         $this->postJson("/rencana-aksi/{$header->id}/kembalikan", ['expected_versi' => 4, 'versi_pengajuan_id' => $versi->id, 'alasan' => 'Jelaskan target periode II.'])->assertSuccessful();
-        $this->simpan($f, $header, 5, [array_merge($this->manual($f['periode2'], 100), ['keterangan' => 'Target periode II telah diperiksa.'])]);
+        // Lingkup tetap diperiksa sebelum akses review.
+        $this->actingAs($f['perencanaan'])->postJson("/rencana-aksi/{$header->id}/target", [
+            'expected_versi' => 5, 'expected_snapshot_id' => $f['snapshot']->id, 'expected_snapshot_versi' => 1,
+            'targets' => [$this->manual($f['periode1'], 50)],
+        ])->assertUnprocessable()->assertJsonValidationErrors('jendela');
+
+        $this->simpan($f, $header, 5, [array_merge($this->manual($f['periode2'], 100), ['keterangan' => 'Target periode II telah diperiksa.'])], $f['perencanaan']);
         $this->postJson("/rencana-aksi/{$header->id}/ajukan", ['expected_versi' => 6])->assertRedirect()->assertSessionHasNoErrors();
         $baru = $header->versions()->reorder('nomor', 'desc')->firstOrFail();
         $this->assertSame(2, $baru->nomor);

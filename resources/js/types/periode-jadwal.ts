@@ -89,12 +89,27 @@ export interface JadwalDetail {
 export interface JadwalEditorProps {
     jadwal: JadwalDetail | null;
     /** close dan revise_windows sudah memuat status jadwal dari server. */
-    can: { create: boolean; update: boolean; activate: boolean; close: boolean; revise_windows: boolean };
+    can: { create: boolean; update: boolean; activate: boolean; close: boolean; revise_windows: boolean; reopen: boolean };
+    koreksi: SesiKoreksi | null;
+    koreksi_indikator_options: { id: string; nama: string }[];
     read_only_reason: string | null;
     /** Renstra draft/aktif; kosong bila kalender hanya dapat dibaca. */
     renstra_options: JadwalRenstraOption[];
     /** Periode aktif untuk ditambahkan; kosong bila kalender hanya dapat dibaca. */
     periode_options: PeriodeOption[];
+}
+
+export interface LingkupKoreksi {
+    jenis_objek: string[];
+    indikator_ids: string[];
+    periode_ids: string[];
+}
+
+export interface SesiKoreksi {
+    status: 'terjadwal' | 'berjalan' | 'berakhir' | 'ditutup';
+    mulai: string;
+    sampai: string;
+    lingkup: LingkupKoreksi;
 }
 
 /** Pratinjau server yang advisory; hanya agregat, tanpa nama/nilai indikator atau identitas lampiran. */

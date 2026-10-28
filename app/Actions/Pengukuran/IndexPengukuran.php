@@ -99,7 +99,7 @@ class IndexPengukuran
         })->all();
 
         $selected = $filtered ? $schedules->only($periods->first()->jadwal_id) : $schedules;
-        $options = $schedules->filter(fn ($schedule) => $schedule->status === 'ditutup' || $today <= $schedule->penutupan->toDateString());
+        $options = $schedules->filter(fn ($schedule) => $schedule->status === 'ditutup' || $schedule->lingkup_koreksi !== null || $today <= $schedule->penutupan->toDateString());
 
         return [
             'konteks' => $selected->map(fn ($schedule) => ['jadwal_id' => $schedule->id, 'tahun' => $schedule->tahun,
@@ -113,7 +113,7 @@ class IndexPengukuran
     }
 
     /**
-     * Filter jalur Perencanaan: jadwal aktif yang belum melewati penutupan, atau jadwal ditutup untuk dibaca, dan periode anggotanya.
+     * Filter jalur Perencanaan juga mempertahankan jadwal sesi koreksi pascapenutupan; mutasi tetap dinilai Policy.
      *
      * @param  Collection<int, JadwalTahunan>  $schedules
      * @return Collection<string, PeriodeJadwal>
@@ -121,7 +121,7 @@ class IndexPengukuran
     private function selectedPeriod(Collection $schedules, array $query, string $today): Collection
     {
         $schedule = $schedules->firstWhere('id', strtolower($query['jadwal_id']));
-        if (! $schedule || ($schedule->status === 'aktif' && $today > $schedule->penutupan->toDateString())) {
+        if (! $schedule || ($schedule->status === 'aktif' && $schedule->lingkup_koreksi === null && $today > $schedule->penutupan->toDateString())) {
             throw ValidationException::withMessages(['jadwal_id' => 'Pilih jadwal aktif yang belum melewati tanggal penutupan.']);
         }
         $period = PeriodeJadwal::with('periode')->where('jadwal_id', $schedule->id)->where('periode_id', $query['periode_id'])->first()
