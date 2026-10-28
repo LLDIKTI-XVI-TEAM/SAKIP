@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
-import { Table, TableActionLink, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow, tableCellResponsive } from '@/Components/Table';
+import { Table, TableActionLink, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { Textarea } from '@/Components/Textarea';
 import { bantuanAnggaran, formatRupiah, teksTotalAnggaran } from '@/lib/rupiah';
 import { ARAH_DAMPAK_OPTIONS, statusKegiatanConfig, type ArahDampak } from '@/types/kegiatan';
@@ -44,6 +44,10 @@ const KOSONG: FormKegiatan = {
     periode_id: '', salin_ke_periode_ids: [], nama: '', tujuan: '', anggaran: '', sasaran_peserta: '', keterangan_peserta: '',
     lokasi: '', tanggal_rencana: '', komponen_id: '', arah_dampak: 'menambah', catatan: '',
 };
+
+// Kolom berlebar tetap baru muat di samping sidebar mulai 1280 px; di bawahnya setiap baris tampil sebagai kartu berlabel.
+const selResponsif = 'min-w-0 p-0 xl:px-4 xl:py-3.5';
+const labelResponsif = 'md:inline xl:hidden';
 
 /** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
 function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
@@ -154,9 +158,9 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                     )}
                                 </div>
                             </div>
-                            {/* Lebar kolom tetap agar kolom sejajar antartabel periode. */}
-                            <Table wrapperClassName="overflow-x-visible" className="block md:table md:table-fixed">
-                                <TableHeader className="max-md:sr-only">
+                            {/* Lebar kolom tetap agar kolom sejajar antartabel periode (mulai xl, lihat selResponsif). */}
+                            <Table wrapperClassName="overflow-x-visible" className="block xl:table xl:table-fixed">
+                                <TableHeader className="max-xl:sr-only">
                                     <TableRow>
                                         <TableHead className="whitespace-normal">Kegiatan</TableHead>
                                         {adaKomponen && <TableHead className="w-56">Komponen</TableHead>}
@@ -166,18 +170,18 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                         {kegiatan.can.kelola && <TableHead className="w-20 text-right">Aksi</TableHead>}
                                     </TableRow>
                                 </TableHeader>
-                                <TableBody className="block md:table-row-group">
+                                <TableBody className="block xl:table-row-group">
                                     {daftar.length === 0 ? (
-                                        <TableRow className="block md:table-row">
-                                            <TableCell colSpan={jumlahKolom} className="block px-6 py-4 text-muted md:table-cell">Belum ada kegiatan.</TableCell>
+                                        <TableRow className="block xl:table-row">
+                                            <TableCell colSpan={jumlahKolom} className="block px-6 py-4 text-muted xl:table-cell">Belum ada kegiatan.</TableCell>
                                         </TableRow>
                                     ) : daftar.map((row) => {
                                         const status = statusKegiatanConfig[row.status] ?? { label: row.status, variant: 'muted' as const };
                                         const komponenKlaim = komponen.find((item) => item.komponen_id === row.komponen_id);
 
                                         return (
-                                            <TableRow key={row.id} id={barisAnchor.has(row.id) ? `kegiatan-${row.kegiatan_id}` : undefined} className="grid min-w-0 scroll-mt-4 grid-cols-2 gap-3 px-6 py-4 md:table-row">
-                                                <TableCell className={`col-span-2 ${tableCellResponsive}`}>
+                                            <TableRow key={row.id} id={barisAnchor.has(row.id) ? `kegiatan-${row.kegiatan_id}` : undefined} className="grid min-w-0 scroll-mt-4 grid-cols-2 gap-3 px-6 py-4 xl:table-row">
+                                                <TableCell className={`col-span-2 ${selResponsif}`}>
                                                     <p className="break-words text-sm font-medium text-ink">{row.nama}</p>
                                                     {row.catatan && <p className="mt-0.5 break-words text-xs text-muted">{row.catatan}</p>}
                                                     {(row.kegiatan_bersama || row.sumber_klaim === 'pengukuran') && (
@@ -188,25 +192,25 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                     )}
                                                 </TableCell>
                                                 {adaKomponen && (
-                                                    <TableCell className={`col-span-2 ${tableCellResponsive}`}>
-                                                        <TableCellLabel>Komponen</TableCellLabel>
+                                                    <TableCell className={`col-span-2 ${selResponsif}`}>
+                                                        <TableCellLabel className={labelResponsif}>Komponen</TableCellLabel>
                                                         <span>{komponenKlaim ? `${komponenKlaim.kode} — ${komponenKlaim.label}` : row.komponen_id === null ? 'Tanpa komponen tertentu' : 'Komponen tidak tersedia pada snapshot'}</span>
                                                     </TableCell>
                                                 )}
-                                                <TableCell className={tableCellResponsive}>
-                                                    <TableCellLabel>Arah</TableCellLabel>
+                                                <TableCell className={selResponsif}>
+                                                    <TableCellLabel className={labelResponsif}>Arah</TableCellLabel>
                                                     <Badge variant={row.arah_dampak === 'menambah' ? 'success' : 'warning'}>{row.arah_dampak === 'menambah' ? 'Menambah' : 'Mengurangi'}</Badge>
                                                 </TableCell>
-                                                <TableCell className={`${tableCellResponsive} md:whitespace-nowrap md:text-right`}>
-                                                    <TableCellLabel>Anggaran</TableCellLabel>
+                                                <TableCell className={`${selResponsif} xl:whitespace-nowrap xl:text-right`}>
+                                                    <TableCellLabel className={labelResponsif}>Anggaran</TableCellLabel>
                                                     <span className={row.anggaran === null ? 'text-muted' : 'font-medium'}>{formatRupiah(row.anggaran)}</span>
                                                 </TableCell>
-                                                <TableCell className={tableCellResponsive}>
-                                                    <TableCellLabel>Status</TableCellLabel>
+                                                <TableCell className={selResponsif}>
+                                                    <TableCellLabel className={labelResponsif}>Status</TableCellLabel>
                                                     <Badge variant={status.variant}>{status.label}</Badge>
                                                 </TableCell>
                                                 {kegiatan.can.kelola && (
-                                                    <TableCell className={`${tableCellResponsive} md:text-right`}>
+                                                    <TableCell className={`${selResponsif} xl:text-right`}>
                                                         {/* Klaim pengukuran dikelola lewat siklus pengukuran, bukan halaman kegiatan Rencana Aksi. */}
                                                         {row.sumber_klaim === 'rencana_aksi' && (
                                                             <TableActionLink

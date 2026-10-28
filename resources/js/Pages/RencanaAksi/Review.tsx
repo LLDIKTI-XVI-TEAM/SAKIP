@@ -21,6 +21,9 @@ import { rencanaAksiStatusPerhitungan } from './types';
 
 type Decision = 'verifikasi' | 'kembalikan' | 'sahkan' | 'buka_kembali';
 const konteksTidakLengkap = 'Konteks versi belum lengkap';
+// Tabel kegiatan berkolom enam baru muat di samping sidebar mulai 1024 px; di bawahnya setiap baris tampil sebagai kartu berlabel.
+const selKegiatan = 'min-w-0 p-0 lg:px-4 lg:py-3.5';
+const labelKegiatan = 'md:inline lg:hidden';
 // Sama dengan filter status DaftarRencanaAksi agar RA yang baru diproses tetap terlihat di daftar.
 const statusDaftar: readonly StatusReview[] = ['diajukan', 'diverifikasi', 'dikembalikan', 'disahkan'];
 const statusHasil: Record<Decision, string> = { verifikasi: 'diverifikasi', kembalikan: 'dikembalikan', sahkan: 'disahkan', buka_kembali: 'dikembalikan' };
@@ -255,46 +258,46 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                     {rencanaAksi.klaim === null ? <CardContent><p className="text-sm text-muted">Versi ini dibentuk sebelum daftar kegiatan ikut dibekukan.</p></CardContent>
                         : rencanaAksi.klaim.length === 0 ? <CardContent><p className="text-sm text-muted">Tidak ada kegiatan yang diklaim pada versi ini.</p></CardContent>
                             : (
-                                <Table wrapperClassName="overflow-x-visible" className="block md:table">
-                                    <TableHeader className="max-md:sr-only">
+                                <Table wrapperClassName="overflow-x-visible" className="block lg:table">
+                                    <TableHeader className="max-lg:sr-only">
                                         <TableRow>
                                             <TableHead>Periode</TableHead>
                                             <TableHead className="whitespace-normal">Kegiatan</TableHead>
                                             {adaKomponenKlaim && <TableHead>Komponen</TableHead>}
                                             <TableHead>Arah dampak</TableHead>
-                                            <TableHead className="md:text-right">Anggaran</TableHead>
+                                            <TableHead className="lg:text-right">Anggaran</TableHead>
                                             <TableHead>Status</TableHead>
                                         </TableRow>
                                     </TableHeader>
-                                    <TableBody className="block md:table-row-group">
+                                    <TableBody className="block lg:table-row-group">
                                         {rencanaAksi.klaim.map((item) => {
                                             const status = item.status ? statusKegiatanConfig[item.status] ?? { label: item.status, variant: 'muted' as const } : null;
                                             return (
-                                                <TableRow key={item.id} className="grid min-w-0 grid-cols-2 gap-3 px-6 py-4 md:table-row">
-                                                    <TableCell className={`col-span-2 ${tableCellResponsive} md:whitespace-nowrap`}>
-                                                        <TableCellLabel>Periode</TableCellLabel>
+                                                <TableRow key={item.id} className="grid min-w-0 grid-cols-2 gap-3 px-6 py-4 lg:table-row">
+                                                    <TableCell className={`col-span-2 ${selKegiatan} lg:whitespace-nowrap`}>
+                                                        <TableCellLabel className={labelKegiatan}>Periode</TableCellLabel>
                                                         <span>{item.periode_nama}</span>
                                                     </TableCell>
-                                                    <TableCell className={`col-span-2 ${tableCellResponsive}`}>
+                                                    <TableCell className={`col-span-2 ${selKegiatan}`}>
                                                         <p className="break-words text-sm font-medium text-ink">{item.nama}</p>
                                                         {item.catatan && <p className="mt-0.5 break-words text-xs text-muted">{item.catatan}</p>}
                                                     </TableCell>
                                                     {adaKomponenKlaim && (
-                                                        <TableCell className={`col-span-2 ${tableCellResponsive}`}>
-                                                            <TableCellLabel>Komponen</TableCellLabel>
+                                                        <TableCell className={`col-span-2 ${selKegiatan}`}>
+                                                            <TableCellLabel className={labelKegiatan}>Komponen</TableCellLabel>
                                                             <span>{item.komponen ?? 'Tanpa komponen tertentu'}</span>
                                                         </TableCell>
                                                     )}
-                                                    <TableCell className={tableCellResponsive}>
-                                                        <TableCellLabel>Arah</TableCellLabel>
+                                                    <TableCell className={selKegiatan}>
+                                                        <TableCellLabel className={labelKegiatan}>Arah</TableCellLabel>
                                                         {item.arah_dampak === null ? <span>—</span> : <Badge variant={item.arah_dampak === 'menambah' ? 'success' : 'warning'}>{item.arah_dampak === 'menambah' ? 'Menambah' : 'Mengurangi'}</Badge>}
                                                     </TableCell>
-                                                    <TableCell className={`${tableCellResponsive} md:whitespace-nowrap md:text-right`}>
-                                                        <TableCellLabel>Anggaran</TableCellLabel>
+                                                    <TableCell className={`${selKegiatan} lg:whitespace-nowrap lg:text-right`}>
+                                                        <TableCellLabel className={labelKegiatan}>Anggaran</TableCellLabel>
                                                         <span className={item.anggaran === null ? 'text-muted' : 'font-medium'}>{formatRupiah(item.anggaran)}</span>
                                                     </TableCell>
-                                                    <TableCell className={tableCellResponsive}>
-                                                        <TableCellLabel>Status</TableCellLabel>
+                                                    <TableCell className={selKegiatan}>
+                                                        <TableCellLabel className={labelKegiatan}>Status</TableCellLabel>
                                                         {status ? <Badge variant={status.variant}>{status.label}</Badge> : <span>—</span>}
                                                     </TableCell>
                                                 </TableRow>
