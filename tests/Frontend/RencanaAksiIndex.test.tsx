@@ -65,7 +65,7 @@ describe('Daftar Rencana Aksi', () => {
         expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/rencana-aksi/ensure-draft', { indikator_id: 'ind-1', tahun: 2026 }]);
     });
 
-    it('menu baris ber-header memuat Buka dan Review beserta tujuannya', async () => {
+    it('menu baris ber-header memuat Buka dan Reviu beserta tujuannya', async () => {
         const user = userEvent.setup();
         render(<RencanaAksiIndex daftar={[diajukan]} pagination={satuHalaman} filters={semuaStatus} />);
 
@@ -75,17 +75,17 @@ describe('Daftar Rencana Aksi', () => {
 
         expect(pemicu.getAttribute('aria-expanded')).toBe('true');
         expect(screen.getByRole('menuitem', { name: 'Buka Rencana Aksi IKU-5 2026' }).getAttribute('href')).toBe('/rencana-aksi/ra-2');
-        expect(screen.getByRole('menuitem', { name: 'Review Rencana Aksi IKU-5 2026' }).getAttribute('href')).toBe('/rencana-aksi/ra-2/review');
+        expect(screen.getByRole('menuitem', { name: 'Reviu Rencana Aksi IKU-5 2026' }).getAttribute('href')).toBe('/rencana-aksi/ra-2/review');
     });
 
-    it('item Review mengikuti capability server, Buka tetap ditawarkan', async () => {
+    it('item Reviu mengikuti capability server, Buka tetap ditawarkan', async () => {
         const user = userEvent.setup();
         render(<RencanaAksiIndex daftar={[{ ...diajukan, can: { create: false, review: false } }]} pagination={satuHalaman} filters={semuaStatus} />);
 
         await user.click(screen.getByRole('button', { name: 'Aksi IKU-5 2026' }));
 
         expect(screen.getByRole('menuitem', { name: 'Buka Rencana Aksi IKU-5 2026' })).toBeTruthy();
-        expect(screen.queryByRole('menuitem', { name: 'Review Rencana Aksi IKU-5 2026' })).toBeNull();
+        expect(screen.queryByRole('menuitem', { name: 'Reviu Rencana Aksi IKU-5 2026' })).toBeNull();
     });
 
     it('filter status memakai GET server dan menyebut jumlah rencana aksi', async () => {

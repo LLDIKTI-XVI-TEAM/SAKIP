@@ -144,13 +144,28 @@ it('menyembunyikan tambah ketika seluruh periode efektif terkunci bagi aktor', (
     }
 });
 
-it('menampilkan total anggaran dan menandai kegiatan yang anggarannya belum diisi', () => {
+/** Baris data tabel kegiatan (tanpa baris kepala kolom). */
+const barisTabel = (cakupan: HTMLElement = document.body): HTMLElement[] =>
+    within(cakupan).getAllByRole('row').filter((row) => row.closest('tbody') !== null);
+
+it('menaruh tautan kembali ke rincian rencana aksi di atas isi halaman', () => {
+    render(<KegiatanRencanaAksi rencanaAksi={buatRencanaAksi()} kegiatan={tanpaDaftar} />);
+
+    const tautan = screen.getByRole('link', { name: 'Kembali ke rincian rencana aksi' });
+    expect(tautan.getAttribute('href')).toBe('/rencana-aksi/ra-1');
+    const identitas = screen.getByRole('heading', { name: 'I-UJI · Indikator Uji' });
+    expect(tautan.compareDocumentPosition(identitas) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it('meringkas jumlah kegiatan dan total anggaran di kartu identitas, lalu total per periode di kepala periode', () => {
     render(
         <KegiatanRencanaAksi
             rencanaAksi={buatRencanaAksi()}
             kegiatan={{
                 daftar: [
                     baris({ id: 'k1', kegiatan_id: 'keg-1', periode_id: P1, nama: 'Workshop', anggaran: '1500000' }),
+                    // Klaim kedua untuk kegiatan yang sama tidak menambah jumlah kegiatan.
+                    baris({ id: 'k1b', kegiatan_id: 'keg-1', periode_id: P1, nama: 'Workshop', anggaran: '1500000' }),
                     baris({ id: 'k2', kegiatan_id: 'keg-2', periode_id: P1, nama: 'Rapat', anggaran: null }),
                 ],
                 total: { total: '1500000', belum_diisi: 1, per_periode: { [P1]: { total: '1500000', belum_diisi: 1 } } },
@@ -159,10 +174,68 @@ it('menampilkan total anggaran dan menandai kegiatan yang anggarannya belum diis
         />,
     );
 
-    expect(screen.getByText(/Total anggaran rencana aksi:/).textContent).toMatch(/Rp\s1\.500\.000 \(1 kegiatan belum diisi\)/);
-    expect(screen.getByText(/^Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
+    const identitas = screen.getByText('Unit penanggung jawab').closest('dl')!;
+    const pasangan = Array.from(identitas.children).map((item) => [item.querySelector('dt')?.textContent, item.querySelector('dd')?.textContent]);
+    expect(pasangan).toEqual([
+        ['Unit penanggung jawab', 'Unit Uji'],
+        ['Penanggung jawab', 'PIC Uji'],
+        ['Jumlah kegiatan', '2'],
+        ['Total anggaran', expect.stringMatching(/^Rp\s1\.500\.000 \(1 kegiatan belum diisi\)$/)],
+    ]);
+    expect(screen.queryByText(/Total anggaran rencana aksi:/)).toBeNull();
+    // Keputusan PM 28 Oktober 2026: paragraf penjelasan klaim di kepala daftar tidak ditampilkan.
+    expect(screen.queryByText(/langsung diklaim ke rencana aksi ini/)).toBeNull();
+    expect(within(screen.getByRole('region', { name: /^Triwulan I(?!I)/ })).getByText(/^Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
+});
+
+it('menampilkan kegiatan tiap periode sebagai tabel dan menandai anggaran yang belum diisi', () => {
+    render(
+        <KegiatanRencanaAksi
+            rencanaAksi={buatRencanaAksi({ komponen: [{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }] })}
+            kegiatan={{
+                daftar: [
+                    baris({ id: 'k1', kegiatan_id: 'keg-1', periode_id: P1, nama: 'Workshop', anggaran: '1500000', komponen_id: 'komp-1', catatan: 'Bersama unit lain' }),
+                    baris({ id: 'k2', kegiatan_id: 'keg-2', periode_id: P1, nama: 'Rapat', anggaran: null, arah_dampak: 'mengurangi', status: 'ditunda' }),
+                ],
+                total: { total: '1500000', belum_diisi: 1, per_periode: { [P1]: { total: '1500000', belum_diisi: 1 } } },
+                can: { tambah: false, kelola: true },
+            }}
+        />,
+    );
+
+    const periodeI = screen.getByRole('region', { name: /^Triwulan I(?!I)/ });
+    expect(within(periodeI).getAllByRole('columnheader').map((kepala) => kepala.textContent)).toEqual(['Kegiatan', 'Komponen', 'Arah dampak', 'Anggaran', 'Status', 'Aksi']);
+    const [workshop, rapat] = barisTabel(periodeI);
+    expect(within(workshop).getByText('Workshop')).toBeTruthy();
+    expect(within(workshop).getByText('Bersama unit lain')).toBeTruthy();
+    expect(within(workshop).getByText('P — Pembilang')).toBeTruthy();
+    expect(within(workshop).getByText('Menambah')).toBeTruthy();
+    expect(within(workshop).getByText(/^Rp\s1\.500\.000$/)).toBeTruthy();
+    expect(within(workshop).getByRole('link', { name: 'Kelola kegiatan Workshop' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
     // Baris tanpa anggaran tetap terlihat sebagai "belum diisi", bukan Rp0.
-    expect(screen.getByText('Anggaran: Belum diisi')).toBeTruthy();
+    expect(within(rapat).getByText('Belum diisi')).toBeTruthy();
+    expect(within(rapat).getByText('Mengurangi')).toBeTruthy();
+    expect(within(rapat).getByText('Ditunda')).toBeTruthy();
+
+    // Periode tanpa kegiatan tetap memakai tabel dengan baris kosong.
+    expect(within(screen.getByRole('region', { name: /^Triwulan II(?!I)/ })).getByText('Belum ada kegiatan.')).toBeTruthy();
+});
+
+it('menyembunyikan kolom komponen untuk indikator tanpa komponen dan kolom aksi tanpa capability kelola', () => {
+    render(
+        <KegiatanRencanaAksi
+            rencanaAksi={buatRencanaAksi()}
+            kegiatan={{
+                daftar: [baris({ id: 'k1', kegiatan_id: 'keg-1', periode_id: P1, nama: 'Workshop' })],
+                total: TOTAL_KOSONG,
+                can: { tambah: false, kelola: false },
+            }}
+        />,
+    );
+
+    expect(within(screen.getByRole('region', { name: /^Triwulan I(?!I)/ })).getAllByRole('columnheader').map((kepala) => kepala.textContent))
+        .toEqual(['Kegiatan', 'Arah dampak', 'Anggaran', 'Status']);
+    expect(screen.queryByRole('link', { name: /^Kelola kegiatan/ })).toBeNull();
 });
 
 it('memberi anchor id hanya pada baris pertama tiap kegiatan walau klaim komponennya lebih dari satu', () => {
@@ -182,7 +255,7 @@ it('memberi anchor id hanya pada baris pertama tiap kegiatan walau klaim kompone
         />,
     );
 
-    const [pertama, kedua, ketiga] = screen.getAllByRole('listitem');
+    const [pertama, kedua, ketiga] = barisTabel();
     // Anchor menempel di baris pertama kegiatan (klaim tanpa komponen) dan dapat ditemukan lewat getElementById.
     expect(pertama.id).toBe('kegiatan-keg-1');
     expect(document.getElementById('kegiatan-keg-1')).toBe(pertama);

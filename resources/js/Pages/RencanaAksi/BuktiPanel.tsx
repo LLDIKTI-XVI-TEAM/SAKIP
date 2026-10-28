@@ -5,17 +5,20 @@ import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Badge } from '@/Components/Badge';
 import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { Button } from '@/Components/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import JudulLangkah from './JudulLangkah';
 import type { BuktiItem, BuktiMode, BuktiPersyaratan, RencanaAksiBukti } from './types';
 
 interface BuktiPanelProps {
     rencanaAksiId: string;
     bukti: RencanaAksiBukti;
+    /** Nomor langkah pada halaman detail RA; kosong bila halaman tidak bernomor. */
+    nomor?: number;
 }
 
 const MODE: BuktiMode[] = ['file', 'tautan', 'teks'];
@@ -36,7 +39,7 @@ function modeTersedia(req: BuktiPersyaratan | undefined): BuktiMode[] {
 }
 
 /** Panel pemenuhan bukti tahap rencana aksi (PRD §18, Workflow §10.3) pada halaman kerja induknya. */
-export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
+export default function BuktiPanel({ rencanaAksiId, bukti, nomor }: BuktiPanelProps) {
     const { persyaratan, ringkasan, daftar, unggahan, can, dikecualikan } = bukti;
     const formatTanggal = useFormatTanggal();
     const [modalTambah, setModalTambah] = useState(false);
@@ -138,7 +141,7 @@ export default function BuktiPanel({ rencanaAksiId, bukti }: BuktiPanelProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Bukti dukung</CardTitle>
+                <JudulLangkah nomor={nomor}>Bukti dukung</JudulLangkah>
                 <div className="flex flex-wrap items-center gap-3">
                     {dikecualikan ? (
                         <Badge variant="info" size="sm">Dikecualikan (periode lampau/data awal)</Badge>

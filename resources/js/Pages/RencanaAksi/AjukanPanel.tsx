@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { useForm, usePage } from '@inertiajs/react';
 import { Send } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Modal } from '@/Components/Modal';
 import type { SharedPageProps } from '@/types/auth';
+import JudulLangkah from './JudulLangkah';
 import type { RencanaAksiPengajuan } from './types';
 
 interface AjukanPanelProps {
@@ -16,12 +17,14 @@ interface AjukanPanelProps {
     /** Formulir target punya perubahan belum tersimpan; pengajuan memakai data tersimpan saja. */
     kotor: boolean;
     onMuatUlang: () => void;
+    /** Nomor langkah pada halaman detail RA; kosong bila halaman tidak bernomor. */
+    nomor?: number;
 }
 
 /** Konflik versi/snapshot memakai blok muat ulang; field lain di bag `ajukan` tampil sebagai pesan. */
 const FIELD_KONFLIK = ['expected_versi', 'expected_snapshot_id'];
 
-export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, canSubmit, kotor, onMuatUlang }: AjukanPanelProps) {
+export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, canSubmit, kotor, onMuatUlang, nomor }: AjukanPanelProps) {
     // Galat dibaca dari props halaman (bag `ajukan`), bukan `useForm().errors`:
     // penolakan jepit usang membawa token snapshot baru sehingga formulir induk
     // di-remount dan state lokal hilang. Bag terpisah juga menjaga galat simpan
@@ -74,7 +77,7 @@ export default function AjukanPanel({ rencanaAksiId, expectedVersi, pengajuan, c
         <>
             <Card>
                 <CardHeader>
-                    <CardTitle>Kesiapan pengajuan</CardTitle>
+                    <JudulLangkah nomor={nomor}>Kesiapan pengajuan</JudulLangkah>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                     {/* Isi lengkap tanpa eligibility (izin/jendela) tidak boleh terbaca "siap" tanpa tombol. */}

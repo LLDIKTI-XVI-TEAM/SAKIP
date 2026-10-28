@@ -41,6 +41,9 @@ const periode = (id: string, nama: string): RencanaAksiPeriode => ({
 
 const TOTAL_KOSONG = { total: '0', belum_diisi: 0, per_periode: {} };
 
+/** Baris data tabel kegiatan (tanpa baris kepala kolom). */
+const barisTabel = (): HTMLElement[] => screen.getAllByRole('row').filter((row) => row.closest('tbody') !== null);
+
 it('panel RA menampilkan total presisi di atas batas Number dan total nol untuk periode tanpa kegiatan', () => {
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
         kegiatan={{ daftar: [{ id: 'k1', periode_id: 'tw1', kegiatan_id: 'keg-1', nama: 'Besar', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null,
@@ -61,18 +64,18 @@ it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan kla
             { ...baris, id: 'k2', kegiatan_id: 'keg-2', nama: 'Rapat', anggaran: null, sumber_klaim: 'pengukuran', kegiatan_bersama: false },
         ], total: { total: '1500000', belum_diisi: 1, per_periode: { tw1: { total: '1500000', belum_diisi: 1 } } }, can: { tambah: false, kelola: true } }} />);
 
-    const [workshop, rapat] = screen.getAllByRole('listitem').map((item) => within(item));
-    expect(workshop.getByText(/Anggaran: Rp\s?1\.500\.000/)).toBeTruthy();
+    const [workshop, rapat] = barisTabel().map((item) => within(item));
+    expect(workshop.getByText(/^Rp\s?1\.500\.000$/)).toBeTruthy();
     expect(workshop.getByText('Kegiatan bersama')).toBeTruthy();
     expect(workshop.queryByText('Klaim pengukuran')).toBeNull();
-    expect(rapat.getByText('Anggaran: Belum diisi')).toBeTruthy();
+    expect(rapat.getByText('Belum diisi')).toBeTruthy();
     expect(rapat.getByText('Klaim pengukuran')).toBeTruthy();
     expect(rapat.queryByText('Kegiatan bersama')).toBeNull();
     // Klaim pengukuran tidak dapat dikelola di halaman Kegiatan, sehingga tautannya tidak ditawarkan.
-    expect(workshop.getByRole('link', { name: 'Kelola kegiatan' })).toBeTruthy();
-    expect(rapat.queryByRole('link', { name: 'Kelola kegiatan' })).toBeNull();
-    expect(screen.getByText(/Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)/)).toBeTruthy();
-    expect(screen.getByText(/^Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
+    expect(workshop.getByRole('link', { name: 'Kelola kegiatan Workshop' })).toBeTruthy();
+    expect(rapat.queryByRole('link', { name: /^Kelola kegiatan/ })).toBeNull();
+    // Total rencana aksi tampil di kartu identitas halaman; panel hanya memuat total per periode.
+    expect(screen.getByText(/^Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
 });
 
 it('mengirim klaim dengan komponen dari rencana aksi terpilih dan mengingatkan klaim tidak mengubah nilai', () => {
@@ -128,7 +131,7 @@ it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke pe
             total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
 
     expect(screen.queryByRole('button', { name: /Tambah kegiatan Triwulan I$/ })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Kelola kegiatan' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
+    expect(screen.getByRole('link', { name: 'Kelola kegiatan Rapat lama' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
 
     fireEvent.click(screen.getByRole('button', { name: /Tambah kegiatan Triwulan II$/ }));
     const dialog = within(screen.getByRole('dialog'));
@@ -151,25 +154,35 @@ it('pembaca RA melihat komponen snapshot, arah dampak, dan catatan tanpa akses k
             { id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: 'komp-1', arah_dampak: 'mengurangi', catatan: 'Mengurangi kendala pelaksanaan', anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false },
         ], total: TOTAL_KOSONG, can: { tambah: false, kelola: false } }} />);
 
-    const row = within(screen.getByRole('listitem'));
+    const row = within(barisTabel()[0]);
     expect(row.getByText('Bimtek')).toBeTruthy();
     expect(row.getByText('P — Pembilang')).toBeTruthy();
     expect(row.getByText('Mengurangi')).toBeTruthy();
     expect(row.getByText('Mengurangi kendala pelaksanaan')).toBeTruthy();
-    expect(row.queryByRole('link', { name: 'Kelola kegiatan' })).toBeNull();
+    expect(row.queryByRole('link', { name: /^Kelola kegiatan/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Tambah kegiatan/ })).toBeNull();
 });
 
-it.each([
-    [null, 'Tanpa komponen tertentu'],
-    ['komponen-lama', 'Komponen tidak tersedia pada snapshot'],
-])('menjelaskan komponen %s tanpa menghilangkan klaim', (komponenId, label) => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
-        kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: komponenId, arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
-            total: TOTAL_KOSONG, can: { tambah: false, kelola: false } }} />);
+const klaimKomponen = (komponenId: string | null) => ({ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: komponenId,
+    arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi' as const, kegiatan_bersama: false }], total: TOTAL_KOSONG, can: { tambah: false, kelola: false } });
 
-    const row = within(screen.getByRole('listitem'));
+it.each([
+    [[{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }], null, 'Tanpa komponen tertentu'],
+    [[], 'komponen-lama', 'Komponen tidak tersedia pada snapshot'],
+])('menjelaskan komponen klaim (%#) tanpa menghilangkan klaim', (komponen, komponenId, label) => {
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={komponen} terkunci={[]} kegiatan={klaimKomponen(komponenId)} />);
+
+    const row = within(barisTabel()[0]);
     expect(row.getByText(label)).toBeTruthy();
+    expect(row.getByText('Menambah')).toBeTruthy();
+});
+
+it('indikator tanpa komponen tidak menampilkan kolom komponen, klaimnya tetap tampil', () => {
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]} kegiatan={klaimKomponen(null)} />);
+
+    expect(screen.queryByRole('columnheader', { name: 'Komponen' })).toBeNull();
+    const row = within(barisTabel()[0]);
+    expect(row.getByText('Bimtek')).toBeTruthy();
     expect(row.getByText('Menambah')).toBeTruthy();
 });
 
@@ -189,12 +202,12 @@ it('menahan kelola kegiatan saat target kotor dan mengaktifkannya kembali sesuda
     };
     const { rerender } = render(<KegiatanPanel {...props} kotor />);
 
-    expect(screen.getByRole('link', { name: 'Kelola kegiatan' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('link', { name: 'Kelola kegiatan Bimtek' }).getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('link', { name: 'Kelola kegiatan' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Kelola kegiatan Bimtek' }));
 
     rerender(<KegiatanPanel {...props} kotor={false} />);
-    expect(screen.getByRole('link', { name: 'Kelola kegiatan' }).getAttribute('aria-disabled')).toBe('false');
+    expect(screen.getByRole('link', { name: 'Kelola kegiatan Bimtek' }).getAttribute('aria-disabled')).toBe('false');
     expect(screen.queryByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Kelola kegiatan' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
+    expect(screen.getByRole('link', { name: 'Kelola kegiatan Bimtek' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
 });

@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useForm } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
+import { useForm } from '@inertiajs/react';
+import { Pencil, Plus } from 'lucide-react';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
+import { Table, TableActionLink, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { Textarea } from '@/Components/Textarea';
 import { bantuanAnggaran, formatRupiah, teksTotalAnggaran } from '@/lib/rupiah';
 import { ARAH_DAMPAK_OPTIONS, statusKegiatanConfig, type ArahDampak } from '@/types/kegiatan';
@@ -43,6 +44,10 @@ const KOSONG: FormKegiatan = {
     periode_id: '', salin_ke_periode_ids: [], nama: '', tujuan: '', anggaran: '', sasaran_peserta: '', keterangan_peserta: '',
     lokasi: '', tanggal_rencana: '', komponen_id: '', arah_dampak: 'menambah', catatan: '',
 };
+
+// Kolom berlebar tetap baru muat di samping sidebar mulai 1280 px; di bawahnya setiap baris tampil sebagai kartu berlabel.
+const selResponsif = 'min-w-0 p-0 xl:px-4 xl:py-3.5';
+const labelResponsif = 'md:inline xl:hidden';
 
 /** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
 function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
@@ -117,17 +122,19 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
     // Galat per elemen (`salin_ke_periode_ids.0`) ditampilkan sebagai satu pesan grup.
     const galatSalin = fieldErrors.salin_ke_periode_ids ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('salin_ke_periode_ids.'))?.[1];
     const namaPeriode = (id: string): string => periode.find((item) => item.id === id)?.nama ?? 'Periode';
+    // Kolom komponen disembunyikan bila tidak ada komponen maupun klaim berkomponen (indikator manual); klaim yang merujuk
+    // komponen di luar snapshot tetap menampilkan kolom agar penjelasannya tidak hilang. Kolom aksi hanya bila ada capability kelola.
+    const adaKomponen = komponen.length > 0 || kegiatan.daftar.some((row) => row.komponen_id !== null);
+    const jumlahKolom = 4 + (adaKomponen ? 1 : 0) + (kegiatan.can.kelola ? 1 : 0);
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Kegiatan per Periode</CardTitle>
-                <p className="text-sm text-muted">Kegiatan yang ditambahkan di sini langsung diklaim ke rencana aksi ini. Klaim menjelaskan dukungan kegiatan dan tidak mengubah nilai target atau pengukuran.</p>
-                <p className="text-sm text-ink">Total anggaran rencana aksi: <span className="font-semibold">{teksTotalAnggaran(kegiatan.total)}</span></p>
             </CardHeader>
-            <CardContent className="space-y-4">
-                {kotor && (kegiatan.can.tambah || kegiatan.can.kelola) && <p className="text-sm text-muted">Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.</p>}
-                {periode.length === 0 && <p className="text-sm text-muted">Tidak ada periode efektif untuk rencana aksi ini.</p>}
+            <CardContent className="divide-y divide-border p-0">
+                {kotor && (kegiatan.can.tambah || kegiatan.can.kelola) && <p className="px-6 py-4 text-sm text-muted">Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.</p>}
+                {periode.length === 0 && <p className="px-6 py-4 text-sm text-muted">Tidak ada periode efektif untuk rencana aksi ini.</p>}
                 {periode.map((item) => {
                     const daftar = kegiatan.daftar.filter((row) => row.periode_id === item.id);
                     const kunci = terkunci.includes(item.id);
@@ -135,62 +142,93 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                     const totalPeriode = kegiatan.total.per_periode[item.id] ?? { total: '0', belum_diisi: 0 };
 
                     return (
-                        <section key={item.id} aria-labelledby={`kegiatan-periode-${item.id}`} className="rounded-lg border border-border p-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
+                        <section key={item.id} aria-labelledby={`kegiatan-periode-${item.id}`}>
+                            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3">
                                 <h3 id={`kegiatan-periode-${item.id}`} className="flex items-center gap-2 text-sm font-semibold text-ink">
                                     {item.nama ?? 'Periode'}
                                     {kunci && <Badge variant="muted">Terkunci</Badge>}
                                 </h3>
-                                <p className="text-xs text-muted">Total {teksTotalAnggaran(totalPeriode)}</p>
-                                {kegiatan.can.tambah && !kunci && (
-                                    <Button type="button" size="sm" variant="outline" disabled={kotor} onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
-                                        <Plus className="h-4 w-4" aria-hidden="true" />
-                                        Tambah kegiatan
-                                    </Button>
-                                )}
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <p className="text-xs text-muted">Total {teksTotalAnggaran(totalPeriode)}</p>
+                                    {kegiatan.can.tambah && !kunci && (
+                                        <Button type="button" size="sm" variant="outline" disabled={kotor} onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
+                                            <Plus className="h-4 w-4" aria-hidden="true" />
+                                            Tambah kegiatan
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
-                            {daftar.length === 0 ? (
-                                <p className="mt-2 text-xs text-muted">Belum ada kegiatan.</p>
-                            ) : (
-                                <ul className="mt-2 divide-y divide-border">
-                                    {daftar.map((row) => {
+                            {/* Lebar kolom tetap agar kolom sejajar antartabel periode (mulai xl, lihat selResponsif). */}
+                            <Table wrapperClassName="overflow-x-visible" className="block xl:table xl:table-fixed">
+                                <TableHeader className="max-xl:sr-only">
+                                    <TableRow>
+                                        <TableHead className="whitespace-normal">Kegiatan</TableHead>
+                                        {adaKomponen && <TableHead className="w-56">Komponen</TableHead>}
+                                        <TableHead className="w-36">Arah dampak</TableHead>
+                                        <TableHead className="w-40 text-right">Anggaran</TableHead>
+                                        <TableHead className="w-32">Status</TableHead>
+                                        {kegiatan.can.kelola && <TableHead className="w-20 text-right">Aksi</TableHead>}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody className="block xl:table-row-group">
+                                    {daftar.length === 0 ? (
+                                        <TableRow className="block xl:table-row">
+                                            <TableCell colSpan={jumlahKolom} className="block px-6 py-4 text-muted xl:table-cell">Belum ada kegiatan.</TableCell>
+                                        </TableRow>
+                                    ) : daftar.map((row) => {
                                         const status = statusKegiatanConfig[row.status] ?? { label: row.status, variant: 'muted' as const };
                                         const komponenKlaim = komponen.find((item) => item.komponen_id === row.komponen_id);
 
                                         return (
-                                            <li key={row.id} id={barisAnchor.has(row.id) ? `kegiatan-${row.kegiatan_id}` : undefined} className="flex scroll-mt-4 flex-wrap items-start justify-between gap-2 py-2">
-                                                <div className="min-w-0 space-y-1">
-                                                    <p className="break-words text-sm text-ink">{row.nama}</p>
-                                                    <p className="text-xs text-muted">Anggaran: {formatRupiah(row.anggaran)}</p>
+                                            <TableRow key={row.id} id={barisAnchor.has(row.id) ? `kegiatan-${row.kegiatan_id}` : undefined} className="grid min-w-0 scroll-mt-4 grid-cols-2 gap-3 px-6 py-4 xl:table-row">
+                                                <TableCell className={`col-span-2 ${selResponsif}`}>
+                                                    <p className="break-words text-sm font-medium text-ink">{row.nama}</p>
+                                                    {row.catatan && <p className="mt-0.5 break-words text-xs text-muted">{row.catatan}</p>}
                                                     {(row.kegiatan_bersama || row.sumber_klaim === 'pengukuran') && (
-                                                        <span className="flex flex-wrap gap-1">
+                                                        <span className="mt-1.5 flex flex-wrap gap-1">
                                                             {row.kegiatan_bersama && <Badge variant="info">Kegiatan bersama</Badge>}
                                                             {row.sumber_klaim === 'pengukuran' && <Badge variant="muted">Klaim pengukuran</Badge>}
                                                         </span>
                                                     )}
-                                                    <p className="text-xs text-muted">{komponenKlaim ? `${komponenKlaim.kode} — ${komponenKlaim.label}` : row.komponen_id === null ? 'Tanpa komponen tertentu' : 'Komponen tidak tersedia pada snapshot'}</p>
+                                                </TableCell>
+                                                {adaKomponen && (
+                                                    <TableCell className={`col-span-2 ${selResponsif}`}>
+                                                        <TableCellLabel className={labelResponsif}>Komponen</TableCellLabel>
+                                                        <span>{komponenKlaim ? `${komponenKlaim.kode} — ${komponenKlaim.label}` : row.komponen_id === null ? 'Tanpa komponen tertentu' : 'Komponen tidak tersedia pada snapshot'}</span>
+                                                    </TableCell>
+                                                )}
+                                                <TableCell className={selResponsif}>
+                                                    <TableCellLabel className={labelResponsif}>Arah</TableCellLabel>
                                                     <Badge variant={row.arah_dampak === 'menambah' ? 'success' : 'warning'}>{row.arah_dampak === 'menambah' ? 'Menambah' : 'Mengurangi'}</Badge>
-                                                    {row.catatan && <p className="break-words text-xs text-muted">{row.catatan}</p>}
-                                                </div>
-                                                <span className="flex items-center gap-2">
+                                                </TableCell>
+                                                <TableCell className={`${selResponsif} xl:whitespace-nowrap xl:text-right`}>
+                                                    <TableCellLabel className={labelResponsif}>Anggaran</TableCellLabel>
+                                                    <span className={row.anggaran === null ? 'text-muted' : 'font-medium'}>{formatRupiah(row.anggaran)}</span>
+                                                </TableCell>
+                                                <TableCell className={selResponsif}>
+                                                    <TableCellLabel className={labelResponsif}>Status</TableCellLabel>
                                                     <Badge variant={status.variant}>{status.label}</Badge>
-                                                    {/* Klaim pengukuran dikelola lewat siklus pengukuran, bukan halaman kegiatan Rencana Aksi. */}
-                                                    {kegiatan.can.kelola && row.sumber_klaim === 'rencana_aksi' && (
-                                                        <Link
-                                                            href={`/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}`}
-                                                            aria-disabled={kotor}
-                                                            onBefore={() => !kotor}
-                                                            className={`rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25${kotor ? ' pointer-events-none opacity-50' : ''}`}
-                                                        >
-                                                            Kelola kegiatan
-                                                        </Link>
-                                                    )}
-                                                </span>
-                                            </li>
+                                                </TableCell>
+                                                {kegiatan.can.kelola && (
+                                                    <TableCell className={`${selResponsif} xl:text-right`}>
+                                                        {/* Klaim pengukuran dikelola lewat siklus pengukuran, bukan halaman kegiatan Rencana Aksi. */}
+                                                        {row.sumber_klaim === 'rencana_aksi' && (
+                                                            <TableActionLink
+                                                                href={`/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}`}
+                                                                aria-disabled={kotor}
+                                                                onBefore={() => !kotor}
+                                                                icon={Pencil}
+                                                                label={`Kelola kegiatan ${row.nama}`}
+                                                                tooltip="Kelola kegiatan"
+                                                            />
+                                                        )}
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
                                         );
                                     })}
-                                </ul>
-                            )}
+                                </TableBody>
+                            </Table>
                         </section>
                     );
                 })}

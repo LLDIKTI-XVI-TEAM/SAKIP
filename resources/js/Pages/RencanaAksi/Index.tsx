@@ -23,7 +23,7 @@ const OPSI_STATUS: { value: FilterStatusRencanaAksi; label: string }[] = [
 /**
  * Satu menu titik-tiga per baris dengan aksi dari capability server:
  * "Buat Rencana Aksi" (`create`), "Buka" untuk baris ber-header, dan
- * "Review" hanya ketika status non-draft + policy `view` mengizinkan.
+ * "Reviu" hanya ketika status non-draft + policy `view` mengizinkan.
  */
 function AksiBaris({ baris }: { baris: BarisRencanaAksi }) {
     const form = useForm({ indikator_id: baris.indikator_id, tahun: baris.tahun });
@@ -50,7 +50,7 @@ function AksiBaris({ baris }: { baris: BarisRencanaAksi }) {
         ...(baris.can.create ? [{ key: 'buat', label: 'Buat Rencana Aksi', icon: Plus, ariaLabel: `Buat Rencana Aksi ${baris.kode} ${baris.tahun}`, onSelect: buat }] : []),
         ...(baris.rencana_aksi ? [
             { key: 'buka', label: 'Buka', icon: Eye, href: `/rencana-aksi/${baris.rencana_aksi.id}`, ariaLabel: `Buka Rencana Aksi ${baris.kode} ${baris.tahun}` },
-            ...(baris.can.review ? [{ key: 'review', label: 'Review', icon: ShieldCheck, href: `/rencana-aksi/${baris.rencana_aksi.id}/review`, ariaLabel: `Review Rencana Aksi ${baris.kode} ${baris.tahun}` }] : []),
+            ...(baris.can.review ? [{ key: 'review', label: 'Reviu', icon: ShieldCheck, href: `/rencana-aksi/${baris.rencana_aksi.id}/review`, ariaLabel: `Reviu Rencana Aksi ${baris.kode} ${baris.tahun}` }] : []),
         ] : []),
     ];
 
