@@ -278,7 +278,7 @@ class PelaksanaanKegiatanTest extends TestCase
     public function test_halaman_ra_memuat_realisasi_terpisah_dan_capability_dari_server(): void
     {
         $this->realisasi(['biaya_terpakai' => 0, 'uraian_pelaksanaan' => 'Sesi pertama'])->assertRedirect();
-        $this->form()->assertInertia(fn ($page) => $page->component('RencanaAksi/KegiatanEdit')
+        $this->form()->assertInertia(fn ($page) => $page->component('RencanaAksi/KegiatanRealisasi')
             ->where('kegiatan.tanggal_realisasi', '2026-03-15')->where('kegiatan.biaya_terpakai', '0')
             ->where('kegiatan.realisasi_peserta', 25)->where('kegiatan.uraian_pelaksanaan', 'Sesi pertama')
             ->where('kegiatan.kendala', null)->where('kegiatan.strategi_tindaklanjut', null)
@@ -370,10 +370,11 @@ class PelaksanaanKegiatanTest extends TestCase
         return $this->actingAs($this->fixture['pic'])->delete("/kegiatan/{$this->kegiatan->id}/berkas/{$berkas->id}", ['alasan' => 'Salah unggah']);
     }
 
+    /** Halaman catat realisasi: realisasi dan bukti pelaksanaan dipisah dari form rencana. */
     private function form(): TestResponse
     {
         return $this->actingAs($this->fixture['pic'])
-            ->get("/rencana-aksi/{$this->header->id}/kegiatan/{$this->kegiatan->id}")->assertOk();
+            ->get("/rencana-aksi/{$this->header->id}/kegiatan/{$this->kegiatan->id}/realisasi")->assertOk();
     }
 
     /** @param array<string, mixed> $atribut */

@@ -400,6 +400,67 @@ class HalamanKegiatanRencanaAksiTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'kegiatan.ubah_ditolak')->where('objek_id', $kegiatanB->id)->count());
     }
 
+    public function test_halaman_realisasi_ra_terpisah_dari_halaman_rencana(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $this->klaim($kegiatan);
+
+        // Kontrol: halaman rencana tetap merender form rencana pada URL lamanya.
+        $this->actingAs($this->actor)->get($this->url($kegiatan))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('RencanaAksi/KegiatanEdit'));
+
+        $this->actingAs($this->actor)->get($this->urlRealisasi($kegiatan))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('RencanaAksi/KegiatanRealisasi')
+            ->where('rencanaAksi.id', $this->rencanaAksi->id)
+            ->where('rencanaAksi.kode', $this->indikator->kode)
+            ->where('kegiatan.id', $kegiatan->id)
+            ->where('kegiatan.version_token', fn (string $token) => strlen($token) === 64)
+            ->where('can.catat_realisasi', true)
+            ->has('pelaksanaan.rentang')
+            ->has('berkasPelaksanaan.persyaratan'));
+    }
+
+    public function test_halaman_realisasi_ra_menolak_di_luar_klaim_dan_lintas_unit_dengan_audit(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $this->klaim($kegiatan);
+        $lain = $this->kegiatan(['nama' => 'Kegiatan tanpa klaim']);
+        $this->actingAs($this->actor)->get($this->urlRealisasi($lain))->assertNotFound();
+
+        $unitB = Unit::create(['nama' => 'Unit B', 'status' => 'aktif', 'created_by' => $this->actor->id]);
+        $raB = $this->rencanaAksiLain($unitB);
+        $kegiatanB = $this->kegiatan(['unit_id' => $unitB->id]);
+        $this->klaim($kegiatanB, $raB);
+        $pegawai = $this->createUserWithRole('pegawai');
+        foreach (['rencana_aksi:update', 'kegiatan:read', 'kegiatan:update'] as $permission) {
+            $this->grantUnitPermission($pegawai, $permission, $this->unit->id);
+        }
+
+        // Kontrol positif: grant unit A membuka realisasi kegiatan unit A.
+        $this->actingAs($pegawai)->get($this->urlRealisasi($kegiatan))->assertOk();
+
+        $this->actingAs($pegawai)->get("/rencana-aksi/{$raB->id}/kegiatan/{$kegiatanB->id}/realisasi")->assertForbidden()
+            ->assertDontSee('IKU-RA-LAIN');
+        $this->assertSame('kegiatan:read', AuditLog::where('tindakan', 'kegiatan.form_ditolak')->where('objek_id', $kegiatanB->id)->sole()->dasar_izin['permission']);
+    }
+
+    public function test_akun_nonaktif_pada_halaman_rencana_dan_realisasi_diaudit_sebagai_form_ditolak(): void
+    {
+        $kegiatan = $this->kegiatan();
+        $this->klaim($kegiatan);
+        $this->actor->update(['status' => 'nonaktif']);
+
+        foreach ([$this->url($kegiatan), $this->urlRealisasi($kegiatan)] as $url) {
+            $this->actingAs($this->actor)->get($url)->assertRedirect(route('auth.pending'));
+        }
+
+        // Membuka form dicatat sebagai percobaan membuka, bukan percobaan menyimpan rencana.
+        $this->assertEqualsCanonicalizing([
+            ['kegiatan.form_ditolak', 'Akun tidak aktif saat membuka form rencana kegiatan.'],
+            ['kegiatan.form_ditolak', 'Akun tidak aktif saat membuka form realisasi kegiatan.'],
+        ], AuditLog::where('objek_id', $kegiatan->id)->get()->map(fn (AuditLog $audit) => [$audit->tindakan, $audit->alasan])->all());
+    }
+
     public function test_kegiatan_dari_ra_a_dapat_diklaim_ra_b_dan_ditandai_kegiatan_bersama(): void
     {
         // 1. Kegiatan dibuat dari RA A oleh PIC berizin; klaim tahap RA A terbentuk.
@@ -505,6 +566,11 @@ class HalamanKegiatanRencanaAksiTest extends TestCase
         return $kegiatan === null ? $url : route('rencana-aksi.kegiatan.edit', [
             'rencanaAksi' => $this->rencanaAksi->id, 'kegiatan' => $kegiatan->id,
         ]);
+    }
+
+    private function urlRealisasi(Kegiatan $kegiatan): string
+    {
+        return "/rencana-aksi/{$this->rencanaAksi->id}/kegiatan/{$kegiatan->id}/realisasi";
     }
 
     /** @return array<string, mixed> */

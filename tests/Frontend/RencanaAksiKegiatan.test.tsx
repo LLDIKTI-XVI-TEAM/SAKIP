@@ -211,7 +211,11 @@ it('menampilkan kegiatan tiap periode sebagai tabel dan menandai anggaran yang b
     expect(within(workshop).getByText('P — Pembilang')).toBeTruthy();
     expect(within(workshop).getByText('Menambah')).toBeTruthy();
     expect(within(workshop).getByText(/^Rp\s1\.500\.000$/)).toBeTruthy();
-    expect(within(workshop).getByRole('link', { name: 'Kelola kegiatan Workshop' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
+    fireEvent.click(within(workshop).getByRole('button', { name: 'Aksi kegiatan Workshop' }));
+    expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((item) => [item.textContent, item.getAttribute('href')])).toEqual([
+        ['Catat rencana', '/rencana-aksi/ra-1/kegiatan/keg-1'],
+        ['Catat realisasi', '/rencana-aksi/ra-1/kegiatan/keg-1/realisasi'],
+    ]);
     // Baris tanpa anggaran tetap terlihat sebagai "belum diisi", bukan Rp0.
     expect(within(rapat).getByText('Belum diisi')).toBeTruthy();
     expect(within(rapat).getByText('Mengurangi')).toBeTruthy();
@@ -235,7 +239,7 @@ it('menyembunyikan kolom komponen untuk indikator tanpa komponen dan kolom aksi 
 
     expect(within(screen.getByRole('region', { name: /^Triwulan I(?!I)/ })).getAllByRole('columnheader').map((kepala) => kepala.textContent))
         .toEqual(['Kegiatan', 'Arah dampak', 'Anggaran', 'Status']);
-    expect(screen.queryByRole('link', { name: /^Kelola kegiatan/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Aksi kegiatan/ })).toBeNull();
 });
 
 it('memberi anchor id hanya pada baris pertama tiap kegiatan walau klaim komponennya lebih dari satu', () => {

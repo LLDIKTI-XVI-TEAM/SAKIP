@@ -1,8 +1,7 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Lock } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
@@ -13,17 +12,16 @@ import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { formatRentangPeriode } from '@/lib/rentangPeriode';
 import { bantuanAnggaran } from '@/lib/rupiah';
 import { BerkasPerencanaanPanel } from '@/Pages/Kegiatan/Partials/BerkasPerencanaanPanel';
-import { RealisasiKegiatanPanel } from '@/Pages/Kegiatan/Partials/RealisasiKegiatanPanel';
 import { KlaimPanel } from '@/Pages/Kegiatan/Partials/KlaimPanel';
-import { StatusKegiatanModal, aksiStatusKegiatan } from '@/Pages/Kegiatan/Partials/StatusKegiatanModal';
-import { statusKegiatanConfig, type KegiatanFormProps, type RencanaKegiatan, type StatusTujuan } from '@/types/kegiatan';
+import { StatusPelaksanaanCard } from '@/Pages/Kegiatan/Partials/StatusPelaksanaanCard';
+import type { KegiatanFormProps, RencanaKegiatan } from '@/types/kegiatan';
 import type { RencanaAksiIdentitas } from './types';
 
 /**
  * Props halaman ubah kegiatan dalam konteks Rencana Aksi (Q74 §74.1):
- * `FormKegiatan` + panel klaim + berkas perencanaan, ditambah identitas RA
- * pengklaim untuk tautan kembali. Bentuk props mengikuti
- * `App\Http\Controllers\Kegiatan\EditKegiatanRencanaAksi`.
+ * `FormKegiatan` + panel klaim + berkas perencanaan dan pelaksanaan, ditambah
+ * identitas RA pengklaim untuk tautan kembali. Bentuk props mengikuti
+ * `FormKegiatanRencanaAksi` dan dipakai bersama halaman catat realisasi.
  */
 export interface KegiatanEditProps extends KegiatanFormProps {
     /** Identitas RA pengklaim; hanya dipakai untuk navigasi kembali ke konteks RA. */
@@ -45,15 +43,16 @@ const nilaiAwal = (kegiatan: RencanaKegiatan) => ({
 });
 
 /**
- * Form ubah kegiatan yang dibuka dari halaman kegiatan Rencana Aksi.
+ * Form catat rencana kegiatan yang dibuka dari menu aksi halaman kegiatan
+ * Rencana Aksi; realisasi dicatat di halaman terpisah (`KegiatanRealisasi`).
  * URL mutasi lama dipertahankan; hanya konteks navigasi yang berpindah ke
  * Rencana Aksi, sehingga klaim, berkas, dan status tetap di gerbang server
  * yang sama.
  */
-export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, periodeOptions, opsiPeriodeTujuan, can, klaim, berkasPerencanaan, berkasPelaksanaan, pelaksanaan }: KegiatanEditProps) {
+export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, periodeOptions, opsiPeriodeTujuan, can, klaim, berkasPerencanaan }: KegiatanEditProps) {
     const form = useForm(nilaiAwal(kegiatan));
     const { isDirty, setData, setDefaults, data: { expected_state } } = form;
-    // Realisasi dapat disimpan pada halaman yang sama: hanya form bersih yang menyerap token dan data baru.
+    // Status dapat berubah dari kartu di halaman yang sama: hanya form bersih yang menyerap token dan data baru.
     useEffect(() => {
         if (!isDirty && expected_state !== kegiatan.version_token) {
             const terbaru = nilaiAwal(kegiatan);
@@ -65,10 +64,6 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
     const terkunci = !can.ubah_rencana;
     const data = terkunci ? nilaiAwal(kegiatan) : form.data;
     const errors: typeof form.errors = terkunci ? {} : form.errors;
-    const [aksiStatus, setAksiStatus] = useState<StatusTujuan | null>(null);
-    const judulStatus = useRef<HTMLHeadingElement>(null);
-    const judulStatusId = useId();
-    const statusConfig = statusKegiatanConfig[kegiatan.status] ?? { label: kegiatan.status, variant: 'muted' as const };
     const path = `/kegiatan/${kegiatan.id}`;
     const halamanKegiatan = `/rencana-aksi/${rencanaAksi.id}/kegiatan`;
     const halamanUbah = `${halamanKegiatan}/${kegiatan.id}`;
@@ -85,7 +80,7 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
         submitting.current = true;
         form.transform((data) => ({ ...data, tahun: Number(data.tahun), sasaran_peserta: data.sasaran_peserta === '' ? null : Number(data.sasaran_peserta), anggaran: data.anggaran === '' ? null : data.anggaran }));
         form.post(path, {
-            // Dua form berbagi halaman: sukses hanya menyegarkan form ini, bukan membuang draf realisasi.
+            // Halaman tidak di-remount: sukses menyegarkan baseline form dari props tersimpan.
             preserveState: true,
             preserveScroll: true,
             onSuccess: (page) => {
@@ -126,40 +121,7 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
                     Kembali ke kegiatan rencana aksi
                 </Link>
                 {/* Di luar <form> utama: modal tanpa portal akan menjadi form bersarang dan ikut nonaktif oleh fieldset terkunci. */}
-                <Card role="region" aria-labelledby={judulStatusId}>
-                    <CardContent className="space-y-4 p-4 sm:p-6">
-                        <div className="flex items-center justify-between gap-3">
-                            <h2 id={judulStatusId} ref={judulStatus} tabIndex={-1} className="text-base font-semibold text-ink focus:outline-none">Status pelaksanaan</h2>
-                            <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-                        </div>
-                        {kegiatan.justifikasi && (
-                            <dl className="space-y-2 rounded-lg border border-border bg-soft/50 p-3 text-sm">
-                                {kegiatan.periode_tujuan && <div><dt className="text-xs text-muted">Periode tujuan</dt><dd className="font-medium text-ink">{kegiatan.periode_tujuan} {kegiatan.tahun}</dd></div>}
-                                <div><dt className="text-xs text-muted">Justifikasi</dt><dd className="whitespace-pre-line break-words font-medium text-ink">{kegiatan.justifikasi}</dd></div>
-                            </dl>
-                        )}
-                        {can.ubah_status.length > 0 && (
-                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                                {can.ubah_status.map((status) => {
-                                    const { label, icon: Icon, danger } = aksiStatusKegiatan[status];
-                                    // key per status: tombol lama dilepas setelah transisi sehingga fokus jatuh ke judul kartu.
-                                    return <Button key={status} type="button" variant="outline" className={danger ? 'border-danger/40 text-danger hover:bg-danger/10' : undefined} onClick={() => setAksiStatus(status)}>
-                                        <Icon className="h-4 w-4" aria-hidden="true" />
-                                        {label}
-                                    </Button>;
-                                })}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-                {aksiStatus && <StatusKegiatanModal
-                    key={`${kegiatan.id}:${aksiStatus}`}
-                    kegiatan={{ ...kegiatan, periode: kegiatan.periode_nama }}
-                    status={aksiStatus}
-                    opsiPeriodeTujuan={opsiPeriodeTujuan}
-                    fokusCadangan={judulStatus}
-                    onClose={() => setAksiStatus(null)}
-                />}
+                <StatusPelaksanaanCard kegiatan={kegiatan} ubahStatus={can.ubah_status} opsiPeriodeTujuan={opsiPeriodeTujuan} />
                 <Card>
                     <CardHeader><CardTitle>Catat rencana kegiatan</CardTitle></CardHeader>
                     <CardContent className="p-4 sm:p-6">
@@ -192,8 +154,6 @@ export default function KegiatanEdit({ rencanaAksi, kegiatan, unitOptions, perio
                 </Card>
                 {klaim && <KlaimPanel kegiatanId={kegiatan.id} klaim={klaim} rencanaAksiKonteks={rencanaAksi.id} />}
                 {berkasPerencanaan && <BerkasPerencanaanPanel kegiatanId={kegiatan.id} berkas={berkasPerencanaan} />}
-                <RealisasiKegiatanPanel key={kegiatan.id} kegiatan={kegiatan} can={can} pelaksanaan={pelaksanaan} halamanUbah={halamanUbah} />
-                {berkasPelaksanaan && <BerkasPerencanaanPanel kegiatanId={kegiatan.id} berkas={berkasPelaksanaan} tahap="pelaksanaan" />}
             </div>
         </AuthenticatedLayout>
     );

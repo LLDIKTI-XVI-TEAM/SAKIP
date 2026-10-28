@@ -2235,6 +2235,7 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 - Kode terdampak: `sidebarNavigation.ts` (item `kegiatan`), halaman `Kegiatan/Index.tsx`, `Kegiatan/Form.tsx`, `Kegiatan/Partials/*`, `RencanaAksi/KegiatanPanel.tsx`, `StoreKegiatanRencanaAksi`, dan route `/kegiatan*`.
 - PR #163 (ISS-06.04, Q69) mengubah status kegiatan pada halaman Kegiatan; ISS-06.09 menyesuaikan setelah PR itu merge.
 - Status implementasi (28 Oktober 2026): ISS-06.09 telah merge melalui PR #194. Backend §74.2 butir 2–6 diterapkan PR pertama ISS-06.03 (PR #195); bagian kedua ISS-06.03 melengkapi §74.2 butir 1, props realisasi, penanda koreksi, dan panel/unduh bukti pelaksanaan pada halaman kegiatan Rencana Aksi. Automated test dan browser smoke desktop/mobile telah diverifikasi; bukan penerimaan UAT atau deployment.
+- Tindak lanjut UI (28 Oktober 2026): kedua form §74.2 butir 1 ditempatkan pada dua halaman terpisah yang dipilih dari menu aksi baris kegiatan tahap Rencana Aksi. Catat rencana tetap pada `/rencana-aksi/{id}/kegiatan/{kegiatan}`, catat realisasi dan bukti pelaksanaan pada `…/kegiatan/{kegiatan}/realisasi`. Izin, endpoint simpan, dan aturan §74.2 tidak berubah.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
