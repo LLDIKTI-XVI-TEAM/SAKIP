@@ -213,7 +213,7 @@ it('menampilkan kegiatan tiap periode sebagai tabel dan menandai anggaran yang b
     expect(within(workshop).getByText(/^Rp\s1\.500\.000$/)).toBeTruthy();
     fireEvent.click(within(workshop).getByRole('button', { name: 'Aksi kegiatan Workshop' }));
     expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((item) => [item.textContent, item.getAttribute('href')])).toEqual([
-        ['Catat rencana kegiatan', '/rencana-aksi/ra-1/kegiatan/keg-1'],
+        ['Catat rencana', '/rencana-aksi/ra-1/kegiatan/keg-1'],
         ['Catat realisasi', '/rencana-aksi/ra-1/kegiatan/keg-1/realisasi'],
     ]);
     // Baris tanpa anggaran tetap terlihat sebagai "belum diisi", bukan Rp0.

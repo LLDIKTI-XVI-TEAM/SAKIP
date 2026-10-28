@@ -216,7 +216,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                         {row.sumber_klaim === 'rencana_aksi' && (
                                                             <ActionMenu
                                                                 items={[
-                                                                    { key: 'rencana', label: 'Catat rencana kegiatan', icon: Pencil, href: `/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}` },
+                                                                    { key: 'rencana', label: 'Catat rencana', icon: Pencil, href: `/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}` },
                                                                     { key: 'realisasi', label: 'Catat realisasi', icon: ClipboardCheck, href: `/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}/realisasi` },
                                                                 ]}
                                                                 trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}

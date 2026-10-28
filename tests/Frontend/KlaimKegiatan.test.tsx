@@ -139,7 +139,7 @@ it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke pe
     expect(screen.queryByRole('button', { name: /Tambah kegiatan Triwulan I$/ })).toBeNull();
     // Periode terkunci tetap menawarkan menu: halaman tujuan yang menampilkan mode baca-saja dari server.
     expect(menuAksi('Rapat lama')).toEqual([
-        ['Catat rencana kegiatan', '/rencana-aksi/ra-1/kegiatan/keg-1'],
+        ['Catat rencana', '/rencana-aksi/ra-1/kegiatan/keg-1'],
         ['Catat realisasi', '/rencana-aksi/ra-1/kegiatan/keg-1/realisasi'],
     ]);
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
@@ -221,5 +221,5 @@ it('menahan kelola kegiatan saat target kotor dan mengaktifkannya kembali sesuda
     rerender(<KegiatanPanel {...props} kotor={false} />);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aksi kegiatan Bimtek' }).disabled).toBe(false);
     expect(screen.queryByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeNull();
-    expect(menuAksi('Bimtek')[0]).toEqual(['Catat rencana kegiatan', '/rencana-aksi/ra-1/kegiatan/keg-1']);
+    expect(menuAksi('Bimtek')[0]).toEqual(['Catat rencana', '/rencana-aksi/ra-1/kegiatan/keg-1']);
 });
