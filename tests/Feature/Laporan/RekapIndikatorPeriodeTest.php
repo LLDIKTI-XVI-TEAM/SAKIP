@@ -296,37 +296,70 @@ class RekapIndikatorPeriodeTest extends TestCase
     }
 
     #[DataProvider('penandaEkspor')]
-    public function test_ekspor_mempertahankan_penanda_dan_nol_faktual(array $data, mixed $realisasi, mixed $target, mixed $persen): void
+    public function test_ekspor_mempertahankan_penanda_dan_nol_faktual(array $data, mixed $realisasi, mixed $target, mixed $persen, string $statusPerhitungan): void
     {
-        $version = $this->versi($data);
+        $this->versi($data);
         $book = $this->ekspor();
         $row = $this->isiSheet($book)[0];
         $this->assertSame($realisasi, $row['Realisasi']);
         $this->assertSame($target, $row['Target Periode']);
         $this->assertSame($persen, $row['Capaian (%)']);
-        $this->assertSame($version->snapshot['status_perhitungan'] ?? 'Tidak tercatat pada versi ini', $row['Status Perhitungan']);
+        $this->assertSame($statusPerhitungan, $row['Status Perhitungan']);
         $book->disconnectWorksheets();
     }
 
     public static function penandaEkspor(): array
     {
         return [
-            'belum diukur didahulukan' => [['status_perhitungan' => 'belum_dapat_diukur', 'nilai' => null, 'target' => null, 'tanpa_target_periode' => true], 'Belum dapat diukur', 'Tanpa target periode', 'Belum dapat diukur'],
-            'tanpa target dan nol' => [['nilai' => '0', 'target' => null, 'tanpa_target_periode' => true], 0, 'Tanpa target periode', 'Tanpa target periode'],
-            'penyebut nol' => [['status_perhitungan' => 'tidak_dapat_dihitung', 'nilai' => null], 'Tidak dapat dihitung', 20, 'Tidak dapat dihitung'],
-            'konteks tidak lengkap' => [['status_perhitungan' => null, 'nilai' => null], 'Konteks versi tidak lengkap', 20, 'Konteks versi tidak lengkap'],
-            'target nol' => [['nilai' => '0', 'target' => '0'], 0, 0, 'Tidak dihitung: target periode 0 atau negatif'],
-            'target historis hilang' => [['target' => null], 30, 'Tidak tercatat pada versi ini', 'Tidak tercatat pada versi ini'],
-            'realisasi historis hilang' => [['nilai' => null], 'Tidak tercatat pada versi ini', 20, 'Tidak tercatat pada versi ini'],
+            'belum diukur didahulukan' => [['status_perhitungan' => 'belum_dapat_diukur', 'nilai' => null, 'target' => null, 'tanpa_target_periode' => true], 'Belum dapat diukur', 'Tanpa target periode', 'Belum dapat diukur', 'Belum dapat diukur'],
+            'tanpa target dan nol' => [['nilai' => '0', 'target' => null, 'tanpa_target_periode' => true], 0, 'Tanpa target periode', 'Tanpa target periode', 'Terhitung'],
+            'penyebut nol' => [['status_perhitungan' => 'tidak_dapat_dihitung', 'nilai' => null], 'Tidak dapat dihitung', 20, 'Tidak dapat dihitung', 'Tidak dapat dihitung'],
+            'konteks tidak lengkap' => [['status_perhitungan' => null, 'nilai' => null], 'Konteks versi tidak lengkap', 20, 'Konteks versi tidak lengkap', 'Tidak tercatat pada versi ini'],
+            'target nol' => [['nilai' => '0', 'target' => '0'], 0, 0, 'Tidak dihitung: target periode 0 atau negatif', 'Terhitung'],
+            'target historis hilang' => [['target' => null], 30, 'Tidak tercatat pada versi ini', 'Tidak tercatat pada versi ini', 'Terhitung'],
+            'realisasi historis hilang' => [['nilai' => null], 'Tidak tercatat pada versi ini', 20, 'Tidak tercatat pada versi ini', 'Terhitung'],
         ];
+    }
+
+    #[DataProvider('labelEkspor')]
+    public function test_ekspor_memakai_label_dan_mempertahankan_kode_yang_belum_dikenal(string $tipe, string $peran, string $status, string $statusKegiatan, string $sumber, array $expected): void
+    {
+        $this->versi([
+            'indikator' => [...$this->context->only(['nama', 'satuan', 'arah', 'presisi', 'desimal_tampilan']), 'tipe_perhitungan' => $tipe],
+            'status_perhitungan' => $status,
+            'komponen' => [['komponen_id' => (string) Str::uuid(), 'peran' => $peran]],
+            'klaim' => [['sumber_klaim' => $sumber, 'kegiatan' => ['status' => $statusKegiatan]]],
+        ]);
+        $book = $this->ekspor();
+        $row = $this->isiSheet($book)[0];
+        $activity = $this->isiSheet($book, 'Kegiatan')[0];
+        $this->assertSame($expected, [$row['Cara Hitung'], $row['Peran Komponen'], $row['Status Perhitungan'], $activity['Status Kegiatan'], $activity['Sumber Klaim']]);
+        $book->disconnectWorksheets();
+    }
+
+    public static function labelEkspor(): array
+    {
+        return [
+            'label pengguna' => ['manual', 'penjumlah', 'terhitung', 'tidak_terlaksana', 'rencana_aksi', ['Nilai manual', 'Penjumlah', 'Terhitung', 'Tidak terlaksana', 'Rencana Aksi']],
+            'kode belum dikenal' => ['tipe_baru', 'peran_baru', 'status_baru', 'kegiatan_baru', 'sumber_baru', ['tipe_baru', 'peran_baru', 'status_baru', 'kegiatan_baru', 'sumber_baru']],
+        ];
+    }
+
+    public function test_ekspor_tanpa_klaim_tidak_merujuk_sheet_kegiatan_kosong(): void
+    {
+        $this->versi(['klaim' => []]);
+        $book = $this->ekspor();
+        $this->assertSame('Tidak ada kegiatan tercatat', $this->isiSheet($book)[0]['Detail Kegiatan']);
+        $this->assertSame([], $this->isiSheet($book, 'Kegiatan'));
+        $book->disconnectWorksheets();
     }
 
     public function test_metadata_komponen_historis_yang_hilang_tidak_ditandai_tidak_berlaku(): void
     {
-        $this->versi(['komponen' => [['komponen_id' => (string) Str::uuid(), 'nilai' => '30']]]);
+        $this->versi(['indikator' => ['tipe_perhitungan' => null], 'komponen' => [['komponen_id' => (string) Str::uuid(), 'nilai' => '30']]]);
         $book = $this->ekspor();
         $row = $this->isiSheet($book)[0];
-        foreach (['Kode Komponen', 'Komponen', 'Peran Komponen', 'Bobot'] as $kolom) {
+        foreach (['Cara Hitung', 'Kode Komponen', 'Komponen', 'Peran Komponen', 'Bobot'] as $kolom) {
             $this->assertSame('Tidak tercatat pada versi ini', $row[$kolom]);
         }
         $book->disconnectWorksheets();

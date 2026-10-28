@@ -1417,7 +1417,7 @@ Sumber: Rencana Aksi 2026, Laporan Kinerja Triwulan I–II 2026, dan Perjanjian 
 - PRD §5.1, §7.2, §24, §30, §31; Data Model §2.30 (induk `berkas` baru `jadwal_tahunan` dan `jadwal_periode`) dan katalog permission (`laporan:unggah`); Workflow (alur buat, tanda tangan di luar aplikasi, dan unggah); Plan modul 8 (task 8.5) dan 13; System Architecture §14.
 - User Stories/Issues: issue baru **US/ISS-10.05**, tahap 2 (Q46 §46.3); US/ISS-10.02 dan 14.01 diberi catatan.
 - Bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR.
-- Status implementasi: sebagian. Kolom `berkas.keterangan` sudah ada dan dipakai lampiran PK (ISS-02.11, Q65 §65.3); induk arsip `jadwal_tahunan`/`jadwal_periode`, `laporan:unggah`, dan pemakaian keterangan untuk induk lain belum (ISS-10.05).
+- Status implementasi: sebagian. Kolom `berkas.keterangan` sudah ada dan dipakai lampiran PK (ISS-02.11, Q65 §65.3); induk arsip `jadwal_tahunan`/`jadwal_periode`, `laporan:unggah`, dan pemakaian keterangan untuk induk lain belum (ISS-10.05). Ekspor rekap ISS-10.03 ([PR #198](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/198)) sudah menerapkan `laporan:ekspor` (§48.1 butir 6) serta pembaca data bersama halaman dan ekspor. Keluaran resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan tetap ISS-10.05; penerimaan format Q29 tetap ISS-10.04.
 
 ---
 

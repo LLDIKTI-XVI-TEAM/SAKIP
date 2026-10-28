@@ -24,6 +24,24 @@ class EksporRekapIndikatorPeriode
         'disahkan' => 'Disahkan', 'konteks_tidak_lengkap' => 'Konteks versi tidak lengkap',
     ];
 
+    private const CARA_HITUNG = [
+        'manual' => 'Nilai manual', 'rasio_persen' => 'Rasio persen berbobot', 'penjumlahan' => 'Penjumlahan berbobot',
+    ];
+
+    private const PERAN_KOMPONEN = ['pembilang' => 'Pembilang', 'penyebut' => 'Penyebut', 'penjumlah' => 'Penjumlah'];
+
+    private const STATUS_PERHITUNGAN = [
+        'belum_diisi' => 'Belum diisi', 'terhitung' => 'Terhitung',
+        'tidak_dapat_dihitung' => 'Tidak dapat dihitung', 'belum_dapat_diukur' => 'Belum dapat diukur',
+    ];
+
+    private const STATUS_KEGIATAN = [
+        'rencana' => 'Rencana', 'terlaksana' => 'Terlaksana', 'tidak_terlaksana' => 'Tidak terlaksana',
+        'ditunda' => 'Ditunda', 'batal' => 'Batal',
+    ];
+
+    private const SUMBER_KLAIM = ['rencana_aksi' => 'Rencana Aksi', 'pengukuran' => 'Pengukuran'];
+
     private const KOLOM_KEGIATAN = ['Kunci Rekap', 'Kode Indikator', 'Periode', 'Unit', 'Kegiatan', 'Status Kegiatan',
         'Anggaran (Rp)', 'Kegiatan Bersama', 'Sumber Klaim', 'Uraian Pelaksanaan', 'Kendala Kegiatan', 'Strategi Tindak Lanjut Kegiatan'];
 
@@ -98,16 +116,16 @@ class EksporRekapIndikatorPeriode
             'Indikator' => $r['indikator']['nama'] ?? self::TIDAK_TERCATAT, 'Periode' => $r['periode']['nama'],
             'Unit' => $r['unit']['nama'] ?? self::TIDAK_TERCATAT, 'Kode Sasaran' => $r['sasaran']['kode'] ?? self::TIDAK_TERCATAT,
             'Sasaran' => $r['sasaran']['deskripsi'] ?? self::TIDAK_TERCATAT, 'PIC Historis' => $r['pic']['nama'] ?? $kosong,
-            'PIC Saat Ini' => $r['pic_saat_ini']['nama'] ?? 'Belum ditetapkan', 'Cara Hitung' => $r['indikator']['tipe_perhitungan'],
+            'PIC Saat Ini' => $r['pic_saat_ini']['nama'] ?? 'Belum ditetapkan', 'Cara Hitung' => self::CARA_HITUNG[$r['indikator']['tipe_perhitungan'] ?? ''] ?? $r['indikator']['tipe_perhitungan'] ?? $kosong,
             'Definisi' => $r['indikator']['definisi'] ?? self::TIDAK_TERCATAT, 'Satuan' => $r['indikator']['satuan'] ?? self::TIDAK_TERCATAT,
             'Baseline' => $angka($r['baseline'] ?? 'Belum diisi'), 'Target PK' => $angka($r['target_pk'] ?? self::TIDAK_TERCATAT),
             'Target Periode' => $angka($target), 'Realisasi' => $angka($r['nilai'] ?? $nilaiKosong), 'Capaian (%)' => $angka($persen, 2),
             'Selisih terhadap Target PK' => $angka($r['selisih_target_pk'] ?? ($belumSah ? 'Belum disahkan' : ($r['nilai'] === null ? $nilaiKosong : self::TIDAK_TERCATAT))),
             'Kode Komponen' => $c ? ($c['kode'] ?? $kosong) : 'Tidak berlaku', 'Komponen' => $c ? ($c['label'] ?? $kosong) : 'Tidak berlaku',
-            'Peran Komponen' => $c ? ($c['peran'] ?? $kosong) : 'Tidak berlaku', 'Bobot' => $angka($c ? ($c['bobot'] ?? $kosong) : 'Tidak berlaku', 12),
+            'Peran Komponen' => $c ? (self::PERAN_KOMPONEN[$c['peran'] ?? ''] ?? $c['peran'] ?? $kosong) : 'Tidak berlaku', 'Bobot' => $angka($c ? ($c['bobot'] ?? $kosong) : 'Tidak berlaku', 12),
             'Target Komponen' => $angka($c ? ($c['target'] ?? ($r['tanpa_target_periode'] ? 'Tanpa target periode' : $kosong)) : 'Tidak berlaku'),
             'Realisasi Komponen' => $angka($c ? ($c['realisasi'] ?? ($belumSah ? 'Belum disahkan' : ($r['status_laporan'] === 'belum_dapat_diukur' ? $status : self::TIDAK_TERCATAT))) : 'Tidak berlaku'),
-            'Status Laporan' => $status, 'Status Perhitungan' => $r['status_perhitungan'] ?? $kosong, 'Status Capaian' => $r['status_capaian'],
+            'Status Laporan' => $status, 'Status Perhitungan' => self::STATUS_PERHITUNGAN[$r['status_perhitungan'] ?? ''] ?? $r['status_perhitungan'] ?? $kosong, 'Status Capaian' => $r['status_capaian'],
             'Keterangan Capaian' => $r['keterangan_capaian'] ?? 'Tidak ada', 'Alasan Tidak Dapat Dihitung' => $r['alasan_tidak_dapat_dihitung'] ?? 'Tidak ada',
             'Progres Kegiatan' => $r['narasi']['progres_kegiatan'] ?? $kosong, 'Kendala / Masalah' => $r['narasi']['kendala_masalah'] ?? $kosong,
             'Strategi Tindak Lanjut' => $r['narasi']['strategi_tindak_lanjut'] ?? $kosong, 'Tindak Lanjut Rekomendasi' => $r['narasi']['tindak_lanjut_rekomendasi'] ?? $kosong,
@@ -116,7 +134,11 @@ class EksporRekapIndikatorPeriode
             'Status Bukti' => $r['bukti'] ? (['lengkap' => 'Lengkap', 'belum_lengkap' => 'Belum lengkap', 'tidak_tercatat' => self::TIDAK_TERCATAT][$r['bukti']['status']]) : $kosong,
             'Bukti Wajib Terpenuhi' => $angka($r['bukti']['terpenuhi'] ?? $kosong, 0), 'Bukti Wajib Total' => $angka($r['bukti']['total'] ?? $kosong, 0),
             'Histori Bukti Tidak Dapat Dipenuhi' => ! $r['bukti'] || $r['bukti']['status'] === 'tidak_tercatat' ? $kosong : ($r['bukti']['histori_tidak_dapat_dipenuhi'] ? 'Ya' : 'Tidak'),
-            'Detail Kegiatan' => ! $r['can']['lihat_kegiatan'] ? 'Detail kegiatan dibatasi sesuai akses unit' : ($r['kegiatan'] === null ? $kosong : 'Lihat sheet Kegiatan'),
+            'Detail Kegiatan' => ! $r['can']['lihat_kegiatan'] ? 'Detail kegiatan dibatasi sesuai akses unit' : match ($r['kegiatan']) {
+                null => $kosong,
+                [] => 'Tidak ada kegiatan tercatat',
+                default => 'Lihat sheet Kegiatan',
+            },
             'Versi Pengukuran' => $r['versi'] ? (string) $r['versi']['nomor'] : 'Belum disahkan',
             'Disahkan Pada' => $r['versi']['disahkan_pada'] ?? 'Belum disahkan',
         ];
@@ -127,10 +149,10 @@ class EksporRekapIndikatorPeriode
     {
         return array_combine(self::KOLOM_KEGIATAN, [
             $r['id'], $r['indikator']['kode'] ?? self::TIDAK_TERCATAT, $r['periode']['nama'], $r['unit']['nama'] ?? self::TIDAK_TERCATAT,
-            $k['nama'] ?? self::TIDAK_TERCATAT, $k['status'] ?? self::TIDAK_TERCATAT,
+            $k['nama'] ?? self::TIDAK_TERCATAT, self::STATUS_KEGIATAN[$k['status'] ?? ''] ?? $k['status'] ?? self::TIDAK_TERCATAT,
             ['angka' => ! $k['anggaran_tercatat'] ? self::TIDAK_TERCATAT : ($k['anggaran'] ?? 'Belum diisi'), 'desimal' => 0, 'rupiah' => true],
             $k['kegiatan_bersama'] === null ? self::TIDAK_TERCATAT : ($k['kegiatan_bersama'] ? 'Ya' : 'Tidak'),
-            $k['sumber_klaim'] ?? self::TIDAK_TERCATAT, $k['uraian_pelaksanaan'] ?? self::TIDAK_TERCATAT,
+            self::SUMBER_KLAIM[$k['sumber_klaim'] ?? ''] ?? $k['sumber_klaim'] ?? self::TIDAK_TERCATAT, $k['uraian_pelaksanaan'] ?? self::TIDAK_TERCATAT,
             $k['kendala'] ?? self::TIDAK_TERCATAT, $k['strategi_tindaklanjut'] ?? self::TIDAK_TERCATAT,
         ]);
     }
