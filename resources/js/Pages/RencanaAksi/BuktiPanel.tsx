@@ -1,16 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Upload } from 'lucide-react';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { Badge } from '@/Components/Badge';
 import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader } from '@/Components/Card';
-import { Input } from '@/Components/Input';
+import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
-import { Textarea } from '@/Components/Textarea';
+import { Table, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Tooltip } from '@/Components/Tooltip';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
+import type { LampiranDraft } from '@/types/lampiran';
 import JudulLangkah from './JudulLangkah';
 import type { BuktiItem, BuktiMode, BuktiPersyaratan, RencanaAksiBukti } from './types';
 
@@ -23,6 +25,10 @@ interface BuktiPanelProps {
 
 const MODE: BuktiMode[] = ['file', 'tautan', 'teks'];
 const LABEL_MODE: Record<BuktiMode, string> = { file: 'File', tautan: 'Tautan', teks: 'Teks' };
+
+// Kolom tabel persyaratan baru muat di samping sidebar mulai 1024 px; di bawahnya setiap baris tampil sebagai kartu berlabel.
+const selResponsif = 'min-w-0 p-0 lg:px-4 lg:py-3.5';
+const labelResponsif = 'md:inline lg:hidden';
 
 /** Galat validasi bisnis gerbang tulis (422) yang tidak terikat ke field form. */
 function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
@@ -49,23 +55,23 @@ export default function BuktiPanel({ rencanaAksiId, bukti, nomor }: BuktiPanelPr
     const [menghapus, setMenghapus] = useState(false);
     const [galatHapus, setGalatHapus] = useState<string | undefined>();
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm<{
+    // Satu bukti per penyimpanan: editor lampiran bersama dibatasi satu item, lalu didatarkan saat dikirim.
+    const { data, setData, transform, post, processing, errors, reset, clearErrors } = useForm<{
         jenis_berkas_id: string;
-        mode: BuktiMode;
-        file: File | null;
-        tautan: string;
-        isi_teks: string;
-    }>({ jenis_berkas_id: '', mode: 'file', file: null, tautan: '', isi_teks: '' });
+        lampiran: LampiranDraft[];
+    }>({ jenis_berkas_id: '', lampiran: [] });
 
     const fieldErrors = errors as Record<string, string | undefined>;
     const persyaratanAktif = persyaratan.find((item) => item.id === data.jenis_berkas_id);
     const modeBoleh = modeTersedia(persyaratanAktif);
+    const formatUnggah = persyaratanAktif?.format_diizinkan ?? unggahan.format_diizinkan;
+    const ukuranUnggahKb = persyaratanAktif?.ukuran_maks_kb ?? unggahan.ukuran_maks_kb;
 
     const bukaTambah = (jenisBerkasId = ''): void => {
         const req = persyaratan.find((item) => item.id === jenisBerkasId);
         clearErrors();
         setRequestError('');
-        setData({ jenis_berkas_id: jenisBerkasId, mode: modeTersedia(req)[0] ?? 'tautan', file: null, tautan: '', isi_teks: '' });
+        setData({ jenis_berkas_id: jenisBerkasId, lampiran: [{ clientId: 'bukti', mode: modeTersedia(req)[0] ?? 'tautan', file: null, tautan: '', isi_teks: '' }] });
         setModalTambah(true);
     };
 
@@ -77,14 +83,18 @@ export default function BuktiPanel({ rencanaAksiId, bukti, nomor }: BuktiPanelPr
 
     const gantiPersyaratan = (jenisBerkasId: string): void => {
         const boleh = modeTersedia(persyaratan.find((item) => item.id === jenisBerkasId));
-        setData({ ...data, jenis_berkas_id: jenisBerkasId, mode: boleh.includes(data.mode) ? data.mode : (boleh[0] ?? 'tautan') });
+        setData({ jenis_berkas_id: jenisBerkasId, lampiran: data.lampiran.map((item) => (
+            boleh.includes(item.mode) ? item : { ...item, mode: boleh[0] ?? 'tautan', file: null, tautan: '', isi_teks: '' }
+        )) });
     };
 
     const kirim = (event: FormEvent<HTMLFormElement>): void => {
         event.preventDefault();
-        if (processing || requestError !== '') {
+        const [lampiran] = data.lampiran;
+        if (processing || requestError !== '' || !lampiran) {
             return;
         }
+        transform(({ jenis_berkas_id }) => ({ jenis_berkas_id, mode: lampiran.mode, file: lampiran.file, tautan: lampiran.tautan, isi_teks: lampiran.isi_teks }));
         post(`/rencana-aksi/${rencanaAksiId}/bukti`, {
             forceFormData: true,
             preserveScroll: true,
@@ -139,14 +149,14 @@ export default function BuktiPanel({ rencanaAksiId, bukti, nomor }: BuktiPanelPr
     const judulBukti = (item: BuktiItem): string => item.nama_persyaratan ?? 'Lampiran bebas';
 
     return (
-        <Card>
+        <Card role="region" aria-labelledby="ra-langkah-bukti">
             <CardHeader>
-                <JudulLangkah nomor={nomor}>Bukti dukung</JudulLangkah>
+                <JudulLangkah id="ra-langkah-bukti" nomor={nomor}>Bukti dukung</JudulLangkah>
                 <div className="flex flex-wrap items-center gap-3">
                     {dikecualikan ? (
-                        <Badge variant="info" size="sm">Dikecualikan (periode lampau/data awal)</Badge>
+                        <Badge variant="info">Dikecualikan (periode lampau/data awal)</Badge>
                     ) : (
-                        <Badge variant={ringkasan.lengkap ? 'success' : 'warning'} size="sm">
+                        <Badge variant={ringkasan.lengkap ? 'success' : 'warning'}>
                             {ringkasan.lengkap ? 'Lengkap' : 'Belum lengkap'} ({ringkasan.terpenuhi_wajib}/{ringkasan.total_wajib} wajib)
                         </Badge>
                     )}
@@ -158,77 +168,96 @@ export default function BuktiPanel({ rencanaAksiId, bukti, nomor }: BuktiPanelPr
                     )}
                 </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <section aria-labelledby="persyaratan-bukti-ra" className="space-y-3">
-                    <h4 id="persyaratan-bukti-ra" className="text-sm font-semibold text-ink">Persyaratan tahap rencana aksi</h4>
+            <CardContent className="divide-y divide-border p-0">
+                <section aria-labelledby="persyaratan-bukti-ra">
+                    <h4 id="persyaratan-bukti-ra" className="px-6 py-3 text-sm font-semibold text-ink">Persyaratan tahap rencana aksi</h4>
                     {persyaratan.length === 0 ? (
-                        <p className="text-sm text-muted">Tidak ada persyaratan bukti tahap rencana aksi untuk indikator ini; lampiran bebas tetap dapat ditambahkan.</p>
+                        <p className="px-6 pb-4 text-sm text-muted">Tidak ada persyaratan bukti tahap rencana aksi untuk indikator ini; lampiran bebas tetap dapat ditambahkan.</p>
                     ) : (
-                        <ul className="divide-y divide-border rounded-lg border border-border">
-                            {persyaratan.map((req) => (
-                                <li key={req.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="min-w-0 space-y-1">
-                                        <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
-                                            <span>{req.nama}</span>
-                                            <Badge variant={req.wajib ? 'danger' : 'muted'} size="sm">{req.wajib ? 'Wajib' : 'Opsional'}</Badge>
-                                            {req.semua_mode_wajib && <Badge variant="info" size="sm">Semua mode wajib</Badge>}
-                                        </p>
-                                        {req.keterangan && <p className="text-xs text-muted">{req.keterangan}</p>}
-                                        <p className="text-xs text-muted">
-                                            Mode diizinkan: {modeTersedia(req).map((mode) => LABEL_MODE[mode]).join(', ')}
-                                            {req.izinkan_file && ` · ${req.format_diizinkan}, maks. ${req.ukuran_maks_kb} KB`}
-                                        </p>
-                                        {req.pemenuhan.tidak_dapat_dipenuhi && (
-                                            <p className="text-xs font-medium text-info-dark">Ditandai tidak dapat dipenuhi: {req.pemenuhan.alasan_pengecualian}</p>
+                        <Table aria-labelledby="persyaratan-bukti-ra" wrapperClassName="overflow-x-visible" className="block lg:table lg:table-fixed">
+                            <TableHeader className="max-lg:sr-only">
+                                <TableRow>
+                                    <TableHead className="whitespace-normal">Persyaratan</TableHead>
+                                    <TableHead className="w-56">Mode diizinkan</TableHead>
+                                    <TableHead className="w-40">Status</TableHead>
+                                    {can.upload && <TableHead className="w-20 text-right">Aksi</TableHead>}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody className="block lg:table-row-group">
+                                {persyaratan.map((req) => (
+                                    <TableRow key={req.id} className="grid min-w-0 grid-cols-2 gap-3 px-6 py-4 lg:table-row">
+                                        <TableCell className={`col-span-2 ${selResponsif}`}>
+                                            <p className="break-words text-sm font-medium text-ink">{req.nama}</p>
+                                            {req.keterangan && <p className="mt-0.5 break-words text-xs text-muted">{req.keterangan}</p>}
+                                            <span className="mt-1.5 flex flex-wrap gap-1">
+                                                <Badge variant={req.wajib ? 'danger' : 'muted'}>{req.wajib ? 'Wajib' : 'Opsional'}</Badge>
+                                                {req.semua_mode_wajib && <Badge variant="info">Semua mode wajib</Badge>}
+                                            </span>
+                                            {req.pemenuhan.tidak_dapat_dipenuhi && (
+                                                <p className="mt-1.5 text-xs font-medium text-info-dark">Ditandai tidak dapat dipenuhi: {req.pemenuhan.alasan_pengecualian}</p>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className={`col-span-2 ${selResponsif}`}>
+                                            <TableCellLabel className={labelResponsif}>Mode diizinkan</TableCellLabel>
+                                            <span className="break-words">{modeTersedia(req).map((mode) => LABEL_MODE[mode]).join(', ') || '—'}{req.izinkan_file ? ` · ${req.format_diizinkan}, maks. ${req.ukuran_maks_kb} KB` : ''}</span>
+                                        </TableCell>
+                                        <TableCell className={selResponsif}>
+                                            <TableCellLabel className={labelResponsif}>Status</TableCellLabel>
+                                            {dikecualikan && req.wajib && !req.pemenuhan.terpenuhi ? (
+                                                <Badge variant="info">Dikecualikan</Badge>
+                                            ) : req.pemenuhan.terpenuhi ? (
+                                                <Badge variant={req.pemenuhan.tidak_dapat_dipenuhi ? 'info' : 'success'}>
+                                                    {req.pemenuhan.tidak_dapat_dipenuhi ? 'Dikecualikan' : 'Terpenuhi'}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="warning">
+                                                    Kurang: {req.pemenuhan.mode_kurang.map((mode) => LABEL_MODE[mode]).join(', ')}
+                                                </Badge>
+                                            )}
+                                        </TableCell>
+                                        {can.upload && (
+                                            <TableCell className={`${selResponsif} text-right`}>
+                                                {/* Persyaratan tanpa mode yang diizinkan tidak dapat dipenuhi lewat form. */}
+                                                {modeTersedia(req).length > 0 && (
+                                                    <Tooltip content="Penuhi persyaratan" align="right">
+                                                        <Button type="button" size="sm" variant="outline" className="h-8 w-8 p-0" aria-label={`Penuhi ${req.nama}`} onClick={() => bukaTambah(req.id)}>
+                                                            <Upload className="h-4 w-4" aria-hidden="true" />
+                                                        </Button>
+                                                    </Tooltip>
+                                                )}
+                                            </TableCell>
                                         )}
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-3">
-                                        {dikecualikan && req.wajib && !req.pemenuhan.terpenuhi ? (
-                                            <Badge variant="info" size="sm">Dikecualikan</Badge>
-                                        ) : req.pemenuhan.terpenuhi ? (
-                                            <Badge variant={req.pemenuhan.tidak_dapat_dipenuhi ? 'info' : 'success'} size="sm">
-                                                {req.pemenuhan.tidak_dapat_dipenuhi ? 'Dikecualikan' : 'Terpenuhi'}
-                                            </Badge>
-                                        ) : (
-                                            <Badge variant="warning" size="sm">
-                                                Kurang: {req.pemenuhan.mode_kurang.map((mode) => LABEL_MODE[mode]).join(', ')}
-                                            </Badge>
-                                        )}
-                                        {/* Persyaratan tanpa mode yang diizinkan tidak dapat dipenuhi lewat form. */}
-                                        {can.upload && modeTersedia(req).length > 0 && (
-                                            <Button type="button" variant="outline" size="sm" onClick={() => bukaTambah(req.id)}>
-                                                Penuhi
-                                            </Button>
-                                        )}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     )}
                 </section>
 
-                <section aria-labelledby="daftar-bukti-ra" className="space-y-3">
-                    <h4 id="daftar-bukti-ra" className="text-sm font-semibold text-ink">Bukti terlampir ({daftar.length})</h4>
+                <section aria-labelledby="daftar-bukti-ra">
+                    <h4 id="daftar-bukti-ra" className="px-6 py-3 text-sm font-semibold text-ink">Bukti terlampir ({daftar.length})</h4>
                     {daftar.length === 0 ? (
-                        <p className="text-sm text-muted">Belum ada bukti dukung yang dilampirkan.</p>
+                        <p className="px-6 pb-4 text-sm text-muted">Belum ada bukti dukung yang dilampirkan.</p>
                     ) : (
-                        <ul className="space-y-3">
+                        <ul className="space-y-3 px-6 pb-6">
                             {daftar.map((item) => (
                                 <BerkasLampiranItem
                                     key={item.id}
                                     berkas={item}
                                     meta={`${judulBukti(item)} · ${item.pengunggah ?? 'Pengguna'} · ${formatTanggal(item.created_at, { withTime: true })}`}
                                     action={can.delete && (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-danger hover:bg-danger/10 hover:text-danger"
-                                            aria-label={`Hapus bukti ${item.nama_asli ?? judulBukti(item)}`}
-                                            onClick={() => { setGalatHapus(undefined); setAlasanHapus(''); setHapusTarget(item); }}
-                                        >
-                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
-                                        </Button>
+                                        <Tooltip content="Hapus bukti" align="right">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 text-danger hover:bg-danger/10"
+                                                aria-label={`Hapus bukti ${item.nama_asli ?? judulBukti(item)}`}
+                                                onClick={() => { setGalatHapus(undefined); setAlasanHapus(''); setHapusTarget(item); }}
+                                            >
+                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                            </Button>
+                                        </Tooltip>
                                     )}
                                 />
                             ))}
@@ -238,99 +267,67 @@ export default function BuktiPanel({ rencanaAksiId, bukti, nomor }: BuktiPanelPr
             </CardContent>
 
             {/* Selama unggahan berjalan modal tidak boleh ditutup agar outcome server tetap terlihat. */}
-            <Modal isOpen={modalTambah} onClose={() => { if (!processing) tutupTambah(); }} title="Tambah bukti dukung" size="lg">
-                <form onSubmit={kirim} className="space-y-4" aria-busy={processing}>
-                    <Select
-                        id="bukti-jenis-berkas"
-                        label="Persyaratan"
-                        value={data.jenis_berkas_id}
-                        onChange={(event) => gantiPersyaratan(event.target.value)}
-                        error={fieldErrors.jenis_berkas_id}
-                        disabled={processing}
-                    >
-                        <option value="">Lampiran bebas (tanpa persyaratan)</option>
-                        {persyaratan.map((req) => (
-                            <option key={req.id} value={req.id} disabled={modeTersedia(req).length === 0}>
-                                {req.nama} ({req.wajib ? 'wajib' : 'opsional'})
-                            </option>
-                        ))}
-                    </Select>
-
-                    <div>
-                        <p id="bukti-mode-label" className="mb-1.5 block text-sm font-medium text-ink">Mode bukti</p>
-                        <div role="group" aria-labelledby="bukti-mode-label" className="flex flex-wrap gap-2">
-                            {MODE.map((mode) => (
-                                <Button
-                                    key={mode}
-                                    type="button"
-                                    size="sm"
-                                    variant={data.mode === mode ? 'primary' : 'outline'}
-                                    aria-pressed={data.mode === mode}
-                                    disabled={processing || !modeBoleh.includes(mode)}
-                                    onClick={() => setData('mode', mode)}
-                                >
-                                    {LABEL_MODE[mode]}
-                                </Button>
-                            ))}
-                        </div>
-                        {fieldErrors.mode && <p className="mt-1 text-xs text-danger" role="alert">{fieldErrors.mode}</p>}
+            <Modal
+                isOpen={modalTambah}
+                onClose={() => { if (!processing) tutupTambah(); }}
+                title="Tambah bukti dukung"
+                size="lg"
+                footer={
+                    <div className="flex w-full items-center justify-end gap-3">
+                        <Button type="button" variant="outline" disabled={processing} onClick={tutupTambah}>Batal</Button>
+                        <Button type="submit" form="bukti-ra-form" variant="primary" isLoading={processing} disabled={processing || requestError !== '' || data.lampiran.length === 0}>Simpan bukti</Button>
                     </div>
-
-                    {data.mode === 'file' && (
-                        <div>
-                            <label htmlFor="bukti-file" className="mb-1.5 block text-sm font-medium text-ink">Berkas</label>
-                            <input
-                                id="bukti-file"
-                                type="file"
-                                required
+                }
+            >
+                <form id="bukti-ra-form" onSubmit={kirim} className="space-y-4" aria-busy={processing}>
+                    <LampiranDraftFields
+                        items={data.lampiran}
+                        errors={{
+                            'lampiran.0.mode': fieldErrors.mode,
+                            'lampiran.0.file': fieldErrors.file,
+                            'lampiran.0.tautan': fieldErrors.tautan,
+                            'lampiran.0.isi_teks': fieldErrors.isi_teks,
+                        }}
+                        // Menghapus lampiran ikut mengosongkan persyaratan, seperti bukti baru pada Pengukuran.
+                        onChange={(update) => {
+                            const lampiran = update(data.lampiran);
+                            setData({ jenis_berkas_id: lampiran.length > 0 ? data.jenis_berkas_id : '', lampiran });
+                        }}
+                        title="Lampiran Dokumen"
+                        modeDescriptions={{
+                            file: `Format ${formatUnggah}; maksimal ${ukuranUnggahKb % 1024 === 0 ? `${ukuranUnggahKb / 1024} MB` : `${ukuranUnggahKb} KB`}.`,
+                            tautan: 'Gunakan alamat http atau https.',
+                            teks: 'Tuliskan bukti dukung dalam bentuk teks.',
+                        }}
+                        placeholders={{ tautan: 'https://', teks: '' }}
+                        emptyText="Belum ada lampiran yang ditambahkan"
+                        accept={formatUnggah.split(',').map((format) => `.${format.trim()}`).join(',')}
+                        disabled={processing}
+                        maxItems={1}
+                        modes={modeBoleh}
+                        renderItemFields={() => (
+                            <Select
+                                id="bukti-jenis-berkas"
+                                label="Persyaratan"
+                                value={data.jenis_berkas_id}
+                                onChange={(event) => gantiPersyaratan(event.target.value)}
+                                error={fieldErrors.jenis_berkas_id}
                                 disabled={processing}
-                                aria-invalid={fieldErrors.file ? true : undefined}
-                                aria-describedby={fieldErrors.file ? 'bukti-file-keterangan bukti-file-error' : 'bukti-file-keterangan'}
-                                onChange={(event) => setData('file', event.target.files?.[0] ?? null)}
-                                className="block w-full text-sm text-ink file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-dark"
-                            />
-                            <p id="bukti-file-keterangan" className="mt-1 text-xs text-muted">
-                                Format: {persyaratanAktif?.format_diizinkan ?? unggahan.format_diizinkan}. Ukuran maksimal {persyaratanAktif?.ukuran_maks_kb ?? unggahan.ukuran_maks_kb} KB.
-                            </p>
-                            {fieldErrors.file && <p id="bukti-file-error" className="mt-1 text-xs text-danger" role="alert">{fieldErrors.file}</p>}
-                        </div>
-                    )}
-                    {data.mode === 'tautan' && (
-                        <Input
-                            id="bukti-tautan"
-                            label="Tautan"
-                            type="url"
-                            required
-                            disabled={processing}
-                            placeholder="https://"
-                            value={data.tautan}
-                            onChange={(event) => setData('tautan', event.target.value)}
-                            error={fieldErrors.tautan}
-                            helperText="Gunakan alamat http atau https."
-                        />
-                    )}
-                    {data.mode === 'teks' && (
-                        <Textarea
-                            id="bukti-teks"
-                            label="Keterangan"
-                            rows={4}
-                            required
-                            disabled={processing}
-                            value={data.isi_teks}
-                            onChange={(event) => setData('isi_teks', event.target.value)}
-                            error={fieldErrors.isi_teks}
-                        />
-                    )}
+                            >
+                                <option value="">Lampiran bebas (tanpa persyaratan)</option>
+                                {persyaratan.map((req) => (
+                                    <option key={req.id} value={req.id} disabled={modeTersedia(req).length === 0}>
+                                        {req.nama} ({req.wajib ? 'wajib' : 'opsional'})
+                                    </option>
+                                ))}
+                            </Select>
+                        )}
+                    />
 
                     {galatBisnis(fieldErrors) && (
                         <p role="alert" className="text-sm text-danger">{galatBisnis(fieldErrors)}</p>
                     )}
                     {requestError !== '' && <p role="alert" className="text-sm text-danger">{requestError}</p>}
-
-                    <div className="flex justify-end gap-2 border-t border-border pt-4">
-                        <Button type="button" variant="outline" disabled={processing} onClick={tutupTambah}>Batal</Button>
-                        <Button type="submit" variant="primary" isLoading={processing} disabled={processing || requestError !== ''}>Simpan bukti</Button>
-                    </div>
                 </form>
             </Modal>
 
