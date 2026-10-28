@@ -124,6 +124,7 @@ class InertiaCapabilitiesTest extends TestCase
             'pk:update' => $a('pk:update'),
             'rekomendasi' => $a('rekomendasi:tetapkan'),
             'laporan_read' => $a('laporan:read'),
+            'statusCapaian' => $a('status_capaian:update'),
         ];
     }
 
