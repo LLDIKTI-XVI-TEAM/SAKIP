@@ -53,7 +53,7 @@ function isEditor(value: unknown, id: string, year: number): value is TargetEdit
         && (value.read_only_reason === null || typeof value.read_only_reason === 'string')
         && typeof indikator.arah === 'string' && typeof value.status_deviasi === 'string'
         && (value.target_renstra === null || typeof value.target_renstra === 'string')
-        && (value.alasan_deviasi_renstra === null || typeof value.alasan_deviasi_renstra === 'string')
+        && (value.tautan_target_renstra === null || typeof value.tautan_target_renstra === 'string')
         && isSaranBaseline(value.saran_baseline);
 }
 

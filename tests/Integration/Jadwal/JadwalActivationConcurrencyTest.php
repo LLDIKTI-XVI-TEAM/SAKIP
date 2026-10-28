@@ -78,19 +78,20 @@ class JadwalActivationConcurrencyTest extends TestCase
         $state = app(ShowTargetTahunan::class)->handle($writer, $indikator->id, 2026);
         $job = $this->activationJob();
         DB::beginTransaction();
-        app(SaveTargetTahunan::class)->handle($writer, $indikator->id, 2026, ['baseline' => null, 'target_tahunan' => '90', 'expected_state' => $state['expected_state'], 'operation_id' => (string) Str::uuid()]);
+        app(SaveTargetTahunan::class)->handle($writer, $indikator->id, 2026, ['baseline' => null, 'target_tahunan' => '90', 'expected_state' => $state['expected_state'], 'operation_id' => (string) Str::uuid(),
+            'alasan' => 'Penyesuaian target QA-101']);
         $result = $this->raceAgainstOpenTransaction($job);
         $this->assertSame(['outcome' => 'changed', 'changed' => true], $result);
         $this->assertSame('90.000000000000', JadwalSnapshot::sole()->getRawOriginal('target'));
     }
 
-    public function test_waiting_target_writer_sees_snapshot_and_change_after_snapshot_needs_no_metadata(): void
+    public function test_waiting_target_writer_sees_snapshot_and_change_after_snapshot_requires_reason(): void
     {
         $this->readyJadwal();
         $indikator = IndikatorKinerja::sole();
         $writer = $this->activator(['indikator:read', 'target:update']);
         $stale = app(ShowTargetTahunan::class)->handle($writer, $indikator->id, 2026)['expected_state'];
-        $data = ['baseline' => null, 'target_tahunan' => '90', 'operation_id' => (string) Str::uuid()];
+        $data = ['baseline' => null, 'target_tahunan' => '90', 'operation_id' => (string) Str::uuid(), 'alasan' => 'Penyesuaian target QA-102'];
         DB::beginTransaction();
         app(ActivateJadwal::class)->handle($this->activator(), $this->ready['jadwal']->id, $this->activationPayload());
         $result = $this->raceAgainstOpenTransaction(['operation' => 'save_target', 'actor_id' => $writer->id, 'id' => $indikator->id, 'year' => 2026, 'data' => [...$data, 'expected_state' => $stale]]);
@@ -98,7 +99,7 @@ class JadwalActivationConcurrencyTest extends TestCase
         $before = $this->snapshotFingerprint();
 
         $fresh = app(ShowTargetTahunan::class)->handle($writer, $indikator->id, 2026)['expected_state'];
-        // Q65 §65.1: perubahan target PK setelah snapshot tidak memerlukan alasan maupun rujukan.
+        // Q72 §72.2 butir 1: perubahan target PK setelah snapshot wajib alasan; rujukan tetap opsional.
         $this->assertTrue(app(SaveTargetTahunan::class)->handle($writer, $indikator->id, 2026, [...$data, 'expected_state' => $fresh])['changed']);
         $this->assertSame('90.000000000000', DB::table('target_kinerjas')->where('indikator_kinerja_id', $indikator->id)->value('target_tahunan'));
         $this->assertSame($before, $this->snapshotFingerprint());

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { ActionMenu, type ActionMenuItem } from '@/Components/ActionMenu';
 import { Button } from '@/Components/Button';
@@ -85,8 +85,10 @@ export default function SasaranIndikatorIndex({
 
     const [formulaTarget, setFormulaTarget] = useState<DefinitionEditor | null>(null);
     const [annualMessage, setAnnualMessage] = useState('');
-    const [tab, setTab] = useState<'indikator' | 'target'>('indikator');
-    const [targetDibuka, setTargetDibuka] = useState(false);
+    // Tautan "Buka target Renstra" dari editor target PK membawa `?tab=target`; selain itu tab tetap state lokal.
+    const tabAwal = new URL(usePage().url, 'http://localhost').searchParams.get('tab') === 'target' ? 'target' : 'indikator';
+    const [tab, setTab] = useState<'indikator' | 'target'>(tabAwal);
+    const [targetDibuka, setTargetDibuka] = useState(tabAwal === 'target');
     // Ganti Renstra memasang ulang tabel target; selama simpan berjalan pilihan dikunci agar peringatan hasil ambigu tidak hilang.
     const [menyimpanTarget, setMenyimpanTarget] = useState(false);
     const editorLoader = useIndikatorEditorLoader();
