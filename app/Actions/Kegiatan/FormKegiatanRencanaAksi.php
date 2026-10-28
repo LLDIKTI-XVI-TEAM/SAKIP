@@ -6,6 +6,7 @@ use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\RencanaAksi;
 use App\Models\User;
+use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -50,6 +51,7 @@ class FormKegiatanRencanaAksi
             ],
             'klaim' => $this->klaim->handle($actor, $kegiatan),
             'berkasPerencanaan' => $this->berkas->handle($actor, $kegiatan),
+            'berkasPelaksanaan' => $this->berkas->handle($actor, $kegiatan, PersyaratanPerencanaanKegiatan::TAHAP_PELAKSANAAN),
         ];
     }
 }

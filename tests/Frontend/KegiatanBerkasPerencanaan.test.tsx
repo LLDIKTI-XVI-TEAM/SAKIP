@@ -91,3 +91,15 @@ it('tidak tampil bila tidak ada persyaratan perencanaan kegiatan', () => {
     const { container } = render(<BerkasPerencanaanPanel kegiatanId="k1" berkas={panel({ persyaratan: [] })} />);
     expect(container.innerHTML).toBe('');
 });
+
+it('panel pelaksanaan memakai unduhan terpisah dan capability append-only dari server', () => {
+    render(<BerkasPerencanaanPanel kegiatanId="k1" tahap="pelaksanaan" berkas={panel({
+        persyaratan: [rab({ nama: 'Dokumentasi', berkas: [berkas({ nama_asli: 'foto.pdf' })], contoh: [] })],
+        alasan_tolak_ganti: 'Kegiatan sudah terlaksana.', alasan_tolak_hapus: 'Kegiatan sudah terlaksana.',
+    })} />);
+    expect(screen.getByText('Berkas pelaksanaan kegiatan')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Unduh file/ }).getAttribute('href')).toBe('/kegiatan/k1/pelaksanaan/berkas/b1');
+    expect(screen.queryByRole('button', { name: /Ganti berkas/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Hapus berkas/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Unggah' })).toBeTruthy();
+});
