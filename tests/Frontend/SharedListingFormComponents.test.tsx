@@ -8,7 +8,10 @@ import { tautanAman } from '@/lib/url';
 import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
 import { Modal } from '@/Components/Modal';
 import { Pagination } from '@/Components/Pagination';
+import { Table, TableActionLink, TableBody, TableCellLabel, TableEmptyRow, TableRow, tableCellResponsive } from '@/Components/Table';
 import type { LampiranDraft } from '@/types/perjanjian-kinerja';
+import { router } from '@inertiajs/react';
+import { Eye, SearchX } from 'lucide-react';
 
 afterEach(() => cleanup());
 
@@ -29,6 +32,55 @@ it('pagination disembunyikan pada satu halaman dan menampilkan label teks tanpa 
     expect(screen.getByText('‹ Sebelumnya').getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByRole('link', { name: '1' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Berikutnya ›' }).getAttribute('href')).toBe('/regulasi?page=2');
+});
+
+it('tabel: baris kosong mengisi selebar tabel dengan judul, keterangan, dan aksi opsional tanpa scroll horizontal di mobile', () => {
+    render(
+        <Table>
+            <TableBody>
+                <TableEmptyRow colSpan={3} icon={SearchX} title="Tidak ada izin yang cocok" description="Coba kata kunci lain." action={<button type="button">Ke halaman pertama</button>} />
+            </TableBody>
+        </Table>,
+    );
+    const cell = screen.getByRole('cell');
+    expect(cell.getAttribute('colspan')).toBe('3');
+    expect(cell.className).toContain('block');
+    expect(cell.className).toContain('md:table-cell');
+    expect(screen.getByRole('row').className).toContain('md:table-row');
+    expect(cell.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByText('Tidak ada izin yang cocok')).toBeTruthy();
+    expect(screen.getByText('Coba kata kunci lain.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ke halaman pertama' })).toBeTruthy();
+    cleanup();
+
+    render(<Table><TableBody><TableEmptyRow colSpan={2} icon={SearchX} title="Belum ada data" /></TableBody></Table>);
+    expect(screen.getByRole('cell').textContent).toBe('Belum ada data');
+    expect(screen.queryByRole('button')).toBeNull();
+});
+
+it('tabel: label kolom hanya tampil di mobile dan sel responsif tanpa padding mobile', () => {
+    render(<Table><TableBody><TableRow><td className={tableCellResponsive}><TableCellLabel>Status</TableCellLabel>Aktif</td></TableRow></TableBody></Table>);
+    expect(screen.getByText('Status').className).toContain('md:hidden');
+    expect(screen.getByRole('cell').className).toBe('min-w-0 p-0 md:px-4 md:py-3.5');
+});
+
+it('tabel: tautan aksi ikon memakai label aksesibel, tooltip, gaya aksi bersama, dan opsi kunjungan pemanggil', async () => {
+    const visit = vi.spyOn(router, 'visit').mockImplementation(() => undefined);
+    const onStart = vi.fn();
+    render(<TableActionLink href="/akses/izin-peran?role=r1" label="Lihat izin Pegawai" tooltip="Lihat izin" icon={Eye} onStart={onStart} />);
+    const link = screen.getByRole('link', { name: 'Lihat izin Pegawai' });
+    expect(link.getAttribute('href')).toBe('/akses/izin-peran?role=r1');
+    expect(link.className).toContain('text-muted');
+    expect(link.className).toContain('hover:text-primary');
+    expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByRole('tooltip').textContent).toBe('Lihat izin');
+
+    await userEvent.setup().click(link);
+    expect(visit).toHaveBeenCalledWith('/akses/izin-peran?role=r1', expect.objectContaining({ method: 'get' }));
+    // Inertia membungkus callback; yang diuji: callback pemanggil ikut terpanggil saat kunjungan dimulai.
+    visit.mock.calls[0][1]?.onStart?.({} as never);
+    expect(onStart).toHaveBeenCalledOnce();
+    visit.mockRestore();
 });
 
 function LampiranHarness({ blockedMessage, errors = { lampiran: 'Maksimal lima lampiran.' } }: { blockedMessage?: string; errors?: Record<string, string> }) {
