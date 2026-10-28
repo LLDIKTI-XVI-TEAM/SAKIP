@@ -27,6 +27,7 @@ use App\Http\Controllers\Kegiatan\EditKegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KegiatanController;
 use App\Http\Controllers\Kegiatan\KegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
+use App\Http\Controllers\Kegiatan\RealisasiKegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
 use App\Http\Controllers\Laporan\EksporRekapIndikatorPeriodeController;
 use App\Http\Controllers\Laporan\RekapIndikatorPeriodeController;
@@ -131,6 +132,8 @@ Route::middleware(['auth', EnsureKegiatanActorIsActive::class])->group(function 
     Route::get('/rencana-aksi/{rencanaAksi}/kegiatan', KegiatanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.kegiatan.index');
     Route::get('/rencana-aksi/{rencanaAksi}/kegiatan/{kegiatan}', EditKegiatanRencanaAksi::class)->whereUuid(['rencanaAksi', 'kegiatan'])
         ->name('rencana-aksi.kegiatan.edit');
+    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan/{kegiatan}/realisasi', RealisasiKegiatanRencanaAksi::class)->whereUuid(['rencanaAksi', 'kegiatan'])
+        ->name('rencana-aksi.kegiatan.realisasi');
     Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
     Route::post('/kegiatan/{kegiatan}/status', [KegiatanController::class, 'ubahStatus'])->whereUuid('kegiatan')->name('kegiatan.status');
     Route::post('/kegiatan/{kegiatan}/realisasi', [KegiatanController::class, 'realisasi'])->whereUuid('kegiatan')->name('kegiatan.realisasi');

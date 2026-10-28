@@ -47,99 +47,23 @@ const props: KegiatanEditProps = {
 
 const kirim = () => fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
 
-it('menyediakan form realisasi terpisah dan mengirim nol tanpa mengubah rencana', () => {
-    render(<KegiatanEdit {...props} />);
-    const simpan = screen.getByRole('button', { name: 'Simpan realisasi' });
-    expect(simpan.closest('form')).not.toBe(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form'));
-    fireEvent.change(screen.getByLabelText(/Biaya terpakai/), { target: { value: '0' } });
-    fireEvent.change(screen.getByLabelText(/Peserta riil/), { target: { value: '0' } });
-    fireEvent.submit(simpan.closest('form')!);
-    const [url, data] = vi.mocked(router.post).mock.calls[0];
-    expect(url).toBe('/kegiatan/kegiatan-1/realisasi');
-    expect(data).toMatchObject({ biaya_terpakai: '0', realisasi_peserta: 0, tanggal_realisasi: null, tandai_terlaksana: false, expected_state: 'v1' });
-    expect(data).not.toHaveProperty('anggaran');
-    expect(data).not.toHaveProperty('nama');
+it('halaman rencana tidak memuat form realisasi maupun berkas pelaksanaan walau props tersedia', () => {
+    // Persyaratan tidak kosong: panel berkas memang dirender bila diberi data, sehingga ketiadaannya bermakna.
+    render(<KegiatanEdit {...props} berkasPelaksanaan={{ persyaratan: [{
+        id: 'jb-dok', nama: 'Dokumentasi', keterangan: null, wajib: true, semua_mode_wajib: false, izinkan_file: true, izinkan_tautan: false, izinkan_teks: false,
+        format_diizinkan: 'pdf', ukuran_maks_kb: 10240, hanya_kegiatan_beranggaran: false, pemenuhan: { terpenuhi: false, mode_kurang: ['file'] }, berkas: [], contoh: [],
+    }], alasan_tolak_unggah: null, alasan_tolak_ganti: null, alasan_tolak_hapus: null }} />);
+
+    expect(screen.getByRole('form', { name: 'Catat rencana kegiatan' })).toBeTruthy();
+    expect(screen.queryByRole('form', { name: 'Catat realisasi' })).toBeNull();
+    expect(screen.queryByText('Berkas pelaksanaan kegiatan')).toBeNull();
 });
 
-it('tandai terlaksana mengirim intent eksplisit beserta isian dan menampilkan error bukti', async () => {
-    render(<KegiatanEdit {...props} />);
-    fireEvent.change(screen.getByLabelText(/Tanggal realisasi/), { target: { value: '2026-10-15' } });
-    fireEvent.change(screen.getByLabelText(/Biaya terpakai/), { target: { value: '1500000' } });
-    fireEvent.change(screen.getByLabelText(/Peserta riil/), { target: { value: '18' } });
-    const tandai = screen.getByRole('button', { name: 'Tandai terlaksana' });
-    fireEvent(tandai.closest('form')!, new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter: tandai }));
-    const [, data, options] = vi.mocked(router.post).mock.calls[0];
-    expect(data).toMatchObject({ tanggal_realisasi: '2026-10-15', biaya_terpakai: '1500000', realisasi_peserta: 18, tandai_terlaksana: true });
-    await act(async () => { options?.onError?.({ bukti: 'Dokumentasi belum lengkap.' }); });
-    expect(screen.getByText('Dokumentasi belum lengkap.')).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>(/Biaya terpakai/).value).toBe('1500000');
-});
-
-it('merender penanda koreksi dan mengikuti capability server pada status final', () => {
-    render(<KegiatanEdit {...props} kegiatan={{ ...rencana, status: 'terlaksana', biaya_terpakai: '0', realisasi_peserta: 18, tanggal_realisasi: '2026-10-15' }}
-        can={{ ...props.can, ubah_rencana: false, ubah_status: [], tandai_terlaksana: false }}
-        pelaksanaan={{ ...props.pelaksanaan, perlu_koreksi: true, persyaratan_kurang: ['Surat tugas'] }} />);
-    expect(screen.getByText('Perlu koreksi bukti pelaksanaan')).toBeTruthy();
-    expect(screen.getByText('Surat tugas')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Tandai terlaksana' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Simpan realisasi' })).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).matches(':disabled')).toBe(true);
-});
-
-it('menjaga draf realisasi saat props berubah dari form lain dan token basi tetap terdeteksi', () => {
-    const { rerender } = render(<KegiatanEdit {...props} />);
-    fireEvent.change(screen.getByLabelText(/Biaya terpakai/), { target: { value: '99000' } });
-    rerender(<KegiatanEdit {...props} kegiatan={{ ...rencana, version_token: 'v2' }} />);
-    expect(screen.getByLabelText<HTMLInputElement>(/Biaya terpakai/).value).toBe('99000');
-    fireEvent.submit(screen.getByRole('button', { name: 'Simpan realisasi' }).closest('form')!);
-    expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ expected_state: 'v1' });
-});
-
-it('form realisasi yang belum diedit memakai token terbaru setelah rencana disimpan', () => {
+it('form rencana yang belum diedit memakai token terbaru setelah status berubah', () => {
     const { rerender } = render(<KegiatanEdit {...props} />);
     rerender(<KegiatanEdit {...props} kegiatan={{ ...rencana, version_token: 'v2' }} />);
-    fireEvent.submit(screen.getByRole('form', { name: 'Catat realisasi' }));
-    expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ expected_state: 'v2' });
-});
-
-it('form rencana yang belum diedit memakai token terbaru setelah realisasi disimpan', () => {
-    const { rerender } = render(<KegiatanEdit {...props} />);
-    rerender(<KegiatanEdit {...props} kegiatan={{ ...rencana, version_token: 'v2', biaya_terpakai: '0' }} />);
     kirim();
     expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ expected_state: 'v2' });
-});
-
-it('simpan rencana mempertahankan draf realisasi dan menyegarkan hanya form yang berhasil disimpan', async () => {
-    const { rerender } = render(<KegiatanEdit {...props} />);
-    fireEvent.change(screen.getByLabelText(/Biaya terpakai/), { target: { value: '99000' } });
-    fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Nama tersimpan' } });
-    kirim();
-    const [, , options] = vi.mocked(router.post).mock.calls[0];
-    expect(options?.preserveState).toBe(true);
-    await act(async () => { await options?.onSuccess?.({ props: { kegiatan: { ...rencana, nama: 'Nama tersimpan', version_token: 'v2' } } } as never); rerender(<KegiatanEdit {...props} kegiatan={{ ...rencana, nama: 'Nama tersimpan', version_token: 'v2' }} />); options?.onFinish?.({} as never); });
-    expect(screen.getByLabelText<HTMLInputElement>(/Biaya terpakai/).value).toBe('99000');
-    kirim();
-    expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ expected_state: 'v2', nama: 'Nama tersimpan' });
-});
-
-it('sukses realisasi memperbarui baseline token tanpa menghapus draf rencana', async () => {
-    const { rerender } = render(<KegiatanEdit {...props} />);
-    fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Draf rencana lain' } });
-    fireEvent.change(screen.getByLabelText(/Biaya terpakai/), { target: { value: '0' } });
-    const form = screen.getByRole('form', { name: 'Catat realisasi' });
-    fireEvent.submit(form);
-    const [, , options] = vi.mocked(router.post).mock.calls[0];
-    await act(async () => { await options?.onSuccess?.({ props: { kegiatan: { ...rencana, biaya_terpakai: '0', version_token: 'v2' } } } as never); rerender(<KegiatanEdit {...props} kegiatan={{ ...rencana, biaya_terpakai: '0', version_token: 'v2' }} />); options?.onFinish?.({} as never); });
-    expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).value).toBe('Draf rencana lain');
-    fireEvent.submit(form);
-    expect(vi.mocked(router.post).mock.calls[1][1]).toMatchObject({ expected_state: 'v2', biaya_terpakai: '0' });
-});
-
-it('tanpa capability realisasi hanya menampilkan nilai server tanpa tombol mutasi', () => {
-    render(<KegiatanEdit {...props} can={{ ...props.can, catat_realisasi: false, tandai_terlaksana: false }} kegiatan={{ ...rencana, biaya_terpakai: '5000' }} />);
-    expect(screen.getByLabelText<HTMLInputElement>(/Biaya terpakai/).value).toBe('5000');
-    expect(screen.getByLabelText<HTMLInputElement>(/Biaya terpakai/).matches(':disabled')).toBe(true);
-    expect(screen.queryByRole('button', { name: 'Simpan realisasi' })).toBeNull();
 });
 
 it('merender halaman ubah dengan tautan kembali ke halaman kegiatan rencana aksi', () => {
@@ -182,7 +106,7 @@ it('mengirim field rencana beserta anggaran rupiah tanpa status', () => {
     expect(data).not.toHaveProperty('status');
 });
 
-it('mempertahankan state halaman agar draf kedua form tidak dibuang', () => {
+it('mempertahankan state halaman saat menyimpan rencana', () => {
     render(<KegiatanEdit {...props} />);
 
     fireEvent.change(screen.getByLabelText(/Nama kegiatan/), { target: { value: 'Rapat koordinasi' } });
