@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Laporan;
 
+use App\Actions\Laporan\EksporRekapIndikatorPeriode;
 use App\Models\AuditLog;
 use App\Models\JadwalSnapshot;
 use App\Models\KinerjaSnapshot;
@@ -17,7 +18,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
 
@@ -158,12 +163,245 @@ class RekapIndikatorPeriodeTest extends TestCase
             ->where('baris.0.kegiatan.0.kegiatan_bersama', null));
     }
 
-    public function test_sasaran_boleh_fallback_ke_pasangan_ra_resmi(): void
+    public function test_sasaran_resmi_yang_tidak_tercatat_tidak_diisi_dari_pasangan_ra(): void
     {
         $ra = RencanaAksiVersi::create([...$this->planVersion->only(['rencana_aksi_id', 'jadwal_snapshot_id', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),
             'nomor' => 2, 'snapshot' => ['sasaran' => ['id' => 'sasaran-versi-ra', 'kode' => 'S-RA', 'deskripsi' => 'Sasaran versi RA']]]);
         $this->versi(['sasaran' => null], ra: $ra);
-        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page->where('baris.0.sasaran.kode', 'S-RA'));
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page->where('baris.0.sasaran', null));
+    }
+
+    public function test_ekspor_memerlukan_izin_baca_dan_ekspor_sebelum_lookup_filter(): void
+    {
+        $admin = $this->userWithRole('admin');
+        $this->actingAs($admin)->getJson('/laporan/rekap/ekspor?jadwal_id=invalid')->assertForbidden();
+        $pegawai = $this->userWithRole('pegawai');
+        DB::table('user_permission_granted')->insert(['id' => (string) Str::uuid(), 'user_id' => $pegawai->id,
+            'permission_id' => Permission::where('kode', 'laporan:ekspor')->value('id'), 'unit_id' => null,
+            'alasan' => 'Fixture ekspor tanpa baca', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->actingAs($pegawai)->getJson('/laporan/rekap/ekspor?jadwal_id=invalid')->assertForbidden();
+    }
+
+    public function test_ekspor_kosong_termasuk_semua_unit_dibatasi_tidak_membuat_audit(): void
+    {
+        $this->actingAs($this->actor)->getJson('/laporan/rekap/ekspor?tahun=2025')->assertUnprocessable()
+            ->assertJsonPath('errors.ekspor.0', 'Tidak ada data untuk diekspor');
+        $this->deny('laporan:ekspor', $this->unit->id);
+        $this->getJson(str_replace('/rekap?', '/rekap/ekspor?', $this->url()))->assertUnprocessable()
+            ->assertJsonPath('errors.ekspor.0', 'Tidak ada data untuk diekspor');
+        $this->assertDatabaseMissing('audit_log', ['tindakan' => 'laporan.ekspor']);
+    }
+
+    private function ekspor(array $filter = []): Spreadsheet
+    {
+        $response = $this->actingAs($this->actor)->getJson(str_replace('/rekap?', '/rekap/ekspor?', $this->url($filter)));
+        $response->assertOk()->assertDownload()->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $path = tempnam(sys_get_temp_dir(), 'rekap-');
+        try {
+            file_put_contents($path, $response->streamedContent());
+
+            return IOFactory::load($path);
+        } finally {
+            unlink($path);
+        }
+    }
+
+    private function isiSheet(Spreadsheet $book, string $nama = 'Rekap'): array
+    {
+        $rows = $book->getSheetByName($nama)->toArray(null, false, false);
+        $headers = $rows[7];
+
+        return array_map(fn ($row) => array_combine($headers, $row), array_slice($rows, 8));
+    }
+
+    public function test_ekspor_memisahkan_nilai_komponen_narasi_kegiatan_dan_mencatat_audit_terbatas(): void
+    {
+        $version = $this->versi(['nilai' => '30.125', 'target' => '20.25', 'progres_kegiatan' => '=HYPERLINK("https://example.invalid","uji")',
+            'komponen' => [['komponen_id' => (string) Str::uuid(), 'kode' => 'A', 'label' => 'Komponen A', 'peran' => 'penjumlah', 'bobot' => '1', 'nilai' => '12'],
+                ['komponen_id' => (string) Str::uuid(), 'kode' => 'B', 'label' => 'Komponen B', 'peran' => 'penjumlah', 'bobot' => '1', 'nilai' => '18.125']],
+            'klaim' => [['id' => 'klaim-beku', 'kegiatan_bersama' => true, 'sumber_klaim' => 'pengukuran',
+                'kegiatan' => ['nama' => '=1+1', 'status' => 'terlaksana', 'anggaran' => '9007199254740993', 'uraian_pelaksanaan' => 'Narasi kegiatan resmi']]]]);
+        $this->versi(['nilai' => '987654321', 'progres_kegiatan' => 'CANARY-DRAF'], false, 2);
+        $this->pengukuran->indikator->update(['nama' => 'CANARY-MASTER']);
+        RekomendasiPimpinan::create(['indikator_id' => $this->pengukuran->indikator_id, 'tahun' => 2026, 'periode_id' => $this->pengukuran->periode_id,
+            'isi' => 'Rekomendasi resmi', 'ditetapkan_oleh' => $this->actor->id, 'status' => 'disetujui',
+            'disetujui_oleh' => $this->actor->id, 'disetujui_oleh_role' => 'superadmin', 'disetujui_pada' => now(), 'created_at' => now()]);
+        $book = $this->ekspor();
+        $this->assertSame(['Rekap', 'Kegiatan'], $book->getSheetNames());
+        $rows = $this->isiSheet($book);
+        $this->assertCount(2, $rows);
+        $this->assertSame(['A', 'B'], array_column($rows, 'Kode Komponen'));
+        $this->assertEquals(30.125, $rows[0]['Realisasi']);
+        $this->assertEquals(20.25, $rows[0]['Target Periode']);
+        $this->assertEquals(148.77, $rows[0]['Capaian (%)']);
+        $this->assertSame('Indikator Uji', $rows[0]['Indikator']);
+        $this->assertSame('Kendala resmi', $rows[0]['Kendala / Masalah']);
+        $this->assertSame('Lengkap', $rows[0]['Status Bukti']);
+        $this->assertSame('Rekomendasi resmi', $rows[0]['Rekomendasi Pimpinan']);
+        $this->assertSame('Persetujuan cadangan', $rows[0]['Persetujuan Rekomendasi']);
+        $headers = $book->getSheet(0)->rangeToArray('A8:AM8')[0];
+        $column = array_search('Progres Kegiatan', $headers, true) + 1;
+        $this->assertSame(DataType::TYPE_STRING, $book->getSheet(0)->getCell([$column, 9])->getDataType());
+        $activities = $this->isiSheet($book, 'Kegiatan');
+        $this->assertCount(1, $activities);
+        $this->assertSame('=1+1', $activities[0]['Kegiatan']);
+        $this->assertSame('9007199254740993', $activities[0]['Anggaran (Rp)']);
+        $this->assertSame($rows[0]['Kunci Rekap'], $activities[0]['Kunci Rekap']);
+        $audit = AuditLog::where('tindakan', 'laporan.ekspor')->sole();
+        $this->assertSame($this->actor->id, $audit->actor_id);
+        $this->assertSame($this->jadwal->id, $audit->objek_id);
+        $this->assertSame(['jenis' => 'rekap', 'filter' => ['jadwal_id' => $this->jadwal->id, 'periode_id' => '']], $audit->nilai_baru);
+        $this->assertNull($audit->dasar_izin);
+        $this->assertStringNotContainsString('Narasi kegiatan resmi', $audit->toJson());
+        $this->assertSame($version->id, $this->pengukuran->versions()->whereNotNull('disahkan_at')->sole()->id);
+        $book->disconnectWorksheets();
+    }
+
+    public function test_ekspor_seluruh_filter_melewati_batas_halaman_dan_menghormati_deny_unit(): void
+    {
+        for ($index = 0; $index < 24; $index++) {
+            $indicator = $this->pengukuran->indikator->replicate();
+            $indicator->kode = 'I-EKSPOR-'.$index;
+            $indicator->save();
+            $context = $this->context->replicate();
+            $context->indikator_id = $indicator->id;
+            $context->save();
+        }
+        $allowed = Unit::create(['nama' => 'Unit diizinkan', 'created_by' => $this->actor->id]);
+        $indicator = $this->pengukuran->indikator->replicate();
+        $indicator->kode = 'I-DIIZINKAN';
+        $indicator->unit_id = $allowed->id;
+        $indicator->save();
+        $context = $this->context->replicate();
+        $context->indikator_id = $indicator->id;
+        $context->unit_id = $allowed->id;
+        $context->save();
+        $book = $this->ekspor(['page' => 2]);
+        $this->assertCount(26, $this->isiSheet($book));
+        $book->disconnectWorksheets();
+        $this->deny('laporan:ekspor', $this->unit->id);
+        $book = $this->ekspor();
+        $rows = $this->isiSheet($book);
+        $this->assertCount(1, $rows);
+        $this->assertSame('I-DIIZINKAN', $rows[0]['Kode Indikator']);
+        $this->assertSame('Sebagian unit tidak dimuat sesuai hak akses Anda', $book->getSheet(0)->getCell('B5')->getValue());
+        $book->disconnectWorksheets();
+        $this->deny('laporan:read', $allowed->id);
+        $this->getJson(str_replace('/rekap?', '/rekap/ekspor?', $this->url()))->assertUnprocessable();
+    }
+
+    public function test_pimpinan_dan_admin_dengan_grant_ekspor_sah_dan_deny_tetap_menang(): void
+    {
+        $this->versi(['klaim' => [['kegiatan' => ['nama' => 'CANARY-KEGIATAN-PRIVAT']]]]);
+        $this->actor = $this->userWithRole('pimpinan');
+        $book = $this->ekspor();
+        $this->assertCount(1, $this->isiSheet($book));
+        $book->disconnectWorksheets();
+        $this->actor = $this->userWithRole('admin');
+        DB::table('user_permission_granted')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id,
+            'permission_id' => Permission::where('kode', 'laporan:ekspor')->value('id'), 'unit_id' => null,
+            'alasan' => 'Fixture grant ekspor', 'diberikan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $book = $this->ekspor();
+        $this->assertSame([], $this->isiSheet($book, 'Kegiatan'));
+        $this->assertSame('Detail kegiatan dibatasi sesuai akses unit', $this->isiSheet($book)[0]['Detail Kegiatan']);
+        $book->disconnectWorksheets();
+        $this->deny('laporan:ekspor');
+        $this->getJson(str_replace('/rekap?', '/rekap/ekspor?', $this->url()))->assertForbidden();
+    }
+
+    #[DataProvider('penandaEkspor')]
+    public function test_ekspor_mempertahankan_penanda_dan_nol_faktual(array $data, mixed $realisasi, mixed $target, mixed $persen, string $statusPerhitungan): void
+    {
+        $this->versi($data);
+        $book = $this->ekspor();
+        $row = $this->isiSheet($book)[0];
+        $this->assertSame($realisasi, $row['Realisasi']);
+        $this->assertSame($target, $row['Target Periode']);
+        $this->assertSame($persen, $row['Capaian (%)']);
+        $this->assertSame($statusPerhitungan, $row['Status Perhitungan']);
+        $book->disconnectWorksheets();
+    }
+
+    public static function penandaEkspor(): array
+    {
+        return [
+            'belum diukur didahulukan' => [['status_perhitungan' => 'belum_dapat_diukur', 'nilai' => null, 'target' => null, 'tanpa_target_periode' => true], 'Belum dapat diukur', 'Tanpa target periode', 'Belum dapat diukur', 'Belum dapat diukur'],
+            'tanpa target dan nol' => [['nilai' => '0', 'target' => null, 'tanpa_target_periode' => true], 0, 'Tanpa target periode', 'Tanpa target periode', 'Terhitung'],
+            'penyebut nol' => [['status_perhitungan' => 'tidak_dapat_dihitung', 'nilai' => null], 'Tidak dapat dihitung', 20, 'Tidak dapat dihitung', 'Tidak dapat dihitung'],
+            'konteks tidak lengkap' => [['status_perhitungan' => null, 'nilai' => null], 'Konteks versi tidak lengkap', 20, 'Konteks versi tidak lengkap', 'Tidak tercatat pada versi ini'],
+            'target nol' => [['nilai' => '0', 'target' => '0'], 0, 0, 'Tidak dihitung: target periode 0 atau negatif', 'Terhitung'],
+            'target historis hilang' => [['target' => null], 30, 'Tidak tercatat pada versi ini', 'Tidak tercatat pada versi ini', 'Terhitung'],
+            'realisasi historis hilang' => [['nilai' => null], 'Tidak tercatat pada versi ini', 20, 'Tidak tercatat pada versi ini', 'Terhitung'],
+        ];
+    }
+
+    #[DataProvider('labelEkspor')]
+    public function test_ekspor_memakai_label_dan_mempertahankan_kode_yang_belum_dikenal(string $tipe, string $peran, string $status, string $statusKegiatan, string $sumber, array $expected): void
+    {
+        $this->versi([
+            'indikator' => [...$this->context->only(['nama', 'satuan', 'arah', 'presisi', 'desimal_tampilan']), 'tipe_perhitungan' => $tipe],
+            'status_perhitungan' => $status,
+            'komponen' => [['komponen_id' => (string) Str::uuid(), 'peran' => $peran]],
+            'klaim' => [['sumber_klaim' => $sumber, 'kegiatan' => ['status' => $statusKegiatan]]],
+        ]);
+        $book = $this->ekspor();
+        $row = $this->isiSheet($book)[0];
+        $activity = $this->isiSheet($book, 'Kegiatan')[0];
+        $this->assertSame($expected, [$row['Cara Hitung'], $row['Peran Komponen'], $row['Status Perhitungan'], $activity['Status Kegiatan'], $activity['Sumber Klaim']]);
+        $book->disconnectWorksheets();
+    }
+
+    public static function labelEkspor(): array
+    {
+        return [
+            'label pengguna' => ['manual', 'penjumlah', 'terhitung', 'tidak_terlaksana', 'rencana_aksi', ['Nilai manual', 'Penjumlah', 'Terhitung', 'Tidak terlaksana', 'Rencana Aksi']],
+            'kode belum dikenal' => ['tipe_baru', 'peran_baru', 'status_baru', 'kegiatan_baru', 'sumber_baru', ['tipe_baru', 'peran_baru', 'status_baru', 'kegiatan_baru', 'sumber_baru']],
+        ];
+    }
+
+    public function test_ekspor_tanpa_klaim_tidak_merujuk_sheet_kegiatan_kosong(): void
+    {
+        $this->versi(['klaim' => []]);
+        $book = $this->ekspor();
+        $this->assertSame('Tidak ada kegiatan tercatat', $this->isiSheet($book)[0]['Detail Kegiatan']);
+        $this->assertSame([], $this->isiSheet($book, 'Kegiatan'));
+        $book->disconnectWorksheets();
+    }
+
+    public function test_metadata_komponen_historis_yang_hilang_tidak_ditandai_tidak_berlaku(): void
+    {
+        $this->versi(['indikator' => ['tipe_perhitungan' => null], 'komponen' => [['komponen_id' => (string) Str::uuid(), 'nilai' => '30']]]);
+        $book = $this->ekspor();
+        $row = $this->isiSheet($book)[0];
+        foreach (['Cara Hitung', 'Kode Komponen', 'Komponen', 'Peran Komponen', 'Bobot'] as $kolom) {
+            $this->assertSame('Tidak tercatat pada versi ini', $row[$kolom]);
+        }
+        $book->disconnectWorksheets();
+    }
+
+    public function test_penanda_anggaran_terpisah_dan_kegagalan_pembentukan_tidak_diaudit(): void
+    {
+        $this->versi(['sasaran' => null, 'persyaratan_bukti' => null, 'klaim' => [
+            ['kegiatan' => ['nama' => 'Key hilang']],
+            ['kegiatan' => ['nama' => 'Nilai kosong', 'anggaran' => null]],
+            ['kegiatan' => ['nama' => 'Nol faktual', 'anggaran' => '0']],
+        ]]);
+        $book = $this->ekspor();
+        $this->assertSame('Tidak berlaku', $this->isiSheet($book)[0]['Kode Komponen']);
+        $this->assertSame('Tidak tercatat pada versi ini', $this->isiSheet($book)[0]['Sasaran']);
+        $this->assertSame('Tidak tercatat pada versi ini', $this->isiSheet($book)[0]['Histori Bukti Tidak Dapat Dipenuhi']);
+        $this->assertSame(['Tidak tercatat pada versi ini', 'Belum diisi', 0], array_column($this->isiSheet($book, 'Kegiatan'), 'Anggaran (Rp)'));
+        $book->disconnectWorksheets();
+        $this->versi(['progres_kegiatan' => str_repeat('a', 32768)], nomor: 2);
+        $this->getJson(str_replace('/rekap?', '/rekap/ekspor?', $this->url()))->assertUnprocessable()->assertJsonValidationErrors('ekspor');
+        $this->assertSame(1, AuditLog::where('tindakan', 'laporan.ekspor')->count());
+    }
+
+    public function test_action_ekspor_memeriksa_ulang_izin_tanpa_form_request(): void
+    {
+        $this->deny('laporan:ekspor');
+        $this->expectException(HttpException::class);
+        app(EksporRekapIndikatorPeriode::class)->handle($this->actor, ['jadwal_id' => $this->jadwal->id]);
     }
 
     /** @return array<string, array{string, bool}> */
