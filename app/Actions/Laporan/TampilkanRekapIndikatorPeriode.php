@@ -12,11 +12,13 @@ use App\Models\KinerjaSnapshot;
 use App\Models\PenugasanIndikator;
 use App\Models\RekomendasiPimpinan;
 use App\Models\RencanaAksiVersi;
+use App\Models\StatusCapaian;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use Brick\Math\BigDecimal;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TampilkanRekapIndikatorPeriode
@@ -55,6 +57,7 @@ class TampilkanRekapIndikatorPeriode
                 ->orderBy('s.nama')->orderBy('s.indikator_id')->orderBy('p.urutan')->orderBy('p.id')->paginate(20)->withQueryString();
             $items = collect($rows->items());
             $versions = KinerjaSnapshot::whereIn('id', $items->pluck('versi_id')->filter())->get()->keyBy('id');
+            $statusCapaian = $this->statusBerlaku($items->pluck('versi_id')->filter()->unique()->values()->all());
             $contexts = JadwalSnapshot::with(['unit:id,nama', 'komponen'])->whereIn('id', $items->pluck('snapshot_id')->merge($versions->pluck('jadwal_snapshot_id')))->get()->keyBy('id');
             $ids = $items->pluck('indikator_id')->unique()->all();
             $plans = RencanaAksiVersi::query()->join('rencana_aksi as ra', 'ra.id', '=', 'rencana_aksi_versi.rencana_aksi_id')
@@ -71,7 +74,7 @@ class TampilkanRekapIndikatorPeriode
                 ->distinct('indikator_id', 'periode_id')->orderBy('indikator_id')->orderBy('periode_id')->orderByDesc('disetujui_pada')->orderByDesc('id')
                 ->get(['id', 'indikator_id', 'periode_id', 'isi', 'status', 'disetujui_pada', 'disetujui_oleh_role'])->keyBy(fn ($r) => $r->indikator_id.':'.$r->periode_id);
             $capabilities = $this->izin->decideManyForUnits($actor, ['kegiatan:read'], $items->pluck('unit_id')->unique()->all());
-            $data = $items->map(function ($row) use ($versions, $contexts, $plans, $paired, $indicators, $pics, $recommendations, $capabilities): array {
+            $data = $items->map(function ($row) use ($versions, $contexts, $plans, $paired, $indicators, $pics, $recommendations, $capabilities, $statusCapaian): array {
                 $version = $versions->get($row->versi_id);
                 $context = $contexts->get($version?->jadwal_snapshot_id ?? $row->snapshot_id);
                 $plan = $version ? $paired->get($version->rencana_aksi_versi_id) : $plans->get($row->indikator_id.':'.$context->id);
@@ -82,7 +85,7 @@ class TampilkanRekapIndikatorPeriode
 
                 return $this->baris($row, $version, $context, $plan, $indicators->get($row->indikator_id),
                     $pics->get($row->indikator_id)?->pic?->only(['id', 'nama']), $recommendations->get($row->indikator_id.':'.$row->periode_id),
-                    $capabilities[$row->unit_id]['kegiatan:read']['allowed'] ?? false);
+                    $capabilities[$row->unit_id]['kegiatan:read']['allowed'] ?? false, $statusCapaian->get($row->versi_id));
             })->all();
 
             return [
@@ -117,8 +120,61 @@ class TampilkanRekapIndikatorPeriode
             ->selectRaw('COALESCE(rs.unit_id, s.unit_id) as unit_id');
     }
 
+    /**
+     * Status capaian berlaku per versi resmi halaman ini dalam satu query, memakai scope `berlaku` yang sama dengan
+     * daftar status capaian sehingga definisi "berlaku" (created_at lalu id) tidak ditulis ulang di konsumen.
+     *
+     * Satu query tambahan untuk seluruh halaman lebih murah daripada `leftJoin` ber-`NOT EXISTS` pada query utama:
+     * maksimal 20 versi per halaman, dan index (pengukuran_versi_id, created_at DESC, id DESC) melayani `whereIn` ini
+     * tanpa menyentuh tabel lain.
+     *
+     * @param  list<string>  $versiIds
+     * @return Collection<string, StatusCapaian>
+     */
+    private function statusBerlaku(array $versiIds): Collection
+    {
+        if ($versiIds === []) {
+            return collect();
+        }
+
+        $berlaku = collect();
+        foreach (StatusCapaian::query()->berlaku($versiIds)->get(['id', 'pengukuran_versi_id', 'status', 'created_at']) as $status) {
+            // Hasil sudah urut "berlaku"; kemunculan pertama tiap versi adalah baris yang berlaku.
+            if (! $berlaku->has($status->pengukuran_versi_id)) {
+                $berlaku->put($status->pengukuran_versi_id, $status);
+            }
+        }
+
+        return $berlaku;
+    }
+
+    /**
+     * Status capaian tampil rekap (PRD §23, Q47 §47.3–§47.4, Q64 §64.1 butir 4–5): tiga kondisi Q47/Q-B tidak pernah
+     * tertimpa status tersimpan, dan status hanya dibaca dari versi resmi yang sama dengan baris.
+     *
+     * @return array{status_capaian: string, ditetapkan_pada: string|null}
+     */
+    private function capaianTampil(?KinerjaSnapshot $version, bool $tanpaTarget, ?string $perhitungan, ?StatusCapaian $statusCapaian): array
+    {
+        if ($version === null) {
+            return ['status_capaian' => 'Belum ditetapkan', 'ditetapkan_pada' => null];
+        }
+        if ($tanpaTarget || $perhitungan === 'belum_dapat_diukur') {
+            return ['status_capaian' => 'Tidak dinilai', 'ditetapkan_pada' => null];
+        }
+        if ($perhitungan === 'tidak_dapat_dihitung') {
+            return ['status_capaian' => 'Tidak dapat dihitung', 'ditetapkan_pada' => null];
+        }
+
+        return match ($statusCapaian?->status) {
+            StatusCapaian::STATUS_TERCAPAI => ['status_capaian' => 'Tercapai', 'ditetapkan_pada' => $statusCapaian->created_at?->toIso8601String()],
+            StatusCapaian::STATUS_BELUM_TERCAPAI => ['status_capaian' => 'Belum tercapai', 'ditetapkan_pada' => $statusCapaian->created_at?->toIso8601String()],
+            default => ['status_capaian' => 'Belum ditetapkan', 'ditetapkan_pada' => null],
+        };
+    }
+
     /** Allowlist props menjaga data kerja, provenance izin, dan isi/path bukti tetap di server. */
-    private function baris(object $row, ?KinerjaSnapshot $version, JadwalSnapshot $context, ?RencanaAksiVersi $plan, ?IndikatorKinerja $indicator, ?array $pic, ?RekomendasiPimpinan $recommendation, bool $canReadActivities): array
+    private function baris(object $row, ?KinerjaSnapshot $version, JadwalSnapshot $context, ?RencanaAksiVersi $plan, ?IndikatorKinerja $indicator, ?array $pic, ?RekomendasiPimpinan $recommendation, bool $canReadActivities, ?StatusCapaian $statusCapaian): array
     {
         $frozen = $version?->snapshot ?? [];
         $realisasi = $version ? $this->present->realisasiVersi($version) : null;
@@ -144,6 +200,7 @@ class TampilkanRekapIndikatorPeriode
         }
         $targetKomponen = collect($targetRa['komponen'] ?? [])->keyBy('komponen_id');
         $definitions = $version ? ($frozen['komponen'] ?? []) : $context->komponen->toArray();
+        $capaian = $this->capaianTampil($version, $tanpaTarget, $realisasi['status_perhitungan'] ?? null, $statusCapaian);
         $components = array_map(fn (array $c) => [
             ...Arr::only($c, ['komponen_id', 'kode', 'label', 'peran', 'bobot']),
             'target' => isset($targetKomponen[$c['komponen_id']]['nilai']) ? (string) $targetKomponen[$c['komponen_id']]['nilai'] : null,
@@ -164,7 +221,7 @@ class TampilkanRekapIndikatorPeriode
             'nilai' => $nilai, 'status_perhitungan' => $realisasi['status_perhitungan'] ?? null, 'status_laporan' => $status,
             'capaian_persen' => $version && ! $tanpaTarget ? $this->capaian->handle($nilai, $target, $meta['arah']) : null,
             'keterangan_capaian' => $keteranganCapaian,
-            'status_capaian' => $version && ($tanpaTarget || $status === 'belum_dapat_diukur') ? 'Tidak dinilai' : 'Belum ditetapkan',
+            'status_capaian' => $capaian['status_capaian'], 'ditetapkan_pada' => $capaian['ditetapkan_pada'],
             'selisih_target_pk' => $this->hitung->differenceFromPk($nilai, $pk),
             'alasan_tidak_dapat_dihitung' => $realisasi['alasan_tidak_dapat_dihitung'] ?? null,
             'komponen' => $components,

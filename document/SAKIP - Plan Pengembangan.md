@@ -577,20 +577,22 @@ Setiap task memiliki tiga bagian wajib:
 ### 6.4 Form Status Capaian manual
 
 > **Q47/Q50 (13 Oktober 2026):** penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (Q47 §47.3 butir 4); pengukuran tersebut tidak masuk daftar "belum ditetapkan", dan permintaan penetapan langsung ditolak server. Tampilannya memuat realisasi, target PK, dan selisih terhadap target PK (Q47 §47.3 butir 1, §47.4 butir 3). Status capaian dan selisih memakai nilai target PK yang tersimpan (Q50 §50.2). Penyesuaian dikerjakan pada ISS-09.02.
+>
+> **Keputusan PM 28 Oktober 2026 (ISS-09.02):** `tidak_dapat_dihitung` pada periode bertarget juga tidak masuk daftar dan ditolak server (Q64 §64.1 butir 5). Status diikatkan ke versi resmi (`pengukuran_versi_id`), bukan hanya header pengukuran.
 
-- **Scope:** halaman Inertia + komponen React bagi Perencanaan/Superadmin untuk menetapkan `status_capaian` (tercapai/belum_tercapai) pada pengukuran berstatus `disahkan` yang belum memiliki status capaian aktif.
+- **Scope:** halaman Inertia + komponen React bagi Perencanaan/Superadmin untuk menetapkan `status_capaian` (tercapai/belum_tercapai) pada **versi sah terakhir** pengukuran berstatus `disahkan` yang belum memiliki status capaian berlaku.
 - **Dependency:** 5.9, 1.11.
-- **DoD:** Submit form menghasilkan baris baru `status_capaian` dengan `sumber = manual` dan `ditetapkan_oleh` terisi user yang login; pengukuran yang sudah punya status capaian aktif tidak muncul lagi di daftar "belum ditetapkan" (kecuali fitur revisi 6.5 dipakai).
+- **DoD:** Submit form menghasilkan baris baru `status_capaian` dengan `sumber = manual`, `ditetapkan_oleh` terisi user yang login, dan `pengukuran_versi_id` = versi sah terakhir; pengukuran yang versi sahnya sudah punya status berlaku tidak muncul lagi di daftar "belum ditetapkan" (kecuali fitur revisi 6.5 dipakai).
 
 ### 6.5 Revisi Status Capaian (soft replace)
-- **Scope:** Aksi mengubah status capaian yang sudah ada — menambah baris baru sebagai status aktif terbaru, bukan mengubah baris lama.
+- **Scope:** Aksi mengubah status capaian yang sudah ada — menambah baris baru pada versi yang sama sebagai status berlaku terbaru, bukan mengubah baris lama.
 - **Dependency:** 6.4.
-- **DoD:** Test Pest: setelah revisi, query "status capaian aktif" (baris `created_at` terbaru per pengukuran_id) mengembalikan baris baru; baris lama tetap ada di tabel dan dapat ditelusuri sebagai riwayat; audit_log mencatat perubahan.
+- **DoD:** Test Pest: setelah revisi, query "status capaian berlaku" (baris `created_at` terbaru per `pengukuran_versi_id`) mengembalikan baris baru; baris lama tetap ada di tabel dan dapat ditelusuri sebagai riwayat; audit_log mencatat perubahan.
 
 ### 6.6 Migrasi & model `status_capaian`
-- **Scope:** Migrasi tabel sesuai data model, termasuk kolom `sumber` enum (manual, data_sumber) dan `ditetapkan_oleh` nullable.
+- **Scope:** Migrasi tabel sesuai data model, termasuk `pengukuran_versi_id`, kolom `sumber` enum (manual, data_sumber), `ditetapkan_oleh` nullable, dan trigger append-only.
 - **Dependency:** 5.1.
-- **DoD:** Migrasi berjalan; constraint aplikasi memastikan `ditetapkan_oleh` selalu terisi ketika `sumber = manual` (divalidasi di layer aplikasi/form, diuji Pest).
+- **DoD:** Migrasi berjalan; constraint `sumber = manual` ⇒ `ditetapkan_oleh` terisi ditegakkan CHECK basis data (diuji Pest), dan UPDATE/DELETE ditolak trigger.
 
 ### 6.7 Rekomendasi Pimpinan: draf, persetujuan, dan tindak lanjut (ISS-09.01)
 - **Scope:** Q45 §45.2 dan Q51 §51.1–§51.2. Migrasi dan model `rekomendasi_pimpinan` (Data Model §2.31) per indikator × tahun × periode berisi `isi`, `ditetapkan_oleh` (penyusun baris), `status` enum(`draf`,`disetujui`) default `draf`, `disetujui_oleh`, `disetujui_oleh_role` (salinan kode peran penyetuju untuk penanda cadangan), `disetujui_pada`, dan `rujukan_sumber` (rancangan, nullable; rujukan laporan sumber data awal, Q51 §51.1 butir 5); ketiga kolom persetujuan terisi jika dan hanya jika `status = disetujui`. Perencanaan menyusun **draf**; Pimpinan **menyetujui** draf, dapat mengubah isinya lebih dulu, atau menulis rekomendasi langsung yang tersimpan berstatus `disetujui`. Persetujuan oleh Perencanaan adalah jalur cadangan bila Pimpinan berhalangan; persetujuan oleh peran mana pun selain Pimpinan, termasuk Perencanaan dan Superadmin, diberi penanda cadangan lewat `disetujui_oleh_role` dan tercatat di `audit_log` (Q51 §51.2 butir 2). Isi draf dapat diubah sebelum disetujui dengan perubahan teraudit; baris `disetujui` tidak diubah, sehingga perubahan membentuk baris baru melalui persetujuan yang sama dan baris lama tetap tersimpan sebagai riwayat. Rekomendasi yang berlaku per indikator × periode adalah baris `disetujui` dengan `disetujui_pada` terbaru; hanya rekomendasi itu yang tampil pada pengukuran periode berikutnya dan Laporan Kinerja Triwulan (8.5) serta memicu kewajiban `tindak_lanjut_rekomendasi` pada pengajuan pengukuran periode berikutnya (gerbang di 5.5), termasuk lintas tahun: rekomendasi pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4). Draf tidak tampil bagi PIC. Rekomendasi tetap opsional per indikator per periode dan independen dari status pengukuran. Permission tetap `rekomendasi:tetapkan` (preset Pimpinan dan Perencanaan, 1.12; bertanda sensitif sehingga mencatat `dasar_izin`, 1.20); simpan draf dan setujui dibedakan oleh `status`, bukan oleh permission. Data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada `rujukan_sumber` (Q51 §51.1 butir 5). Gerbang tindak lanjut dikecualikan untuk periode lampau 2026 (3.11).
@@ -616,7 +618,7 @@ Setiap task memiliki tiga bagian wajib:
 > **Q66 (21 Oktober 2026):** kartu ringkasan 7.2 per status tampilan dihapus sementara; status tampilan tampil per baris pada tabel status per indikator, ringkasan di atas dashboard memakai status alur kewajiban (kartu Draft menyebut jumlah "Tidak mengisi" bila ada), dan ringkasan Tercapai/Belum Tercapai menunggu 6.4. Panel 7.6 dan 7.7 tampil berdampingan, dengan tabel kegiatan per IKU pada kartu tersendiri.
 
 ### 7.1 Migrasi/index pendukung query dashboard
-- **Scope:** Tambahkan index database yang diperlukan untuk query agregasi dashboard (mis. index pada `pengukuran(status_alur)`, `status_capaian(pengukuran_id, created_at)`, `rencana_aksi(status_alur)`, `kegiatan(status, periode_id)`).
+- **Scope:** Tambahkan index database yang diperlukan untuk query agregasi dashboard (mis. index pada `pengukuran(status_alur)`, `status_capaian(pengukuran_versi_id, created_at DESC, id DESC)` dan `status_capaian(pengukuran_id, created_at DESC, id DESC)`, `rencana_aksi(status_alur)`, `kegiatan(status, periode_id)`).
 - **Dependency:** 5.1, 6.6, 11.1, 12.1.
 - **DoD:** `EXPLAIN ANALYZE` pada query ringkasan dashboard menunjukkan penggunaan index yang relevan (bukan sequential scan penuh pada tabel besar) di lingkungan uji dengan data seed memadai.
 

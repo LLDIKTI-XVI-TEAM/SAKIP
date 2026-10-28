@@ -46,6 +46,21 @@ function props(rows: BarisRekap[] = [row()]): RekapProps {
 }
 
 it.each([
+    { status_capaian: 'Tercapai', kelas: 'bg-success/10' },
+    { status_capaian: 'Belum tercapai', kelas: 'bg-danger/10' },
+    { status_capaian: 'Belum ditetapkan', kelas: 'bg-soft' },
+    { status_capaian: 'Tidak dinilai', kelas: 'bg-info/10' },
+    { status_capaian: 'Tidak dapat dihitung', kelas: 'bg-secondary/15' },
+])('menampilkan badge status capaian narasi server "$status_capaian" dengan varian yang sesuai', ({ status_capaian, kelas }) => {
+    render(<Rekap {...props([row({ status_capaian })])} />);
+
+    const sel = screen.getByText('Status capaian').parentElement!;
+    const badge = within(sel).getByText(status_capaian, { selector: 'span' });
+    expect(badge.classList.contains(kelas)).toBe(true);
+    expect(badge.textContent).toBe(status_capaian);
+});
+
+it.each([
     { zona: 'UTC', format: 'Y-m-d', hasil: '2026-10-21' },
     { zona: 'Asia/Jayapura', format: 'd F Y', hasil: '22 Oktober 2026' },
 ])('tanggal pengesahan mengikuti preferensi format dan zona waktu $zona / $format', ({ zona, format, hasil }) => {

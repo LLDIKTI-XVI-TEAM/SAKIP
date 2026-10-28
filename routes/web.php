@@ -88,6 +88,7 @@ use App\Http\Controllers\Renstra\IndexRenstra;
 use App\Http\Controllers\Renstra\ShowRenstra;
 use App\Http\Controllers\Renstra\StoreRenstra;
 use App\Http\Controllers\Renstra\UpdateRenstra;
+use App\Http\Controllers\StatusCapaian\StatusCapaianController;
 use App\Http\Controllers\TargetRenstra\RevisiTargetRenstraController;
 use App\Http\Controllers\TargetRenstra\TargetRenstraController;
 use App\Http\Controllers\Unit\DestroyUnit;
@@ -231,10 +232,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Verifikasi & Pengesahan Kinerja
     Route::get('/verifikasi', IndexVerifikasi::class)->name('verifikasi.index');
     Route::get('/verifikasi/pilihan', [IndexVerifikasi::class, 'pilihan'])->name('verifikasi.pilihan');
+    // Didaftarkan sebelum `/verifikasi/{id}` agar tidak bergantung pada urutan pencocokan rute.
+    Route::get('/verifikasi/status-capaian', [StatusCapaianController::class, 'index'])->name('status-capaian.index');
     Route::get('/verifikasi/{id}', ShowVerifikasi::class)->whereUuid('id')->name('verifikasi.show');
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
+    Route::post('/verifikasi/{pengukuran}/status-capaian', [StatusCapaianController::class, 'store'])
+        ->whereUuid('pengukuran')->name('status-capaian.store');
 
     // Rekomendasi Pimpinan
     Route::get('/rekomendasi', [RekomendasiController::class, 'index'])->name('rekomendasi.index');

@@ -62,6 +62,9 @@ final class PermissionCodes
     // Rekomendasi Pimpinan
     public const REKOMENDASI_TETAPKAN = 'rekomendasi:tetapkan';
 
+    // Status Capaian per versi pengukuran disahkan
+    public const STATUS_CAPAIAN_UPDATE = 'status_capaian:update';
+
     // Pengaturan Presentasional & Storage
     public const PENGATURAN_UPDATE = 'pengaturan:update';
 

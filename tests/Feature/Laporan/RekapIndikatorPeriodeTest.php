@@ -11,8 +11,10 @@ use App\Models\PeriodeJadwal;
 use App\Models\Permission;
 use App\Models\RekomendasiPimpinan;
 use App\Models\RencanaAksiVersi;
+use App\Models\StatusCapaian;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -44,6 +46,18 @@ class RekapIndikatorPeriodeTest extends TestCase
                 'komponen' => [], 'klaim' => [], 'persyaratan_bukti' => [], 'bukti_dukungs' => [],
                 ...$data,
             ],
+        ]);
+    }
+
+    /**
+     * Status capaian manual pada versi resmi; pola fixture sama dengan tests/Feature/StatusCapaian.
+     * Data Model §2.21: satu versi menyimpan riwayat, baris terbaru (created_at, lalu id) yang berlaku.
+     */
+    private function tetapkanStatus(KinerjaSnapshot $versi, string $status): StatusCapaian
+    {
+        return StatusCapaian::create([
+            'pengukuran_id' => $this->pengukuran->id, 'pengukuran_versi_id' => $versi->id,
+            'status' => $status, 'sumber' => 'manual', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now(),
         ]);
     }
 
@@ -185,7 +199,9 @@ class RekapIndikatorPeriodeTest extends TestCase
             $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page
                 ->where('baris.0.status_laporan', 'tidak_dapat_dihitung')->where('baris.0.nilai', null)
                 ->where('baris.0.tanpa_target_periode', $tanpaTarget)
-                ->where('baris.0.status_capaian', $tanpaTarget ? 'Tidak dinilai' : 'Belum ditetapkan')
+                // PRD §23 + Q64 §64.1 butir 5: periode bertarget yang tidak dapat dihitung tampil tersendiri,
+                // sedangkan periode tanpa target tetap "Tidak dinilai" (Q47 §47.3 butir 4).
+                ->where('baris.0.status_capaian', $tanpaTarget ? 'Tidak dinilai' : 'Tidak dapat dihitung')
                 ->where('baris.0.alasan_tidak_dapat_dihitung', 'Penyebut nol pada versi resmi')
                 ->where('baris.0.capaian_persen', null)->where('baris.0.selisih_target_pk', null));
         }
@@ -195,7 +211,55 @@ class RekapIndikatorPeriodeTest extends TestCase
     {
         $this->versi(['nilai' => null, 'status_perhitungan' => 'belum_dapat_diukur', 'target' => null, 'tanpa_target_periode' => true]);
         $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page
-            ->where('baris.0.status_laporan', 'belum_dapat_diukur')->where('baris.0.capaian_persen', null)->where('baris.0.selisih_target_pk', null));
+            ->where('baris.0.status_laporan', 'belum_dapat_diukur')->where('baris.0.capaian_persen', null)->where('baris.0.selisih_target_pk', null)
+            // Q47 §47.3 butir 4: pada kondisi ini status capaian tidak dinilai, bukan "Belum ditetapkan".
+            ->where('baris.0.status_capaian', 'Tidak dinilai'));
+    }
+
+    public function test_status_capaian_tercapai_pada_versi_resmi_tampil_dengan_waktu_penetapan(): void
+    {
+        // ISS-09.02 AC-1/AC-4, Q64 §64.1 butir 4: Tercapai hanya dibaca dari penetapan pada versi resmi baris ini.
+        $versi = $this->versi(['nilai' => '80']);
+        $this->tetapkanStatus($versi, StatusCapaian::STATUS_TERCAPAI);
+
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page
+            ->where('baris.0.versi.id', $versi->id)
+            ->where('baris.0.status_capaian', 'Tercapai')
+            ->whereNot('baris.0.ditetapkan_pada', null));
+    }
+
+    public function test_revisi_status_capaian_memakai_baris_terbaru_yang_berlaku(): void
+    {
+        // ISS-09.02 AC-4: revisi menulis baris baru; yang berlaku adalah baris terbaru (Data Model §2.21).
+        $versi = $this->versi(['nilai' => '80']);
+        try {
+            Carbon::setTestNow('2026-03-15 09:00:01.100000');
+            $this->tetapkanStatus($versi, StatusCapaian::STATUS_TERCAPAI);
+            Carbon::setTestNow('2026-03-15 09:00:02.100000');
+            $this->tetapkanStatus($versi, StatusCapaian::STATUS_BELUM_TERCAPAI);
+
+            $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page
+                ->where('baris.0.status_capaian', 'Belum tercapai')
+                ->whereNot('baris.0.ditetapkan_pada', null));
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->assertSame(2, StatusCapaian::where('pengukuran_versi_id', $versi->id)->count());
+    }
+
+    public function test_versi_koreksi_baru_mulai_belum_ditetapkan_dan_status_versi_lama_tetap_tersimpan(): void
+    {
+        // ISS-09.02 AC-3: versi koreksi baru tidak mewarisi status versi lama; riwayat versi lama tetap ada.
+        $lama = $this->versi(['nilai' => '80']);
+        $this->tetapkanStatus($lama, StatusCapaian::STATUS_TERCAPAI);
+        $this->versi(['nilai' => '90'], nomor: 2);
+
+        $this->actingAs($this->actor)->get($this->url())->assertOk()->assertInertia(fn ($page) => $page
+            ->has('baris', 1)->where('baris.0.versi.nomor', 2)
+            ->where('baris.0.status_capaian', 'Belum ditetapkan')
+            ->where('baris.0.ditetapkan_pada', null));
+        $this->assertSame(1, StatusCapaian::where('pengukuran_versi_id', $lama->id)->count());
     }
 
     public function test_tanpa_target_tetap_memuat_realisasi_dan_selisih_pk_tanpa_persen(): void

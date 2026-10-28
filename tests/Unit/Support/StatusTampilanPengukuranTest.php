@@ -4,8 +4,8 @@ use App\Support\StatusTampilanPengukuran as S;
 
 $disahkan = fn (string $perhitungan, bool $tanpaTarget = false): array => ['status_perhitungan' => $perhitungan, 'tanpa_target_periode' => $tanpaTarget];
 
-test('status tampilan indikator × periode mengikuti urutan prioritas', function (bool $dibuka, bool $berlaku, ?string $alur, bool $lewat, bool $lampau, ?array $versi, string $harapan): void {
-    expect(S::tentukan($dibuka, $berlaku, $alur, $lewat, $lampau, $versi))->toBe($harapan);
+test('status tampilan indikator × periode mengikuti urutan prioritas', function (bool $dibuka, bool $berlaku, ?string $alur, bool $lewat, bool $lampau, ?array $versi, string $harapan, ?string $statusCapaian = null): void {
+    expect(S::tentukan($dibuka, $berlaku, $alur, $lewat, $lampau, $versi, $statusCapaian))->toBe($harapan);
 })->with([
     'belum dibuka mengalahkan semuanya' => [false, false, 'disahkan', true, false, $disahkan('terhitung'), S::BELUM_DIBUKA],
     'sebelum efektif walau ada header' => [true, false, 'draft', false, false, null, S::TIDAK_BERLAKU],
@@ -20,11 +20,18 @@ test('status tampilan indikator × periode mengikuti urutan prioritas', function
     'tanpa target terhitung' => [true, true, 'disahkan', true, false, $disahkan('terhitung', true), S::TANPA_TARGET_PERIODE],
     'tanpa target tidak dapat dihitung' => [true, true, 'disahkan', true, false, $disahkan('tidak_dapat_dihitung', true), S::TANPA_TARGET_PERIODE],
     'tidak dapat dihitung bertarget' => [true, true, 'disahkan', true, false, $disahkan('tidak_dapat_dihitung'), S::TIDAK_DAPAT_DIHITUNG],
-    'disahkan terhitung bertarget' => [true, true, 'disahkan', true, false, $disahkan('terhitung'), S::BELUM_DITETAPKAN],
+    'disahkan terhitung bertarget tanpa status capaian' => [true, true, 'disahkan', true, false, $disahkan('terhitung'), S::BELUM_DITETAPKAN, null],
     'disahkan tanpa versi disahkan tidak tampil resmi' => [true, true, 'disahkan', true, false, null, S::DALAM_PROSES],
+    // Q64 §64.1 butir 4: Tercapai/Belum tercapai hanya dari status capaian versi resmi.
+    'status capaian tercapai' => [true, true, 'disahkan', true, false, $disahkan('terhitung'), S::TERCAPAI, 'tercapai'],
+    'status capaian belum tercapai' => [true, true, 'disahkan', true, false, $disahkan('terhitung'), S::BELUM_TERCAPAI, 'belum_tercapai'],
+    // Q47 §47.3 butir 4: status capaian tidak pernah menimpa tiga kondisi pertama.
+    'status capaian tidak menimpa belum dapat diukur' => [true, true, 'disahkan', true, false, $disahkan('belum_dapat_diukur'), S::BELUM_DAPAT_DIUKUR, 'tercapai'],
+    'status capaian tidak menimpa tanpa target periode' => [true, true, 'disahkan', true, false, $disahkan('terhitung', true), S::TANPA_TARGET_PERIODE, 'tercapai'],
+    'status capaian tidak menimpa tidak dapat dihitung' => [true, true, 'disahkan', true, false, $disahkan('tidak_dapat_dihitung'), S::TIDAK_DAPAT_DIHITUNG, 'tercapai'],
 ]);
 
 test('hanya belum dibuka dan tidak berlaku yang dikeluarkan dari hitungan kewajiban', function (): void {
     expect(S::DIHITUNG)->not->toContain(S::BELUM_DIBUKA)->not->toContain(S::TIDAK_BERLAKU)
-        ->and(S::DIHITUNG)->toHaveCount(7);
+        ->and(S::DIHITUNG)->toHaveCount(9);
 });
