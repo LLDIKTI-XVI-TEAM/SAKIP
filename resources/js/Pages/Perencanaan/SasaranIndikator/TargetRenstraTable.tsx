@@ -9,21 +9,31 @@ import { Input } from '@/Components/Input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { HistoriRevisiTargetRenstraModal } from './HistoriRevisiTargetRenstraModal';
+import { ModeRevisiTargetRenstra } from './ModeRevisiTargetRenstra';
 import { RiwayatTargetRenstraModal } from './RiwayatTargetRenstraModal';
-import type { IndikatorKinerjaItem, RenstraOption, SasaranStrategisItem } from '@/types/sasaran-indikator';
+import type { IndikatorKinerjaItem, RenstraOption, RevisiTargetRenstra, SasaranStrategisItem } from '@/types/sasaran-indikator';
 
 const BELUM_PASTI = 'Hasil simpan belum dapat dipastikan. Muat data terbaru sebelum mencoba lagi.';
 
 type FormTarget = { nilai: Record<string, string | null>; expected_state: string };
 
 /** Tabel indikator × tahun Renstra. Nilai tetap string; normalisasi, perbandingan, dan otorisasi dimiliki server. */
-export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved, onSaving }: {
+export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved, onSaving, revisi = null }: {
     renstra: RenstraOption;
     sasarans: SasaranStrategisItem[];
     canEdit: boolean;
     onSaved: (message: string) => void;
     onSaving?: (saving: boolean) => void;
+    revisi?: RevisiTargetRenstra | null;
 }) {
+    const mulaiRevisi = useForm({});
+    const galatMulai = Object.values(mulaiRevisi.errors as Record<string, string | undefined>)[0];
+    const [histori, setHistori] = useState(false);
+    const [muatUlangKe, setMuatUlangKe] = useState(0);
+    // Cermin aturan server: Renstra aktif diubah lewat Mode revisi; histori ada sejak Renstra pernah aktif.
+    const bisaRevisi = canEdit && renstra.status === 'aktif';
+    const adaHistori = renstra.status === 'aktif' || renstra.status === 'nonaktif' || renstra.status === 'diarsipkan';
     const formatNilai = useFormatNilai();
     const recovery = useAuthRecovery();
     const form = useForm<FormTarget>({ nilai: {}, expected_state: '' });
@@ -35,7 +45,8 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved, onSavi
     const kembaliFokus = useRef<string | null>(null);
     const years = Array.from({ length: renstra.tahun_selesai - renstra.tahun_mulai + 1 }, (_, i) => renstra.tahun_mulai + i);
     // Status absen berarti fail-closed; server tetap menolak Renstra nonaktif/diarsipkan.
-    const renstraEditable = renstra.status === 'draft' || renstra.status === 'aktif';
+    // Cermin aturan server: Renstra aktif hanya diubah lewat Mode revisi.
+    const renstraEditable = renstra.status === 'draft';
     // Hasil ambigu atau token basi: simpan ulang ditahan sampai data terbaru dimuat, seperti editor target PK.
     const blocked = Boolean(failure || recovery.recovery || errors.expected_state);
 
@@ -101,7 +112,15 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved, onSavi
 
     return <div ref={root} className="space-y-6">
         <AuthRecoveryNotice recovery={recovery.recovery} />
-        {sasarans.map((sasaran) => <Card key={sasaran.id}>
+        {(adaHistori || (bisaRevisi && !revisi)) && <div className="flex flex-wrap items-center justify-end gap-2">
+            {galatMulai && <p role="alert" className="mr-auto text-sm text-danger">{galatMulai}</p>}
+            {adaHistori && <Button type="button" size="sm" variant="outline" onClick={() => setHistori(true)}>Histori revisi</Button>}
+            {bisaRevisi && !revisi && <Button type="button" size="sm" isLoading={mulaiRevisi.processing}
+                onClick={() => mulaiRevisi.post(`/perencanaan/renstra/${renstra.id}/revisi-target`, { preserveScroll: true })}>Mode revisi</Button>}
+        </div>}
+        {bisaRevisi && revisi ? <ModeRevisiTargetRenstra key={`${revisi.id}:${muatUlangKe}`} renstra={renstra} sasarans={sasarans} revisi={revisi}
+            onMuatUlang={() => router.reload({ only: ['revisi_target', 'sasarans'], onSuccess: () => setMuatUlangKe((n) => n + 1) })} />
+            : sasarans.map((sasaran) => <Card key={sasaran.id}>
             <div className="border-b border-border p-4 md:p-5">
                 <Badge variant="primary" size="sm" className="font-mono">{sasaran.kode}</Badge>
                 <h2 className="mt-1 text-base font-semibold leading-relaxed text-ink">{sasaran.deskripsi}</h2>
@@ -168,5 +187,6 @@ export function TargetRenstraTable({ renstra, sasarans, canEdit, onSaved, onSavi
             </Table>
         </Card>)}
         {riwayat && <RiwayatTargetRenstraModal indikator={riwayat} onClose={() => setRiwayat(null)} />}
+        {histori && <HistoriRevisiTargetRenstraModal renstra={renstra} onClose={() => setHistori(false)} />}
     </div>;
 }

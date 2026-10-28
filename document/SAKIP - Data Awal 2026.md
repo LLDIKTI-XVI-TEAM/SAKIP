@@ -169,7 +169,8 @@ Semua pengisian data awal memakai Action aplikasi dan meninggalkan jejak `audit_
 |---|---|---|---|
 | Master periode | `/periode` | `SavePeriode` | `periode.tambah` / `periode.ubah` |
 | Renstra | `/renstra` | `CreateRenstraAction`, `ChangeRenstraStatus` | `renstra.buat`, `renstra.activate`/`deactivate`/`archive` |
-| Target Renstra | `/perencanaan/sasaran-indikator` → target Renstra | `SimpanTargetRenstra` | `target_renstra.simpan` |
+| Target Renstra (Renstra `draft`) | `/perencanaan/sasaran-indikator` → target Renstra | `SimpanTargetRenstra` | `target_renstra.simpan` |
+| Target Renstra (Renstra `aktif`, termasuk pengisian pertama; Q71) | `/perencanaan/sasaran-indikator` → Target Renstra → Mode revisi | `MulaiRevisiTargetRenstra`, `SimpanDrafRevisiTargetRenstra`, `SimpanRevisiTargetRenstra` | `target_renstra.simpan` per sel dengan justifikasi pada `alasan` |
 | Perjanjian Kinerja | `/perjanjian-kinerja` | `CreatePerjanjianKinerja`, `UpdatePerjanjianKinerja` | `renstra_pk.buat`, `renstra_pk.ubah` |
 | Lampiran PK | Modal PK | `PerjanjianKinerjaAttachmentService::simpanLampiran` | `berkas.unggah` / `berkas.hapus` |
 | Target PK / target tahunan | `/perjanjian-kinerja/{pk}/target/{indikator}` | `SaveTargetTahunan` | `target_tahunan.simpan` |
@@ -226,7 +227,7 @@ Izin yang dipakai: `rekomendasi:tetapkan` (dimiliki preset Perencanaan dan Pimpi
 |---|---|---|---|
 | Q70 §70.1 tanggal periode | Belum (ISS-03.07) | Tanggal periode tidak dapat diisi | Tunggu ISS-03.07 |
 | Q70 §70.2 hapus jendela reviu | Belum (ISS-03.07) | Form jadwal/revisi jendela PIC masih memakai jendela reviu | Tunggu ISS-03.07 |
-| Q71 revisi target Renstra | Belum (ISS-02.13) | Perubahan target Renstra `aktif` belum memakai mode revisi | Tunggu ISS-02.13 |
+| Q71 revisi target Renstra | Sudah (ISS-02.13) | Renstra 2025–2029 berstatus `aktif`, sehingga target Renstra data awal diisi lewat Mode revisi sebagai revisi ke-1 dengan justifikasi yang merujuk dokumen Renstra (Q71 §71.5 butir 1) | Isi lewat Mode revisi setelah ISS-02.13 merge |
 | Q72 target PK menyimpang ditolak | Belum (ISS-02.14) | Target PK 2026 belum tunduk pada penolakan deviasi | Tunggu ISS-02.14 |
 | Q73 baseline otomatis | Belum (ISS-02.15) | Baseline 2026 diisi manual/menunggu LKj 2025 | Tunggu ISS-02.15 |
 | Q74 kegiatan dari RA + biaya terpakai | Belum (ISS-06.09, ISS-06.03) | Alur kegiatan masih memakai halaman Kegiatan | Tunggu ISS-06.09; ISS-06.03 (form realisasi) |

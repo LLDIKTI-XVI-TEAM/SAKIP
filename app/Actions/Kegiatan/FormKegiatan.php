@@ -9,11 +9,13 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Kegiatan\GerbangBerkasKegiatan;
+use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
 use App\Support\PermissionDecision;
 
 class FormKegiatan
 {
-    public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit) {}
+    public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit,
+        private readonly PersyaratanPerencanaanKegiatan $persyaratan) {}
 
     /** Pilihan unit diturunkan dari izin kegiatan; tidak mensyaratkan hak pengelolaan master unit. @return array<string,mixed> */
     public function handle(User $actor, Kegiatan $kegiatan): array
@@ -37,6 +39,9 @@ class FormKegiatan
         $tahunDitutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
         $pilihan = $kegiatan->loadMissing('periode:id,nama,urutan')->pilihanStatus($periodeAktif);
         $ubahStatus = $tahunDitutup ? [] : $pilihan['status'];
+        // Persyaratan pelaksanaan dinilai ulang dari klaim saat ini: klaim baru setelah terlaksana dapat menambah bukti wajib (Q22).
+        $kurang = PersyaratanPerencanaanKegiatan::kurang($this->persyaratan->evaluasi($kegiatan,
+            PersyaratanPerencanaanKegiatan::indikatorDiklaim((string) $kegiatan->id), null, PersyaratanPerencanaanKegiatan::TAHAP_PELAKSANAAN));
 
         return [
             'kegiatan' => $kegiatan->rencanaAttributes() + [
@@ -48,6 +53,7 @@ class FormKegiatan
             ],
             'unitOptions' => $unitOptions->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
             'periodeOptions' => $periodeAktif->map(fn (Periode $periode) => [...$periode->only(['id', 'nama']), 'tanggal' => $periode->only(Periode::TANGGAL)])->all(),
+            'pelaksanaan' => ['persyaratan_kurang' => $kurang, 'perlu_koreksi' => $kegiatan->status === 'terlaksana' && $kurang !== []],
             'opsiPeriodeTujuan' => in_array('ditunda', $ubahStatus, true) ? $pilihan['periode_tujuan'] : [],
             // Data rencana baca-saja setelah status berubah (Q69 §69.3).
             'can' => ['ubah_rencana' => $kegiatan->status === 'rencana', 'ubah_status' => $ubahStatus],

@@ -1957,6 +1957,7 @@ Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring 
 2. Justifikasi diisi pada form status kegiatan, bukan pada modal alasan audit. Server menolak justifikasi yang kosong setelah spasi di tepinya dibuang, serta menerapkan batas panjang dan penolakan karakter kontrol yang sama dengan isian teks kegiatan lainnya.
 3. Audit `kegiatan.ubah_status` mencatat status dan justifikasi lama serta baru.
 4. Justifikasi tidak dapat diubah tanpa transisi status. Pada status final, justifikasi ikut final.
+5. Transisi ke `terlaksana` mengosongkan `kegiatan.justifikasi`; nilai lamanya tercatat pada audit `kegiatan.ubah_status` (keputusan PM 27 Oktober 2026, review PR #195).
 
 ## 69.3 Data rencana dan data pelaksanaan
 
@@ -2089,7 +2090,7 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 - Q17 tetap berlaku sebatas reviu sampai penutupan; penanda terlambatnya tidak lagi dibuat. Q57 tidak lagi berlaku untuk jendela reviu karena jendela itu dihapus; Q18 tetap berlaku untuk jendela pengisian.
 - PRD §12.1, §12.3, dan §31; Workflow §4; Data Model §2.14 (`periode`: tanggal mulai dan selesai tanpa tahun) dan §2.16 (`jadwal_periode` tanpa kolom reviu); Plan 3.2, 3.3, dan 3.12; US/ISS-03.01 AC-4 (digantikan), US/ISS-03.06, US/ISS-07.04 AC-5 dan US/ISS-08.01 AC-5/TEST-5 (digantikan), serta US/ISS-03.07 (baru).
 - Kode terdampak: `JadwalDraftRules` (`WINDOW_FIELDS`, syarat penutupan), `SaveJadwalDraft`, `StoreJadwalRequest`, `PeriodeJadwalMutationRequest`, `RevisiJendelaPic` dan `RevisiJendelaPicRequest`, `PengukuranKinerjaPolicy` (gerbang reviu), `PengukuranMutationSteps` (penanda reviu terlambat), `PresentPengukuran`, `StatusIndikatorDashboard`, serta Action Master Periode (`SavePeriode`, `ReplaceFinalPeriode`, `ListPeriode`) dengan aturan bersama `TanggalPeriodeRules`. Tahap kedua juga menyentuh `JadwalActivationReadiness` (batas awal saat aktivasi) dan penyedia data tampilan rentang (`ShowJadwalEditor`, `IndexRencanaAksi`, `DaftarKegiatan`, `FormKegiatan`, `IndexPengukuran`).
-- Status implementasi: selesai pada ISS-03.07, kecuali validasi tanggal realisasi kegiatan (§70.1 butir 3b) yang menyusul ISS-06.03 (Q74 §74.2). §70.2 butir 1 dan 3–6 dikerjakan pada tahap pertama (PR #175, penghapusan jendela reviu); §70.1, §70.2 butir 2 dan 7, serta §70.4 pada tahap kedua (tanggal periode).
+- Status implementasi: selesai pada ISS-03.07, kecuali validasi tanggal realisasi kegiatan (§70.1 butir 3b) yang diterapkan PR pertama ISS-06.03 (Q74 §74.2). §70.2 butir 1 dan 3–6 dikerjakan pada tahap pertama (PR #175, penghapusan jendela reviu); §70.1, §70.2 butir 2 dan 7, serta §70.4 pada tahap kedua (tanggal periode).
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ## 70.4 Klarifikasi penerapan
@@ -2137,8 +2138,14 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 - Q60 hanya berlaku untuk Renstra `draft`. Q40 §40.2 butir 3 diselaraskan: riwayat revisi target Renstra aktif dibaca dari histori revisi. Perubahan target Renstra pada Renstra `aktif` pindah dari Q43 §43.3 butir 5 ke Q43 §43.2 butir 3 (wajib alasan).
 - PRD §10.5 dan §25.1; Workflow §14; Data Model §2.35 (`target_renstra`) beserta tabel baru draf dan histori revisi; Plan 2.21; US/ISS-02.10 AC-4 dan AC-5 (digantikan untuk Renstra `aktif`), US/ISS-02.13 (baru).
 - Mode revisi menjadi jalur yang diwajibkan Q72 sebelum target PK yang menyimpang dapat disimpan.
-- Status implementasi: belum (ISS-02.13).
+- Status implementasi: sudah (ISS-02.13, Issue #166), termasuk klarifikasi §71.5.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+## 71.5 Klarifikasi penerapan (PM, 25 Oktober 2026)
+
+1. Pengisian pertama target Renstra pada Renstra `aktif`, yaitu sel yang semula kosong lalu diisi, juga melalui mode revisi dengan justifikasi. Tidak ada pengecualian, termasuk pengisian data awal 2026 pada Renstra 2025–2029.
+2. Membatalkan draf dicatat di `audit_log` sebagai `target_renstra.revisi_batal` beserta isian yang dibuang, karena draf dapat dilanjutkan pemegang izin lain. Membuka mode revisi dan penyimpanan otomatis draf tidak diaudit karena belum mengubah target. Penolakan aksi revisi dicatat sebagai `target_renstra.revisi_ditolak`.
+3. Draf dan histori memakai tabel yang sama: baris berstatus `draf` menjadi histori berstatus `disimpan` dengan nomor revisi saat disimpan, dan draf hanya memuat sel yang diubah. Penyimpanan revisi mencatat `target_renstra.simpan` per sel dengan justifikasi pada `audit_log.alasan` dan nomor revisi pada nilai baru, sehingga riwayat per indikator (§71.3 butir 2) juga memuat perubahan melalui mode revisi.
 
 ---
 
@@ -2227,7 +2234,7 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 - PRD §15.1–§15.6; Workflow §8; Data Model §2.25 (`kegiatan`: kolom baru biaya terpakai) dan §2.26 (`klaim_kegiatan`); Plan 12.2 dan 12.11; US/ISS-06.01, US/ISS-06.03 (diperbarui), US/ISS-06.09 (baru).
 - Kode terdampak: `sidebarNavigation.ts` (item `kegiatan`), halaman `Kegiatan/Index.tsx`, `Kegiatan/Form.tsx`, `Kegiatan/Partials/*`, `RencanaAksi/KegiatanPanel.tsx`, `StoreKegiatanRencanaAksi`, dan route `/kegiatan*`.
 - PR #163 (ISS-06.04, Q69) mengubah status kegiatan pada halaman Kegiatan; ISS-06.09 menyesuaikan setelah PR itu merge.
-- Status implementasi: ISS-06.09 implemented (menunggu merge dan QA; AC-7 tanpa test langsung dan TEST-6 browser belum terbukti), ISS-06.03 belum.
+- Status implementasi: ISS-06.09 implemented (menunggu merge dan QA; AC-7 tanpa test langsung dan TEST-6 browser belum terbukti). §74.2 butir 2–6 diterapkan PR pertama ISS-06.03 (backend aksi pelaksanaan); §74.2 butir 1 (form realisasi di halaman kegiatan Rencana Aksi) belum (PR kedua ISS-06.03).
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---

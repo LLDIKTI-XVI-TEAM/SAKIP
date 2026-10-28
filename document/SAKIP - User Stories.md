@@ -636,23 +636,24 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given Renstra `draft`, When target Renstra diisi atau diubah per indikator, Then tersimpan tanpa alasan seperti sekarang. *(Q71 §71.1 butir 1, Q60)*
-- [ ] **AC-2:** Given Renstra `aktif`, Then tombol Ubah per indikator tidak tersedia, dan request simpan langsung ditolak dengan arahan memakai mode revisi. *(Q71 §71.1 butir 2)*
-- [ ] **AC-3:** Given Renstra `aktif`, When Perencanaan memulai mode revisi, Then draf terbentuk berisi nilai yang berlaku dan seluruh indikator × tahun dapat diubah. *(Q71 §71.2 butir 1)*
-- [ ] **AC-4:** Given isian draf diubah, When halaman dimuat ulang, Then nilai draf tetap ada karena tersimpan otomatis di server. *(Q71 §71.2 butir 2)*
-- [ ] **AC-5:** Given draf terbuka, When pengguna lain berizin membuka mode revisi, Then ia melanjutkan draf yang sama; perubahan dari versi draf yang sudah usang ditolak 409. *(Q71 §71.2 butir 2)*
-- [ ] **AC-6:** Given justifikasi kosong, When Simpan, Then ditolak dan penolakannya diaudit; target Renstra tidak berubah. *(Q71 §71.2 butir 5)*
-- [ ] **AC-7:** Given justifikasi terisi dan ada perubahan, When Simpan, Then seluruh perubahan diterapkan dalam satu transaksi, nilai lama masuk histori, revisi bernomor n+1, dan audit memuat aktor, waktu, `dasar_izin`, justifikasi, serta nilai lama dan baru. *(Q71 §71.2 butir 3, §71.3 butir 4)*
-- [ ] **AC-8:** Given draf terbuka, When Batal, Then draf dibuang dan target Renstra tidak berubah. *(Q71 §71.2 butir 4)*
-- [ ] **AC-9:** Given draf tanpa perubahan nilai, When Simpan, Then ditolak. *(Q71 §71.2 butir 6)*
-- [ ] **AC-10:** Given histori dibuka, Then tampil daftar revisi per Renstra (nomor, waktu, aktor, justifikasi, perubahan per indikator × tahun), dan riwayat per indikator dari audit sebelum mode revisi tetap dapat dibaca. *(Q71 §71.3 butir 1–2)*
-- [ ] **AC-11:** Given draf terbuka, Then halaman Sasaran & Indikator dan pembanding target PK tetap memakai nilai yang berlaku. *(Q71 §71.2 butir 7)*
-- [ ] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When memulai, mengubah, menyimpan, atau membatalkan revisi lewat request langsung, Then ditolak 403.
+- [x] **AC-1:** Given Renstra `draft`, When target Renstra diisi atau diubah per indikator, Then tersimpan tanpa alasan seperti sekarang. *(Q71 §71.1 butir 1, Q60)*
+- [x] **AC-2:** Given Renstra `aktif`, Then tombol Ubah per indikator tidak tersedia, dan request simpan langsung ditolak dengan arahan memakai mode revisi. *(Q71 §71.1 butir 2)*
+- [x] **AC-3:** Given Renstra `aktif`, When Perencanaan memulai mode revisi, Then draf terbentuk berisi nilai yang berlaku dan seluruh indikator × tahun dapat diubah. *(Q71 §71.2 butir 1)*
+- [x] **AC-4:** Given isian draf diubah, When halaman dimuat ulang, Then nilai draf tetap ada karena tersimpan otomatis di server. *(Q71 §71.2 butir 2)*
+- [x] **AC-5:** Given draf terbuka, When pengguna lain berizin membuka mode revisi, Then ia melanjutkan draf yang sama; perubahan dari versi draf yang sudah usang ditolak 409. *(Q71 §71.2 butir 2)*
+- [x] **AC-6:** Given justifikasi kosong, When Simpan, Then ditolak dan penolakannya diaudit; target Renstra tidak berubah. *(Q71 §71.2 butir 5)*
+- [x] **AC-7:** Given justifikasi terisi dan ada perubahan, When Simpan, Then seluruh perubahan diterapkan dalam satu transaksi, nilai lama masuk histori, revisi bernomor n+1, dan audit memuat aktor, waktu, `dasar_izin`, justifikasi, serta nilai lama dan baru. *(Q71 §71.2 butir 3, §71.3 butir 4)*
+- [x] **AC-8:** Given draf terbuka, When Batal, Then draf dibuang dan target Renstra tidak berubah. *(Q71 §71.2 butir 4)*
+- [x] **AC-9:** Given draf tanpa perubahan nilai, When Simpan, Then ditolak. *(Q71 §71.2 butir 6)*
+- [x] **AC-10:** Given histori dibuka, Then tampil daftar revisi per Renstra (nomor, waktu, aktor, justifikasi, perubahan per indikator × tahun), dan riwayat per indikator dari audit sebelum mode revisi tetap dapat dibaca. *(Q71 §71.3 butir 1–2)*
+- [x] **AC-11:** Given draf terbuka, Then halaman Sasaran & Indikator dan pembanding target PK tetap memakai nilai yang berlaku. *(Q71 §71.2 butir 7)*
+- [x] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When memulai, mengubah, menyimpan, atau membatalkan revisi lewat request langsung, Then ditolak 403.
 
 **Business Rules / Catatan**
 
 - Simpan revisi terjadi dalam satu transaksi dengan urutan lock yang sama dengan `SimpanTargetRenstra`; draf dan simpan memakai token konkurensi (409) bila draf berubah sejak dimuat.
 - Penolakan (tanpa justifikasi, tanpa perubahan, token kedaluwarsa) diaudit di luar transaksi.
+- Klarifikasi PM 25 Oktober 2026 (Q71 §71.5): pengisian pertama target Renstra pada Renstra `aktif` juga melalui mode revisi, pembatalan draf diaudit, serta draf dan histori memakai tabel yang sama. Status implementasi: [Issue #166](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/166) (ISS-02.13).
 - **Di luar cakupan:** versi penuh Renstra (Q40 §40.2 butir 4), lampiran revisi Renstra (tetap US-02.10), dan penolakan target PK (US-02.14).
 
 ### US-02.14 · Penolakan Target PK yang Menyimpang dan Alasan Perubahan Target PK
@@ -1329,16 +1330,18 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim** pada tahap `kegiatan` (pelaksanaan). *(Q22, Q42 §42.4 butir 2)*
-- [ ] **AC-2:** Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
-- [ ] **AC-3:** Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)* *(Diperbarui Q74 §74.2: biaya terpakai ditambahkan.)*
-- [ ] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
-- [ ] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
-- [ ] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
+- [x] **AC-1:** Given kegiatan hendak menjadi `terlaksana`, When gerbang dievaluasi, Then persyaratan bukti = **union persyaratan global kegiatan + persyaratan indikator yang diklaim** pada tahap `kegiatan` (pelaksanaan). *(Q22, Q42 §42.4 butir 2)*
+- [x] **AC-2:** Given salah satu bukti wajib pada union belum terpenuhi, When status terlaksana disubmit, Then ditolak.
+- [x] **AC-3:** Given tanggal realisasi, biaya terpakai, peserta riil, dan bukti lengkap, When commit, Then status menjadi `terlaksana`; narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) opsional. *(Diperbarui Q45 §45.1 butir 2; semula uraian pelaksanaan, kendala, dan strategi tindak lanjut ikut disyaratkan.)* *(Diperbarui Q74 §74.2: biaya terpakai ditambahkan.)*
+- [x] **AC-4:** Given klaim indikator baru ditambahkan setelah kegiatan sudah terlaksana, When klaim menambah persyaratan bukti, Then sistem kembali memeriksa bukti tambahan dan menandai kebutuhan koreksi bila belum lengkap.
+- [x] **AC-5:** Given kegiatan telah terlaksana, Then bukti yang menjadi dasar hasil tidak dapat dihapus; koreksi memakai pola append-only.
+- [x] **AC-6:** Given periode berjalan, When status kegiatan diperbarui lebih dari sekali (mis. setiap bulan), Then perubahan tersimpan pada kegiatan yang sama tanpa entitas bulanan dan tercatat di audit. *(Q45 §45.1 butir 4; matriks transisi Q69 §69.1)*
 - [ ] **AC-7:** Given halaman kegiatan Rencana Aksi, Then catat rencana dan catat realisasi tersedia sebagai dua form terpisah; form realisasi memuat tanggal realisasi, biaya terpakai, peserta riil, dan bukti pelaksanaan. *(Q74 §74.2 butir 1–2)*
-- [ ] **AC-8:** Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
-- [ ] **AC-9:** Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
-- [ ] **AC-10:** Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
+- [x] **AC-8:** Given tanggal realisasi di luar rentang periode kegiatan pada tahun kegiatan, When disimpan, Then ditolak; tanggal di dalam rentang diterima. *(Q74 §74.2 butir 3, Q70 §70.1 butir 3)*
+- [x] **AC-9:** Given biaya terpakai negatif atau kosong saat ditandai terlaksana, When disimpan, Then ditolak; `0` dan nilai di atas anggaran rencana diterima dan tercatat di audit. *(Q74 §74.2 butir 2 dan 5)*
+- [x] **AC-10:** Given kegiatan terlaksana dengan biaya terpakai, Then total anggaran Q42 per periode, Rencana Aksi, dan IKU tetap dihitung dari anggaran rencana. *(Q74 §74.2 butir 6)*
+
+**Status implementasi (2026-10-26):** dikerjakan dalam dua PR. PR pertama menerapkan backend aksi pelaksanaan: kolom `biaya_terpakai`, aksi catat realisasi (data bertahap selama `rencana`/`tidak_terlaksana`, pembaruan setelah `terlaksana` tanpa mengubah status), gerbang bukti gabungan tahap `kegiatan`, validasi rentang tanggal periode, tahap `kegiatan` pada Persyaratan Berkas, unggah bukti pelaksanaan pada endpoint berkas kegiatan (hapus/ganti ditolak setelah `terlaksana`), pengecualian gerbang bukti untuk periode lampau 2026 hanya pada jalur Perencanaan (Q46 §46.1 butir 4, Q63 §63.1 butir 2), dan penanda perlu koreksi (AC-4) yang dihitung server dari klaim saat ini sebagai props form kegiatan; tampilannya, isian realisasi pada props kegiatan, dan unduh bukti pelaksanaan menyusul bersama form realisasi di halaman kegiatan Rencana Aksi (AC-7) pada PR kedua setelah US-06.09. Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT.
 
 ### US-06.04 · Kegiatan Tidak Terlaksana, Ditunda, atau Dibatalkan
 
@@ -1641,6 +1644,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q70 (23 Oktober 2026):** AC-5 digantikan: jendela reviu dihapus, sehingga reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan dan penanda terlambat tidak lagi dibuat; penanda yang sudah tercatat tetap ditampilkan sebagai histori (US-03.07).
 
+> **Status implementasi — issue #184:** AC-1–AC-4 memiliki bukti test pada PR #192; rincian test dan batas bukti tercatat pada [ISS-07.04](SAKIP%20-%20User%20Issues.md#iss-0704--feature-pengisian-oleh-perencanaan-di-luar-deadline-pic). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-07.04` |
@@ -1657,10 +1662,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given tanggal melewati `pengisian_selesai`, When PIC mencoba mengubah/submit, Then ditolak kecuali jendela PIC resmi dibuka ulang.
-- [ ] **AC-2:** Given Perencanaan bekerja setelah deadline PIC tetapi sebelum penutupan/jendela koreksi sah, When mengisi data, Then diizinkan melalui izin global.
-- [ ] **AC-3:** Given Perencanaan submit, Then seluruh gerbang kelengkapan normal tetap berlaku kecuali jalur backfill eksplisit.
-- [ ] **AC-4:** Given submit oleh Perencanaan, Then `jalur_pengajuan = perencanaan` dibekukan pada versi untuk F2.
+- [x] **AC-1:** Given tanggal melewati `pengisian_selesai`, When PIC mencoba mengubah/submit, Then ditolak kecuali jendela PIC resmi dibuka ulang.
+- [x] **AC-2:** Given Perencanaan bekerja setelah deadline PIC tetapi sebelum penutupan/jendela koreksi sah, When mengisi data, Then diizinkan melalui izin global.
+- [x] **AC-3:** Given Perencanaan submit, Then seluruh gerbang kelengkapan normal tetap berlaku kecuali jalur backfill eksplisit. *(Dibaca menurut Q32 §32.7, Q46 §46.1 butir 1–2, dan PRD §19.4: "jalur backfill eksplisit" adalah pengecualian periode lampau jadwal 2026 yang dihitung dari `pengisian_selesai` terhadap tanggal aktivasi, tanpa `is_backfill`; di luar itu gerbang normal berlaku untuk Perencanaan. Bukan alur backfill skor historis Q21, yang tidak dibangun.)*
+- [x] **AC-4:** Given submit oleh Perencanaan, Then `jalur_pengajuan = perencanaan` dibekukan pada versi untuk F2.
 - [ ] **AC-5:** Given reviu melewati `reviu_selesai`, Then proses masih dapat berlangsung sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2 butir 3–4: tanpa jendela reviu dan tanpa penanda terlambat baru — US-03.07.)*
 
 ### US-07.05 · Pengisian Nilai Periode Lampau oleh Perencanaan
@@ -1875,6 +1880,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > Hasil rapat evaluasi 23 Oktober 2026 (butir 10). Tidak mengubah aturan Q45 dan Q51; tidak memerlukan keputusan Q baru. Isi halaman mengikuti rincian U-24 yang disetujui PM pada 24 Oktober 2026.
 
+> **Klarifikasi 25–26 Oktober 2026:** Q1–Q4 mengikuti [jawaban PM pada issue #171](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/171#issuecomment-6389473955). Q5 mengikuti [keputusan PM 26 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/171#issuecomment-6409415067): status diberi label **"Status pengukuran saat ini"**, terpisah dari nomor dan tanggal pengajuan sumber; bila sumbernya pengajuan terdahulu, tampil keterangan tersebut. Klarifikasi ini mempertahankan Q45, Q51, dan Q55.
+
+> **Status implementasi lokal (#171):** route dan Action detail, tautan daftar, metadata, rangkaian rekomendasi, pembaca tindak lanjut beku, serta pemisahan akses panel telah diimplementasikan. Bukti terkait: `DetailRekomendasiTest`, suite `tests/Feature/Rekomendasi`, Vitest `DetailRekomendasi`/`RekomendasiPimpinan`, dan smoke desktop/mobile. Checkbox AC menunjukkan verifikasi lokal; CI exact HEAD, persetujuan UAT, merge, dan deployment belum dinyatakan selesai.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-09.03` |
@@ -1892,12 +1901,12 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given halaman daftar Rekomendasi, Then setiap baris memiliki tautan ke halaman detail rekomendasinya.
-- [ ] **AC-2:** Given halaman detail, Then tampil indikator (kode dan nama), periode dan tahun, isi rekomendasi, rujukan sumber, status, penyusun dan waktu, serta penyetuju dan waktu dengan penanda jalur cadangan bila disetujui Perencanaan. *(Q51 §51.1)*
-- [ ] **AC-3:** Given rekomendasi pernah diubah setelah disetujui, Then baris-baris sebelumnya untuk indikator × periode yang sama tampil sebagai riwayat menurut waktu. *(Q51 §51.2 butir 3)*
-- [ ] **AC-4:** Given rekomendasi disetujui dan pengukuran periode berikutnya sudah memuat tindak lanjut, Then tindak lanjut itu tampil; bila belum, tampil keterangan "Belum ada tindak lanjut". *(Q45 §45.2 butir 3)*
-- [ ] **AC-5:** Given pengguna tanpa `rekomendasi:tetapkan`, When membuka URL detail langsung, Then ditolak 403.
-- [ ] **AC-6:** Given aksi setujui atau ubah tersedia di detail, Then aksi mengikuti aturan dan otorisasi US-09.01.
+- [x] **AC-1:** Given halaman daftar Rekomendasi, Then setiap baris yang memiliki rekomendasi memiliki satu tautan Detail ke rekomendasi berlaku, atau ke draf terbuka bila belum ada yang disetujui; baris tanpa rekomendasi hanya menampilkan aksi Tulis rekomendasi.
+- [x] **AC-2:** Given halaman detail, Then tampil indikator (kode dan nama), periode dan tahun, isi rekomendasi, rujukan sumber, status, penyusun dan waktu, serta penyetuju dan waktu dengan penanda jalur cadangan bila disetujui Perencanaan. *(Q51 §51.1)*
+- [x] **AC-3:** Given halaman detail, Then seluruh rekomendasi untuk indikator × tahun × periode yang sama tampil menurut waktu persetujuan dengan draf terbuka di akhir, beserta penanda rekomendasi yang dibuka dan yang berlaku; rekomendasi yang sudah digantikan berstatus Digantikan dan menautkan ke rekomendasi yang berlaku. Rangkaian dipaginasi agar payload tetap terbatas. *(Q51 §51.2 butir 3)*
+- [x] **AC-4:** Given rekomendasi disetujui dan versi pengajuan pengukuran periode berikutnya membekukan rekomendasi ini, Then tindak lanjut dari versi terbaru yang cocok tampil bersama nomor versi, tanggal diajukan, dan status pengukuran; draf pengukuran tidak ditampilkan; bila belum ada, tampil "Belum ada tindak lanjut". Panel dan payload tindak lanjut hanya tersedia bila `PengukuranKinerjaPolicy::view` mengizinkan. Status dilabeli "Status pengukuran saat ini" dan pengajuan sumber yang terdahulu diberi keterangan. *(Q45 §45.2 butir 3; Q55 §55.1 butir 5–6)*
+- [x] **AC-5:** Given pengguna tanpa `rekomendasi:tetapkan`, When membuka URL detail langsung, Then ditolak 403.
+- [x] **AC-6:** Given halaman detail, Then tidak ada aksi setujui atau ubah; Kembali ke daftar mempertahankan jadwal dan periode, sedangkan Pilih IKU membuka rekomendasi berlaku atau draf IKU tujuan pada tahun dan periode yang sama. Pilihan dapat dicari dan dipaginasi server-side serta mematuhi deny unit snapshot efektif. *(Revisi navigasi disetujui pengguna 27 Oktober 2026, menggantikan tombol duplikat Kelola di daftar.)*
 
 **Business Rules / Catatan**
 

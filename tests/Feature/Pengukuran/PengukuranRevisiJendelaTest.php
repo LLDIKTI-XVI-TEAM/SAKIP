@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Pengukuran;
 
+use App\Models\AuditLog;
 use App\Models\PenugasanIndikator;
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,7 +16,10 @@ use Illuminate\Testing\TestResponse;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
 
-/** Guard PIC pengukuran membaca jendela hasil revisi resmi (Q18) tanpa melonggarkan syarat lain. */
+/**
+ * Guard jendela PIC pengukuran (belum dibuka, tenggat, revisi resmi Q18) tanpa melonggarkan syarat lain,
+ * serta jalur Perencanaan yang tetap mengisi dan mengajukan setelah tenggat PIC.
+ */
 class PengukuranRevisiJendelaTest extends TestCase
 {
     use CreatesPengukuranFixture, RefreshDatabase;
@@ -45,6 +50,11 @@ class PengukuranRevisiJendelaTest extends TestCase
         return $this->actingAs($user)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => $this->pengukuran->fresh()->versi, 'action' => 'draft', 'nilai' => $nilai]);
     }
 
+    private function ajukan(User $user, int $nilai = 75): TestResponse
+    {
+        return $this->actingAs($user)->post('/pengukuran/'.$this->pengukuran->id, ['versi' => $this->pengukuran->fresh()->versi, 'action' => 'ajukan', 'nilai' => $nilai]);
+    }
+
     public function test_pic_ditolak_di_luar_jendela_lalu_bekerja_lagi_sampai_batas_baru(): void
     {
         $pic = $this->pic();
@@ -60,6 +70,75 @@ class PengukuranRevisiJendelaTest extends TestCase
         $this->travelTo(now()->setDate(2026, 3, 26));
         $this->simpanDraf($pic, 71)->assertSessionHasErrors('versi');
         $this->assertEquals(70, $this->pengukuran->fresh()->nilai);
+    }
+
+    public function test_pic_sebelum_jendela_dibuka_ditolak_dengan_pesan_belum_dibuka(): void
+    {
+        $pic = $this->pic();
+        $this->travelTo(Carbon::parse('2026-02-28 23:30:00', 'Asia/Makassar'));
+        $this->simpanDraf($pic)->assertSessionHasErrors('versi');
+        $this->assertSame(['Jendela pengisian PIC periode ini belum dibuka.'], session('errors')->get('versi'));
+        $this->assertNull($this->pengukuran->fresh()->nilai);
+
+        $this->simpanDraf($this->userWithRole('perencanaan'), 71)->assertSessionHasNoErrors();
+        $this->assertEquals(71, $this->pengukuran->fresh()->nilai);
+
+        // 00:30 WITA masih 28 Februari UTC; jendela dibaca dari tanggal bisnis.
+        $this->travelTo(Carbon::parse('2026-03-01 00:30:00', 'Asia/Makassar'));
+        $this->simpanDraf($pic, 72)->assertSessionHasNoErrors();
+        $this->assertEquals(72, $this->pengukuran->fresh()->nilai);
+    }
+
+    public function test_pic_ditolak_mengajukan_setelah_jendela_pada_periode_normal(): void
+    {
+        $pic = $this->pic();
+        $this->travelTo(now()->setDate(2026, 3, 16));
+
+        $this->ajukan($pic)->assertSessionHasErrors('versi');
+        $pesan = ['Jendela pengisian PIC periode ini sudah ditutup.'];
+        $this->assertSame($pesan, session('errors')->get('versi'));
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertSame(['draft', 1], [$this->pengukuran->fresh()->status_alur, $this->pengukuran->fresh()->versi]);
+        $this->assertNull($this->pengukuran->fresh()->nilai);
+        $audit = AuditLog::where('tindakan', 'pengukuran.ditolak')->sole();
+        $this->assertSame($pic->id, $audit->actor_id);
+        $this->assertSame('ajukan', $audit->nilai_baru['tindakan_diminta']);
+        $this->assertSame($pesan, $audit->nilai_baru['alasan_penolakan']['versi']);
+
+        // Kontrol: jendela yang dibuka ulang lewat revisi resmi menerima pengajuan PIC yang sama.
+        $this->revisiJendela('2026-03-25');
+        $this->ajukan($pic)->assertSessionHasNoErrors()->assertRedirect('/pengukuran');
+        $fresh = $this->pengukuran->fresh();
+        $this->assertSame('diajukan', $fresh->status_alur);
+        $this->assertSame(['pic', $pic->id], [$fresh->latestVersion->jalur_pengajuan, $fresh->latestVersion->diajukan_by]);
+    }
+
+    public function test_perencanaan_mengisi_dan_mengajukan_setelah_jendela_pic_dengan_gerbang_normal(): void
+    {
+        // Perencana bukan PJ; PJ efektif fixture adalah superadmin.
+        $perencana = $this->userWithRole('perencanaan');
+        $this->travelTo(now()->setDate(2026, 3, 16));
+
+        $this->simpanDraf($perencana, 75)->assertSessionHasNoErrors();
+        $this->assertEquals(75, $this->pengukuran->fresh()->nilai);
+
+        // Periode normal (bukan lampau): gerbang kelengkapan tetap berlaku bagi Perencanaan.
+        DB::table('rencana_aksi')->where('id', $this->plan->id)->update(['status_alur' => 'draft']);
+        $this->ajukan($perencana)->assertSessionHasErrors(['pengajuan' => 'Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.']);
+        $this->assertDatabaseCount('pengukuran_versi', 0);
+        $this->assertSame('draft', $this->pengukuran->fresh()->status_alur);
+        $this->assertSame($perencana->id, AuditLog::where('tindakan', 'pengukuran.ditolak')->sole()->actor_id);
+
+        DB::table('rencana_aksi')->where('id', $this->plan->id)->update(['status_alur' => 'disahkan']);
+        $this->ajukan($perencana)->assertSessionHasNoErrors()->assertRedirect('/pengukuran');
+        $this->assertDatabaseCount('pengukuran_versi', 1);
+        $v = $this->pengukuran->fresh()->latestVersion;
+        $this->assertSame(['perencanaan', $perencana->id], [$v->jalur_pengajuan, $v->diajukan_by]);
+        $this->assertSame('pengukuran:update', $v->dasar_izin_pengajuan['permission']);
+        $this->assertSame([Role::where('kode', 'perencanaan')->value('id')], $v->dasar_izin_pengajuan['roles']);
+        $this->assertSame([], $v->dasar_izin_pengajuan['grants']);
+        $this->assertSame($this->actor->id, $v->dasar_izin_pengajuan['pic_id']);
+        $this->assertSame($perencana->id, AuditLog::where('tindakan', 'pengukuran.ajukan')->sole()->actor_id);
     }
 
     public function test_perpanjangan_tidak_melonggarkan_grant_pj_deny_status_dan_gerbang(): void

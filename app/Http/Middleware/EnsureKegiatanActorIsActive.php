@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Actions\Kegiatan\CatatRealisasiKegiatan;
 use App\Actions\Kegiatan\SimpanKegiatan;
 use App\Actions\Kegiatan\UbahStatusKegiatan;
 use App\Models\Kegiatan;
@@ -18,6 +19,7 @@ class EnsureKegiatanActorIsActive extends EnsureUserIsActive
     public function __construct(
         private readonly SimpanKegiatan $action,
         private readonly UbahStatusKegiatan $ubahStatus,
+        private readonly CatatRealisasiKegiatan $realisasi,
         private readonly AuditLogger $audit,
         private readonly PermissionResolver $resolver,
     ) {}
@@ -30,6 +32,8 @@ class EnsureKegiatanActorIsActive extends EnsureUserIsActive
             $header = $request->route('rencanaAksi');
             if ($request->routeIs('kegiatan.status') && $kegiatan instanceof Kegiatan) {
                 $this->ubahStatus->catatPenolakan($actor, $kegiatan, 'Akun tidak aktif saat mengubah status kegiatan.');
+            } elseif ($request->routeIs('kegiatan.realisasi') && $kegiatan instanceof Kegiatan) {
+                $this->realisasi->catatPenolakan($actor, $kegiatan, 'Akun tidak aktif saat mencatat realisasi kegiatan.');
             } elseif ($request->routeIs('rencana-aksi.kegiatan.index') && $header instanceof RencanaAksi) {
                 // Halaman baca dicatat sebagai percobaan membaca, bukan percobaan menyimpan (fallback di bawah).
                 $this->audit->catat(

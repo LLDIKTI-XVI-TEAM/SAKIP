@@ -163,8 +163,8 @@ it('membuka ulang edit setelah hasil ambigu tetap terblokir sampai data dimuat u
     expect((screen.getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(false);
 });
 
-it.each(['draft', 'aktif'] as const)('%s menyimpan seluruh tahun berlaku langsung tanpa dialog', (status) => {
-    tampilkan({ status });
+it('Renstra draft menyimpan seluruh tahun berlaku langsung tanpa dialog', () => {
+    tampilkan();
     ubah();
     expect(input(2025)).toBeNull();
     // Sel "Belum berlaku" saat edit tidak berisi isian berlabel; label tahunnya harus tetap terbaca.
@@ -273,14 +273,17 @@ it('batal dan simpan berhasil mengembalikan fokus ke tombol ubah', async () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Ubah target Renstra IKU-1' }));
 });
 
-it('indikator arsip, Renstra nonaktif, atau status absen tidak menampilkan tombol ubah', () => {
+it('indikator arsip, Renstra aktif atau nonaktif, atau status absen tidak menampilkan tombol ubah', () => {
     const tombol = () => screen.queryByRole('button', { name: 'Ubah target Renstra IKU-1' });
     const arsip = tampilkan({ ind: indikator({ status: 'arsip' }) });
     expect(tombol()).toBeNull();
     arsip.unmount();
-    const nonaktif = tampilkan({ status: 'nonaktif' });
-    expect(tombol()).toBeNull();
-    nonaktif.unmount();
+    for (const status of ['aktif', 'nonaktif'] as const) {
+        const view = tampilkan({ status });
+        expect(tombol()).toBeNull();
+        expect(screen.getByRole('button', { name: 'Riwayat target Renstra IKU-1' })).toBeTruthy();
+        view.unmount();
+    }
     // Default parameter tidak bisa mewakili status absen, jadi render langsung.
     render(<TargetRenstraTable renstra={{ ...renstra(), status: undefined }} sasarans={sasarans()} canEdit onSaved={vi.fn()} />);
     expect(screen.getByText('0,00')).toBeTruthy();

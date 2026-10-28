@@ -113,7 +113,23 @@ class EnsureDraftPengukuranTest extends TestCase
         $pic = $this->picDenganGrant('pengukuran:create');
         $this->travelTo(now()->setDate(2026, 3, 16));
 
-        $this->assertDitolak($this->ensure($pic, $this->context->id, $this->tw1->id), 'pengukuran', 'allow');
+        $response = $this->ensure($pic, $this->context->id, $this->tw1->id);
+
+        $this->assertDitolak($response, 'pengukuran', 'allow');
+        $this->assertSame(['Jendela pengisian PIC periode ini sudah ditutup.'], session('errors')->get('pengukuran'));
+    }
+
+    public function test_pic_sebelum_jendela_dibuka_ditolak_dengan_pesan_belum_dibuka(): void
+    {
+        $pic = $this->picDenganGrant('pengukuran:create');
+        $this->travelTo(now()->setDate(2026, 2, 28));
+
+        $response = $this->ensure($pic, $this->context->id, $this->tw1->id);
+
+        $this->assertDitolak($response, 'pengukuran', 'allow');
+        $pesan = ['Jendela pengisian PIC periode ini belum dibuka.'];
+        $this->assertSame($pesan, session('errors')->get('pengukuran'));
+        $this->assertSame($pesan, AuditLog::where('tindakan', 'pengukuran.buat_ditolak')->sole()->nilai_baru['alasan_penolakan']['pengukuran']);
     }
 
     public function test_grant_tanpa_pj_efektif_ditolak_dengan_audit(): void

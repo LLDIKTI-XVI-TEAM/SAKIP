@@ -68,6 +68,17 @@ export interface IndikatorKinerjaItem {
     target_renstra_state?: string;
 }
 
+/** Draf revisi target Renstra aktif; hanya dikirim kepada pemegang izin revisi. Sel tanpa entri memakai nilai berlaku. */
+export interface RevisiTargetRenstra {
+    id: string;
+    versi: number;
+    justifikasi: string | null;
+    dibuat_oleh: string | null;
+    diubah_pada: string | null;
+    /** Isian draf per indikator lalu per tahun; null berarti target dikosongkan. */
+    nilai: Record<string, Record<string, string | null>>;
+}
+
 export interface SasaranStrategisItem {
     id: string;
     renstra_id: string;

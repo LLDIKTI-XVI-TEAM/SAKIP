@@ -3,6 +3,7 @@
 namespace Tests\Feature\TargetRenstra;
 
 use App\Models\IndikatorKinerja;
+use App\Models\Renstra;
 use App\Models\TargetKinerja;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,8 @@ class TargetRenstraInvariansiTest extends TestCase
     public function test_simpan_target_renstra_tidak_mengubah_target_pk_snapshot_dan_pengukuran(): void
     {
         $indikator = IndikatorKinerja::findOrFail($this->pengukuran->indikator_id);
-        $this->assertSame('aktif', $indikator->sasaranStrategis->renstra->status);
+        // Simpan langsung hanya untuk Renstra draft; Renstra aktif memakai Mode revisi.
+        $this->ubahStatusRenstra($indikator, Renstra::STATUS_DRAFT);
         TargetKinerja::create(['indikator_kinerja_id' => $indikator->id, 'tahun' => 2026, 'target_tahunan' => '70', 'updated_by' => $this->actor->id]);
         DB::table('pengukuran_kinerjas')->where('id', $this->pengukuran->id)->update(['status_perhitungan' => 'terhitung', 'nilai' => '70']);
         $sidik = $this->sidikJari();
@@ -41,5 +43,22 @@ class TargetRenstraInvariansiTest extends TestCase
 
         $this->assertEquals($sidik, $this->sidikJari());
         $this->assertSame('85', $this->nilaiTersimpan($indikator)[2026]);
+    }
+
+    public function test_simpan_revisi_pada_renstra_aktif_tidak_mengubah_target_pk_snapshot_dan_pengukuran(): void
+    {
+        $indikator = IndikatorKinerja::findOrFail($this->pengukuran->indikator_id);
+        $renstraId = $indikator->sasaranStrategis->renstra_id;
+        $this->assertSame(Renstra::STATUS_AKTIF, $indikator->sasaranStrategis->renstra->status);
+        TargetKinerja::create(['indikator_kinerja_id' => $indikator->id, 'tahun' => 2026, 'target_tahunan' => '70', 'updated_by' => $this->actor->id]);
+        DB::table('pengukuran_kinerjas')->where('id', $this->pengukuran->id)->update(['status_perhitungan' => 'terhitung', 'nilai' => '70']);
+        $sidik = $this->sidikJari();
+
+        $this->mulaiRevisi($this->actor, $renstraId)->assertSessionHasNoErrors();
+        $this->simpanDrafRevisi($this->actor, $renstraId, 1, [$indikator->id => [2026 => '80']])->assertSessionHasNoErrors();
+        $this->simpanRevisi($this->actor, $renstraId, 2, 'Target Renstra dinaikkan.')->assertSessionHasNoErrors();
+
+        $this->assertEquals($sidik, $this->sidikJari());
+        $this->assertSame('80', $this->nilaiTersimpan($indikator)[2026]);
     }
 }

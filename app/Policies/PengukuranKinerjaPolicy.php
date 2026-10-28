@@ -151,8 +151,8 @@ class PengukuranKinerjaPolicy
                 if ($p->effectivePic()?->user_id !== $user->id) {
                     $errors[] = 'Tindakan ini memerlukan penugasan PIC yang efektif.';
                 }
-                if (! $period || $date < $period->pengisian_mulai->toDateString() || $date > $period->pengisian_selesai->toDateString()) {
-                    $errors[] = 'Jendela pengisian PIC periode ini sudah ditutup.';
+                if (($pesanJendela = $this->pesanJendelaPic($date, $period)) !== null) {
+                    $errors[] = $pesanJendela;
                 }
             }
         } else {
@@ -190,12 +190,26 @@ class PengukuranKinerjaPolicy
             if ($picUserId !== $actor->id) {
                 $errors[] = 'Tindakan ini memerlukan penugasan PIC yang efektif.';
             }
-            if ($date < $period->pengisian_mulai->toDateString() || $date > $period->pengisian_selesai->toDateString()) {
-                $errors[] = 'Jendela pengisian PIC periode ini sudah ditutup.';
+            if (($pesanJendela = $this->pesanJendelaPic($date, $period)) !== null) {
+                $errors[] = $pesanJendela;
             }
         }
 
         return $errors;
+    }
+
+    /**
+     * Pesan jendela pengisian PIC pada tanggal bisnis (WITA), atau null bila tanggal berada di dalam jendela
+     * inklusif pengisian_mulai..pengisian_selesai. Periode yang bukan anggota jadwal tetap dijawab "sudah ditutup";
+     * ketidakcocokan periodenya sudah dilaporkan pesan tersendiri.
+     */
+    private function pesanJendelaPic(string $date, ?PeriodeJadwal $period): ?string
+    {
+        if (! $period || $date > $period->pengisian_selesai->toDateString()) {
+            return 'Jendela pengisian PIC periode ini sudah ditutup.';
+        }
+
+        return $date < $period->pengisian_mulai->toDateString() ? 'Jendela pengisian PIC periode ini belum dibuka.' : null;
     }
 
     /** Sesi koreksi resmi membuka tahun yang ditutup hanya untuk indikator × periode × jenis objek dalam lingkupnya. */

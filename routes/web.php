@@ -88,6 +88,7 @@ use App\Http\Controllers\Renstra\IndexRenstra;
 use App\Http\Controllers\Renstra\ShowRenstra;
 use App\Http\Controllers\Renstra\StoreRenstra;
 use App\Http\Controllers\Renstra\UpdateRenstra;
+use App\Http\Controllers\TargetRenstra\RevisiTargetRenstraController;
 use App\Http\Controllers\TargetRenstra\TargetRenstraController;
 use App\Http\Controllers\Unit\DestroyUnit;
 use App\Http\Controllers\Unit\IndexUnit;
@@ -131,6 +132,7 @@ Route::middleware(['auth', EnsureKegiatanActorIsActive::class])->group(function 
         ->name('rencana-aksi.kegiatan.edit');
     Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
     Route::post('/kegiatan/{kegiatan}/status', [KegiatanController::class, 'ubahStatus'])->whereUuid('kegiatan')->name('kegiatan.status');
+    Route::post('/kegiatan/{kegiatan}/realisasi', [KegiatanController::class, 'realisasi'])->whereUuid('kegiatan')->name('kegiatan.realisasi');
 });
 
 // Daftar kegiatan tahap RA: akun nonaktif dicatat sebagai percobaan klaim yang ditolak.
@@ -148,6 +150,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab/hak-kerja', [PenanggungJawabController::class, 'readiness'])->whereUuid('indikator')->name('penanggung-jawab.readiness');
     Route::put('/perencanaan/indikator/{indikator}/target-renstra', [TargetRenstraController::class, 'update'])->whereUuid('indikator')->name('target-renstra.update');
     Route::get('/perencanaan/indikator/{indikator}/target-renstra/riwayat', [TargetRenstraController::class, 'riwayat'])->whereUuid('indikator')->name('target-renstra.riwayat');
+    Route::get('/perencanaan/renstra/{renstra}/revisi-target/histori', [RevisiTargetRenstraController::class, 'histori'])->whereUuid('renstra')->name('target-renstra.revisi.histori');
+    Route::post('/perencanaan/renstra/{renstra}/revisi-target', [RevisiTargetRenstraController::class, 'mulai'])->whereUuid('renstra')->name('target-renstra.revisi.mulai');
+    Route::put('/perencanaan/renstra/{renstra}/revisi-target', [RevisiTargetRenstraController::class, 'draf'])->whereUuid('renstra')->name('target-renstra.revisi.draf');
+    Route::post('/perencanaan/renstra/{renstra}/revisi-target/simpan', [RevisiTargetRenstraController::class, 'simpan'])->whereUuid('renstra')->name('target-renstra.revisi.simpan');
+    Route::delete('/perencanaan/renstra/{renstra}/revisi-target', [RevisiTargetRenstraController::class, 'batal'])->whereUuid('renstra')->name('target-renstra.revisi.batal');
     Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
     Route::get('/jadwal/create', [JadwalController::class, 'create'])->name('jadwal.create');
     Route::get('/jadwal/{jadwal}', [JadwalController::class, 'show'])->whereUuid('jadwal')->name('jadwal.show');
@@ -231,6 +238,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // Rekomendasi Pimpinan
     Route::get('/rekomendasi', [RekomendasiController::class, 'index'])->name('rekomendasi.index');
+    Route::get('/rekomendasi/{rekomendasi}', [RekomendasiController::class, 'show'])->whereUuid('rekomendasi')->name('rekomendasi.show');
     Route::post('/rekomendasi', [RekomendasiController::class, 'store'])->name('rekomendasi.store');
     Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
     Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');

@@ -1357,9 +1357,13 @@ Jendela pengisian berlaku per periode (§4), bukan satu jendela untuk seluruh ta
        formal pada masanya
   4. Begitu tanggal hari ini melewati pengisian_selesai periode tsb:
      → PIC TIDAK DAPAT LAGI membuat, mengubah, atau mengajukan pengukuran untuk periode itu
-     → Deadline ini bersifat mutlak — tidak ada jendela toleransi tambahan bagi PIC
-     → Satu-satunya jalur lanjutan adalah Perencanaan mengisikan sendiri (langkah 5) atau
-       jadwal:buka_kembali (§13) bila koreksi diperlukan setelah penutupan
+     → Tidak ada jendela toleransi otomatis bagi PIC; batas yang berlaku adalah
+       pengisian_selesai terkini, termasuk hasil revisi resmi jendela pengisian oleh
+       Perencanaan (Q18, ISS-03.06)
+     → Jalur lanjutan: revisi resmi jendela pengisian oleh Perencanaan (Q18, ISS-03.06),
+       Perencanaan mengisikan sendiri (langkah 5), atau setelah penutupan
+       jadwal:buka_kembali (§13); dalam sesi koreksi itu PIC hanya bekerja bila jendela
+       pengisiannya dibuka kembali secara resmi (Q19, ISS-14.03)
 
 📋 Perencanaan (akses pengukuran:create/update bersifat GLOBAL, tanpa scope unit)
   5. Dikecualikan dari batas jendela periode — dapat membuat/mengubah/mengajukan pengukuran
@@ -1389,7 +1393,7 @@ flowchart TD
     A[Hari ini] --> B{Periode berjalan:\ndalam jendela pengisian\njadwal_periode?}
     B -- Ya, PIC dalam jendela --> C[PIC dapat isi nilai komponen\natau nyatakan belum dapat diukur - Q47,\nisi narasi - Q45, klaim kegiatan,\nlengkapi bukti dukung]
     B -- Lewat pengisian_selesai --> D{Siapa yang mencoba mengisi?}
-    D -- PIC --> E[DITOLAK - deadline mutlak\ntidak ada jendela toleransi]
+    D -- PIC --> E[DITOLAK - tanpa toleransi otomatis,\ndibuka lagi hanya lewat revisi\nresmi jendela pengisian - Q18]
     D -- Perencanaan --> F[DIIZINKAN - permission global,\ntanpa batas jendela periode]
     F --> G{Sudah melewati\njadwal.penutupan?}
     G -- Ya --> H[DITOLAK - satu-satunya jalur\nadalah jadwal:buka_kembali - §13]
@@ -1612,6 +1616,8 @@ stateDiagram-v2
 
 > **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; Q60; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 dan ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
 
+> **Q71 (23 Oktober 2026):** pada Renstra aktif, target Renstra hanya diubah melalui mode revisi seluruh tabel dengan draf tersimpan otomatis, satu justifikasi wajib per revisi, dan histori revisi bernomor (Kasus E). Q60 tetap berlaku untuk Renstra draft. Status implementasi: sudah (ISS-02.13).
+
 Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yang wajib diukur. Alur berikut menegaskan bagaimana perubahan itu direfleksikan ke sistem tanpa kehilangan riwayat data yang sudah ada.
 
 ```
@@ -1653,12 +1659,20 @@ Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yan
      → Lampiran baru hanya diterima Renstra berstatus draft atau aktif; Renstra nonaktif atau
        diarsipkan DITOLAK menerima lampiran baru
 
-  Kasus E — Revisi target Renstra saat Renstra aktif (Q40 §40.2 butir 3; ISS-02.10):
-  2e. Mengubah target Renstra indikator di Sasaran & Indikator tanpa alasan (Q60)
-      — permission target:update (Q39 §39.3 butir 3)
-  3e. Sistem mencatat audit_log nilai_lama/nilai_baru; catatan tsb tampil sebagai riwayat
-      revisi target Renstra — mis. bila target terlampaui sebelum akhir periode Renstra,
+  Kasus E — Revisi target Renstra saat Renstra aktif (Q40 §40.2 butir 3; Q71; ISS-02.13):
+  2e. Membuka Mode revisi di Sasaran & Indikator — seluruh tabel indikator × tahun dapat
+      diubah, termasuk pengisian pertama (Q71 §71.5 butir 1); permission indikator:read dan
+      target:update (Q39 §39.3 butir 3). Draf yang sudah terbuka dilanjutkan, bukan dibuat baru
+  3e. Isian dan justifikasi tersimpan otomatis sebagai draf di server; target yang berlaku
+      tidak berubah dan tetap menjadi pembanding target PK selama draf terbuka
+     → Perubahan dari versi draf yang sudah usang DITOLAK sebagai konflik (409)
+  4e. Simpan revisi dengan satu justifikasi — seluruh perubahan diterapkan dalam satu
+      transaksi, nilai lama masuk histori, revisi diberi nomor urut per Renstra, dan audit
+      per sel memuat justifikasi; mis. bila target terlampaui sebelum akhir periode Renstra,
       target tahun-tahun berikutnya dinaikkan dengan cara ini
+     → Tanpa justifikasi atau tanpa perubahan nilai DITOLAK, penolakannya diaudit
+     → Batal membuang draf tanpa mengubah target; pembatalan diaudit (Q71 §71.5 butir 2)
+     → Pada Renstra draft, target Renstra tetap diubah langsung per indikator tanpa alasan (Q60)
      → Target Renstra hanya pembanding target PK; perubahan ini tidak mengubah target PK,
        snapshot, maupun capaian (Q39 §39.1, §39.4)
 
@@ -1686,7 +1700,7 @@ flowchart TD
     M --> N[Indikator terukur mulai periode berikutnya\npada jadwal yang sama]
 
     B -- Lampiran revisi Renstra --> R1[Tambah lampiran revisi pada Renstra draft/aktif\nlampiran lama tidak dapat dihapus - Q40]
-    B -- Revisi target Renstra --> R2[Ubah target Renstra tanpa alasan\naudit nilai lama/baru, tampil sebagai\nriwayat revisi target Renstra - Q40, Q60]
+    B -- Revisi target Renstra --> R2[Mode revisi seluruh tabel\ndraf tersimpan otomatis, simpan dengan justifikasi\nhistori revisi bernomor - Q40, Q71]
 ```
 
 **Konsekuensi desain yang disadari:** indikator baru yang dibuat setelah jadwal aktif **tanpa** melewati `jadwal:buka_kembali` tidak otomatis terukur pada tahun berjalan — baru terukur mulai jadwal tahun berikutnya diaktifkan. `jadwal:buka_kembali` (Kasus C langkah 5c) adalah satu-satunya jalur agar indikator baru dapat diukur pada sisa tahun berjalan yang sama, dan rencana aksinya tetap wajib disusun-disahkan sebelum pengukuran pertamanya dapat diajukan.

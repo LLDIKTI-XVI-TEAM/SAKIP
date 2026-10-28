@@ -5,7 +5,6 @@ namespace Tests\Feature\TargetRenstra;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\Permission;
-use App\Models\Renstra;
 use App\Models\TargetRenstra;
 use App\Models\User;
 use App\Models\UserPermissionDeny;
@@ -32,7 +31,6 @@ class TargetRenstraRiwayatTest extends TestCase
         $indikator = $this->targetIndicator($penulis);
         $this->simpanTargetRenstra($penulis, $indikator, [2026 => '10'])->assertSessionHasNoErrors();
         $this->travel(1)->minutes();
-        $this->ubahStatusRenstra($indikator, Renstra::STATUS_AKTIF);
         $this->simpanTargetRenstra($penulis, $indikator, [2026 => '12'])->assertSessionHasNoErrors();
         $this->simpanTargetRenstra($penulis, $indikator, [2026 => '13'], extra: ['alasan' => 'Revisi'])->assertSessionHasErrors(['nilai']);
 

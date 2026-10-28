@@ -4,7 +4,7 @@
 > Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
 
 
-**Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 34 entitas (§2.1–§2.34) ditambah tiga entitas rancangan Q39/Q40 (§2.35–§2.37), skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
+**Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 34 entitas (§2.1–§2.34) ditambah tiga entitas rancangan Q39/Q40 (§2.35–§2.37) dan revisi target Renstra Q71 (§2.38), skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
 
 
 > **Q32 aktif:** role final berjumlah lima; `pic` bukan baris pada `roles`. Assignment PJ dan Grant Unit tetap entitas terpisah. Detail final berada pada §8.
@@ -62,6 +62,9 @@ erDiagram
 
     INDIKATOR ||--o{ TARGET_TAHUNAN : "memiliki target PK per tahun (Q39)"
     INDIKATOR ||--o{ TARGET_RENSTRA : "memiliki target Renstra per tahun (Q39)"
+    RENSTRA ||--o{ REVISI_TARGET_RENSTRA : "direvisi target Renstra-nya (Q71)"
+    REVISI_TARGET_RENSTRA ||--o{ REVISI_TARGET_RENSTRA_NILAI : "memuat sel indikator x tahun"
+    INDIKATOR ||--o{ REVISI_TARGET_RENSTRA_NILAI : "direvisi per tahun"
     INDIKATOR ||--o{ RENSTRA_PK_VERSI_TARGET : "diberi target per versi PK (rancangan Q40)"
     INDIKATOR ||--o{ PENANGGUNG_JAWAB : "memiliki riwayat PJ"
     INDIKATOR ||--o{ JADWAL_SNAPSHOT : "dibekukan ke"
@@ -301,6 +304,27 @@ erDiagram
         numeric nilai "nullable, finite, nonnegatif"
         uuid updated_by FK
         timestamp updated_at
+    }
+
+    REVISI_TARGET_RENSTRA {
+        uuid id PK
+        uuid renstra_id FK
+        enum status "draf atau disimpan (Q71)"
+        int nomor "nullable, unik per Renstra"
+        text justifikasi "nullable sampai disimpan"
+        int versi "token konkurensi draf"
+        uuid dibuat_oleh FK
+        uuid disimpan_oleh FK "nullable"
+        timestamp disimpan_pada "nullable"
+    }
+
+    REVISI_TARGET_RENSTRA_NILAI {
+        uuid id PK
+        uuid revisi_id FK
+        uuid indikator_id FK
+        int tahun
+        numeric nilai_lama "nullable, diisi saat disimpan"
+        numeric nilai_baru "nullable, finite, nonnegatif"
     }
 
     PERIODE {
@@ -792,7 +816,7 @@ Payung strategis multi-tahun.
 - Tidak boleh terdapat dua baris berstatus `aktif` dengan rentang `[tahun_mulai, tahun_akhir]` yang beririsan. Aturan ini ditegakkan lewat validasi service-layer sebelum commit transaksi — constraint DB murni sulit mengekspresikan pengecekan rentang beririsan secara portabel di PostgreSQL tanpa exclusion constraint tambahan. Menambahkan **PostgreSQL exclusion constraint** (`EXCLUDE USING gist` dengan ekstensi `btree_gist`) sebagai **lapisan pertahanan kedua** direkomendasikan untuk menutup celah race condition yang tidak tertangkap validasi aplikasi.
 - Sebuah baris `renstra` **tidak dapat ditransisikan keluar dari status `aktif`** (ke `nonaktif` maupun `diarsipkan`) selama masih terdapat `jadwal_tahunan` berstatus `aktif` yang mengacu ke Renstra tersebut. Jadwal harus ditutup (`status = ditutup`) terlebih dahulu. Divalidasi di service layer sebelum commit transaksi.
 
-**Revisi Renstra (Q40 §40.2):** atribut Renstra tetap direvisi **in place** dengan audit. Lampiran revisi **boleh ditambahkan** setelah Renstra `aktif`, sedangkan lampiran yang sudah ada tetap tidak dapat dihapus (§2.30). Lampiran baru hanya diterima pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau `diarsipkan` tidak menerima lampiran baru (Q40 §40.2 butir 5). Perubahan target Renstra (§2.35) saat Renstra `aktif` tercatat di audit dengan nilai lama dan baru sebagai riwayat revisi target Renstra (Q60). Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini (backlog tahap 3, Q46 §46.3); penggantian Renstra karena kebijakan kementerian ditangani dengan Renstra baru, dan Renstra lama dinonaktifkan sesuai aturan di atas. Status implementasi: sudah (ISS-02.10).
+**Revisi Renstra (Q40 §40.2):** atribut Renstra tetap direvisi **in place** dengan audit. Lampiran revisi **boleh ditambahkan** setelah Renstra `aktif`, sedangkan lampiran yang sudah ada tetap tidak dapat dihapus (§2.30). Lampiran baru hanya diterima pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau `diarsipkan` tidak menerima lampiran baru (Q40 §40.2 butir 5). Perubahan target Renstra (§2.35) saat Renstra `aktif` hanya melalui mode revisi dengan justifikasi wajib dan histori revisi bernomor (§2.38; Q71). Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini (backlog tahap 3, Q46 §46.3); penggantian Renstra karena kebijakan kementerian ditangani dengan Renstra baru, dan Renstra lama dinonaktifkan sesuai aturan di atas. Status implementasi: sudah (ISS-02.10).
 
 ---
 
@@ -1307,11 +1331,12 @@ Aktivitas konkret yang dilaksanakan unit pada suatu periode, sebagai bukti pendu
 | `keterangan_peserta` | varchar | nullable | mis. "tim penyusun SPMI dari 30 PTS" |
 | `lokasi` | varchar | nullable | |
 | `tanggal_rencana` | date | nullable | |
-| `tanggal_realisasi` | date | nullable | |
+| `tanggal_realisasi` | date | nullable | Wajib saat kegiatan ditandai `terlaksana`; harus berada di dalam rentang tanggal periode kegiatan pada tahun kegiatan (Q74 §74.2 butir 3, Q70 §70.1 butir 3). Status implementasi: ISS-06.03 |
+| `biaya_terpakai` | numeric | nullable; nonnegatif (`>= 0`) | **Rupiah, Q74 §74.2:** satu angka per kegiatan, wajib saat kegiatan ditandai `terlaksana`; `0` sah dan nilai di atas `anggaran` tidak ditolak. `null` selama kegiatan belum dicatat terlaksana. Tidak dipakai dalam penjumlahan anggaran (§2.26; Q74 §74.2 butir 6). Status implementasi: kolom, CHECK `kegiatan_biaya_terpakai_nonnegatif`, dan validasi bilangan bulat 0 sampai 15 digit diterapkan ISS-06.03 |
 | `anggaran` | numeric | nullable hanya untuk data lama, data awal 2026, dan periode lampau 2026; nonnegatif (`>= 0`) | **Rupiah, wajib sejak Q42:** diisi saat kegiatan dibuat atau diubah; `0` sah dan kegiatan beranggaran nol tetap dapat diklaim; `null` hanya pada data sebelum Q42 dan diperlakukan sebagai belum diisi, tidak dihitung sebagai `0` (Q42 §42.2 butir 1–2). Kegiatan data awal 2026 dan kegiatan pada periode lampau juga boleh tanpa anggaran (tercatat belum diisi), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output (Q46 §46.1 butir 3). Status implementasi: input dan validasi (bilangan bulat 0 sampai 15 digit) serta CHECK `kegiatan_anggaran_nonnegatif` diterapkan ISS-06.08; penjumlahan diterapkan ISS-06.08 (§2.26). Semula: kolom tersedia tanpa jalur pengisian sampai fase lanjutan (digantikan Q42) |
 | `status` | enum(`rencana`,`terlaksana`,`tidak_terlaksana`,`ditunda`,`batal`) | not null, default `rencana` | |
 | `realisasi_peserta` | int | nullable | |
-| `justifikasi` | text | nullable | **Wajib** diisi bila `status` bernilai `tidak_terlaksana`, `ditunda`, atau `batal` |
+| `justifikasi` | text | nullable | **Wajib** diisi bila `status` bernilai `tidak_terlaksana`, `ditunda`, atau `batal`; kosong pada status `rencana` dan `terlaksana` |
 | `kegiatan_asal_id` | uuid | FK → kegiatan.id, nullable | Menandai kegiatan lanjutan hasil geser periode |
 | `uraian_pelaksanaan` | text | nullable | |
 | `kendala` | text | nullable | |
@@ -1593,7 +1618,7 @@ Pencatatan append-only seluruh peristiwa penting sistem.
 | `id` | uuid | PK | |
 | `actor_id` | uuid | FK → users.id | Pengguna yang melakukan tindakan |
 | `waktu` | timestamp | not null | |
-| `tindakan` | varchar | not null | mis. `renstra.aktivasi`, `pengukuran.kembalikan`, `indikator.pindah_unit`, `unit.hapus`, `jadwal.aktivasi`, `jadwal.buka_kembali`, `pengaturan.ubah`, `rencana_aksi.ajukan`, `rencana_aksi.verifikasi`, `rencana_aksi.kembalikan`, `rencana_aksi.sahkan`, `rencana_aksi.buka_kembali`, `kegiatan.buat`, `kegiatan.ubah_status`, `kegiatan.geser_periode`, `klaim_kegiatan.tambah`, `klaim_kegiatan.hapus`, `indikator_komponen.ubah`, `indikator.ubah_tipe_perhitungan`, `jenis_berkas.ubah`, `berkas.unggah`, `berkas.hapus`, **`berkas.tandai_tidak_dapat_dipenuhi`** (histori: penandaan otomatis saat mode `file` satu-satunya yang diizinkan sementara unggahan dinonaktifkan, termasuk pada gerbang lampiran PK §2.15; tidak lagi terjadi sejak Q44), `rekomendasi_pimpinan.tetapkan`, **`regulasi.buat`/`regulasi.ubah`/`regulasi.hapus`** (perubahan katalog dasar aturan, §2.33), **`renstra.ubah_regulasi`/`indikator.ubah_regulasi`** (perubahan rujukan `regulasi_id`), **`role_permissions.ubah`** (isi peran ditambah/dikurangi), **`user_roles.tambah`/`user_roles.ubah`/`user_roles.hapus`** (penetapan/pergantian/pencabutan peran pengguna), **`user_permission_granted.tambah`/`user_permission_granted.hapus`** (grant izin), **`user_permission_denials.tambah`/`user_permission_denials.hapus`** (deny izin), serta peristiwa **percobaan tindakan yang ditolak** (mis. gerbang rencana aksi belum disahkan, komponen belum lengkap, berkas wajib belum lengkap, gerbang kegiatan `rencana → terlaksana` belum lengkap, gerbang lampiran PK belum lengkap, permintaan izin yang berakhir tolak pada resolusi §3) |
+| `tindakan` | varchar | not null | mis. `renstra.aktivasi`, `pengukuran.kembalikan`, `indikator.pindah_unit`, `unit.hapus`, `jadwal.aktivasi`, `jadwal.buka_kembali`, `pengaturan.ubah`, `rencana_aksi.ajukan`, `rencana_aksi.verifikasi`, `rencana_aksi.kembalikan`, `rencana_aksi.sahkan`, `rencana_aksi.buka_kembali`, `kegiatan.buat`, `kegiatan.ubah_status`, `kegiatan.geser_periode`, `kegiatan.catat_realisasi`, `kegiatan.terlaksana_ditolak`, `klaim_kegiatan.tambah`, `klaim_kegiatan.hapus`, `indikator_komponen.ubah`, `indikator.ubah_tipe_perhitungan`, `jenis_berkas.ubah`, `berkas.unggah`, `berkas.hapus`, **`berkas.tandai_tidak_dapat_dipenuhi`** (histori: penandaan otomatis saat mode `file` satu-satunya yang diizinkan sementara unggahan dinonaktifkan, termasuk pada gerbang lampiran PK §2.15; tidak lagi terjadi sejak Q44), `rekomendasi_pimpinan.tetapkan`, **`regulasi.buat`/`regulasi.ubah`/`regulasi.hapus`** (perubahan katalog dasar aturan, §2.33), **`renstra.ubah_regulasi`/`indikator.ubah_regulasi`** (perubahan rujukan `regulasi_id`), **`role_permissions.ubah`** (isi peran ditambah/dikurangi), **`user_roles.tambah`/`user_roles.ubah`/`user_roles.hapus`** (penetapan/pergantian/pencabutan peran pengguna), **`user_permission_granted.tambah`/`user_permission_granted.hapus`** (grant izin), **`user_permission_denials.tambah`/`user_permission_denials.hapus`** (deny izin), serta peristiwa **percobaan tindakan yang ditolak** (mis. gerbang rencana aksi belum disahkan, komponen belum lengkap, berkas wajib belum lengkap, gerbang kegiatan `rencana → terlaksana` belum lengkap, gerbang lampiran PK belum lengkap, permintaan izin yang berakhir tolak pada resolusi §3) |
 | `objek_tipe` | varchar | not null | Nama entitas terkait, mis. `renstra`, `pengukuran`, `indikator`, `jadwal_snapshot`, `pengaturan`, `rencana_aksi`, `kegiatan`, `klaim_kegiatan`, `indikator_komponen`, `jenis_berkas`, `berkas`, `rekomendasi_pimpinan`, **`regulasi`**, **`role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denials`** |
 | `objek_id` | uuid | not null | ID baris entitas terkait |
 | `nilai_lama` | jsonb | nullable | Snapshot kondisi sebelum perubahan |
@@ -1609,7 +1634,7 @@ Pencatatan append-only seluruh peristiwa penting sistem.
 
 **Catatan actor pada peristiwa otomatis:** baris yang mencatat pembuatan `jadwal_snapshot` beserta `jadwal_snapshot_komponen` (tindakan `jadwal.aktivasi`/`jadwal.buka_kembali`, lihat §2.17–§2.18) selalu memakai `actor_id` = pengguna Perencanaan/Superadmin yang menjalankan aksi aktivasinya, bukan nilai sistem/null — meski proses pembuatan barisnya sendiri berjalan otomatis di dalam transaksi yang sama. Perubahan pada tabel `pengaturan` (§2.22) mengikuti pola yang sama: `actor_id` = pengguna Superadmin yang mengubah nilai setelan.
 
-**Target Renstra (§2.35):** perubahan tercatat dengan `tindakan` `target_renstra.simpan` (objek `target_renstra`; `nilai_lama`/`nilai_baru` berisi `indikator_id`, `tahun`, `nilai`, dengan `nilai_lama` kosong pada pengisian pertama) dan penolakan dengan `target_renstra.simpan_ditolak` (objek `indikator`); `target_renstra.simpan` menjadi sumber riwayat revisi target Renstra (Q40 §40.2 butir 3).
+**Target Renstra (§2.35, §2.38):** perubahan tercatat dengan `tindakan` `target_renstra.simpan` (objek `target_renstra`; `nilai_lama`/`nilai_baru` berisi `indikator_id`, `tahun`, `nilai`, dengan `nilai_lama` kosong pada pengisian pertama); perubahan melalui mode revisi (Q71) memakai baris yang sama dengan justifikasi pada `alasan` dan `revisi_nomor` pada `nilai_baru`. Penolakan simpan langsung tercatat dengan `target_renstra.simpan_ditolak` (objek `indikator`), penolakan aksi revisi dengan `target_renstra.revisi_ditolak` (objek `renstra`; `nilai_baru` berisi aksi dan kategori penolakan), dan pembatalan draf dengan `target_renstra.revisi_batal` (objek `revisi_target_renstra`; `nilai_lama` berisi isian draf yang dibuang). `target_renstra.simpan` menjadi sumber riwayat per indikator (Q40 §40.2 butir 3).
 
 **Target PK (§2.13):** perubahan tercatat dengan `tindakan` `target_tahunan.simpan` (objek `target_tahunan`; `nilai_lama`/`nilai_baru` berisi `indikator_id`, `tahun`, `baseline`, `target_tahunan`, dan `alasan_deviasi_renstra`, dengan `nilai_lama` kosong pada pengisian pertama). `rujukan_sumber` yang diisi hanya dicatat pada `nilai_baru` dan tidak disimpan pada target PK; kolom `alasan` hanya memuat alasan perubahan yang opsional (Q65 §65.1–§65.2). Penolakan tercatat dengan `target_tahunan.simpan_ditolak` (objek `indikator`) tanpa nilai yang diajukan. Penyimpanan tanpa perubahan tidak diaudit (Q65 §65.2 butir 10).
 
@@ -1751,11 +1776,11 @@ Target Renstra per indikator per tahun dalam rentang Renstra — lapis pembandin
 
 **Permission:** disimpan dengan `target:update` yang sudah ada; tidak ada permission baru (Q39 §39.3 butir 3).
 
-**Revisi dan riwayat (Q40 §40.2 butir 3):** perubahan `nilai` tercatat di `audit_log` dengan nilai lama dan baru tanpa alasan pengguna (Q60). Riwayat revisi target Renstra dibaca dari `audit_log`; tidak ada tabel riwayat terpisah. Bila target terlampaui sebelum akhir periode Renstra, target tahun-tahun berikutnya dinaikkan dengan cara ini.
+**Revisi dan riwayat (Q40 §40.2 butir 3; Q60; Q71):** pada Renstra `draft`, `nilai` diubah langsung per indikator tanpa alasan pengguna (Q60). Pada Renstra `aktif`, `nilai` hanya diubah melalui mode revisi seluruh tabel dengan satu justifikasi per revisi, termasuk pengisian pertama (§2.38; Q71 §71.5 butir 1). Setiap sel yang berubah tercatat di `audit_log` dengan nilai lama dan baru; pada mode revisi, justifikasi tercatat pada `alasan` dan nomor revisi pada nilai baru (Q71 §71.5 butir 3). Riwayat per indikator dibaca dari `audit_log`, sedangkan histori revisi bernomor per Renstra dibaca dari §2.38. Bila target terlampaui sebelum akhir periode Renstra, target tahun-tahun berikutnya dinaikkan melalui mode revisi.
 
-**Akses riwayat (ISS-02.10):** riwayat revisi target Renstra adalah bagian data target, bukan Jejak Audit, sehingga cukup `indikator:read`; deny `audit:read` (Q56 §56.1 butir 2) tidak memblokirnya. Isinya hanya waktu, nama aktor, tahun, nilai lama, dan nilai baru, tanpa email dan `dasar_izin`.
+**Akses riwayat (ISS-02.10, ISS-02.13):** riwayat per indikator dan histori revisi per Renstra adalah bagian data target, bukan Jejak Audit, sehingga cukup `indikator:read`; deny `audit:read` (Q56 §56.1 butir 2) tidak memblokirnya. Riwayat per indikator hanya memuat waktu, nama aktor, tahun, nilai lama, dan nilai baru; histori revisi menambahkan nomor revisi dan justifikasi. Keduanya tanpa email dan `dasar_izin`, dan histori tidak memuat draf yang belum disimpan.
 
-**Pembanding target PK (Q39 §39.2):** target Renstra tahun yang sama ditampilkan di samping isian target PK. Deviasi target PK terhadap target Renstra menurut `indikator.arah` memunculkan peringatan dan mewajibkan `target_tahunan.alasan_deviasi_renstra` (§2.13). Indikator tanpa target Renstra — mis. IKU baru di tengah periode Renstra, atau IKU 4.1 (sasaran S4) yang hanya ada di PK (Q50 §50.5) — tetap dapat diberi target PK dengan keterangan "target Renstra belum ada".
+**Pembanding target PK (Q39 §39.2):** target Renstra tahun yang sama ditampilkan di samping isian target PK. Deviasi target PK terhadap target Renstra menurut `indikator.arah` memunculkan peringatan dan mewajibkan `target_tahunan.alasan_deviasi_renstra` (§2.13). Indikator tanpa target Renstra — mis. IKU baru di tengah periode Renstra, atau IKU 4.1 (sasaran S4) yang hanya ada di PK (Q50 §50.5) — tetap dapat diberi target PK dengan keterangan "target Renstra belum ada". Selama draf revisi terbuka, pembanding tetap nilai yang berlaku; isian draf tidak dipakai (Q71 §71.2 butir 7).
 
 **Bukan gerbang aktivasi:** kekosongan target Renstra tidak menghalangi aktivasi jadwal (§2.15; Q39 §39.1 butir 5).
 
@@ -1809,6 +1834,46 @@ Target PK per indikator pada satu versi PK (Q40 §40.1 butir 2). Setiap versi me
 **Constraint:** `unique(renstra_pk_versi_id, indikator_id)`.
 
 **Baseline tidak berversi:** baseline bukan isi dokumen PK dan tetap disimpan pada `target_tahunan.baseline` (Q50 §50.3, §2.13).
+
+### 2.38 `revisi_target_renstra` dan `revisi_target_renstra_nilai`
+
+Revisi target Renstra pada Renstra `aktif` (Q71; ISS-02.13). Baris berstatus `draf` menampung isian mode revisi yang tersimpan otomatis, lalu berubah menjadi histori berstatus `disimpan` dengan nomor revisi saat revisi disimpan, sehingga draf dan histori memakai tabel yang sama (Q71 §71.5 butir 3).
+
+**`revisi_target_renstra`**
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `renstra_id` | uuid | FK → renstra.id, not null, on delete restrict | |
+| `status` | enum(`draf`, `disimpan`) | not null, default `draf` | |
+| `nomor` | int | nullable; wajib `>= 1` bila `disimpan`, kosong bila `draf` | Nomor revisi urut per Renstra (revisi ke-1, ke-2, dan seterusnya) |
+| `justifikasi` | text | nullable; wajib berisi teks bila `disimpan` | Satu justifikasi per revisi; ikut tersimpan otomatis selama draf |
+| `versi` | int | not null, default 1, `>= 1` | Token konkurensi draf bersama `id`; naik setiap penyimpanan otomatis dan saat disimpan. Autosave, simpan, dan batal membawa `id` draf dan `versi`; permintaan dari draf lain (termasuk draf pengganti yang mulai lagi dari versi 1) atau dari versi usang ditolak sebagai konflik (409) |
+| `dibuat_oleh` | uuid | FK → users.id, not null | Pembuka draf |
+| `disimpan_oleh` | uuid | FK → users.id; wajib bila `disimpan`, kosong bila `draf` | |
+| `disimpan_pada` | timestamp(6) | wajib bila `disimpan`, kosong bila `draf` | |
+| `created_at`, `updated_at` | timestamp(6) | | |
+
+**Constraint:** satu draf per Renstra (unique parsial `renstra_id` bila `status = draf`); unique(`renstra_id`, `nomor`).
+
+**`revisi_target_renstra_nilai`**
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `revisi_id` | uuid | FK → revisi_target_renstra.id, not null, on delete cascade | Membuang draf ikut membuang selnya |
+| `indikator_id` | uuid | FK → indikator.id, not null, on delete restrict | |
+| `tahun` | int | not null | Level aplikasi: dalam rentang Renstra dan tidak sebelum `indikator.tahun_mulai_berlaku`, sama dengan §2.35 |
+| `nilai_lama` | numeric(30,12) | nullable, finite, nonnegatif | Nilai berlaku sebelum revisi; diisi saat revisi disimpan |
+| `nilai_baru` | numeric(30,12) | nullable, finite, nonnegatif | Isian revisi; `null` berarti target dikosongkan |
+
+**Constraint:** unique(`revisi_id`, `indikator_id`, `tahun`).
+
+**Aturan:**
+- Draf hanya memuat sel yang diubah; sel tanpa entri memakai nilai berlaku §2.35. Selama draf terbuka, target berlaku tidak berubah dan draf tidak dipakai sebagai pembanding target PK (Q71 §71.2 butir 7).
+- Saat revisi disimpan, sel yang nilainya sama dengan nilai berlaku tidak dihitung; histori hanya memuat sel yang berubah beserta nilai lamanya. Revisi tanpa perubahan atau tanpa justifikasi ditolak (Q71 §71.2 butir 5–6).
+- Membatalkan draf menghapus baris draf beserta selnya dan tercatat di audit (§2.32; Q71 §71.5 butir 2). Aplikasi tidak mengubah baris berstatus `disimpan`.
+- Permission: `indikator:read` dan `target:update`, sama dengan simpan target Renstra (Q71 §71.1 butir 3); histori cukup `indikator:read` (§2.35).
 
 ---
 
@@ -1905,6 +1970,8 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `renstra_pk` | unique(`renstra_id`, `tahun`) — penanda PK sejak `nomor_pk` nullable (Q50 §50.1, §2.10) |
 | `target_tahunan` | unique(`indikator_id`, `tahun`); `nilai` dan `baseline` nullable, nonnegatif, finite (§2.13); level aplikasi (Q39, Q65 §65.2): `alasan_deviasi_renstra` wajib bila target PK menyimpang dari target Renstra menurut `arah`, ditegakkan saat simpan |
 | `target_renstra` | unique(`indikator_id`, `tahun`); `nilai` nullable, nonnegatif, finite; level aplikasi: `tahun` dalam rentang Renstra (§2.35) |
+| `revisi_target_renstra` | unique parsial (`renstra_id`) bila `status = draf`; unique(`renstra_id`, `nomor`); CHECK: kolom penyimpanan terisi jika dan hanya jika `disimpan`, `justifikasi` berisi teks bila `disimpan`, `versi >= 1` (§2.38) |
+| `revisi_target_renstra_nilai` | unique(`revisi_id`, `indikator_id`, `tahun`); `nilai_lama` dan `nilai_baru` nullable, nonnegatif, finite; level aplikasi: `tahun` dalam rentang Renstra (§2.38) |
 | `renstra_pk_versi` (rancangan Q40) | unique(`renstra_pk_id`, `nomor_versi`); level aplikasi: `nomor_surat`, `tanggal_surat`, `periode_mulai_id`, `alasan`, dan persetujuan wajib pada versi revisi; baris tidak diubah setelah terbentuk (§2.36) |
 | `renstra_pk_versi_target` (rancangan Q40) | unique(`renstra_pk_versi_id`, `indikator_id`); `nilai` nullable, nonnegatif, finite (§2.37) |
 | `penanggung_jawab` | index non-unique (`indikator_id`, `tanggal_mulai_berlaku`); unique per tanggal dilepas oleh Q34 butir 1 ([#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70)), penugasan pada tanggal sama diurutkan dengan `urutan`, lihat §2.19 |
