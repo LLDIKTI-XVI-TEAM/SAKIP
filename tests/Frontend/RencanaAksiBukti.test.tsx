@@ -19,11 +19,14 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
         // useForm berstate agar pergantian mode/persyaratan benar-benar me-render ulang.
         useForm: <T extends Record<string, unknown>>(initial: T) => {
             const [data, setDataState] = React.useState(initial);
+            const transformer = React.useRef<(values: T) => unknown>((values) => values);
             return {
                 data,
                 setData: (key: keyof T | T, value?: unknown) =>
                     typeof key === 'object' ? setDataState(key) : setDataState((prev) => ({ ...prev, [key]: value })),
-                post: inertia.post,
+                transform: (callback: (values: T) => unknown) => { transformer.current = callback; },
+                // Argumen ketiga = payload setelah transform, yang benar-benar dikirim ke server.
+                post: (url: string, options: unknown) => inertia.post(url, options, transformer.current(data)),
                 processing: inertia.state.processing,
                 errors: inertia.state.errors,
                 reset: () => setDataState(initial),
@@ -128,7 +131,7 @@ describe('BuktiPanel rencana aksi', () => {
         renderPanel({ can: { upload: false, delete: false } });
 
         expect(screen.queryByRole('button', { name: /Tambah bukti/ })).toBeNull();
-        expect(screen.queryByRole('button', { name: /^Penuhi$/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /^Penuhi / })).toBeNull();
         expect(screen.queryByRole('button', { name: /Hapus bukti/ })).toBeNull();
     });
 
@@ -136,17 +139,17 @@ describe('BuktiPanel rencana aksi', () => {
         const user = userEvent.setup();
         renderPanel();
 
-        await user.click(screen.getAllByRole('button', { name: /^Penuhi$/ })[1]);
+        await user.click(screen.getByRole('button', { name: 'Penuhi Surat Keputusan Tim Pelaksana' }));
 
         const dialog = screen.getByRole('dialog');
         expect(within(dialog).getByText('Tambah bukti dukung')).toBeTruthy();
         expect((within(dialog).getByLabelText('Persyaratan') as HTMLSelectElement).value).toBe('jb-2');
-        const tautan = within(dialog).getByRole('button', { name: 'Tautan' }) as HTMLButtonElement;
-        expect(tautan.disabled).toBe(true);
+        // Mode di luar persyaratan tidak ditawarkan sebagai tab.
+        expect(within(dialog).queryByRole('button', { name: 'Tautan' })).toBeNull();
         expect(within(dialog).getByRole('button', { name: 'File' }).getAttribute('aria-pressed')).toBe('true');
 
         await user.click(within(dialog).getByRole('button', { name: 'Teks' }));
-        expect(within(dialog).getByLabelText(/^Keterangan/)).toBeTruthy();
+        expect(within(dialog).getByLabelText('Teks lampiran 1')).toBeTruthy();
     });
 
     it('menawarkan file sebagai mode bawaan untuk lampiran bebas', async () => {
@@ -163,10 +166,10 @@ describe('BuktiPanel rencana aksi', () => {
         const user = userEvent.setup();
         renderPanel({ persyaratan: [{ ...bukti.persyaratan[0], id: 'jb-file', nama: 'Scan Dokumen Asli', izinkan_tautan: false, izinkan_teks: false,
             pemenuhan: { terpenuhi: false, mode_terpenuhi: [], mode_kurang: ['file'], mode_dikecualikan: [], tidak_dapat_dipenuhi: false, alasan_pengecualian: null } }] });
-        await user.click(screen.getByRole('button', { name: /^Penuhi$/ }));
+        await user.click(screen.getByRole('button', { name: 'Penuhi Scan Dokumen Asli' }));
         const dialog = screen.getByRole('dialog');
         expect((within(dialog).getByRole('button', { name: 'File' }) as HTMLButtonElement).disabled).toBe(false);
-        expect((within(dialog).getByRole('button', { name: 'Tautan' }) as HTMLButtonElement).disabled).toBe(true);
+        expect(within(dialog).queryByRole('button', { name: 'Tautan' })).toBeNull();
     });
 
     it('batal menutup modal tanpa mengirim request', async () => {
@@ -187,12 +190,14 @@ describe('BuktiPanel rencana aksi', () => {
         await user.click(screen.getByRole('button', { name: /Tambah bukti/ }));
         const dialog = screen.getByRole('dialog');
         await user.click(within(dialog).getByRole('button', { name: 'Teks' }));
-        await user.type(within(dialog).getByLabelText(/^Keterangan/), 'Keterangan bukti');
-        await user.click(within(dialog).getByRole('button', { name: 'Simpan bukti' }));
+        await user.type(within(dialog).getByLabelText('Teks lampiran 1'), 'Keterangan bukti');
+        await user.click(screen.getByRole('button', { name: 'Simpan bukti' }));
 
         expect(inertia.post).toHaveBeenCalledTimes(1);
         expect(inertia.post.mock.calls[0][0]).toBe('/rencana-aksi/ra-1/bukti');
         expect(inertia.post.mock.calls[0][1]).toMatchObject({ forceFormData: true, preserveScroll: true });
+        // Kontrak request store tetap datar: satu bukti per penyimpanan.
+        expect(inertia.post.mock.calls[0][2]).toEqual({ jenis_berkas_id: '', mode: 'teks', file: null, tautan: '', isi_teks: 'Keterangan bukti' });
     });
 
     it('menonaktifkan tombol simpan saat request berjalan dan menampilkan galat server pada field', async () => {
@@ -206,7 +211,7 @@ describe('BuktiPanel rencana aksi', () => {
         expect((within(dialog).getByRole('button', { name: 'Simpan bukti' }) as HTMLButtonElement).disabled).toBe(true);
         expect((within(dialog).getByRole('button', { name: 'Batal' }) as HTMLButtonElement).disabled).toBe(true);
         expect(within(dialog).getByText('Ukuran berkas melebihi batas 100 KB.')).toBeTruthy();
-        expect(within(dialog).getByLabelText(/^Berkas/).getAttribute('aria-invalid')).toBe('true');
+        expect(within(dialog).getByLabelText('File lampiran 1').getAttribute('aria-invalid')).toBe('true');
     });
 
     it('tidak menutup modal tambah lewat Escape, backdrop, atau tombol tutup selama unggahan berjalan', async () => {
@@ -249,7 +254,7 @@ describe('BuktiPanel rencana aksi', () => {
         renderPanel();
 
         await user.click(screen.getByRole('button', { name: /Tambah bukti/ }));
-        const input = within(screen.getByRole('dialog')).getByLabelText(/^Berkas/);
+        const input = within(screen.getByRole('dialog')).getByLabelText('File lampiran 1');
         expect(input.getAttribute('aria-invalid')).toBe('true');
         const deskripsi = (input.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent);
         expect(deskripsi).toContain('Ukuran berkas melebihi batas 100 KB.');
@@ -298,5 +303,84 @@ describe('BuktiPanel rencana aksi', () => {
         // Persyaratan wajib yang belum terpenuhi tidak lagi tampil sebagai kekurangan.
         expect(screen.queryByText(/Kurang: File, Teks/)).toBeNull();
         expect(screen.getAllByText('Dikecualikan')).toHaveLength(1);
+    });
+});
+
+describe('BuktiPanel rencana aksi — komponen bersama', () => {
+    it('membungkus kartu sebagai region berlabel judul langkah', () => {
+        render(<BuktiPanel rencanaAksiId="ra-1" bukti={bukti} nomor={3} />);
+
+        expect(screen.getByRole('region', { name: 'Bukti dukung' })).toBeTruthy();
+    });
+
+    it('menampilkan persyaratan sebagai tabel bersama berkolom tetap', () => {
+        renderPanel();
+
+        const tabel = screen.getByRole('table', { name: 'Persyaratan tahap rencana aksi' });
+        expect(within(tabel).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Persyaratan', 'Mode diizinkan', 'Status', 'Aksi']);
+        const [, kak, sk] = within(tabel).getAllByRole('row');
+        expect(within(kak).getByText('Dokumen Kerangka Acuan Kerja')).toBeTruthy();
+        expect(within(kak).getByText('Terpenuhi')).toBeTruthy();
+        expect(within(sk).getByText('Kurang: File, Teks')).toBeTruthy();
+        expect(within(sk).getByText(/File, Teks · pdf, maks\. 5120 KB/)).toBeTruthy();
+    });
+
+    it('aksi penuhi berupa tombol ikon berlabel persyaratan dengan tooltip', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+
+        const tombol = screen.getByRole('button', { name: 'Penuhi Surat Keputusan Tim Pelaksana' });
+        expect(tombol.textContent).toBe('');
+        expect(within(tombol.parentElement as HTMLElement).getByRole('tooltip').textContent).toBe('Penuhi persyaratan');
+
+        await user.click(tombol);
+        expect((within(screen.getByRole('dialog')).getByLabelText('Persyaratan') as HTMLSelectElement).value).toBe('jb-2');
+    });
+
+    it('menyembunyikan kolom aksi tanpa izin unggah', () => {
+        renderPanel({ can: { upload: false, delete: false } });
+
+        const tabel = screen.getByRole('table', { name: 'Persyaratan tahap rencana aksi' });
+        expect(within(tabel).queryByRole('columnheader', { name: 'Aksi' })).toBeNull();
+    });
+
+    it('tombol hapus bukti terlampir memakai tooltip', () => {
+        renderPanel();
+
+        const hapus = screen.getByRole('button', { name: 'Hapus bukti kak-final.pdf' });
+        expect(within(hapus.parentElement as HTMLElement).getByRole('tooltip').textContent).toBe('Hapus bukti');
+    });
+
+    it('modal tambah memakai editor lampiran bersama seperti form Perjanjian Kinerja', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+
+        await user.click(screen.getByRole('button', { name: /Tambah bukti/ }));
+        const dialog = within(screen.getByRole('dialog', { name: 'Tambah bukti dukung' }));
+        expect(dialog.getByRole('region', { name: 'Lampiran Dokumen' })).toBeTruthy();
+        expect(['File', 'Tautan', 'Teks'].map((mode) => dialog.getByRole('button', { name: mode }).getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+        expect(dialog.getByLabelText('File lampiran 1').getAttribute('accept')).toBe('.pdf,.docx,.xlsx,.jpg,.jpeg,.png');
+        expect(dialog.getByText('Format pdf,docx,xlsx,jpg,jpeg,png; maksimal 10 MB.')).toBeTruthy();
+        expect(dialog.getByRole('button', { name: 'Hapus Lampiran' })).toBeTruthy();
+    });
+
+    it('menonaktifkan simpan dan mengosongkan persyaratan setelah lampiran dihapus', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+
+        await user.click(screen.getByRole('button', { name: 'Penuhi Surat Keputusan Tim Pelaksana' }));
+        const dialog = within(screen.getByRole('dialog'));
+        await user.click(dialog.getByRole('button', { name: 'Hapus Lampiran' }));
+
+        expect((dialog.getByRole('button', { name: 'Simpan bukti' }) as HTMLButtonElement).disabled).toBe(true);
+        await user.click(dialog.getByRole('button', { name: 'Tambah Lampiran' }));
+        expect((dialog.getByLabelText('Persyaratan') as HTMLSelectElement).value).toBe('');
+    });
+
+    it('tanpa persyaratan tidak merender tabel kosong', () => {
+        renderPanel({ persyaratan: [] });
+
+        expect(screen.queryByRole('table')).toBeNull();
+        expect(screen.getByText(/Tidak ada persyaratan bukti tahap rencana aksi/)).toBeTruthy();
     });
 });
