@@ -2353,15 +2353,17 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 
 # Keputusan Q77 — Sesi Koreksi Jadwal Tahunan
 
-**Keputusan PM: 29 Oktober 2026 (WITA), [review PR #199](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6490862740).** PM menyetujui keenam butir refinement sesi koreksi yang telah diterapkan pada ISS-14.02. Q77 mencatat aturan tersebut tanpa mengubah implementasinya. Pencatatan keputusan bukan penerimaan QA/UAT, merge, atau deployment. Dasar keputusan: Q19, Q35 §35.2, Q41 §41.2, dan Q52 §52.3:
+**Keputusan PM: 29 Oktober 2026 (WITA), [review PR #199](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6490862740).** PM menetapkan keenam butir refinement sesi koreksi ISS-14.02. Q77 menambahkan validasi akhir sesi pada butir 6, sebagaimana ditegaskan pada [re-review PM](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6495008769). Pencatatan keputusan bukan penerimaan QA/UAT, merge, atau deployment. Dasar keputusan: Q19, Q35 §35.2, Q41 §41.2, dan Q52 §52.3:
 
 1. Lingkup wajib eksplisit dengan daftar tidak kosong `jenis_objek` (`rencana_aksi`, `pengukuran`), `indikator_ids` yang memiliki snapshot jadwal, dan `periode_ids` anggota jadwal. Tidak ada wildcard atau dimensi unit baru; izin dasar dan deny tetap diperiksa.
 2. Kegiatan, klaim dan berkas kegiatan tetap terkunci, termasuk saat jenis data Rencana Aksi tercakup (Q52 §52.3).
 3. Jadwal `ditutup → aktif` hanya membuka sesi koreksi, termasuk sebelum `penutupan` asli. Sesi berlaku pada status `aktif` dan rentang inklusif; sesudah akhir sesi seluruh koreksi ditolak meskipun status masih aktif. Tutup ulang manual segera menghentikan akses; tanpa scheduler baru.
 4. PIC tetap ditolak pada sesi yang dibuat issue ini, sekalipun jendela lama masih berjalan atau tanggalnya diubah langsung. Pembukaan PIC resmi tetap melalui ISS-14.03, bukan ditambahkan pada issue ini.
 5. Buka-kembali tidak membentuk snapshot otomatis. Indikator baru memakai ISS-03.04 dengan periode mulai eksplisit; ketentuan lama Workflow §5/§13 dan Plan 3.7/3.9 tentang pembentukan snapshot saat buka-kembali diselaraskan.
-6. Input waktu WITA disimpan UTC; awal harus sebelum akhir, kedua batas inklusif, sesi mendatang boleh dijadwalkan. `closed_at` direset, nilai sebelumnya tetap di audit; `penutupan` dan `activated_at` dipertahankan.
+6. Input waktu WITA disimpan UTC; awal harus sebelum akhir, kedua batas inklusif, sesi mendatang boleh dijadwalkan. Pada saat pembukaan, akhir sesi wajib setelah waktu sekarang (WITA); nilai yang sama atau sudah lewat ditolak. `closed_at` direset, nilai sebelumnya tetap di audit; `penutupan` dan `activated_at` dipertahankan.
 
-**Status implementasi:** keenam butir refinement di atas telah diterapkan oleh ISS-14.02 pada PR #199; pencatatan keputusan diselaraskan melalui tindak lanjut review.
+**Catatan butir 2:** butir 2 ditinjau ulang bila koreksi kegiatan dibutuhkan saat pelaporan TW IV 2026.
+
+**Status implementasi:** sesi, lingkup, dan penguncian existing telah diterapkan oleh ISS-14.02 pada PR #199. Tambahan validasi akhir sesi pada butir 6 masih belum diterapkan; pencatatan keputusan ini tidak menyatakan QA/UAT diterima.
 
 **Traceability:** Q19, Q35 §35.2, Q41 §41.2, Q52 §52.3; ISS-14.02 / US-14.02 (issue #182); PRD §12.6/§19.5; Workflow §5/§13; Plan 3.7/3.9; Data Model §2.15/§2.32.
