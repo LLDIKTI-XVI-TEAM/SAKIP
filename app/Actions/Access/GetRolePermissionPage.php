@@ -18,11 +18,13 @@ class GetRolePermissionPage
      */
     public function handle(?string $roleId, string $search, int $page): array
     {
-        $catalog = Role::whereIn('kode', RoleCatalog::codes())->get(['id', 'kode', 'nama', 'aktif'])->keyBy('kode');
+        // Jumlah membership aktual, termasuk izin nonaktif/legacy yang juga tampil di tabel izin.
+        $catalog = Role::whereIn('kode', RoleCatalog::codes())->withCount('permissions')->get(['id', 'kode', 'nama', 'aktif'])->keyBy('kode');
+        $present = fn (Role $role) => $role->only(['id', 'kode', 'nama', 'aktif']) + ['jumlah_izin' => $role->permissions_count];
         $roles = [];
         foreach (RoleCatalog::codes() as $code) {
             if ($role = $catalog->get($code)) {
-                $roles[] = $role->only(['id', 'kode', 'nama', 'aktif']);
+                $roles[] = $present($role);
             }
         }
         $filters = ['role' => $roleId, 'q' => $search];
@@ -43,7 +45,7 @@ class GetRolePermissionPage
                 ->where('kode', 'ilike', $pattern)->orWhere('keterangan', 'ilike', $pattern)))
                 ->orderBy('kode')->paginate(20, ['id', 'kode', 'keterangan', 'butuh_scope', 'aktif'], 'page', $page)
                 ->withPath(route('role-permission.index'))->appends($filters);
-            $props['selectedRole'] = $role->only(['id', 'kode', 'nama', 'aktif']);
+            $props['selectedRole'] = $present($role);
             $props['permissions'] = $pageResult->getCollection()->map(fn (Permission $permission) => $permission->only(['id', 'kode', 'keterangan', 'butuh_scope', 'aktif'])
                 + ['in_catalog' => in_array($permission->kode, PermissionCatalog::codes(), true)])->all();
             $props['pagination'] = ['links' => $pageResult->linkCollection()->all(), 'from' => $pageResult->firstItem(), 'to' => $pageResult->lastItem(), 'total' => $pageResult->total()];

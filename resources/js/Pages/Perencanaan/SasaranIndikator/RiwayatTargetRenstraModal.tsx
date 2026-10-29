@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Modal } from '@/Components/Modal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import { classifyRecovery, type RecoveryState } from '@/lib/authRecovery';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useMuatDaftar } from './useMuatDaftar';
 
 type Entri = { waktu: string; aktor: string | null; tahun: number; nilai_lama: string | null; nilai_baru: string | null };
 
@@ -19,41 +18,7 @@ export function RiwayatTargetRenstraModal({ indikator, onClose }: {
 }) {
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
-    const [data, setData] = useState<{ items: Entri[]; terpotong: boolean } | null>(null);
-    const [error, setError] = useState('');
-    const [recovery, setRecovery] = useState<RecoveryState | null>(null);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        const path = `/perencanaan/indikator/${indikator.id}/target-renstra/riwayat`;
-        const muat = async () => {
-            try {
-                const response = await fetch(path, {
-                    credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, signal: controller.signal,
-                });
-                if (controller.signal.aborted) return;
-                if (!response.ok) {
-                    setRecovery(classifyRecovery({ status: response.status, data: {}, headers: {} }, { effectiveMethod: 'get', path, mutation: false }));
-                    setError(response.status === 403 ? 'Anda tidak memiliki akses membaca indikator ini.'
-                        : response.status === 401 ? 'Sesi berakhir. Masuk ulang untuk melihat data.' : GAGAL);
-                    return;
-                }
-                const value: unknown = await response.json();
-                if (controller.signal.aborted) return;
-                // Bentuk entri dijamin Action; yang dijaga hanya wadahnya agar payload rusak tidak memecah render.
-                if (typeof value !== 'object' || value === null || !('items' in value) || !Array.isArray(value.items)
-                    || !('terpotong' in value) || typeof value.terpotong !== 'boolean') {
-                    setError(GAGAL);
-                    return;
-                }
-                setData({ items: value.items, terpotong: value.terpotong });
-            } catch {
-                if (!controller.signal.aborted) setError(GAGAL);
-            }
-        };
-        void muat();
-        return () => controller.abort();
-    }, [indikator.id]);
+    const { data, error, recovery } = useMuatDaftar<Entri>(`/perencanaan/indikator/${indikator.id}/target-renstra/riwayat`, GAGAL);
 
     const nilai = (value: string | null) => value === null ? '—' : formatNilai(value, indikator.desimal_tampilan);
 

@@ -32,6 +32,8 @@ class TargetRenstraTest extends TestCase
 
     private const FIELD_ASING = 'Permintaan memuat field yang tidak didukung.';
 
+    private const MODE_REVISI = 'Target Renstra pada Renstra aktif hanya dapat diubah melalui Mode revisi.';
+
     /** @return array{0: User, 1: IndikatorKinerja} */
     private function penulis(): array
     {
@@ -207,7 +209,6 @@ class TargetRenstraTest extends TestCase
     {
         [$aktor, $indikator] = $this->penulis();
         $this->simpanTargetRenstra($aktor, $indikator, [2026 => '10', 2027 => '20'])->assertSessionHasNoErrors();
-        $this->ubahStatusRenstra($indikator, Renstra::STATUS_AKTIF);
 
         $sebelum = AuditLog::pluck('id');
         $this->simpanTargetRenstra($aktor, $indikator, [2026 => '10', 2027 => '20', 2028 => '30'])->assertSessionHasNoErrors();
@@ -238,7 +239,7 @@ class TargetRenstraTest extends TestCase
         $this->assertSame($jumlah, AuditLog::where('tindakan', 'target_renstra.simpan')->count());
     }
 
-    public function test_state_basi_menghasilkan_409_tetapi_aktivasi_renstra_tidak(): void
+    public function test_state_basi_menghasilkan_409_sedangkan_edit_terbuka_saat_aktivasi_diarahkan_ke_mode_revisi(): void
     {
         [$aktor, $indikator] = $this->penulis();
         $lama = $this->targetRenstraState($indikator);
@@ -251,11 +252,30 @@ class TargetRenstraTest extends TestCase
         $this->flushHeaders();
         $this->assertSame([2026 => '5'], $this->nilaiTersimpan($indikator));
 
-        // Status Renstra di luar token: aktivasi tidak membuat edit yang sedang terbuka menjadi basi.
+        // Status Renstra di luar token: edit yang terbuka sebelum aktivasi mendapat arahan Mode revisi, bukan 409.
         $draft = $this->targetRenstraState($indikator);
         $this->ubahStatusRenstra($indikator, Renstra::STATUS_AKTIF);
-        $this->simpanTargetRenstra($aktor, $indikator, [2026 => '7'], $draft)->assertSessionHasNoErrors();
-        $this->assertSame([2026 => '7'], $this->nilaiTersimpan($indikator));
+        $this->simpanTargetRenstra($aktor, $indikator, [2026 => '7'], $draft)->assertSessionHasErrors(['nilai' => self::MODE_REVISI]);
+        $this->assertSame([2026 => '5'], $this->nilaiTersimpan($indikator));
+    }
+
+    public function test_renstra_aktif_menolak_simpan_langsung_dan_mengarahkan_ke_mode_revisi(): void
+    {
+        [$aktor, $indikator] = $this->penulis();
+        $this->simpanTargetRenstra($aktor, $indikator, [2026 => '10'])->assertSessionHasNoErrors();
+        $this->ubahStatusRenstra($indikator, Renstra::STATUS_AKTIF);
+
+        $this->simpanTargetRenstra($aktor, $indikator, [2026 => '12'])->assertSessionHasErrors(['nilai' => self::MODE_REVISI]);
+        $this->simpanTargetRenstra($aktor, $indikator, [2026 => null, 2027 => '5'])->assertSessionHasErrors(['nilai' => self::MODE_REVISI]);
+        $this->actingAs($aktor)->putJson("/perencanaan/indikator/{$indikator->id}/target-renstra", ['nilai' => [2026 => '12'], 'expected_state' => $this->targetRenstraState($indikator)])
+            ->assertStatus(422)->assertJsonValidationErrors(['nilai' => self::MODE_REVISI]);
+        $this->assertSame([2026 => '10.000000000000'], DB::table('target_renstra')->where('indikator_id', $indikator->id)->pluck('nilai', 'tahun')->all());
+        $this->assertCount(3, $this->auditDitolak('input_atau_state_tidak_valid'));
+
+        // Kontrol positif: Renstra draft tetap disimpan langsung tanpa alasan (Q60).
+        $this->ubahStatusRenstra($indikator, Renstra::STATUS_DRAFT);
+        $this->simpanTargetRenstra($aktor, $indikator, [2026 => '12'])->assertSessionHasNoErrors();
+        $this->assertSame([2026 => '12'], $this->nilaiTersimpan($indikator));
     }
 
     public function test_status_baca_saja_ditolak_termasuk_no_op(): void

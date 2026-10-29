@@ -77,7 +77,7 @@ describe('Review Rencana Aksi', () => {
     });
     it('menampilkan anggaran klaim dan total yang dibekukan saat pengajuan beserta penanda belum diisi', () => {
         renderReview();
-        expect(screen.getByText(/Anggaran Rp\s?1\.500\.000/)).toBeTruthy();
+        expect(within(screen.getByText('Bimtek beku').closest('tr')!).getByText(/^Rp\s?1\.500\.000$/)).toBeTruthy();
         expect(screen.getByText(/Total anggaran saat pengajuan:/).textContent).toMatch(/Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)/);
     });
     it('tidak menampilkan total untuk versi yang dibentuk sebelum total dibekukan', () => {
@@ -86,7 +86,7 @@ describe('Review Rencana Aksi', () => {
     });
     it('menyembunyikan klaim beku bila aktor tidak boleh membaca kegiatan unit', () => {
         renderReview({ klaim: null, can: { ...rencanaAksi.can, kegiatan: false } });
-        expect(screen.queryByText(/Kegiatan yang diklaim pada versi/)).toBeNull();
+        expect(screen.queryByText(/Kegiatan yang diklaim/)).toBeNull();
         expect(screen.queryByText('Bimtek beku')).toBeNull();
     });
     it('memformat target dan komponen sesuai desimal dan satuan indikator beku', () => {

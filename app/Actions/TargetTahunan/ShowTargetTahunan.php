@@ -43,7 +43,10 @@ class ShowTargetTahunan
                 'indikator' => $state['indikator']->only(['id', 'kode', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'status', 'tahun_mulai_berlaku', 'arah']),
                 'renstra' => $state['renstra']->only(['id', 'nama', 'status', 'tahun_mulai', 'tahun_selesai']),
                 ...$values, 'has_snapshot' => $state['has_snapshot'], 'expected_state' => TargetTahunanState::token($state),
-                'target_renstra' => $targetRenstra, 'alasan_deviasi_renstra' => $state['target']?->alasan_deviasi_renstra,
+                'target_renstra' => $targetRenstra,
+                // Q72 §72.4 butir 5: hanya bagi yang dapat mengubah target; membuka tab Target Renstra tanpa memulai mode revisi.
+                'tautan_target_renstra' => $reason === null
+                    ? route('perencanaan.sasaran-indikator.index', ['renstra_id' => $state['renstra']->id, 'tab' => 'target'], false) : null,
                 'status_deviasi' => DeviasiTargetRenstra::status($state['indikator']->arah, $values['target_tahunan'], $targetRenstra),
                 'can' => ['update' => $reason === null], 'read_only_reason' => $reason,
                 'saran_baseline' => $values['baseline'] === null && $reason === null ? $this->saranBaseline($actor, $state['indikator'], $tahun) : null];

@@ -402,7 +402,7 @@ export const kegiatanStatusBadgeMap: Record<string, { variant: BadgeVariant; lab
 
 ### 3. Modal Alasan Wajib (`resources/js/components/ui/ModalAlasan.tsx`)
 
-Digunakan pada aksi yang **mewajibkan alasan menurut kontrak domain (Q43 §43.2)** — termasuk pengembalian pengukuran/rencana aksi, koreksi dan revisi PK, buka kembali jadwal/pengukuran/rencana aksi, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan akses (peran, penonaktifan/pengaktifan kembali akun, pembatasan izin, pencabutan grant). Aksi beralasan **opsional** (Q43 §43.3: pemberian grant, perubahan target PK, perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, dan perubahan PK sebelum PK dipakai jadwal aktif) menampilkan field "Alasan (opsional)" tanpa validasi wajib; bila alasan grant kosong, server mengisi alasan baku. Alasan deviasi — terhadap target PK pada Rencana Aksi (ADR-0008) dan terhadap target Renstra pada editor target PK (Q65 §65.2 butir 12) — tetap wajib, tetapi diisi pada isian di form tersebut dengan error validasi pada isiannya, bukan Modal Alasan Wajib. Form penetapan Penanggung Jawab tidak menampilkan field alasan. `permissions.sensitif = true` mewajibkan audit `dasar_izin`, bukan otomatis modal input alasan (Q37 §37.2; Data Model §2.32/§3.5). Verifikasi RA cukup dialog konfirmasi tanpa input alasan; audit memakai alasan baku server dan `dasar_izin`. Pengembalian RA memakai modal alasan dengan validasi dan sanitasi backend:
+Digunakan pada aksi yang **mewajibkan alasan menurut kontrak domain (Q43 §43.2)** — termasuk pengembalian pengukuran/rencana aksi, koreksi dan revisi PK, buka kembali jadwal/pengukuran/rencana aksi, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan akses (peran, penonaktifan/pengaktifan kembali akun, pembatasan izin, pencabutan grant). Aksi beralasan **opsional** (Q43 §43.3: pemberian grant, perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, dan perubahan PK sebelum PK dipakai jadwal aktif) menampilkan field "Alasan (opsional)" tanpa validasi wajib; bila alasan grant kosong, server mengisi alasan baku. Alasan deviasi terhadap target PK pada Rencana Aksi (ADR-0008) dan alasan perubahan target PK pada editor target PK bila target yang sudah tersimpan berubah (Q72) wajib, tetapi diisi pada isian di form tersebut dengan error validasi pada isiannya, bukan Modal Alasan Wajib. Form penetapan Penanggung Jawab tidak menampilkan field alasan. `permissions.sensitif = true` mewajibkan audit `dasar_izin`, bukan otomatis modal input alasan (Q37 §37.2; Data Model §2.32/§3.5). Verifikasi RA cukup dialog konfirmasi tanpa input alasan; audit memakai alasan baku server dan `dasar_izin`. Pengembalian RA memakai modal alasan dengan validasi dan sanitasi backend:
 
 ```tsx
 import React, { useState } from 'react';
@@ -485,6 +485,8 @@ export default function ModalAlasan({
 | Komponen | Path | Gunakan untuk |
 |----------|------|---------------|
 | `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell` | `Components/Table.tsx` | Seluruh tabel daftar; jangan menulis `<table>` dengan kelas header sendiri |
+| `TableEmptyRow`, `TableCellLabel`, `tableCellResponsive` | `Components/Table.tsx` | Tabel dengan pola mobile `block md:table` (setiap baris menjadi kartu): baris kosong selebar tabel (ikon, judul, keterangan dan aksi opsional), label kolom yang hanya tampil di mobile, dan kelas sel tanpa padding mobile |
+| `TableActionLink` | `Components/Table.tsx` | Tautan ikon di kolom aksi tabel; `label` menjadi `aria-label` dan `tooltip` wajib diisi |
 | `Pagination` | `Components/Pagination.tsx` | Paginator Laravel (`links`, `from`, `to`, `total`); label sebelumnya/berikutnya diterjemahkan tanpa `dangerouslySetInnerHTML` |
 | `ActionMenu` | `Components/ActionMenu.tsx` | Dropdown aksi (kolom aksi tabel, tombol "Tambah" bercabang); item dari pemanggil, aksi berbahaya diberi `danger` |
 | `Tooltip` | `Components/Tooltip.tsx` | Tombol ikon; wajib disertai `aria-label` pada tombolnya |
@@ -764,7 +766,7 @@ Jika PJ belum punya grant yang dibutuhkan, tampilkan warning non-blocking dan st
 
 ### UI Peran & Izin
 
-Halaman read-only menampilkan card/table per role dengan permission preset. Tidak ada checkbox editable, tombol Save, Tambah Izin, Cabut Izin, atau Modal Alasan untuk role-permission. Perubahan preset adalah concern rilis kode/seeder.
+Halaman read-only menampilkan tabel daftar peran (nama, jumlah izin tersimpan, status); setelah peran dipilih, halaman menampilkan tabel izin tersimpan peran tersebut dengan pencarian dan paginasi. Tidak ada checkbox editable, tombol Save, Tambah Izin, Cabut Izin, atau Modal Alasan untuk role-permission. Perubahan preset adalah concern rilis kode/seeder.
 
 ### UI Logout
 
@@ -781,7 +783,7 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 - [ ] **Navigasi Inertia**: Menggunakan `<Link>` dari `@inertiajs/react` untuk seluruh navigasi internal (hindari tag `<a>` biasa)
 - [ ] **Form Handling**: Menggunakan `useForm` dari `@inertiajs/react` untuk submit form dan error binding
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit
-- [ ] **Modal Alasan Audit**: Aksi yang mewajibkan alasan menurut kontrak domain (Q43 §43.2) memicu modal input alasan dengan validasi backend; aksi beralasan opsional (Q43 §43.3) memakai field opsional; alasan deviasi Rencana Aksi dan target PK memakai isian di form, bukan modal (Q65 §65.2 butir 12); `sensitif=true` mewajibkan audit `dasar_izin`, bukan otomatis alasan pengguna. Verifikasi RA cukup konfirmasi dengan alasan audit baku server (Q37)
+- [ ] **Modal Alasan Audit**: Aksi yang mewajibkan alasan menurut kontrak domain (Q43 §43.2) memicu modal input alasan dengan validasi backend; aksi beralasan opsional (Q43 §43.3) memakai field opsional; alasan deviasi Rencana Aksi dan alasan perubahan target PK (Q72) memakai isian di form, bukan modal; `sensitif=true` mewajibkan audit `dasar_izin`, bukan otomatis alasan pengguna. Verifikasi RA cukup konfirmasi dengan alasan audit baku server (Q37)
 - [ ] **Otorisasi di Server**: Logika izin hanya di backend (Policy/Gate/Middleware); React hanya membaca props `can.*` dari server — tidak pernah mengevaluasi permission sendiri
 
 - [ ] **Lima Role Q32**: UI yang menampilkan pilihan/label role hanya mengenal `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`

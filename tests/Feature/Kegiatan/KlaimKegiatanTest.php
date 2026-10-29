@@ -12,6 +12,7 @@ use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
 
@@ -207,6 +208,105 @@ class KlaimKegiatanTest extends TestCase
         $this->assertSame(1, AuditLog::where('tindakan', 'klaim_kegiatan.hapus_ditolak')->count());
     }
 
+    public function test_hapus_klaim_terakhir_mengalihkan_ke_daftar_kegiatan_ra_konteks(): void
+    {
+        $klaim = $this->klaimTahapRencanaAksi();
+
+        $this->actingAs($this->actor)
+            ->delete($this->url().'/'.$klaim->id, ['alasan' => 'Klaim keliru', 'rencana_aksi_konteks' => $this->rencanaAksi->id])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('rencana-aksi.kegiatan.index', ['rencanaAksi' => $this->rencanaAksi->id]))
+            ->assertSessionHas('success', 'Klaim kegiatan berhasil dihapus.');
+
+        $this->assertDatabaseMissing('klaim_kegiatan', ['id' => $klaim->id]);
+        $audit = AuditLog::where('tindakan', 'klaim_kegiatan.hapus')->sole();
+        $this->assertSame($klaim->id, $audit->objek_id);
+        // Audit menunjuk RA klaim yang dihapus, bukan RA dari input pengguna.
+        $this->assertSame($this->rencanaAksi->id, $audit->nilai_lama['rencana_aksi_id']);
+        $this->assertSame('Klaim keliru', $audit->alasan);
+
+        // Tujuan pengalihan tetap dapat dibuka walau kegiatan sudah tidak diklaim RA itu.
+        $this->get(route('rencana-aksi.kegiatan.index', ['rencanaAksi' => $this->rencanaAksi->id]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('RencanaAksi/Kegiatan')->has('kegiatan.daftar', 0));
+    }
+
+    public function test_hapus_klaim_terakhir_memakai_referer_halaman_ubah_ra_sebagai_konteks(): void
+    {
+        $klaim = $this->klaimTahapRencanaAksi();
+
+        $this->actingAs($this->actor)
+            ->from($this->halamanUbah($this->kegiatan))
+            ->delete($this->url().'/'.$klaim->id, ['alasan' => 'Klaim keliru'])
+            ->assertRedirect(route('rencana-aksi.kegiatan.index', ['rencanaAksi' => $this->rencanaAksi->id]));
+
+        $this->assertDatabaseMissing('klaim_kegiatan', ['id' => $klaim->id]);
+    }
+
+    public function test_hapus_klaim_dengan_klaim_lain_pada_ra_sama_tetap_kembali_ke_halaman_ubah(): void
+    {
+        $pertama = $this->klaimTahapRencanaAksi();
+        $this->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertSessionHasNoErrors();
+        $kedua = KlaimKegiatan::whereNotNull('komponen_id')->sole();
+        $ubah = $this->halamanUbah($this->kegiatan);
+
+        $this->from($ubah)
+            ->delete($this->url().'/'.$pertama->id, ['alasan' => 'Klaim keliru', 'rencana_aksi_konteks' => $this->rencanaAksi->id])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect($ubah);
+
+        $this->assertDatabaseMissing('klaim_kegiatan', ['id' => $pertama->id]);
+        $this->assertDatabaseHas('klaim_kegiatan', ['id' => $kedua->id]);
+        // Halaman ubah masih memuat klaim RA itu, jadi kembali ke sana tetap sah.
+        $this->get($ubah)->assertOk();
+    }
+
+    public function test_hapus_klaim_tanpa_konteks_ra_tetap_kembali_ke_halaman_asal(): void
+    {
+        $klaim = $this->klaimTahapRencanaAksi();
+        $asal = '/kegiatan/'.$this->kegiatan->id;
+
+        $this->actingAs($this->actor)->from($asal)
+            ->delete($this->url().'/'.$klaim->id, ['alasan' => 'Klaim keliru'])
+            ->assertRedirect($asal);
+
+        $this->assertDatabaseMissing('klaim_kegiatan', ['id' => $klaim->id]);
+    }
+
+    public function test_konteks_ra_yang_bukan_ra_klaim_tidak_mengalihkan_ke_daftar_kegiatan(): void
+    {
+        $klaim = $this->klaimTahapRencanaAksi();
+        $asal = $this->halamanUbah($this->kegiatan);
+
+        $this->actingAs($this->actor)->from($asal)
+            ->delete($this->url().'/'.$klaim->id, ['alasan' => 'Klaim keliru', 'rencana_aksi_konteks' => (string) Str::uuid()])
+            ->assertRedirect($asal);
+
+        $this->assertDatabaseMissing('klaim_kegiatan', ['id' => $klaim->id]);
+    }
+
+    public function test_konteks_ra_bukan_uuid_ditolak_tanpa_menghapus_klaim(): void
+    {
+        $klaim = $this->klaimTahapRencanaAksi();
+
+        $this->actingAs($this->actor)->from('/kegiatan/'.$this->kegiatan->id)
+            ->delete($this->url().'/'.$klaim->id, ['alasan' => 'Klaim keliru', 'rencana_aksi_konteks' => 'rencana-aksi-1'])
+            ->assertSessionHasErrors('rencana_aksi_konteks');
+
+        $this->assertDatabaseHas('klaim_kegiatan', ['id' => $klaim->id]);
+    }
+
+    public function test_halaman_ubah_ra_membawa_identitas_ra_termasuk_kode_indikator(): void
+    {
+        $this->klaimTahapRencanaAksi();
+
+        $this->get($this->halamanUbah($this->kegiatan))->assertOk()->assertInertia(fn ($page) => $page
+            ->component('RencanaAksi/KegiatanEdit')
+            ->where('rencanaAksi.id', $this->rencanaAksi->id)
+            ->where('rencanaAksi.tahun', 2026)
+            ->where('rencanaAksi.kode', $this->indikator->kode));
+    }
+
     public function test_klaim_kegiatan_lain_dijawab_404_tanpa_mutasi(): void
     {
         $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
@@ -218,32 +318,43 @@ class KlaimKegiatanTest extends TestCase
 
     public function test_halaman_kegiatan_memuat_panel_klaim_sesuai_gerbang(): void
     {
-        $edit = '/kegiatan/'.$this->kegiatan->id.'/edit';
-        $this->actingAs($this->actor)->get($edit)->assertOk()->assertInertia(fn ($page) => $page
-            ->has('klaim.daftar', 0)
+        $edit = $this->halamanUbah($this->kegiatan);
+
+        $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+        $this->get($edit)->assertOk()->assertInertia(fn ($page) => $page
+            ->has('klaim.daftar', 1)
             ->where('klaim.can.tambah', true)
             ->where('klaim.opsiRencanaAksi.0.id', $this->rencanaAksi->id)
             ->where('klaim.opsiRencanaAksi.0.komponen.0.id', $this->komponen->id));
 
         $this->post($this->url(), $this->payload(['komponen_id' => $this->komponen->id]))->assertSessionHasNoErrors();
         $this->get($edit)->assertInertia(fn ($page) => $page
-            ->where('klaim.daftar.0.komponen', 'PEMBILANG — pembilang')
-            ->where('klaim.daftar.0.can.hapus', true));
+            ->has('klaim.daftar', 2)
+            ->where('klaim.daftar', fn ($daftar) => collect($daftar)->contains(fn ($row) => $row['komponen'] === 'PEMBILANG — pembilang' && $row['can']['hapus'] === true)));
 
         // RA yang sudah diajukan tidak lagi ditawarkan dan klaimnya tidak dapat dihapus.
         $this->rencanaAksi->update(['status_alur' => RencanaAksi::STATUS_DIAJUKAN]);
         $this->get($edit)->assertInertia(fn ($page) => $page
             ->has('klaim.opsiRencanaAksi', 0)
             ->where('klaim.can.tambah', false)
-            ->where('klaim.daftar.0.can.hapus', false));
+            ->where('klaim.daftar', fn ($daftar) => collect($daftar)->every(fn ($row) => $row['can']['hapus'] === false)));
     }
 
-    public function test_deny_baca_ra_pada_unit_menyembunyikan_panel_klaim(): void
+    public function test_deny_baca_ra_pada_unit_menolak_halaman_ubah_kegiatan_dengan_403(): void
     {
         $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+
+        // Kontrol positif: tanpa deny, aktor berizin menerima identitas RA dan panel klaim.
+        $this->get($this->halamanUbah($this->kegiatan))->assertOk()->assertInertia(fn ($page) => $page
+            ->component('RencanaAksi/KegiatanEdit')
+            ->where('rencanaAksi.id', $this->rencanaAksi->id)
+            ->has('klaim.daftar', 1));
+
         $this->denyPermission($this->actor, 'rencana_aksi:read', $this->unit->id);
 
-        $this->get('/kegiatan/'.$this->kegiatan->id.'/edit')->assertOk()->assertInertia(fn ($page) => $page->where('klaim', null));
+        // Policy baca RA menolak halaman ubah sebelum identitas/klaim RA dikirim.
+        $this->get($this->halamanUbah($this->kegiatan))->assertForbidden()
+            ->assertDontSee($this->indikator->kode);
     }
 
     public function test_akun_nonaktif_ditolak_tanpa_mutasi_dan_percobaannya_diaudit(): void
@@ -271,7 +382,7 @@ class KlaimKegiatanTest extends TestCase
 
     public function test_opsi_klaim_hanya_kombinasi_yang_tersedia_dan_label_dari_snapshot(): void
     {
-        $edit = '/kegiatan/'.$this->kegiatan->id.'/edit';
+        $edit = $this->halamanUbah($this->kegiatan);
         $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
         // Master berubah setelah aktivasi; label klaim tetap dari snapshot beku RA.
         $this->komponen->update(['label' => 'Label master baru']);
@@ -283,7 +394,21 @@ class KlaimKegiatanTest extends TestCase
         $this->get($edit)->assertInertia(fn ($page) => $page
             ->has('klaim.opsiRencanaAksi', 0)
             ->where('klaim.can.tambah', false)
-            ->where('klaim.daftar.1.komponen', 'PEMBILANG — pembilang'));
+            ->where('klaim.daftar', fn ($daftar) => collect($daftar)->contains(fn ($row) => $row['komponen'] === 'PEMBILANG — pembilang')));
+    }
+
+    /** Halaman ubah kegiatan berkonteks Rencana Aksi pengklaimnya (Q74 §74.1). */
+    private function halamanUbah(Kegiatan $kegiatan): string
+    {
+        return '/rencana-aksi/'.$this->rencanaAksi->id.'/kegiatan/'.$kegiatan->id;
+    }
+
+    /** Klaim tahap RA oleh aktor fixture, yaitu pembuat klaim yang boleh menghapusnya. */
+    private function klaimTahapRencanaAksi(): KlaimKegiatan
+    {
+        $this->actingAs($this->actor)->post($this->url(), $this->payload())->assertSessionHasNoErrors();
+
+        return KlaimKegiatan::sole();
     }
 
     private function url(?Kegiatan $kegiatan = null): string

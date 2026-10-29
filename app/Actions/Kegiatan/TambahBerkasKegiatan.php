@@ -23,9 +23,11 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Pemenuhan persyaratan tahap perencanaan kegiatan (mis. RAB) sebagai
- * `berkas` berinduk kegiatan (Q42 §42.3–§42.4). Persyaratan yang berlaku:
- * global ditambah khusus indikator RA pengklaim. Berkas pengganti menjadi
+ * Pemenuhan persyaratan tahap perencanaan kegiatan (mis. RAB) atau tahap
+ * pelaksanaan (`kegiatan`, PRD §15.6) sebagai `berkas` berinduk kegiatan
+ * (Q42 §42.3–§42.4). Persyaratan yang berlaku: global ditambah khusus
+ * indikator RA pengklaim (tahap RA untuk perencanaan, seluruh klaim untuk
+ * pelaksanaan, Q22). Berkas pengganti menjadi
  * baris baru dengan `menggantikan_id`, berkas lama tetap utuh (Q25).
  * Unggahan baru tetap diterima setelah RA diajukan (kegiatan bersama dapat
  * butuh persyaratan indikator lain), tetapi penggantian ditolak seperti
@@ -43,13 +45,19 @@ class TambahBerkasKegiatan
     {
         /** @var array<string, mixed>|null $dasarIzin */
         $dasarIzin = null;
+        // Tahap dibaca sebelum lock hanya untuk memilih aturan kunci; persyaratan dicek ulang di bawah lock.
+        $tahap = JenisBerkas::whereKey($data['jenis_berkas_id'])->value('tahap') === PersyaratanPerencanaanKegiatan::TAHAP_PELAKSANAAN
+            ? PersyaratanPerencanaanKegiatan::TAHAP_PELAKSANAAN : PersyaratanPerencanaanKegiatan::TAHAP;
+        $label = $tahap === PersyaratanPerencanaanKegiatan::TAHAP ? 'perencanaan' : 'pelaksanaan';
 
         try {
-            return DB::transaction(function () use ($actor, $kegiatanId, $data, &$dasarIzin): BuktiDukung {
-                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan, 'pengklaim' => $pengklaim] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_UPLOAD, ! empty($data['menggantikan_id']), $dasarIzin);
+            return DB::transaction(function () use ($actor, $kegiatanId, $data, $tahap, $label, &$dasarIzin): BuktiDukung {
+                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan, 'pengklaim' => $pengklaim] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_UPLOAD, ! empty($data['menggantikan_id']), $dasarIzin, $tahap);
                 $mode = (string) $data['mode'];
-                $indikatorIds = $pengklaim->map(fn (RencanaAksi $header): string => (string) $header->indikator_id)->unique()->values()->all();
-                $requirement = JenisBerkas::whereKey($data['jenis_berkas_id'])->where('aktif', true)->where('tahap', PersyaratanPerencanaanKegiatan::TAHAP)
+                $indikatorIds = $tahap === PersyaratanPerencanaanKegiatan::TAHAP
+                    ? $pengklaim->map(fn (RencanaAksi $header): string => (string) $header->indikator_id)->unique()->values()->all()
+                    : PersyaratanPerencanaanKegiatan::indikatorDiklaim((string) $kegiatan->id);
+                $requirement = JenisBerkas::whereKey($data['jenis_berkas_id'])->where('aktif', true)->where('tahap', $tahap)
                     ->where(fn ($q) => $q->whereNull('indikator_id')->orWhereIn('indikator_id', $indikatorIds))->lockForUpdate()->first();
                 if (! $requirement instanceof JenisBerkas) {
                     throw ValidationException::withMessages(['jenis_berkas_id' => 'Persyaratan tidak berlaku untuk kegiatan ini.']);
@@ -105,7 +113,7 @@ class TambahBerkasKegiatan
                         objekId: (string) $berkas->id,
                         nilaiLama: $lama ? [...GerbangBuktiRencanaAksi::metadataAudit($lama), 'id' => (string) $lama->id] : null,
                         nilaiBaru: [...GerbangBuktiRencanaAksi::metadataAudit($berkas), 'kegiatan_id' => (string) $kegiatan->id],
-                        alasan: $lama ? AlasanAudit::sanitasi($alasanKoreksi, 'Penggantian berkas perencanaan kegiatan.') : 'Pemenuhan berkas perencanaan kegiatan.',
+                        alasan: $lama ? AlasanAudit::sanitasi($alasanKoreksi, "Penggantian berkas {$label} kegiatan.") : "Pemenuhan berkas {$label} kegiatan.",
                         dasarIzin: $dasarIzin,
                     );
                 } catch (Throwable $exception) {
@@ -121,7 +129,7 @@ class TambahBerkasKegiatan
         } catch (Throwable $exception) {
             if (($exception instanceof AuthorizationException || $exception instanceof ValidationException) && Kegiatan::whereKey($kegiatanId)->exists()) {
                 $this->audit->catat(actor: $actor, tindakan: 'berkas.unggah_ditolak', objekTipe: 'kegiatan', objekId: $kegiatanId,
-                    alasan: AlasanAudit::sanitasi($exception->getMessage(), 'Pemenuhan berkas perencanaan kegiatan ditolak.'), dasarIzin: $dasarIzin);
+                    alasan: AlasanAudit::sanitasi($exception->getMessage(), "Pemenuhan berkas {$label} kegiatan ditolak."), dasarIzin: $dasarIzin);
             }
 
             throw $exception;

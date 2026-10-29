@@ -2,6 +2,7 @@
 
 namespace App\Actions\Kegiatan;
 
+use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\RencanaAksi;
 use App\Models\User;
@@ -9,14 +10,19 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\Kegiatan\GerbangKlaimKegiatan;
 use App\Services\Kegiatan\TotalAnggaranKegiatan;
 use App\Support\PermissionCodes;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Props panel kegiatan per periode pada halaman Rencana Aksi (Q42 §42.1):
- * daftar kegiatan yang diklaim RA (tahap RA dan pengukuran) beserta anggaran,
- * penanda kegiatan bersama, total (Q42 §42.2), dan capability tambah. Akses
- * halaman sudah diputuskan `IndexRencanaAksi`; periode, komponen, dan
- * periode terkunci bagi aktor memakai props halaman yang sama.
+ * Props daftar kegiatan per periode untuk panel Rencana Aksi dan halaman
+ * kegiatan Rencana Aksi (Q42 §42.1): kegiatan yang diklaim RA (tahap RA dan
+ * pengukuran) beserta anggaran, penanda kegiatan bersama, total (Q42 §42.2),
+ * kandidat kegiatan unit+tahun yang belum diklaim dan bukan kegiatan lanjutan
+ * (jalur penautan kegiatan lama), capability tambah, capability kelola, dan
+ * capability tautkan. Akses halaman sudah diputuskan pemanggil; periode,
+ * komponen, dan periode terkunci bagi aktor memakai props halaman Rencana Aksi
+ * yang sama. Capability tambah dinilai terhadap periode yang dapat ditulis
+ * aktor sehingga klaim baru tidak ditawarkan saat semua periode terkunci.
  */
 class DaftarKegiatanRencanaAksi
 {
@@ -31,9 +37,21 @@ class DaftarKegiatanRencanaAksi
      * agar detail kegiatan, termasuk anggaran dan total, tidak terbaca lewat
      * halaman RA (Q42 §42.5).
      *
+     * `$periodeDapatDitulis` berasal dari `IndexRencanaAksi` (efektif ∩ lingkup
+     * koreksi − terkunci). Daftar kosong berarti tidak ada periode yang dapat
+     * ditulis, sehingga capability tambah dan tautkan fail-closed serta kandidat
+     * penautan kosong tanpa query.
+     *
+     * `can.tautkan` memakai gerbang bisnis klaim, bukan resolver permission
+     * saja: gerbang yang sama dengan penambahan klaim tahap RA menuntut izin
+     * ubah RA + izin ubah kegiatan pada unitnya, status RA yang dapat disunting,
+     * serta jendela tulis periode. Capability dinilai sekali per halaman, bukan
+     * per baris daftar.
+     *
+     * @param  list<string>  $periodeDapatDitulis
      * @return array<string, mixed>|null
      */
-    public function handle(User $actor, string $id): ?array
+    public function handle(User $actor, string $id, array $periodeDapatDitulis): ?array
     {
         $header = RencanaAksi::findOrFail($id);
         $unitId = (string) $header->unit_id;
@@ -43,23 +61,34 @@ class DaftarKegiatanRencanaAksi
 
         // Capability di luar snapshot READ ONLY: gerbang klaim mengambil row lock (`FOR SHARE`) yang ditolak transaksi read-only.
         $can = [
-            'tambah' => $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE),
-            // Pengelolaan klaim per kegiatan berada di halaman Kegiatan; tautan hanya bila izin ubah kegiatan ada.
+            'tambah' => $periodeDapatDitulis !== []
+                && $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_CREATE, $periodeDapatDitulis),
+            // Pengelolaan klaim dan berkas per kegiatan berada di halaman kegiatan Rencana Aksi.
             'kelola' => $this->resolver->allows($actor, PermissionCodes::KEGIATAN_UPDATE, $unitId),
+            // Penautan memakai endpoint klaim tahap RA, sehingga tunduk pada gerbang bisnis yang sama:
+            // izin ubah RA tujuan + izin ubah kegiatan, status RA, dan jendela tulis periode.
+            'tautkan' => $periodeDapatDitulis !== []
+                && $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_UPDATE, $periodeDapatDitulis),
         ];
 
-        return DB::transaction(function () use ($header, $can): array {
+        return DB::transaction(function () use ($header, $can, $periodeDapatDitulis): array {
             // Daftar, penanda, dan total dibaca dari satu snapshot; bila dipanggil di dalam transaksi lain, isolasi milik caller.
             if (DB::transactionLevel() === 1) {
                 DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
             }
 
-            return [...$this->baca($header), 'can' => $can];
+            return [...$this->baca($header, $periodeDapatDitulis), 'can' => $can];
         });
     }
 
-    /** @return array{daftar: list<array<string, mixed>>, total: array<string, mixed>} */
-    private function baca(RencanaAksi $header): array
+    /**
+     * Daftar, total, dan kandidat penautan dihitung sekali per halaman di dalam
+     * snapshot yang sama, bukan per baris daftar.
+     *
+     * @param  list<string>  $periodeDapatDitulis
+     * @return array{daftar: list<array<string, mixed>>, total: array<string, mixed>, kegiatan_tanpa_klaim: list<array<string, mixed>>}
+     */
+    private function baca(RencanaAksi $header, array $periodeDapatDitulis): array
     {
         $daftar = KlaimKegiatan::query()
             ->join('kegiatan', 'kegiatan.id', '=', 'klaim_kegiatan.kegiatan_id')
@@ -86,6 +115,56 @@ class DaftarKegiatanRencanaAksi
                 'catatan' => $klaim->catatan,
             ])->values()->all(),
             'total' => $this->anggaran->perRencanaAksi($header),
+            // Jalur penautan kegiatan existing yang belum punya klaim apa pun.
+            'kegiatan_tanpa_klaim' => $this->kegiatanTanpaKlaim($header, $periodeDapatDitulis),
         ];
+    }
+
+    /**
+     * Kegiatan unit dan tahun header yang belum diklaim RA mana pun dan bukan
+     * kegiatan lanjutan (`kegiatan_asal_id` null). Kegiatan lanjutan diklaim
+     * pada tahap pengukuran, bukan sebagai klaim tahap RA (Q41 §41.4 butir 2),
+     * sehingga tidak boleh ditawarkan sebagai kandidat penautan.
+     *
+     * Filter periode yang dapat ditulis dipasang sebelum `limit`: kegiatan pada
+     * periode terkunci tidak boleh menghabiskan kuota 50 baris sehingga kandidat
+     * sah pada periode lain tidak pernah muncul. Tanpa periode yang dapat
+     * ditulis tidak ada kandidat, sehingga query dilewati sama sekali.
+     *
+     * Satu query dengan join periode untuk urutan dan nama periode; nama
+     * periode ikut diproyeksikan agar tidak ada query per baris. Dibatasi 50
+     * baris agar payload halaman tetap wajar.
+     *
+     * @param  list<string>  $periodeDapatDitulis
+     * @return list<array{id: string, nama: string, periode_id: string, status: string, kegiatan_asal_id: string|null, periode_nama: string}>
+     */
+    private function kegiatanTanpaKlaim(RencanaAksi $header, array $periodeDapatDitulis): array
+    {
+        if ($periodeDapatDitulis === []) {
+            return [];
+        }
+
+        return Kegiatan::query()
+            ->join('periode', 'periode.id', '=', 'kegiatan.periode_id')
+            ->where('kegiatan.unit_id', (string) $header->unit_id)
+            ->where('kegiatan.tahun', (int) $header->tahun)
+            ->whereNull('kegiatan.kegiatan_asal_id')
+            ->whereIn('kegiatan.periode_id', $periodeDapatDitulis)
+            ->whereNotExists(fn (Builder $q) => $q->selectRaw('1')->from('klaim_kegiatan')
+                ->whereColumn('klaim_kegiatan.kegiatan_id', 'kegiatan.id'))
+            ->orderBy('periode.urutan')
+            ->orderBy('periode.id')
+            ->orderBy('kegiatan.nama')
+            ->orderBy('kegiatan.id')
+            ->limit(50)
+            ->get(['kegiatan.id', 'kegiatan.nama', 'kegiatan.periode_id', 'kegiatan.status', 'kegiatan.kegiatan_asal_id', 'periode.nama as periode_nama'])
+            ->map(fn (Kegiatan $kegiatan): array => [
+                'id' => (string) $kegiatan->id,
+                'nama' => (string) $kegiatan->nama,
+                'periode_id' => (string) $kegiatan->periode_id,
+                'status' => (string) $kegiatan->status,
+                'kegiatan_asal_id' => $kegiatan->kegiatan_asal_id === null ? null : (string) $kegiatan->kegiatan_asal_id,
+                'periode_nama' => (string) $kegiatan->getAttribute('periode_nama'),
+            ])->values()->all();
     }
 }

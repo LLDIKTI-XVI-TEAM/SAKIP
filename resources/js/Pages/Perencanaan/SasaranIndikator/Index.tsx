@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { ActionMenu, type ActionMenuItem } from '@/Components/ActionMenu';
 import { Button } from '@/Components/Button';
@@ -41,6 +41,7 @@ import type {
     IndikatorTipePerhitungan,
     RegulasiOption,
     RenstraOption,
+    RevisiTargetRenstra,
     SasaranIndikatorCapabilities,
     SasaranStrategisItem,
     UnitOption,
@@ -56,6 +57,7 @@ interface SasaranIndikatorIndexProps {
     units: UnitOption[];
     regulasis: RegulasiOption[];
     can: SasaranIndikatorCapabilities;
+    revisi_target?: RevisiTargetRenstra | null;
 }
 
 export default function SasaranIndikatorIndex({
@@ -65,6 +67,7 @@ export default function SasaranIndikatorIndex({
     units,
     regulasis,
     can,
+    revisi_target = null,
 }: SasaranIndikatorIndexProps) {
     // Accordion collapse state per sasaran (default expanded)
     const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
@@ -82,8 +85,10 @@ export default function SasaranIndikatorIndex({
 
     const [formulaTarget, setFormulaTarget] = useState<DefinitionEditor | null>(null);
     const [annualMessage, setAnnualMessage] = useState('');
-    const [tab, setTab] = useState<'indikator' | 'target'>('indikator');
-    const [targetDibuka, setTargetDibuka] = useState(false);
+    // Tautan "Buka target Renstra" dari editor target PK membawa `?tab=target`; selain itu tab tetap state lokal.
+    const tabAwal = new URL(usePage().url, 'http://localhost').searchParams.get('tab') === 'target' ? 'target' : 'indikator';
+    const [tab, setTab] = useState<'indikator' | 'target'>(tabAwal);
+    const [targetDibuka, setTargetDibuka] = useState(tabAwal === 'target');
     // Ganti Renstra memasang ulang tabel target; selama simpan berjalan pilihan dikunci agar peringatan hasil ambigu tidak hilang.
     const [menyimpanTarget, setMenyimpanTarget] = useState(false);
     const editorLoader = useIndikatorEditorLoader();
@@ -232,7 +237,7 @@ export default function SasaranIndikatorIndex({
                     // Tetap terpasang setelah dibuka: pindah tab tidak memuat data terbaru, jadi blokir hasil simpan ambigu tidak boleh hilang.
                     // key: preserveState saat ganti Renstra tidak boleh membawa baris edit Renstra lama.
                     <div hidden={tab !== 'target'}>
-                        <TargetRenstraTable key={selectedRenstra.id} renstra={selectedRenstra} sasarans={sasarans} canEdit={Boolean(can.indikator_read && can.target_update)} onSaved={setAnnualMessage} onSaving={setMenyimpanTarget} />
+                        <TargetRenstraTable key={selectedRenstra.id} renstra={selectedRenstra} sasarans={sasarans} canEdit={Boolean(can.indikator_read && can.target_update)} onSaved={setAnnualMessage} onSaving={setMenyimpanTarget} revisi={revisi_target} />
                     </div>
                 )}
                 {(tab !== 'target' || !selectedRenstra) && sasarans.map((sasaran) => {

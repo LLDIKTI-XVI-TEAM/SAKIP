@@ -9,6 +9,7 @@ use App\Models\SasaranStrategis;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 
 trait TargetTahunanFixtures
 {
@@ -36,5 +37,18 @@ trait TargetTahunanFixtures
             ['nomor_pk' => null, 'tanggal_pk' => '2026-04-21', 'created_by' => $indikator->created_by]);
 
         return "/perjanjian-kinerja/{$pk->id}/target/{$indikator->id}{$suffix}";
+    }
+
+    /**
+     * Simpan target PK 2026 memakai `expected_state` terbaru dari editor; `$nilai` menimpa payload kosong.
+     *
+     * @param  array<string, mixed>  $nilai
+     */
+    private function simpanTargetPk(User $actor, IndikatorKinerja $indikator, array $nilai): TestResponse
+    {
+        $state = $this->actingAs($actor)->getJson($this->targetPkUrl($indikator, '/editor'))->assertOk()->json('expected_state');
+
+        return $this->putJson($this->targetPkUrl($indikator), ['baseline' => null, 'target_tahunan' => null, 'expected_state' => $state,
+            'operation_id' => (string) Str::uuid(), ...$nilai]);
     }
 }

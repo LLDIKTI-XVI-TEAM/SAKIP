@@ -44,6 +44,8 @@ function buatPayload(koreksi: RencanaAksiPayload['koreksi'], periodeTerkunci: st
         batas_terkunci_pic: periodeTerkunci.includes(id) ? BATAS_PENGISIAN[index] : null,
         boleh_tanpa_target: false,
     }));
+    // Cermin kontrak server: efektif ∩ lingkup koreksi − terkunci.
+    const dapatDitulis = [P1, P2, P3, P4].filter((id) => (!koreksi.aktif || koreksi.periode_ids.includes(id)) && !periodeTerkunci.includes(id));
     return {
         id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
         tahun: 2026,
@@ -83,6 +85,7 @@ function buatPayload(koreksi: RencanaAksiPayload['koreksi'], periodeTerkunci: st
         periode,
         koreksi,
         periode_terkunci: periodeTerkunci,
+        periode_dapat_ditulis: dapatDitulis,
         deviasi_pk: {
             dapat_dinilai: false,
             ada: false,

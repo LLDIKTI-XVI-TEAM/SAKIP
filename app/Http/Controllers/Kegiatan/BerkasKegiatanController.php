@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Kegiatan;
 
 use App\Actions\Kegiatan\HapusBerkasKegiatan;
 use App\Actions\Kegiatan\TambahBerkasKegiatan;
+use App\Actions\Kegiatan\UnduhBerkasPelaksanaanKegiatan;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Kegiatan\DestroyBerkasKegiatanRequest;
 use App\Http\Requests\Kegiatan\StoreBerkasKegiatanRequest;
@@ -23,14 +24,14 @@ class BerkasKegiatanController extends Controller
     {
         $action->handle($request->user(), (string) $kegiatan->id, $request->validated());
 
-        return back()->with('success', 'Berkas perencanaan kegiatan berhasil disimpan.');
+        return back()->with('success', 'Berkas kegiatan berhasil disimpan.');
     }
 
     public function destroy(DestroyBerkasKegiatanRequest $request, Kegiatan $kegiatan, string $berkas, HapusBerkasKegiatan $action): RedirectResponse
     {
         $action->handle($request->user(), (string) $kegiatan->id, $berkas, (string) $request->validated('alasan'));
 
-        return back()->with('success', 'Berkas perencanaan kegiatan berhasil dihapus.');
+        return back()->with('success', 'Berkas kegiatan berhasil dihapus.');
     }
 
     /**
@@ -46,6 +47,16 @@ class BerkasKegiatanController extends Controller
             ->whereHas('jenisBerkas', fn ($query) => $query->where('tahap', PersyaratanPerencanaanKegiatan::TAHAP))->first();
         abort_unless($bukti && is_string($bukti->path) && Storage::disk('local')->exists($bukti->path), 404);
 
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('local');
+
+        return $disk->download($bukti->path, $bukti->nama_asli ?? 'berkas', ['Cache-Control' => 'private, no-store']);
+    }
+
+    /** Jalur pelaksanaan terpisah agar route unduh perencanaan tetap hanya melayani RAB dan tahap perencanaan. */
+    public function downloadPelaksanaan(Request $request, Kegiatan $kegiatan, string $berkas, UnduhBerkasPelaksanaanKegiatan $action, GerbangBerkasKegiatan $gerbang): StreamedResponse
+    {
+        $bukti = $action->handle($request->user(), $kegiatan, $berkas, $gerbang);
         /** @var FilesystemAdapter $disk */
         $disk = Storage::disk('local');
 

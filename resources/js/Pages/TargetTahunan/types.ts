@@ -21,7 +21,8 @@ export interface TargetEditorData {
     read_only_reason: string | null;
     /** Pembanding target Renstra tahun yang sama; `null` berarti target Renstra belum ada. */
     target_renstra: string | null;
-    alasan_deviasi_renstra: string | null;
+    /** Tautan ke tab Target Renstra halaman Sasaran & Indikator; `null` bila pengguna tidak dapat mengubah target. */
+    tautan_target_renstra: string | null;
     status_deviasi: string;
     /** `null` berarti tanpa saran dan keterangan: baseline tersimpan, baca saja, tidak berhak membaca pengukuran, atau jadwal T−1 tanpa periode nilai akhir/versi efektif. */
     saran_baseline: SaranBaseline | null;

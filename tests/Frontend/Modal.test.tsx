@@ -28,6 +28,30 @@ describe('Modal Accessibility', () => {
             vi.useRealTimers();
         }
     });
+    it('Tab menjangkau ringkasan details sehingga isi yang terlipat dapat dibuka dengan keyboard', () => {
+        vi.useFakeTimers();
+        const layout = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockReturnValue(document.body);
+        try {
+            render(<Modal isOpen title="Histori revisi" onClose={vi.fn()}>
+                <details><summary>Revisi ke-1</summary><p>Rincian</p></details>
+            </Modal>);
+            act(() => vi.runOnlyPendingTimers());
+            const tutup = screen.getByRole('button', { name: 'Tutup dialog' });
+            const ringkasan = screen.getByText('Revisi ke-1');
+            expect(document.activeElement).toBe(tutup);
+
+            const mundur = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+            window.dispatchEvent(mundur);
+            expect(document.activeElement).toBe(ringkasan);
+            const maju = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+            window.dispatchEvent(maju);
+            expect([maju.defaultPrevented, document.activeElement]).toEqual([true, tutup]);
+        } finally {
+            layout.mockRestore();
+            cleanup();
+            vi.useRealTimers();
+        }
+    });
     it.each([false, true])('fokus awal tidak mengambil alih field yang sudah dipilih: %s', (alreadyFocused) => {
         vi.useFakeTimers();
         try {

@@ -16,6 +16,7 @@ import type {
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()),
     Head: () => null,
+    usePage: () => ({ url: '/perencanaan/sasaran-indikator', props: { pengaturan: {} } }),
 }));
 
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({

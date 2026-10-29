@@ -140,7 +140,8 @@ class KegiatanRencanaAksiTest extends TestCase
             ->where('kegiatan.daftar.0.kegiatan_id', $kegiatan->id)
             ->where('kegiatan.daftar.0.periode_id', $this->tw1->id)
             ->where('kegiatan.daftar.0.nama', 'Rapat koordinasi')
-            ->where('kegiatan.can', ['tambah' => true, 'kelola' => true]));
+            // `tautkan` = gerbang bisnis klaim tahap RA (izin ubah RA + kegiatan, status, jendela).
+            ->where('kegiatan.can', ['tambah' => true, 'kelola' => true, 'tautkan' => true]));
 
         // PIC tanpa izin buat kegiatan tetap dapat membaca daftar, tetapi tidak ditawari tambah.
         $this->actingAs($this->createPicPegawai())->get('/rencana-aksi/'.$this->rencanaAksi->id)->assertOk()

@@ -10,10 +10,13 @@ import type {
     SasaranStrategisItem,
 } from '@/types/sasaran-indikator';
 
+// URL halaman dapat diatur per test untuk tab awal dari query `tab`.
+const halamanInertia = vi.hoisted(() => ({ url: '/perencanaan/sasaran-indikator' }));
+
 vi.mock('@inertiajs/react', async (original) => ({
     ...(await original<typeof import('@inertiajs/react')>()),
     Head: () => null,
-    usePage: () => ({ props: { pengaturan: {} } }),
+    usePage: () => ({ url: halamanInertia.url, props: { pengaturan: {} } }),
 }));
 
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({
@@ -21,6 +24,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
 }));
 
 afterEach(() => {
+    halamanInertia.url = '/perencanaan/sasaran-indikator';
     cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -128,6 +132,18 @@ it('sakelar tab menampilkan tabel target Renstra', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Indikator' }));
     expect(screen.getByRole('button', { name: 'Aksi IKU-01' })).toBeTruthy();
     expect(screen.queryByRole('columnheader', { name: '2026' })).toBeNull();
+});
+
+it.each([
+    ['?renstra_id=ren-1&tab=target', true],
+    ['?renstra_id=ren-1', false],
+    ['?renstra_id=ren-1&tab=lain', false],
+])('URL %s menentukan tab awal (tautan dari editor target PK)', (query, tabTarget) => {
+    halamanInertia.url = `/perencanaan/sasaran-indikator${query}`;
+    renderIndex();
+    expect(screen.getByRole('button', { name: 'Target Renstra' }).getAttribute('aria-pressed')).toBe(String(tabTarget));
+    expect(screen.queryByRole('columnheader', { name: '2026' }) !== null).toBe(tabTarget);
+    expect(screen.queryByRole('button', { name: 'Aksi IKU-01' }) !== null).toBe(!tabTarget);
 });
 
 it('mengganti Renstra saat sedang mengubah target tidak mengunci tombol Ubah', () => {
