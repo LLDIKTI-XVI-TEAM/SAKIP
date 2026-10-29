@@ -2348,3 +2348,25 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 3. Pengajuan pengukuran selama RA dibuka kembali tetap ditahan sampai versi baru disahkan (PRD §14.9); banner tidak lagi menyatakan versi lama tetap berlaku.
 4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
 5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.
+
+---
+
+# Keputusan Q78 — Status Capaian per Versi Pengukuran
+
+**Keputusan PM: 28–29 Oktober 2026 (WITA), review PR #203 (ISS-09.02).** Keputusan ini mencatat dan mengonfirmasi tujuh keputusan pelaksanaan yang dipakai pada implementasi ISS-09.02, sekaligus menjawab pertanyaan terbuka pada issue #180. Mengubah PRD §21, Workflow §16, Data Model §2.21, Plan 6.4–6.6 dan 7.1, serta ISS-09.02. Pencatatan ini bukan persetujuan UAT, merge, atau deployment.
+
+## 78.1 Keputusan Q-A–Q-G
+
+1. **Q-A — rujukan versi.** `status_capaian` memakai `pengukuran_id` dan `pengukuran_versi_id` (keduanya FK, `restrictOnDelete`). Rujukan versi memenuhi AC-1; konsistensi `pengukuran_id` dijaga Action dalam transaksi.
+2. **Q-B — tidak dapat dihitung.** Penetapan manual tidak tersedia untuk pengukuran bertarget dengan `status_perhitungan = tidak_dapat_dihitung` (Q64 §64.1 butir 5), di samping periode tanpa target dan `belum_dapat_diukur` (Q47 §47.3 butir 4).
+3. **Q-C — header tidak disahkan.** Penetapan ditolak bila header pengukuran tidak lagi berstatus `disahkan`, termasuk versi sah lama ketika header sudah `dikembalikan`, meskipun versi beku masih tersimpan.
+4. **Q-D — alasan.** Alasan bersifat opsional karena Q43 §43.2 dan §43.3 tidak menyebut status capaian; audit tetap wajib memuat `dasar_izin` dan alasan baku server bila pengguna mengosongkan.
+5. **Q-E — cakupan konsumen.** PR ISS-09.02 memuat konsumen wajib rekap dan status tampilan dashboard. AC-5 ISS-10.01 dan ISS-10.02 tetap milik issue masing-masing dan tidak dicentang dari ISS-09.02.
+6. **Q-F — konkurensi.** Token `pengukuran_kinerjas.versi` dibandingkan di bawah lock header dan dinaikkan setelah penetapan atau revisi sukses, sehingga tampilan usang ditolak 409.
+7. **Q-G — penempatan UI.** `GET /verifikasi/status-capaian` dan `POST /verifikasi/{pengukuran}/status-capaian`; halaman berada pada modul Reviu & Pengesahan dengan menu di grup Pelaksanaan & Evaluasi.
+
+## 78.2 Status implementasi dan traceability
+
+- **Status implementasi ISS-09.02:** implemented dan verified melalui test backend, Vitest, serta CI exact HEAD PR #203. Keputusan ini tidak menyatakan merge, UAT, atau deployment.
+- **Traceability:** Q43 (kewajiban alasan), Q47 §47.3 butir 4 (penetapan tidak tersedia), Q50 §50.2 (target PK bernilai penuh), Q64 §64.1 (status tampilan), ISS-10.01 dan ISS-10.02 (konsumen status capaian), PRD §21 dan §23, Workflow §16, Data Model §2.21, Plan 6.4–6.6 dan 7.1.
+- **Status keputusan:** Keputusan PM 28–29 Oktober 2026 (review PR #203); konfirmasi tertulis Tim Perencanaan belum diminta.

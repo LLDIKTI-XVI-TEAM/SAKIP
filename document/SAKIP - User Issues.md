@@ -4380,7 +4380,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] **AC-3:** Given versi koreksi baru disahkan, Then versi baru mulai **Belum ditetapkan**; status versi lama tidak diwariskan otomatis.
 - [x] **AC-4:** Given status direvisi, Then histori status lama tetap tersimpan dan baris terbaru menjadi yang berlaku.
 - [x] **AC-5:** Given pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, When status capaian manual hendak ditetapkan, Then penetapan tidak tersedia, termasuk melalui request langsung. *(Q47 §47.3 butir 4)*
-  - Catatan implementasi: `tidak_dapat_dihitung` pada periode bertarget juga ditolak (keputusan PM 28 Oktober 2026, Q64 §64.1 butir 5); dibuktikan lewat POST langsung di `StatusCapaianAccessTest`.
+  - Catatan implementasi: `tidak_dapat_dihitung` pada periode bertarget juga ditolak (Q78 §78.1 butir 2; Q64 §64.1 butir 5); dibuktikan lewat POST langsung di `StatusCapaianAccessTest`.
 
 #### Implementation Tasks
 
@@ -4404,7 +4404,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
   - Catatan: state loading/disabled/error dan struktur tabel→kartu mobile sudah diuji komponen; **overflow/kontras belum dibuktikan di browser** (menunggu browser smoke).
 - [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
-  - Catatan: alasan status capaian bersifat opsional (Q43 tidak mewajibkan; keputusan PM 28 Oktober 2026), sehingga dialog memakai field alasan opsional dan audit tetap memakai alasan baku server + `dasar_izin`.
+  - Catatan: alasan status capaian bersifat opsional (Q43 tidak mewajibkan; Q78 §78.1 butir 4), sehingga dialog memakai field alasan opsional dan audit tetap memakai alasan baku server + `dasar_izin`.
 
 #### Automated Tests / Verification
 

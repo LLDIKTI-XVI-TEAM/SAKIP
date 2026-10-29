@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -66,5 +67,29 @@ class StatusCapaian extends Model
     public function scopeBerlaku(Builder $query, string|array $versiIds): void
     {
         $query->whereIn('pengukuran_versi_id', (array) $versiIds)->orderByDesc('created_at')->orderByDesc('id');
+    }
+
+    /**
+     * Baris berlaku per versi pengukuran dalam satu query batch, dipakai daftar status capaian, dashboard, dan rekap
+     * agar definisi "berlaku" tidak disalin di tiap konsumen. Kunci hasil adalah `pengukuran_versi_id` dan nilainya
+     * baris pertama menurut urutan `berlaku` (created_at terbaru, tie-break `id`). Versi tanpa status tidak muncul
+     * sebagai kunci, sehingga pemanggil dapat membedakan "belum ditetapkan" dari status tersimpan.
+     *
+     * @param  list<string>  $versiIds
+     * @return Collection<string, static>
+     */
+    public static function berlakuPerVersi(array $versiIds): Collection
+    {
+        if ($versiIds === []) {
+            return new Collection;
+        }
+
+        $baris = [];
+        foreach (static::query()->berlaku($versiIds)->get() as $status) {
+            // Hasil sudah urut "berlaku"; kemunculan pertama tiap versi adalah baris yang berlaku.
+            $baris[$status->pengukuran_versi_id] ??= $status;
+        }
+
+        return new Collection($baris);
     }
 }

@@ -4,12 +4,15 @@ namespace App\Http\Requests\StatusCapaian;
 
 use App\Http\Requests\PeriodeJadwalMutationRequest;
 use App\Models\StatusCapaian;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use Illuminate\Validation\Rule;
 
 /**
  * Bentuk permintaan penetapan status capaian. Penetap, unit target, dan sumber selalu ditentukan server;
  * klien hanya mengirim status pilihan, versi pengukuran yang dirujuk, token `versi` header, dan alasan opsional.
+ * Alasan tetap opsional (Q78 §78.1 butir 4) tetapi format dan panjangnya memakai kontrak teks audit yang sama
+ * dengan mutasi lain (`AuditReason`, 1000 karakter) agar isi yang tidak sah tidak pernah masuk jejak audit.
  * Syarat versi disahkan dan pengecualian AC-5 tetap diperiksa Action setelah baris terkunci.
  */
 class StoreStatusCapaianRequest extends PeriodeJadwalMutationRequest
@@ -30,7 +33,7 @@ class StoreStatusCapaianRequest extends PeriodeJadwalMutationRequest
             'status' => ['required', Rule::in([StatusCapaian::STATUS_TERCAPAI, StatusCapaian::STATUS_BELUM_TERCAPAI])],
             'pengukuran_versi_id' => ['required', 'uuid'],
             'versi' => ['required', 'integer', 'min:0', 'max:2147483647'],
-            'alasan' => ['nullable', 'string', 'max:10000'],
+            'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],
         ];
     }
 

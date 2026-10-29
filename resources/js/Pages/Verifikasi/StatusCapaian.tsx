@@ -30,7 +30,7 @@ const labelStatus: Record<'tercapai' | 'belum_tercapai', string> = {
 function Data({ label, children }: { label: string; children: ReactNode }) {
     return (
         <div className="min-w-0">
-            <dt className="text-[11px] font-medium text-muted">{label}</dt>
+            <dt className="text-xs font-medium text-muted">{label}</dt>
             <dd className="mt-0.5 break-words text-xs font-semibold text-ink">{children}</dd>
         </div>
     );
@@ -49,7 +49,7 @@ function NilaiSelisihPk({ selisih, desimal, satuan }: { selisih: string | null; 
     return (
         <span>
             <span className="font-semibold tabular-nums text-ink">{`${tanda}${mutlak}${satuan ? ` ${satuan}` : ''}`}</span>
-            <span className="block text-[11px] font-normal text-muted">{nol ? 'sama dengan target PK' : negatif ? 'di bawah target PK' : 'di atas target PK'}</span>
+            <span className="block text-xs font-normal text-muted">{nol ? 'sama dengan target PK' : negatif ? 'di bawah target PK' : 'di atas target PK'}</span>
         </span>
     );
 }
@@ -164,7 +164,7 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
                     </Data>
                     {mode === 'revisi' && baris.status_berlaku && (
                         <div className="col-span-2 min-w-0 border-t border-border pt-2">
-                            <dt className="text-[11px] font-medium text-muted">Status berlaku</dt>
+                            <dt className="text-xs font-medium text-muted">Status berlaku</dt>
                             <dd className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink">
                                 <StatusCapaianBadge kode={baris.status_berlaku.status} size="sm" />
                                 <span className="text-muted">
@@ -222,7 +222,7 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
                     label="Alasan (opsional)"
                     name="alasan"
                     rows={3}
-                    maxLength={10000}
+                    maxLength={1000}
                     value={form.data.alasan}
                     error={galatAlasan}
                     onChange={(event) => form.setData('alasan', event.target.value)}
@@ -248,7 +248,7 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
     const periode = (baris: BarisStatusCapaian) => `${baris.periode.nama ?? '—'} ${baris.tahun}`;
     const versi = (baris: BarisStatusCapaian) => baris.versi_pengukuran === null
         ? 'Belum ada versi sah'
-        : <>Versi {baris.versi_pengukuran.nomor}<span className="block text-[11px] text-muted">disahkan {formatTanggal(baris.versi_pengukuran.disahkan_pada)}</span></>;
+        : <>Versi {baris.versi_pengukuran.nomor}<span className="block text-xs text-muted">disahkan {formatTanggal(baris.versi_pengukuran.disahkan_pada)}</span></>;
 
     return (
         <AuthenticatedLayout
@@ -290,39 +290,47 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                         </div>
                     ) : (
                         <>
-                            <Table className="min-w-max" wrapperClassName="hidden md:block" aria-label="Kandidat penetapan status capaian">
+                            <Table wrapperClassName="hidden md:block" aria-label="Kandidat penetapan status capaian">
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="px-4 py-3">INDIKATOR</TableHead>
-                                        <TableHead className="px-4 py-3">{labelUnit.toUpperCase()}</TableHead>
-                                        <TableHead className="px-4 py-3">PERIODE</TableHead>
-                                        <TableHead className="px-4 py-3">VERSI</TableHead>
-                                        <TableHead className="px-4 py-3 text-right">REALISASI</TableHead>
-                                        <TableHead className="px-4 py-3 text-right">TARGET</TableHead>
-                                        <TableHead className="px-4 py-3 text-right">CAPAIAN</TableHead>
-                                        <TableHead className="px-4 py-3 text-right">TARGET PK</TableHead>
-                                        <TableHead className="px-4 py-3 text-right">SELISIH PK</TableHead>
-                                        <TableHead className="px-4 py-3 text-right">AKSI</TableHead>
+                                        <TableHead className="px-3 py-3">INDIKATOR</TableHead>
+                                        <TableHead className="px-3 py-3">{labelUnit.toUpperCase()}</TableHead>
+                                        <TableHead className="px-3 py-3">PERIODE</TableHead>
+                                        <TableHead className="px-3 py-3">VERSI</TableHead>
+                                        <TableHead className="px-3 py-3 text-right">
+                                            <span className="block">REALISASI</span>
+                                            <span className="block font-normal">CAPAIAN</span>
+                                        </TableHead>
+                                        <TableHead className="px-3 py-3 text-right">
+                                            <span className="block">TARGET</span>
+                                            <span className="block font-normal">TARGET PK</span>
+                                        </TableHead>
+                                        <TableHead className="px-3 py-3 text-right">SELISIH PK</TableHead>
+                                        <TableHead className="sticky right-0 z-10 border-l border-border bg-soft px-3 py-3 text-right">AKSI</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {kandidat.map((baris) => (
-                                        <TableRow key={baris.id} className="hover:bg-soft transition-colors">
-                                            <TableCell className="max-w-xs px-4 py-3 align-top">
+                                        <TableRow key={baris.id} className="group hover:bg-soft transition-colors">
+                                            <TableCell className="max-w-xs px-3 py-3 align-top">
                                                 <p className="text-xs font-bold text-ink">{baris.indikator.kode ?? '—'}</p>
                                                 <p className="mt-0.5 whitespace-normal break-words text-xs leading-relaxed text-muted">{baris.indikator.nama ?? '—'}</p>
                                             </TableCell>
-                                            <TableCell className="px-4 py-3 align-top text-xs text-ink">{baris.unit.nama ?? '—'}</TableCell>
-                                            <TableCell className="whitespace-nowrap px-4 py-3 align-top text-xs text-ink">{periode(baris)}</TableCell>
-                                            <TableCell className="whitespace-nowrap px-4 py-3 align-top text-xs text-ink">{versi(baris)}</TableCell>
-                                            <TableCell className="whitespace-nowrap px-4 py-3 text-right align-top font-semibold tabular-nums text-ink">{angka(baris, baris.nilai)}</TableCell>
-                                            <TableCell className="whitespace-nowrap px-4 py-3 text-right align-top tabular-nums text-ink">{angka(baris, baris.target)}</TableCell>
-                                            <TableCell className="whitespace-nowrap px-4 py-3 text-right align-top font-semibold tabular-nums text-ink">{capaian(baris)}</TableCell>
-                                            <TableCell className="whitespace-nowrap px-4 py-3 text-right align-top tabular-nums text-ink">{angka(baris, baris.target_pk)}</TableCell>
-                                            <TableCell className="whitespace-nowrap px-4 py-3 text-right align-top tabular-nums text-ink">
+                                            <TableCell className="px-3 py-3 align-top text-xs text-ink">{baris.unit.nama ?? '—'}</TableCell>
+                                            <TableCell className="px-3 py-3 align-top text-xs text-ink">{periode(baris)}</TableCell>
+                                            <TableCell className="px-3 py-3 align-top text-xs text-ink">{versi(baris)}</TableCell>
+                                            <TableCell className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums text-ink">
+                                                <span className="block font-semibold">{angka(baris, baris.nilai)}</span>
+                                                <span className="block text-xs font-normal">{capaian(baris)}</span>
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums text-ink">
+                                                <span className="block">{angka(baris, baris.target)}</span>
+                                                <span className="block text-xs font-normal">{angka(baris, baris.target_pk)}</span>
+                                            </TableCell>
+                                            <TableCell className="px-3 py-3 text-right align-top tabular-nums text-ink">
                                                 <NilaiSelisihPk selisih={baris.selisih_target_pk} desimal={baris.indikator.desimal_tampilan ?? 0} satuan={baris.indikator.satuan} />
                                             </TableCell>
-                                            <TableCell className="whitespace-nowrap px-4 py-3 text-right align-top">
+                                            <TableCell className="sticky right-0 z-10 whitespace-nowrap border-l border-border bg-surface px-3 py-3 text-right align-top group-hover:bg-soft">
                                                 {can.tetapkan && baris.can.tetapkan ? (
                                                     <Button type="button" size="sm" onClick={() => setDialog({ baris, mode: 'tetapkan' })} aria-label={`Tetapkan status capaian ${baris.indikator.kode ?? baris.indikator.nama ?? ''}`}>
                                                         <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />

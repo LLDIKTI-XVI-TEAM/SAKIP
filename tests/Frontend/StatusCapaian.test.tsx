@@ -174,6 +174,19 @@ describe('Halaman status capaian versi pengukuran', () => {
         });
     });
 
+    /** m2: textarea alasan memakai batas 1000 karakter yang sama dengan aturan server (`max:1000`). */
+    it('membatasi isian alasan pada 1000 karakter', async () => {
+        const user = userEvent.setup();
+        render(<StatusCapaian {...props()} />);
+
+        await user.click(tombolTetapkan()[0]);
+        const dialog = screen.getByRole('dialog', { name: 'Tetapkan status capaian' });
+        const alasan = within(dialog).getByLabelText('Alasan (opsional)') as HTMLTextAreaElement;
+
+        expect(alasan.maxLength).toBe(1000);
+        expect(alasan.getAttribute('maxlength')).toBe('1000');
+    });
+
     it('menampilkan penolakan token versi sebagai pesan konflik dan mengunci simpan', async () => {
         const user = userEvent.setup();
         const { rerender } = render(<StatusCapaian {...props()} />);

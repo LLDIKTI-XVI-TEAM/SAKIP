@@ -48,8 +48,8 @@ class StatusIndikatorDashboard
             $this->present->prepareSummary($headers);
         }
         $resmi = fn ($row): ?array => ($header = $headers->get($row->pengukuran_id ?? '')) && $header->status_alur === 'disahkan' ? $header->ratifiedVersion?->snapshot : null;
-        // Status capaian melekat pada versi resmi; dibaca sekali per halaman lewat scope `berlaku`, bukan per baris.
-        $statusCapaian = $this->statusBerlaku($headers->filter(fn (PengukuranKinerja $header) => $header->status_alur === 'disahkan')
+        // Status capaian melekat pada versi resmi; dibaca sekali per halaman lewat helper `berlaku`, bukan per baris.
+        $statusCapaian = StatusCapaian::berlakuPerVersi($headers->filter(fn (PengukuranKinerja $header) => $header->status_alur === 'disahkan')
             ->map(fn (PengukuranKinerja $header) => $header->ratifiedVersion?->id)->filter()->unique()->values()->all());
         $bekuDari = fn ($row): ?array => ($header = $headers->get($row->pengukuran_id ?? '')) && in_array($header->status_alur, PresentPengukuran::STATUS_BEKU, true)
             ? ($resmi($row) ?? $header->latestVersion?->snapshot) : null;
@@ -106,30 +106,6 @@ class StatusIndikatorDashboard
             'statusIndikator' => $periodeIni->pluck('baris')->values()->all(),
             'grafik' => $this->grafik($cells, $konteks['periodeDibuka']),
         ];
-    }
-
-    /**
-     * Status capaian berlaku per versi resmi dalam satu query halaman, memakai scope `berlaku` yang sama dengan daftar
-     * status capaian sehingga urutan "berlaku" (created_at, lalu id) tidak ditulis ulang di sini.
-     *
-     * @param  list<string>  $versiIds
-     * @return Collection<string, StatusCapaian>
-     */
-    private function statusBerlaku(array $versiIds): Collection
-    {
-        if ($versiIds === []) {
-            return collect();
-        }
-
-        $berlaku = collect();
-        foreach (StatusCapaian::query()->berlaku($versiIds)->get(['id', 'pengukuran_versi_id', 'status']) as $status) {
-            // Hasil sudah urut "berlaku"; kemunculan pertama tiap versi adalah baris yang berlaku.
-            if (! $berlaku->has($status->pengukuran_versi_id)) {
-                $berlaku->put($status->pengukuran_versi_id, $status);
-            }
-        }
-
-        return $berlaku;
     }
 
     /** @return array<string, int> hitungan status alur kewajiban; baris tanpa header dihitung "belum mengisi" */

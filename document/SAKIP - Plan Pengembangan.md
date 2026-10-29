@@ -578,7 +578,7 @@ Setiap task memiliki tiga bagian wajib:
 
 > **Q47/Q50 (13 Oktober 2026):** penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (Q47 §47.3 butir 4); pengukuran tersebut tidak masuk daftar "belum ditetapkan", dan permintaan penetapan langsung ditolak server. Tampilannya memuat realisasi, target PK, dan selisih terhadap target PK (Q47 §47.3 butir 1, §47.4 butir 3). Status capaian dan selisih memakai nilai target PK yang tersimpan (Q50 §50.2). Penyesuaian dikerjakan pada ISS-09.02.
 >
-> **Keputusan PM 28 Oktober 2026 (ISS-09.02):** `tidak_dapat_dihitung` pada periode bertarget juga tidak masuk daftar dan ditolak server (Q64 §64.1 butir 5). Status diikatkan ke versi resmi (`pengukuran_versi_id`), bukan hanya header pengukuran.
+> **Q78 §78.1 butir 2 dan 3 (ISS-09.02):** `tidak_dapat_dihitung` pada periode bertarget juga tidak masuk daftar dan ditolak server (Q64 §64.1 butir 5). Status diikatkan ke versi resmi (`pengukuran_versi_id`), bukan hanya header pengukuran.
 
 - **Scope:** halaman Inertia + komponen React bagi Perencanaan/Superadmin untuk menetapkan `status_capaian` (tercapai/belum_tercapai) pada **versi sah terakhir** pengukuran berstatus `disahkan` yang belum memiliki status capaian berlaku.
 - **Dependency:** 5.9, 1.11.

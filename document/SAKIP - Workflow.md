@@ -1770,7 +1770,7 @@ Koreksi data setelah penutupan tidak disebut backfill; gunakan flow buka-kembali
 
 ## 16. Alur Penetapan Status Capaian
 
-> **Q47, Q50 (13 Oktober 2026):** pada periode tanpa target, capaian persen dan status capaian tidak dihitung; tampilan memakai "Tanpa target periode" serta realisasi, target PK, dan selisih terhadap target PK (Q47 §47.3). Realisasi "belum dapat diukur" tampil dengan label tersebut dan tidak dihitung sebagai capaian 0 (Q47 §47.4 butir 3). Penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (Q47 §47.3 butir 4). Status capaian dan selisih memakai target PK yang disimpan bernilai penuh (Q50 §50.2 butir 2). Status implementasi: **sudah** (ISS-09.02; rujukan versi `pengukuran_versi_id`).
+> **Q47, Q50 (13 Oktober 2026):** pada periode tanpa target, capaian persen dan status capaian tidak dihitung; tampilan memakai "Tanpa target periode" serta realisasi, target PK, dan selisih terhadap target PK (Q47 §47.3). Realisasi "belum dapat diukur" tampil dengan label tersebut dan tidak dihitung sebagai capaian 0 (Q47 §47.4 butir 3). Penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (Q47 §47.3 butir 4). Status capaian dan selisih memakai target PK yang disimpan bernilai penuh (Q50 §50.2 butir 2). Status implementasi: **sudah** (ISS-09.02; Q78 §78.1 butir 1 dan 7).
 
 ```
 📋 Perencanaan / ⚙️ Superadmin

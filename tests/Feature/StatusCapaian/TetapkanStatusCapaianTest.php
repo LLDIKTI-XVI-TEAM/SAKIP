@@ -69,6 +69,12 @@ class TetapkanStatusCapaianTest extends TestCase
         $this->assertSame($this->actor->id, $baris->ditetapkan_oleh);
         $this->assertSame(1, DB::table('status_capaian')->count());
         $this->assertTrue(AuditLog::where('tindakan', 'status_capaian.tetapkan')->exists());
+
+        // m3: audit sukses tetap merujuk baris status capaian yang baru ditulis, bukan pengukuran induknya.
+        $log = AuditLog::where('tindakan', 'status_capaian.tetapkan')->sole();
+        $this->assertSame('status_capaian', $log->objek_tipe);
+        $this->assertSame($hasil->id, $log->objek_id);
+        $this->assertSame($hasil->id, DB::table('status_capaian')->value('id'));
     }
 
     /** @return array<string, array{string}> */
@@ -125,6 +131,12 @@ class TetapkanStatusCapaianTest extends TestCase
             'Penolakan harus berasal dari guard status alur header, bukan dari guard versi belum disahkan.',
         );
         $this->assertSame(1, DB::table('status_capaian')->count(), 'Penolakan tidak boleh menambah baris status capaian.');
+
+        // m3: penolakan merujuk pengukuran yang dituju, bukan UUID acak.
+        $log = AuditLog::where('tindakan', 'status_capaian.tetapkan_ditolak')->sole();
+        $this->assertSame('pengukuran', $log->objek_tipe);
+        $this->assertSame(strtolower($this->pengukuran->id), $log->objek_id);
+        $this->assertSame($this->pengukuran->id, $log->nilai_baru['pengukuran_id']);
     }
 
     public function test_status_versi_lama_tidak_berlaku_setelah_versi_koreksi_disahkan(): void
@@ -159,6 +171,11 @@ class TetapkanStatusCapaianTest extends TestCase
         $this->assertSame('tercapai', $revisi->nilai_lama['status']);
         $this->assertSame('belum_tercapai', $revisi->nilai_baru['status']);
         $this->assertSame($versi->id, $revisi->nilai_baru['pengukuran_versi_id']);
+
+        // m3: audit revisi tetap merujuk baris status capaian baru, bukan pengukuran induk.
+        $barisRevisi = DB::table('status_capaian')->where('status', 'belum_tercapai')->sole();
+        $this->assertSame('status_capaian', $revisi->objek_tipe);
+        $this->assertSame($barisRevisi->id, $revisi->objek_id);
     }
 
     public function test_urutan_berlaku_memakai_mikrodetik_created_at(): void
@@ -242,6 +259,8 @@ class TetapkanStatusCapaianTest extends TestCase
         $log = AuditLog::where('tindakan', 'status_capaian.tetapkan_ditolak')->first();
         $this->assertNotNull($log);
         $this->assertSame('konflik_versi', $log->nilai_baru['alasan_penolakan']);
+        $this->assertSame('pengukuran', $log->objek_tipe);
+        $this->assertSame(strtolower($this->pengukuran->id), $log->objek_id);
     }
 
     /**

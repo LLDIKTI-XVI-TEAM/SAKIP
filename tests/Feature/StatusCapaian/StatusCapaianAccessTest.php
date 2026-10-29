@@ -226,6 +226,84 @@ class StatusCapaianAccessTest extends TestCase
         $this->assertSame(0, DB::table('status_capaian')->count());
     }
 
+    /**
+     * m2: alasan adalah teks audit opsional, jadi panjangnya mengikuti kontrak `AuditReason`/`AlasanAudit` (1000),
+     * bukan teks bebas. 1001 karakter harus ditolak sebelum Action menyentuh basis data.
+     */
+    public function test_alasan_lebih_dari_seribu_karakter_ditolak_tanpa_menulis_baris(): void
+    {
+        $versi = $this->sahkan($this->pengukuran, ['nilai' => '80']);
+        $perencanaan = $this->userWithRole('perencanaan');
+
+        $this->actingAs($perencanaan)
+            ->post($this->urlStore($this->pengukuran->id), $this->payload($versi->id, [
+                'alasan' => str_repeat('a', 1001),
+            ]))
+            ->assertRedirect()
+            ->assertSessionHasErrors('alasan');
+
+        $this->assertSame(0, DB::table('status_capaian')->count());
+    }
+
+    public function test_alasan_tepat_seribu_karakter_diterima_dan_tercatat_utuh(): void
+    {
+        $versi = $this->sahkan($this->pengukuran, ['nilai' => '80']);
+        $perencanaan = $this->userWithRole('perencanaan');
+        $alasan = str_repeat('b', 1000);
+
+        $this->actingAs($perencanaan)
+            ->post($this->urlStore($this->pengukuran->id), $this->payload($versi->id, ['alasan' => $alasan]))
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, DB::table('status_capaian')->count());
+        $log = AuditLog::where('tindakan', 'status_capaian.tetapkan')->sole();
+        $this->assertSame($alasan, $log->alasan, 'Alasan tepat pada batas tidak boleh dipotong sebelum masuk audit.');
+    }
+
+    /** m2: karakter kontrol ilegal tidak boleh lolos ke jejak audit yang append-only. */
+    public function test_alasan_dengan_karakter_kontrol_ditolak(): void
+    {
+        $versi = $this->sahkan($this->pengukuran, ['nilai' => '80']);
+        $perencanaan = $this->userWithRole('perencanaan');
+
+        $this->actingAs($perencanaan)
+            ->post($this->urlStore($this->pengukuran->id), $this->payload($versi->id, [
+                'alasan' => "Alasan berisi \x01 karakter kontrol",
+            ]))
+            ->assertRedirect()
+            ->assertSessionHasErrors('alasan');
+
+        $this->assertSame(0, DB::table('status_capaian')->count());
+        $log = AuditLog::where('tindakan', 'status_capaian.tetapkan')->first();
+        $this->assertNull($log, 'Penolakan input tidak boleh menghasilkan audit penetapan sukses.');
+    }
+
+    /**
+     * m2: alasan tetap opsional (Q78 §78.1 butir 4). Tanpa alasan, penetapan sukses tetapi audit wajib memakai
+     * alasan baku server yang deskriptif, bukan string kosong dan bukan fallback generik `AuditLogger`.
+     */
+    public function test_post_tanpa_alasan_sukses_dengan_alasan_baku_server(): void
+    {
+        $versi = $this->sahkan($this->pengukuran, ['nilai' => '80']);
+        $perencanaan = $this->userWithRole('perencanaan');
+
+        $this->actingAs($perencanaan)
+            ->post($this->urlStore($this->pengukuran->id), $this->payload($versi->id))
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, DB::table('status_capaian')->count());
+        $log = AuditLog::where('tindakan', 'status_capaian.tetapkan')->sole();
+        $this->assertIsString($log->alasan);
+        $this->assertNotSame('', trim((string) $log->alasan), 'Alasan audit tidak boleh kosong.');
+        $this->assertStringContainsStringIgnoringCase(
+            'menetapkan status capaian',
+            (string) $log->alasan,
+            'Alasan baku harus menjelaskan tindakan penetapan, bukan fallback generik AuditLogger.',
+        );
+    }
+
     public function test_post_untuk_header_belum_disahkan_ditolak(): void
     {
         $versi = $this->ajukan($this->pengukuran, ['nilai' => '80'], 'draft');

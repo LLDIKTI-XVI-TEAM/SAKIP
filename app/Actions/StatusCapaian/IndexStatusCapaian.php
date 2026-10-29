@@ -14,7 +14,6 @@ use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -61,10 +60,13 @@ class IndexStatusCapaian
                     ->whereRaw("COALESCE(versi_sah.snapshot->>'tanpa_target_periode', 'false') <> 'true'")
                     ->whereRaw("COALESCE(versi_sah.snapshot->>'status_perhitungan', '') NOT IN ('belum_dapat_diukur', 'tidak_dapat_dihitung')");
             }))
+            ->leftJoin('periode as urut_periode', 'urut_periode.id', '=', 'pengukuran_kinerjas.periode_id')
             ->with($this->relasi())
+            // Urutan periode memakai `periode.urutan` (urutan bisnis yang dibaca pengguna), bukan UUID `periode_id`
+            // yang urutannya acak. Join memakai kunci primer periode sehingga tidak menggandakan baris pengukuran.
+            ->orderBy('urut_periode.urutan')
             ->orderByDesc('pengukuran_kinerjas.tahun')
             ->orderBy('ind.kode')
-            ->orderBy('pengukuran_kinerjas.periode_id')
             ->orderBy('pengukuran_kinerjas.id')
             ->paginate(20)
             ->withQueryString();
@@ -85,8 +87,10 @@ class IndexStatusCapaian
         $rows = $kandidat->getCollection()->concat($sudahDitetapkan->getCollection());
         $units = $rows->map(fn (PengukuranKinerja $row) => $row->targetUnitId())->unique()->values()->all();
         $izin = $units === [] ? [] : $this->resolver->decideManyForUnits($actor, [PermissionCodes::STATUS_CAPAIAN_UPDATE], $units);
-        $statusPerVersi = $this->statusBerlaku($sudahDitetapkan->getCollection()
-            ->map(fn (PengukuranKinerja $p) => $p->ratifiedVersion?->id)->filter()->unique()->values()->all());
+        $statusPerVersi = StatusCapaian::berlakuPerVersi($sudahDitetapkan->getCollection()
+            ->map(fn (PengukuranKinerja $p) => $p->ratifiedVersion?->id)->filter()->unique()->values()->all())
+            // Relasi penetap dan nomor versi dimuat sekali untuk seluruh halaman, bukan per baris.
+            ->load(['ditetapkanOleh:id,nama', 'versi:id,nomor']);
 
         return [
             'kandidat' => $kandidat->getCollection()->map(fn (PengukuranKinerja $row) => $this->baris($row, $izin))->all(),
@@ -178,30 +182,6 @@ class IndexStatusCapaian
             ->orderByDesc('sc.created_at')
             ->orderByDesc('sc.id')
             ->limit(1);
-    }
-
-    /**
-     * Status berlaku per versi untuk satu halaman dalam satu query, memakai scope `berlaku` yang sama dengan konsumen
-     * lain sehingga definisi "berlaku" tidak ditulis ulang di sini.
-     *
-     * @param  list<string>  $versiIds
-     * @return Collection<string, StatusCapaian>
-     */
-    private function statusBerlaku(array $versiIds): Collection
-    {
-        if ($versiIds === []) {
-            return collect();
-        }
-
-        $berlaku = collect();
-        foreach (StatusCapaian::query()->berlaku($versiIds)->with(['ditetapkanOleh:id,nama', 'versi:id,nomor'])->get() as $status) {
-            // Hasil sudah urut "berlaku"; kemunculan pertama tiap versi adalah baris yang berlaku.
-            if (! $berlaku->has($status->pengukuran_versi_id)) {
-                $berlaku->put($status->pengukuran_versi_id, $status);
-            }
-        }
-
-        return $berlaku;
     }
 
     /**

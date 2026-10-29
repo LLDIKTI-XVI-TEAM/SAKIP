@@ -10,6 +10,7 @@ use App\Policies\PengukuranKinerjaPolicy;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\ResolveLockedActor;
+use App\Support\AlasanAudit;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Carbon\CarbonImmutable;
@@ -104,7 +105,9 @@ class TetapkanStatusCapaian
                     'created_at' => CarbonImmutable::now(),
                 ]);
 
-                $alasan = trim((string) ($data['alasan'] ?? ''));
+                // Alasan opsional (Q78 §78.1 butir 4), tetapi pemanggil non-HTTP juga harus mendapat sanitasi dan batas
+                // panjang yang sama dengan FormRequest; alasan baku server dipakai bila kosong.
+                $alasan = AlasanAudit::sanitasi($data['alasan'] ?? null, $sebelum ? self::ALASAN_REVISI : self::ALASAN_TETAP);
                 $this->audit->catat(
                     actor: $aktor,
                     tindakan: $sebelum ? 'status_capaian.revisi' : 'status_capaian.tetapkan',
@@ -112,7 +115,7 @@ class TetapkanStatusCapaian
                     objekId: $baru->id,
                     nilaiLama: $sebelum ? [...$sebelum->only(['status', 'pengukuran_versi_id', 'sumber']), 'nomor' => $versi->nomor] : null,
                     nilaiBaru: [...$baru->only(['status', 'pengukuran_versi_id', 'sumber']), 'nomor' => $versi->nomor],
-                    alasan: $alasan !== '' ? $alasan : ($sebelum ? self::ALASAN_REVISI : self::ALASAN_TETAP),
+                    alasan: $alasan,
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
@@ -135,8 +138,10 @@ class TetapkanStatusCapaian
             $this->audit->catat(
                 actor: $actor,
                 tindakan: 'status_capaian.tetapkan_ditolak',
-                objekTipe: 'status_capaian',
-                objekId: (string) Str::uuid(),
+                // Penolakan merujuk pengukuran yang dituju, bukan UUID acak; `pengukuran_id` di nilai_baru tetap
+                // dikirim agar penelusuran lama dan filter UI tidak berubah.
+                objekTipe: 'pengukuran',
+                objekId: strtolower($pengukuranId),
                 nilaiBaru: ['alasan_penolakan' => $klasifikasi, 'pengukuran_id' => $pengukuranId,
                     'pengukuran_versi_id' => Str::isUuid((string) $versiId) ? $versiId : null,
                     'status' => isset($data['status']) ? (string) $data['status'] : null,

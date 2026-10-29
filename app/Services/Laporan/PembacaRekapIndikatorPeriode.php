@@ -105,7 +105,7 @@ class PembacaRekapIndikatorPeriode
     private function proyeksikan(Collection $items, ?JadwalTahunan $jadwal, User $actor): array
     {
         $versions = KinerjaSnapshot::whereIn('id', $items->pluck('versi_id')->filter())->get()->keyBy('id');
-        $statusCapaian = $this->statusBerlaku($items->pluck('versi_id')->filter()->unique()->values()->all());
+        $statusCapaian = StatusCapaian::berlakuPerVersi($items->pluck('versi_id')->filter()->unique()->values()->all());
         $contexts = JadwalSnapshot::with(['unit:id,nama', 'komponen'])->whereIn('id', $items->pluck('snapshot_id')->merge($versions->pluck('jadwal_snapshot_id')))->get()->keyBy('id');
         $ids = $items->pluck('indikator_id')->unique()->all();
         $plans = RencanaAksiVersi::query()->join('rencana_aksi as ra', 'ra.id', '=', 'rencana_aksi_versi.rencana_aksi_id')
@@ -157,34 +157,6 @@ class PembacaRekapIndikatorPeriode
                 ->whereColumn('koreksi.jadwal_id', 's.jadwal_id')->whereColumn('koreksi.indikator_id', 's.indikator_id')->whereColumn('koreksi.nomor_versi', '>', 's.nomor_versi')->whereColumn('efektif.urutan', '<=', 'p.urutan'))
             ->select(['s.id as snapshot_id', 's.indikator_id', 'p.id as periode_id', 'p.nama as periode_nama', 'p.urutan as periode_urutan', 'resmi.id as versi_id'])
             ->selectRaw('COALESCE(rs.unit_id, s.unit_id) as unit_id');
-    }
-
-    /**
-     * Status capaian berlaku per versi resmi halaman ini dalam satu query, memakai scope `berlaku` yang sama dengan
-     * daftar status capaian sehingga definisi "berlaku" (created_at lalu id) tidak ditulis ulang di konsumen.
-     *
-     * Satu query tambahan untuk seluruh halaman/batch lebih murah daripada `leftJoin` ber-`NOT EXISTS` pada query
-     * utama: maksimal 200 versi per batch ekspor, dan index (pengukuran_versi_id, created_at DESC, id DESC) melayani
-     * `whereIn` ini tanpa menyentuh tabel lain.
-     *
-     * @param  list<string>  $versiIds
-     * @return Collection<string, StatusCapaian>
-     */
-    private function statusBerlaku(array $versiIds): Collection
-    {
-        if ($versiIds === []) {
-            return collect();
-        }
-
-        $berlaku = collect();
-        foreach (StatusCapaian::query()->berlaku($versiIds)->get(['id', 'pengukuran_versi_id', 'status', 'created_at']) as $status) {
-            // Hasil sudah urut "berlaku"; kemunculan pertama tiap versi adalah baris yang berlaku.
-            if (! $berlaku->has($status->pengukuran_versi_id)) {
-                $berlaku->put($status->pengukuran_versi_id, $status);
-            }
-        }
-
-        return $berlaku;
     }
 
     /**

@@ -3,6 +3,9 @@
 namespace Tests\Feature\StatusCapaian;
 
 use App\Actions\StatusCapaian\TetapkanStatusCapaian;
+use App\Models\JadwalSnapshot;
+use App\Models\PengukuranKinerja;
+use App\Models\Periode;
 use App\Models\Permission;
 use App\Models\StatusCapaian;
 use App\Models\User;
@@ -57,6 +60,25 @@ class IndexStatusCapaianTest extends TestCase
         $snapshot = DB::table('pengukuran_versi')->where('id', $versiId)->value('snapshot');
 
         return is_string($snapshot) ? (array) json_decode($snapshot, true) : (array) $snapshot;
+    }
+
+    /**
+     * Header pengukuran dengan id eksplisit agar urutan UUID dapat dibuat berlawanan dengan `periode.urutan`.
+     * `HasUuids` hanya mengisi kunci yang masih kosong, sehingga id eksplisit dipertahankan saat insert.
+     */
+    private function pengukuranBerid(JadwalSnapshot $snapshot, Periode $periode, string $id): PengukuranKinerja
+    {
+        $pengukuran = new PengukuranKinerja;
+        $pengukuran->forceFill([
+            'id' => $id,
+            'periode_id' => $periode->id,
+            ...$this->pengukuran->only(['indikator_id', 'tahun', 'sumber_nilai', 'progres_kegiatan',
+                'kendala_masalah', 'strategi_tindak_lanjut', 'created_by']),
+            'jadwal_snapshot_id' => $snapshot->id,
+        ]);
+        $pengukuran->save();
+
+        return $pengukuran;
     }
 
     private function tolak(string $unitId): void
@@ -236,6 +258,39 @@ class IndexStatusCapaianTest extends TestCase
             'Fixture user tanpa peran tidak boleh memiliki izin status capaian.',
         );
         $this->actingAs($tanpaIzin)->get('/verifikasi/status-capaian')->assertForbidden();
+    }
+
+    /**
+     * m5: daftar kandidat diurut `periode.urutan` (urutan bisnis), bukan UUID `periode_id`. Fixture sengaja
+     * membuat TW II dengan UUID lebih kecil agar urutan UUID kebetulan terbalik dari urutan periode.
+     */
+    public function test_kandidat_diurut_periode_urutan_bukan_uuid_periode(): void
+    {
+        $jadwalTw2 = $this->tambahPeriode(2, '2026-04-01', '2026-06-30');
+        $periodeTw2 = Periode::findOrFail($jadwalTw2->periode_id);
+
+        // TW I memakai header fixture (UUID acak uuid7), TW II diberi UUID minimum agar selalu lebih kecil.
+        $tw1 = $this->pengukuran;
+        $this->sahkan($tw1, ['nilai' => '80']);
+        $tw2 = $this->pengukuranBerid($this->context, $periodeTw2, '00000000-0000-7000-8000-000000000001');
+        $this->sahkan($tw2, ['nilai' => '70']);
+
+        $this->assertLessThan($tw1->id, $tw2->id, 'Prasyarat: urutan UUID harus terbalik dari urutan periode.');
+
+        $props = $this->props();
+
+        $this->assertSame(
+            [$tw1->id, $tw2->id],
+            array_column($props['kandidat'], 'id'),
+            'Urutan kandidat harus mengikuti periode.urutan, bukan UUID periode.',
+        );
+        $this->assertSame(
+            ['Triwulan I', 'Triwulan II'],
+            array_column(array_column($props['kandidat'], 'periode'), 'nama'),
+        );
+        // Join ke periode memakai kunci primer sehingga tidak menggandakan baris pengukuran.
+        $this->assertCount(2, $props['kandidat']);
+        $this->assertSame(2, $props['pagination']['total']);
     }
 
     /** P2: koleksi revisi dipaginasi dengan parameter `status_page` sendiri agar tidak berebut `page` kandidat. */
