@@ -4661,6 +4661,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > **Status implementasi — ISS-10.03, PR #198:** `GET /laporan/rekap/ekspor` memakai pembaca bersama dengan halaman, izin `laporan:read` + `laporan:ekspor`, deny unit baca/ekspor, dan ACL kegiatan. Workbook dua sheet memakai PhpSpreadsheet (ADR-0009); audit `laporan.ekspor` dicatat sesudah berkas selesai dan transaksi baca berakhir. Key historis hilang, termasuk sasaran tanpa fallback RA, memakai penanda sesuai [K4 butir 2](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/177#issuecomment-6438390296). Pelengkapan produser snapshot tetap tindak lanjut PM menurut K4 butir 3. Keluaran resmi tetap ISS-10.05; penerimaan format Q29 tetap ISS-10.04. Bukti verifikasi berada pada [PR #198](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/198).
 
+> **Acuan format (ISS-10.04):** UAT pembandingan ekspor ini memakai `document/SAKIP - Acuan Keluaran Excel.md` §2. Status pengesahan contoh dicatat pada dokumen tersebut.
+
 > **Q47, Q48 (13 Oktober 2026):** keluaran dokumen resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat melalui ISS-10.05 dengan permission `laporan:ekspor` yang sama dan sumber data yang sama dengan ekspor ini (Q48 §48.1 butir 6); ekspor rekap pada issue ini tetap berlaku. Penanda "Belum dapat diukur" dan "Tanpa target periode" pada ekspor mengikuti rekap ISS-10.02 dan tidak diubah menjadi 0 (Q47 §47.3–§47.4).
 
 **Terkait User Story:** `US-10.03`  
@@ -4731,6 +4733,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 > **Q48 (13 Oktober 2026):** contoh keluaran yang disahkan Perencanaan juga menjadi acuan format Rencana Aksi tahunan dan Laporan Kinerja Triwulan (Q48 §48.1 butir 5; ISS-10.05).
 
+> **Status implementasi — bagian 1, draf (29 Oktober 2026):** checklist acuan `document/SAKIP - Acuan Keluaran Excel.md` memuat informasi wajib ketiga keluaran (rekap, Rencana Aksi tahunan, dan Laporan Kinerja Triwulan) dari dokumen keputusan beserta padanannya di SAKIP, sesuai keputusan PM K3 (25 Oktober 2026) dan U1–U4 (29 Oktober 2026) yang tercatat pada dokumen tersebut. Ketiga keluaran masih berstatus "Draf — belum disahkan Perencanaan", sehingga format belum diterima secara final. Pengesahan contoh dan UAT pembandingan (AC-1, AC-2, AC-4) belum dijalankan.
+
 **Terkait User Story:** `US-10.04`  
 **Prioritas:** 🟠 P2  
 **Story Points:** 3  
@@ -4792,6 +4796,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-10.05 · [Feature] Keluaran Rencana Aksi Tahunan dan Laporan Kinerja Triwulan serta Unggah PDF Bertanda Tangan
+
+> **Acuan format (ISS-10.04):** susunan berkas, test, dan UAT keluaran ini memakai `document/SAKIP - Acuan Keluaran Excel.md` §3–§4. Status pengesahan contoh dicatat pada dokumen tersebut.
 
 **Terkait User Story:** `US-10.05`  
 **Prioritas:** Tahap 2 (Q46 §46.3: sebelum pelaporan TW IV 2026, awal Januari 2027)  
