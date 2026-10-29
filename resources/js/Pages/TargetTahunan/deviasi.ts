@@ -1,10 +1,12 @@
-/** Teks pembanding target Renstra (Q39 §39.2, Q65 §65.2); status deviasi selalu berasal dari server. */
+/** Teks pembanding target Renstra (Q39 §39.2, Q72 §72.1); status deviasi selalu berasal dari server. */
 // Tabel halaman PK memuat indikator dengan arah berbeda, jadi anjurannya menyebut kedua arah.
-export const ANJURAN_TARGET_RENSTRA = 'Anjuran: target PK minimal sama atau naik satu poin dari target Renstra; untuk indikator yang membaik bila nilainya turun, minimal sama atau turun satu poin. Anjuran ini panduan, bukan aturan sistem.';
+export const ANJURAN_TARGET_RENSTRA = 'Target PK tidak boleh di bawah target Renstra, atau di atasnya untuk indikator yang membaik bila nilainya turun; anjuran naik atau turun satu poin hanya panduan.';
 
-/** Anjuran untuk satu indikator, mengikuti arah yang sama dengan penilaian deviasi server (Q65 §65.2 butir 13). */
+/** Batas ditegakkan server, sedangkan "satu poin" tetap panduan; mengikuti arah penilaian deviasi server (Q72 §72.1 butir 7). */
 export function anjuranTargetRenstra(arah: string): string {
-    return `Anjuran: target PK minimal sama atau ${arah === 'turun_baik' ? 'turun' : 'naik'} satu poin dari target Renstra. Anjuran ini panduan, bukan aturan sistem.`;
+    return arah === 'turun_baik'
+        ? 'Target PK tidak boleh di atas target Renstra. Anjuran: turun satu poin; anjuran ini panduan.'
+        : 'Target PK tidak boleh di bawah target Renstra. Anjuran: naik satu poin; anjuran ini panduan.';
 }
 
 export function labelDeviasi(arah: string): string {
