@@ -81,12 +81,20 @@ const sudahDitetapkan = baris({
 });
 
 function props(overrides: Partial<StatusCapaianProps> = {}): StatusCapaianProps {
-    return {
+    const dasar: StatusCapaianProps = {
         kandidat: [baris()],
         sudah_ditetapkan: [],
         pagination: { current_page: 1, last_page: 1, total: 1, prev_page_url: null, next_page_url: null },
+        pagination_status: { current_page: 1, last_page: 1, total: 0, prev_page_url: null, next_page_url: null },
         can: { tetapkan: true },
-        ...overrides,
+    };
+    const gabungan = { ...dasar, ...overrides };
+
+    // Total paginasi revisi mengikuti fixture koleksi bila tidak diuji dengan nilai server eksplisit.
+    return {
+        ...gabungan,
+        pagination_status: overrides.pagination_status
+            ?? { ...dasar.pagination_status, total: gabungan.sudah_ditetapkan.length },
     };
 }
 
@@ -238,5 +246,34 @@ describe('Halaman status capaian versi pengukuran', () => {
         expect(barisBerlaku).toBeTruthy();
         expect(within(barisBerlaku as HTMLElement).getByText(/^Versi 2 · Verifikator Uji/)).toBeTruthy();
         expect(within(barisBerlaku as HTMLElement).queryByText(/^Versi 1 ·/)).toBeNull();
+    });
+
+    it('menampilkan paginasi revisi memakai total server dan tautan status_page', () => {
+        render(<StatusCapaian {...props({
+            sudah_ditetapkan: [sudahDitetapkan],
+            pagination_status: {
+                current_page: 1,
+                last_page: 2,
+                total: 25,
+                prev_page_url: null,
+                next_page_url: '/verifikasi/status-capaian?status_page=2',
+            },
+        })} />);
+
+        const nav = screen.getByRole('navigation', { name: 'Halaman status capaian yang sudah ditetapkan' });
+        expect(within(nav).getByText('Halaman 1 dari 2 · 25 baris')).toBeTruthy();
+        expect(within(nav).queryByText(/1 baris/)).toBeNull();
+
+        const berikutnya = within(nav).getByRole('link', { name: 'Berikutnya' });
+        expect(berikutnya.getAttribute('href')).toBe('/verifikasi/status-capaian?status_page=2');
+        expect(within(nav).queryByRole('link', { name: 'Sebelumnya' })).toBeNull();
+    });
+
+    it('menyembunyikan paginasi revisi saat koleksi hanya satu halaman', () => {
+        render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
+
+        expect(screen.getByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toBeTruthy();
+        expect(screen.queryByRole('navigation', { name: 'Halaman status capaian yang sudah ditetapkan' })).toBeNull();
+        expect(screen.queryByText(/Halaman 1 dari 1/)).toBeNull();
     });
 });

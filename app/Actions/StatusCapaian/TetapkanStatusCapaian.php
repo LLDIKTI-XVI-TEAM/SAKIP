@@ -116,6 +116,13 @@ class TetapkanStatusCapaian
                     dasarIzin: $decision->toAuditBasis(),
                 );
 
+                // Token konkurensi halaman adalah `pengukuran_kinerjas.versi`, jadi mutasi sukses wajib menaikkannya
+                // (pola `PengukuranMutationSteps::finish`). Tanpa ini dua pengguna dengan token sama-sama berhasil dan
+                // yang kedua diam-diam menimpa keputusan pertama. Increment berada di transaksi yang sama sehingga ikut
+                // batal bila audit gagal.
+                $p->versi++;
+                $p->save();
+
                 return $baru;
             });
         } catch (AuthorizationException|ValidationException $exception) {

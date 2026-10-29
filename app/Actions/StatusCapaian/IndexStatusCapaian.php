@@ -30,8 +30,8 @@ use Illuminate\Support\Facades\DB;
 class IndexStatusCapaian
 {
     /**
-     * Koleksi revisi dibatasi satu halaman terbaru. Pagination kedua akan berebut parameter `page` yang sama dengan
-     * daftar kandidat, sehingga batas sederhana lebih jujur daripada paginator yang tidak dapat dibuka ulang.
+     * Koleksi revisi ikut dipaginasi dengan nama halaman sendiri (`status_page`) agar tidak berebut parameter `page`
+     * milik daftar kandidat. Tanpa paginasi, pengukuran lama yang sudah ditetapkan tidak dapat dibuka lagi lewat UI.
      */
     private const BATAS_SUDAH_DITETAPKAN = 20;
 
@@ -79,18 +79,18 @@ class IndexStatusCapaian
             ->selectSub($this->statusTerakhirSql(), 'status_terakhir_pada')
             ->orderByDesc('status_terakhir_pada')
             ->orderByDesc('pengukuran_kinerjas.id')
-            ->limit(self::BATAS_SUDAH_DITETAPKAN)
-            ->get();
+            ->paginate(self::BATAS_SUDAH_DITETAPKAN, ['*'], 'status_page')
+            ->withQueryString();
 
-        $rows = $kandidat->getCollection()->concat($sudahDitetapkan);
+        $rows = $kandidat->getCollection()->concat($sudahDitetapkan->getCollection());
         $units = $rows->map(fn (PengukuranKinerja $row) => $row->targetUnitId())->unique()->values()->all();
         $izin = $units === [] ? [] : $this->resolver->decideManyForUnits($actor, [PermissionCodes::STATUS_CAPAIAN_UPDATE], $units);
-        $statusPerVersi = $this->statusBerlaku($sudahDitetapkan
+        $statusPerVersi = $this->statusBerlaku($sudahDitetapkan->getCollection()
             ->map(fn (PengukuranKinerja $p) => $p->ratifiedVersion?->id)->filter()->unique()->values()->all());
 
         return [
             'kandidat' => $kandidat->getCollection()->map(fn (PengukuranKinerja $row) => $this->baris($row, $izin))->all(),
-            'sudah_ditetapkan' => $sudahDitetapkan->map(function (PengukuranKinerja $row) use ($izin, $statusPerVersi): array {
+            'sudah_ditetapkan' => $sudahDitetapkan->getCollection()->map(function (PengukuranKinerja $row) use ($izin, $statusPerVersi): array {
                 $versiId = $row->ratifiedVersion?->id;
 
                 return $this->baris($row, $izin, $versiId === null ? null : $statusPerVersi->get($versiId));
@@ -98,6 +98,11 @@ class IndexStatusCapaian
             'pagination' => [
                 'current_page' => $kandidat->currentPage(), 'last_page' => $kandidat->lastPage(), 'total' => $kandidat->total(),
                 'prev_page_url' => $kandidat->previousPageUrl(), 'next_page_url' => $kandidat->nextPageUrl(),
+            ],
+            // Paginasi koleksi revisi memakai parameter `status_page` sendiri agar kedua daftar dapat dibuka bergantian.
+            'pagination_status' => [
+                'current_page' => $sudahDitetapkan->currentPage(), 'last_page' => $sudahDitetapkan->lastPage(), 'total' => $sudahDitetapkan->total(),
+                'prev_page_url' => $sudahDitetapkan->previousPageUrl(), 'next_page_url' => $sudahDitetapkan->nextPageUrl(),
             ],
             'can' => ['tetapkan' => $bolehMenetapkan],
         ];

@@ -244,6 +244,36 @@ class TetapkanStatusCapaianTest extends TestCase
         $this->assertSame('konflik_versi', $log->nilai_baru['alasan_penolakan']);
     }
 
+    /**
+     * P1: token konkurensi halaman adalah `pengukuran_kinerjas.versi`, sehingga penetapan sukses wajib menaikkannya.
+     * Dua penulis dengan token sama tidak boleh sama-sama berhasil; yang kedua harus ditolak 409 dan tercatat.
+     */
+    public function test_penetapan_sukses_menaikkan_token_dan_token_lama_ditolak_409(): void
+    {
+        $versi = $this->sahkan($this->pengukuran, ['nilai' => '80']);
+        $tokenAwal = $this->token();
+
+        $this->tetapkan($versi->id, 'tercapai', $tokenAwal);
+
+        $this->assertSame($tokenAwal + 1, $this->token(), 'Penetapan sukses harus menaikkan token versi header.');
+
+        $penolakan = $this->tolak(fn () => $this->tetapkan($versi->id, 'belum_tercapai', $tokenAwal));
+
+        $this->assertInstanceOf(ValidationException::class, $penolakan, 'Token lama setelah penetapan sukses harus ditolak.');
+        $this->assertArrayHasKey('versi', $penolakan->errors());
+        $this->assertSame(409, $penolakan->status);
+        $this->assertSame(
+            ['Data telah berubah. Muat ulang sebelum mengulangi tindakan.'],
+            $penolakan->errors()['versi'] ?? [],
+        );
+        $this->assertSame(1, DB::table('status_capaian')->count(), 'Token lama tidak boleh menimpa keputusan pertama.');
+        $this->assertSame('tercapai', StatusCapaian::berlaku($versi->id)->first()?->status);
+        $this->assertSame($tokenAwal + 1, $this->token(), 'Penolakan konflik tidak boleh mengubah token.');
+
+        $log = AuditLog::where('tindakan', 'status_capaian.tetapkan_ditolak')->sole();
+        $this->assertSame('konflik_versi', $log->nilai_baru['alasan_penolakan']);
+    }
+
     public function test_versi_milik_pengukuran_lain_ditolak(): void
     {
         $this->sahkan($this->pengukuran, ['nilai' => '80']);

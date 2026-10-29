@@ -233,7 +233,7 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
     );
 }
 
-export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, can }: StatusCapaianProps) {
+export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, pagination_status, can }: StatusCapaianProps) {
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const labelUnit = useLabelUnit();
@@ -394,7 +394,7 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                                 Status berlaku pada versi sah terakhir. Revisi menulis status baru tanpa menghapus riwayat.
                             </p>
                         </div>
-                        <Badge variant="muted" size="sm">{sudah_ditetapkan.length} pengukuran</Badge>
+                        <Badge variant="muted" size="sm">{pagination_status.total} pengukuran</Badge>
                     </div>
 
                     {sudah_ditetapkan.length === 0 ? (
@@ -471,6 +471,18 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                                 </li>
                             ))}
                         </ul>
+                    )}
+
+                    {pagination_status.last_page > 1 && (
+                        <nav aria-label="Halaman status capaian yang sudah ditetapkan" className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
+                            {pagination_status.prev_page_url
+                                ? <Link href={pagination_status.prev_page_url} preserveScroll className={tautanPaginasi}>Sebelumnya</Link>
+                                : <span aria-hidden="true" />}
+                            <p className="text-xs text-muted">Halaman {pagination_status.current_page} dari {pagination_status.last_page} · {pagination_status.total} baris</p>
+                            {pagination_status.next_page_url
+                                ? <Link href={pagination_status.next_page_url} preserveScroll className={tautanPaginasi}>Berikutnya</Link>
+                                : <span aria-hidden="true" />}
+                        </nav>
                     )}
                 </Card>
             </div>

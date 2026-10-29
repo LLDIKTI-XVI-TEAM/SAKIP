@@ -238,6 +238,29 @@ class IndexStatusCapaianTest extends TestCase
         $this->actingAs($tanpaIzin)->get('/verifikasi/status-capaian')->assertForbidden();
     }
 
+    /** P2: koleksi revisi dipaginasi dengan parameter `status_page` sendiri agar tidak berebut `page` kandidat. */
+    public function test_pagination_status_memakai_parameter_halaman_terpisah(): void
+    {
+        $versi = $this->sahkan($this->pengukuran, ['nilai' => '80']);
+        $this->tetapkan($this->pengukuran->id, $versi->id, 'tercapai');
+
+        $props = $this->props();
+
+        $this->assertSame([
+            'current_page' => 1, 'last_page' => 1, 'total' => 1, 'prev_page_url' => null, 'next_page_url' => null,
+        ], $props['pagination_status'], 'Props paginasi revisi harus berbentuk sama dengan paginasi kandidat.');
+        $this->assertSame(0, $props['pagination']['total'], 'Pagination kandidat tidak boleh ikut menghitung koleksi revisi.');
+
+        $halamanRevisi = $this->actingAs($this->actor)->get('/verifikasi/status-capaian?status_page=2')->assertOk()->viewData('page')['props'];
+        $this->assertSame(2, $halamanRevisi['pagination_status']['current_page']);
+        $this->assertSame([], $halamanRevisi['sudah_ditetapkan'], 'Halaman kedua koleksi revisi kosong bila hanya ada satu baris.');
+        $this->assertSame(1, $halamanRevisi['pagination']['current_page'], 'Halaman kandidat tidak boleh ikut bergeser.');
+
+        $halamanKandidat = $this->actingAs($this->actor)->get('/verifikasi/status-capaian?page=2')->assertOk()->viewData('page')['props'];
+        $this->assertSame(2, $halamanKandidat['pagination']['current_page']);
+        $this->assertSame(1, $halamanKandidat['pagination_status']['current_page'], 'Halaman revisi tidak boleh ikut bergeser.');
+    }
+
     public function test_angka_diambil_dari_snapshot_beku_bukan_rencana_aksi_hidup(): void
     {
         $versi = $this->sahkan($this->pengukuran, ['nilai' => '80', 'target' => '100', 'target_pk' => '90']);

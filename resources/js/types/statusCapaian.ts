@@ -73,6 +73,8 @@ export interface StatusCapaianProps {
     /** Pengukuran disahkan yang versi sah terakhirnya sudah memiliki status berlaku (pintu masuk revisi). */
     sudah_ditetapkan: BarisStatusCapaian[];
     pagination: PaginationStatusCapaian;
+    /** Paginasi terpisah untuk koleksi revisi; parameter halamannya `status_page`. */
+    pagination_status: PaginationStatusCapaian;
     can: { tetapkan: boolean };
 }
 
