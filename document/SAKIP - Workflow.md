@@ -673,7 +673,7 @@ sequenceDiagram
 
 **Gerbang keempat tidak memacetkan alur:** karena lampiran dokumen PK boleh dipenuhi lewat mode file/tautan/teks (§3.3, §10) dan unggahan file selalu aktif (Q44), gerbang 4 tidak pernah menjadi penghalang keras yang tidak dapat diatasi. Ketentuan semula — bila unggahan file dimatikan pada setelan aplikasi dan belum ada lampiran mode lain, sistem menandai persyaratan `tidak_dapat_dipenuhi` dan tetap meloloskan gerbang secara administratif (§10.5) — digantikan Q44 karena saklar unggahan dihapus; penanda yang sudah tercatat tetap menjadi histori.
 
-**Sifat idempoten dan imutabilitas snapshot:** logika langkah 7–8 digunakan saat aktivasi pertama, dengan replay aktivasi idempoten. Refinement ISS-14.02 yang disetujui pengguna 28 Oktober 2026 menetapkan buka-kembali tanpa pembentukan snapshot otomatis; indikator baru memakai ISS-03.04 dengan periode mulai eksplisit (§13). Baris snapshot yang **sudah terbit** bersifat beku dan tidak dapat diubah lagi, termasuk baris `jadwal_snapshot_komponen` anaknya, baik sudah maupun belum dirujuk (Q35 §35.1). Koreksi konteks selalu dibuat sebagai versi snapshot baru yang teraudit; versi lama tetap utuh. Persetujuan revisi PK yang mengubah target juga menerbitkan versi snapshot baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I; revisi yang hanya mengganti dokumen tidak menerbitkan versi snapshot (Q40, §3.3). Tidak ada restatement data historis — perubahan definisi komponen di tengah tahun (§6) tidak pernah mengubah makna data historis yang sudah dibekukan.
+**Sifat idempoten dan imutabilitas snapshot:** logika langkah 7–8 digunakan saat aktivasi pertama, dengan replay aktivasi idempoten. Q77 (keputusan PM 29 Oktober 2026, ISS-14.02) menetapkan buka-kembali tanpa pembentukan snapshot otomatis; indikator baru memakai ISS-03.04 dengan periode mulai eksplisit (§13). Baris snapshot yang **sudah terbit** bersifat beku dan tidak dapat diubah lagi, termasuk baris `jadwal_snapshot_komponen` anaknya, baik sudah maupun belum dirujuk (Q35 §35.1). Koreksi konteks selalu dibuat sebagai versi snapshot baru yang teraudit; versi lama tetap utuh. Persetujuan revisi PK yang mengubah target juga menerbitkan versi snapshot baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I; revisi yang hanya mengganti dokumen tidak menerbitkan versi snapshot (Q40, §3.3). Tidak ada restatement data historis — perubahan definisi komponen di tengah tahun (§6) tidak pernah mengubah makna data historis yang sudah dibekukan.
 
 ---
 
@@ -1515,7 +1515,7 @@ stateDiagram-v2
 
 ## 13. Alur Buka-Kembali
 
-> **Refinement ISS-14.02 (disetujui pengguna 28 Oktober 2026):** kontrak sesi dan snapshot di bawah menggantikan ketentuan lama penerbitan snapshot otomatis saat buka-kembali. Ini bukan konfirmasi tertulis Tim Perencanaan atas keputusan baseline yang masih menunggu.
+> **Q77 — Sesi Koreksi Jadwal Tahunan (keputusan PM 29 Oktober 2026, ISS-14.02):** kontrak sesi dan snapshot di bawah menggantikan ketentuan lama penerbitan snapshot otomatis saat buka-kembali. Ini bukan konfirmasi tertulis Tim Perencanaan atas keputusan baseline yang masih menunggu.
 
 Koreksi data rencana aksi/pengukuran/jadwal disediakan lewat tiga permission berbeda, masing-masing untuk situasi yang berbeda:
 

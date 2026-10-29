@@ -572,7 +572,7 @@ Saat aktivasi pertama jadwal (aksi `jadwal:aktivasi`), sistem secara otomatis (d
 
 Untuk indikator bertipe `tipe_perhitungan` selain `manual`, sistem juga membuat baris anak **`jadwal_snapshot_komponen`** (`jadwal_snapshot_id`, `kode`, `label`, `peran`, `bobot`, `urutan`) yang membekukan definisi komponen indikator (§17.9) pada saat aktivasi, sehingga perubahan definisi komponen di tengah tahun tidak mengubah makna data historis yang sudah dirujuk pengukuran.
 
-> **Refinement ISS-14.02 (disetujui pengguna 28 Oktober 2026):** buka-kembali tidak membentuk snapshot baru maupun mengubah snapshot lama. Penambahan indikator pada jadwal aktif memakai ISS-03.04 dengan periode mulai eksplisit. Ketentuan ini menggantikan penyebutan lama pembentukan snapshot otomatis saat buka-kembali.
+> **Q77 — Sesi Koreksi Jadwal Tahunan (keputusan PM 29 Oktober 2026, ISS-14.02):** buka-kembali tidak membentuk snapshot baru maupun mengubah snapshot lama. Penambahan indikator pada jadwal aktif memakai ISS-03.04 dengan periode mulai eksplisit. Ketentuan ini menggantikan penyebutan lama pembentukan snapshot otomatis saat buka-kembali.
 
 Aturan pembentukan snapshot:
 

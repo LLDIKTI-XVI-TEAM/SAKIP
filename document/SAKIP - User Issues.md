@@ -6280,7 +6280,7 @@ Perubahan per request (tanpa nomor baris kode):
 
 ### ISS-14.02 · [Feature] Pembukaan Kembali Jadwal untuk Sesi Koreksi Perencanaan
 
-> **Status implementasi (28 Oktober 2026):** implementasi dan verifikasi lokal sesi koreksi tersedia: PostgreSQL disposable, 27 test khusus sesi/konkurensi (223 assertion, tanpa kegagalan; warning environment), 47 test frontend, Pint, PHPStan level 3, typecheck/lint/build, dan smoke browser buka/tutup ulang pada desktop 1280×720 serta mobile 390×844. Kontrak mengikuti addendum refinement ISS-14.02 di Keputusan Penyelarasan. Checkbox menunjukkan bukti teknis, bukan penerimaan UAT, merge, deployment, atau migrasi database aplikasi. UAT SSO Tim Perencanaan tetap belum dilakukan.
+> **Status implementasi (28 Oktober 2026):** implementasi dan verifikasi lokal sesi koreksi tersedia: PostgreSQL disposable, 27 test khusus sesi/konkurensi (223 assertion, tanpa kegagalan; warning environment), 47 test frontend, Pint, PHPStan level 3, typecheck/lint/build, dan smoke browser buka/tutup ulang pada desktop 1280×720 serta mobile 390×844. Rujukan kontrak diselaraskan ke Q77 di Keputusan Penyelarasan sesuai keputusan PM 29 Oktober 2026 (review PR #199); status implementasi dan checkbox tidak berubah. Checkbox menunjukkan bukti teknis, bukan penerimaan UAT, merge, deployment, atau migrasi database aplikasi. UAT SSO Tim Perencanaan tetap belum dilakukan.
 
 > **Q41 (13 Oktober 2026):** dalam sesi koreksi setelah penutupan, koreksi Rencana Aksi dilakukan Perencanaan; PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi melalui ISS-14.03 (Q41 §41.2 butir 6, Q19). Pembukaan tahun tetap tidak membuka hak PIC secara otomatis (AC-4).
 
