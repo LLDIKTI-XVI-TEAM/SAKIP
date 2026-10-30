@@ -683,7 +683,7 @@ kegiatan:update
 
 `rencana_aksi:read` dan `kegiatan:read` adalah global; detailnya per unit dibatasi unit berizin, yaitu seluruh unit bagi allow dari peran Superadmin, Perencanaan, atau Pimpinan dan unit dengan grant unit aktif bagi pengguna lain, tanpa grant baca per unit (Q54 §54.1). Tambahkan permission global `delegasi:update` sebagai gate pengelolaan Grant Unit. Permission tidak dikenal/tidak aktif harus fail closed.
 
-**Perubahan katalog dan preset Q45, Q48, dan Q51 (13 Oktober 2026; status implementasi: preset Pimpinan `rekomendasi:tetapkan` sudah melalui ISS-09.01, `laporan:unggah` belum):** permission global baru **`laporan:unggah`** (preset Perencanaan dan Superadmin) untuk mengunggah arsip PDF bertanda tangan pada induk `berkas` `jadwal_tahunan`/`jadwal_periode` (§2.30); unduhan arsip mengikuti `laporan:ekspor`. `laporan:unggah` **tidak** bertanda sensitif (`sensitif = false`) karena unggahan bersifat append-only dan tidak mengubah data; unggahan tetap tercatat di `audit_log` (Q48 §48.2 butir 2 dan 4). Preset Pimpinan memperoleh `rekomendasi:tetapkan` di samping Perencanaan, tanpa permission baru untuk persetujuan rekomendasi (Q45 §45.2, Q51 §51.2; §2.31).
+**Perubahan katalog dan preset Q45, Q48, dan Q51 (13 Oktober 2026; status implementasi: preset Pimpinan `rekomendasi:tetapkan` sudah melalui ISS-09.01, `laporan:unggah` tersedia melalui PR #208):** permission global baru **`laporan:unggah`** (preset Perencanaan dan Superadmin) untuk mengunggah arsip PDF bertanda tangan pada induk `berkas` `jadwal_tahunan`/`jadwal_periode` (§2.30); unduhan arsip mengikuti `laporan:ekspor`. `laporan:unggah` **tidak** bertanda sensitif (`sensitif = false`) karena unggahan bersifat append-only dan tidak mengubah data; unggahan tetap tercatat di `audit_log` (Q48 §48.2 butir 2 dan 4). Preset Pimpinan memperoleh `rekomendasi:tetapkan` di samping Perencanaan, tanpa permission baru untuk persetujuan rekomendasi (Q45 §45.2, Q51 §51.2; §2.31).
 
 ### 2.4 `roles`
 
@@ -1514,16 +1514,17 @@ Wadah bukti dukung, polimorfik terhadap **enam** jenis induk: `rencana_aksi`, `p
 `kegiatan`, `renstra`, `renstra_pk`, dan `regulasi`. Mendukung tiga mode pengiriman bukti —
 file, tautan, teks — sesuai mode yang diizinkan pada `jenis_berkas` terkait (§2.29) untuk
 tiga induk pertama; untuk `renstra`/`renstra_pk`/`regulasi`, mode bebas dipilih pengunggah
-tanpa persyaratan bergerbang dari `jenis_berkas`. Q40, Q42, dan Q48 menambah **empat induk
-rancangan** (belum diimplementasikan): `jenis_berkas` (contoh berkas, Q42), `jadwal_tahunan`
-(arsip Rencana Aksi tahunan, Q48), `jadwal_periode` (arsip Laporan Kinerja Triwulan, Q48), dan
-`renstra_pk_versi` (lampiran dokumen PK per versi, Q40; tahap 3).
+tanpa persyaratan bergerbang dari `jenis_berkas`. Q42 menambah induk `jenis_berkas`
+(contoh berkas, diterapkan ISS-06.08). Q48 menambah `jadwal_tahunan` (arsip Rencana Aksi
+tahunan) dan `jadwal_periode` (arsip Laporan Kinerja Triwulan), diterapkan pada slice arsip
+ISS-10.05 ([PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208)). Induk
+`renstra_pk_versi` (lampiran dokumen PK per versi, Q40; tahap 3) masih berupa rancangan.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
 | `id` | uuid | PK | |
-| `jenis_berkas_id` | uuid | FK → jenis_berkas.id, **nullable** | **-- (kolom tersedia, nullable secara permanen)**. `null` = lampiran bebas di luar daftar persyaratan bergerbang, boleh memakai mode apa pun. Selalu `null` untuk `berkasable_type = renstra`/`renstra_pk`/`regulasi`/`jenis_berkas` dan ketiga induk rancangan, karena induk-induk ini tidak memiliki katalog persyaratan bergerbang |
-| `berkasable_type` | varchar | not null | Tujuh nilai: `rencana_aksi` / `pengukuran` / `kegiatan` / `renstra` / `renstra_pk` / `regulasi` / `jenis_berkas` (Q42, diterapkan ISS-06.08); ditambah tiga nilai rancangan: `jadwal_tahunan` / `jadwal_periode` (Q48) / `renstra_pk_versi` (Q40) |
+| `jenis_berkas_id` | uuid | FK → jenis_berkas.id, **nullable** | **-- (kolom tersedia, nullable secara permanen)**. `null` = lampiran bebas di luar daftar persyaratan bergerbang; mode mengikuti kontrak induknya. Selalu `null` untuk `berkasable_type = renstra`/`renstra_pk`/`regulasi`/`jenis_berkas`/`jadwal_tahunan`/`jadwal_periode` serta rancangan `renstra_pk_versi`, karena induk-induk ini tidak memiliki katalog persyaratan bergerbang |
+| `berkasable_type` | varchar | not null | Sembilan nilai: `rencana_aksi` / `pengukuran` / `kegiatan` / `renstra` / `renstra_pk` / `regulasi` / `jenis_berkas` (Q42, ISS-06.08) / `jadwal_tahunan` / `jadwal_periode` (Q48, slice arsip ISS-10.05, PR #208); `renstra_pk_versi` (Q40) masih rancangan |
 | `berkasable_id` | uuid | not null | |
 | `menggantikan_id` | uuid | FK → berkas.id, nullable | Berkas lama yang digantikan baris ini pada koreksi append-only (Q25); berkas lama tetap utuh. Kolom sudah ada di aplikasi |
 | `alasan_koreksi` | text | nullable | Alasan atau keterangan penggantian, diisi pada baris pengganti. Kolom sudah ada di aplikasi |
@@ -1546,11 +1547,11 @@ lama (`rencana_aksi`, `pengukuran`, `kegiatan`) tetap tunduk pada katalog persya
 `jenis_berkas` dan gerbang kelengkapannya; tiga induk baru (`renstra`, `renstra_pk`,
 `regulasi`) tidak memiliki katalog persyaratan — lampirannya selalu bersifat bebas
 (`jenis_berkas_id = null`), dipakai untuk melampirkan dokumen dasar (naskah Renstra, dokumen
-Perjanjian Kinerja, salinan produk hukum) dalam mode apa pun. Keempat induk rancangan juga
+Perjanjian Kinerja, salinan produk hukum) dalam mode apa pun. Keempat induk tambahan juga
 tidak memiliki katalog persyaratan; aturannya dijabarkan pada paragraf arsip dan contoh
 berkas di bawah serta §2.29 dan §2.36.
 
-**Banyak baris per persyaratan:** satu persyaratan (`jenis_berkas`) dapat dipenuhi oleh **lebih dari satu baris** `berkas` — mis. laporan sebagai file dan dokumentasi sebagai tautan pada persyaratan yang sama — terutama bila `semua_mode_wajib = true` pada persyaratan tersebut. Pola yang sama berlaku bagi lampiran bebas pada `renstra`/`renstra_pk`/`regulasi` dan induk rancangan — satu induk dapat memiliki banyak baris `berkas` tanpa batas jumlah, mis. Rencana Aksi tahunan awal dan perubahan pada satu `jadwal_tahunan` (Q48 §48.2 butir 1).
+**Banyak baris per persyaratan:** satu persyaratan (`jenis_berkas`) dapat dipenuhi oleh **lebih dari satu baris** `berkas` — mis. laporan sebagai file dan dokumentasi sebagai tautan pada persyaratan yang sama — terutama bila `semua_mode_wajib = true` pada persyaratan tersebut. Pola yang sama berlaku bagi lampiran bebas pada `renstra`/`renstra_pk`/`regulasi` dan induk tambahan — satu induk dapat memiliki banyak baris `berkas` tanpa batas jumlah, mis. Rencana Aksi tahunan awal dan perubahan pada satu `jadwal_tahunan` (Q48 §48.2 butir 1).
 
 **Validasi mode:** mode yang dipilih PIC **harus** termasuk salah satu mode yang diizinkan (`izinkan_file`/`izinkan_tautan`/`izinkan_teks`) pada `jenis_berkas` terkait; permintaan dengan mode di luar daftar **ditolak sistem**. Lampiran bebas (`jenis_berkas_id = null`, termasuk seluruh lampiran pada `renstra`/`renstra_pk`/`regulasi`) dikecualikan dari validasi ini dan boleh memakai mode apa pun.
 
@@ -1570,7 +1571,7 @@ Sebelum batas di atas tercapai, Perencanaan (izin global lewat peran) dan pengun
 
 **Penyimpanan mode `file`:** berkas mode file disimpan di disk VPS (`storage/app/berkas/...`) dan diakses lewat route ber-permission (streamed download) — **bukan** URL publik; penyimpanan tetap privat (Q44 §44.1 butir 4). Untuk induk `rencana_aksi`/`pengukuran`/`kegiatan`, jenis dan ukuran file divalidasi terhadap `jenis_berkas.format_diizinkan`/`ukuran_maks_kb`. Bila persyaratan mengosongkan format atau ukuran, dan untuk lampiran tanpa persyaratan (`renstra`/`renstra_pk`/`regulasi`, lampiran bebas kegiatan, serta induk rancangan), berlaku default batas teknis konfigurasi server: 10 MB dan `pdf,docx,xlsx,jpg,jpeg,png`; tidak ada berkas yang boleh melampaui batas atas 100 MB (Q44 §44.2 butir 1). Ketentuan lama yang mengambil default dari kunci grup `berkas` pada `pengaturan` digantikan Q44 (§2.22).
 
-**Arsip dokumen resmi (rancangan Q48 — belum diimplementasikan):** PDF bertanda tangan elektronik (mode `file`) yang diunggah kembali sebagai arsip resmi — Rencana Aksi tahunan pada induk `jadwal_tahunan` (boleh lebih dari satu berkas, mis. awal dan perubahan) dan Laporan Kinerja Triwulan pada induk `jadwal_periode`. Diunggah Perencanaan dengan `laporan:unggah` dan diunduh pemegang `laporan:ekspor`; PK tetap dilampirkan pada `renstra_pk` (per versi pada `renstra_pk_versi` setelah revisi berversi tersedia) dengan permission PK (Q48 §48.2 butir 1–2). Arsip append-only: tidak dihapus dan dikoreksi dengan berkas pengganti (Q48 §48.2 butir 3). Unggahan tidak mengubah data, status, maupun snapshot, tercatat di `audit_log`, dan tetap dapat dilakukan setelah jadwal tahunan `ditutup` karena penutupan hanya menghentikan mutasi data kinerja (Q48 §48.2 butir 4–5). Keterangan unggahan yang bukan pengganti (mis. "Rencana Aksi perubahan", atau lampiran tambahan PK karena perubahan anggaran, Q50 §50.7) disimpan pada kolom rancangan `berkas.keterangan`; `alasan_koreksi` tetap khusus untuk berkas pengganti (Q48 §48.2 butir 6). Arsip pada induk `jadwal_tahunan`/`jadwal_periode` hanya menerima berkas PDF, dengan batas ukuran mengikuti batas teknis konfigurasi server (Q44 §44.2; Q48 §48.2 butir 7).
+**Arsip dokumen resmi (Q48 — slice arsip diimplementasikan melalui [PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208)):** PDF bertanda tangan elektronik (mode `file`) yang diunggah kembali sebagai arsip resmi — Rencana Aksi tahunan pada induk `jadwal_tahunan` (boleh lebih dari satu berkas, mis. awal dan perubahan) dan Laporan Kinerja Triwulan pada induk `jadwal_periode`. Diunggah Perencanaan dengan `laporan:unggah` dan diunduh pemegang `laporan:ekspor`; PK tetap dilampirkan pada `renstra_pk` (per versi pada `renstra_pk_versi` setelah revisi berversi tersedia) dengan permission PK (Q48 §48.2 butir 1–2). Arsip append-only: tidak dihapus dan dikoreksi dengan berkas pengganti (Q48 §48.2 butir 3). Unggahan tidak mengubah data, status, maupun snapshot, tercatat di `audit_log`, dan tetap dapat dilakukan setelah jadwal tahunan `ditutup` karena penutupan hanya menghentikan mutasi data kinerja (Q48 §48.2 butir 4–5). Keterangan unggahan yang bukan pengganti (mis. "Rencana Aksi perubahan", atau lampiran tambahan PK karena perubahan anggaran, Q50 §50.7) disimpan pada kolom `berkas.keterangan`; `alasan_koreksi` tetap khusus untuk berkas pengganti (Q48 §48.2 butir 6). Arsip pada induk `jadwal_tahunan`/`jadwal_periode` hanya menerima berkas PDF, dengan batas ukuran mengikuti batas teknis konfigurasi server (Q44 §44.2; Q48 §48.2 butir 7).
 
 **Lampiran bebas di level kegiatan:** lampiran pada `berkasable_type = kegiatan` tanpa `jenis_berkas_id` tersedia sebagai **lampiran bebas** (bukan persyaratan bergerbang) — bukti pelaksanaan kegiatan tambahan (daftar hadir, dokumentasi) menempel pada kegiatannya, boleh memakai mode apa pun, dan ikut tampil pada rekapitulasi indikator × periode.
 

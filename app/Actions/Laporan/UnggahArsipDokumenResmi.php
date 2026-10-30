@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Laporan\ArsipDokumenResmi;
+use App\Support\AlasanAudit;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,7 @@ class UnggahArsipDokumenResmi
                 if (! $locked['keputusan']->allowed) {
                     throw new AuthorizationException;
                 }
-                $data = Validator::make($data, ArsipDokumenResmi::rules())->validate();
+                $data = Validator::make($data, ArsipDokumenResmi::rules(), ArsipDokumenResmi::messages())->validate();
                 $induk = $this->arsip->induk($data['jadwal_id'], $data['periode_jadwal_id'] ?? null, true);
                 $lama = null;
                 if (! empty($data['menggantikan_id'])) {
@@ -55,7 +56,8 @@ class UnggahArsipDokumenResmi
                         'alasan_koreksi' => $lama ? trim($data['alasan_koreksi']) : null])->save();
                     $this->audit->catat($actor, 'berkas.unggah', 'berkas', $berkas->id,
                         nilaiBaru: $berkas->only(['id', 'berkasable_type', 'berkasable_id', 'keterangan', 'menggantikan_id', 'alasan_koreksi', 'nama_asli', 'mime', 'ukuran_bytes']),
-                        alasan: $lama ? $data['alasan_koreksi'] : 'Mengunggah arsip dokumen resmi.');
+                        alasan: AlasanAudit::sanitasi($lama ? $data['alasan_koreksi'] : null, 'Mengunggah arsip dokumen resmi.'),
+                        dasarIzin: $locked['keputusan']->toAuditBasis());
                 } catch (Throwable $exception) {
                     // Hanya file baru yang belum berhasil dicatat yang dikompensasi.
                     Storage::disk('local')->delete($path);

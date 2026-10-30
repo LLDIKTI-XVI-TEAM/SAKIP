@@ -9,6 +9,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Storage\UploadLimits;
+use App\Support\AuditReason;
 use Illuminate\Database\Eloquent\Builder;
 
 class ArsipDokumenResmi
@@ -68,7 +69,17 @@ class ArsipDokumenResmi
     {
         return ['jadwal_id' => ['required', 'uuid'], 'periode_jadwal_id' => ['nullable', 'uuid'],
             'file' => ['required', ...UploadLimits::fileRules(null, 'pdf')],
-            'keterangan' => ['nullable', 'string', 'max:1000'], 'menggantikan_id' => ['nullable', 'uuid'],
-            'alasan_koreksi' => ['required_with:menggantikan_id', 'nullable', 'string', 'max:1000']];
+            'keterangan' => ['nullable', 'string', 'max:1000', function (string $attribute, mixed $value, \Closure $fail) {
+                if (! is_string($value) || str_contains($value, "\0") || ! mb_check_encoding($value, 'UTF-8')) {
+                    $fail('Keterangan tidak boleh mengandung karakter byte NUL dan harus berupa teks UTF-8 yang valid.');
+                }
+            }], 'menggantikan_id' => ['nullable', 'uuid'],
+            'alasan_koreksi' => ['required_with:menggantikan_id', 'nullable', 'string', 'max:1000', AuditReason::validate(...)]];
+    }
+
+    /** @return array<string, string> */
+    public static function messages(): array
+    {
+        return ['alasan_koreksi.required_with' => 'Alasan penggantian wajib diisi.'];
     }
 }

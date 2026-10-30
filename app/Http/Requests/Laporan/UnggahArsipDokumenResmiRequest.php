@@ -20,6 +20,12 @@ class UnggahArsipDokumenResmiRequest extends FormRequest
         return ArsipDokumenResmi::rules();
     }
 
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ArsipDokumenResmi::messages();
+    }
+
     /** Penolakan request berada di luar transaksi mutasi sehingga audit tidak ikut rollback. */
     protected function failedValidation(Validator $validator)
     {

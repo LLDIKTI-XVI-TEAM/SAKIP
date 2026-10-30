@@ -96,7 +96,7 @@ export default function DokumenResmi({ filters, pilihan_jadwal, pilihan_periode,
         <Head title="Dokumen Resmi" />
         <div className="space-y-6 font-sans">
             <Card className="p-5">
-                <form onSubmit={terapkan} className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-busy={form.processing}>
+                <form onSubmit={terapkan} className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,2.3fr)_minmax(0,1.5fr)_minmax(0,0.8fr)_auto]" aria-busy={form.processing}>
                     <Select id="dokumen-jadwal" label="Tahun / jadwal" value={form.data.jadwal_id} error={form.errors.jadwal_id} disabled={form.processing || !pilihan_jadwal.length}
                         onChange={(event) => form.setData({ ...form.data, jadwal_id: event.target.value, periode_id: '' })}>
                         <option value="">Pilih jadwal</option>

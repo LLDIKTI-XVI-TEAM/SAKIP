@@ -4812,7 +4812,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-10.05 · [Feature] Keluaran Rencana Aksi Tahunan dan Laporan Kinerja Triwulan serta Unggah PDF Bertanda Tangan
-> **Status implementasi lokal — slice arsip ISS-10.05 (29 Oktober 2026):** halaman Dokumen Resmi, katalog/preset `laporan:unggah`, arsip PDF pada jadwal tahunan/periode, penggantian append-only, unduhan privat dengan akses seluruh unit, serta audit unggah tersedia. Keputusan K3–K7 mengikuti [komentar PM 29 Oktober](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179#issuecomment-6476048514). Backend terfokus 21 test lulus pada PostgreSQL 17 disposable; frontend halaman 8 test dan navigasi 50 test lulus. AC-5 hanya selesai untuk unduh arsip; generator AC-1–AC-4 masih menunggu pengesahan format ISS-10.04. Status ini bukan bukti merge, CI, UAT, atau deployment. Sinkronisasi Q75/Q76 dan issue producer snapshot tetap mengikuti tindak lanjut PM.
+> **Status implementasi — slice arsip ISS-10.05 ([PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208)):** halaman Dokumen Resmi, katalog/preset `laporan:unggah`, arsip PDF pada jadwal tahunan/periode, penggantian append-only, unduhan privat dengan akses seluruh unit, serta audit unggah tersedia. Keputusan K3–K7 mengikuti [komentar PM 29 Oktober](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179#issuecomment-6476048514). AC-5 hanya selesai untuk unduh arsip; generator AC-1–AC-4 masih menunggu pengesahan format ISS-10.04. Status implementasi ini tidak menyatakan penerimaan UAT atau deployment. Sinkronisasi Q75/Q76 dan issue producer snapshot mengikuti tindak lanjut PM.
 
 > **Acuan format (ISS-10.04):** susunan berkas, test, dan UAT keluaran ini memakai `document/SAKIP - Acuan Keluaran Excel.md` §3–§4. Status pengesahan contoh dicatat pada dokumen tersebut.
 
@@ -4890,8 +4890,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
 - [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
 - [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
-- [ ] FORMAT ARSIP: Uji arsip selain PDF atau melebihi batas teknis unggahan ditolak (Q48 §48.2 butir 7, Q44 §44.2).
-- [ ] PERMISSION: Uji `laporan:unggah` terdaftar tidak sensitif pada katalog dan preset Perencanaan serta Superadmin, sedangkan setiap unggahan tetap tercatat di audit (Q48 §48.2 butir 2).
+- [x] FORMAT ARSIP: Uji arsip selain PDF atau melebihi batas teknis unggahan ditolak (Q48 §48.2 butir 7, Q44 §44.2). Bukti: `ArsipDokumenResmiTest::test_validasi_pdf_dan_metadata_dan_audit_penolakan`.
+- [x] PERMISSION: Uji `laporan:unggah` terdaftar tidak sensitif pada katalog dan preset Perencanaan serta Superadmin, sedangkan setiap unggahan tetap tercatat di audit (Q48 §48.2 butir 2). Bukti: `AccessFoundationTest::test_catalog_and_presets_match_the_release_contract` dan `ArsipDokumenResmiTest::test_arsip_ditutup_append_only_dan_tidak_mengubah_data_kinerja`.
 - [ ] TAMPILAN BERSAMAAN: Uji periode tanpa target yang realisasinya `belum_dapat_diukur` tercantum sebagai "Belum dapat diukur" pada keluaran (Q47 §47.3 butir 3).
 
 #### Definition of Done
