@@ -6,7 +6,6 @@ use App\Http\Requests\Jadwal\ActivateJadwalRequest;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
-use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
@@ -18,6 +17,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Jadwal\JadwalActivationReadiness;
+use App\Services\Jadwal\JadwalSnapshotWriter;
 use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
@@ -27,7 +27,6 @@ use Illuminate\Database\DeadlockException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ActivateJadwal
@@ -37,7 +36,8 @@ class ActivateJadwal
     /** Alasan baku bila pengguna mengosongkan alasan (Q43 §43.3 butir 3). */
     public const ALASAN_BAKU = 'Aktivasi jadwal tanpa alasan tambahan.';
 
-    public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit, private readonly JadwalActivationReadiness $readiness) {}
+    public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit, private readonly JadwalActivationReadiness $readiness,
+        private readonly JadwalSnapshotWriter $snapshots) {}
 
     /**
      * Aktivasi pertama draft → aktif; snapshot baru, transisi, dan audit atomik.
@@ -177,31 +177,7 @@ class ActivateJadwal
         $ids = [];
         foreach ($context['baru'] as $indikator) {
             /** @var IndikatorKinerja $indikator */
-            $target = $context['targets']->get($indikator->id);
-            $snapshot = JadwalSnapshot::create([
-                'jadwal_id' => $context['jadwal']->id, 'indikator_id' => $indikator->id, 'nomor_versi' => 1, 'periode_mulai_id' => $periodeMulai,
-                'unit_id' => $indikator->unit_id, 'nama' => $indikator->nama, 'definisi' => $indikator->definisi_operasional, 'satuan' => $indikator->satuan,
-                'presisi' => $indikator->presisi, 'desimal_tampilan' => $indikator->desimal_tampilan, 'arah' => $indikator->arah,
-                'tipe_perhitungan' => $indikator->tipe_perhitungan, 'dinilai_tahunan' => $indikator->dinilai_tahunan,
-                'target' => $target->getRawOriginal('target_tahunan'), 'baseline' => $target->getRawOriginal('baseline'),
-            ]);
-            $komponen = $indikator->komponen->map(fn (IndikatorKomponen $row): array => [
-                'komponen_id' => $row->id, 'kode' => $row->kode, 'label' => $row->label, 'peran' => $row->peran, 'bobot' => $row->getRawOriginal('bobot'), 'urutan' => $row->urutan,
-            ])->all();
-            // Satu INSERT per snapshot agar lock aktivasi tidak tertahan oleh round-trip per komponen.
-            JadwalSnapshotKomponen::insert(array_map(fn (array $row): array => ['id' => (string) Str::uuid(), 'jadwal_snapshot_id' => $snapshot->id, ...$row], $komponen));
-            // Finalisasi komposisi: komposisi beku sejak terbit. Setelah flag ini true,
-            // guard INSERT menolak child tambahan sehingga rumus yang dilihat pembaca RA tidak dapat
-            // berubah tanpa versi baru. Hanya kolom flag yang berubah, jadi guard UPDATE (yang
-            // membandingkan seluruh kolom beku lain) meloloskannya.
-            JadwalSnapshot::whereKey($snapshot->id)->update(['komposisi_final' => true]);
-            $this->audit->catat(actor: $actor, tindakan: 'jadwal_snapshot.buat', objekTipe: 'jadwal_snapshot', objekId: $snapshot->id,
-                nilaiBaru: [...$snapshot->only(['jadwal_id', 'indikator_id', 'nomor_versi', 'periode_mulai_id', 'unit_id', 'nama', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'dinilai_tahunan']),
-                    'komposisi_final' => true,
-                    'target' => $snapshot->getRawOriginal('target'), 'baseline' => $snapshot->getRawOriginal('baseline'),
-                    'komponen' => array_map(fn (array $row): array => array_diff_key($row, ['label' => true]), $komponen)],
-                alasan: $alasan, dasarIzin: $basis);
-            $ids[] = $snapshot->id;
+            $ids[] = $this->snapshots->bekukan($actor, $context['jadwal'], $indikator, $context['targets']->get($indikator->id), $periodeMulai, $alasan, $basis);
         }
 
         return $ids;

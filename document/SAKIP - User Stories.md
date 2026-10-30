@@ -831,6 +831,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 ### US-03.04 · Penambahan Indikator Baru di Tengah Tahun & Periode Mulai Berlaku
 
+> **Status implementasi — issue #188:** AC-1–AC-5 memiliki bukti test pada PR #197; rincian test dan batas bukti tercatat pada [ISS-03.04](SAKIP%20-%20User%20Issues.md#iss-0304--feature-penambahan-indikator-baru-di-tengah-tahun--periode-mulai-berlaku). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-03.04` |
@@ -847,11 +849,11 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 ### US-03.05 · Pengisian Periode Lampau 2026 oleh Perencanaan
 
