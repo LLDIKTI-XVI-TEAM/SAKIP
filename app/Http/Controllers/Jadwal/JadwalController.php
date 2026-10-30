@@ -8,11 +8,13 @@ use App\Actions\Jadwal\ReadJadwalActivation;
 use App\Actions\Jadwal\RevisiJendelaPic;
 use App\Actions\Jadwal\SaveJadwalDraft;
 use App\Actions\Jadwal\ShowJadwalEditor;
+use App\Actions\Jadwal\TambahIndikatorJadwal;
 use App\Actions\Jadwal\TutupJadwal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Jadwal\ActivateJadwalRequest;
 use App\Http\Requests\Jadwal\RevisiJendelaPicRequest;
 use App\Http\Requests\Jadwal\StoreJadwalRequest;
+use App\Http\Requests\Jadwal\TambahIndikatorJadwalRequest;
 use App\Http\Requests\Jadwal\TutupJadwalRequest;
 use App\Http\Requests\Jadwal\UpdateJadwalRequest;
 use App\Models\JadwalTahunan;
@@ -64,6 +66,14 @@ class JadwalController extends Controller
     {
         $action->handle($request->user(), $jadwal, $request->validated());
         Inertia::flash('success', 'Jendela PIC berhasil direvisi.');
+
+        return redirect()->route('jadwal.show', $jadwal);
+    }
+
+    public function addIndicator(TambahIndikatorJadwalRequest $request, string $jadwal, TambahIndikatorJadwal $action): RedirectResponse
+    {
+        $action->handle($request->user(), $jadwal, $request->validated());
+        Inertia::flash('success', 'Indikator berhasil ditambahkan ke jadwal berjalan.');
 
         return redirect()->route('jadwal.show', $jadwal);
     }

@@ -802,9 +802,11 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 ### US-03.03 · Koreksi Snapshot Terkendali dan Versioning Konteks
 
-> **Q40/Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (US-02.12): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-6). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3).
+> **Q40/Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (US-02.12): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-8). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3).
 >
 > **Q47 (13 Oktober 2026):** koreksi snapshot juga menjadi jalur perubahan penanda dinilai tahunan setelah jadwal aktif (Q47 §47.1 butir 2).
+>
+> **Q79 (30 Oktober 2026):** versi koreksi disalin dari data master terkini setelah master diperbaiki, periode mulainya tidak lebih awal dari versi yang digantikan, dan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada tidak dipindahkan. Acceptance Criteria diselaraskan dengan issue #91.
 
 | Field | Detail |
 |---|---|
@@ -812,8 +814,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 | **Prioritas** | 🟡 P1 · Tahap 3 (Q46 §46.3; prasyarat US-02.12) |
 | **Story Points** | 8 |
 | **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
-| **Dependensi** | Snapshot tersedia; koreksi memiliki alasan dan rujukan resmi. |
-| **Otorisasi** | `target:update` / permission substantif terkait serta guard jadwal. |
+| **Dependensi** | Snapshot tersedia; data master sudah diperbaiki; koreksi memiliki alasan dan rujukan resmi (Q79 §79.1). |
+| **Otorisasi** | Per kelompok kolom yang berubah: `target:update`, `indikator:update`, `komponen:update` (Q79 §79.1 butir 5), serta guard jadwal. |
 | **Dampak Data** | `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`. |
 
 > **Sebagai** Tim Perencanaan,  
@@ -823,13 +825,17 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 **Acceptance Criteria**
 
 - [ ] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
-- [ ] **AC-2:** Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
-- [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
-- [ ] **AC-4:** Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
-- [ ] **AC-5:** Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
-- [ ] **AC-6:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9)*
+- [ ] **AC-2:** Given koreksi valid, Then versi baru berisi data master terkini dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, `rujukan_koreksi`, dan `komposisi_final = true` dalam satu transaksi. *(Q79 §79.1)*
+- [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable (guard DB tetap aktif).
+- [ ] **AC-4:** Given pengukuran (termasuk `draft`/`dikembalikan`) atau versi Rencana Aksi yang sudah diajukan/disahkan merujuk versi lama, Then rujukannya tidak berpindah ke versi koreksi; Rencana Aksi draf hanya mengikuti versi baru lewat jalur simpan yang sudah ada (token 409 dan rekonsiliasi draf). *(Q79 §79.3)*
+- [ ] **AC-5:** Given snapshot tidak cocok dengan jadwal/indikator di URL, bukan versi terbaru, tidak berselisih dengan data master, atau `periode_mulai_id` bukan periode jadwal atau lebih awal dari periode mulai versi yang digantikan, When koreksi dibuat, Then ditolak. *(Q79 §79.1 butir 3, §79.2 butir 1)*
+- [ ] **AC-6:** Given dua koreksi bersamaan pada snapshot yang sama, Then tepat satu berhasil (lock dan unique index), yang lain ditolak karena usang.
+- [ ] **AC-7:** Given aktor tidak memiliki izin untuk kelompok kolom yang berubah, atau deny cocok, Then ditolak 403 dan teraudit; alasan atau rujukan kosong ditolak 422. *(Q43 §43.2 butir 3, Q79 §79.1 butir 5–6)*
+- [ ] **AC-8:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9; pada US-03.03 dibuktikan dengan periode mulai eksplisit, Q79 §79.2 butir 4)*
 
 ### US-03.04 · Penambahan Indikator Baru di Tengah Tahun & Periode Mulai Berlaku
+
+> **Status implementasi — issue #188:** AC-1–AC-5 memiliki bukti test pada PR #197; rincian test dan batas bukti tercatat pada [ISS-03.04](SAKIP%20-%20User%20Issues.md#iss-0304--feature-penambahan-indikator-baru-di-tengah-tahun--periode-mulai-berlaku). Centang bukan persetujuan QA/UAT atau deployment.
 
 | Field | Detail |
 |---|---|
@@ -847,11 +853,11 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 ### US-03.05 · Pengisian Periode Lampau 2026 oleh Perencanaan
 

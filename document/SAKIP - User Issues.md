@@ -1868,7 +1868,9 @@ kegiatan:update
 
 ### ISS-03.03 · [Feature] Koreksi Snapshot Terkendali dan Versioning Konteks
 
-> **Q40, Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (ISS-02.12, Q40 §40.1 butir 9): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-6). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3). Koreksi snapshot tetap wajib alasan (Q43 §43.2 butir 3). Penanda `dinilai_tahunan` yang dibekukan pada snapshot (Q47 §47.1 butir 2) diubah melalui koreksi ini setelah jadwal aktif.
+> **Q40, Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (ISS-02.12, Q40 §40.1 butir 9): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-8). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3). Koreksi snapshot tetap wajib alasan (Q43 §43.2 butir 3). Penanda `dinilai_tahunan` yang dibekukan pada snapshot (Q47 §47.1 butir 2) diubah melalui koreksi ini setelah jadwal aktif.
+
+> **Q79 (30 Oktober 2026):** versi koreksi disalin dari data master terkini setelah master diperbaiki dan ditolak bila tidak ada selisih; periode mulainya tidak lebih awal dari versi yang digantikan; rujukan pengukuran dan versi Rencana Aksi yang sudah ada tidak dipindahkan; izin dinilai per kelompok kolom yang berubah. Acceptance Criteria diselaraskan dengan issue #91 (Q79 §79.4).
 
 **Terkait User Story:** `US-03.03`  
 **Prioritas:** 🟡 P1 · Tahap 3 (Q46 §46.3)  
@@ -1887,19 +1889,21 @@ kegiatan:update
 
 #### Kontrak Teknis
 
-- **Dependensi:** Snapshot tersedia; koreksi memiliki alasan dan rujukan resmi.
-- **Otorisasi:** `target:update` / permission substantif terkait serta guard jadwal.
+- **Dependensi:** Snapshot tersedia; data master sudah diperbaiki; koreksi memiliki alasan dan rujukan resmi (Q79 §79.1).
+- **Otorisasi:** per kelompok kolom yang berubah: `target:update`, `indikator:update`, `komponen:update` (Q79 §79.1 butir 5), serta guard jadwal; halaman dibaca dengan izin detail jadwal tahunan (Q79 §79.5).
 - **Dampak Data:** `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
 - **Batasan dari ISS-05.01 (PR #62):** aktivasi pertama di `ActivateJadwal` dan trigger database `finalisasi_snapshot_saat_jadwal_aktif` (setiap transisi status ke `aktif`, termasuk jalur buka-kembali yang akan datang) membekukan **seluruh** snapshot jadwal yang masih `komposisi_final = false`. Bila koreksi berversi memakai draf snapshot yang belum terbit, kedua jalur itu wajib mengecualikan draf koreksi agar tidak ikut dibekukan sebelum waktunya.
 
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
-- [ ] **AC-2:** Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
-- [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
-- [ ] **AC-4:** Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
-- [ ] **AC-5:** Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
-- [ ] **AC-6:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9)*
+- [ ] **AC-2:** Given koreksi valid, Then versi baru berisi data master terkini dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, `rujukan_koreksi`, dan `komposisi_final = true` dalam satu transaksi. *(Q79 §79.1)*
+- [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable (guard DB tetap aktif).
+- [ ] **AC-4:** Given pengukuran (termasuk `draft`/`dikembalikan`) atau versi Rencana Aksi yang sudah diajukan/disahkan merujuk versi lama, Then rujukannya tidak berpindah ke versi koreksi; Rencana Aksi draf hanya mengikuti versi baru lewat jalur simpan yang sudah ada (token 409 dan rekonsiliasi draf). *(Q79 §79.3)*
+- [ ] **AC-5:** Given snapshot tidak cocok dengan jadwal/indikator di URL, bukan versi terbaru, tidak berselisih dengan data master, atau `periode_mulai_id` bukan periode jadwal atau lebih awal dari periode mulai versi yang digantikan, When koreksi dibuat, Then ditolak. *(Q79 §79.1 butir 3, §79.2 butir 1)*
+- [ ] **AC-6:** Given dua koreksi bersamaan pada snapshot yang sama, Then tepat satu berhasil (lock dan unique index), yang lain ditolak karena usang.
+- [ ] **AC-7:** Given aktor tidak memiliki izin untuk kelompok kolom yang berubah, atau deny cocok, Then ditolak 403 dan teraudit; alasan atau rujukan kosong ditolak 422. *(Q43 §43.2 butir 3, Q79 §79.1 butir 5–6)*
+- [ ] **AC-8:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9; pada ISS-03.03 dibuktikan dengan periode mulai eksplisit, Q79 §79.2 butir 4)*
 
 #### Implementation Tasks
 
@@ -1910,21 +1914,23 @@ kegiatan:update
 
 **B. Backend / Domain**
 - [ ] Koreksi selalu membuat versi pengganti dengan `menggantikan_id`, alasan, dan rujukan resmi, baik sebelum maupun sesudah snapshot dirujuk, dan selalu diaudit (Q35 §35.1).
+- [ ] Nilai versi koreksi disalin dari data master terkini dan periode mulainya mengikuti Q79 §79.2; rujukan pengukuran dan versi Rencana Aksi yang sudah ada tidak dipindahkan (Q79 §79.3).
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `target:update` / permission substantif terkait serta guard jadwal.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: izin per kelompok kolom yang berubah (Q79 §79.1 butir 5) serta guard jadwal.
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 #### Automated Tests / Verification
 
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
+- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given koreksi valid, Then versi baru berisi data master terkini dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, `rujukan_koreksi`, dan `komposisi_final = true` dalam satu transaksi.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9)*
-- [ ] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
+- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran (termasuk `draft`/`dikembalikan`) atau versi Rencana Aksi yang sudah diajukan/disahkan merujuk versi lama, Then rujukannya tidak berpindah; Rencana Aksi draf ditolak 409 dengan token lama lalu mengikuti versi baru setelah dimuat ulang.
+- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given snapshot tidak cocok dengan jadwal/indikator, bukan versi terbaru, tidak berselisih dengan data master, atau periode mulai tidak sah, When koreksi dibuat, Then ditolak.
+- [ ] TEST-6 (CONCURRENCY): Buat Pest Integration test yang membuktikan — Given dua koreksi bersamaan pada snapshot yang sama, Then tepat satu berhasil dan yang lain ditolak karena usang; koreksi bersamaan dengan simpan target Rencana Aksi tidak deadlock.
+- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given aktor tanpa izin kelompok kolom yang berubah atau dengan deny cocok, Then 403 dan teraudit, dengan kontrol positif; alasan atau rujukan kosong ditolak 422.
+- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi dengan periode mulai eksplisit, Then pembaca versi efektif per periode memakai versi lama sebelum periode mulai dan versi koreksi sejak periode mulai, dan `rujukan_koreksi` tersimpan. *(Q40 §40.1 butir 4 dan 9; Q79 §79.2 butir 4)*
 
 #### Definition of Done
 
@@ -1957,13 +1963,15 @@ kegiatan:update
 - **Otorisasi:** `jadwal:buka_kembali` untuk penambahan snapshot beralasan pada jadwal aktif; permission indikator terkait.
 - **Dampak Data:** `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
 
+> **Status implementasi — issue #188 (2026-10-27):** centang menunjukkan bukti implementasi dan test pada PR #197, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `TambahIndikatorJadwalTest::test_snapshot_baru_memakai_periode_mulai_pilihan_anggota_jadwal`, `TambahIndikatorJadwalTest::test_periode_mulai_wajib_dan_harus_anggota_jadwal`; AC-2 `TambahIndikatorJadwalTest::test_periode_sebelum_mulai_tidak_berlaku_di_dashboard_pengukuran_rencana_aksi_dan_rekap`; AC-3 `TambahIndikatorJadwalTest::test_snapshot_lama_tidak_berubah_dan_indikator_terjadwal_ditolak`, `JadwalActivationTest::test_existing_draft_snapshots_are_kept_and_only_missing_pairs_are_created`, `SnapshotFinalisasiDatabaseTest`; AC-4 `TambahIndikatorJadwalTest::test_jendela_pic_dan_baris_jadwal_tidak_berubah`; AC-5 `TambahIndikatorJadwalTest::test_audit_memuat_alasan_detail_dan_dasar_izin`, `TambahIndikatorJadwalTest::test_izin_dicek_dan_penolakan_teraudit_di_luar_rollback`, `TambahIndikatorJadwalTest::test_jadwal_bukan_aktif_atau_lewat_penutupan_ditolak`.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 #### Implementation Tasks
 
@@ -1989,11 +1997,11 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 #### Definition of Done
 
