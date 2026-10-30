@@ -52,6 +52,8 @@ class KoreksiSnapshotTest extends TestCase
 
     private const PESAN_PERIODE_MUNDUR = 'Periode mulai berlaku tidak boleh lebih awal dari periode mulai versi sebelumnya.';
 
+    private const PESAN_UNIT_RA = 'Indikator sudah memiliki Rencana Aksi tahun ini pada unit penanggung jawab sebelumnya. Koreksi yang memindahkan unit belum didukung; kembalikan unit indikator pada modul indikator.';
+
     private PeriodeJadwal $tw1;
 
     private PeriodeJadwal $tw2;
@@ -402,6 +404,31 @@ class KoreksiSnapshotTest extends TestCase
         $this->koreksi($perencana, $lama)->assertSessionHasErrors(['jadwal' => self::PESAN_JADWAL]);
         $this->assertSame(1, $this->versi($lama));
         $this->assertSame(6, $this->penolakan('aturan_koreksi'));
+    }
+
+    public function test_koreksi_pindah_unit_ditolak_bila_rencana_aksi_sudah_ada_pada_unit_lama(): void
+    {
+        // Unit header Rencana Aksi tidak pernah berubah, sehingga versi dengan unit lain mengunci simpan dan pengajuan RA (Q79 §79.1 butir 8).
+        $perencana = $this->userWithRole('perencanaan');
+        $unitBaru = Unit::create(['nama' => 'Unit Tujuan', 'status' => 'aktif', 'created_by' => $this->actor->id]);
+        TargetKinerja::create(['indikator_kinerja_id' => $this->context->indikator_id, 'tahun' => 2026, 'target_tahunan' => '75', 'baseline' => null]);
+        $this->context->refresh();
+        IndikatorKinerja::whereKey($this->context->indikator_id)->update(['unit_id' => $unitBaru->id]);
+
+        $this->koreksi($perencana, $this->context)->assertSessionHasErrors(['snapshot' => self::PESAN_UNIT_RA]);
+        $this->assertSame(1, $this->versi($this->context));
+        $this->assertSame(1, $this->penolakan('aturan_koreksi'));
+
+        // Kontrol positif: setelah unit dikembalikan, selisih lain pada indikator yang sama tetap dapat dikoreksi.
+        IndikatorKinerja::whereKey($this->context->indikator_id)->update(['unit_id' => $this->context->unit_id]);
+        $this->koreksi($perencana, $this->context)->assertSessionHasNoErrors();
+        $this->assertSame(2, $this->versi($this->context));
+
+        // Kontrol positif: indikator tanpa Rencana Aksi boleh pindah unit, sehingga pembuatan draf RA pada unit baru terbuka.
+        $tanpaRa = $this->terjadwal();
+        IndikatorKinerja::whereKey($tanpaRa->indikator_id)->update(['unit_id' => $unitBaru->id]);
+        $this->koreksi($perencana, $tanpaRa)->assertSessionHasNoErrors();
+        $this->assertSame($unitBaru->id, JadwalSnapshot::where('indikator_id', $tanpaRa->indikator_id)->where('nomor_versi', 2)->value('unit_id'));
     }
 
     public function test_konflik_lock_menjadi_penolakan_muat_ulang_dengan_audit(): void

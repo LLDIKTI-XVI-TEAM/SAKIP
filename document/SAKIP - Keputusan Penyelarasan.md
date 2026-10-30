@@ -2383,6 +2383,7 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 
 - **Status implementasi ISS-09.02:** implemented dan verified melalui test backend, Vitest, serta CI exact HEAD PR #203. Keputusan ini tidak menyatakan merge, UAT, atau deployment.
 - **Traceability:** Q43 (kewajiban alasan), Q47 §47.3 butir 4 (penetapan tidak tersedia), Q50 §50.2 (target PK bernilai penuh), Q64 §64.1 (status tampilan), ISS-10.01 dan ISS-10.02 (konsumen status capaian), PRD §21 dan §23, Workflow §16, Data Model §2.21, Plan 6.4–6.6 dan 7.1.
+- **Status keputusan:** Keputusan PM 28–29 Oktober 2026 (review PR #203); konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
 
@@ -2399,6 +2400,7 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 5. Izin dinilai per kelompok kolom yang berbeda, dibaca ulang di dalam transaksi, dan deny menang: `target` dan `baseline` memerlukan `target:update`; `nama`, `definisi`, `satuan`, `unit_id`, `arah`, `presisi`, `desimal_tampilan`, dan `dinilai_tahunan` memerlukan `indikator:update`; `tipe_perhitungan` dan komponen memerlukan `komponen:update`.
 6. `alasan_koreksi` dan `rujukan_koreksi` wajib (Q43 §43.2 butir 3).
 7. Butir 1–4 berlaku untuk koreksi oleh pengguna (ISS-03.03). Sumber target versi yang diterbitkan revisi PK (Q40 §40.1 butir 4) ditetapkan pada ISS-02.12.
+8. *(Tambahan 30 Oktober 2026, keputusan PM atas review PR #213.)* Koreksi ditolak bila unit penanggung jawab di data master berbeda dari unit header Rencana Aksi yang sudah ada untuk indikator dan tahun jadwal. Unit header tidak pernah berubah, sehingga versi dengan unit lain akan menolak penyimpanan target dan pengajuan Rencana Aksi serta pengajuan pengukuran pada versi itu. Indikator tanpa Rencana Aksi tetap dapat dikoreksi ke unit baru. Pemindahan unit Rencana Aksi yang sudah ada menjadi issue lanjutan.
 
 ## 79.2 Periode mulai berlaku versi koreksi
 
@@ -2417,7 +2419,7 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 ## 79.4 Acceptance Criteria ISS-03.03
 
 1. US/ISS-03.03 memakai delapan Acceptance Criteria issue #91: AC-6 (dua koreksi serentak) dan AC-7 (izin per kelompok kolom serta alasan dan rujukan wajib) ditambahkan, AC-4 memakai redaksi issue dengan cakupan butir 79.3, dan AC-6 lama (versi akibat revisi PK) menjadi AC-8.
-2. AC-2 dan AC-5 memuat 79.1 butir 1 dan 3 serta 79.2 butir 1.
+2. AC-2 dan AC-5 memuat 79.1 butir 1, 3, dan 8 serta 79.2 butir 1.
 
 ## 79.5 Izin halaman Snapshot Indikator
 
@@ -2429,5 +2431,4 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 - Q35 §35.1 dan Q65 §65.1 butir 3 diperjelas; Q40 §40.1 tidak berubah.
 - Data Model §2.17 (`periode_mulai_id` dan perilaku koreksi) dan §2.36 (kriteria "belum ditutup"); US/ISS-03.03.
 - Pembaca versi efektif per periode, rekonsiliasi draf Rencana Aksi, dan gerbang pengajuan pengukuran tidak berubah oleh keputusan ini.
-- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. Issue lanjutan §79.3 butir 4 belum dikerjakan. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
-- **Status keputusan:** Keputusan PM 28–29 Oktober 2026 (review PR #203); konfirmasi tertulis Tim Perencanaan belum diminta.
+- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. Issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) dan §79.3 butir 4 belum dikerjakan. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
