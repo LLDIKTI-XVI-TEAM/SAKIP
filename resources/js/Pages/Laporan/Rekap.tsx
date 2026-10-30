@@ -4,6 +4,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge, type BadgeVariant } from '@/Components/Badge';
 import { SelisihTargetPk } from '@/Components/Pengukuran/SelisihTargetPk';
+import { StatusCapaianBadge } from '@/Components/Pengukuran/StatusCapaianBadge';
 import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
 import { Pagination } from '@/Components/Pagination';
@@ -105,7 +106,7 @@ function RincianBaris({ row }: { row: BarisRekap }) {
             <h3 className="mb-4 text-sm font-semibold">Rekomendasi & bukti</h3>
             <dl className="space-y-4">
                 <Data label="Rekomendasi Pimpinan periode ini">{row.rekomendasi ? <><p className="whitespace-pre-wrap">{row.rekomendasi.isi}</p>{row.rekomendasi.cadangan && <p className="mt-2 text-xs text-muted">Persetujuan cadangan</p>}</> : 'Belum ada rekomendasi disetujui'}</Data>
-                <Data label="Status capaian">{row.status_capaian}</Data>
+                <Data label="Status capaian"><StatusCapaianBadge label={row.status_capaian} /></Data>
                 <Data label="Bukti wajib pengukuran">{!row.bukti ? 'Belum disahkan' : row.bukti.status === 'tidak_tercatat' ? tidakTercatat : row.bukti.total === 0 ? 'Tidak ada persyaratan wajib pada versi ini' : `${row.bukti.terpenuhi} dari ${row.bukti.total} terpenuhi`}</Data>
             </dl>
             {row.bukti?.histori_tidak_dapat_dipenuhi && <div className="mt-3"><Badge className="max-w-full whitespace-normal" variant="warning">Histori: tidak dapat dipenuhi</Badge></div>}

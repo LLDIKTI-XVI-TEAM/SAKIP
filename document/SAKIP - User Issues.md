@@ -4379,50 +4379,54 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given versi pengukuran telah disahkan, When status dipilih, Then `status_capaian` merujuk `pengukuran_versi_id` yang sama.
-- [ ] **AC-2:** Given pengukuran belum disahkan, When status dicoba, Then ditolak.
-- [ ] **AC-3:** Given versi koreksi baru disahkan, Then versi baru mulai **Belum ditetapkan**; status versi lama tidak diwariskan otomatis.
-- [ ] **AC-4:** Given status direvisi, Then histori status lama tetap tersimpan dan baris terbaru menjadi yang berlaku.
-- [ ] **AC-5:** Given pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, When status capaian manual hendak ditetapkan, Then penetapan tidak tersedia, termasuk melalui request langsung. *(Q47 §47.3 butir 4)*
+- [x] **AC-1:** Given versi pengukuran telah disahkan, When status dipilih, Then `status_capaian` merujuk `pengukuran_versi_id` yang sama.
+- [x] **AC-2:** Given pengukuran belum disahkan, When status dicoba, Then ditolak.
+- [x] **AC-3:** Given versi koreksi baru disahkan, Then versi baru mulai **Belum ditetapkan**; status versi lama tidak diwariskan otomatis.
+- [x] **AC-4:** Given status direvisi, Then histori status lama tetap tersimpan dan baris terbaru menjadi yang berlaku.
+- [x] **AC-5:** Given pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, When status capaian manual hendak ditetapkan, Then penetapan tidak tersedia, termasuk melalui request langsung. *(Q47 §47.3 butir 4)*
+  - Catatan implementasi: `tidak_dapat_dihitung` pada periode bertarget juga ditolak (Q78 §78.1 butir 2; Q64 §64.1 butir 5); dibuktikan lewat POST langsung di `StatusCapaianAccessTest`.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `status_capaian`, `pengukuran_versi`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
+- [x] Implementasikan/validasi persistence untuk dampak data: `status_capaian`, `pengukuran_versi`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
 
 **B. Backend / Domain**
-- [ ] `status_capaian` wajib merujuk versi pengukuran yang telah disahkan; status tidak diwariskan ke versi koreksi baru.
-- [ ] Tolak penetapan status capaian untuk pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, dan jangan tampilkan aksinya di UI (Q47 §47.3 butir 4).
+- [x] `status_capaian` wajib merujuk versi pengukuran yang telah disahkan; status tidak diwariskan ke versi koreksi baru.
+- [x] Tolak penetapan status capaian untuk pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, dan jangan tampilkan aksinya di UI (Q47 §47.3 butir 4).
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `status_capaian:update` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `status_capaian:update` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Penetapan Status Capaian per Versi Pengukuran Disahkan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Buat/rapikan page dan reusable component React untuk **Penetapan Status Capaian per Versi Pengukuran Disahkan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
 - [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+  - Catatan: state loading/disabled/error dan struktur tabel→kartu mobile sudah diuji komponen; **overflow/kontras belum dibuktikan di browser** (menunggu browser smoke).
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+  - Catatan: alasan status capaian bersifat opsional (Q43 tidak mewajibkan; Q78 §78.1 butir 4), sehingga dialog memakai field alasan opsional dan audit tetap memakai alasan baku server + `dasar_izin`.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi pengukuran telah disahkan, When status dipilih, Then `status_capaian` merujuk `pengukuran_versi_id` yang sama.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran belum disahkan, When status dicoba, Then ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi baru disahkan, Then versi baru mulai **Belum ditetapkan**; status versi lama tidak diwariskan otomatis.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given status direvisi, Then histori status lama tetap tersimpan dan baris terbaru menjadi yang berlaku.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, When status capaian manual hendak ditetapkan, Then penetapan tidak tersedia, termasuk melalui request langsung. *(Q47 §47.3 butir 4)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given versi pengukuran telah disahkan, When status dipilih, Then `status_capaian` merujuk `pengukuran_versi_id` yang sama.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran belum disahkan, When status dicoba, Then ditolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi baru disahkan, Then versi baru mulai **Belum ditetapkan**; status versi lama tidak diwariskan otomatis.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given status direvisi, Then histori status lama tetap tersimpan dan baris terbaru menjadi yang berlaku.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, When status capaian manual hendak ditetapkan, Then penetapan tidak tersedia, termasuk melalui request langsung. *(Q47 §47.3 butir 4)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+  - Catatan: token/TS/Inertia/useForm/aksesibilitas diuji statis + komponen; **checklist visual dan browser smoke belum dijalankan**.
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-09.03 · [Feature] Halaman Detail Rekomendasi Pimpinan
 
@@ -4499,6 +4503,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 > **Status implementasi (GitHub #135):** filter Renstra/tahun/periode/sasaran/unit yang divalidasi server, status indikator × periode dari daftar kewajiban, angka resmi dari versi disahkan, selisih terhadap target PK, progres Rencana Aksi (Plan 7.6), dan panel kegiatan real-time telah terimplementasi dan diuji (PR #147). Status tampilan mengikuti Q64. Sejak Q66, status tampilan tampil per baris pada tabel tanpa kartu ringkasan per status, dan panel Rencana Aksi serta kegiatan tampil berdampingan.
 
 > **Batas completion:** AC-8 dan AKSES ANGGARAN tetap terbuka sampai penjumlahan anggaran ISS-06.08 bagian kedua tersedia; dikerjakan pada PR lanjutan. Tercapai/Belum tercapai belum tampil karena status capaian belum dapat ditetapkan (Q64 §64.1 butir 4). Plan 7.8 belum dikerjakan. Test utama: DashboardFilterTest, DashboardAksesTest, DashboardStatusIndikatorTest, DashboardRencanaAksiTest, DashboardKegiatanTest, DaftarKewajibanPengukuranTest, StatusTampilanPengukuranTest, serta Vitest DashboardIndex, DashboardFilter, DashboardPanel, dan SelisihTargetPk. Checkbox AC menandai bukti lokal; persetujuan QA/UAT belum dinyatakan.
+
+> **Tindak lanjut ISS-09.02 (28 Oktober 2026):** sumber data status capaian per versi kini tersedia; `StatusTampilanPengukuran` dan `StatusIndikatorDashboard` sudah meneruskan status `tercapai`/`belum_tercapai` dari versi disahkan (precedence Q47/Q64 dipertahankan, dibuktikan `DashboardStatusIndikatorTest`). Ringkasan kartu/grafik Tercapai–Belum Tercapai (Q66 §66.1 butir 4) tetap menjadi pekerjaan ISS-10.01 dan **tidak** dicentang dari #180.
 
 > **Q42, Q45, Q47 (13 Oktober 2026):** dashboard menampilkan status kegiatan per periode secara real-time berlabel "belum diverifikasi" dengan peringatan bagi kegiatan yang melewati tanggal rencana (Q45 §45.3), total anggaran per IKU dengan drill-down sampai kegiatan (Q42 §42.2 butir 5), serta "Tanpa target periode", "Belum dapat diukur", dan selisih terhadap target PK; bila keduanya berlaku bersamaan, yang tampil "Belum dapat diukur" (Q47 §47.3–§47.4). Angka capaian resmi tetap hanya dari data yang disahkan (Q45 §45.3 butir 2). AC-7 sampai AC-10 ditambahkan karena issue ini belum dikerjakan.
 
@@ -4587,6 +4593,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 > **Q42, Q44, Q45, Q47, Q48, Q51 (13 Oktober 2026):** rekap menampilkan narasi pengukuran bersama daftar kegiatan yang diklaim dan anggarannya (Q45 §45.1 butir 2, Q42 §42.2), Rekomendasi Pimpinan yang berlaku yaitu berstatus disetujui (Q51 §51.1 butir 2), tampilan periode tanpa target dan realisasi belum dapat diukur sesuai Q47 §47.3–§47.4, serta penanda `tidak_dapat_dipenuhi` hanya sebagai histori (Q44 §44.1 butir 2). Dokumen resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan dibuat melalui ISS-10.05 (Q48). AC-4 sampai AC-6 diperbarui dan AC-7 ditambahkan karena issue ini belum dikerjakan.
 
 > **Keputusan PM (17 Oktober 2026):** rekap juga menampilkan alasan `tidak_dapat_dihitung` dari versi resmi sesuai hak baca, sehingga tampilan laporan pada US-07.06 AC-5 dipenuhi melalui issue ini (tindak lanjut review PR #118, m2). AC-6 dan TEST-6 diperbarui.
+
+> **Tindak lanjut ISS-09.02 (28 Oktober 2026):** penanda "Belum ditetapkan" statis sudah diganti status capaian berlaku dari versi resmi yang sama (`Tercapai`, `Belum tercapai`, `Belum ditetapkan`), dan `tidak_dapat_dihitung` pada periode bertarget kini tampil "Tidak dapat dihitung" (Q64 §64.1 butir 5). "Tidak dinilai" tetap untuk periode tanpa target dan `belum_dapat_diukur`. Perubahan ini adalah regresi wajib #180; **AC-5 dan kelengkapan tampilan status capaian tetap milik ISS-10.02** dan tidak dicentang dari #180.
 
 **Terkait User Story:** `US-10.02`  
 **Prioritas:** 🟡 P1 · Tahap 2 (Q46 §46.3)  

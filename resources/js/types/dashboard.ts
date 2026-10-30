@@ -11,7 +11,9 @@ export type StatusTampilan =
     | 'belum_dapat_diukur'
     | 'tanpa_target_periode'
     | 'tidak_dapat_dihitung'
-    | 'belum_ditetapkan';
+    | 'belum_ditetapkan'
+    | 'tercapai'
+    | 'belum_tercapai';
 
 export type StatusKegiatan = 'rencana' | 'terlaksana' | 'tidak_terlaksana' | 'ditunda' | 'batal';
 

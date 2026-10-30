@@ -15,6 +15,7 @@ import {
     CalendarRange,
     FileSpreadsheet,
     CheckCircle2,
+    BadgeCheck,
     Building2,
     UserPlus,
     KeyRound,
@@ -183,6 +184,18 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     href: '/verifikasi',
                     icon: CheckCircle2,
                     canKey: 'verifikasi',
+                    // Halaman status capaian berada di bawah /verifikasi tetapi punya menu sendiri.
+                    matchPatterns: (path: string): boolean =>
+                        isWithinPath(path, '/verifikasi') && !isWithinPath(path, '/verifikasi/status-capaian'),
+                },
+                {
+                    id: 'status-capaian',
+                    label: 'Status Capaian',
+                    href: '/verifikasi/status-capaian',
+                    icon: BadgeCheck,
+                    // Menu mandiri ini dijaga `status_capaian:update`, bukan capability verifikasi.
+                    canKey: 'statusCapaian',
+                    matchPatterns: (path: string): boolean => isWithinPath(path, '/verifikasi/status-capaian'),
                 },
                 {
                     id: 'rekomendasi',

@@ -6,6 +6,7 @@ use App\Actions\Pengukuran\CalculatePengukuran;
 use App\Actions\Pengukuran\PresentPengukuran;
 use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
+use App\Models\StatusCapaian;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Pengukuran\DaftarKewajibanPengukuran;
@@ -47,6 +48,9 @@ class StatusIndikatorDashboard
             $this->present->prepareSummary($headers);
         }
         $resmi = fn ($row): ?array => ($header = $headers->get($row->pengukuran_id ?? '')) && $header->status_alur === 'disahkan' ? $header->ratifiedVersion?->snapshot : null;
+        // Status capaian melekat pada versi resmi; dibaca sekali per halaman lewat helper `berlaku`, bukan per baris.
+        $statusCapaian = StatusCapaian::berlakuPerVersi($headers->filter(fn (PengukuranKinerja $header) => $header->status_alur === 'disahkan')
+            ->map(fn (PengukuranKinerja $header) => $header->ratifiedVersion?->id)->filter()->unique()->values()->all());
         $bekuDari = fn ($row): ?array => ($header = $headers->get($row->pengukuran_id ?? '')) && in_array($header->status_alur, PresentPengukuran::STATUS_BEKU, true)
             ? ($resmi($row) ?? $header->latestVersion?->snapshot) : null;
         $targetRows = $rows->filter(fn ($row) => $row->berlaku && $bekuDari($row) === null)->values();
@@ -56,13 +60,16 @@ class StatusIndikatorDashboard
         $canRead = $this->permissions->allows($actor, 'pengukuran:read');
         $readDenies = $this->permissions->unitDitolak($actor, 'pengukuran:read')->pluck('unit_id')->all();
 
-        $cells = $rows->map(function ($row) use ($jadwal, $dibuka, $headers, $resmi, $bekuDari, $targets, $today, $canRead, $readDenies): array {
+        $cells = $rows->map(function ($row) use ($jadwal, $dibuka, $headers, $resmi, $bekuDari, $targets, $statusCapaian, $today, $canRead, $readDenies): array {
             $periode = $dibuka[$row->periode_jadwal_id];
             $header = $headers->get($row->pengukuran_id ?? '');
             $versi = $resmi($row);
+            // Status capaian hanya dibaca pada versi resmi yang sedang tampil; versi sah lama pada header dikembalikan
+            // tidak dipakai (Q-C), dan `tentukan()` sudah mengembalikan "Dalam proses" untuk alur itu.
+            $capaian = $versi === null ? null : $statusCapaian->get($header?->ratifiedVersion?->id)?->status;
             // "Tidak mengisi" = Draft melewati pengisian_selesai pada tanggal bisnis (PRD §23), juga pada jadwal yang sudah ditutup.
             $status = Status::tentukan(true, (bool) $row->berlaku, $header?->status_alur, $today > $periode->pengisian_selesai->toDateString(),
-                PeriodeTanpaTarget::isPeriodeLampau($jadwal, $periode), $versi);
+                PeriodeTanpaTarget::isPeriodeLampau($jadwal, $periode), $versi, $capaian);
             // Pengajuan yang sedang direviu memakai metadata indikator, unit, PIC, dan target beku saat diajukan, sama dengan halaman Pengukuran.
             $beku = $bekuDari($row);
             $target = $beku ?? $targets->get($row->jadwal_snapshot_id.':'.$row->periode_id, ['target' => null, 'tanpa_target_periode' => false]);
