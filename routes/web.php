@@ -97,6 +97,8 @@ use App\Http\Controllers\Unit\DestroyUnit;
 use App\Http\Controllers\Unit\IndexUnit;
 use App\Http\Controllers\Unit\StoreUnit;
 use App\Http\Controllers\Unit\UpdateUnit;
+use App\Http\Controllers\Verifikasi\BukaKembaliPengukuran;
+use App\Http\Controllers\Verifikasi\IndexPengukuranDisahkan;
 use App\Http\Controllers\Verifikasi\IndexVerifikasi;
 use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
 use App\Http\Controllers\Verifikasi\SahkanPengukuran;
@@ -240,9 +242,13 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/verifikasi/pilihan', [IndexVerifikasi::class, 'pilihan'])->name('verifikasi.pilihan');
     // Didaftarkan sebelum `/verifikasi/{id}` agar tidak bergantung pada urutan pencocokan rute.
     Route::get('/verifikasi/status-capaian', [StatusCapaianController::class, 'index'])->name('status-capaian.index');
+    // Antrean Disahkan (Plan 6.3, keputusan K1) tetap halaman terpisah dari antrean reviu.
+    Route::get('/verifikasi/disahkan', IndexPengukuranDisahkan::class)->name('verifikasi.disahkan');
+    Route::get('/verifikasi/disahkan/pilihan', [IndexPengukuranDisahkan::class, 'pilihan'])->name('verifikasi.disahkan.pilihan');
     Route::get('/verifikasi/{id}', ShowVerifikasi::class)->whereUuid('id')->name('verifikasi.show');
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
+    Route::post('/verifikasi/{id}/buka-kembali', BukaKembaliPengukuran::class)->whereUuid('id')->name('verifikasi.buka-kembali');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
     Route::post('/verifikasi/{pengukuran}/status-capaian', [StatusCapaianController::class, 'store'])
         ->whereUuid('pengukuran')->name('status-capaian.store');

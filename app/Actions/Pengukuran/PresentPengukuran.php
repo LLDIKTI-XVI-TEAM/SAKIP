@@ -8,6 +8,7 @@ use App\Models\PenugasanIndikator;
 use App\Models\Periode;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
+use App\Models\StatusCapaian;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
 use App\Services\Rekomendasi\RekomendasiBerlaku;
@@ -127,8 +128,8 @@ class PresentPengukuran
                 'tanggal' => $p->periode->only(Periode::TANGGAL)],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
             'prasyarat' => ['siap' => false, 'alasan' => []],
-            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'evidence' => false, 'uploadEvidence' => false],
-            'businessErrors' => ['verifikasi' => [], 'sahkan' => [], 'kembalikan' => []]];
+            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'reopen' => false, 'evidence' => false, 'uploadEvidence' => false],
+            'businessErrors' => ['verifikasi' => [], 'sahkan' => [], 'kembalikan' => [], 'buka_kembali' => []]];
         if (! $detail) {
             return $data;
         }
@@ -136,7 +137,7 @@ class PresentPengukuran
             $data['peringatan_verifikasi'] = $this->peringatan($p, $actor, $frozen);
         }
         $can = [];
-        foreach (['view' => 'view', 'update' => 'update', 'submit' => 'submit', 'verify' => 'verify', 'ratify' => 'ratify', 'return' => 'returnMeasurement', 'evidence' => 'viewEvidence', 'uploadEvidence' => 'uploadEvidence', 'viewClaims' => 'viewClaims', 'claimEvidence' => 'viewClaimEvidence'] as $key => $ability) {
+        foreach (['view' => 'view', 'update' => 'update', 'submit' => 'submit', 'verify' => 'verify', 'ratify' => 'ratify', 'return' => 'returnMeasurement', 'reopen' => 'reopen', 'evidence' => 'viewEvidence', 'uploadEvidence' => 'uploadEvidence', 'viewClaims' => 'viewClaims', 'claimEvidence' => 'viewClaimEvidence'] as $key => $ability) {
             $can[$key] = Gate::forUser($actor)->allows($ability, $p);
         }
         $data['can'] = $can;
@@ -151,8 +152,11 @@ class PresentPengukuran
             // Diverifikasi: perintah reviu yang berlaku adalah sahkan dan kembalikan.
             $data['businessErrors']['sahkan'] = $this->policy->businessErrors($actor, $p, 'sahkan');
             $data['businessErrors']['kembalikan'] = $this->policy->businessErrors($actor, $p, 'kembalikan');
+        } elseif ($p->status_alur === 'disahkan') {
+            // Disahkan: satu-satunya perintah koreksi adalah buka kembali.
+            $data['businessErrors']['buka_kembali'] = $this->policy->businessErrors($actor, $p, 'buka_kembali');
         }
-        // Status lain (draft, dikembalikan, disahkan): peta tetap kosong agar notice tidak tampil.
+        // Status lain (draft, dikembalikan): peta tetap kosong agar notice tidak tampil.
         foreach (PengukuranKinerja::NARASI as $key) {
             // Versi beku tanpa key narasi (sebelum fitur ini) tetap null; header hidup bukan sumber histori.
             $data[$key] = $frozen ? ($frozen[$key] ?? null) : $p->{$key};
@@ -192,6 +196,19 @@ class PresentPengukuran
                 'download_url' => $b['mode'] === 'file' ? route('pengukuran.bukti', ['id' => $p->id, 'buktiId' => $b['id']]) : ($b['tautan'] ?? null)], $items);
         }
         $data['riwayats'] = $p->riwayats()->with('user:id,nama')->limit(50)->get()->map(fn ($r) => [...$r->only(['id', 'status_dari', 'status_ke', 'catatan']), 'created_at' => $r->created_at->toIso8601String(), 'user' => $r->user?->only(['id', 'nama'])])->all();
+        // Histori versi baca-saja: satu query versi, satu query status berlaku per versi (batch), satu query penetap.
+        // Payload beku versi tidak pernah dikirim; hanya metadata dan status capaian yang berlaku.
+        $versions = $p->versions()->get();
+        $statusPerVersi = StatusCapaian::berlakuPerVersi($versions->modelKeys())->load('ditetapkanOleh:id,nama');
+        $ratifiedId = $p->ratifiedVersion?->id;
+        $data['histori_versi'] = $versions->map(function (KinerjaSnapshot $versi) use ($statusPerVersi, $ratifiedId) {
+            $status = $statusPerVersi->get($versi->id);
+
+            return ['id' => $versi->id, 'nomor' => $versi->nomor, 'diajukan_at' => $versi->diajukan_at?->toIso8601String(),
+                'disahkan_at' => $versi->disahkan_at?->toIso8601String(), 'jalur_pengajuan' => $versi->jalur_pengajuan, 'resmi' => $versi->id === $ratifiedId,
+                'status_capaian' => $status ? ['status' => $status->status, 'sumber' => $status->sumber,
+                    'penetap' => $status->ditetapkanOleh?->only(['id', 'nama']), 'ditetapkan_pada' => $status->created_at?->toIso8601String()] : null];
+        })->all();
         $this->prepareSummary(new Collection([$p]));
         $data['self_approval'] = $data['self_approval'] || (bool) $p->getAttribute('self_verified');
         $data['reviu_terlambat'] = (bool) $p->getAttribute('late_review');
