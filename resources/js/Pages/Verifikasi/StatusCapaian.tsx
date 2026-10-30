@@ -283,10 +283,22 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border bg-soft text-muted">
                                 <Search className="h-6 w-6" aria-hidden="true" />
                             </div>
-                            <p className="mt-3 text-sm font-semibold text-ink">Tidak ada pengukuran yang menunggu penetapan</p>
-                            <p className="mx-auto mt-1 max-w-md text-xs text-muted">
-                                Semua versi pengukuran yang disahkan sudah memiliki status capaian, atau belum ada versi yang memenuhi syarat penetapan.
-                            </p>
+                            {pagination.total === 0 ? (
+                                <>
+                                    <p className="mt-3 text-sm font-semibold text-ink">Tidak ada pengukuran yang menunggu penetapan</p>
+                                    <p className="mx-auto mt-1 max-w-md text-xs text-muted">
+                                        Semua versi pengukuran yang disahkan sudah memiliki status capaian, atau belum ada versi yang memenuhi syarat penetapan.
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="mt-3 text-sm font-semibold text-ink">Tidak ada kandidat di halaman ini</p>
+                                    <p className="mx-auto mt-1 max-w-md text-xs text-muted">
+                                        Halaman ini tidak memuat kandidat, tetapi masih ada {pagination.total} pengukuran yang menunggu penetapan pada
+                                        halaman lain. Gunakan tautan Sebelumnya di bawah untuk kembali ke halaman berisi kandidat.
+                                    </p>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <>
@@ -378,19 +390,19 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                                     </li>
                                 ))}
                             </ul>
-
-                            {pagination.last_page > 1 && (
-                                <nav aria-label="Halaman kandidat status capaian" className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
-                                    {pagination.prev_page_url
-                                        ? <Link href={pagination.prev_page_url} preserveScroll className={tautanPaginasi}>Sebelumnya</Link>
-                                        : <span aria-hidden="true" />}
-                                    <p className="text-xs text-muted">Halaman {pagination.current_page} dari {pagination.last_page} · {pagination.total} baris</p>
-                                    {pagination.next_page_url
-                                        ? <Link href={pagination.next_page_url} preserveScroll className={tautanPaginasi}>Berikutnya</Link>
-                                        : <span aria-hidden="true" />}
-                                </nav>
-                            )}
                         </>
+                    )}
+
+                    {pagination.last_page > 1 && (
+                        <nav aria-label="Halaman kandidat status capaian" className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
+                            {pagination.prev_page_url
+                                ? <Link href={pagination.prev_page_url} preserveScroll className={tautanPaginasi}>Sebelumnya</Link>
+                                : <span aria-hidden="true" />}
+                            <p className="text-xs text-muted">Halaman {pagination.current_page} dari {pagination.last_page} · {pagination.total} baris</p>
+                            {pagination.next_page_url
+                                ? <Link href={pagination.next_page_url} preserveScroll className={tautanPaginasi}>Berikutnya</Link>
+                                : <span aria-hidden="true" />}
+                        </nav>
                     )}
                 </Card>
 

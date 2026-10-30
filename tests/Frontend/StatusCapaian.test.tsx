@@ -141,6 +141,63 @@ describe('Halaman status capaian versi pengukuran', () => {
         expect(screen.queryByRole('table')).toBeNull();
     });
 
+    /** P2: halaman yang melewati batas tetap memuat nav agar pengguna dapat kembali ke halaman berisi kandidat. */
+    it('membedakan halaman kosong karena melewati batas dan tetap menampilkan nav kandidat', () => {
+        render(<StatusCapaian {...props({
+            kandidat: [],
+            pagination: {
+                current_page: 3,
+                last_page: 2,
+                total: 5,
+                prev_page_url: '/verifikasi/status-capaian?page=2',
+                next_page_url: null,
+            },
+        })} />);
+
+        expect(screen.getByText('Tidak ada kandidat di halaman ini')).toBeTruthy();
+        expect(screen.queryByText('Tidak ada pengukuran yang menunggu penetapan')).toBeNull();
+        expect(screen.queryByRole('table')).toBeNull();
+
+        const nav = screen.getByRole('navigation', { name: 'Halaman kandidat status capaian' });
+        expect(within(nav).getByText('Halaman 3 dari 2 · 5 baris')).toBeTruthy();
+        expect(within(nav).getByRole('link', { name: 'Sebelumnya' }).getAttribute('href')).toBe('/verifikasi/status-capaian?page=2');
+        expect(within(nav).queryByRole('link', { name: 'Berikutnya' })).toBeNull();
+    });
+
+    /** P2: total nol berarti memang tidak ada kandidat, bukan halaman yang melewati batas. */
+    it('memakai kondisi kosong total nol tanpa nav paginasi kandidat', () => {
+        render(<StatusCapaian {...props({
+            kandidat: [],
+            pagination: { current_page: 1, last_page: 1, total: 0, prev_page_url: null, next_page_url: null },
+        })} />);
+
+        expect(screen.getByText('Tidak ada pengukuran yang menunggu penetapan')).toBeTruthy();
+        expect(screen.queryByText('Tidak ada kandidat di halaman ini')).toBeNull();
+        expect(screen.queryByRole('navigation', { name: 'Halaman kandidat status capaian' })).toBeNull();
+        expect(screen.queryByText(/Halaman 1 dari 1/)).toBeNull();
+    });
+
+    it('tetap menampilkan tabel kandidat dan nav saat halaman berisi kandidat', () => {
+        render(<StatusCapaian {...props({
+            pagination: {
+                current_page: 1,
+                last_page: 2,
+                total: 5,
+                prev_page_url: null,
+                next_page_url: '/verifikasi/status-capaian?page=2',
+            },
+        })} />);
+
+        const tabel = screen.getByRole('table', { name: 'Kandidat penetapan status capaian' });
+        expect(within(tabel).getByText('IKU-UJI')).toBeTruthy();
+        expect(screen.queryByText('Tidak ada kandidat di halaman ini')).toBeNull();
+
+        const nav = screen.getByRole('navigation', { name: 'Halaman kandidat status capaian' });
+        expect(within(nav).getByText('Halaman 1 dari 2 · 5 baris')).toBeTruthy();
+        expect(within(nav).getByRole('link', { name: 'Berikutnya' }).getAttribute('href')).toBe('/verifikasi/status-capaian?page=2');
+        expect(within(nav).queryByRole('link', { name: 'Sebelumnya' })).toBeNull();
+    });
+
     it('menyembunyikan aksi tetapkan dan menandai tanpa izin saat can.tetapkan false', () => {
         render(<StatusCapaian {...props({ can: { tetapkan: false } })} />);
 
