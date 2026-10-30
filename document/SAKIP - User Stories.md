@@ -2037,6 +2037,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-4:** Given perubahan format setelah persetujuan, Then perubahan harus masuk catatan keputusan/UAT baru.
 
 ### US-10.05 · Keluaran Rencana Aksi Tahunan dan Laporan Kinerja Triwulan serta Unggah PDF Bertanda Tangan
+> **Status implementasi lokal — slice arsip ISS-10.05 (29 Oktober 2026):** halaman Dokumen Resmi, katalog/preset `laporan:unggah`, arsip PDF pada jadwal tahunan/periode, penggantian append-only, unduhan privat dengan akses seluruh unit, serta audit unggah tersedia. Keputusan K3–K7 mengikuti [komentar PM 29 Oktober](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179#issuecomment-6476048514). Backend terfokus 21 test lulus pada PostgreSQL 17 disposable; frontend halaman 8 test dan navigasi 50 test lulus. AC-5 hanya selesai untuk unduh arsip; generator AC-1–AC-4 masih menunggu pengesahan format ISS-10.04. Status ini bukan bukti merge, CI, UAT, atau deployment. Sinkronisasi Q75/Q76 dan issue producer snapshot tetap mengikuti tindak lanjut PM.
 
 | Field | Detail |
 |---|---|
@@ -2060,10 +2061,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-3:** Given indikator yang RA atau pengukurannya belum disahkan, Then indikator tetap tercantum dengan keterangan "belum disahkan" tanpa angka resmi. *(Q48 §48.1 butir 2)*
 - [ ] **AC-4:** Given periode tanpa target atau realisasi belum dapat diukur, Then keluaran memakai keterangan yang sama dengan dashboard ("Tanpa target periode", "Belum dapat diukur"). *(Q47 §47.3–§47.4)*
 - [ ] **AC-5:** Given pengguna tanpa `laporan:ekspor`, When meminta keluaran atau mengunduh arsip, Then ditolak 403. *(Q48 §48.1 butir 6, §48.2 butir 2)*
-- [ ] **AC-6:** Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
-- [ ] **AC-7:** Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
-- [ ] **AC-8:** Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
-- [ ] **AC-9:** Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
+- [x] **AC-6:** Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
+- [x] **AC-7:** Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
+- [x] **AC-8:** Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
+- [x] **AC-9:** Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
 
 **Business Rules / Catatan**
 

@@ -198,6 +198,13 @@ export const SIDEBAR_NAVIGATION_SCHEMA: NavEntryConfig[] = [
                     icon: FileSpreadsheet,
                     canKey: 'laporan_read',
                 },
+                {
+                    id: 'dokumen-resmi',
+                    label: 'Dokumen Resmi',
+                    href: '/laporan/dokumen-resmi',
+                    icon: FileSpreadsheet,
+                    canKey: 'dokumenResmi',
+                },
             ],
         },
     },
