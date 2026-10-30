@@ -41,11 +41,12 @@ class EnsureKegiatanActorIsActive extends EnsureUserIsActive
                     alasan: 'Akun tidak aktif saat membuka halaman kegiatan rencana aksi.',
                     dasarIzin: $this->resolver->resolve($actor, PermissionCodes::KEGIATAN_READ, (string) $header->unit_id)->toAuditBasis(),
                 );
-            } elseif ($request->routeIs('rencana-aksi.kegiatan.edit') && $kegiatan instanceof Kegiatan) {
-                // Form ubah kegiatan memakai gerbang `kegiatan:update` yang sama dengan FormKegiatan.
+            } elseif ($request->routeIs('rencana-aksi.kegiatan.edit', 'rencana-aksi.kegiatan.realisasi') && $kegiatan instanceof Kegiatan) {
+                // Form rencana dan realisasi memakai gerbang `kegiatan:update` yang sama dengan FormKegiatan.
                 $this->audit->catat(
                     actor: $actor, tindakan: 'kegiatan.form_ditolak', objekTipe: 'kegiatan', objekId: (string) $kegiatan->id,
-                    alasan: 'Akun tidak aktif saat membuka form rencana kegiatan.',
+                    alasan: $request->routeIs('rencana-aksi.kegiatan.realisasi')
+                        ? 'Akun tidak aktif saat membuka form realisasi kegiatan.' : 'Akun tidak aktif saat membuka form rencana kegiatan.',
                     dasarIzin: $this->resolver->resolve($actor, PermissionCodes::KEGIATAN_UPDATE, (string) $kegiatan->unit_id)->toAuditBasis(),
                 );
             } else {

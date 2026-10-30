@@ -9,7 +9,8 @@ import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
 import type { DefinitionEditor } from '@/Pages/Indikator/Komponen/definition';
 import { COMPONENTS, definition, indicator, REVISION } from './indikatorFixtures';
 
-vi.mock('@inertiajs/react', async (original) => ({ ...(await original<typeof import('@inertiajs/react')>()), Head: () => null }));
+vi.mock('@inertiajs/react', async (original) => ({ ...(await original<typeof import('@inertiajs/react')>()), Head: () => null,
+    usePage: () => ({ url: '/perencanaan/sasaran-indikator', props: { pengaturan: {} } }) }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const reason = 'Perbaikan formula sesuai kebutuhan indikator.';

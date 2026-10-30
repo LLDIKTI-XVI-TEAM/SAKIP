@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Pencil, Plus } from 'lucide-react';
+import { ClipboardCheck, MoreHorizontal, Pencil, Plus } from 'lucide-react';
+import { ActionMenu } from '@/Components/ActionMenu';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
-import { Table, TableActionLink, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Table, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { Textarea } from '@/Components/Textarea';
 import { bantuanAnggaran, formatRupiah, teksTotalAnggaran } from '@/lib/rupiah';
 import { ARAH_DAMPAK_OPTIONS, statusKegiatanConfig, type ArahDampak } from '@/types/kegiatan';
@@ -213,13 +214,15 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                     <TableCell className={`${selResponsif} xl:text-right`}>
                                                         {/* Klaim pengukuran dikelola lewat siklus pengukuran, bukan halaman kegiatan Rencana Aksi. */}
                                                         {row.sumber_klaim === 'rencana_aksi' && (
-                                                            <TableActionLink
-                                                                href={`/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}`}
-                                                                aria-disabled={kotor}
-                                                                onBefore={() => !kotor}
-                                                                icon={Pencil}
-                                                                label={`Kelola kegiatan ${row.nama}`}
-                                                                tooltip="Kelola kegiatan"
+                                                            <ActionMenu
+                                                                items={[
+                                                                    { key: 'rencana', label: 'Catat rencana', icon: Pencil, href: `/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}` },
+                                                                    { key: 'realisasi', label: 'Catat realisasi', icon: ClipboardCheck, href: `/rencana-aksi/${rencanaAksiId}/kegiatan/${row.kegiatan_id}/realisasi` },
+                                                                ]}
+                                                                trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
+                                                                triggerLabel={`Aksi kegiatan ${row.nama}`}
+                                                                triggerClassName="h-8 w-8 px-0"
+                                                                disabled={kotor}
                                                             />
                                                         )}
                                                     </TableCell>

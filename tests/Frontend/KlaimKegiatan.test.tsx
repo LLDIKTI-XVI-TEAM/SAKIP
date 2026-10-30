@@ -44,6 +44,12 @@ const TOTAL_KOSONG = { total: '0', belum_diisi: 0, per_periode: {} };
 /** Baris data tabel kegiatan (tanpa baris kepala kolom). */
 const barisTabel = (): HTMLElement[] => screen.getAllByRole('row').filter((row) => row.closest('tbody') !== null);
 
+/** Buka menu aksi baris lalu kembalikan pasangan [label, href] tiap item. */
+const menuAksi = (nama: string): [string | null, string | null][] => {
+    fireEvent.click(screen.getByRole('button', { name: `Aksi kegiatan ${nama}` }));
+    return within(screen.getByRole('menu')).getAllByRole('menuitem').map((item) => [item.textContent, item.getAttribute('href')]);
+};
+
 it('panel RA menampilkan total presisi di atas batas Number dan total nol untuk periode tanpa kegiatan', () => {
     render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
         kegiatan={{ daftar: [{ id: 'k1', periode_id: 'tw1', kegiatan_id: 'keg-1', nama: 'Besar', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null,
@@ -72,8 +78,8 @@ it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan kla
     expect(rapat.getByText('Klaim pengukuran')).toBeTruthy();
     expect(rapat.queryByText('Kegiatan bersama')).toBeNull();
     // Klaim pengukuran tidak dapat dikelola di halaman Kegiatan, sehingga tautannya tidak ditawarkan.
-    expect(workshop.getByRole('link', { name: 'Kelola kegiatan Workshop' })).toBeTruthy();
-    expect(rapat.queryByRole('link', { name: /^Kelola kegiatan/ })).toBeNull();
+    expect(workshop.getByRole('button', { name: 'Aksi kegiatan Workshop' })).toBeTruthy();
+    expect(rapat.queryByRole('button', { name: /^Aksi kegiatan/ })).toBeNull();
     // Total rencana aksi tampil di kartu identitas halaman; panel hanya memuat total per periode.
     expect(screen.getByText(/^Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
 });
@@ -131,7 +137,12 @@ it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke pe
             total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
 
     expect(screen.queryByRole('button', { name: /Tambah kegiatan Triwulan I$/ })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Kelola kegiatan Rapat lama' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
+    // Periode terkunci tetap menawarkan menu: halaman tujuan yang menampilkan mode baca-saja dari server.
+    expect(menuAksi('Rapat lama')).toEqual([
+        ['Catat rencana', '/rencana-aksi/ra-1/kegiatan/keg-1'],
+        ['Catat realisasi', '/rencana-aksi/ra-1/kegiatan/keg-1/realisasi'],
+    ]);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
 
     fireEvent.click(screen.getByRole('button', { name: /Tambah kegiatan Triwulan II$/ }));
     const dialog = within(screen.getByRole('dialog'));
@@ -159,7 +170,7 @@ it('pembaca RA melihat komponen snapshot, arah dampak, dan catatan tanpa akses k
     expect(row.getByText('P — Pembilang')).toBeTruthy();
     expect(row.getByText('Mengurangi')).toBeTruthy();
     expect(row.getByText('Mengurangi kendala pelaksanaan')).toBeTruthy();
-    expect(row.queryByRole('link', { name: /^Kelola kegiatan/ })).toBeNull();
+    expect(row.queryByRole('button', { name: /^Aksi kegiatan/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Tambah kegiatan/ })).toBeNull();
 });
 
@@ -202,12 +213,13 @@ it('menahan kelola kegiatan saat target kotor dan mengaktifkannya kembali sesuda
     };
     const { rerender } = render(<KegiatanPanel {...props} kotor />);
 
-    expect(screen.getByRole('link', { name: 'Kelola kegiatan Bimtek' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aksi kegiatan Bimtek' }).disabled).toBe(true);
     expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('link', { name: 'Kelola kegiatan Bimtek' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aksi kegiatan Bimtek' }));
+    expect(screen.queryByRole('menu')).toBeNull();
 
     rerender(<KegiatanPanel {...props} kotor={false} />);
-    expect(screen.getByRole('link', { name: 'Kelola kegiatan Bimtek' }).getAttribute('aria-disabled')).toBe('false');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aksi kegiatan Bimtek' }).disabled).toBe(false);
     expect(screen.queryByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Kelola kegiatan Bimtek' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/kegiatan/keg-1');
+    expect(menuAksi('Bimtek')[0]).toEqual(['Catat rencana', '/rencana-aksi/ra-1/kegiatan/keg-1']);
 });
