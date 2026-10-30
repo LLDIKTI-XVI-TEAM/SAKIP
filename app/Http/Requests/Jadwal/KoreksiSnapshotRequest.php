@@ -7,6 +7,7 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Jadwal\SelisihSnapshotMaster;
 use App\Support\AuditReason;
+use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -14,7 +15,8 @@ use Illuminate\Support\Str;
 
 /**
  * Payload koreksi hanya periode mulai, alasan, rujukan, dan token versi; nilai konteks disalin server dari data master
- * (Q79 §79.1). Izin per kelompok kolom bergantung pada selisih terkunci, sehingga di sini cukup salah satu izin koreksi.
+ * (Q79 §79.1). Izin per kelompok kolom bergantung pada selisih terkunci, sehingga di sini cukup izin baca indikator
+ * ditambah salah satu izin koreksi.
  */
 class KoreksiSnapshotRequest extends FormRequest
 {
@@ -27,11 +29,12 @@ class KoreksiSnapshotRequest extends FormRequest
         if (! $actor instanceof User) {
             return false;
         }
-        foreach (SelisihSnapshotMaster::IZIN as $code) {
+        foreach ([PermissionCodes::INDIKATOR_READ, ...SelisihSnapshotMaster::IZIN] as $code) {
             $this->initialDecisions[$code] = app(PermissionResolver::class)->resolve($actor, $code);
         }
 
-        return collect($this->initialDecisions)->contains(fn (PermissionDecision $decision): bool => $decision->allowed);
+        return $this->initialDecisions[PermissionCodes::INDIKATOR_READ]->allowed
+            && collect(SelisihSnapshotMaster::IZIN)->contains(fn (string $code): bool => $this->initialDecisions[$code]->allowed);
     }
 
     /** Aturan dipakai ulang di Action untuk caller selain HTTP. @return array<string, mixed> */

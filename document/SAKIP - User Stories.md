@@ -817,7 +817,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 | **Story Points** | 8 |
 | **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
 | **Dependensi** | Snapshot tersedia; data master sudah diperbaiki; koreksi memiliki alasan dan rujukan resmi (Q79 §79.1). |
-| **Otorisasi** | Per kelompok kolom yang berubah: `target:update`, `indikator:update`, `komponen:update` (Q79 §79.1 butir 5), serta guard jadwal. |
+| **Otorisasi** | `indikator:read` ditambah izin per kelompok kolom yang berubah: `target:update`, `indikator:update`, `komponen:update` (Q79 §79.1 butir 5), serta guard jadwal. |
 | **Dampak Data** | `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`. |
 
 > **Sebagai** Tim Perencanaan,  

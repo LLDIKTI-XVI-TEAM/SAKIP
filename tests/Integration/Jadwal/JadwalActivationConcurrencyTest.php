@@ -298,9 +298,9 @@ class JadwalActivationConcurrencyTest extends TestCase
         $lama = JadwalSnapshot::sole();
         TargetKinerja::where('indikator_kinerja_id', $lama->indikator_id)->update(['target_tahunan' => '80.5']);
         // Dua aktor berbeda agar worker antre pada lock domain (indikator/snapshot), bukan pada baris aktor yang sama.
-        $job = $this->correctionJob($this->activator(['target:update']), $lama);
+        $job = $this->correctionJob($this->activator(['indikator:read', 'target:update']), $lama);
         DB::beginTransaction();
-        app(KoreksiSnapshot::class)->handle($this->activator(['target:update']), $this->ready['jadwal']->id, $lama->id, $job['data']);
+        app(KoreksiSnapshot::class)->handle($this->activator(['indikator:read', 'target:update']), $this->ready['jadwal']->id, $lama->id, $job['data']);
         $this->assertSame(['outcome' => 'validation', 'fields' => ['expected_snapshot_id']], $this->raceAgainstOpenTransaction($job));
         $this->assertSame([1, 2], JadwalSnapshot::orderBy('nomor_versi')->pluck('nomor_versi')->all());
         $this->assertSame(1, AuditLog::where('tindakan', 'jadwal_snapshot.koreksi')->count());
@@ -314,7 +314,7 @@ class JadwalActivationConcurrencyTest extends TestCase
         $lama = JadwalSnapshot::sole();
         $writer = $this->activator(['indikator:read', 'target:update']);
         $state = app(ShowTargetTahunan::class)->handle($writer, $lama->indikator_id, 2026);
-        $job = $this->correctionJob($this->activator(['target:update']), $lama);
+        $job = $this->correctionJob($this->activator(['indikator:read', 'target:update']), $lama);
         DB::beginTransaction();
         app(SaveTargetTahunan::class)->handle($writer, $lama->indikator_id, 2026, ['baseline' => null, 'target_tahunan' => '95', 'expected_state' => $state['expected_state'],
             'operation_id' => (string) Str::uuid(), 'alasan' => 'Salah ketik target PK']);
@@ -343,7 +343,7 @@ class JadwalActivationConcurrencyTest extends TestCase
             'expected_snapshot_versi' => $token->nomor_versi, 'targets' => [['periode_id' => $this->ready['periode']->id, 'komponen_id' => null, 'nilai' => 80, 'keterangan' => null]]];
 
         // Simpan target RA dulu: koreksi menunggu lalu terbit.
-        $job = $this->correctionJob($this->activator(['target:update']), $lama);
+        $job = $this->correctionJob($this->activator(['indikator:read', 'target:update']), $lama);
         DB::beginTransaction();
         app(SimpanTargetPeriode::class)->handle($penyusun, $header->id, $simpan($lama));
         $this->assertSame(['outcome' => 'changed', 'changed' => null], $this->raceAgainstOpenTransaction($job));
@@ -353,7 +353,7 @@ class JadwalActivationConcurrencyTest extends TestCase
         TargetKinerja::where('indikator_kinerja_id', $lama->indikator_id)->update(['target_tahunan' => '81']);
         $job = ['operation' => 'simpan_target_ra', 'actor_id' => $penyusun->id, 'id' => $header->id, 'data' => $simpan($baru)];
         DB::beginTransaction();
-        app(KoreksiSnapshot::class)->handle($this->activator(['target:update']), $this->ready['jadwal']->id, $baru->id, $this->correctionJob($penyusun, $baru)['data']);
+        app(KoreksiSnapshot::class)->handle($this->activator(['indikator:read', 'target:update']), $this->ready['jadwal']->id, $baru->id, $this->correctionJob($penyusun, $baru)['data']);
         $this->assertSame(['outcome' => 'validation', 'fields' => ['expected_snapshot_id']], $this->raceAgainstOpenTransaction($job));
         $this->assertSame([1, 2, 3], JadwalSnapshot::orderBy('nomor_versi')->pluck('nomor_versi')->all());
     }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Jadwal;
 
+use App\Actions\Jadwal\KoreksiSnapshot;
 use App\Actions\Jadwal\TambahIndikatorJadwal;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
@@ -15,6 +16,7 @@ use App\Models\TargetKinerja;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\Pengukuran\DaftarKewajibanPengukuran;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -155,7 +157,7 @@ class KoreksiSnapshotTest extends TestCase
         $this->assertSame(['94.050000000000', 'Indikator koreksi (nama resmi)', true, 2, $lama->id, self::RUJUKAN],
             [$audit->nilai_baru['target'], $audit->nilai_baru['nama'], $audit->nilai_baru['dinilai_tahunan'], $audit->nilai_baru['nomor_versi'],
                 $audit->nilai_baru['menggantikan_id'], $audit->nilai_baru['rujukan_koreksi']]);
-        $this->assertEqualsCanonicalizing(['target:update', 'indikator:update'], array_keys($audit->dasar_izin));
+        $this->assertEqualsCanonicalizing(['indikator:read', 'target:update', 'indikator:update'], array_keys($audit->dasar_izin));
         $this->assertSame(0, $this->penolakan());
     }
 
@@ -170,7 +172,7 @@ class KoreksiSnapshotTest extends TestCase
         $audit = AuditLog::where('tindakan', 'jadwal_snapshot.koreksi')->sole();
         $this->assertSame(['Definisi operasional fixture', 'Definisi operasional resmi'], [$audit->nilai_lama['definisi'], $audit->nilai_baru['definisi']]);
         $this->assertSame(['Komponen A', 'Komponen A resmi'], [$audit->nilai_lama['komponen'][0]['label'], $audit->nilai_baru['komponen'][0]['label']]);
-        $this->assertEqualsCanonicalizing(['indikator:update', 'komponen:update'], array_keys($audit->dasar_izin));
+        $this->assertEqualsCanonicalizing(['indikator:read', 'indikator:update', 'komponen:update'], array_keys($audit->dasar_izin));
     }
 
     public function test_koreksi_menyalin_komponen_aktif_master_dan_komponen_lama_tetap(): void
@@ -189,7 +191,7 @@ class KoreksiSnapshotTest extends TestCase
             DB::table('jadwal_snapshot_komponen')->where('jadwal_snapshot_id', $baru->id)->orderBy('urutan')->get()
                 ->map(fn ($row): array => [$row->kode, $row->bobot, $row->urutan])->all());
         $audit = AuditLog::where('tindakan', 'jadwal_snapshot.koreksi')->sole();
-        $this->assertSame(['komponen:update'], array_keys($audit->dasar_izin));
+        $this->assertEqualsCanonicalizing(['indikator:read', 'komponen:update'], array_keys($audit->dasar_izin));
         $this->assertCount(2, $audit->nilai_lama['komponen']);
         $this->assertCount(3, $audit->nilai_baru['komponen']);
     }
@@ -290,6 +292,22 @@ class KoreksiSnapshotTest extends TestCase
         $lama = $this->terjadwal();
         $this->koreksi($this->userWithRole('pegawai'), $lama)->assertForbidden();
         $this->assertSame(1, $this->penolakan('izin_ditolak'));
+
+        // Izin tulis tanpa izin baca indikator ditolak, baik lewat HTTP maupun pemanggil Action langsung.
+        $tanpaBaca = $this->userWithRole('perencanaan');
+        $this->tolak($tanpaBaca, 'indikator:read');
+        $this->ubahTarget($lama, '87');
+        $this->koreksi($tanpaBaca, $lama)->assertForbidden();
+        try {
+            app(KoreksiSnapshot::class)->handle($tanpaBaca, $this->jadwal->id, $lama->id, $this->payload($lama));
+            $this->fail('Koreksi tanpa indikator:read seharusnya ditolak.');
+        } catch (AuthorizationException) {
+        }
+        $this->assertSame('ditolak', AuditLog::where('tindakan', 'jadwal_snapshot.koreksi_ditolak')->where('actor_id', $tanpaBaca->id)
+            ->latest('waktu')->first()->dasar_izin['indikator:read']['keputusan']);
+        $this->assertSame(1, $this->versi($lama));
+        $this->assertSame(3, $this->penolakan('izin_ditolak'));
+        $this->ubahTarget($lama, '80');
 
         $tanpaTarget = $this->userWithRole('perencanaan');
         $this->tolak($tanpaTarget, 'target:update');

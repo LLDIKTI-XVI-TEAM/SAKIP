@@ -1890,7 +1890,7 @@ kegiatan:update
 #### Kontrak Teknis
 
 - **Dependensi:** Snapshot tersedia; data master sudah diperbaiki; koreksi memiliki alasan dan rujukan resmi (Q79 §79.1).
-- **Otorisasi:** per kelompok kolom yang berubah: `target:update`, `indikator:update`, `komponen:update` (Q79 §79.1 butir 5), serta guard jadwal; halaman dibaca dengan izin detail jadwal tahunan (Q79 §79.5).
+- **Otorisasi:** `indikator:read` (sama dengan penulis target dan indikator lain) ditambah izin per kelompok kolom yang berubah: `target:update`, `indikator:update`, `komponen:update` (Q79 §79.1 butir 5), serta guard jadwal; halaman dibaca dengan izin detail jadwal tahunan (Q79 §79.5).
 - **Dampak Data:** `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
 - **Batasan dari ISS-05.01 (PR #62):** aktivasi pertama di `ActivateJadwal` dan trigger database `finalisasi_snapshot_saat_jadwal_aktif` (setiap transisi status ke `aktif`, termasuk jalur buka-kembali yang akan datang) membekukan **seluruh** snapshot jadwal yang masih `komposisi_final = false`. Bila koreksi berversi memakai draf snapshot yang belum terbit, kedua jalur itu wajib mengecualikan draf koreksi agar tidak ikut dibekukan sebelum waktunya. Koreksi dibuat dalam satu transaksi tanpa draf koreksi, sehingga kedua jalur tersebut tidak berubah.
 

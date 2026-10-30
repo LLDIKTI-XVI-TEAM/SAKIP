@@ -19,6 +19,7 @@ use App\Services\Jadwal\JadwalSnapshotWriter;
 use App\Services\Jadwal\SelisihSnapshotMaster;
 use App\Services\RencanaAksi\KonteksBekuRencanaAksi;
 use App\Support\AuditReason;
+use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\DeadlockException;
@@ -57,10 +58,12 @@ class KoreksiSnapshot
             return DB::transaction(function () use ($actor, $jadwalId, $snapshotId, $data, &$basis): string {
                 /** @var array<string, PermissionDecision> $keputusan */
                 $keputusan = [];
-                foreach (SelisihSnapshotMaster::IZIN as $kode) {
+                foreach ([PermissionCodes::INDIKATOR_READ, ...SelisihSnapshotMaster::IZIN] as $kode) {
                     $keputusan[$kode] = $this->lockedActor->handle($actor, $kode)['keputusan'];
                 }
-                if (! collect($keputusan)->contains(fn (PermissionDecision $decision): bool => $decision->allowed)) {
+                // Seperti penulis target dan indikator lain, koreksi yang menyalin data master mensyaratkan izin baca indikator.
+                $bacaIndikator = $keputusan[PermissionCodes::INDIKATOR_READ];
+                if (! $bacaIndikator->allowed || ! collect(SelisihSnapshotMaster::IZIN)->contains(fn (string $kode): bool => $keputusan[$kode]->allowed)) {
                     $basis = array_map(fn (PermissionDecision $decision): array => $decision->toAuditBasis(), $keputusan);
                     throw new AuthorizationException('Anda tidak memiliki izin mengoreksi snapshot.');
                 }
@@ -114,8 +117,8 @@ class KoreksiSnapshot
                 if ($selisih['izin'] === []) {
                     throw $tolak('Data master sama dengan versi snapshot terbaru. Perbaiki data master terlebih dahulu.');
                 }
-                // Hanya kelompok kolom yang berbeda yang menjadi dasar izin; deny pada salah satunya menolak seluruh koreksi.
-                $basis = [];
+                // Dasar izin: baca indikator dan kelompok kolom yang berbeda; deny pada salah satunya menolak seluruh koreksi.
+                $basis = [PermissionCodes::INDIKATOR_READ => $bacaIndikator->toAuditBasis()];
                 foreach ($selisih['izin'] as $kode) {
                     $basis[$kode] = $keputusan[$kode]->toAuditBasis();
                 }
