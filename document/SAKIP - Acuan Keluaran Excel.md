@@ -32,6 +32,7 @@
 | U2 | 29 Oktober 2026 | Pengesah dicatat dengan jabatan, tanggal, dan bentuk persetujuan; nama dan bukti persetujuan disimpan PM di luar repo. |
 | U3 | 29 Oktober 2026 | Dikerjakan bertahap: dokumen ini sebagai draf, lalu pencatatan pengesahan (beserta UAT (a) bila siap), lalu hasil UAT (b) dan (c). |
 | U4 | 29 Oktober 2026 | Unsur contoh tanpa dasar dokumen (kop, blok tanda tangan, nomor dokumen) dicatat sebagai "Tidak wajib — di luar SAKIP". Bila Perencanaan mensyaratkannya di dalam Excel, ketentuannya ditetapkan sebagai keputusan baru sebelum pengesahan. |
+| U5 | 30 Oktober 2026 | Pertanyaan U1 dan calon contoh (a) dikirim dalam satu permintaan: keluaran ekspor ISS-10.03 dengan data uji fiktif dilampirkan sejak awal dan dipakai hanya bila Perencanaan tidak memiliki format kerja rekap. Tanggapan diminta paling lambat 6 November 2026. |
 
 ---
 
@@ -39,7 +40,7 @@
 
 | Keluaran | Calon contoh | Format berkas | Diminta/diterima | Penyimpan | Pengesah (jabatan) | Tanggal dan bentuk persetujuan | Status |
 |---|---|---|---|---|---|---|---|
-| (a) Rekapitulasi indikator × periode | Menunggu jawaban Perencanaan (U1) | — | — / — | PM | — | — | Draf — belum disahkan Perencanaan |
+| (a) Rekapitulasi indikator × periode | Menunggu jawaban Perencanaan (U1); calon contoh dari ekspor ISS-10.03 dengan data uji ikut dilampirkan (U5) | — | — / — | PM | — | — | Draf — belum disahkan Perencanaan |
 | (b) Rencana Aksi tahunan | Rencana Aksi 2026 (23 Mei 2026), menunggu persetujuan dipakai sebagai contoh | — | — / sudah disimpan PM (pengantar Q47–Q51) | PM | — | — | Draf — belum disahkan Perencanaan |
 | (c) Laporan Kinerja Triwulan | Laporan Kinerja Triwulan I dan II 2026 (20 Juli 2026), menunggu persetujuan dipakai sebagai contoh | — | — / sudah disimpan PM (pengantar Q47–Q51) | PM | — | — | Draf — belum disahkan Perencanaan |
 
@@ -148,3 +149,4 @@ UAT memakai data uji/fixture. Bukti tangkapan tidak boleh memuat nilai kinerja r
 |---|---|---|
 | 29 Oktober 2026 | Draf awal; ketiga keluaran berstatus Draf — belum disahkan Perencanaan | Issue #178 |
 | 30 Oktober 2026 | Keterangan kolom `Status Capaian` diselaraskan dengan penetapan status capaian ISS-09.02 | PR #203 |
+| 30 Oktober 2026 | Keputusan U5: calon contoh (a) dilampirkan pada permintaan pertama | Issue #178 |
