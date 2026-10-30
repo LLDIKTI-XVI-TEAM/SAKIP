@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Jadwal\ActivateJadwal;
+use App\Actions\Jadwal\KoreksiSnapshot;
 use App\Actions\Jadwal\SaveJadwalDraft;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
@@ -8,6 +9,7 @@ use App\Actions\Perencanaan\PindahUnitIndikator;
 use App\Actions\Perencanaan\StoreIndikator;
 use App\Actions\Periode\SavePeriode;
 use App\Actions\PerjanjianKinerja\DeleteBerkasPerjanjianKinerja;
+use App\Actions\RencanaAksi\SimpanTargetPeriode;
 use App\Actions\TargetTahunan\SaveTargetTahunan;
 use App\Models\Berkas;
 use App\Models\IndikatorKinerja;
@@ -75,6 +77,8 @@ try {
         'delete_berkas' => app(DeleteBerkasPerjanjianKinerja::class)->handle(RenstraPk::findOrFail($payload['id']), Berkas::findOrFail($payload['berkas_id']), 'Hapus lampiran fixture konkurensi', $actor),
         'save_jadwal' => app(SaveJadwalDraft::class)->handle($actor, $data, (new JadwalTahunan)->forceFill(['id' => $payload['id']])),
         'save_periode' => app(SavePeriode::class)->handle($actor, $data, (new Periode)->forceFill(['id' => $payload['id']])),
+        'koreksi_snapshot' => app(KoreksiSnapshot::class)->handle($actor, $payload['id'], $payload['snapshot_id'], $data),
+        'simpan_target_ra' => app(SimpanTargetPeriode::class)->handle($actor, $payload['id'], $data),
     };
     $result = ['outcome' => 'changed', 'changed' => is_array($result) ? ($result['changed'] ?? null) : null];
 } catch (ValidationException $exception) {

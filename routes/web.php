@@ -20,6 +20,7 @@ use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
+use App\Http\Controllers\Jadwal\SnapshotIndikatorController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Kegiatan\AlihkanKegiatanLama;
 use App\Http\Controllers\Kegiatan\BerkasKegiatanController;
@@ -170,6 +171,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/jadwal/{jadwal}/tutup', [JadwalController::class, 'close'])->whereUuid('jadwal')->name('jadwal.close');
     Route::post('/jadwal/{jadwal}/revisi-jendela', [JadwalController::class, 'reviseWindows'])->whereUuid('jadwal')->name('jadwal.revise-windows');
     Route::post('/jadwal/{jadwal}/indikator', [JadwalController::class, 'addIndicator'])->whereUuid('jadwal')->name('jadwal.add-indicator');
+    Route::get('/jadwal/{jadwal}/snapshot', [SnapshotIndikatorController::class, 'index'])->whereUuid('jadwal')->name('jadwal.snapshot.index');
+    Route::post('/jadwal/{jadwal}/snapshot/{snapshot}/koreksi', [SnapshotIndikatorController::class, 'koreksi'])->whereUuid(['jadwal', 'snapshot'])->name('jadwal.snapshot.koreksi');
     Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
     Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
     Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');

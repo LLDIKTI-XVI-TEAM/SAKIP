@@ -139,6 +139,15 @@ it('menampilkan jendela pengisian saja tanpa isian review (Q70)', () => {
     expect(screen.queryByText('Periode berikutnya')).toBeNull();
 });
 
+it('tautan snapshot indikator hanya untuk jadwal yang pernah aktif', () => {
+    const { unmount } = render(<Editor {...props} />);
+    expect(screen.queryByRole('link', { name: 'Snapshot indikator' })).toBeNull();
+    unmount();
+
+    render(<Editor {...props} jadwal={{ ...jadwal, status: 'ditutup' }} read_only_reason="Jadwal ditutup." />);
+    expect(screen.getByRole('link', { name: 'Snapshot indikator' }).getAttribute('href')).toBe('/jadwal/jadwal-1/snapshot');
+});
+
 it('mempertahankan tanggal dan revisi asal setelah error bersarang, dengan ringkasan fokus dan ARIA', async () => {
     const { rerender } = render(<Editor {...props} />);
     const field = screen.getByLabelText<HTMLInputElement>('Triwulan IV: Selesai pengisian');
