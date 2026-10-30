@@ -3942,18 +3942,20 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria
 
-- [ ] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
-- [ ] Tidak ada `is_backfill` atau tipe pengukuran khusus.
-- [ ] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
-- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi.
-- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6)*
+- [x] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
+- [x] Tidak ada `is_backfill` atau tipe pengukuran khusus. *(tidak ada kolom/flag `is_backfill` maupun jalur khusus yang dapat dipakai; kolom lama `sumber_nilai = historis`, `alasan_historis`, dan `sumber_historis` masih ada di skema tetapi ditolak saat pengajuan — pembersihannya non-goal issue ini)*
+- [x] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
+- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi. *(rujukan UAT ISS-15.01; otomatis hanya sebatas seed produksi)*
+- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6 — bagian pengecualian gerbang terbukti test; bagian data menunggu UAT ISS-15.01)*
 
 #### Automated Tests
 
-- [ ] Uji hanya jalur Perencanaan yang dapat mengisi TW I–III 2026, sedangkan user scoped tetap mengikuti jendela.
-- [ ] Uji tidak ada `is_backfill` atau tipe pengukuran khusus, dan nilai terhubung ke Jadwal/Snapshot yang sah serta teraudit.
-- [ ] Uji 66,395 dan 87,08 tidak dicatat sebagai realisasi IKU 1.3 TW II.
-- [ ] Uji gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026; UAT memverifikasi realisasi dan narasi TW I–II sesuai Laporan Kinerja Triwulan I–II 2026.
+- [x] Uji hanya jalur Perencanaan yang dapat mengisi TW I–III 2026, sedangkan user scoped tetap mengikuti jendela.
+- [x] Uji tidak ada `is_backfill` atau tipe pengukuran khusus, dan nilai terhubung ke Jadwal/Snapshot yang sah serta teraudit.
+- [ ] Uji 66,395 dan 87,08 tidak dicatat sebagai realisasi IKU 1.3 TW II. *(otomatis sebatas seed produksi; data menunggu UAT ISS-15.01)*
+- [ ] Uji gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026; UAT memverifikasi realisasi dan narasi TW I–II sesuai Laporan Kinerja Triwulan I–II 2026. *(bagian pengecualian gerbang terbukti test; bagian UAT belum)*
+
+> **Status verifikasi (30 Oktober 2026, branch `feature/iss-07-05-periode-lampau-perencanaan`):** AC-1, AC-2, dan AC-3 terbukti oleh `tests/Feature/PeriodeLampau/PengukuranPeriodeLampauMatrixTest.php`, `PengukuranTanpaBackfillTest.php`, dan `PengukuranProvenanceLampauTest.php` (16 kasus lulus, 170 assertion) di atas fixture `PengukuranPeriodeLampauFixtures`; matriks tidak menemukan celah sehingga tidak ada perubahan kode produksi. AC-4 dan bagian data AC-5 tetap menunggu UAT ISS-15.01. Status: terverifikasi test, belum di-merge, belum UAT.
 
 ### ISS-07.06 · [Feature] Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
