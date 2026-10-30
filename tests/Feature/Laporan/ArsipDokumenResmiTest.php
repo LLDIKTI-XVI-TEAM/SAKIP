@@ -174,23 +174,30 @@ class ArsipDokumenResmiTest extends TestCase
         $this->assertSame('diizinkan', $audit->dasar_izin['keputusan']);
     }
 
-    public function test_keterangan_menolak_nul_dan_utf8_tidak_valid_di_http_dan_action(): void
+    public function test_keterangan_menolak_teks_rusak_di_http_dan_action(): void
     {
         Storage::fake('local');
-        foreach (["Arsip\0tambahan", "Arsip\xB1tambahan"] as $keterangan) {
+        foreach (["Arsip\x01tambahan", "Arsip\0tambahan", "Arsip\xB1tambahan"] as $keterangan) {
             $this->unggah(['keterangan' => $keterangan])->assertSessionHasErrors('keterangan');
             try {
                 app(UnggahArsipDokumenResmi::class)->handle($this->actor, [
                     'jadwal_id' => $this->jadwal->id, 'file' => UploadedFile::fake()->create('resmi.pdf', 10, 'application/pdf'),
                     'keterangan' => $keterangan,
                 ]);
-                $this->fail('Action harus menolak keterangan yang tidak dapat disimpan sebagai teks PostgreSQL.');
+                $this->fail('Action harus menolak keterangan dengan teks rusak atau karakter kontrol ilegal.');
             } catch (ValidationException $exception) {
                 $this->assertArrayHasKey('keterangan', $exception->errors());
             }
         }
         $this->assertDatabaseCount('berkas', 0);
         $this->assertSame([], Storage::disk('local')->allFiles());
+
+        $valid = "Arsip\tperubahan\ntriwulan.";
+        $this->unggah(['keterangan' => $valid])->assertRedirect();
+        $berkas = Berkas::sole();
+        $this->assertSame($valid, $berkas->keterangan);
+        $audit = AuditLog::where('tindakan', 'berkas.unggah')->where('objek_id', $berkas->id)->sole();
+        $this->assertSame($valid, $audit->nilai_baru['keterangan']);
     }
 
     public function test_baca_unit_terbatas_menolak_unduh_dokumen_lembaga_tanpa_audit_penolakan(): void

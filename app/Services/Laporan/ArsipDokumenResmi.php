@@ -69,11 +69,7 @@ class ArsipDokumenResmi
     {
         return ['jadwal_id' => ['required', 'uuid'], 'periode_jadwal_id' => ['nullable', 'uuid'],
             'file' => ['required', ...UploadLimits::fileRules(null, 'pdf')],
-            'keterangan' => ['nullable', 'string', 'max:1000', function (string $attribute, mixed $value, \Closure $fail) {
-                if (! is_string($value) || str_contains($value, "\0") || ! mb_check_encoding($value, 'UTF-8')) {
-                    $fail('Keterangan tidak boleh mengandung karakter byte NUL dan harus berupa teks UTF-8 yang valid.');
-                }
-            }], 'menggantikan_id' => ['nullable', 'uuid'],
+            'keterangan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)], 'menggantikan_id' => ['nullable', 'uuid'],
             'alasan_koreksi' => ['required_with:menggantikan_id', 'nullable', 'string', 'max:1000', AuditReason::validate(...)]];
     }
 
