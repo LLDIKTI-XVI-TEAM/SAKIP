@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, Layers } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
@@ -176,11 +176,17 @@ function JadwalEditor({
             ]}
         >
             <Head title={title} />
-            <div className="mb-5">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <Link href="/jadwal" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     Kembali ke daftar
                 </Link>
+                {jadwal && jadwal.status !== 'draft' && (
+                    <Link href={`/jadwal/${jadwal.id}/snapshot`} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                        <Layers className="h-4 w-4" aria-hidden="true" />
+                        Snapshot indikator
+                    </Link>
+                )}
             </div>
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {failure && !recovery.recovery && (

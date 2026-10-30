@@ -140,6 +140,8 @@ final class PermissionCodes
 
     public const KOMPONEN_READ = 'komponen:read';
 
+    public const KOMPONEN_UPDATE = 'komponen:update';
+
     public const LAPORAN_READ = 'laporan:read';
 
     public const LAPORAN_EKSPOR = 'laporan:ekspor';
