@@ -368,7 +368,11 @@ class KoreksiSnapshotTest extends TestCase
 
         $baris = app(DaftarKewajibanPengukuran::class)->query([$this->tw1->id, $this->tw2->id, $this->tw3->id], DB::table('unit')->whereRaw('false')->select('id'), '2026-03-15')
             ->where('k.indikator_id', $lama->indikator_id)->get()->mapWithKeys(fn ($row): array => [$row->periode_id => $row->jadwal_snapshot_id])->all();
-        $this->assertSame([$this->tw1->periode_id => $lama->id, $this->tw2->periode_id => $baru->id, $this->tw3->periode_id => $baru->id], $baris);
+        $harapan = [$this->tw1->periode_id => $lama->id, $this->tw2->periode_id => $baru->id, $this->tw3->periode_id => $baru->id];
+        // Daftar kewajiban tidak mengurutkan periode dalam satu indikator; yang dibuktikan pasangan periode → versi, bukan urutan baris.
+        ksort($harapan);
+        ksort($baris);
+        $this->assertSame($harapan, $baris);
     }
 
     public function test_jadwal_tidak_aktif_atau_data_master_tidak_layak_ditolak(): void
