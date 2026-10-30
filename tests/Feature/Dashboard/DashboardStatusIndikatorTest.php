@@ -3,10 +3,12 @@
 namespace Tests\Feature\Dashboard;
 
 use App\Models\IndikatorKinerja;
+use App\Models\KinerjaSnapshot;
 use App\Models\PenugasanIndikator;
 use App\Models\Permission;
 use App\Models\RencanaAksiVersi;
 use App\Models\SasaranStrategis;
+use App\Models\StatusCapaian;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +42,15 @@ class DashboardStatusIndikatorTest extends TestCase
     {
         DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id, 'permission_id' => Permission::where('kode', 'dashboard:read')->value('id'),
             'unit_id' => $unitId, 'alasan' => 'Deny pengujian', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+    }
+
+    /** Status capaian manual pada versi disahkan; pola fixture sama dengan tests/Feature/StatusCapaian (Data Model §2.21). */
+    private function tetapkanStatus(KinerjaSnapshot $versi, string $status): StatusCapaian
+    {
+        return StatusCapaian::create([
+            'pengukuran_id' => $this->pengukuran->id, 'pengukuran_versi_id' => $versi->id,
+            'status' => $status, 'sumber' => 'manual', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now(),
+        ]);
     }
 
     public function test_indikator_tanpa_pengukuran_dihitung_belum_mengisi(): void
@@ -116,6 +127,33 @@ class DashboardStatusIndikatorTest extends TestCase
             $this->assertSame(['belum_dapat_diukur', null, null], [$row['status'], $row['realisasi'], $row['selisih']], $kode);
         }
         $this->assertSame(2, $this->jumlah($props, 'belum_dapat_diukur'));
+    }
+
+    public function test_status_capaian_tercapai_pada_versi_disahkan_dihitung_sebagai_disahkan(): void
+    {
+        // ISS-09.02 AC-1/AC-4 + Q64 §64.1 butir 4: Tercapai dibaca dari penetapan pada versi resmi.
+        $versi = $this->sahkan($this->pengukuran, ['nilai' => '80']);
+        $this->tetapkanStatus($versi, StatusCapaian::STATUS_TERCAPAI);
+
+        $props = $this->props();
+        $row = $this->baris($props, 'I-UJI');
+
+        $this->assertSame('tercapai', $row['status']);
+        $this->assertSame('disahkan', $row['status_alur']);
+        // Tercapai tetap status tampilan yang dihitung, sehingga tally alur tidak berubah.
+        $this->assertSame(1, $props['stats']['disahkan']);
+        $this->assertSame(1, $props['stats']['total']);
+    }
+
+    public function test_status_capaian_tidak_menimpa_belum_dapat_diukur(): void
+    {
+        // Q47 §47.3 butir 4 + Q64 §64.1 butir 4: "Belum dapat diukur" mendahului status capaian.
+        $versi = $this->sahkan($this->pengukuran, ['status_perhitungan' => 'belum_dapat_diukur']);
+        $this->tetapkanStatus($versi, StatusCapaian::STATUS_TERCAPAI);
+
+        $row = $this->baris($this->props(), 'I-UJI');
+
+        $this->assertSame('belum_dapat_diukur', $row['status']);
     }
 
     public function test_realisasi_nol_berbeda_dari_kosong(): void

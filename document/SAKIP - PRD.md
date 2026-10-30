@@ -1165,16 +1165,17 @@ Gerbang-gerbang ini **dikecualikan pada periode lampau 2026** (§12.6; semula di
 
 ### 21.1 Definisi
 
-`status_capaian` menyatakan penilaian akhir atas satu baris `pengukuran`: `tercapai` atau `belum_tercapai`, dengan kolom `sumber` bernilai `manual` atau `data_sumber`. Penetapan status capaian adalah momen terpisah dari pengesahan pengukuran (`Disahkan`) — pengukuran dapat berstatus Disahkan tanpa status capaian aktif untuk sementara waktu, sampai Perencanaan/Superadmin menetapkannya secara manual.
+`status_capaian` menyatakan penilaian akhir atas satu **versi pengukuran yang telah disahkan**: `tercapai` atau `belum_tercapai`, dengan kolom `sumber` bernilai `manual` atau `data_sumber`. Penetapan status capaian adalah momen terpisah dari pengesahan pengukuran (`Disahkan`) — pengukuran dapat berstatus Disahkan tanpa status capaian aktif untuk sementara waktu, sampai Perencanaan/Superadmin menetapkannya secara manual. Status melekat pada versi resmi (`pengukuran_versi_id`), bukan pada header pengukuran.
 
 ### 21.2 Aturan
 
-- Maksimal 1 status capaian aktif per pengukuran pada satu waktu; penetapan status baru tidak menghapus status lama — status lama tetap sebagai riwayat (soft replace, ditandai bukan-aktif, bukan dihapus).
+- Maksimal 1 status capaian berlaku per **versi pengukuran** pada satu waktu; penetapan status baru tidak menghapus status lama — status lama tetap sebagai riwayat (soft replace, bukan dihapus).
+- Versi koreksi yang baru disahkan mulai tanpa status capaian; status versi lama tidak diwariskan otomatis dan tetap tersimpan sebagai riwayat versi tersebut.
 - `ditetapkan_oleh` bernilai `null` hanya jika sumber adalah `data_sumber` (ditetapkan otomatis oleh sistem, bukan manusia).
 - Permission: `status_capaian:update`.
 - **Periode tanpa target (Q47 §47.3):** pada periode yang tidak ditargetkan (§14.3), capaian persen dan status capaian tidak dihitung. Tampilan menunjukkan realisasi, target PK, dan **selisih terhadap target PK** — realisasi − target PK dalam satuan indikator, yang tandanya dibaca menurut `arah` (§11).
 - **Realisasi belum dapat diukur (Q47 §47.4):** pengukuran berstatus `belum_dapat_diukur` (§20) tidak dihitung sebagai capaian 0; tampilannya "Belum dapat diukur".
-- Penetapan status capaian manual **tidak tersedia** untuk pengukuran pada periode tanpa target maupun pengukuran berstatus `belum_dapat_diukur` (Q47 §47.3 butir 4).
+- Penetapan status capaian manual **tidak tersedia** untuk pengukuran pada periode tanpa target maupun pengukuran berstatus `belum_dapat_diukur` (Q47 §47.3 butir 4). **Q78 §78.1 butir 2 dan 3:** penetapan juga tidak tersedia untuk `status_perhitungan = tidak_dapat_dihitung` pada periode bertarget (Q64 §64.1 butir 5) dan untuk versi sah lama ketika header pengukuran tidak lagi berstatus `disahkan`.
 - Selisih terhadap target PK juga ditampilkan pada periode bertarget sebagai informasi tambahan; status capaian resmi tetap mengikuti aturan bagian ini (Q47 §47.3 butir 2).
 - Status capaian dan selisih memakai target PK bernilai penuh yang disimpan (mis. 94,05), bukan nilai tercetak yang dibulatkan; tampilan mengikuti `desimal_tampilan` (Q50 §50.2).
 - Capaian akhir tahun dinilai terhadap target **PK akhir**, yaitu versi PK yang berlaku pada periode nilai akhir (Q40 §40.1 butir 6; §12.7).

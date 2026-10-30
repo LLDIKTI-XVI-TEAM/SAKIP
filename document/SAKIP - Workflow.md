@@ -1773,21 +1773,25 @@ Koreksi data setelah penutupan tidak disebut backfill; gunakan flow buka-kembali
 
 ## 16. Alur Penetapan Status Capaian
 
-> **Q47, Q50 (13 Oktober 2026):** pada periode tanpa target, capaian persen dan status capaian tidak dihitung; tampilan memakai "Tanpa target periode" serta realisasi, target PK, dan selisih terhadap target PK (Q47 §47.3). Realisasi "belum dapat diukur" tampil dengan label tersebut dan tidak dihitung sebagai capaian 0 (Q47 §47.4 butir 3). Penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (Q47 §47.3 butir 4). Status capaian dan selisih memakai target PK yang disimpan bernilai penuh (Q50 §50.2 butir 2). Status implementasi: belum (§24).
+> **Q47, Q50 (13 Oktober 2026):** pada periode tanpa target, capaian persen dan status capaian tidak dihitung; tampilan memakai "Tanpa target periode" serta realisasi, target PK, dan selisih terhadap target PK (Q47 §47.3). Realisasi "belum dapat diukur" tampil dengan label tersebut dan tidak dihitung sebagai capaian 0 (Q47 §47.4 butir 3). Penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (Q47 §47.3 butir 4). Status capaian dan selisih memakai target PK yang disimpan bernilai penuh (Q50 §50.2 butir 2). Status implementasi: **sudah** (ISS-09.02; Q78 §78.1 butir 1 dan 7).
 
 ```
 📋 Perencanaan / ⚙️ Superadmin
-  1. Membuka daftar pengukuran berstatus Disahkan yang belum punya status_capaian aktif —
-     tidak termasuk pengukuran pada periode tanpa target atau berstatus belum dapat diukur,
-     yang tidak dapat diberi status capaian manual (Q47 §47.3 butir 4)
+  1. Membuka daftar pengukuran berstatus Disahkan yang versi sah terakhirnya belum punya
+     status_capaian berlaku —
+     tidak termasuk pengukuran pada periode tanpa target, berstatus belum dapat diukur,
+     atau berstatus tidak dapat dihitung pada periode bertarget,
+     yang tidak dapat diberi status capaian manual (Q47 §47.3 butir 4, Q64 §64.1 butir 5)
   2. Memilih status: Tercapai atau Belum Tercapai untuk tiap pengukuran
   3. Sistem menyimpan baris status_capaian baru dengan sumber=manual, ditetapkan_oleh=user
-     yang login
-  4. Status capaian itu langsung aktif untuk pengukuran tsb dan tampil di dashboard
+     yang login, dan pengukuran_versi_id = versi sah terakhir
+  4. Status capaian itu langsung berlaku untuk versi tsb dan tampil di dashboard
   5. Kalau suatu saat perlu direvisi, pilih status baru
-     → sistem menyimpan baris status_capaian baru sebagai status aktif, baris lama tetap
+     → sistem menyimpan baris status_capaian baru sebagai status berlaku, baris lama tetap
        tersimpan sebagai riwayat (soft replace, bukan update/hapus)
   6. Kalau tidak ada revisi, proses selesai — status capaian tetap tampil di dashboard
+  7. Bila versi koreksi baru disahkan, versi itu mulai tanpa status capaian;
+     status versi lama tidak diwariskan otomatis
 
 (Fase Lanjutan, belum dibangun: jalur ini digambar sebagai referensi desain, di mana sistem
 eksternal/job terjadwal menghitung status_capaian otomatis dengan sumber=data_sumber,

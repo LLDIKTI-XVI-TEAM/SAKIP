@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                         'rekomendasi' => $can['rekomendasi'],
                         'laporan_read' => $can['laporan_read'],
                         'dokumenResmi' => $can['dokumenResmi'],
+                        'statusCapaian' => $can['statusCapaian'],
                     ],
                 ];
             },
@@ -106,6 +107,7 @@ class HandleInertiaRequests extends Middleware
             'rekomendasi' => false,
             'laporan_read' => false,
             'dokumenResmi' => false,
+            'statusCapaian' => false,
         ];
 
         if ($user === null || $user->status !== 'aktif') {
@@ -126,6 +128,7 @@ class HandleInertiaRequests extends Middleware
             'renstra:read', 'renstra:create', 'renstra:update', 'renstra:delete',
             'berkas:delete', 'pengaturan:update', 'jenis_berkas:read', 'indikator:read',
             'periode:create', 'periode:update', 'pk:create', 'pk:update', 'rekomendasi:tetapkan', 'laporan:read', 'laporan:ekspor',
+            'status_capaian:update',
         ]);
         $boleh = fn (string $kode): bool => $izin[$kode]['allowed'];
         $regulasiRead = $boleh('regulasi:read');
@@ -173,6 +176,8 @@ class HandleInertiaRequests extends Middleware
             'rekomendasi' => $boleh('rekomendasi:tetapkan'),
             'laporan_read' => $boleh('laporan:read'),
             'dokumenResmi' => $boleh('laporan:ekspor'),
+            // Halaman/menu status capaian dijaga izin yang sama dengan gerbang tulis Action (fail-closed).
+            'statusCapaian' => $boleh('status_capaian:update'),
         ];
 
         if ($request) {

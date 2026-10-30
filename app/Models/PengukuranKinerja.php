@@ -63,6 +63,23 @@ class PengukuranKinerja extends Model
         return $this->hasOne(KinerjaSnapshot::class, 'pengukuran_id')->whereNotNull('disahkan_at')->orderByDesc('nomor')->limit(1);
     }
 
+    /** Seluruh riwayat status capaian pengukuran; yang berlaku dibaca lewat statusCapaianBerlaku(). @return HasMany<StatusCapaian, $this> */
+    public function statusCapaian(): HasMany
+    {
+        return $this->hasMany(StatusCapaian::class, 'pengukuran_id');
+    }
+
+    /**
+     * Status capaian yang berlaku: baris terbaru pada versi sah terakhir (Data Model §2.21). Versi koreksi
+     * baru tidak mewarisi status versi lama; urutan tampilan tetap mengikuti status alur di konsumen.
+     */
+    public function statusCapaianBerlaku(): ?StatusCapaian
+    {
+        $versiId = $this->ratifiedVersion?->id;
+
+        return $versiId === null ? null : StatusCapaian::berlaku($versiId)->first();
+    }
+
     /** @return HasMany<BuktiDukung, $this> */
     public function buktiDukungs(): HasMany
     {
