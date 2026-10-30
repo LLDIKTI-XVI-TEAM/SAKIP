@@ -29,6 +29,7 @@ use App\Http\Controllers\Kegiatan\KegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
 use App\Http\Controllers\Kegiatan\RealisasiKegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
+use App\Http\Controllers\Laporan\DokumenResmiController;
 use App\Http\Controllers\Laporan\EksporRekapIndikatorPeriodeController;
 use App\Http\Controllers\Laporan\RekapIndikatorPeriodeController;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
@@ -192,6 +193,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
     Route::post('/akses/peran/{user}/status', UserStatus::class)->whereUuid('user')->name('user-status.update');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
+    Route::get('/laporan/dokumen-resmi', [DokumenResmiController::class, 'index'])->name('laporan.dokumen-resmi');
+    Route::post('/laporan/dokumen-resmi/arsip', [DokumenResmiController::class, 'store'])->name('laporan.dokumen-resmi.unggah');
+    Route::get('/laporan/dokumen-resmi/arsip/{berkas}', [DokumenResmiController::class, 'download'])->whereUuid('berkas')->name('laporan.dokumen-resmi.unduh');
     Route::get('/laporan/rekap', RekapIndikatorPeriodeController::class)->name('laporan.rekap');
     Route::get('/laporan/rekap/ekspor', EksporRekapIndikatorPeriodeController::class)->name('laporan.rekap.ekspor');
 

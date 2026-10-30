@@ -2329,7 +2329,7 @@ flowchart TD
 
 ## 25. Alur Keluaran Dokumen Resmi: Rencana Aksi Tahunan dan Laporan Kinerja Triwulan
 
-> **Q48 (13 Oktober 2026):** SAKIP menghasilkan dua dokumen gabungan untuk satu lembaga dalam format Excel — **Rencana Aksi tahunan** per jadwal tahunan dan **Laporan Kinerja Triwulan** per periode — lalu PDF yang ditandatangani elektronik di luar aplikasi diunggah kembali sebagai arsip resmi. Dokumen PK tidak dihasilkan SAKIP; PDF PK bertanda tangan tetap menjadi lampiran PK (§3.3). Dikerjakan pada US/ISS-10.05, tahap 2 (Q46 §46.3); bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR (Q48 §48.3). Status implementasi: belum.
+> **Q48 (13 Oktober 2026):** SAKIP menghasilkan dua dokumen gabungan untuk satu lembaga dalam format Excel — **Rencana Aksi tahunan** per jadwal tahunan dan **Laporan Kinerja Triwulan** per periode — lalu PDF yang ditandatangani elektronik di luar aplikasi diunggah kembali sebagai arsip resmi. Dokumen PK tidak dihasilkan SAKIP; PDF PK bertanda tangan tetap menjadi lampiran PK (§3.3). Dikerjakan pada US/ISS-10.05, tahap 2 (Q46 §46.3); bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR (Q48 §48.3). Status implementasi: sebagian — slice arsip PDF bertanda tangan tersedia melalui [PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208); generator Excel belum diimplementasikan dan menunggu pengesahan format ISS-10.04.
 
 ```
 📋 Perencanaan / ✍️ Pimpinan / ⚙️ Superadmin (permission laporan:ekspor)

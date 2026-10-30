@@ -4812,6 +4812,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-10.05 · [Feature] Keluaran Rencana Aksi Tahunan dan Laporan Kinerja Triwulan serta Unggah PDF Bertanda Tangan
+> **Status implementasi — slice arsip ISS-10.05 ([PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208)):** halaman Dokumen Resmi, katalog/preset `laporan:unggah`, arsip PDF pada jadwal tahunan/periode, penggantian append-only, unduhan privat dengan akses seluruh unit, serta audit unggah tersedia. Keputusan K3–K7 mengikuti [komentar PM 29 Oktober](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179#issuecomment-6476048514). AC-5 hanya selesai untuk unduh arsip; generator AC-1–AC-4 masih menunggu pengesahan format ISS-10.04. Status implementasi ini tidak menyatakan penerimaan UAT atau deployment. Sinkronisasi Q75/Q76 dan issue producer snapshot mengikuti tindak lanjut PM.
 
 > **Acuan format (ISS-10.04):** susunan berkas, test, dan UAT keluaran ini memakai `document/SAKIP - Acuan Keluaran Excel.md` §3–§4. Status pengesahan contoh dicatat pada dokumen tersebut.
 
@@ -4849,10 +4850,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] **AC-3:** Given indikator yang RA atau pengukurannya belum disahkan, Then indikator tetap tercantum dengan keterangan "belum disahkan" tanpa angka resmi. *(Q48 §48.1 butir 2)*
 - [ ] **AC-4:** Given periode tanpa target atau realisasi belum dapat diukur, Then keluaran memakai keterangan yang sama dengan dashboard ("Tanpa target periode", "Belum dapat diukur"). *(Q47 §47.3–§47.4)*
 - [ ] **AC-5:** Given pengguna tanpa `laporan:ekspor`, When meminta keluaran atau mengunduh arsip, Then ditolak 403. *(Q48 §48.1 butir 6, §48.2 butir 2)*
-- [ ] **AC-6:** Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
-- [ ] **AC-7:** Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
-- [ ] **AC-8:** Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
-- [ ] **AC-9:** Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
+- [x] **AC-6:** Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
+- [x] **AC-7:** Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
+- [x] **AC-8:** Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
+- [x] **AC-9:** Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
 
 #### Implementation Tasks
 
@@ -4885,12 +4886,12 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator yang RA atau pengukurannya belum disahkan, Then indikator tetap tercantum dengan keterangan "belum disahkan" tanpa angka resmi. *(Q48 §48.1 butir 2)*
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target atau realisasi belum dapat diukur, Then keluaran memakai keterangan yang sama dengan dashboard ("Tanpa target periode", "Belum dapat diukur"). *(Q47 §47.3–§47.4)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengguna tanpa `laporan:ekspor`, When meminta keluaran atau mengunduh arsip, Then ditolak 403. *(Q48 §48.1 butir 6, §48.2 butir 2)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
-- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
-- [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
-- [ ] FORMAT ARSIP: Uji arsip selain PDF atau melebihi batas teknis unggahan ditolak (Q48 §48.2 butir 7, Q44 §44.2).
-- [ ] PERMISSION: Uji `laporan:unggah` terdaftar tidak sensitif pada katalog dan preset Perencanaan serta Superadmin, sedangkan setiap unggahan tetap tercatat di audit (Q48 §48.2 butir 2).
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
+- [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
+- [x] FORMAT ARSIP: Uji arsip selain PDF atau melebihi batas teknis unggahan ditolak (Q48 §48.2 butir 7, Q44 §44.2). Bukti: `ArsipDokumenResmiTest::test_validasi_pdf_dan_metadata_dan_audit_penolakan`.
+- [x] PERMISSION: Uji `laporan:unggah` terdaftar tidak sensitif pada katalog dan preset Perencanaan serta Superadmin, sedangkan setiap unggahan tetap tercatat di audit (Q48 §48.2 butir 2). Bukti: `AccessFoundationTest::test_catalog_and_presets_match_the_release_contract` dan `ArsipDokumenResmiTest::test_arsip_ditutup_append_only_dan_tidak_mengubah_data_kinerja`.
 - [ ] TAMPILAN BERSAMAAN: Uji periode tanpa target yang realisasinya `belum_dapat_diukur` tercantum sebagai "Belum dapat diukur" pada keluaran (Q47 §47.3 butir 3).
 
 #### Definition of Done

@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
+use App\Models\PeriodeJadwal;
 use App\Models\Regulasi;
 use App\Models\RencanaAksi;
 use App\Models\Renstra;
@@ -39,6 +41,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Relation::morphMap([
             'renstra_pk' => RenstraPk::class,
+            'jadwal_tahunan' => JadwalTahunan::class,
+            'jadwal_periode' => PeriodeJadwal::class,
         ]);
 
         Gate::policy(Kegiatan::class, KegiatanPolicy::class);

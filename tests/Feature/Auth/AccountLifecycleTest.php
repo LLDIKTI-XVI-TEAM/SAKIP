@@ -45,7 +45,7 @@ class AccountLifecycleTest extends TestCase
         $this->assertDatabaseCount('user_roles', 0);
         $this->assertSame(2, AuditLog::where('sumber', 'sso_onboarding')->count());
         $this->assertSame(2, AuditLog::where('tindakan', 'pengguna.terdaftar')->count());
-        $this->assertDatabaseCount('role_permissions', 166);
+        $this->assertDatabaseCount('role_permissions', 168);
     }
 
     public function test_onboarding_does_not_require_pegawai_and_audits_only_safe_registration_state(): void
@@ -108,7 +108,7 @@ class AccountLifecycleTest extends TestCase
         $this->assertTrue($action->handle($user->id, 'Operator Uji / otorisasi QA', 'Inisialisasi pengujian', 'qa-runtime'));
         $this->assertSame('aktif', $user->fresh()->status);
         $this->assertSame('superadmin', $user->roles()->first()->kode);
-        $this->assertDatabaseCount('role_permissions', 166);
+        $this->assertDatabaseCount('role_permissions', 168);
         foreach (['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'] as $code) {
             $role = Role::where('kode', $code)->sole();
             $installed = DB::table('role_permissions')
@@ -195,7 +195,7 @@ class AccountLifecycleTest extends TestCase
         }
         $this->assertSame('aktif', $user->fresh()->status);
         $this->assertSame(0, $user->roles()->count());
-        $this->assertDatabaseCount('role_permissions', 166);
+        $this->assertDatabaseCount('role_permissions', 168);
         $this->assertDatabaseCount('auth_bootstraps', 0);
         $this->assertSame(1, AuditLog::where('sumber', 'sso_onboarding')->count());
     }

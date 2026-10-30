@@ -144,6 +144,8 @@ final class PermissionCodes
 
     public const LAPORAN_EKSPOR = 'laporan:ekspor';
 
+    public const LAPORAN_UNGGAH = 'laporan:unggah';
+
     /**
      * 15 Kode Permission Utama dalam Scope 10 Issue Aktif (§5)
      *
