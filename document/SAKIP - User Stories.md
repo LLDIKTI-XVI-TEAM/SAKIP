@@ -1688,11 +1688,11 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
-- [ ] Tidak ada `is_backfill` atau tipe pengukuran khusus.
-- [ ] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
-- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi.
-- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6)*
+- [x] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
+- [x] Tidak ada `is_backfill` atau tipe pengukuran khusus. *(kolom lama `historis` masih ada di skema tetapi ditolak saat pengajuan)*
+- [x] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
+- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi. *(rujukan UAT ISS-15.01)*
+- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6 — bagian pengecualian gerbang terbukti test; bagian data menunggu UAT ISS-15.01)*
 
 ### US-07.06 · Penanganan Penyebut Nol — Tidak Dapat Dihitung
 

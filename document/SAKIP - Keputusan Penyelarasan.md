@@ -1288,7 +1288,7 @@ Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#1
 ## 46.4 Dampak dan traceability
 
 - Q32.7 dan Q32.8; PRD §12.6, §33; Data Model §8.4; Workflow §15; Plan (prioritas dan urutan modul); User Issues §4.1; US/ISS-03.05 dan 07.05.
-- Status implementasi: belum.
+- Status implementasi: sisi pengukuran terverifikasi test (30 Oktober 2026, branch `feature/iss-07-05-periode-lampau-perencanaan`) melalui `PengukuranPeriodeLampauMatrixTest`, `PengukuranTanpaBackfillTest`, dan `PengukuranProvenanceLampauTest`; sisi Rencana Aksi dirujuk ke ISS-03.05 (#146) dengan status per issue. Belum di-merge; data awal 2026 dan AC-4 menunggu UAT ISS-15.01.
 
 ---
 
