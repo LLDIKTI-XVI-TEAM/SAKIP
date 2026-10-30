@@ -1,7 +1,7 @@
 # Acuan Keluaran Excel — Checklist Penerimaan Contoh dan UAT
 
 > **Traceability:** Issue [#178](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/178) · `ISS-10.04` · `US-10.04` · acuan format `ISS-10.03` ([#177](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/177)) dan `ISS-10.05` ([#179](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179))
-> **Basis dokumen:** `development` `35d7c09` (termasuk PR #206, 29 Oktober 2026)
+> **Basis dokumen:** `development` `3fcab85` (termasuk PR #203, 30 Oktober 2026)
 > **Sifat dokumen:** acuan format dan checklist UAT. Bukan contoh resmi, bukan bukti UAT selesai, dan bukan pengganti persetujuan Perencanaan.
 
 ## Cara memakai dokumen ini
@@ -68,7 +68,7 @@
 | A15 | Status bukti dukung | ISS-10.03 AC-1 | `Status Bukti`, `Bukti Wajib Terpenuhi`, `Bukti Wajib Total`, `Histori Bukti Tidak Dapat Dipenuhi` | — | — | Menunggu contoh |
 | A16 | Penanda data belum resmi | Q48 §48.1 butir 2; Q47 §47.3–§47.4; ISS-10.03 AC-4 | `Status Laporan`, `Versi Pengukuran`, `Disahkan Pada`; teks "Belum disahkan" | — | Data yang belum disahkan tidak memuat angka realisasi resmi. | Menunggu contoh |
 
-**Kolom tambahan ekspor (bukan informasi wajib):** `Kunci Rekap` (kolom tersembunyi penghubung kedua sheet), `Unit`, `Status Perhitungan`, `Status Capaian`, `Keterangan Capaian`, dan `Alasan Tidak Dapat Dihitung`. Kolom ini tidak dinilai sebagai kekurangan bila tidak ada pada contoh. `Status Capaian` bernilai "Belum ditetapkan" sampai ISS-09.02.
+**Kolom tambahan ekspor (bukan informasi wajib):** `Kunci Rekap` (kolom tersembunyi penghubung kedua sheet), `Unit`, `Status Perhitungan`, `Status Capaian`, `Keterangan Capaian`, dan `Alasan Tidak Dapat Dihitung`. Kolom ini tidak dinilai sebagai kekurangan bila tidak ada pada contoh. `Status Capaian` mengikuti penetapan ISS-09.02 (PR #203): "Tercapai" atau "Belum tercapai" setelah ditetapkan pada versi pengukuran disahkan; selain itu "Belum ditetapkan", "Tidak dinilai" (periode tanpa target atau realisasi belum dapat diukur), atau "Tidak dapat dihitung".
 
 ---
 
@@ -147,3 +147,4 @@ UAT memakai data uji/fixture. Bukti tangkapan tidak boleh memuat nilai kinerja r
 | Tanggal | Perubahan | Rujukan |
 |---|---|---|
 | 29 Oktober 2026 | Draf awal; ketiga keluaran berstatus Draf — belum disahkan Perencanaan | Issue #178 |
+| 30 Oktober 2026 | Keterangan kolom `Status Capaian` diselaraskan dengan penetapan status capaian ISS-09.02 | PR #203 |
