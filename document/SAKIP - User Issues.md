@@ -4149,14 +4149,14 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] **AC-3:** Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
 - [x] **AC-4:** Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
 - [x] **AC-5:** Given versi stale, When sahkan, Then ditolak.
-- [ ] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+- [x] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
 - [x] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`.
 - [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat. (Dikembalikan `[ ]` 15 Oktober 2026 menunggu ISS-08.03 — temuan review PR #107.)
+- [x] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
 
 **B. Backend / Domain**
 - [x] Pengesahan memakai `pengukuran_versi.diajukan_by` + `jalur_pengajuan`, menolak versi stale, dan mengisi metadata pengesahan atomik.
@@ -4180,7 +4180,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi stale, When sahkan, Then ditolak.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 - [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 - [x] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
 
@@ -4218,50 +4218,50 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
-- [ ] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
-- [ ] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [x] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [x] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `status_capaian`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
+- [x] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `status_capaian`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
 
 **B. Backend / Domain**
-- [ ] Jangan reset/hapus `status_capaian` versi lama. Versi koreksi baru mulai tanpa status capaian sampai ditetapkan setelah pengesahan.
-- [ ] Selama koreksi belum disahkan, laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] Jangan reset/hapus `status_capaian` versi lama. Versi koreksi baru mulai tanpa status capaian sampai ditetapkan setelah pengesahan.
+- [x] Selama koreksi belum disahkan, laporan resmi tetap memakai versi disahkan sebelumnya.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:buka_kembali` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:buka_kembali` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Pengukuran Disahkan & Histori Status Capaian**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Pengukuran Disahkan & Histori Status Capaian**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`. (Menunggu evidence QA browser desktop/mobile; SSO belum tersedia saat implementasi.)
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). (Menunggu evidence QA browser desktop/mobile; SSO belum tersedia saat implementasi.)
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 
 ---

@@ -508,9 +508,9 @@ Setiap task memiliki tiga bagian wajib:
 - **DoD:** Test Pest: transisi berhasil tanpa memerlukan baris apapun terkait `pengukuran:setujui`; user hanya dengan `pengukuran:verifikasi` (tanpa `pengukuran:sahkan`) mendapat 403 saat mencoba mengesahkan; transisi tercatat audit_log.
 
 ### 5.10 Buka-kembali Pengukuran Disahkan (`pengukuran:buka_kembali`)
-- **Scope:** Aksi transisi `disahkan → dikembalikan` oleh pemegang `pengukuran:buka_kembali` (Perencanaan/Superadmin), mewajibkan alasan, **hanya tersedia** selama `jadwal_tahunan` terkait belum mencapai `penutupan`. Setelah baris kembali ke `dikembalikan`, mengikuti alur revisi biasa (5.8).
+- **Scope:** Aksi transisi `disahkan → dikembalikan` oleh pemegang `pengukuran:buka_kembali` (Perencanaan/Superadmin), mewajibkan alasan, tersedia selama `jadwal_tahunan` terkait belum mencapai `penutupan` **atau** di dalam sesi koreksi resmi yang mencakup indikator × periode × `pengukuran` (Q35 §35.2; ISS-08.03 AC-4). Setelah baris kembali ke `dikembalikan`, mengikuti alur revisi biasa (5.8).
 - **Dependency:** 5.9, 3.9 (status penutupan jadwal).
-- **DoD:** Test Pest: buka-kembali pada pengukuran Disahkan yang jadwalnya belum penutupan berhasil mengubah status ke `dikembalikan` dan tercatat audit_log dengan alasan; percobaan pada jadwal yang sudah `penutupan` ditolak dengan pesan spesifik yang mengarahkan ke `jadwal:buka_kembali` sebagai jalur alternatif; percobaan tanpa alasan ditolak; user tanpa `pengukuran:buka_kembali` mendapat 403.
+- **DoD:** Test Pest: buka-kembali pada pengukuran Disahkan yang jadwalnya belum penutupan berhasil mengubah status ke `dikembalikan` dan tercatat audit_log dengan alasan; percobaan pada jadwal yang sudah `penutupan` tanpa sesi koreksi ditolak dengan pesan spesifik yang mengarahkan ke `jadwal:buka_kembali` sebagai jalur alternatif; kontrol positif sesi koreksi yang mencakup pengukuran diterima, sedangkan lingkup tanpa `periode_ids` ditolak (Q35 §35.2); percobaan tanpa alasan ditolak; user tanpa `pengukuran:buka_kembali` mendapat 403.
 
 ### 5.11 Larangan penghapusan permanen data bermakna
 - **Scope:** Guard aplikasi (Policy/Observer) yang menolak operasi delete pada baris `pengukuran` yang memiliki `nilai` atau `catatan` terisi, di seluruh titik masuk (UI maupun akses langsung ke model).
@@ -570,9 +570,9 @@ Setiap task memiliki tiga bagian wajib:
 - **DoD:** Halaman menampilkan hanya baris berstatus `diverifikasi`; aksi "Sahkan" pada halaman ini memanggil logic 5.9 dan memperbarui tampilan tanpa reload penuh (reaktif di sisi klien).
 
 ### 6.3 Dashboard kerja Perencanaan — antrean Disahkan (buka-kembali)
-- **Scope:** halaman Inertia + komponen React menampilkan daftar pengukuran berstatus `disahkan` yang jadwalnya belum `penutupan`, dengan aksi "Buka Kembali" yang memicu logic 5.10 (memerlukan alasan via modal/form).
+- **Scope:** halaman Inertia + komponen React menampilkan daftar pengukuran berstatus `disahkan` yang jadwalnya aktif dan belum `penutupan`, atau berada dalam sesi koreksi resmi untuk pengukuran (Q35 §35.2), dengan aksi "Buka Kembali" yang memicu logic 5.10 (memerlukan alasan via modal/form).
 - **Dependency:** 5.10, 6.2.
-- **DoD:** Halaman hanya menampilkan baris `disahkan` pada jadwal yang belum penutupan (baris pada jadwal yang sudah penutupan tidak muncul di antrean ini); submit alasan kosong pada aksi buka-kembali ditolak validasi; submit valid memindahkan baris ke antrean 6.1 (kembali menjadi `dikembalikan` lalu dapat direvisi).
+- **DoD:** Halaman hanya menampilkan baris `disahkan` pada jadwal aktif yang belum penutupan; baris pascapenutupan hanya muncul bila sesi koreksi resmi untuk pengukuran sedang berjalan dan detail tetap menolak bila indikator/periode di luar lingkup (Q35 §35.2). Submit alasan kosong pada aksi buka-kembali ditolak validasi; submit valid mengeluarkan baris dari antrean ini ke alur revisi (`dikembalikan`) lalu dapat diajukan ulang sebagai versi baru.
 
 ### 6.4 Form Status Capaian manual
 

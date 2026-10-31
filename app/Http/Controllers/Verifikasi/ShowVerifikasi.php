@@ -21,7 +21,8 @@ class ShowVerifikasi extends Controller
         $unitId = $pengukuran->targetUnitId();
         abort_unless($resolver->allows($actor, 'pengukuran:verifikasi', $unitId)
             || $resolver->allows($actor, 'pengukuran:sahkan', $unitId)
-            || $resolver->allows($actor, 'pengukuran:kembalikan', $unitId), 403);
+            || $resolver->allows($actor, 'pengukuran:kembalikan', $unitId)
+            || $resolver->allows($actor, 'pengukuran:buka_kembali', $unitId), 403);
 
         return Inertia::render('Verifikasi/Show', ['pengukuran' => $present->handle($pengukuran, $actor, true, true)]);
     }

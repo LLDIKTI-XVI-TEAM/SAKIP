@@ -85,6 +85,24 @@ export interface Pengukuran {
     bukti_count: number;
     riwayats?: { id: string; status_ke: string; catatan: string | null; created_at: string; user: { id: string; nama: string } | null }[];
     snapshot?: { snapshot_hash: string; disahkan_pada: string; nomor_pengajuan: number } | null;
+    /** Metadata versi pengajuan read-only; payload beku versi tidak pernah dikirim ke klien. */
+    histori_versi?: HistoriVersiPengukuran[];
+}
+
+/** Satu baris histori versi pengukuran; status capaian menempel pada versi, bukan pada header hidup. */
+export interface HistoriVersiPengukuran {
+    id: string;
+    nomor: number;
+    diajukan_at: string | null;
+    disahkan_at: string | null;
+    jalur_pengajuan: 'pic' | 'perencanaan' | null;
+    resmi: boolean;
+    status_capaian: null | {
+        status: 'tercapai' | 'belum_tercapai';
+        sumber: 'manual' | 'data_sumber';
+        penetap: { id: string; nama: string } | null;
+        ditetapkan_pada: string | null;
+    };
 }
 
 export interface PengukuranCapabilities {
@@ -98,12 +116,16 @@ export interface PengukuranCapabilities {
     verify: boolean;
     ratify: boolean;
     return: boolean;
+    /** Capability koreksi pasca-pengesahan; payload lama tanpa field ini diperlakukan tanpa izin. */
+    reopen?: boolean;
 }
 
 export interface PengukuranBusinessErrors {
     verifikasi: string[];
     sahkan: string[];
     kembalikan: string[];
+    /** Alasan buka kembali tidak tersedia; hanya terisi server saat status disahkan. */
+    buka_kembali?: string[];
 }
 
 export interface KlaimPengukuran {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { Search, Eye, Paperclip } from 'lucide-react';
+import { Search, Eye, Paperclip, RotateCcw } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card } from '@/Components/Card';
@@ -32,6 +32,16 @@ export default function VerifikasiIndex({ pengukurans = [], pagination, filters 
         <AuthenticatedLayout
             title="Verifikasi & Pengesahan Kinerja"
             breadcrumbs={[{ label: 'Verifikasi Kinerja' }]}
+            headerActions={
+                <Link
+                    href="/verifikasi/disahkan"
+                    aria-label="Buka antrean pengukuran disahkan untuk koreksi"
+                    className="ml-auto inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    Pengukuran Disahkan
+                </Link>
+            }
         >
             <Head title="Verifikasi Kinerja" />
 

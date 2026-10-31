@@ -6,7 +6,8 @@ import { Select } from '@/Components/Select';
 
 export interface PilihanFilter { id: string; label: string }
 export interface FilterVerifikasi {
-    status: 'diajukan' | 'diverifikasi';
+    /** Absen pada antrean yang statusnya sudah ditentukan server (mis. pengukuran disahkan). */
+    status?: 'diajukan' | 'diverifikasi';
     renstra_id: string;
     tahun: string;
     periode_id: string;
@@ -19,10 +20,10 @@ export interface PilihanFilterTerpilih {
 }
 interface HalamanPilihan { data: PilihanFilter[]; page: number; has_more: boolean }
 
-function FilterLookup({ jenis, label, initialId, initialOption, disabled, error, onChange }: {
+function FilterLookup({ jenis, label, initialId, initialOption, disabled, error, lookupUrl, onChange }: {
     jenis: 'renstra' | 'periode' | 'unit'; label: string; initialOption: PilihanFilter | null;
     initialId: string;
-    disabled: boolean; error?: string; onChange: (id: string) => void;
+    disabled: boolean; error?: string; lookupUrl: string; onChange: (id: string) => void;
 }) {
     const id = useId();
     // ID pada URL tetap aktif meski labelnya sudah keluar dari scope antrean.
@@ -42,7 +43,7 @@ function FilterLookup({ jenis, label, initialId, initialOption, disabled, error,
             setLoading(true);
             setFailure('');
             const params = new URLSearchParams({ jenis, q: query.trim(), page: String(page) });
-            void fetch(`/verifikasi/pilihan?${params}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
+            void fetch(`${lookupUrl}?${params}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
                 .then(async (response) => {
                     if (!response.ok || response.redirected) {
                         if (active) setFailure(response.status === 401 || response.redirected
@@ -59,7 +60,7 @@ function FilterLookup({ jenis, label, initialId, initialOption, disabled, error,
                 .finally(() => { if (active) setLoading(false); });
         }, 350);
         return () => { active = false; clearTimeout(timer); controller.abort(); };
-    }, [jenis, page, query, retry, searching]);
+    }, [jenis, lookupUrl, page, query, retry, searching]);
     const choose = (option: PilihanFilter | null) => {
         setSelected(option); setQuery(''); setResult(null); setFailure(''); setLoading(false); setPage(1);
         onChange(option?.id ?? '');
@@ -89,33 +90,40 @@ function FilterLookup({ jenis, label, initialId, initialOption, disabled, error,
     </div>;
 }
 
-export default function Filters({ filters, selected }: { filters: FilterVerifikasi; selected: PilihanFilterTerpilih }) {
-    const { data, setData, get, errors, processing } = useForm({ ...filters });
+export default function Filters({ filters, selected, lookupUrl = '/verifikasi/pilihan', actionUrl = '/verifikasi', showStatus = true }: {
+    filters: FilterVerifikasi; selected: PilihanFilterTerpilih;
+    lookupUrl?: string; actionUrl?: string; showStatus?: boolean;
+}) {
+    // Saat status antrean ditentukan server, kunci status tidak ikut dibuat agar tidak terkirim pada query.
+    const initial: FilterVerifikasi = showStatus
+        ? { ...filters, status: filters.status ?? 'diajukan' }
+        : { renstra_id: filters.renstra_id, tahun: filters.tahun, periode_id: filters.periode_id, unit_id: filters.unit_id };
+    const { data, setData, get, errors, processing } = useForm(initial);
     const [failure, setFailure] = useState('');
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (processing) return;
         setFailure('');
-        get('/verifikasi', {
+        get(actionUrl, {
             preserveScroll: true, preserveState: false,
             onNetworkError: () => { setFailure('Filter belum dapat diterapkan. Periksa koneksi lalu coba lagi.'); return false; },
             onHttpException: (response) => { setFailure(response.status === 401 ? 'Sesi berakhir. Muat ulang halaman untuk masuk kembali.' : 'Filter belum dapat diterapkan. Muat ulang halaman dan periksa akses Anda.'); return false; },
         });
     };
-    return <form onSubmit={submit} aria-label="Filter antrean verifikasi" aria-busy={processing} className="space-y-4 border-b border-border p-4 sm:p-6">
-        <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <Select label="Status antrean" value={data.status} disabled={processing} error={errors.status} onChange={(event) => setData('status', event.target.value === 'diverifikasi' ? 'diverifikasi' : 'diajukan')}
+    return <form onSubmit={submit} aria-label={showStatus ? 'Filter antrean verifikasi' : 'Filter antrean pengukuran disahkan'} aria-busy={processing} className="space-y-4 border-b border-border p-4 sm:p-6">
+        <div className={`grid items-start gap-4 sm:grid-cols-2 ${showStatus ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
+            {showStatus && <Select label="Status antrean" value={data.status ?? 'diajukan'} disabled={processing} error={errors.status} onChange={(event) => setData('status', event.target.value === 'diverifikasi' ? 'diverifikasi' : 'diajukan')}
                 options={[{ value: 'diajukan', label: 'Diajukan' }, { value: 'diverifikasi', label: 'Diverifikasi' }]}
-                helperText={data.status === 'diverifikasi' ? 'Siap disahkan.' : 'Menunggu verifikasi.'} />
-            <FilterLookup jenis="renstra" label="Renstra" initialId={filters.renstra_id} initialOption={selected.renstra_id} disabled={processing} error={errors.renstra_id} onChange={(id) => setData('renstra_id', id)} />
+                helperText={data.status === 'diverifikasi' ? 'Siap disahkan.' : 'Menunggu verifikasi.'} />}
+            <FilterLookup jenis="renstra" label="Renstra" initialId={filters.renstra_id} initialOption={selected.renstra_id} disabled={processing} error={errors.renstra_id} lookupUrl={lookupUrl} onChange={(id) => setData('renstra_id', id)} />
             <Input label="Tahun" type="number" min={1} max={9999} value={data.tahun} disabled={processing} error={errors.tahun} placeholder="Semua tahun" onChange={(event) => setData('tahun', event.target.value)} />
-            <FilterLookup jenis="periode" label="Periode" initialId={filters.periode_id} initialOption={selected.periode_id} disabled={processing} error={errors.periode_id} onChange={(id) => setData('periode_id', id)} />
-            <FilterLookup jenis="unit" label="Unit" initialId={filters.unit_id} initialOption={selected.unit_id} disabled={processing} error={errors.unit_id} onChange={(id) => setData('unit_id', id)} />
+            <FilterLookup jenis="periode" label="Periode" initialId={filters.periode_id} initialOption={selected.periode_id} disabled={processing} error={errors.periode_id} lookupUrl={lookupUrl} onChange={(id) => setData('periode_id', id)} />
+            <FilterLookup jenis="unit" label="Unit" initialId={filters.unit_id} initialOption={selected.unit_id} disabled={processing} error={errors.unit_id} lookupUrl={lookupUrl} onChange={(id) => setData('unit_id', id)} />
         </div>
         {failure && <p role="alert" className="text-sm text-danger">{failure}</p>}
         <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" isLoading={processing}>Terapkan filter</Button>
-            <Link href="/verifikasi" className="rounded px-2 py-2 text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">Reset filter</Link>
+            <Link href={actionUrl} className="rounded px-2 py-2 text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">Reset filter</Link>
         </div>
     </form>;
 }
