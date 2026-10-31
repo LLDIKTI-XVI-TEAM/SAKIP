@@ -201,7 +201,7 @@ class TargetTahunanConcurrencyTest extends TestCase
         $this->go($worker);
         $this->blockedBy($worker, (int) DB::selectOne('select pg_backend_pid() as pid')->pid);
         DB::commit();
-        $this->assertSame(['outcome' => 'validation', 'fields' => ['alasan_deviasi_renstra'], 'status' => 422], $this->workerResult($worker));
+        $this->assertSame(['outcome' => 'validation', 'fields' => ['deviasi_renstra'], 'status' => 422], $this->workerResult($worker));
         $this->assertSame(0, TargetKinerja::count());
     }
 

@@ -22,6 +22,8 @@ interface ActionMenuProps {
     triggerLabel?: string;
     variant?: 'primary' | 'outline' | 'ghost';
     triggerClassName?: string;
+    /** Menonaktifkan pemicu, mis. selama ada perubahan halaman yang belum disimpan. */
+    disabled?: boolean;
 }
 
 const MENU_GAP = 4;
@@ -31,7 +33,7 @@ const VIEWPORT_MARGIN = 8;
  * Menu aksi bergaya dropdown. Posisi `fixed` dihitung dari tombol pemicu agar menu tidak terpotong
  * oleh kontainer `overflow` (mis. tabel di dalam kartu); visibilitas item tetap ditentukan pemanggil dari `can.*`.
  */
-export function ActionMenu({ items, trigger, triggerLabel, variant = 'outline', triggerClassName }: ActionMenuProps) {
+export function ActionMenu({ items, trigger, triggerLabel, variant = 'outline', triggerClassName, disabled }: ActionMenuProps) {
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -116,6 +118,7 @@ export function ActionMenu({ items, trigger, triggerLabel, variant = 'outline', 
                 aria-expanded={open}
                 aria-controls={open ? menuId : undefined}
                 aria-label={triggerLabel}
+                disabled={disabled}
                 onClick={() => setOpen((previous) => !previous)}
                 className={triggerClassName}
             >

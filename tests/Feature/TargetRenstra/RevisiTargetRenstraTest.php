@@ -368,10 +368,11 @@ class RevisiTargetRenstraTest extends TestCase
         $editor = $this->actingAs($aktor)->getJson($this->targetPkUrl($satu, '/editor'))->assertOk()
             ->assertJsonPath('target_renstra', '10')->assertJsonPath('status_deviasi', 'tidak_dinilai');
 
-        // 50 menyimpang terhadap draf (99) tetapi tidak terhadap nilai berlaku (10), sehingga tersimpan tanpa alasan deviasi.
+        // 50 menyimpang terhadap draf (99) tetapi tidak terhadap nilai berlaku (10), sehingga tidak ditolak.
         $this->putJson($this->targetPkUrl($satu), ['baseline' => null, 'target_tahunan' => '50', 'expected_state' => $editor->json('expected_state'),
             'operation_id' => (string) Str::uuid()])->assertOk();
-        $this->assertSame(['50.000000000000', null], [DB::table('target_kinerjas')->value('target_tahunan'), DB::table('target_kinerjas')->value('alasan_deviasi_renstra')]);
+        $this->assertSame('50.000000000000', DB::table('target_kinerjas')->value('target_tahunan'));
+        $this->assertSame(0, AuditLog::where('tindakan', 'target_tahunan.simpan_ditolak')->count());
         $this->get('/perjanjian-kinerja/'.RenstraPk::sole()->id)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->where('target_pk', fn (Collection $kelompok): bool => collect($kelompok->toArray())->flatMap(fn (array $k): array => $k['indikator'])
                 ->firstWhere('id', $satu->id)['target_renstra'] === '10'));

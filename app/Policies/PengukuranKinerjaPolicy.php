@@ -4,11 +4,13 @@ namespace App\Policies;
 
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Jadwal\SesiKoreksiJadwal;
+use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\DB;
 
@@ -93,6 +95,56 @@ class PengukuranKinerjaPolicy
     public function returnMeasurement(User $user, PengukuranKinerja $p): Response
     {
         return $this->capability($user, $p, 'kembalikan', 'pengukuran:kembalikan');
+    }
+
+    /**
+     * Tombol/route penetapan status capaian. Guard penuh per versi dijalankan Action atas baris terkunci;
+     * di sini dipakai versi sah terakhir agar UI tidak menawarkan tindakan yang pasti ditolak (Q-B, Q-C).
+     */
+    public function updateStatusCapaian(User $user, PengukuranKinerja $p): Response
+    {
+        if (! $this->resolver->allows($user, PermissionCodes::STATUS_CAPAIAN_UPDATE, $p->targetUnitId())) {
+            return Response::deny('Izin menetapkan status capaian tidak tersedia atau telah dicabut.');
+        }
+        $versi = $p->ratifiedVersion;
+        if (! $versi) {
+            return Response::deny('Pengukuran belum memiliki versi yang disahkan; status capaian belum dapat ditetapkan.');
+        }
+        $errors = $this->statusCapaianErrors($p, $versi);
+
+        return $errors === [] ? Response::allow() : Response::deny(implode(' ', $errors));
+    }
+
+    /**
+     * Guard bisnis penetapan status capaian dari header dan snapshot versi beku (bukan hitungan ulang).
+     * Dipakai Policy dan diulang Action setelah baris terkunci; `versi` adalah versi yang dirujuk permintaan.
+     *
+     * @return list<string>
+     */
+    public function statusCapaianErrors(PengukuranKinerja $p, KinerjaSnapshot $versi): array
+    {
+        $errors = [];
+        if ($p->status_alur !== 'disahkan') {
+            $errors[] = 'Status capaian hanya dapat ditetapkan pada pengukuran berstatus Disahkan.';
+        }
+        if ($versi->pengukuran_id !== $p->id) {
+            $errors[] = 'Versi pengukuran tidak termasuk pengukuran ini.';
+        }
+        if ($versi->disahkan_at === null) {
+            $errors[] = 'Status capaian hanya dapat ditetapkan pada versi yang telah disahkan.';
+        } elseif ($p->ratifiedVersion?->id !== $versi->id) {
+            $errors[] = 'Versi pengukuran yang dipilih bukan versi sah terakhir; muat ulang sebelum mengulangi tindakan.';
+        }
+        $snapshot = $versi->snapshot ?? [];
+        if ((bool) ($snapshot['tanpa_target_periode'] ?? false)) {
+            $errors[] = 'Pengukuran pada periode tanpa target tidak dapat diberi status capaian.';
+        } elseif (($snapshot['status_perhitungan'] ?? null) === 'belum_dapat_diukur') {
+            $errors[] = 'Pengukuran berstatus Belum dapat diukur tidak dapat diberi status capaian.';
+        } elseif (($snapshot['status_perhitungan'] ?? null) === 'tidak_dapat_dihitung') {
+            $errors[] = 'Pengukuran berstatus Tidak dapat dihitung tidak dapat diberi status capaian.';
+        }
+
+        return $errors;
     }
 
     private function capability(User $user, PengukuranKinerja $p, string $command, string $permission): Response

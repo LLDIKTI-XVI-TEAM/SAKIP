@@ -23,6 +23,7 @@ export interface BarisRekap {
     capaian_persen: string | null;
     keterangan_capaian: string | null;
     status_capaian: string;
+    ditetapkan_pada?: string | null;
     selisih_target_pk: string | null;
     alasan_tidak_dapat_dihitung: string | null;
     komponen: { komponen_id: string; kode: string; label: string; peran: string; bobot: string; target: string | null; realisasi: string | null }[];
@@ -39,6 +40,8 @@ export interface BarisRekap {
 }
 
 export interface RekapProps {
+    can: { ekspor: boolean };
+    ada_data_ekspor: boolean;
     filters: { jadwal_id: string; periode_id: string };
     jadwal: { id: string; tahun: number; status: string; renstra: string } | null;
     pilihan_jadwal: { id: string; label: string }[];

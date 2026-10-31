@@ -44,6 +44,7 @@ class SeedProduksiTanpaFixtureTest extends TestCase
         'pengukuran_kinerjas',
         'pengukuran_komponen',
         'pengukuran_versi',
+        'status_capaian',
         'riwayat_pengukurans',
         'rekomendasi_pimpinan',
         'penanggung_jawab',

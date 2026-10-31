@@ -19,7 +19,7 @@ vi.mock('@inertiajs/react', () => ({
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ children, title }: { children: ReactNode; title: string }) => <main><h1>{title}</h1>{children}</main> }));
 
 beforeEach(() => { request.get.mockReset(); request.processing = false; request.errors = {}; page.pengaturan = {}; });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 function row(overrides: Partial<BarisRekap> = {}): BarisRekap {
     return {
@@ -42,8 +42,65 @@ function row(overrides: Partial<BarisRekap> = {}): BarisRekap {
 function props(rows: BarisRekap[] = [row()]): RekapProps {
     return { filters: { jadwal_id: 'j1', periode_id: 'p1' }, jadwal: { id: 'j1', tahun: 2026, status: 'aktif', renstra: 'Renstra Uji' },
         pilihan_jadwal: [{ id: 'j1', label: '2026 · Renstra Uji' }, { id: 'j2', label: '2025 · Renstra Uji' }], pilihan_periode: [{ id: 'p1', nama: 'Triwulan I' }],
+        can: { ekspor: true }, ada_data_ekspor: rows.length > 0,
         baris: rows, pagination: { links: [], from: rows.length ? 1 : null, to: rows.length || null, total: rows.length } };
 }
+
+it('membatasi tombol ekspor pada capability, data tersedia, dan filter yang sudah diterapkan', () => {
+    const view = render(<Rekap {...props()} can={{ ekspor: false }} />);
+    expect(screen.queryByRole('button', { name: 'Unduh Excel' })).toBeNull();
+    view.rerender(<Rekap {...props()} ada_data_ekspor={false} />);
+    expect(screen.getByRole('button', { name: 'Unduh Excel' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Tidak ada data untuk diekspor')).toBeTruthy();
+    view.rerender(<Rekap {...props()} />);
+    fireEvent.change(screen.getByLabelText('Tahun / jadwal'), { target: { value: 'j2' } });
+    expect(screen.getByRole('button', { name: 'Unduh Excel' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Terapkan filter terlebih dahulu untuk mengunduh Excel.')).toBeTruthy();
+});
+
+it('mengunduh berkas di luar Inertia dengan filter aktif dan mencegah permintaan ganda', async () => {
+    let finish: (response: Response) => void = () => { throw new Error('Permintaan belum dimulai'); };
+    const fetcher = vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    vi.stubGlobal('fetch', fetcher);
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:rekap'), revokeObjectURL: vi.fn() });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    render(<Rekap {...props()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Unduh Excel' }));
+    expect(screen.getByRole('button', { name: 'Menyiapkan Excel…' }).hasAttribute('disabled')).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith('/laporan/rekap/ekspor?jadwal_id=j1&periode_id=p1', expect.objectContaining({ headers: { Accept: 'application/json' }, credentials: 'same-origin' }));
+    await act(async () => { finish(new Response('fixture-transport', { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } })); });
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(request.get).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Unduh Excel' }).hasAttribute('disabled')).toBe(false);
+});
+
+it.each([
+    [403, 'Anda tidak memiliki izin untuk mengekspor laporan ini. Muat ulang halaman untuk memeriksa akses Anda.'],
+    [422, 'Tidak ada data untuk diekspor'],
+    [401, 'Sesi Anda berakhir. Muat ulang halaman dan masuk kembali.'],
+])('menampilkan kegagalan unduhan %s tanpa menyimpan respons sebagai berkas', async (status, message) => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ errors: { ekspor: ['Tidak ada data untuk diekspor'] } }), { status, headers: { 'Content-Type': 'application/json' } })));
+    render(<Rekap {...props()} />);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Unduh Excel' })); });
+    expect(screen.getByRole('alert').textContent).toContain(message);
+    expect(screen.getByRole('button', { name: 'Unduh Excel' }).hasAttribute('disabled')).toBe(false);
+});
+
+it.each([
+    { status_capaian: 'Tercapai', kelas: 'bg-success/10' },
+    { status_capaian: 'Belum tercapai', kelas: 'bg-danger/10' },
+    { status_capaian: 'Belum ditetapkan', kelas: 'bg-soft' },
+    { status_capaian: 'Tidak dinilai', kelas: 'bg-info/10' },
+    { status_capaian: 'Tidak dapat dihitung', kelas: 'bg-secondary/15' },
+])('menampilkan badge status capaian narasi server "$status_capaian" dengan varian yang sesuai', ({ status_capaian, kelas }) => {
+    render(<Rekap {...props([row({ status_capaian })])} />);
+
+    const sel = screen.getByText('Status capaian').parentElement!;
+    const badge = within(sel).getByText(status_capaian, { selector: 'span' });
+    expect(badge.classList.contains(kelas)).toBe(true);
+    expect(badge.textContent).toBe(status_capaian);
+});
 
 it.each([
     { zona: 'UTC', format: 'Y-m-d', hasil: '2026-10-21' },

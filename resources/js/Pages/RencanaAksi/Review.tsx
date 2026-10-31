@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, BadgeCheck, CheckCircle2, RotateCcw, Undo2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BadgeCheck, CheckCircle2, Info, RotateCcw, Undo2 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
@@ -9,7 +9,7 @@ import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Modal } from '@/Components/Modal';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Table, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow, tableCellResponsive } from '@/Components/Table';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { formatRupiah } from '@/lib/rupiah';
@@ -21,6 +21,9 @@ import { rencanaAksiStatusPerhitungan } from './types';
 
 type Decision = 'verifikasi' | 'kembalikan' | 'sahkan' | 'buka_kembali';
 const konteksTidakLengkap = 'Konteks versi belum lengkap';
+// Tabel kegiatan berkolom enam baru muat di samping sidebar mulai 1024 px; di bawahnya setiap baris tampil sebagai kartu berlabel.
+const selKegiatan = 'min-w-0 p-0 lg:px-4 lg:py-3.5';
+const labelKegiatan = 'md:inline lg:hidden';
 // Sama dengan filter status DaftarRencanaAksi agar RA yang baru diproses tetap terlihat di daftar.
 const statusDaftar: readonly StatusReview[] = ['diajukan', 'diverifikasi', 'dikembalikan', 'disahkan'];
 const statusHasil: Record<Decision, string> = { verifikasi: 'diverifikasi', kembalikan: 'dikembalikan', sahkan: 'disahkan', buka_kembali: 'dikembalikan' };
@@ -115,9 +118,21 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
         </div>
     );
 
+    // Alasan pengesahan hanya relevan pada tahap diverifikasi; buka-kembali hanya relevan pada tahap disahkan.
+    const aksiTidakTersedia = (['verifikasi', 'kembalikan', 'sahkan', 'buka_kembali'] as const)
+        .filter((aksi) => (aksi !== 'sahkan' || rencanaAksi.status_alur === 'diverifikasi') && (aksi !== 'buka_kembali' || rencanaAksi.status_alur === 'disahkan'))
+        .filter((aksi) => rencanaAksi.businessErrors[aksi].length > 0);
+    // Kolom matriks dari komponen yang muncul pada versi beku, urut kemunculan; indikator manual tidak punya kolom komponen.
+    const kolomKomponen = rencanaAksi.target_periode
+        .flatMap((periode) => periode.komponen)
+        .filter((komponen, index, semua) => semua.findIndex((lain) => lain.komponen_id === komponen.komponen_id) === index);
+    const adaKomponenKlaim = (rencanaAksi.klaim ?? []).some((item) => item.komponen !== null);
+    const labelJalur = (jalur: 'pic' | 'perencanaan'): string => (jalur === 'pic' ? 'PIC' : 'Perencanaan');
+    const kelasPemberitahuan = 'flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm';
+
     return (
-        <AuthenticatedLayout title={`Review ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`} breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: 'Review', href: hrefDaftar }, { label: `Versi ${versi.nomor}` }]}>
-            <Head title={`Review Rencana Aksi ${rencanaAksi.indikator.kode}`} />
+        <AuthenticatedLayout title={`Reviu ${rencanaAksi.indikator.kode} · ${rencanaAksi.tahun}`} breadcrumbs={[{ label: 'Rencana Aksi', href: '/rencana-aksi' }, { label: 'Reviu', href: hrefDaftar }, { label: `Versi ${versi.nomor}` }]}>
+            <Head title={`Reviu Rencana Aksi ${rencanaAksi.indikator.kode}`} />
             <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <Link href={hrefDaftar} className="inline-flex items-center gap-1.5 rounded text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Kembali ke daftar rencana aksi</Link>
@@ -137,86 +152,201 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                         </div>
                         <Badge status={rencanaAksi.status_alur} />
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <p className="text-sm text-muted">Menampilkan substansi pengajuan versi {versi.nomor} yang dibekukan. Perubahan substansi harus melalui pengembalian dan pengajuan versi baru.</p>
-                        {rencanaAksi.pengesahan && (
-                            <section aria-label="Pengesahan" className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm text-success-dark">
-                                <h3 className="font-semibold">
+                    <CardContent>
+                        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm lg:grid-cols-4">
+                            <div><dt className="text-muted">Unit pada versi</dt><dd className="mt-1 font-medium">{rencanaAksi.unit_kerja?.nama ?? konteksTidakLengkap}</dd></div>
+                            <div><dt className="text-muted">Penanggung jawab pada versi</dt><dd className="mt-1 font-medium">{rencanaAksi.pic?.nama ?? konteksTidakLengkap}</dd></div>
+                            <div><dt className="text-muted">Pengaju historis</dt><dd className="mt-1 font-medium">{versi.pengaju?.nama ?? konteksTidakLengkap}</dd></div>
+                            <div><dt className="text-muted">Waktu pengajuan</dt><dd className="mt-1 font-medium">{formatTanggal(versi.diajukan_at, { withTime: true })} · Jalur {labelJalur(versi.jalur_pengajuan)}</dd></div>
+                        </dl>
+                    </CardContent>
+                </Card>
+
+                {/* Satu area pemberitahuan dengan gaya yang sama seperti halaman detail rencana aksi. */}
+                <section aria-label="Pemberitahuan" className="space-y-2">
+                    <div className={`${kelasPemberitahuan} border-info/30 bg-info/10 text-info-dark`}>
+                        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                        <p>Menampilkan substansi pengajuan versi {versi.nomor} yang dibekukan. Perubahan substansi harus melalui pengembalian dan pengajuan versi baru.</p>
+                    </div>
+                    {rencanaAksi.pengesahan && (
+                        <div className={`${kelasPemberitahuan} border-success/30 bg-success/10 text-success-dark`}>
+                            <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                            <div>
+                                <p className="font-semibold">
                                     Disahkan oleh {rencanaAksi.pengesahan.oleh}
                                     {rencanaAksi.pengesahan.pada ? ` pada ${formatTanggal(rencanaAksi.pengesahan.pada, { withTime: true })}` : ''}
-                                </h3>
+                                </p>
                                 <p className="mt-1">Versi pengajuan {versi.nomor} menjadi dokumen resmi rencana aksi.</p>
                                 {rencanaAksi.pengesahan.self_approval && (
                                     <p className="mt-1 font-semibold">Disahkan sendiri oleh pengaju melalui jalur Perencanaan (self-approval).</p>
                                 )}
-                            </section>
-                        )}
-                        {rencanaAksi.dibuka_kembali && rencanaAksi.status_alur === 'dikembalikan' && (
-                            <section aria-label="Dibuka kembali" className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">
-                                <h3 className="font-semibold">Dibuka kembali setelah pengesahan</h3>
+                            </div>
+                        </div>
+                    )}
+                    {rencanaAksi.dibuka_kembali && rencanaAksi.status_alur === 'dikembalikan' && (
+                        <div className={`${kelasPemberitahuan} border-info/30 bg-info/10 text-info-dark`}>
+                            <RotateCcw className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                            <div>
+                                <p className="font-semibold">Dibuka kembali setelah pengesahan</p>
                                 <p className="mt-1">Pengajuan pengukuran indikator ini ditahan sampai versi baru disahkan. Versi yang disahkan sebelumnya tetap tersimpan dan dapat dibaca sebagai histori.</p>
-                            </section>
-                        )}
-                        <dl className="grid gap-5 text-sm sm:grid-cols-2">
-                            <div><dt className="text-muted">Unit pada versi</dt><dd className="mt-1 font-medium">{rencanaAksi.unit_kerja?.nama ?? konteksTidakLengkap}</dd></div>
-                            <div><dt className="text-muted">Penanggung jawab pada versi</dt><dd className="mt-1 font-medium">{rencanaAksi.pic?.nama ?? konteksTidakLengkap}</dd></div>
-                            <div><dt className="text-muted">Pengaju historis</dt><dd className="mt-1 font-medium">{versi.pengaju?.nama ?? konteksTidakLengkap}</dd></div>
-                            <div><dt className="text-muted">Waktu pengajuan</dt><dd className="mt-1 font-medium">{formatTanggal(versi.diajukan_at, { withTime: true })} · Jalur {versi.jalur_pengajuan === 'pic' ? 'PIC' : 'Perencanaan'}</dd></div>
-                        </dl>
-                        <div><h3 className="text-sm font-semibold">Uraian rencana aksi</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{rencanaAksi.uraian ?? 'Uraian tidak tersedia pada versi ini.'}</p></div>
-                        {rencanaAksi.alasan_deviasi_pk && <div><h3 className="text-sm font-semibold">Alasan deviasi target PK</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">{rencanaAksi.alasan_deviasi_pk}</p></div>}
-                        {/* Alasan pengesahan hanya relevan pada tahap diverifikasi; buka-kembali hanya relevan pada tahap disahkan. */}
-                        {(['verifikasi', 'kembalikan', 'sahkan', 'buka_kembali'] as const).filter((aksi) => (aksi !== 'sahkan' || rencanaAksi.status_alur === 'diverifikasi') && (aksi !== 'buka_kembali' || rencanaAksi.status_alur === 'disahkan')).map((aksi) => rencanaAksi.businessErrors[aksi].length > 0 && (
-                            <section key={aksi} aria-label={`Alasan ${aksi} tidak tersedia`} className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
-                                <h3 className="font-semibold text-warning-dark">{judulTidakTersedia[aksi]}</h3>
-                                <ul className="mt-2 list-disc space-y-1 pl-5">{rencanaAksi.businessErrors[aksi].map((error) => <li key={error}>{error}</li>)}</ul>
-                            </section>
-                        ))}
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle>Target per periode pada versi {versi.nomor}</CardTitle></CardHeader>
-                    <Table className="table-fixed [&_th]:whitespace-normal [&_th]:break-words [&_td]:break-words">
-                        <TableHeader><TableRow><TableHead>Periode</TableHead><TableHead>Target tersimpan</TableHead><TableHead>Komponen</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {rencanaAksi.target_periode.length === 0 ? <TableRow><TableCell colSpan={3} className="py-8 text-center text-muted">Target periode tidak tersedia pada versi ini.</TableCell></TableRow> : rencanaAksi.target_periode.map((periode) => (
-                                <TableRow key={periode.periode_id}>
-                                    <TableCell>{periode.periode_nama || konteksTidakLengkap}{periode.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{periode.keterangan}</p>}</TableCell>
-                                    <TableCell className="tabular-nums"><span>{periode.status_perhitungan === 'tidak_ditargetkan' ? 'Tidak ditargetkan' : periode.nilai === null ? 'Belum tersedia' : `${formatNilai(periode.nilai, desimal)} ${satuan}`}</span>{periode.status_perhitungan && periode.status_perhitungan !== 'tidak_ditargetkan' && <p className="mt-1 text-xs text-muted">{rencanaAksiStatusPerhitungan[periode.status_perhitungan] ?? periode.status_perhitungan}</p>}</TableCell>
-                                    <TableCell>{periode.komponen.length === 0 ? '—' : <ul className="space-y-1">{periode.komponen.map((komponen) => <li key={komponen.komponen_id}><span>{komponen.kode} · {komponen.label || konteksTidakLengkap}: </span><span className="tabular-nums">{komponen.nilai === null ? 'Belum tersedia' : formatNilai(komponen.nilai, desimal)}</span>{komponen.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">{komponen.keterangan}</p>}</li>)}</ul>}</TableCell>
+                            </div>
+                        </div>
+                    )}
+                    {aksiTidakTersedia.map((aksi) => (
+                        <div key={aksi} className={`${kelasPemberitahuan} border-warning/40 bg-warning/10 text-warning-dark`}>
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                            <div>
+                                <p className="font-semibold">{judulTidakTersedia[aksi]}</p>
+                                <ul className="mt-1 list-disc space-y-1 pl-5">{rencanaAksi.businessErrors[aksi].map((error) => <li key={error}>{error}</li>)}</ul>
+                            </div>
+                        </div>
+                    ))}
+                </section>
+
+                <Card role="region" aria-labelledby="reviu-target">
+                    <CardHeader><CardTitle id="reviu-target">Target per periode</CardTitle></CardHeader>
+                    <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                        <TableHeader className="max-md:sr-only">
+                            <TableRow>
+                                <TableHead className="whitespace-normal">Periode</TableHead>
+                                {kolomKomponen.map((kolom) => <TableHead key={kolom.komponen_id} className="whitespace-normal normal-case tracking-normal">{kolom.kode} · {kolom.label || konteksTidakLengkap}</TableHead>)}
+                                <TableHead className="whitespace-normal md:text-right">Target tersimpan</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody className="block md:table-row-group">
+                            {rencanaAksi.target_periode.length === 0 ? (
+                                <TableRow className="block md:table-row"><TableCell colSpan={2 + kolomKomponen.length} className="block px-6 py-8 text-center text-muted md:table-cell">Target periode tidak tersedia pada versi ini.</TableCell></TableRow>
+                            ) : rencanaAksi.target_periode.map((periode) => (
+                                <TableRow key={periode.periode_id} className="grid min-w-0 grid-cols-2 gap-3 px-6 py-4 md:table-row">
+                                    <TableCell className={`col-span-2 ${tableCellResponsive}`}>
+                                        <p className="text-sm font-medium text-ink">{periode.periode_nama || konteksTidakLengkap}</p>
+                                        {periode.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted">{periode.keterangan}</p>}
+                                    </TableCell>
+                                    {kolomKomponen.map((kolom) => {
+                                        const sel = periode.komponen.find((komponen) => komponen.komponen_id === kolom.komponen_id);
+                                        return (
+                                            <TableCell key={kolom.komponen_id} className={`${tableCellResponsive} tabular-nums`}>
+                                                <TableCellLabel>{kolom.kode} · {kolom.label || konteksTidakLengkap}</TableCellLabel>
+                                                <span>{sel === undefined ? '—' : sel.nilai === null ? 'Belum tersedia' : formatNilai(sel.nilai, desimal)}</span>
+                                                {sel?.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted">{sel.keterangan}</p>}
+                                            </TableCell>
+                                        );
+                                    })}
+                                    <TableCell className={`col-span-2 ${tableCellResponsive} tabular-nums md:text-right`}>
+                                        <TableCellLabel>Target tersimpan</TableCellLabel>
+                                        <span className="font-semibold">{periode.status_perhitungan === 'tidak_ditargetkan' ? 'Tidak ditargetkan' : periode.nilai === null ? 'Belum tersedia' : `${formatNilai(periode.nilai, desimal)} ${satuan}`}</span>
+                                        {periode.status_perhitungan && periode.status_perhitungan !== 'tidak_ditargetkan' && <p className="mt-1 text-xs text-muted">{rencanaAksiStatusPerhitungan[periode.status_perhitungan] ?? periode.status_perhitungan}</p>}
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
                 </Card>
-                {rencanaAksi.can.kegiatan && <Card>
-                    <CardHeader>
-                        <CardTitle>Kegiatan yang diklaim pada versi {versi.nomor}</CardTitle>
-                        {rencanaAksi.anggaran_kegiatan && <p className="text-sm text-ink">Total anggaran saat pengajuan: <span className="font-semibold">{formatRupiah(rencanaAksi.anggaran_kegiatan.total)}</span>
-                            {rencanaAksi.anggaran_kegiatan.belum_diisi > 0 && ` (${rencanaAksi.anggaran_kegiatan.belum_diisi} kegiatan belum diisi)`}</p>}
-                    </CardHeader>
+
+                <Card role="region" aria-labelledby="reviu-uraian">
+                    <CardHeader><CardTitle id="reviu-uraian">Uraian dan alasan deviasi</CardTitle></CardHeader>
                     <CardContent>
-                        {rencanaAksi.klaim === null ? <p className="text-sm text-muted">Versi ini dibentuk sebelum daftar kegiatan ikut dibekukan.</p>
-                            : rencanaAksi.klaim.length === 0 ? <p className="text-sm text-muted">Tidak ada kegiatan yang diklaim pada versi ini.</p>
-                                : <ul className="divide-y divide-border">{rencanaAksi.klaim.map((item) => <li key={item.id} className="space-y-1 py-2">
-                                    <p className="break-words text-sm font-semibold text-ink">{item.nama}</p>
-                                    <p className="text-xs text-muted">{item.periode_nama} · {item.komponen ?? 'Tanpa komponen tertentu'} · {item.arah_dampak === 'mengurangi' ? 'Mengurangi' : 'Menambah'}{item.status ? ` · ${statusKegiatanConfig[item.status]?.label ?? item.status}` : ''} · Anggaran {formatRupiah(item.anggaran)}</p>
-                                    {item.catatan && <p className="break-words text-xs text-muted">{item.catatan}</p>}
-                                </li>)}</ul>}
+                        <dl className="space-y-4 text-sm">
+                            <div><dt className="text-muted">Uraian rencana aksi</dt><dd className="mt-1 whitespace-pre-wrap break-words leading-6 text-ink">{rencanaAksi.uraian ?? 'Uraian tidak tersedia pada versi ini.'}</dd></div>
+                            {rencanaAksi.alasan_deviasi_pk && <div><dt className="text-muted">Alasan deviasi target PK</dt><dd className="mt-1 whitespace-pre-wrap break-words leading-6 text-ink">{rencanaAksi.alasan_deviasi_pk}</dd></div>}
+                        </dl>
                     </CardContent>
+                </Card>
+
+                {rencanaAksi.can.kegiatan && <Card role="region" aria-labelledby="reviu-kegiatan">
+                    <CardHeader><CardTitle id="reviu-kegiatan">Kegiatan yang diklaim</CardTitle></CardHeader>
+                    {rencanaAksi.klaim === null ? <CardContent><p className="text-sm text-muted">Versi ini dibentuk sebelum daftar kegiatan ikut dibekukan.</p></CardContent>
+                        : rencanaAksi.klaim.length === 0 ? <CardContent><p className="text-sm text-muted">Tidak ada kegiatan yang diklaim pada versi ini.</p></CardContent>
+                            : (
+                                <Table wrapperClassName="overflow-x-visible" className="block lg:table">
+                                    <TableHeader className="max-lg:sr-only">
+                                        <TableRow>
+                                            <TableHead>Periode</TableHead>
+                                            <TableHead className="whitespace-normal">Kegiatan</TableHead>
+                                            {adaKomponenKlaim && <TableHead>Komponen</TableHead>}
+                                            <TableHead>Arah dampak</TableHead>
+                                            <TableHead className="lg:text-right">Anggaran</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody className="block lg:table-row-group">
+                                        {rencanaAksi.klaim.map((item) => {
+                                            const status = item.status ? statusKegiatanConfig[item.status] ?? { label: item.status, variant: 'muted' as const } : null;
+                                            return (
+                                                <TableRow key={item.id} className="grid min-w-0 grid-cols-2 gap-3 px-6 py-4 lg:table-row">
+                                                    <TableCell className={`col-span-2 ${selKegiatan} lg:whitespace-nowrap`}>
+                                                        <TableCellLabel className={labelKegiatan}>Periode</TableCellLabel>
+                                                        <span>{item.periode_nama}</span>
+                                                    </TableCell>
+                                                    <TableCell className={`col-span-2 ${selKegiatan}`}>
+                                                        <p className="break-words text-sm font-medium text-ink">{item.nama}</p>
+                                                        {item.catatan && <p className="mt-0.5 break-words text-xs text-muted">{item.catatan}</p>}
+                                                    </TableCell>
+                                                    {adaKomponenKlaim && (
+                                                        <TableCell className={`col-span-2 ${selKegiatan}`}>
+                                                            <TableCellLabel className={labelKegiatan}>Komponen</TableCellLabel>
+                                                            <span>{item.komponen ?? 'Tanpa komponen tertentu'}</span>
+                                                        </TableCell>
+                                                    )}
+                                                    <TableCell className={selKegiatan}>
+                                                        <TableCellLabel className={labelKegiatan}>Arah</TableCellLabel>
+                                                        {item.arah_dampak === null ? <span>—</span> : <Badge variant={item.arah_dampak === 'menambah' ? 'success' : 'warning'}>{item.arah_dampak === 'menambah' ? 'Menambah' : 'Mengurangi'}</Badge>}
+                                                    </TableCell>
+                                                    <TableCell className={`${selKegiatan} lg:whitespace-nowrap lg:text-right`}>
+                                                        <TableCellLabel className={labelKegiatan}>Anggaran</TableCellLabel>
+                                                        <span className={item.anggaran === null ? 'text-muted' : 'font-medium'}>{formatRupiah(item.anggaran)}</span>
+                                                    </TableCell>
+                                                    <TableCell className={selKegiatan}>
+                                                        <TableCellLabel className={labelKegiatan}>Status</TableCellLabel>
+                                                        {status ? <Badge variant={status.variant}>{status.label}</Badge> : <span>—</span>}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            )}
+                    {rencanaAksi.anggaran_kegiatan && (
+                        <p className="border-t border-border px-6 py-4 text-sm text-ink">Total anggaran saat pengajuan: <span className="font-semibold">{formatRupiah(rencanaAksi.anggaran_kegiatan.total)}</span>
+                            {rencanaAksi.anggaran_kegiatan.belum_diisi > 0 && ` (${rencanaAksi.anggaran_kegiatan.belum_diisi} kegiatan belum diisi)`}</p>
+                    )}
                 </Card>}
-                {rencanaAksi.can.evidence && <Card>
-                    <CardHeader><CardTitle>Bukti dukung pada versi {versi.nomor}</CardTitle></CardHeader>
+
+                {rencanaAksi.can.evidence && <Card role="region" aria-labelledby="reviu-bukti">
+                    <CardHeader><CardTitle id="reviu-bukti">Bukti dukung</CardTitle></CardHeader>
                     <CardContent>{rencanaAksi.bukti_dukungs.length === 0 ? <p className="text-sm text-muted">Tidak ada bukti dukung pada versi ini.</p> : <ul className="space-y-3">{rencanaAksi.bukti_dukungs.map((bukti) => <BerkasLampiranItem key={bukti.id} berkas={{ ...bukti, mime: null, ukuran_bytes: null }} meta={bukti.mode === 'file' && !bukti.download_url ? 'Berkas ini sudah tidak berlaku pada rencana aksi; unduhan tidak tersedia.' : undefined} />)}</ul>}</CardContent>
                 </Card>}
-                <Card>
-                    <CardHeader><CardTitle>Histori pengajuan</CardTitle></CardHeader>
-                    <CardContent>
-                        <ul className="divide-y divide-border">{rencanaAksi.histori.map((item) => <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                            <div><p className="font-semibold">Versi {item.nomor}</p><p className="mt-1 text-xs text-muted">{formatTanggal(item.diajukan_at, { withTime: true })} · Jalur {item.jalur_pengajuan === 'pic' ? 'PIC' : 'Perencanaan'}</p></div>
-                            <Link href={`/rencana-aksi/${rencanaAksi.id}/review?versi=${item.id}`} aria-current={item.id === versi.id ? 'page' : undefined} className="rounded px-3 py-2 font-semibold text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary">{item.id === versi.id ? 'Versi ditampilkan' : 'Lihat versi'}</Link>
-                        </li>)}</ul>
-                    </CardContent>
+
+                <Card role="region" aria-labelledby="reviu-histori">
+                    <CardHeader><CardTitle id="reviu-histori">Histori pengajuan</CardTitle></CardHeader>
+                    <Table wrapperClassName="overflow-x-visible" className="block md:table">
+                        <TableHeader className="max-md:sr-only">
+                            <TableRow>
+                                <TableHead>Versi</TableHead>
+                                <TableHead>Diajukan</TableHead>
+                                <TableHead>Jalur</TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody className="block md:table-row-group">
+                            {rencanaAksi.histori.map((item) => (
+                                <TableRow key={item.id} className="grid min-w-0 grid-cols-2 gap-3 px-6 py-4 md:table-row">
+                                    <TableCell className={tableCellResponsive}><span className="text-sm font-semibold text-ink">Versi {item.nomor}</span></TableCell>
+                                    <TableCell className={`col-span-2 ${tableCellResponsive} md:col-span-1`}>
+                                        <TableCellLabel>Diajukan</TableCellLabel>
+                                        <span>{formatTanggal(item.diajukan_at, { withTime: true })}</span>
+                                    </TableCell>
+                                    <TableCell className={tableCellResponsive}>
+                                        <TableCellLabel>Jalur</TableCellLabel>
+                                        <span>{labelJalur(item.jalur_pengajuan)}</span>
+                                    </TableCell>
+                                    <TableCell className={`row-start-1 col-start-2 text-right ${tableCellResponsive}`}>
+                                        <Link href={`/rencana-aksi/${rencanaAksi.id}/review?versi=${item.id}`} aria-current={item.id === versi.id ? 'page' : undefined} className="rounded px-3 py-2 text-xs font-semibold text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary">{item.id === versi.id ? 'Versi ditampilkan' : 'Lihat versi'}</Link>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                     <Pagination pagination={rencanaAksi.pagination} label="versi pengajuan" />
                 </Card>
             </div>
@@ -258,8 +388,8 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                     {notice}
                 </form>
             </Modal>
-            <AuditReasonModal open={decision === 'kembalikan'} title="Kembalikan rencana aksi" description={`Tuliskan perbaikan versi ${versi.nomor} yang harus ditindaklanjuti penanggung jawab.`} reason={form.data.alasan} error={form.errors.alasan} busy={form.processing} notice={notice} submitDisabled={blocked || !rencanaAksi.can.kembalikan || form.data.alasan.trim() === ''} confirmLabel="Konfirmasi pengembalian" onReasonChange={(alasan) => form.setData('alasan', alasan)} onClose={tutup} onConfirm={() => kirim('kembalikan')} />
-            <AuditReasonModal open={decision === 'buka_kembali'} title="Buka kembali rencana aksi" description={`Tuliskan dasar koreksi pembukaan kembali versi ${versi.nomor} yang telah disahkan agar penanggung jawab dapat memperbaiki.`} reason={form.data.alasan} error={form.errors.alasan} busy={form.processing} notice={notice} submitDisabled={blocked || !rencanaAksi.can.buka_kembali || form.data.alasan.trim() === ''} confirmLabel="Konfirmasi buka kembali" placeholder="Contoh: koreksi target periode berdasarkan SK resmi…" onReasonChange={(alasan) => form.setData('alasan', alasan)} onClose={tutup} onConfirm={() => kirim('buka_kembali')} />
+            <AuditReasonModal open={decision === 'kembalikan'} title="Kembalikan rencana aksi" showIcon={false} reason={form.data.alasan} error={form.errors.alasan} busy={form.processing} notice={notice} submitDisabled={blocked || !rencanaAksi.can.kembalikan || form.data.alasan.trim() === ''} confirmLabel="Konfirmasi pengembalian" onReasonChange={(alasan) => form.setData('alasan', alasan)} onClose={tutup} onConfirm={() => kirim('kembalikan')} />
+            <AuditReasonModal open={decision === 'buka_kembali'} title="Buka kembali rencana aksi" showIcon={false} reason={form.data.alasan} error={form.errors.alasan} busy={form.processing} notice={notice} submitDisabled={blocked || !rencanaAksi.can.buka_kembali || form.data.alasan.trim() === ''} confirmLabel="Konfirmasi buka kembali" placeholder="Contoh: koreksi target periode berdasarkan SK resmi…" onReasonChange={(alasan) => form.setData('alasan', alasan)} onClose={tutup} onConfirm={() => kirim('buka_kembali')} />
         </AuthenticatedLayout>
     );
 }

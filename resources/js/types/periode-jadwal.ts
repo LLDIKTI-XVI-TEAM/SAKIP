@@ -86,13 +86,27 @@ export interface JadwalDetail {
     periode: JadwalPeriode[];
 }
 
+/** Kandidat panel tambah indikator; tanpa nilai target agar hanya status kelengkapan yang dikirim. */
+export interface IndikatorBelumTerjadwal {
+    id: string;
+    kode: string;
+    nama: string;
+    target_terisi: boolean;
+    dapat_dibekukan: boolean;
+}
+
 export interface JadwalEditorProps {
     jadwal: JadwalDetail | null;
-    /** close dan revise_windows sudah memuat status jadwal dari server. */
-    can: { create: boolean; update: boolean; activate: boolean; close: boolean; revise_windows: boolean; reopen: boolean };
+    /** close, revise_windows, reopen, dan tambah_indikator sudah memuat status jadwal dari server. */
+    can: { create: boolean; update: boolean; activate: boolean; close: boolean; revise_windows: boolean; tambah_indikator: boolean; reopen: boolean };
     koreksi: SesiKoreksi | null;
     koreksi_indikator_options: { id: string; nama: string }[];
     read_only_reason: string | null;
+    /** Indikator Renstra yang belum masuk jadwal; kosong bila can.tambah_indikator false. */
+    indikator_belum_terjadwal: IndikatorBelumTerjadwal[];
+    /** Periode pertama yang jendelanya belum selesai (tanggal bisnis), atau null. */
+    periode_mulai_default: string | null;
+    perjanjian_kinerja_id: string | null;
     /** Renstra draft/aktif; kosong bila kalender hanya dapat dibaca. */
     renstra_options: JadwalRenstraOption[];
     /** Periode aktif untuk ditambahkan; kosong bila kalender hanya dapat dibaca. */

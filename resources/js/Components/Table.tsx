@@ -1,6 +1,9 @@
 import React from 'react';
+import { Link, type InertiaLinkProps } from '@inertiajs/react';
 import { clsx } from 'clsx';
+import type { LucideIcon } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
+import { Tooltip } from '@/Components/Tooltip';
 
 export interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
     wrapperClassName?: string;
@@ -96,4 +99,52 @@ export const TableCaption = React.forwardRef<HTMLTableCaptionElement, React.HTML
     )
 );
 TableCaption.displayName = 'TableCaption';
+
+/** Sel tabel yang menjadi kartu di mobile (`block md:table`): padding hanya di desktop. */
+export const tableCellResponsive = 'min-w-0 p-0 md:px-4 md:py-3.5';
+
+export function TableCellLabel({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+    return <span className={twMerge(clsx('mr-2 text-muted md:hidden', className))} {...props} />;
+}
+
+export interface TableEmptyRowProps {
+    colSpan: number;
+    icon: LucideIcon;
+    title: React.ReactNode;
+    description?: React.ReactNode;
+    action?: React.ReactNode;
+}
+
+export function TableEmptyRow({ colSpan, icon: Icon, title, description, action }: TableEmptyRowProps) {
+    return (
+        <TableRow className="block md:table-row">
+            <TableCell colSpan={colSpan} className="block py-12 text-center md:table-cell">
+                <Icon className="mx-auto h-8 w-8 text-muted/60" aria-hidden="true" />
+                <p className="mt-2 text-sm font-semibold text-ink">{title}</p>
+                {description && <p className="mt-1 text-xs text-muted">{description}</p>}
+                {action && <div className="mt-4">{action}</div>}
+            </TableCell>
+        </TableRow>
+    );
+}
+
+export type TableActionLinkProps = Omit<InertiaLinkProps, 'children' | 'className'> & {
+    label: string;
+    tooltip: string;
+    icon: LucideIcon;
+};
+
+export function TableActionLink({ label, tooltip, icon: Icon, ...props }: TableActionLinkProps) {
+    return (
+        <Tooltip content={tooltip} align="right">
+            <Link
+                {...props}
+                aria-label={label}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-muted shadow-2xs transition-colors hover:border-primary/40 hover:bg-soft hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+            </Link>
+        </Tooltip>
+    );
+}
 

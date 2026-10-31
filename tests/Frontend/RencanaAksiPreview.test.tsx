@@ -76,6 +76,7 @@ function buatPayload(): RencanaAksiPayload {
             },
         ],
         koreksi: { aktif: false, periode_ids: [] },
+        periode_dapat_ditulis: [PERIODE_1],
         deviasi_pk: {
             dapat_dinilai: true,
             ada: true,

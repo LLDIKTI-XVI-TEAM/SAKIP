@@ -48,8 +48,8 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
      target_tahunan (Q39; lihat §3.3) — target PK bernilai penuh dan baseline tampil sebagai
      data pendukung, bukan isi dokumen PK (Q50 §50.2–§50.3)
      → Target PK di bawah target Renstra tahun yang sama (naik_baik; di atasnya untuk
-       turun_baik): sistem menampilkan PERINGATAN dan MEWAJIBKAN alasan — nilai tidak ditolak,
-       penyimpanan tanpa alasan ditolak (Q65 §65.2)
+       turun_baik): penyimpanan DITOLAK sampai target Renstra direvisi lewat mode revisi;
+       alasan perubahan WAJIB bila target PK yang sudah tersimpan berubah (Q72)
   10. Melampirkan dokumen Perjanjian Kinerja (mode file/tautan/teks) pada renstra_pk tahun
       berjalan — lihat §3
   11. Mengaktifkan Renstra
@@ -412,7 +412,7 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
 
 ### 3.3 Lampiran dokumen Perjanjian Kinerja (gerbang keempat aktivasi jadwal)
 
-> **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot, dan alasan deviasi terhadap target Renstra ditegakkan menurut arah indikator (Q65). Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
+> **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot, dan alasan deviasi terhadap target Renstra ditegakkan menurut arah indikator (Q65). *(Digantikan Q72: target PK yang menyimpang ditolak; alasan perubahan target PK wajib.)* Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
 
 ```
 📋 Perencanaan
@@ -434,15 +434,17 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
      → Target Renstra tahun yang sama tampil di samping isian; indikator tanpa target Renstra
        (mis. IKU 4.1 pada sasaran S4 yang hanya ada di PK, Q50 §50.5) diberi keterangan
        "target Renstra belum ada" dan tetap dapat diberi target PK
-     → Target PK di bawah target Renstra (naik_baik) atau di atasnya (turun_baik): PERINGATAN
-       dan alasan deviasi WAJIB pada isian di editor, disimpan bersama target PK dan tercatat
-       di audit — nilai tidak ditolak, penyimpanan tanpa alasan DITOLAK server (Q65 §65.2).
-       Nilai yang sama tidak menyimpang; target Renstra belum ada atau target PK kosong tidak
-       dinilai
-     → Anjuran "minimal sama atau naik satu poin" (`turun_baik`: "minimal sama atau turun satu poin")
-       tampil sebagai panduan, bukan aturan sistem (Q65 §65.2 butir 13)
-     → Di luar alasan deviasi tersebut, alasan perubahan target PK opsional (Q43), juga
-       setelah snapshot terbentuk (Q65 §65.1)
+     → Target PK di bawah target Renstra (naik_baik) atau di atasnya (turun_baik): penyimpanan
+       DITOLAK server dengan pesan "Revisi target Renstra dulu" dan tautan ke tab Target
+       Renstra di Sasaran & Indikator; Perencanaan merevisi target Renstra lewat mode revisi
+       (Q71), lalu menyimpan target PK (Q72 §72.1, §72.4). Penolakan hanya diperiksa bila nilai
+       target PK berubah, termasuk pengisian pertama. Nilai yang sama tidak menyimpang; target
+       Renstra belum ada atau target PK kosong tidak dinilai
+     → Anjuran naik satu poin (`turun_baik`: turun satu poin) tampil sebagai panduan
+       (Q72 §72.1 butir 7)
+     → Alasan perubahan target PK WAJIB bila target PK yang sudah tersimpan berubah, juga
+       setelah snapshot terbentuk; diisi pada isian di editor dan dicatat di audit (Q72 §72.2).
+       Pengisian pertama dan perubahan baseline saja tidak wajib alasan
      → Setelah snapshot terbentuk, target PK tetap dapat diubah tetapi snapshot, rekonsiliasi
        Rencana Aksi, dan pengukuran tahun tsb tetap membaca target beku; halaman PK dan editor
        menampilkan pemberitahuannya (Q65 §65.1)
@@ -1674,8 +1676,9 @@ Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yan
      → Tanpa justifikasi atau tanpa perubahan nilai DITOLAK, penolakannya diaudit
      → Batal membuang draf tanpa mengubah target; pembatalan diaudit (Q71 §71.5 butir 2)
      → Pada Renstra draft, target Renstra tetap diubah langsung per indikator tanpa alasan (Q60)
-     → Target Renstra hanya pembanding target PK; perubahan ini tidak mengubah target PK,
-       snapshot, maupun capaian (Q39 §39.1, §39.4)
+     → Target Renstra menjadi pembanding sekaligus batas target PK menurut arah indikator
+       (Q72 §72.1); perubahan ini tidak mengubah target PK, snapshot, maupun capaian
+       (Q39 §39.1, §39.4)
 
   Kasus F — Penggantian Renstra karena kebijakan kementerian (Q40 §40.2 butir 4):
   2f. Membuat Renstra baru; Renstra lama dinonaktifkan sesuai aturan yang berlaku (§2) — versi
@@ -1771,21 +1774,25 @@ Koreksi data setelah penutupan tidak disebut backfill; gunakan flow buka-kembali
 
 ## 16. Alur Penetapan Status Capaian
 
-> **Q47, Q50 (13 Oktober 2026):** pada periode tanpa target, capaian persen dan status capaian tidak dihitung; tampilan memakai "Tanpa target periode" serta realisasi, target PK, dan selisih terhadap target PK (Q47 §47.3). Realisasi "belum dapat diukur" tampil dengan label tersebut dan tidak dihitung sebagai capaian 0 (Q47 §47.4 butir 3). Penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (Q47 §47.3 butir 4). Status capaian dan selisih memakai target PK yang disimpan bernilai penuh (Q50 §50.2 butir 2). Status implementasi: belum (§24).
+> **Q47, Q50 (13 Oktober 2026):** pada periode tanpa target, capaian persen dan status capaian tidak dihitung; tampilan memakai "Tanpa target periode" serta realisasi, target PK, dan selisih terhadap target PK (Q47 §47.3). Realisasi "belum dapat diukur" tampil dengan label tersebut dan tidak dihitung sebagai capaian 0 (Q47 §47.4 butir 3). Penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus belum dapat diukur (Q47 §47.3 butir 4). Status capaian dan selisih memakai target PK yang disimpan bernilai penuh (Q50 §50.2 butir 2). Status implementasi: **sudah** (ISS-09.02; Q78 §78.1 butir 1 dan 7).
 
 ```
 📋 Perencanaan / ⚙️ Superadmin
-  1. Membuka daftar pengukuran berstatus Disahkan yang belum punya status_capaian aktif —
-     tidak termasuk pengukuran pada periode tanpa target atau berstatus belum dapat diukur,
-     yang tidak dapat diberi status capaian manual (Q47 §47.3 butir 4)
+  1. Membuka daftar pengukuran berstatus Disahkan yang versi sah terakhirnya belum punya
+     status_capaian berlaku —
+     tidak termasuk pengukuran pada periode tanpa target, berstatus belum dapat diukur,
+     atau berstatus tidak dapat dihitung pada periode bertarget,
+     yang tidak dapat diberi status capaian manual (Q47 §47.3 butir 4, Q64 §64.1 butir 5)
   2. Memilih status: Tercapai atau Belum Tercapai untuk tiap pengukuran
   3. Sistem menyimpan baris status_capaian baru dengan sumber=manual, ditetapkan_oleh=user
-     yang login
-  4. Status capaian itu langsung aktif untuk pengukuran tsb dan tampil di dashboard
+     yang login, dan pengukuran_versi_id = versi sah terakhir
+  4. Status capaian itu langsung berlaku untuk versi tsb dan tampil di dashboard
   5. Kalau suatu saat perlu direvisi, pilih status baru
-     → sistem menyimpan baris status_capaian baru sebagai status aktif, baris lama tetap
+     → sistem menyimpan baris status_capaian baru sebagai status berlaku, baris lama tetap
        tersimpan sebagai riwayat (soft replace, bukan update/hapus)
   6. Kalau tidak ada revisi, proses selesai — status capaian tetap tampil di dashboard
+  7. Bila versi koreksi baru disahkan, versi itu mulai tanpa status capaian;
+     status versi lama tidak diwariskan otomatis
 
 (Fase Lanjutan, belum dibangun: jalur ini digambar sebagai referensi desain, di mana sistem
 eksternal/job terjadwal menghitung status_capaian otomatis dengan sumber=data_sumber,
@@ -2323,7 +2330,7 @@ flowchart TD
 
 ## 25. Alur Keluaran Dokumen Resmi: Rencana Aksi Tahunan dan Laporan Kinerja Triwulan
 
-> **Q48 (13 Oktober 2026):** SAKIP menghasilkan dua dokumen gabungan untuk satu lembaga dalam format Excel — **Rencana Aksi tahunan** per jadwal tahunan dan **Laporan Kinerja Triwulan** per periode — lalu PDF yang ditandatangani elektronik di luar aplikasi diunggah kembali sebagai arsip resmi. Dokumen PK tidak dihasilkan SAKIP; PDF PK bertanda tangan tetap menjadi lampiran PK (§3.3). Dikerjakan pada US/ISS-10.05, tahap 2 (Q46 §46.3); bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR (Q48 §48.3). Status implementasi: belum.
+> **Q48 (13 Oktober 2026):** SAKIP menghasilkan dua dokumen gabungan untuk satu lembaga dalam format Excel — **Rencana Aksi tahunan** per jadwal tahunan dan **Laporan Kinerja Triwulan** per periode — lalu PDF yang ditandatangani elektronik di luar aplikasi diunggah kembali sebagai arsip resmi. Dokumen PK tidak dihasilkan SAKIP; PDF PK bertanda tangan tetap menjadi lampiran PK (§3.3). Dikerjakan pada US/ISS-10.05, tahap 2 (Q46 §46.3); bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR (Q48 §48.3). Status implementasi: sebagian — slice arsip PDF bertanda tangan tersedia melalui [PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208); generator Excel belum diimplementasikan dan menunggu pengesahan format ISS-10.04.
 
 ```
 📋 Perencanaan / ✍️ Pimpinan / ⚙️ Superadmin (permission laporan:ekspor)

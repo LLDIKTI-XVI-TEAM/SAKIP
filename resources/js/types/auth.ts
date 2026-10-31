@@ -22,6 +22,8 @@ export interface SharedPageProps extends PageProps {
             kegiatan?: boolean;
             pengukuran: boolean;
             verifikasi: boolean;
+            /** `status_capaian:update`; gerbang menu dan aksi halaman Status Capaian. */
+            statusCapaian?: boolean;
             rencanaAksi?: boolean;
             regulasi: boolean;
             renstra?: boolean;
@@ -47,6 +49,7 @@ export interface SharedPageProps extends PageProps {
             'pk:update'?: boolean;
             rekomendasi?: boolean;
             laporan_read?: boolean;
+            dokumenResmi?: boolean;
         };
     };
     flash?: {

@@ -5,6 +5,7 @@ export type RoleOption = {
     kode: string;
     nama: string;
     aktif: boolean;
+    jumlah_izin: number;
 };
 
 export type PermissionRow = {

@@ -29,8 +29,9 @@ let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
     jadwal: true,
     pengukuran: true,
     verifikasi: true,
+    statusCapaian: true,
     rekomendasi: true,
-    laporan_read: true,
+    laporan_read: true, dokumenResmi: true,
     unit: true,
     jenisBerkas: true,
     assignRole: true,
@@ -97,8 +98,9 @@ afterEach(() => {
         jadwal: true,
         pengukuran: true,
         verifikasi: true,
+        statusCapaian: true,
         rekomendasi: true,
-        laporan_read: true,
+        laporan_read: true, dokumenResmi: true,
         unit: true,
         jenisBerkas: true,
         assignRole: true,
@@ -150,8 +152,9 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         expect(pelaksanaan.type).toBe('group');
         if (pelaksanaan.type === 'group') {
             expect(pelaksanaan.group.label).toBe('Pelaksanaan & Evaluasi');
-            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Kegiatan', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan', 'Rekomendasi Pimpinan', 'Rekapitulasi']);
-            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'kegiatan', 'pengukuran', 'verifikasi', 'rekomendasi', 'laporan_read']);
+            // Kegiatan bukan menu mandiri lagi: permukaannya ada di dalam Rencana Aksi (Q74 §74.1).
+            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan', 'Status Capaian', 'Rekomendasi Pimpinan', 'Rekapitulasi', 'Dokumen Resmi']);
+            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'pengukuran', 'verifikasi', 'statusCapaian', 'rekomendasi', 'laporan_read', 'dokumenResmi']);
         }
 
         expect(masterData.type).toBe('group');
@@ -205,7 +208,9 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
             hrefs.add(item.href);
         });
 
-        expect(allItems).toHaveLength(22); // 1 menu langsung + 21 submenu
+        expect(allItems).toHaveLength(23); // 1 menu langsung + 22 submenu
+        // Menu Kegiatan mandiri sudah dilebur ke dalam halaman Rencana Aksi.
+        expect(allItems.some((item) => item.href === '/kegiatan' || item.label === 'Kegiatan')).toBe(false);
     });
 });
 
@@ -301,6 +306,21 @@ describe('Test C — Active Navigation & Nested Route Matching', () => {
         });
     });
 
+    it('mengenali Status Capaian sebagai item aktif pada path /verifikasi/status-capaian', () => {
+        mockUrl = '/verifikasi/status-capaian';
+        render(<AuthenticatedLayout><div>Status Capaian</div></AuthenticatedLayout>);
+
+        const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
+        expect(within(nav).getByRole('button', { name: 'Pelaksanaan & Evaluasi' }).getAttribute('aria-expanded')).toBe('true');
+        expect(within(nav).getByRole('link', { name: 'Status Capaian' }).getAttribute('aria-current')).toBe('page');
+        // /verifikasi/status-capaian bukan milik menu Verifikasi & Pengesahan meski berada di bawah path yang sama.
+        expect(within(nav).getByRole('link', { name: 'Verifikasi & Pengesahan' }).getAttribute('aria-current')).toBeNull();
+
+        const active = findActiveNavigation(getSidebarNavEntries(mockCan), '/verifikasi/status-capaian');
+        expect(active.activeGroupId).toBe('pelaksanaan-evaluasi');
+        expect(active.activeItemId).toBe('status-capaian');
+    });
+
     it('menu storage tidak ada dan navigasi pengaturan tetap mengenali rute turunannya', () => {
         const entries = getSidebarNavEntries(mockCan);
         const items = SIDEBAR_NAVIGATION_SCHEMA.flatMap((entry) => entry.type === 'item' ? [entry.item] : entry.group.children);
@@ -351,6 +371,23 @@ describe('Test D — Permission & Capability Filtering', () => {
         expect(within(nav).queryByRole('link', { name: 'Master Renstra' })).toBeNull();
         expect(within(nav).queryByRole('link', { name: 'Sasaran & Indikator' })).toBeNull();
         expect(within(nav).queryByRole('link', { name: 'Perjanjian Kinerja' })).toBeNull();
+    });
+
+    it('menu Status Capaian tidak tampil jika hanya capability verifikasi yang true', () => {
+        // Menu Status Capaian dijaga capability sendiri (statusCapaian), bukan proxy `verifikasi`.
+        mockCan = {
+            dashboard: true,
+            verifikasi: true,
+            statusCapaian: false,
+        };
+        render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+
+        const nav = screen.getByRole('navigation', { name: 'Navigasi utama' });
+        const parentBtn = within(nav).getByRole('button', { name: 'Pelaksanaan & Evaluasi' });
+        fireEvent.click(parentBtn);
+
+        expect(within(nav).getByRole('link', { name: 'Verifikasi & Pengesahan' })).toBeTruthy();
+        expect(within(nav).queryByRole('link', { name: 'Status Capaian' })).toBeNull();
     });
 
     it('fail-closed: jika seluruh can false, navigasi utama tidak merender menu apapun', () => {

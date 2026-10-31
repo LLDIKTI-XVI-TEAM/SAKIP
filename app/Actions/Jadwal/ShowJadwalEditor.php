@@ -2,6 +2,7 @@
 
 namespace App\Actions\Jadwal;
 
+use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
 use App\Models\Periode;
@@ -9,12 +10,13 @@ use App\Models\PeriodeJadwal;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Policies\JadwalTahunanPolicy;
+use App\Services\Jadwal\JadwalActivationReadiness;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ShowJadwalEditor
 {
-    public function __construct(private readonly JadwalTahunanPolicy $policy) {}
+    public function __construct(private readonly JadwalTahunanPolicy $policy, private readonly JadwalActivationReadiness $readiness) {}
 
     /** Parent, seluruh pilihan, metadata, dan token dibaca bersama; tidak menjadi partial/lazy props. @return array<string, mixed> */
     public function handle(User $actor, ?JadwalTahunan $jadwal = null): array
@@ -25,9 +27,9 @@ class ShowJadwalEditor
         $canClose = $this->policy->close($actor)->allowed();
         $canReopen = $this->policy->reopen($actor)->allowed();
         if ($jadwal === null) {
-            return ['jadwal' => null, 'can' => ['create' => $canCreate, 'update' => false, 'activate' => false, 'close' => false, 'revise_windows' => false, 'reopen' => false], 'read_only_reason' => null,
+            return ['jadwal' => null, 'can' => ['create' => $canCreate, 'update' => false, 'activate' => false, 'close' => false, 'revise_windows' => false, 'tambah_indikator' => false, 'reopen' => false], 'read_only_reason' => null,
                 'koreksi' => null, 'koreksi_indikator_options' => [],
-                'renstra_options' => $this->renstraOptions(), 'periode_options' => $this->periodeOptions()];
+                'renstra_options' => $this->renstraOptions(), 'periode_options' => $this->periodeOptions(), ...$this->penawaranIndikator(null)];
         }
 
         return DB::transaction(function () use ($actor, $jadwal, $canCreate, $canActivate, $canClose, $canReopen): array {
@@ -63,13 +65,14 @@ class ShowJadwalEditor
 
                 return [...$window, ...$child->periode->only(['nama', 'urutan', 'aktif', 'is_nilai_akhir', ...Periode::TANGGAL]), 'periode_revisi' => $child->periode->revisi];
             })->sortBy('urutan')->values()->all();
+            $canTambah = $current->status === 'aktif' && ! $current->tahunDitutup() && $this->policy->tambahIndikator($actor)->allowed();
 
             return ['jadwal' => [...$attributes, 'renstra' => $renstra->only(['id', 'nama', 'status', 'tahun_mulai', 'tahun_selesai']), 'periode' => $windows],
                 // can.activate hanya izin; kalender read-only tetap dapat diaktifkan bila readiness server lolos.
-                // can.close dan can.revise_windows memuat status agar tombol tidak ditawarkan untuk jadwal yang pasti ditolak.
+                // can.close, can.revise_windows, dan can.tambah_indikator memuat status agar tombol tidak ditawarkan untuk jadwal yang pasti ditolak.
                 'can' => ['create' => $canCreate, 'update' => $reason === null, 'activate' => $canActivate, 'close' => $canClose && $current->status === 'aktif',
                     'revise_windows' => $current->status === 'aktif' && ! $current->tahunDitutup() && $this->policy->update($actor)->allowed(),
-                    'reopen' => $canReopen && $current->status === 'ditutup'],
+                    'tambah_indikator' => $canTambah, 'reopen' => $canReopen && $current->status === 'ditutup'],
                 'koreksi' => $koreksi,
                 // Hanya metadata snapshot terakhir per indikator; pembaca sesi menerima indikator tercakup saja.
                 'koreksi_indikator_options' => ($canReopen && $current->status === 'ditutup') || $koreksi !== null
@@ -80,7 +83,8 @@ class ShowJadwalEditor
                     : [],
                 'read_only_reason' => $reason,
                 'renstra_options' => $reason === null ? $this->renstraOptions() : [],
-                'periode_options' => $reason === null ? $this->periodeOptions() : []];
+                'periode_options' => $reason === null ? $this->periodeOptions() : [],
+                ...$this->penawaranIndikator($canTambah ? $current : null)];
         });
     }
 
@@ -97,6 +101,35 @@ class ShowJadwalEditor
         // seed Triwulan I–IV), hanya yang aktif dikirim; ganti ke pencarian bila periode aktif melebihi ±50.
         return Periode::query()->select($fields)->where('aktif', true)->orderBy('urutan')->orderBy('id')->get()
             ->map(fn (Periode $periode): array => $periode->only($fields))->values()->all();
+    }
+
+    /**
+     * Kandidat panel tambah indikator; dikirim hanya untuk jadwal yang boleh ditambah (null = tanpa penawaran).
+     * Hanya field allowlist: tanpa nilai target, formula, maupun unit.
+     *
+     * @return array{indikator_belum_terjadwal: list<array<string, mixed>>, periode_mulai_default: ?string, perjanjian_kinerja_id: ?string}
+     */
+    private function penawaranIndikator(?JadwalTahunan $jadwal): array
+    {
+        if ($jadwal === null) {
+            return ['indikator_belum_terjadwal' => [], 'periode_mulai_default' => null, 'perjanjian_kinerja_id' => null];
+        }
+        $context = $this->readiness->context($jadwal);
+        // Hari operasional WITA, sama dengan readiness: jendela yang selesai hari ini masih menjadi default.
+        $today = today(config('app.business_timezone'))->toDateString();
+
+        // shortcut: tanpa paginasi karena kandidat dibatasi indikator satu Renstra yang belum terjadwal, sama dengan
+        // cakupan aktivasi; ganti ke pencarian bila kandidat melebihi ±50.
+        return [
+            'indikator_belum_terjadwal' => $context['baru']->sortBy('kode')->map(fn (IndikatorKinerja $indikator): array => [
+                ...$indikator->only(['id', 'kode', 'nama']),
+                'target_terisi' => $context['targets']->get($indikator->id)?->target_tahunan !== null,
+                'dapat_dibekukan' => $this->readiness->dapatDibekukan($indikator),
+            ])->values()->all(),
+            'periode_mulai_default' => $jadwal->periode->sortBy(fn (PeriodeJadwal $window): int => $window->periode->urutan)
+                ->first(fn (PeriodeJadwal $window): bool => $window->pengisian_selesai->format('Y-m-d') >= $today)?->periode_id,
+            'perjanjian_kinerja_id' => $jadwal->renstra_pk_id,
+        ];
     }
 
     /**

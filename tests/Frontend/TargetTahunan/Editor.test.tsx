@@ -16,7 +16,15 @@ const editor: TargetEditorData = {
     indikator: { id: '11111111-1111-4111-8111-111111111111', kode: 'IKU 3', nama: 'Indikator pengujian', satuan: 'nilai', presisi: 2, desimal_tampilan: 1, status: 'aktif', tahun_mulai_berlaku: 2025, arah: 'naik_baik' },
     renstra: { id: '22222222-2222-4222-8222-222222222222', nama: 'Renstra pengujian', status: 'aktif', tahun_mulai: 2025, tahun_selesai: 2029 },
     baseline: '74.2345', target_tahunan: '76.25', has_snapshot: true, expected_state: 'a'.repeat(64), can: { update: true }, read_only_reason: null,
-    target_renstra: '75', alasan_deviasi_renstra: null, status_deviasi: 'sesuai', saran_baseline: null,
+    target_renstra: '75', tautan_target_renstra: '/perencanaan/sasaran-indikator?renstra_id=22222222-2222-4222-8222-222222222222&tab=target', status_deviasi: 'sesuai', saran_baseline: null,
+};
+const PESAN_DEVIASI = 'Target PK di bawah target Renstra 2026 (80). Revisi target Renstra dulu.';
+const LABEL_ALASAN = 'Alasan perubahan target (wajib bila target diubah)';
+// Galat field juga ber-role alert; ringkasan dikenali dari judulnya.
+const ringkasanGalat = () => {
+    const ringkasan = screen.getByText('Periksa isian berikut.').closest<HTMLElement>('[role="alert"]');
+    if (!ringkasan) throw new Error('Ringkasan galat tidak ditemukan.');
+    return ringkasan;
 };
 const path = `/perjanjian-kinerja/44444444-4444-4444-8444-444444444444/target/${editor.indikator_id}`;
 const onClose = vi.fn(), onLoad = vi.fn(), onSaved = vi.fn();
@@ -60,28 +68,48 @@ it('menjaga angka historis tepat dan membedakan kosong dengan nol pada payload',
     expect(vi.mocked(router.put).mock.calls[0][1]).toMatchObject({ baseline: '999999999999999999.123456789012', target_tahunan: '0', expected_state: editor.expected_state });
 });
 
-it('setelah snapshot editor menjelaskan target beku tetap dipakai dan dasar perubahan opsional', () => {
+it('setelah snapshot editor menjelaskan target beku tetap dipakai; kewajiban alasan hanya ditegakkan server', () => {
     show();
     expect(screen.getByText(/Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun 2026/)).toBeTruthy();
     expect(screen.getByText(/menunggu revisi PK berversi atau, sebelum itu tersedia, keputusan PM/)).toBeTruthy();
-    expect(screen.getByLabelText<HTMLTextAreaElement>('Alasan perubahan (opsional)').required).toBe(false);
+    expect(screen.getByLabelText<HTMLTextAreaElement>(LABEL_ALASAN).required).toBe(false);
     expect(screen.getByLabelText<HTMLInputElement>('Rujukan sumber (opsional)').required).toBe(false);
-    expect(screen.queryByText(/wajib jika nilai diubah/)).toBeNull();
 });
 
-it('target Renstra ada: pembanding, anjuran, penanda deviasi, dan isian alasan berisi alasan tersimpan', () => {
-    show({ target_tahunan: '79', target_renstra: '80', status_deviasi: 'menyimpang', alasan_deviasi_renstra: 'PK revisi menurunkan target' });
+it('dasar perubahan tampil bila target sudah tersimpan walau tanpa snapshot dan tersembunyi pada pengisian pertama', () => {
+    const { unmount } = show({ has_snapshot: false });
+    expect(screen.getByText('Alasan wajib bila target diubah; rujukan sumber opsional. Keduanya tercatat di riwayat perubahan.')).toBeTruthy();
+    expect(screen.getByLabelText(LABEL_ALASAN)).toBeTruthy();
+    unmount();
+    show({ has_snapshot: false, target_tahunan: null });
+    expect(screen.queryByLabelText(LABEL_ALASAN)).toBeNull();
+    expect(screen.queryByLabelText('Rujukan sumber (opsional)')).toBeNull();
+});
+
+it('galat alasan perubahan dari server terikat ke isian alasan', async () => {
+    show({ has_snapshot: false });
+    fireEvent.change(screen.getByLabelText('Target 2026'), { target: { value: '80' } });
+    const options = submit();
+    await act(async () => { options?.onError?.({ alasan: 'Isi alasan perubahan karena target PK yang tersimpan diubah.' }); options?.onFinish?.({} as ActiveVisit); });
+    const field = screen.getByLabelText<HTMLTextAreaElement>(LABEL_ALASAN);
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toContain('Isi alasan perubahan karena target PK yang tersimpan diubah.');
+});
+
+it('target Renstra ada: pembanding, anjuran, dan penanda deviasi tanpa isian alasan deviasi', () => {
+    show({ target_tahunan: '79', target_renstra: '80', status_deviasi: 'menyimpang' });
     expect(screen.getByText('Target Renstra 2026')).toBeTruthy();
     // Pembanding mengikuti desimal_tampilan seperti tabel halaman PK, bukan string kanonis server.
     expect(screen.getByText('80,0')).toBeTruthy();
-    expect(screen.getByText(/minimal sama atau naik satu poin dari target Renstra/)).toBeTruthy();
+    expect(screen.getByText('Target PK tidak boleh di bawah target Renstra. Anjuran: naik satu poin; anjuran ini panduan.')).toBeTruthy();
     expect(screen.getByText('Di bawah target Renstra')).toBeTruthy();
-    expect(screen.getByLabelText<HTMLTextAreaElement>('Alasan deviasi terhadap target Renstra').value).toBe('PK revisi menurunkan target');
+    expect(screen.queryByLabelText('Alasan deviasi terhadap target Renstra')).toBeNull();
 });
 
-it('indikator turun_baik: anjuran turun satu poin dan penanda di atas target Renstra (Q65 §65.2 butir 13)', () => {
+it('indikator turun_baik: anjuran turun satu poin dan penanda di atas target Renstra (Q72 §72.1 butir 7)', () => {
     show({ indikator: { ...editor.indikator, arah: 'turun_baik' }, target_tahunan: '12', target_renstra: '11', status_deviasi: 'menyimpang' });
-    expect(screen.getByText('Anjuran: target PK minimal sama atau turun satu poin dari target Renstra. Anjuran ini panduan, bukan aturan sistem.')).toBeTruthy();
+    expect(screen.getByText('Target PK tidak boleh di atas target Renstra. Anjuran: turun satu poin; anjuran ini panduan.')).toBeTruthy();
+    expect(screen.queryByText(/bukan aturan sistem/)).toBeNull();
     expect(screen.queryByText(/naik satu poin/)).toBeNull();
     expect(screen.getByText('Di atas target Renstra')).toBeTruthy();
 });
@@ -99,33 +127,51 @@ it('tanpa target Renstra: keterangan "Target Renstra belum ada" tanpa isian alas
     expect(screen.queryByLabelText('Alasan deviasi terhadap target Renstra')).toBeNull();
 });
 
-it('tanpa target Renstra saat dimuat: galat alasan deviasi dari server memunculkan isiannya tanpa memuat ulang', async () => {
-    // Target Renstra ditambahkan pengguna lain setelah editor dibuka; expected_state tidak berubah sehingga server menjawab galat field, bukan 409.
-    show({ target_renstra: null, status_deviasi: 'renstra_belum_ada' });
-    fireEvent.change(screen.getByLabelText('Target 2026'), { target: { value: '70' } });
-    const options = submit();
-    await act(async () => { options?.onError?.({ alasan_deviasi_renstra: 'Target PK lebih rendah dari target Renstra tahun ini. Isi alasan deviasi untuk menyimpan.' }); options?.onFinish?.({} as ActiveVisit); });
-    const field = screen.getByLabelText<HTMLTextAreaElement>('Alasan deviasi terhadap target Renstra');
-    expect(field.getAttribute('aria-invalid')).toBe('true');
-    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toContain('Isi alasan deviasi untuk menyimpan');
-    expect(screen.queryByText('Target Renstra belum ada')).toBeNull();
-    expect(screen.getByLabelText<HTMLInputElement>('Target 2026').value).toBe('70');
-});
-
-it('galat server terikat ke isian alasan deviasi walau status awal sesuai', async () => {
-    show();
-    const options = submit();
-    await act(async () => { options?.onError?.({ alasan_deviasi_renstra: 'Target PK lebih rendah dari target Renstra tahun ini. Isi alasan deviasi untuk menyimpan.' }); options?.onFinish?.({} as ActiveVisit); });
-    const field = screen.getByLabelText<HTMLTextAreaElement>('Alasan deviasi terhadap target Renstra');
-    expect(field.getAttribute('aria-invalid')).toBe('true');
-    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toContain('Target PK lebih rendah dari target Renstra');
-});
-
-it('simpan baseline saja membawa alasan deviasi yang tersimpan', () => {
-    show({ target_tahunan: '79', target_renstra: '80', status_deviasi: 'menyimpang', alasan_deviasi_renstra: 'Alasan tersimpan' });
+it('simpan baseline saja tidak lagi mengirim alasan deviasi', () => {
+    show({ target_tahunan: '79', target_renstra: '80', status_deviasi: 'menyimpang' });
     fireEvent.change(screen.getByLabelText('Baseline 2025'), { target: { value: '74' } });
     submit();
-    expect(payload()).toMatchObject({ baseline: '74', alasan_deviasi_renstra: 'Alasan tersimpan' });
+    expect(payload()).toMatchObject({ baseline: '74', target_tahunan: '79' });
+    expect(payload()).not.toHaveProperty('alasan_deviasi_renstra');
+});
+
+it('galat penolakan deviasi tampil di isian target dan di ringkasan beserta tautan ke target Renstra', async () => {
+    show({ target_renstra: '80' });
+    fireEvent.change(screen.getByLabelText('Target 2026'), { target: { value: '79' } });
+    const options = submit();
+    await act(async () => { options?.onError?.({ deviasi_renstra: PESAN_DEVIASI }); options?.onFinish?.({} as ActiveVisit); });
+    const field = screen.getByLabelText<HTMLInputElement>('Target 2026');
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toContain(PESAN_DEVIASI);
+    expect(within(ringkasanGalat()).getByText(PESAN_DEVIASI)).toBeTruthy();
+    expect(within(ringkasanGalat()).getByRole('link', { name: 'Buka target Renstra' }).getAttribute('href')).toBe(editor.tautan_target_renstra);
+    expect(field.value).toBe('79');
+});
+
+it('tautan target Renstra tidak tampil tanpa prop tautan dan tidak menyertai galat target biasa', async () => {
+    const { unmount } = show({ target_renstra: '80', tautan_target_renstra: null });
+    let options = submit();
+    await act(async () => { options?.onError?.({ deviasi_renstra: PESAN_DEVIASI }); options?.onFinish?.({} as ActiveVisit); });
+    expect(within(ringkasanGalat()).getByText(PESAN_DEVIASI)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Buka target Renstra' })).toBeNull();
+    unmount();
+    show();
+    options = submit();
+    await act(async () => { options?.onError?.({ target_tahunan: 'Maksimal 2 desimal.' }); options?.onFinish?.({} as ActiveVisit); });
+    expect(within(ringkasanGalat()).getByText('Maksimal 2 desimal.')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Buka target Renstra' })).toBeNull();
+});
+
+it('klik tautan target Renstra saat isian berubah meminta konfirmasi buang perubahan lebih dulu', async () => {
+    show({ target_renstra: '80' });
+    fireEvent.change(screen.getByLabelText('Target 2026'), { target: { value: '79' } });
+    const options = submit();
+    await act(async () => { options?.onError?.({ deviasi_renstra: PESAN_DEVIASI }); options?.onFinish?.({} as ActiveVisit); });
+    fireEvent.click(screen.getByRole('link', { name: 'Buka target Renstra' }));
+    expect(confirmation().textContent).toContain('Perubahan yang belum disimpan akan hilang.');
+    keepEditing();
+    expect(screen.getByLabelText<HTMLInputElement>('Target 2026').value).toBe('79');
+    expect(onClose).not.toHaveBeenCalled();
 });
 
 it('tanpa snapshot editor tidak menampilkan pemberitahuan target beku', () => {

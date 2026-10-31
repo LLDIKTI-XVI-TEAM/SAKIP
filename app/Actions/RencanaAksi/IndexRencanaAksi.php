@@ -240,6 +240,10 @@ class IndexRencanaAksi
                 ],
                 // Daftar kunci untuk UI hanya-baca per periode.
                 'periode_terkunci' => $terkunciIds,
+                // Periode yang benar-benar dapat ditulis aktor (efektif ∩
+                // lingkup koreksi − terkunci). Dipakai pemanggil lain sebagai
+                // batas capability tulis, bukan dihitung ulang di sana.
+                'periode_dapat_ditulis' => $this->periodeDapatDitulis($efektifIds, $koreksi, $terkunciIds),
                 // `update` memakai syarat gerbang tulis simpan berbasis
                 // perubahan (Q41): tetap true selama masih ada periode yang
                 // dapat ditulis (efektif dikurangi terkunci; dalam koreksi

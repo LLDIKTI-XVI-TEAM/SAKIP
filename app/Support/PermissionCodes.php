@@ -64,6 +64,9 @@ final class PermissionCodes
     // Rekomendasi Pimpinan
     public const REKOMENDASI_TETAPKAN = 'rekomendasi:tetapkan';
 
+    // Status Capaian per versi pengukuran disahkan
+    public const STATUS_CAPAIAN_UPDATE = 'status_capaian:update';
+
     // Pengaturan Presentasional & Storage
     public const PENGATURAN_UPDATE = 'pengaturan:update';
 
@@ -137,9 +140,13 @@ final class PermissionCodes
 
     public const KOMPONEN_READ = 'komponen:read';
 
+    public const KOMPONEN_UPDATE = 'komponen:update';
+
     public const LAPORAN_READ = 'laporan:read';
 
     public const LAPORAN_EKSPOR = 'laporan:ekspor';
+
+    public const LAPORAN_UNGGAH = 'laporan:unggah';
 
     /**
      * 15 Kode Permission Utama dalam Scope 10 Issue Aktif (§5)

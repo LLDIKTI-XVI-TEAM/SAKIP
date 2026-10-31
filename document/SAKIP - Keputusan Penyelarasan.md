@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **25 Oktober 2026**
+Pembaruan terakhir: **30 Oktober 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -74,11 +74,13 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 17 Oktober 2026 (Q60)** menetapkan bahwa target Renstra disimpan tanpa alasan pada Renstra `draft` maupun `aktif`, sedangkan audit tetap mencatat nilai lama dan baru per tahun, mengubah Q40 §40.2 butir 3 dan Q43 §43.2 butir 3.
 
-**Keputusan 19 Oktober 2026 (Q65)** menetapkan bahwa target PK tetap dapat diubah di halaman Perjanjian Kinerja setelah snapshot terbentuk, dengan alasan opsional dan tanpa mengubah snapshot. Q65 juga mengatur alasan deviasi terhadap target Renstra menurut arah indikator beserta pencatatan auditnya, serta sifat keterangan lampiran PK; mengubah Q39 §39.2, Q43, dan Q60 §60.1 butir 4, serta menyelaraskan ADR-0008.
+**Keputusan 19 Oktober 2026 (Q65)** menetapkan bahwa target PK tetap dapat diubah di halaman Perjanjian Kinerja setelah snapshot terbentuk, dengan alasan opsional dan tanpa mengubah snapshot. Q65 juga mengatur alasan deviasi terhadap target Renstra menurut arah indikator beserta pencatatan auditnya, serta sifat keterangan lampiran PK; mengubah Q39 §39.2, Q43, dan Q60 §60.1 butir 4, serta menyelaraskan ADR-0008. *(Alasan opsional dan alasan deviasi digantikan Q72: target PK yang menyimpang ditolak dan alasan perubahan target PK wajib.)*
 
 **Keputusan 22 Oktober 2026 (Q68)** menetapkan Monitoring Penanggung Jawab sebagai tabel seluruh PJ efektif, termasuk akun nonaktif, dengan filter unit, indikator, izin kerja, dan tanggal acuan; daftar "PJ aktif tanpa hak isi" Q32 menjadi filter izin kerja belum lengkap, dan D-01 ISS-04.01 ditutup.
 
 **Rapat evaluasi 23 Oktober 2026 (Q70–Q74)** menetapkan tanggal periode tanpa tahun di Master Periode dan jadwal tanpa jendela reviu (Q70); revisi target Renstra aktif melalui mode revisi dengan justifikasi wajib (Q71); penolakan target PK yang menyimpang dari target Renstra serta alasan perubahan target PK yang wajib (Q72); baseline otomatis dan tabel target PK tanpa kolom Target Renstra (Q73); serta kegiatan yang dikelola dari Rencana Aksi beserta form realisasi dan biaya terpakai (Q74).
+
+**Keputusan 30 Oktober 2026 (Q79)** menetapkan bahwa versi koreksi snapshot disalin dari data master terkini setelah master diperbaiki, dengan periode mulai yang tidak lebih awal dari versi yang digantikan dan tanpa memindahkan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada, serta menyelaraskan Acceptance Criteria ISS-03.03 dengan issue #91.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -115,7 +117,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q17 | Perencanaan dapat menyelesaikan reviu sampai penutupan tahunan; lewat batas reviu diberi penanda terlambat. **Diubah Q70:** jendela reviu dihapus; reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan tanpa penanda terlambat baru. | PRD §12.3, §31; Q70 |
 | Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. **Q41:** berlaku untuk jendela pengisian pengukuran; jendela penyusunan RA sudah dihapus. **Dilengkapi Q57:** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama. **Q70:** jendela reviu dihapus, sehingga revisi hanya menyangkut jendela pengisian. | PRD §12.3; Plan 3.12; Q41; Q57; Q70 |
 | Q19 | Koreksi setelah penutupan memerlukan buka kembali dengan lingkup dan durasi eksplisit; tanggal penutupan asli dipertahankan. PIC memerlukan aksi pembukaan jendela terpisah Q18 dalam waktu/lingkup sesi koreksi, bukan otomatis dari buka tahun. | PRD §12.6, §19.5 |
-| Q20 | Indikator baru memiliki periode mulai berlaku; periode sebelumnya Tidak berlaku dan tidak menjadi target/missing/nol. | PRD §10.5, §14.7, §23 |
+| Q20 | Indikator baru memiliki periode mulai berlaku; periode sebelumnya Tidak berlaku dan tidak menjadi target/missing/nol. **Status implementasi (PR #197):** penambahan indikator ke jadwal aktif dengan periode mulai pilihan tersedia lewat aksi beralasan; periode sebelumnya tampil Tidak berlaku. | PRD §10.5, §14.7, §23 |
 | Q21 | Backfill dapat menerima skor historis final tanpa komponen, dengan sumber/alasan/penanda dan alur pengesahan; tidak mengubah tipe master atau membuat komponen rekaan. | PRD §12.6, §17.6 |
 | Q22 | Bukti kegiatan memakai union persyaratan global dan indikator yang diklaim; klaim baru setelah terlaksana memeriksa bukti tambahan. | PRD §15.6; Workflow §8–10 |
 | Q23 | Saat unggahan mati, hanya kewajiban mode file dikecualikan; mode lain tetap diwajibkan sesuai kombinasi. Penanda/audit menjelaskan pengecualian. Pengecualian khusus lampiran PK existing tetap berlaku. **Digantikan Q44:** saklar unggahan dihapus sehingga unggahan file selalu aktif; histori penanda lama tetap tersimpan. | PRD §18.5–18.7 dan §12.4; Q44 |
@@ -124,7 +126,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q26 | Koreksi klaim mengikuti sumbernya: perencanaan mengikuti RA, pengukuran mengikuti pengukuran terkait; versi historis tidak dihapus. | PRD §16.5 |
 | Q27 | Status capaian terkait versi disahkan. Versi koreksi yang disahkan mulai Belum ditetapkan; penilaian sebelumnya tetap histori. | PRD §19.5, §21 |
 | Q28 | Anggaran kegiatan tidak diinput/ditampilkan/divalidasi pada MVP; kolom nullable untuk fase lanjutan. **Digantikan Q42:** anggaran per kegiatan diinput, ditampilkan, dan dijumlahkan; RAB wajib untuk kegiatan beranggaran. | PRD §5.2, §15.1; Model kegiatan; Q42 |
-| Q29 | Perencanaan mengesahkan satu contoh keluaran Excel untuk UAT. Pisahkan baseline/target/realisasi/persentase; kesetaraan informasi tidak mewajibkan menyalin susunan sumber yang ambigu. **Q48** menambah keluaran Rencana Aksi tahunan dan Laporan Kinerja Triwulan. | PRD §22.4, §24; Plan ekspor; Q48 |
+| Q29 | Perencanaan mengesahkan satu contoh keluaran Excel untuk UAT. Pisahkan baseline/target/realisasi/persentase; kesetaraan informasi tidak mewajibkan menyalin susunan sumber yang ambigu. **Q48** menambah keluaran Rencana Aksi tahunan dan Laporan Kinerja Triwulan. | PRD §22.4, §24; Plan ekspor; Q48; acuan dan status pengesahan: `SAKIP - Acuan Keluaran Excel.md` (ISS-10.04) |
 | Q30 | PM/pengelola infrastruktur menetapkan pemilik dan kesiapan Keycloak, UAT/produksi, domain/HTTPS, storage, backup/pemulihan, notifikasi dan pemeliharaan. Seed konfigurasi terpisah dari data uji. | PRD pembuka/§6; Plan P.4 |
 | **Q31** | **LLDIKTI XVI menetapkan enam role resmi: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, `pegawai`. Role `pic` adalah role sistem tersendiri dan tidak lagi diperlakukan sebagai Pegawai yang “menjadi PIC” hanya karena grant. Namun role `pic` tidak menggantikan `penanggung_jawab`: user role PIC tetap harus ditugaskan ke indikator yang relevan dan lolos scope/grant, deny, jadwal, status, serta business guard lain sebelum dapat mengerjakan RA/Pengukuran. Permission mutasi PIC yang membutuhkan scope unit tidak boleh menjadi akses global hanya karena berasal dari role.** | Klarifikasi langsung LLDIKTI XVI 20 Sep 2026; sinkronisasi wajib PRD §7/§13, Data Model §2.4/§2.19, Workflow §19/§21/§23, Plan Modul 1/4, User Stories/Issues |
 
@@ -982,7 +984,7 @@ Sumber: rapat 13 Oktober 2026, menit 58:05–1:02:45, 1:06:49–1:07:32, 1:17:04
 
 | Lapis | Diisi di | Isi | Fungsi |
 |---|---|---|---|
-| Target Renstra | Sasaran & Indikator, sekali per Renstra | Target per tahun untuk setiap tahun dalam rentang Renstra, sesuai dokumen Renstra | Pembanding target PK menurut arah indikator, bukan batas yang menolak nilai (Q65 §65.2); tidak dipakai menghitung capaian |
+| Target Renstra | Sasaran & Indikator, sekali per Renstra | Target per tahun untuk setiap tahun dalam rentang Renstra, sesuai dokumen Renstra | Pembanding target PK menurut arah indikator, bukan batas yang menolak nilai (Q65 §65.2) *(Digantikan Q72 §72.1: target Renstra kini menjadi batas; target PK yang menyimpang ditolak.)*; tidak dipakai menghitung capaian |
 | Target PK | Perjanjian Kinerja, per Renstra per tahun | Baseline dan target tahun berjalan per indikator | Acuan target periode Rencana Aksi dan pengukuran capaian |
 
 1. Perjanjian Kinerja bukan sekadar unggah dokumen. Halaman PK memuat isian baseline dan target tahun berjalan untuk setiap indikator aktif Renstra, dikelompokkan per sasaran; nomor, tanggal, dan lampiran dokumen PK bertanda tangan tetap dicatat. Nomor PK opsional (Q50 §50.1), dan baseline tidak termasuk isi dokumen PK (Q50 §50.3).
@@ -995,7 +997,7 @@ Sumber: rapat 13 Oktober 2026, menit 58:05–1:02:45, 1:06:49–1:07:32, 1:17:04
 
 1. Saat target PK diisi, target Renstra tahun yang sama ditampilkan di sampingnya. *(Diubah Q73 §73.2: pada tabel PK, target Renstra tampil kecil di bawah target PK; editor tetap menampilkan pembanding.)*
 2. Untuk indikator `naik_baik`, target PK di bawah target Renstra memunculkan **peringatan dan alasan wajib**; untuk indikator `turun_baik`, peringatan dan alasan wajib berlaku bila target PK di atas target Renstra (Q65 §65.2). Sistem tidak menolak nilai target PK karena deviasi, karena PK revisi yang sah dapat lebih rendah (menit 1:48:49); penyimpanan tanpa alasan ditolak (Q65 §65.2 butir 5). (PM, atas permintaan peringatan Tim Perencanaan pada menit 1:17:04) *(Digantikan Q72 §72.1: target PK yang menyimpang kini ditolak sampai target Renstra direvisi, termasuk PK revisi.)*
-3. Anjuran "minimal sama atau naik satu poin" ditampilkan sebagai panduan, bukan aturan sistem. (PM) *(Diperjelas Q65 §65.2 butir 13: untuk indikator `turun_baik`, anjurannya "minimal sama atau turun satu poin".)*
+3. Anjuran "minimal sama atau naik satu poin" ditampilkan sebagai panduan, bukan aturan sistem. (PM) *(Diperjelas Q65 §65.2 butir 13: untuk indikator `turun_baik`, anjurannya "minimal sama atau turun satu poin".)* *(Diubah Q72 §72.1 butir 7: bagian "minimal sama" kini ditegakkan sistem; "naik satu poin" tetap panduan.)*
 4. Indikator tanpa target Renstra (mis. IKU baru di tengah periode Renstra, atau IKU 4.1 yang hanya ada di PK, Q50 §50.5) tetap dapat diberi target PK dengan keterangan "target Renstra belum ada". (PM)
 5. Alasan deviasi terhadap target Renstra disimpan bersama target PK dan tercatat di audit. (PM) *(Digantikan Q72 §72.2: alasan perubahan target PK wajib dan menggantikan alasan deviasi.)*
 
@@ -1033,7 +1035,7 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 6. Capaian akhir tahun dinilai terhadap target **PK akhir**, yaitu versi yang berlaku pada periode nilai akhir. (PM)
 7. Rencana Aksi tidak diubah otomatis. Selisih target periode terakhir dengan target PK baru tampil sebagai deviasi yang wajib dijelaskan (ADR-0008); target periode yang belum terkunci disesuaikan lewat buka-kembali (ISS-05.06). (PM)
 8. Koreksi salah ketik nomor atau tanggal PK tetap memakai jalur koreksi teraudit (ISS-02.09); perubahan target resmi memakai revisi berversi.
-9. Prasyarat implementasi: alur koreksi snapshot berversi (ISS-03.03), yang belum dikerjakan. Revisi PK dijadwalkan pada tahap 3 (§46.3).
+9. Prasyarat implementasi: alur koreksi snapshot berversi (ISS-03.03), yang belum dikerjakan. Revisi PK dijadwalkan pada tahap 3 (§46.3). *(Catatan 30 Oktober 2026: alur koreksi snapshot berversi diimplementasikan untuk ISS-03.03 (Q79); revisi PK berversi tetap belum.)*
 
 ## 40.2 Revisi Renstra
 
@@ -1181,7 +1183,7 @@ Kewajiban alasan dari keputusan sebelumnya yang tidak disebut pada §43.3 tetap 
 
 - Mengubah Q14 (alasan grant), PRD §4 prinsip 6, §7.5, §13, §25.1–§25.2; Data Model §2.7, §2.19, §2.32; Workflow §21–§22; Plan modul 10 (task 10.7); design system (pola modal alasan).
 - User Stories/Issues: US/ISS-01.04 dan 04.01 diberi catatan; issue baru **US/ISS-13.05** memuat rincian per request.
-- Status implementasi: §43.3 butir 1–4 diterapkan ISS-13.05 (PR #156); §43.2 butir 5 untuk alasan target PK yang menyimpang dari target Renstra dan §43.3 butir 2 diterapkan ISS-02.11 (Q65).
+- Status implementasi: §43.3 butir 1–4 diterapkan ISS-13.05 (PR #156); §43.2 butir 5 untuk alasan target PK yang menyimpang dari target Renstra dan §43.3 butir 2 diterapkan ISS-02.11 (Q65). Bagian alasan target PK yang menyimpang dari target Renstra pada §43.2 butir 5 diubah dan §43.3 butir 2 digantikan oleh Q72 §72.2; alasan perubahan target PK wajib diterapkan ISS-02.14 (Issue #167).
 
 ---
 
@@ -1417,7 +1419,7 @@ Sumber: Rencana Aksi 2026, Laporan Kinerja Triwulan I–II 2026, dan Perjanjian 
 - PRD §5.1, §7.2, §24, §30, §31; Data Model §2.30 (induk `berkas` baru `jadwal_tahunan` dan `jadwal_periode`) dan katalog permission (`laporan:unggah`); Workflow (alur buat, tanda tangan di luar aplikasi, dan unggah); Plan modul 8 (task 8.5) dan 13; System Architecture §14.
 - User Stories/Issues: issue baru **US/ISS-10.05**, tahap 2 (Q46 §46.3); US/ISS-10.02 dan 14.01 diberi catatan.
 - Bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR.
-- Status implementasi: sebagian. Kolom `berkas.keterangan` sudah ada dan dipakai lampiran PK (ISS-02.11, Q65 §65.3); induk arsip `jadwal_tahunan`/`jadwal_periode`, `laporan:unggah`, dan pemakaian keterangan untuk induk lain belum (ISS-10.05).
+- Status implementasi: sebagian. Kolom `berkas.keterangan` sudah ada dan dipakai lampiran PK (ISS-02.11, Q65 §65.3); induk arsip `jadwal_tahunan`/`jadwal_periode`, katalog/preset `laporan:unggah`, serta keterangan dan penggantian arsip append-only tersedia melalui [PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208) (slice arsip ISS-10.05). Ekspor rekap ISS-10.03 ([PR #198](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/198)) sudah menerapkan `laporan:ekspor` (§48.1 butir 6) serta pembaca data bersama halaman dan ekspor. Generator Excel resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan belum diimplementasikan dan tetap milik ISS-10.05; penerimaan format Q29 tetap ISS-10.04. Acuan format §48.1 butir 5 dicatat pada `SAKIP - Acuan Keluaran Excel.md` (ISS-10.04); per 29 Oktober 2026 ketiga keluaran masih berstatus "Draf — belum disahkan Perencanaan".
 
 ---
 
@@ -1718,7 +1720,7 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 1. Pengisian, perubahan, dan pengosongan target Renstra pada Renstra `draft` maupun `aktif` tidak memakai alasan; server menolak field `alasan` pada simpan target Renstra.
 2. Audit tetap mencatat aktor, waktu, tindakan, nilai lama, nilai baru, dan `dasar_izin` untuk setiap tahun yang berubah; tahun yang nilainya tidak berubah tidak diaudit.
 3. Riwayat revisi target Renstra dibaca dari audit tersebut (waktu, aktor, tahun, nilai lama dan baru).
-4. Keputusan ini tidak mengubah alasan wajib untuk target PK yang menyimpang dari target Renstra menurut arah indikator (Q43 §43.2 butir 5, Q65 §65.2, ISS-02.11).
+4. Keputusan ini tidak mengubah alasan wajib untuk target PK yang menyimpang dari target Renstra menurut arah indikator (Q43 §43.2 butir 5, Q65 §65.2, ISS-02.11). *(Digantikan Q72: target PK yang menyimpang ditolak; alasan perubahan target PK wajib.)*
 
 ## 60.2 Dampak dan traceability
 
@@ -1835,7 +1837,7 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 1. Snapshot yang sudah terbentuk tidak menghalangi perubahan target PK di halaman Perjanjian Kinerja. Izin simpan (`indikator:read` dan `target:update`, Q39 §39.3 butir 3) serta aturan baca-saja yang sudah ada tetap berlaku.
 2. Alasan perubahan target PK opsional, termasuk setelah snapshot terbentuk (Q43 §43.3 butir 2). *(Digantikan Q72 §72.2: alasan perubahan target PK wajib.)* Isian `rujukan_sumber` dipertahankan sebagai isian opsional; nilainya tidak disimpan pada target PK dan hanya tercatat di audit.
-3. Perubahan tersebut bukan koreksi PK (Q43 §43.2 butir 3) dan bukan revisi PK (Q40). Koreksi salah ketik nomor atau tanggal PK memakai ISS-02.09, perubahan target resmi memakai revisi PK berversi (Q40 §40.1 butir 8, ISS-02.12), dan salah ketik target yang sudah beku memakai versi snapshot pengganti (Q35 §35.1). Ketiga jalur itu belum tersedia (ISS-02.09, ISS-02.12, ISS-03.03).
+3. Perubahan tersebut bukan koreksi PK (Q43 §43.2 butir 3) dan bukan revisi PK (Q40). Koreksi salah ketik nomor atau tanggal PK memakai ISS-02.09, perubahan target resmi memakai revisi PK berversi (Q40 §40.1 butir 8, ISS-02.12), dan salah ketik target yang sudah beku memakai versi snapshot pengganti (Q35 §35.1). Ketiga jalur itu belum tersedia (ISS-02.09, ISS-02.12, ISS-03.03). *(Catatan 30 Oktober 2026: versi snapshot pengganti tersedia melalui ISS-03.03, disalin dari data master setelah target PK diperbaiki (Q79 §79.1).)*
 4. Perubahan tersebut tidak mengubah `jadwal_snapshot`, rekonsiliasi Rencana Aksi (ADR-0008), maupun pengukuran tahun tersebut, yang tetap membaca target PK dari snapshot (Q39 §39.1 butir 3).
 5. Halaman PK menampilkan target PK yang tersimpan. Bila jadwal tahun PK berstatus `aktif` atau `ditutup`, halaman PK menampilkan pemberitahuan bahwa perubahan tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun tersebut.
 6. Editor menampilkan pemberitahuan yang sama bila indikator tersebut sudah memiliki snapshot tahun itu, dan menyebut bahwa perubahan resmi yang mengubah target menunggu revisi PK berversi (ISS-02.12) atau, sebelum itu tersedia, keputusan PM (Q50 §50.7 butir 2). Tidak ada guard baru.
@@ -1854,8 +1856,8 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 7. Editor mengisi awal alasan yang sudah tersimpan, sehingga perubahan baseline saja tidak meminta alasan baru selama alasan itu ada. Request yang tidak memuat `alasan_deviasi_renstra` diperlakukan sebagai alasan kosong.
 8. Status deviasi yang tampil berasal dari server saat halaman atau editor dimuat; tidak ada perhitungan langsung di peramban. Isian alasan selalu tersedia bila target Renstra ada, dan kesalahan validasi ditampilkan pada isian tersebut.
 9. Bila target Renstra (Q60) atau `indikator.arah` berubah setelah target PK tersimpan, atau target PK tersimpan sebelum kolom alasan tersedia, tidak ada penanda atau aksi otomatis. Status deviasi dihitung ulang saat ditampilkan.
-10. Penyimpanan yang tidak mengubah baseline, target, maupun alasan tidak menghasilkan perubahan dan tidak diaudit. Kewajiban alasan berlaku pada penyimpanan yang mengubah salah satunya.
-11. Audit `target_tahunan.simpan` mencatat baseline, target, dan `alasan_deviasi_renstra` pada `nilai_lama` dan `nilai_baru`; `rujukan_sumber` yang diisi hanya dicatat pada `nilai_baru`. Kolom `audit_log.alasan` hanya memuat alasan perubahan yang opsional. Penolakan tercatat sebagai `target_tahunan.simpan_ditolak`. Butir ini mengubah PRD §25.2 dan Data Model §2.32 kolom `alasan` butir 5, yang menempatkan alasan target PK di bawah target Renstra pada kolom tersebut.
+10. Penyimpanan yang tidak mengubah baseline, target, maupun alasan tidak menghasilkan perubahan dan tidak diaudit. Kewajiban alasan berlaku pada penyimpanan yang mengubah salah satunya. *(Diubah Q72 §72.2 butir 2 dan §72.4 butir 1–2: kalimat kedua digantikan; alasan wajib hanya bila target PK tersimpan berubah.)*
+11. Audit `target_tahunan.simpan` mencatat baseline, target, dan `alasan_deviasi_renstra` pada `nilai_lama` dan `nilai_baru`; `rujukan_sumber` yang diisi hanya dicatat pada `nilai_baru`. Kolom `audit_log.alasan` hanya memuat alasan perubahan yang opsional. Penolakan tercatat sebagai `target_tahunan.simpan_ditolak`. Butir ini mengubah PRD §25.2 dan Data Model §2.32 kolom `alasan` butir 5, yang menempatkan alasan target PK di bawah target Renstra pada kolom tersebut. *(Diubah Q72 §72.2 butir 3–4 dan §72.4 butir 3: `alasan_deviasi_renstra` tidak lagi diisi maupun dicatat dan alasan perubahan target PK dicatat di `audit_log.alasan`; pencatatan `rujukan_sumber` dan penolakan tetap.)*
 12. Alasan deviasi diisi pada isian di editor target PK, sama dengan bentuk isian alasan deviasi pada halaman Rencana Aksi, bukan Modal Alasan Wajib.
 13. Anjuran Q39 §39.2 butir 3 mengikuti arah indikator, sama dengan arah penilaian deviasi: "minimal sama atau naik satu poin" untuk `naik_baik` dan "minimal sama atau turun satu poin" untuk `turun_baik`. Editor target PK menampilkan anjuran sesuai arah indikatornya; tabel halaman PK, yang memuat kedua arah, menyebut keduanya. Anjuran tetap panduan, bukan aturan sistem, dan tidak mengubah penilaian deviasi (butir 2). (PM, 22 Oktober 2026, review PR #149)
 
@@ -1869,7 +1871,7 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 - Q39 §39.1 dan §39.2 butir 2, Q43 §43.2 butir 5 dan §43.3 butir 2–3, serta Q60 §60.1 butir 4 diselaraskan.
 - ADR-0008 Consequences: "Target PK tetap hanya berubah melalui revisi PK resmi" berlaku untuk target PK resmi pada snapshot.
 - PRD §4 prinsip 6, §11, §12.7, §14.5, §14.10, §25.2; Data Model §2.13, §2.30, §2.32, §2.35, dan ringkasan constraint; Workflow §3.3 dan §7; Plan modul 10; design system (Modal Alasan Wajib dan checklist); US/ISS-02.08 dan 02.11; ISS-13.05 merujuk Q65. Redaksi AC-8 ISS-02.11 tetap.
-- ISS-13.05 tidak berubah scope. Alasan deviasi terhadap target Renstra tetap wajib, tetapi diisi pada isian `alasan_deviasi_renstra` di editor target PK, bukan Modal Alasan Audit dan bukan field `alasan`.
+- ISS-13.05 tidak berubah scope. Alasan deviasi terhadap target Renstra tetap wajib, tetapi diisi pada isian `alasan_deviasi_renstra` di editor target PK, bukan Modal Alasan Audit dan bukan field `alasan`. *(Digantikan Q72 §72.2: alasan perubahan target PK wajib pada `audit_log.alasan`; `alasan_deviasi_renstra` hanya histori.)*
 - Status implementasi: ISS-02.11 sudah (migrasi `2026_10_19_000002`–`2026_10_19_000004`).
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan mengikuti pengantar Q39–Q46.
 
@@ -2139,7 +2141,7 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 
 - Q60 hanya berlaku untuk Renstra `draft`. Q40 §40.2 butir 3 diselaraskan: riwayat revisi target Renstra aktif dibaca dari histori revisi. Perubahan target Renstra pada Renstra `aktif` pindah dari Q43 §43.3 butir 5 ke Q43 §43.2 butir 3 (wajib alasan).
 - PRD §10.5 dan §25.1; Workflow §14; Data Model §2.35 (`target_renstra`) beserta tabel baru draf dan histori revisi; Plan 2.21; US/ISS-02.10 AC-4 dan AC-5 (digantikan untuk Renstra `aktif`), US/ISS-02.13 (baru).
-- Mode revisi menjadi jalur yang diwajibkan Q72 sebelum target PK yang menyimpang dapat disimpan.
+- Mode revisi menjadi jalur yang diwajibkan Q72 sebelum target PK yang menyimpang dapat disimpan; penolakan target PK yang menyimpang aktif sejak ISS-02.14 (Issue #167).
 - Status implementasi: sudah (ISS-02.13, Issue #166), termasuk klarifikasi §71.5.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
@@ -2178,8 +2180,19 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 - PRD §4 prinsip 6, §11, §14.5, §14.10, dan §25.2; Workflow §3.3; Data Model §2.13 (`alasan_deviasi_renstra`) dan §2.32 (`audit_log.alasan`); US/ISS-02.11 AC-3, AC-4, dan AC-8 (digantikan), US/ISS-02.14 (baru).
 - ISS-13.05 (PR #156) menata daftar alasan Q43; butir alasan target PK pada daftar itu mengikuti keputusan ini.
 - Prasyarat: Q71 (mode revisi) tersedia sebelum penolakan butir 72.1 diaktifkan.
-- Status implementasi: belum (ISS-02.14).
+- Status implementasi: sudah (ISS-02.14, Issue #167), termasuk klarifikasi §72.4.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+## 72.4 Klarifikasi penerapan (PM, 28 Oktober 2026)
+
+1. Penolakan §72.1 butir 1 hanya diperiksa bila nilai target PK berubah dibanding nilai tersimpan, termasuk pengisian pertama. Baris lama yang kini menyimpang (§72.1 butir 6) tetap dapat menyimpan perubahan baseline saja dan tetap ditandai lencana deviasi.
+2. "Berubah" dinilai pada nilai yang sudah dinormalkan, sehingga 80 menjadi 80,00 bukan perubahan. Pengisian target yang tersimpan kosong (`null`) tidak mewajibkan alasan, tetapi tetap diperiksa deviasinya. Mengosongkan target yang sudah tersimpan dianggap perubahan dan wajib alasan, tanpa pemeriksaan deviasi karena target PK kosong (§72.1 butir 3).
+3. `alasan_deviasi_renstra` dikeluarkan dari kontrak simpan target PK. Request yang masih mengirimnya ditolak sebagai field yang tidak didukung. Nilai lama kolom dan audit lama tetap utuh (§72.2 butir 4).
+4. Alasan perubahan diisi pada isian di editor target PK, bukan Modal Alasan Wajib. Bagian "Dasar perubahan" tampil setiap kali target sudah tersimpan, dengan label "Alasan perubahan target (wajib bila target diubah)"; rujukan sumber tetap opsional. Kewajiban alasan hanya ditegakkan server.
+5. Tautan §72.1 butir 5 bertuliskan "Buka target Renstra" dan menuju tab Target Renstra pada halaman Sasaran & Indikator untuk Renstra PK tersebut. Tautan hanya tampil bagi pengguna yang dapat mengubah target PK, dibuka di tab yang sama, dan tidak memulai mode revisi secara otomatis.
+6. Bunyi pesan penolakan: untuk `naik_baik` "Target PK di bawah target Renstra {tahun} ({nilai}). Revisi target Renstra dulu.", untuk `turun_baik` "Target PK di atas target Renstra {tahun} ({nilai}). Revisi target Renstra dulu.", dan untuk alasan kosong "Isi alasan perubahan karena target PK yang tersimpan diubah." `{nilai}` adalah target Renstra tersimpan tanpa pembulatan tampilan (nol di belakang dibuang, koma desimal). Bila target menyimpang sekaligus tanpa alasan, hanya pesan deviasi yang muncul. Pesan tampil di isian terkait dan di ringkasan galat.
+7. Bunyi anjuran di editor: untuk `naik_baik` "Target PK tidak boleh di bawah target Renstra. Anjuran: naik satu poin; anjuran ini panduan." dan untuk `turun_baik` "Target PK tidak boleh di atas target Renstra. Anjuran: turun satu poin; anjuran ini panduan." Tabel halaman PK menyebut kedua arah dalam satu kalimat.
+8. Penolakan diaudit sebagai `target_tahunan.simpan_ditolak` dengan kategori `alasan_penolakan` `target_menyimpang_renstra` atau `alasan_perubahan_kosong`, tanpa nilai yang dicoba maupun payload mentah.
 
 ---
 
@@ -2236,7 +2249,8 @@ Kesimpulan rapat yang tidak memerlukan keputusan baru:
 - PRD §15.1–§15.6; Workflow §8; Data Model §2.25 (`kegiatan`: kolom baru biaya terpakai) dan §2.26 (`klaim_kegiatan`); Plan 12.2 dan 12.11; US/ISS-06.01, US/ISS-06.03 (diperbarui), US/ISS-06.09 (baru).
 - Kode terdampak: `sidebarNavigation.ts` (item `kegiatan`), halaman `Kegiatan/Index.tsx`, `Kegiatan/Form.tsx`, `Kegiatan/Partials/*`, `RencanaAksi/KegiatanPanel.tsx`, `StoreKegiatanRencanaAksi`, dan route `/kegiatan*`.
 - PR #163 (ISS-06.04, Q69) mengubah status kegiatan pada halaman Kegiatan; ISS-06.09 menyesuaikan setelah PR itu merge.
-- Status implementasi: §74.2 butir 2–6 diterapkan PR pertama ISS-06.03 (backend aksi pelaksanaan); §74.1 dan §74.2 butir 1 (form realisasi di halaman kegiatan Rencana Aksi) belum (ISS-06.09, PR kedua ISS-06.03).
+- Status implementasi (28 Oktober 2026): ISS-06.09 telah merge melalui PR #194. Backend §74.2 butir 2–6 diterapkan PR pertama ISS-06.03 (PR #195); bagian kedua ISS-06.03 melengkapi §74.2 butir 1, props realisasi, penanda koreksi, dan panel/unduh bukti pelaksanaan pada halaman kegiatan Rencana Aksi. Automated test dan browser smoke desktop/mobile telah diverifikasi; bukan penerimaan UAT atau deployment.
+- Tindak lanjut UI (28 Oktober 2026): kedua form §74.2 butir 1 ditempatkan pada dua halaman terpisah yang dipilih dari menu aksi baris kegiatan tahap Rencana Aksi. Catat rencana tetap pada `/rencana-aksi/{id}/kegiatan/{kegiatan}`, catat realisasi dan bukti pelaksanaan pada `…/kegiatan/{kegiatan}/realisasi`. Izin, endpoint simpan, dan aturan §74.2 tidak berubah.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
@@ -2367,3 +2381,73 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 **Status implementasi:** sesi, lingkup, dan penguncian existing telah diterapkan oleh ISS-14.02 pada PR #199. Tambahan validasi akhir sesi pada butir 6 masih belum diterapkan; pencatatan keputusan ini tidak menyatakan QA/UAT diterima.
 
 **Traceability:** Q19, Q35 §35.2, Q41 §41.2, Q52 §52.3; ISS-14.02 / US-14.02 (issue #182); PRD §12.6/§19.5; Workflow §5/§13; Plan 3.7/3.9; Data Model §2.15/§2.32.
+
+---
+
+# Keputusan Q78 — Status Capaian per Versi Pengukuran
+
+**Keputusan PM: 28–29 Oktober 2026 (WITA), review PR #203 (ISS-09.02).** Keputusan ini mencatat dan mengonfirmasi tujuh keputusan pelaksanaan yang dipakai pada implementasi ISS-09.02, sekaligus menjawab pertanyaan terbuka pada issue #180. Mengubah PRD §21, Workflow §16, Data Model §2.21, Plan 6.4–6.6 dan 7.1, serta ISS-09.02. Pencatatan ini bukan persetujuan UAT, merge, atau deployment.
+
+## 78.1 Keputusan Q-A–Q-G
+
+1. **Q-A — rujukan versi.** `status_capaian` memakai `pengukuran_id` dan `pengukuran_versi_id` (keduanya FK, `restrictOnDelete`). Rujukan versi memenuhi AC-1; konsistensi `pengukuran_id` dijaga Action dalam transaksi.
+2. **Q-B — tidak dapat dihitung.** Penetapan manual tidak tersedia untuk pengukuran bertarget dengan `status_perhitungan = tidak_dapat_dihitung` (Q64 §64.1 butir 5), di samping periode tanpa target dan `belum_dapat_diukur` (Q47 §47.3 butir 4).
+3. **Q-C — header tidak disahkan.** Penetapan ditolak bila header pengukuran tidak lagi berstatus `disahkan`, termasuk versi sah lama ketika header sudah `dikembalikan`, meskipun versi beku masih tersimpan.
+4. **Q-D — alasan.** Alasan bersifat opsional karena Q43 §43.2 dan §43.3 tidak menyebut status capaian; audit tetap wajib memuat `dasar_izin` dan alasan baku server bila pengguna mengosongkan.
+5. **Q-E — cakupan konsumen.** PR ISS-09.02 memuat konsumen wajib rekap dan status tampilan dashboard. AC-5 ISS-10.01 dan ISS-10.02 tetap milik issue masing-masing dan tidak dicentang dari ISS-09.02.
+6. **Q-F — konkurensi.** Token `pengukuran_kinerjas.versi` dibandingkan di bawah lock header dan dinaikkan setelah penetapan atau revisi sukses, sehingga tampilan usang ditolak 409.
+7. **Q-G — penempatan UI.** `GET /verifikasi/status-capaian` dan `POST /verifikasi/{pengukuran}/status-capaian`; halaman berada pada modul Reviu & Pengesahan dengan menu di grup Pelaksanaan & Evaluasi.
+
+## 78.2 Status implementasi dan traceability
+
+- **Status implementasi ISS-09.02:** implemented dan verified melalui test backend, Vitest, serta CI exact HEAD PR #203. Keputusan ini tidak menyatakan merge, UAT, atau deployment.
+- **Traceability:** Q43 (kewajiban alasan), Q47 §47.3 butir 4 (penetapan tidak tersedia), Q50 §50.2 (target PK bernilai penuh), Q64 §64.1 (status tampilan), ISS-10.01 dan ISS-10.02 (konsumen status capaian), PRD §21 dan §23, Workflow §16, Data Model §2.21, Plan 6.4–6.6 dan 7.1.
+- **Status keputusan:** Keputusan PM 28–29 Oktober 2026 (review PR #203); konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
+# Keputusan Q79 — Sumber, Periode Mulai, dan Dampak Koreksi Snapshot
+
+**Keputusan PM: 30 Oktober 2026 (WITA)**, analisis [issue #91](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/91) (ISS-03.03) sebelum dikerjakan. Memperjelas Q35 §35.1 butir 2 (asal nilai versi baru) dan Q65 §65.1 butir 3 (jalur salah ketik target yang sudah beku), serta menetapkan keputusan terbuka issue #91. Mengubah US/ISS-03.03 (Acceptance Criteria) serta Data Model §2.17 dan §2.36. Pencatatan ini bukan persetujuan implementasi, QA/UAT, merge, atau deployment.
+
+## 79.1 Sumber nilai versi koreksi
+
+1. Versi koreksi disalin dari data master terkini saat koreksi dijalankan: atribut indikator, target dan baseline PK tahun jadwal, serta komponen aktif. Tidak ada isian bebas untuk nilai snapshot.
+2. Kesalahan diperbaiki lebih dulu di halaman master yang sudah ada: Sasaran & Indikator (atribut indikator dan penanda dinilai tahunan, Q47 §47.1), Perjanjian Kinerja (target PK, Q65 §65.1), dan komponen indikator. Validasi master tetap berlaku.
+3. Sebelum koreksi, halaman snapshot menampilkan selisih antara versi terbaru dan data master per kolom, termasuk komponen. Koreksi ditolak bila tidak ada selisih; perubahan periode mulai saja tidak dihitung sebagai selisih.
+4. Seluruh selisih ikut tersalin; pengguna tidak memilih sebagian kolom. Perubahan master yang dimaksudkan untuk jadwal berikutnya (Q47 §47.1 butir 2) ikut terbawa bila koreksi dijalankan, dan tampil pada selisih sebelum koreksi dikonfirmasi.
+5. Izin dinilai per kelompok kolom yang berbeda, dibaca ulang di dalam transaksi, dan deny menang: `target` dan `baseline` memerlukan `target:update`; `nama`, `definisi`, `satuan`, `unit_id`, `arah`, `presisi`, `desimal_tampilan`, dan `dinilai_tahunan` memerlukan `indikator:update`; `tipe_perhitungan` dan komponen memerlukan `komponen:update`.
+6. `alasan_koreksi` dan `rujukan_koreksi` wajib (Q43 §43.2 butir 3).
+7. Butir 1–4 berlaku untuk koreksi oleh pengguna (ISS-03.03). Sumber target versi yang diterbitkan revisi PK (Q40 §40.1 butir 4) ditetapkan pada ISS-02.12.
+8. *(Tambahan 30 Oktober 2026, keputusan PM atas review PR #213.)* Koreksi ditolak bila unit penanggung jawab di data master berbeda dari unit header Rencana Aksi yang sudah ada untuk indikator dan tahun jadwal. Unit header tidak pernah berubah, sehingga versi dengan unit lain akan menolak penyimpanan target dan pengajuan Rencana Aksi serta pengajuan pengukuran pada versi itu. Indikator tanpa Rencana Aksi tetap dapat dikoreksi ke unit baru. Pemindahan unit Rencana Aksi yang sudah ada menjadi issue lanjutan.
+
+## 79.2 Periode mulai berlaku versi koreksi
+
+1. `periode_mulai_id` wajib, merupakan periode jadwal yang sama, dan urutannya tidak lebih awal dari periode mulai versi yang digantikan. Isian awalnya sama dengan periode mulai versi yang digantikan.
+2. Periode sebelum periode mulai versi koreksi tetap memakai versi lama.
+3. Rencana Aksi membaca versi terbaru dan hanya periode sejak periode mulainya. Bila periode mulai versi koreksi lebih akhir dari versi yang digantikan, target draf periode sebelumnya dilepas oleh rekonsiliasi draf yang sudah ada saat penyimpanan berikutnya, sedangkan target periode itu tetap tersimpan pada versi Rencana Aksi yang sudah diajukan atau disahkan. Form koreksi menampilkan peringatan ini.
+4. Kriteria "periode pertama yang belum ditutup" untuk versi yang diterbitkan revisi PK (Q40 §40.1 butir 4) ditetapkan pada refinement ISS-02.12. ISS-03.03 membuktikan AC-8 dengan periode mulai yang diisi eksplisit.
+
+## 79.3 Pengukuran dan Rencana Aksi pada versi lama
+
+1. Koreksi tidak memindahkan rujukan pengukuran maupun versi Rencana Aksi ke versi baru, termasuk pengukuran berstatus `draft` atau `dikembalikan`.
+2. Pengukuran yang dibuat sesudah koreksi untuk periode sejak periode mulai versi koreksi memakai versi koreksi, dan baru dapat diajukan setelah Rencana Aksi disahkan ulang dengan versi tersebut melalui buka-kembali (Q40 §40.1 butir 7).
+3. Setelah Rencana Aksi disahkan ulang dengan versi koreksi, pengukuran `draft` atau `dikembalikan` yang masih merujuk versi lama tidak dapat diajukan, karena gerbang pengajuan mensyaratkan snapshot yang sama dengan versi Rencana Aksi sah. Form koreksi menampilkan dampak butir 2–3.
+4. Pemindahan eksplisit dan teraudit pengukuran `draft`/`dikembalikan` ke versi koreksi menjadi issue lanjutan, yang wajib selesai sebelum koreksi snapshot pertama dijalankan pada data produksi.
+
+## 79.4 Acceptance Criteria ISS-03.03
+
+1. US/ISS-03.03 memakai delapan Acceptance Criteria issue #91: AC-6 (dua koreksi serentak) dan AC-7 (izin per kelompok kolom serta alasan dan rujukan wajib) ditambahkan, AC-4 memakai redaksi issue dengan cakupan butir 79.3, dan AC-6 lama (versi akibat revisi PK) menjadi AC-8.
+2. AC-2 dan AC-5 memuat 79.1 butir 1, 3, dan 8 serta 79.2 butir 1.
+
+## 79.5 Izin halaman Snapshot Indikator
+
+1. Halaman Snapshot Indikator dibaca dengan izin yang sama dengan detail jadwal tahunan.
+2. Tombol Koreksi tampil bila izin baca terpenuhi dan aktor memiliki salah satu dari `target:update`, `indikator:update`, atau `komponen:update`. Keputusan akhir di server mengikuti 79.1 butir 5.
+
+## 79.6 Dampak dan traceability
+
+- Q35 §35.1 dan Q65 §65.1 butir 3 diperjelas; Q40 §40.1 tidak berubah.
+- Data Model §2.17 (`periode_mulai_id` dan perilaku koreksi) dan §2.36 (kriteria "belum ditutup"); US/ISS-03.03.
+- Pembaca versi efektif per periode, rekonsiliasi draf Rencana Aksi, dan gerbang pengajuan pengukuran tidak berubah oleh keputusan ini.
+- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. Issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) dan §79.3 butir 4 belum dikerjakan. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.

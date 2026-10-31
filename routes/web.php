@@ -20,11 +20,18 @@ use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
+use App\Http\Controllers\Jadwal\SnapshotIndikatorController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
+use App\Http\Controllers\Kegiatan\AlihkanKegiatanLama;
 use App\Http\Controllers\Kegiatan\BerkasKegiatanController;
+use App\Http\Controllers\Kegiatan\EditKegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KegiatanController;
+use App\Http\Controllers\Kegiatan\KegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
+use App\Http\Controllers\Kegiatan\RealisasiKegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
+use App\Http\Controllers\Laporan\DokumenResmiController;
+use App\Http\Controllers\Laporan\EksporRekapIndikatorPeriodeController;
 use App\Http\Controllers\Laporan\RekapIndikatorPeriodeController;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
@@ -85,6 +92,7 @@ use App\Http\Controllers\Renstra\IndexRenstra;
 use App\Http\Controllers\Renstra\ShowRenstra;
 use App\Http\Controllers\Renstra\StoreRenstra;
 use App\Http\Controllers\Renstra\UpdateRenstra;
+use App\Http\Controllers\StatusCapaian\StatusCapaianController;
 use App\Http\Controllers\TargetRenstra\RevisiTargetRenstraController;
 use App\Http\Controllers\TargetRenstra\TargetRenstraController;
 use App\Http\Controllers\Unit\DestroyUnit;
@@ -124,7 +132,12 @@ Route::middleware(['auth', EnsurePenanggungJawabActorIsActive::class])->group(fu
 });
 
 Route::middleware(['auth', EnsureKegiatanActorIsActive::class])->group(function () {
-    Route::post('/kegiatan', [KegiatanController::class, 'store'])->name('kegiatan.store');
+    // Permukaan baca kegiatan berkonteks Rencana Aksi (Q74 §74.1); tulisnya tetap memakai URL lama.
+    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan', KegiatanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.kegiatan.index');
+    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan/{kegiatan}', EditKegiatanRencanaAksi::class)->whereUuid(['rencanaAksi', 'kegiatan'])
+        ->name('rencana-aksi.kegiatan.edit');
+    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan/{kegiatan}/realisasi', RealisasiKegiatanRencanaAksi::class)->whereUuid(['rencanaAksi', 'kegiatan'])
+        ->name('rencana-aksi.kegiatan.realisasi');
     Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
     Route::post('/kegiatan/{kegiatan}/status', [KegiatanController::class, 'ubahStatus'])->whereUuid('kegiatan')->name('kegiatan.status');
     Route::post('/kegiatan/{kegiatan}/realisasi', [KegiatanController::class, 'realisasi'])->whereUuid('kegiatan')->name('kegiatan.realisasi');
@@ -160,6 +173,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/jadwal/{jadwal}/tutup', [JadwalController::class, 'close'])->whereUuid('jadwal')->name('jadwal.close');
     Route::post('/jadwal/{jadwal}/buka-kembali', [JadwalController::class, 'reopen'])->withoutMiddleware('active')->middleware(EnsureJadwalKoreksiActorIsActive::class)->whereUuid('jadwal')->name('jadwal.reopen');
     Route::post('/jadwal/{jadwal}/revisi-jendela', [JadwalController::class, 'reviseWindows'])->whereUuid('jadwal')->name('jadwal.revise-windows');
+    Route::post('/jadwal/{jadwal}/indikator', [JadwalController::class, 'addIndicator'])->whereUuid('jadwal')->name('jadwal.add-indicator');
+    Route::get('/jadwal/{jadwal}/snapshot', [SnapshotIndikatorController::class, 'index'])->whereUuid('jadwal')->name('jadwal.snapshot.index');
+    Route::post('/jadwal/{jadwal}/snapshot/{snapshot}/koreksi', [SnapshotIndikatorController::class, 'koreksi'])->whereUuid(['jadwal', 'snapshot'])->name('jadwal.snapshot.koreksi');
     Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
     Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
     Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');
@@ -182,7 +198,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
     Route::post('/akses/peran/{user}/status', UserStatus::class)->whereUuid('user')->name('user-status.update');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
+    Route::get('/laporan/dokumen-resmi', [DokumenResmiController::class, 'index'])->name('laporan.dokumen-resmi');
+    Route::post('/laporan/dokumen-resmi/arsip', [DokumenResmiController::class, 'store'])->name('laporan.dokumen-resmi.unggah');
+    Route::get('/laporan/dokumen-resmi/arsip/{berkas}', [DokumenResmiController::class, 'download'])->whereUuid('berkas')->name('laporan.dokumen-resmi.unduh');
     Route::get('/laporan/rekap', RekapIndikatorPeriodeController::class)->name('laporan.rekap');
+    Route::get('/laporan/rekap/ekspor', EksporRekapIndikatorPeriodeController::class)->name('laporan.rekap.ekspor');
 
     // Regulasi
     Route::get('/regulasi', IndexRegulasi::class)->name('regulasi.index');
@@ -209,12 +229,13 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/renstra/{renstra}/berkas/{berkas}/download', DownloadBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.download');
     Route::get('/renstra/{renstra}', ShowRenstra::class)->whereUuid('renstra')->name('renstra.show');
 
-    // Rencana kegiatan unit.
-    Route::get('/kegiatan', [KegiatanController::class, 'index'])->name('kegiatan.index');
-    Route::get('/kegiatan/{kegiatan}/edit', [KegiatanController::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
+    // Tautan lama dipertahankan sebagai pengalihan ke halaman kegiatan Rencana Aksi terkait (Q74 §74.1 butir 5).
+    Route::get('/kegiatan', [AlihkanKegiatanLama::class, 'index'])->name('kegiatan.index');
+    Route::get('/kegiatan/{kegiatan}/edit', [AlihkanKegiatanLama::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
     Route::post('/kegiatan/{kegiatan}/berkas', [BerkasKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.berkas.store');
     Route::delete('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'destroy'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.destroy');
     Route::get('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'download'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.download');
+    Route::get('/kegiatan/{kegiatan}/pelaksanaan/berkas/{berkas}', [BerkasKegiatanController::class, 'downloadPelaksanaan'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.pelaksanaan.berkas.download');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
     Route::post('/pengukuran/ensure-draft', EnsureDraftPengukuran::class)->name('pengukuran.ensure-draft');
@@ -227,10 +248,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Verifikasi & Pengesahan Kinerja
     Route::get('/verifikasi', IndexVerifikasi::class)->name('verifikasi.index');
     Route::get('/verifikasi/pilihan', [IndexVerifikasi::class, 'pilihan'])->name('verifikasi.pilihan');
+    // Didaftarkan sebelum `/verifikasi/{id}` agar tidak bergantung pada urutan pencocokan rute.
+    Route::get('/verifikasi/status-capaian', [StatusCapaianController::class, 'index'])->name('status-capaian.index');
     Route::get('/verifikasi/{id}', ShowVerifikasi::class)->whereUuid('id')->name('verifikasi.show');
     Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
     Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
     Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
+    Route::post('/verifikasi/{pengukuran}/status-capaian', [StatusCapaianController::class, 'store'])
+        ->whereUuid('pengukuran')->name('status-capaian.store');
 
     // Rekomendasi Pimpinan
     Route::get('/rekomendasi', [RekomendasiController::class, 'index'])->name('rekomendasi.index');

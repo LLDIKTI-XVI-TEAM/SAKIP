@@ -31,7 +31,7 @@ class TargetPkSetelahSnapshotTest extends TestCase
         $this->assertSame('74.200000000000', $snapshot->getRawOriginal('baseline'));
     }
 
-    public function test_ubah_target_setelah_snapshot_tanpa_alasan_diterima_dan_pembaca_tetap_memakai_snapshot(): void
+    public function test_ubah_target_setelah_snapshot_dengan_alasan_diterima_dan_pembaca_tetap_memakai_snapshot(): void
     {
         $this->travelTo(Carbon::parse('2026-10-07 10:00:00', 'Asia/Makassar'));
         $this->readyJadwal();
@@ -43,12 +43,13 @@ class TargetPkSetelahSnapshotTest extends TestCase
 
         $this->actingAs($this->activator(['indikator:read', 'target:update']));
         $state = $this->getJson("{$url}/editor")->assertOk()->assertJsonPath('has_snapshot', true)->json('expected_state');
-        $this->putJson($url, ['baseline' => null, 'target_tahunan' => '50', 'expected_state' => $state, 'operation_id' => (string) Str::uuid()])
-            ->assertOk()->assertJsonPath('changed', true);
+        // Q72 §72.2 butir 1: perubahan target PK tersimpan wajib alasan, juga setelah snapshot.
+        $this->putJson($url, ['baseline' => null, 'target_tahunan' => '50', 'expected_state' => $state, 'operation_id' => (string) Str::uuid(),
+            'alasan' => 'Penyesuaian setelah snapshot QA-100'])->assertOk()->assertJsonPath('changed', true);
 
         $this->assertSame('50.000000000000', DB::table('target_kinerjas')->where('indikator_kinerja_id', $indikatorId)->value('target_tahunan'));
         $audit = AuditLog::where('tindakan', 'target_tahunan.simpan')->sole();
-        $this->assertSame('Pencatatan audit untuk tindakan target_tahunan.simpan.', $audit->alasan);
+        $this->assertSame('Penyesuaian setelah snapshot QA-100', $audit->alasan);
         $this->assertSame('50', $audit->nilai_baru['target_tahunan']);
         $this->assertEquals($sidikJari, $this->snapshotFingerprint());
         // Rekonsiliasi Rencana Aksi membandingkan skor terakhir dengan target beku 76,25, bukan master 50.

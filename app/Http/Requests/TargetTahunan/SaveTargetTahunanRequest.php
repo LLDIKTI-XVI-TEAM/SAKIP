@@ -37,9 +37,7 @@ class SaveTargetTahunanRequest extends FormRequest
     {
         return ['baseline' => ['present', 'nullable', 'string', 'max:1000'], 'target_tahunan' => ['present', 'nullable', 'string', 'max:1000'],
             'expected_state' => ['required', 'string', 'regex:/\A[a-f0-9]{64}\z/'], 'operation_id' => ['required', 'uuid'],
-            'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)], 'rujukan_sumber' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],
-            // Tanpa `present`: pemanggil yang tidak mengirim alasan deviasi tetap valid; kewajibannya dinilai Action di dalam lock.
-            'alasan_deviasi_renstra' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)]];
+            'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)], 'rujukan_sumber' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)]];
     }
 
     public function rules(): array
@@ -66,8 +64,6 @@ class SaveTargetTahunanRequest extends FormRequest
             'alasan.max' => 'Alasan maksimal :max karakter.',
             'rujukan_sumber.string' => 'Rujukan sumber harus berupa teks.',
             'rujukan_sumber.max' => 'Rujukan sumber maksimal :max karakter.',
-            'alasan_deviasi_renstra.string' => 'Alasan deviasi harus berupa teks.',
-            'alasan_deviasi_renstra.max' => 'Alasan deviasi maksimal :max karakter.',
         ];
     }
 

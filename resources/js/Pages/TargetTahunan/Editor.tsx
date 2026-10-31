@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { PendingVisit } from '@inertiajs/core';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { Modal } from '@/Components/Modal';
 import { Input } from '@/Components/Input';
 import { Textarea } from '@/Components/Textarea';
@@ -27,13 +27,14 @@ function keteranganSaran(saran: SaranBaseline, tahun: number, formatAngka: (nila
 
 /** Satu form memiliki satu pasangan nilai dan versi. Refresh eksplisit mengganti keduanya bersama. */
 export function Editor({ editor, path, loading = false, loadError, retryYear, loadRecovery, onClose, onLoad, onSaved }: TargetEditorProps) {
-    // Alasan tersimpan diisi awal agar perubahan baseline saja tidak meminta alasan baru (Q65 §65.2 butir 7).
     // Saran baseline menjadi nilai awal, bukan perubahan: menutup tanpa mengubah apa pun tidak meminta konfirmasi,
     // dan saran baru tersimpan bila pengguna menekan Simpan.
     const saran = editor.saran_baseline;
-    const initialValues = { baseline: editor.baseline ?? saran?.nilai ?? '', target_tahunan: editor.target_tahunan ?? '', alasan_deviasi_renstra: editor.alasan_deviasi_renstra ?? '',
+    const initialValues = { baseline: editor.baseline ?? saran?.nilai ?? '', target_tahunan: editor.target_tahunan ?? '',
         alasan: '', rujukan_sumber: '', expected_state: editor.expected_state };
     const form = useForm(initialValues);
+    // Penolakan deviasi memakai key sendiri agar hanya galat itu yang membawa tautan ke target Renstra.
+    const errors = form.errors as Record<string, string | undefined>;
     const recovery = useAuthRecovery();
     const formatNilai = useFormatNilai();
     const submitting = useRef(false);
@@ -48,8 +49,6 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
     const busy = loading || form.processing;
     const blocked = Boolean(failure || loadError || recovery.recovery || form.errors.expected_state);
     const editable = editor.can.update && !editor.read_only_reason;
-    // Target Renstra bisa muncul setelah editor dimuat; galat field dari server membuka isiannya tanpa memuat ulang.
-    const mintaAlasan = editor.target_renstra !== null || Boolean(form.errors.alasan_deviasi_renstra);
     const requestDiscard = useCallback((action: () => void) => {
         if (busy || submitting.current || pendingDiscard.current) return;
         if (!form.isDirty) { action(); return; }
@@ -167,7 +166,10 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
             <AuthRecoveryNotice recovery={recovery.recovery ?? loadRecovery ?? null} pending={busy} />
             {(form.hasErrors || failure || (loadError && !loadRecovery)) && <div ref={summary} tabIndex={-1} role="alert" className="space-y-2 rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger focus:outline-none focus:ring-2 focus:ring-danger/30">
                 <p className="font-semibold">{failure || loadError || 'Periksa isian berikut.'}</p>
-                {form.hasErrors && <ul className="list-inside list-disc">{Object.entries(form.errors).map(([field, error]) => <li key={field}>{error}</li>)}</ul>}
+                {form.hasErrors && <ul className="list-inside list-disc">{Object.entries(form.errors).map(([field, error]) => <li key={field}>{error}
+                    {/* Hanya membuka tab Target Renstra; mode revisi dimulai pengguna sendiri di sana. Guard "Buang perubahan?" tetap berlaku. */}
+                    {field === 'deviasi_renstra' && editor.tautan_target_renstra && <> <Link href={editor.tautan_target_renstra} className="rounded font-semibold text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">Buka target Renstra</Link></>}
+                </li>)}</ul>}
                 {blocked && !recovery.recovery && <><p className="text-ink">Salin isian yang ingin dipertahankan sebelum memuat ulang.</p><Button type="button" variant="outline" size="sm" onClick={() => load(loadError ? retryYear ?? editor.tahun : editor.tahun)} disabled={busy}>{loadError ? 'Coba lagi' : 'Muat data terbaru'}</Button></>}
             </div>}
             {loading && <p role="status" className="rounded-lg bg-soft p-3 text-sm text-muted">Memuat data…</p>}
@@ -177,35 +179,32 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
                         <Input label={`Baseline ${editor.baseline_year}`} name="baseline" inputMode="decimal" autoComplete="off" value={form.data.baseline} onChange={(event) => form.setData('baseline', event.target.value)} readOnly={!editable || busy} error={form.errors.baseline} helperText="Nilai acuan tahun sebelumnya; data pendukung, bukan isi dokumen PK." aria-describedby={saran ? `${id}-saran-baseline` : undefined} className="min-w-0 font-mono tabular-nums" />
                         {saran && <p id={`${id}-saran-baseline`} className="mt-1 text-xs text-muted">{keteranganSaran(saran, editor.baseline_year, (nilai) => formatNilai(nilai, editor.indikator.desimal_tampilan))}</p>}
                     </div>
-                    <Input label={`Target ${editor.tahun}`} name="target_tahunan" inputMode="decimal" autoComplete="off" value={form.data.target_tahunan} onChange={(event) => form.setData('target_tahunan', event.target.value)} readOnly={!editable || busy} error={form.errors.target_tahunan} helperText={editable ? `Maksimal ${editor.indikator.presisi} desimal untuk nilai baru.` : undefined} className="min-w-0 font-mono tabular-nums" />
+                    <Input label={`Target ${editor.tahun}`} name="target_tahunan" inputMode="decimal" autoComplete="off" value={form.data.target_tahunan} onChange={(event) => form.setData('target_tahunan', event.target.value)} readOnly={!editable || busy} error={form.errors.target_tahunan ?? errors.deviasi_renstra} helperText={editable ? `Maksimal ${editor.indikator.presisi} desimal untuk nilai baru.` : undefined} className="min-w-0 font-mono tabular-nums" />
                 </div>
                 {editable && <p className="text-xs text-muted">Kosong berarti belum diisi; 0 tetap dihitung sebagai nilai.</p>}
             </div>
             <section aria-labelledby={`${id}-renstra`} className="space-y-3 rounded-lg border border-border p-4">
                 <h3 id={`${id}-renstra`} className="sr-only">Pembanding target Renstra</h3>
-                {editor.target_renstra !== null && <>
+                {editor.target_renstra !== null ? <>
                     <dl className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                         <dt className="text-xs font-semibold text-muted">Target Renstra {editor.tahun}</dt>
                         <dd className="font-mono tabular-nums text-ink">{formatNilai(editor.target_renstra, editor.indikator.desimal_tampilan)}</dd>
                         {editor.status_deviasi === 'menyimpang' && <dd><Badge variant="warning">{labelDeviasi(editor.indikator.arah)}</Badge></dd>}
                     </dl>
                     <p className="text-xs text-muted">{anjuranTargetRenstra(editor.indikator.arah)}</p>
-                </>}
-                {mintaAlasan
-                    ? <Textarea label="Alasan deviasi terhadap target Renstra" name="alasan_deviasi_renstra" autoComplete="off" rows={3} value={form.data.alasan_deviasi_renstra}
-                        onChange={(event) => form.setData('alasan_deviasi_renstra', event.target.value)} readOnly={!editable || busy} error={form.errors.alasan_deviasi_renstra} maxLength={1000}
-                        helperText={`Wajib diisi bila target PK ${editor.indikator.arah === 'turun_baik' ? 'di atas' : 'di bawah'} target Renstra; diperiksa saat disimpan.`} />
-                    : <p className="text-sm text-muted">Target Renstra belum ada</p>}
+                </> : <p className="text-sm text-muted">Target Renstra belum ada</p>}
             </section>
             {editor.has_snapshot && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">
                 Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun {editor.tahun}. Perubahan resmi yang mengubah target menunggu revisi PK berversi atau, sebelum itu tersedia, keputusan PM.
             </p>}
-            {editable && editor.has_snapshot && <section aria-labelledby={`${id}-dasar`} className="space-y-4 border-t border-border pt-5">
+            {/* Tampil selama alasan dapat diwajibkan (target sudah tersimpan) dan setelah snapshot untuk rujukan sumber.
+                Wajib-tidaknya alasan hanya dinilai server (Q72 §72.2 butir 2, §72.4 butir 4). */}
+            {editable && (editor.target_tahunan !== null || editor.has_snapshot) && <section aria-labelledby={`${id}-dasar`} className="space-y-4 border-t border-border pt-5">
                 <div>
                     <h3 id={`${id}-dasar`} className="text-sm font-semibold text-ink">Dasar perubahan</h3>
-                    <p className="mt-0.5 text-xs text-muted">Alasan dan rujukan bersifat opsional dan tercatat di riwayat perubahan.</p>
+                    <p className="mt-0.5 text-xs text-muted">Alasan wajib bila target diubah; rujukan sumber opsional. Keduanya tercatat di riwayat perubahan.</p>
                 </div>
-                <Textarea label="Alasan perubahan (opsional)" name="alasan" autoComplete="off" rows={3} value={form.data.alasan} onChange={(event) => form.setData('alasan', event.target.value)} readOnly={busy} error={form.errors.alasan} maxLength={1000} />
+                <Textarea label="Alasan perubahan target (wajib bila target diubah)" name="alasan" autoComplete="off" rows={3} value={form.data.alasan} onChange={(event) => form.setData('alasan', event.target.value)} readOnly={busy} error={form.errors.alasan} maxLength={1000} />
                 <Input label="Rujukan sumber (opsional)" name="rujukan_sumber" autoComplete="off" value={form.data.rujukan_sumber} onChange={(event) => form.setData('rujukan_sumber', event.target.value)} readOnly={busy} error={form.errors.rujukan_sumber} maxLength={1000} placeholder="Contoh: Nomor surat keputusan atau dokumen PK" />
             </section>}
             <div className="flex justify-end gap-3 border-t border-border pt-4">

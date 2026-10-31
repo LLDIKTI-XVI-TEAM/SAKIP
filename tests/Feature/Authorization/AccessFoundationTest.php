@@ -29,23 +29,23 @@ class AccessFoundationTest extends TestCase
     {
         $this->seed(AccessCatalogSeeder::class);
         $this->seed(AccessCatalogSeeder::class);
-        $this->assertDatabaseCount('permissions', 71);
+        $this->assertDatabaseCount('permissions', 72);
         // Fixture kontrak terpisah dari generator produksi agar kode hilang/berlebih terdeteksi.
-        $expected = 'renstra:create renstra:read renstra:update renstra:delete sasaran:create sasaran:update sasaran:delete indikator:create indikator:read indikator:update indikator:delete target:update pk:create pk:update regulasi:create regulasi:read regulasi:update regulasi:delete periode:create periode:update jadwal:create jadwal:update jadwal:aktivasi jadwal:tutup jadwal:buka_kembali penanggung_jawab:update rencana_aksi:read rencana_aksi:create rencana_aksi:update rencana_aksi:ajukan rencana_aksi:verifikasi rencana_aksi:kembalikan rencana_aksi:sahkan rencana_aksi:buka_kembali kegiatan:read kegiatan:create kegiatan:update kegiatan:delete komponen:create komponen:read komponen:update komponen:delete jenis_berkas:create jenis_berkas:read jenis_berkas:update jenis_berkas:delete berkas:read berkas:upload berkas:delete pengukuran:create pengukuran:update pengukuran:read pengukuran:verifikasi pengukuran:kembalikan pengukuran:sahkan pengukuran:buka_kembali pengukuran:setujui status_capaian:update rekomendasi:tetapkan unit:create unit:read unit:update unit:delete pengguna:read akses:update delegasi:update dashboard:read laporan:read laporan:ekspor audit:read pengaturan:update';
+        $expected = 'renstra:create renstra:read renstra:update renstra:delete sasaran:create sasaran:update sasaran:delete indikator:create indikator:read indikator:update indikator:delete target:update pk:create pk:update regulasi:create regulasi:read regulasi:update regulasi:delete periode:create periode:update jadwal:create jadwal:update jadwal:aktivasi jadwal:tutup jadwal:buka_kembali penanggung_jawab:update rencana_aksi:read rencana_aksi:create rencana_aksi:update rencana_aksi:ajukan rencana_aksi:verifikasi rencana_aksi:kembalikan rencana_aksi:sahkan rencana_aksi:buka_kembali kegiatan:read kegiatan:create kegiatan:update kegiatan:delete komponen:create komponen:read komponen:update komponen:delete jenis_berkas:create jenis_berkas:read jenis_berkas:update jenis_berkas:delete berkas:read berkas:upload berkas:delete pengukuran:create pengukuran:update pengukuran:read pengukuran:verifikasi pengukuran:kembalikan pengukuran:sahkan pengukuran:buka_kembali pengukuran:setujui status_capaian:update rekomendasi:tetapkan unit:create unit:read unit:update unit:delete pengguna:read akses:update delegasi:update dashboard:read laporan:read laporan:ekspor laporan:unggah audit:read pengaturan:update';
         $this->assertEqualsCanonicalizing(explode(' ', $expected), Permission::pluck('kode')->all());
         $this->assertDatabaseCount('roles', 5);
         $this->assertEqualsCanonicalizing(['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'], Role::pluck('kode')->all());
         $this->assertSame(5, Role::pluck('urutan')->unique()->count());
         $this->assertSame(['superadmin', 'admin', 'perencanaan', 'pimpinan', 'pegawai'], RoleCatalog::codes());
         $this->assertDatabaseMissing('roles', ['kode' => 'pic']);
-        $this->assertDatabaseCount('role_permissions', 166);
+        $this->assertDatabaseCount('role_permissions', 168);
         $this->assertSame(7, Permission::where('butuh_scope', 'unit')->count());
         $this->assertSame(23, Permission::where('sensitif', true)->count());
         $this->assertDatabaseHas('permissions', ['kode' => 'penanggung_jawab:update', 'sensitif' => true]);
         $this->assertEqualsCanonicalizing(['pengukuran:read', 'rencana_aksi:read', 'kegiatan:read', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'dashboard:read'], RolePermissionPresets::forRole('pegawai'));
         $this->assertEqualsCanonicalizing(['pengguna:read', 'akses:update', 'delegasi:update', 'unit:create', 'unit:read', 'unit:update', 'pengaturan:update', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'audit:read', 'dashboard:read', 'laporan:read'], RolePermissionPresets::forRole('admin'));
-        $this->assertCount(71, RolePermissionPresets::forRole('superadmin'));
-        $this->assertCount(63, RolePermissionPresets::forRole('perencanaan'));
+        $this->assertCount(72, RolePermissionPresets::forRole('superadmin'));
+        $this->assertCount(64, RolePermissionPresets::forRole('perencanaan'));
         $this->assertEqualsCanonicalizing(['pengukuran:read', 'rencana_aksi:read', 'kegiatan:read', 'berkas:read', 'komponen:read', 'jenis_berkas:read', 'regulasi:read', 'dashboard:read', 'laporan:read', 'laporan:ekspor', 'audit:read', 'rekomendasi:tetapkan'], RolePermissionPresets::forRole('pimpinan'));
         $this->assertFalse(Schema::hasColumn('users', 'password'));
         $this->assertFalse(Schema::hasColumn('role_permissions', 'unit_id'));
@@ -146,7 +146,7 @@ class AccessFoundationTest extends TestCase
         $this->assertFalse($resolver->allows($user, 'pengukuran:update'));
         DB::table('user_permission_denied')->insert(['id' => Str::uuid(), 'user_id' => $user->id, 'permission_id' => $permission->id, 'unit_id' => $unit->id, 'alasan' => 'Fixture', 'ditetapkan_oleh' => $user->id, 'created_at' => now()]);
         $this->assertFalse($resolver->allows($user, 'pengukuran:update', $unit->id));
-        $this->assertDatabaseCount('role_permissions', 166);
+        $this->assertDatabaseCount('role_permissions', 168);
     }
 
     public function test_global_permission_is_checked_against_the_target_unit_deny(): void
