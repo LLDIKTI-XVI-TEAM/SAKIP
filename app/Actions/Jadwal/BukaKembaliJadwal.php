@@ -46,6 +46,10 @@ class BukaKembaliJadwal
                 if ($jadwal->revisi !== (int) $data['expected_revisi']) {
                     throw ValidationException::withMessages(['jadwal' => 'Jadwal sudah berubah. Muat ulang detail jadwal sebelum membuka kembali.']);
                 }
+                $akhirSesi = CarbonImmutable::createFromFormat('!Y-m-d\TH:i', $data['koreksi_sampai'], config('app.business_timezone'));
+                if ($akhirSesi->lessThanOrEqualTo(now())) {
+                    throw ValidationException::withMessages(['koreksi_sampai' => 'Akhir sesi koreksi harus setelah waktu pembukaan.']);
+                }
                 $scope = $data['lingkup_koreksi'];
                 foreach (['periode_ids', 'indikator_ids'] as $key) {
                     $scope[$key] = array_map(strtolower(...), $scope[$key]);
@@ -60,7 +64,7 @@ class BukaKembaliJadwal
                 $before = $jadwal->only($fields);
                 $jadwal->forceFill(['status' => 'aktif', 'closed_at' => null, 'revisi' => $jadwal->revisi + 1,
                     'koreksi_mulai' => CarbonImmutable::createFromFormat('!Y-m-d\TH:i', $data['koreksi_mulai'], config('app.business_timezone'))->utc()->format('Y-m-d H:i:s'),
-                    'koreksi_sampai' => CarbonImmutable::createFromFormat('!Y-m-d\TH:i', $data['koreksi_sampai'], config('app.business_timezone'))->utc()->format('Y-m-d H:i:s'),
+                    'koreksi_sampai' => $akhirSesi->utc()->format('Y-m-d H:i:s'),
                     'lingkup_koreksi' => $scope])->save();
                 $this->audit->catat(actor: $actor, tindakan: 'jadwal.buka_kembali', objekTipe: 'jadwal', objekId: $jadwal->id,
                     nilaiLama: $before, nilaiBaru: $jadwal->only($fields), alasan: AuditReason::sanitize($data['alasan']), dasarIzin: $decision->toAuditBasis());

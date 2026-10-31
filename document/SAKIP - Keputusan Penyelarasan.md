@@ -2378,7 +2378,7 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 
 **Catatan butir 2:** butir 2 ditinjau ulang bila koreksi kegiatan dibutuhkan saat pelaporan TW IV 2026.
 
-**Status implementasi:** sesi, lingkup, dan penguncian existing telah diterapkan oleh ISS-14.02 pada PR #199. Tambahan validasi akhir sesi pada butir 6 masih belum diterapkan; pencatatan keputusan ini tidak menyatakan QA/UAT diterima.
+**Status implementasi:** sesi, lingkup, dan penguncian existing telah diterapkan oleh ISS-14.02 pada PR #199. Validasi akhir sesi pada butir 6 diterapkan saat pembukaan jadwal; pencatatan implementasi ini tidak menyatakan QA/UAT diterima.
 
 **Traceability:** Q19, Q35 §35.2, Q41 §41.2, Q52 §52.3; ISS-14.02 / US-14.02 (issue #182); PRD §12.6/§19.5; Workflow §5/§13; Plan 3.7/3.9; Data Model §2.15/§2.32.
 

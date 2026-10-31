@@ -84,6 +84,29 @@ class JadwalSesiKoreksiTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('can.reopen', false)->where('koreksi.status', 'berjalan'));
     }
 
+    public static function akhirSesiTidakValid(): array
+    {
+        return ['sudah lewat' => [-1], 'tepat saat pembukaan' => [0]];
+    }
+
+    #[DataProvider('akhirSesiTidakValid')]
+    public function test_akhir_sesi_tidak_setelah_pembukaan_ditolak_dan_diaudit(int $selisihMenit): void
+    {
+        $actor = $this->activator(['jadwal:buka_kembali']);
+        $sekarang = now()->setTimezone(config('app.business_timezone'));
+        $before = $this->jadwal->getRawOriginal();
+        $payload = $this->payload([
+            'koreksi_mulai' => $sekarang->copy()->subHours(2)->format('Y-m-d\TH:i'),
+            'koreksi_sampai' => $sekarang->copy()->addMinutes($selisihMenit)->format('Y-m-d\TH:i'),
+        ]);
+
+        $this->actingAs($actor)->postJson("/jadwal/{$this->jadwal->id}/buka-kembali", $payload)
+            ->assertUnprocessable()->assertJsonValidationErrors('koreksi_sampai');
+        $this->assertSame($before, $this->jadwal->fresh()->getRawOriginal());
+        $this->assertSame(0, AuditLog::where('tindakan', 'jadwal.buka_kembali')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.buka_kembali_ditolak')->count());
+    }
+
     public static function inputTidakValid(): array
     {
         return [
