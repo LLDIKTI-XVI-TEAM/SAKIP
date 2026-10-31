@@ -805,7 +805,7 @@ Q35 menutup tiga kontrak yang ditemukan saat review ISS-05.01: aturan dokumen ma
 1. `jadwal_tahunan.lingkup_koreksi` tanpa `periode_ids` berarti **tidak ada periode yang tercakup**; tidak ada pengartian "semua periode".
 2. Berlaku untuk Rencana Aksi dan Pengukuran.
 
-**Status implementasi:** Pengukuran (`PengukuranKinerjaPolicy`, sudah di `development`) dan Rencana Aksi (`JendelaTulisRencanaAksi`, PR #62) memperlakukan `periode_ids` yang tidak ada sebagai daftar kosong. Penetapan lingkup koreksi tetap milik ISS-14.02.
+**Status implementasi (ISS-14.02, PR #199):** penetapan lingkup eksplisit dan evaluasi gagal tertutup diterapkan melalui `BukaKembaliJadwal` serta `SesiKoreksiJadwal`, yang dipakai Rencana Aksi dan Pengukuran. Daftar jenis data, indikator, dan periode wajib tidak kosong; metadata tidak lengkap tidak membuka akses. Kontrak sesi mengikuti Q77; bukan penerimaan UAT atau deployment.
 
 ## 35.3 Batas Periode per Jadwal
 
@@ -1544,8 +1544,10 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 1. Kegiatan tidak terikat Renstra. Tahun kegiatan T terkunci bila ada jadwal non-draft tahun T yang terkunci menurut §52.2; tahun tanpa jadwal tidak terkunci.
 2. Perubahan kegiatan memeriksa tahun lama dan tahun baru, sehingga kegiatan tidak dapat dipindahkan keluar dari tahun yang terkunci.
-3. Kegiatan belum memiliki pengecualian sesi koreksi; ISS-14.02 menetapkan lingkupnya bila diperlukan.
-4. Klaim kegiatan belum memiliki jalur tulis. Penulis klaim kelak memakai aturan yang sama.
+3. Kegiatan, klaim, dan berkas kegiatan tetap terkunci selama sesi koreksi ISS-14.02, termasuk bila Rencana Aksi tercakup (Q77 butir 2).
+4. Penulis klaim kegiatan mengikuti kunci tahun yang sama melalui `GerbangKlaimKegiatan`; pembukaan sesi tidak memberi pengecualian untuk klaim.
+
+**Status implementasi (ISS-14.02, PR #199):** `JadwalTahunan::tahunDitutup()` mempertahankan kunci mutasi normal ketika metadata sesi ada; `GerbangKlaimKegiatan` dan gerbang berkas kegiatan mengikuti kunci tahun tersebut. Lingkup koreksi resmi mengikuti Q77. Status ini bukan penerimaan UAT atau deployment.
 
 ## 52.4 Dampak dan traceability
 
@@ -2362,6 +2364,23 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 3. Pengajuan pengukuran selama RA dibuka kembali tetap ditahan sampai versi baru disahkan (PRD §14.9); banner tidak lagi menyatakan versi lama tetap berlaku.
 4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
 5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.
+
+# Keputusan Q77 — Sesi Koreksi Jadwal Tahunan
+
+**Keputusan PM: 29 Oktober 2026 (WITA), [review PR #199](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6490862740).** PM menetapkan keenam butir refinement sesi koreksi ISS-14.02. Q77 menambahkan validasi akhir sesi pada butir 6, sebagaimana ditegaskan pada [re-review PM](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6495008769). Pencatatan keputusan bukan penerimaan QA/UAT, merge, atau deployment. Dasar keputusan: Q19, Q35 §35.2, Q41 §41.2, dan Q52 §52.3:
+
+1. Lingkup wajib eksplisit dengan daftar tidak kosong `jenis_objek` (`rencana_aksi`, `pengukuran`), `indikator_ids` yang memiliki snapshot jadwal, dan `periode_ids` anggota jadwal. Tidak ada wildcard atau dimensi unit baru; izin dasar dan deny tetap diperiksa.
+2. Kegiatan, klaim dan berkas kegiatan tetap terkunci, termasuk saat jenis data Rencana Aksi tercakup (Q52 §52.3).
+3. Jadwal `ditutup → aktif` hanya membuka sesi koreksi, termasuk sebelum `penutupan` asli. Sesi berlaku pada status `aktif` dan rentang inklusif; sesudah akhir sesi seluruh koreksi ditolak meskipun status masih aktif. Tutup ulang manual segera menghentikan akses; tanpa scheduler baru.
+4. PIC tetap ditolak pada sesi yang dibuat issue ini, sekalipun jendela lama masih berjalan atau tanggalnya diubah langsung. Pembukaan PIC resmi tetap melalui ISS-14.03, bukan ditambahkan pada issue ini.
+5. Buka-kembali tidak membentuk snapshot otomatis. Indikator baru memakai ISS-03.04 dengan periode mulai eksplisit; ketentuan lama Workflow §5/§13 dan Plan 3.7/3.9 tentang pembentukan snapshot saat buka-kembali diselaraskan.
+6. Input waktu WITA disimpan UTC; awal harus sebelum akhir, kedua batas inklusif, sesi mendatang boleh dijadwalkan. Pada saat pembukaan, akhir sesi wajib setelah waktu sekarang (WITA); nilai yang sama atau sudah lewat ditolak. `closed_at` direset, nilai sebelumnya tetap di audit; `penutupan` dan `activated_at` dipertahankan.
+
+**Catatan butir 2:** butir 2 ditinjau ulang bila koreksi kegiatan dibutuhkan saat pelaporan TW IV 2026.
+
+**Status implementasi:** sesi, lingkup, dan penguncian existing telah diterapkan oleh ISS-14.02 pada PR #199. Tambahan validasi akhir sesi pada butir 6 masih belum diterapkan; pencatatan keputusan ini tidak menyatakan QA/UAT diterima.
+
+**Traceability:** Q19, Q35 §35.2, Q41 §41.2, Q52 §52.3; ISS-14.02 / US-14.02 (issue #182); PRD §12.6/§19.5; Workflow §5/§13; Plan 3.7/3.9; Data Model §2.15/§2.32.
 
 ---
 

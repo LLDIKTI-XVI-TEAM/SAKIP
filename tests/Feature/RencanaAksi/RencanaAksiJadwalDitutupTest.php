@@ -61,7 +61,7 @@ class RencanaAksiJadwalDitutupTest extends TestCase
                 ->where('rencanaAksi.periode_terkunci', [$fixture['periode1']->id, $fixture['periode2']->id]));
 
         // Kontras: sesi koreksi aktif membuka tulis lagi, jadi batas kunci PIC kembali dikirim.
-        $fixture['jadwal']->update(['koreksi_mulai' => '2026-04-01 00:00:00', 'koreksi_sampai' => '2026-04-30 23:59:59', 'lingkup_koreksi' => [
+        $fixture['jadwal']->update(['status' => 'aktif', 'closed_at' => null, 'koreksi_mulai' => '2026-04-01 00:00:00', 'koreksi_sampai' => '2026-04-30 23:59:59', 'lingkup_koreksi' => [
             'jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$fixture['indikator']->id], 'periode_ids' => [$fixture['periode1']->id],
         ]]);
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()

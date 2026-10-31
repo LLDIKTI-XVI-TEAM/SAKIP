@@ -563,7 +563,7 @@ Keempat gerbang ini dievaluasi di service layer sebagai validasi utama. Sebagai 
 
 ### 12.5 Snapshot Saat Aktivasi (Fase Awal — Fondasi MVP)
 
-Saat jadwal berpindah status ke `aktif` (aksi `jadwal:aktivasi`) — termasuk saat `jadwal:buka_kembali` dijalankan atas jadwal yang sudah pernah aktif sebelumnya — sistem secara otomatis (dipicu oleh logika aplikasi; imutabilitasnya dijaga trigger basis data) membuat baris `jadwal_snapshot` untuk setiap indikator aktif yang relevan pada Renstra tersebut, menyalin:
+Saat aktivasi pertama jadwal (aksi `jadwal:aktivasi`), sistem secara otomatis (dipicu oleh logika aplikasi; imutabilitasnya dijaga trigger basis data) membuat baris `jadwal_snapshot` untuk setiap indikator aktif yang relevan pada Renstra tersebut, menyalin:
 
 - Referensi ke indikator master (`indikator_id`) untuk ketertelusuran.
 - `unit_id`, `nama`, `definisi`, `satuan`, `presisi`, `desimal_tampilan`, `arah`, `tipe_perhitungan`, `baseline` — salinan beku dari kondisi master saat itu.
@@ -572,9 +572,11 @@ Saat jadwal berpindah status ke `aktif` (aksi `jadwal:aktivasi`) — termasuk sa
 
 Untuk indikator bertipe `tipe_perhitungan` selain `manual`, sistem juga membuat baris anak **`jadwal_snapshot_komponen`** (`jadwal_snapshot_id`, `kode`, `label`, `peran`, `bobot`, `urutan`) yang membekukan definisi komponen indikator (§17.9) pada saat aktivasi, sehingga perubahan definisi komponen di tengah tahun tidak mengubah makna data historis yang sudah dirujuk pengukuran.
 
+> **Q77 — Sesi Koreksi Jadwal Tahunan (keputusan PM 29 Oktober 2026, ISS-14.02):** buka-kembali tidak membentuk snapshot baru maupun mengubah snapshot lama. Penambahan indikator pada jadwal aktif memakai ISS-03.04 dengan periode mulai eksplisit. Ketentuan ini menggantikan penyebutan lama pembentukan snapshot otomatis saat buka-kembali.
+
 Aturan pembentukan snapshot:
 
-- **Idempoten** — baik pada aktivasi awal maupun pada `jadwal:buka_kembali`, sistem hanya membuat baris `jadwal_snapshot` (dan `jadwal_snapshot_komponen` anaknya) untuk pasangan (`jadwal_id`, `indikator_id`) yang **belum ada**. Baris lama tidak pernah ditimpa.
+- **Idempoten** — aktivasi pertama dan replay-nya hanya membuat baris `jadwal_snapshot` (dan `jadwal_snapshot_komponen` anaknya) untuk pasangan (`jadwal_id`, `indikator_id`) yang **belum ada**. Baris lama tidak pernah ditimpa.
 - **Beku sejak terbit (Q35 §35.1)** — begitu jadwal bertransisi ke `aktif`, baris snapshot (beserta baris komponennya) tidak dapat lagi diubah, baik sudah maupun belum dirujuk pengukuran atau rencana aksi. Koreksi konteks selalu dibuat sebagai versi snapshot baru (`nomor_versi` + 1, `menggantikan_id`, alasan, dan rujukan resmi) yang teraudit; versi lama tetap utuh. Revisi PK berversi yang mengubah target memakai mekanisme yang sama (§12.7, Q40). Tidak ada restatement data historis dalam bentuk apa pun.
 - Baris `audit_log` untuk pembuatan snapshot memakai `actor_id` = pengguna Perencanaan yang menjalankan aksi aktivasi — jejaknya menempel pada aksi manusia yang memicunya, bukan pada proses sistem anonim.
 
@@ -1479,7 +1481,7 @@ Kriteria berikut harus terpenuhi agar MVP dianggap layak rilis:
 3. **Validasi aktivasi Renstra**: Sistem menolak aktivasi Renstra tanpa `dasar_hukum` terisi, dan menolak aktivasi jika terjadi irisan rentang tahun dengan Renstra aktif lain.
 4. **Larangan nonaktivasi Renstra**: Sistem menolak permintaan menonaktifkan Renstra selama masih ada `jadwal_tahunan` berstatus aktif yang merujuknya.
 5. **Empat gerbang aktivasi Jadwal**: Sistem menolak aktivasi Jadwal Tahunan jika (a) `renstra_pk` tahun tersebut belum tercatat, (b) ada indikator aktif tanpa target PK (`target_tahunan`) tahun itu (Q39), (c) tahun jadwal berada di luar rentang tahun Renstra, atau (d) `renstra_pk` tahun tersebut belum memiliki minimal satu lampiran dokumen (§12.4, §14.10). Pengecualian anti-macet lama pada gerbang (d) saat unggahan file dimatikan dihapus Q44 karena unggahan file selalu aktif.
-6. **Snapshot otomatis, idempoten, dan imutabel**: Saat Jadwal diaktifkan (termasuk lewat buka kembali), baris `jadwal_snapshot` beserta `jadwal_snapshot_komponen` terbentuk otomatis untuk setiap indikator relevan yang belum punya baris snapshot (tidak pernah menimpa yang sudah ada); baris yang telah dirujuk pengukuran pertamanya tidak dapat diubah lagi.
+6. **Snapshot otomatis, idempoten, dan imutabel**: Saat aktivasi pertama Jadwal, baris `jadwal_snapshot` beserta `jadwal_snapshot_komponen` terbentuk otomatis untuk setiap indikator relevan yang belum punya baris snapshot (tidak pernah menimpa yang sudah ada); baris yang telah dirujuk pengukuran pertamanya tidak dapat diubah lagi.
 7. **Rencana Aksi lengkap sebelum diajukan**: Sistem menolak pengajuan Rencana Aksi bila ada komponen aktif yang belum memiliki target pada salah satu periode yang diharapkan — kecuali periode sebelum periode nilai akhir pada indikator dinilai tahunan menurut snapshot (Q47) — bila tidak ada minimal satu kegiatan berklaim tahap Rencana Aksi, atau bila ada kegiatan yang belum memenuhi persyaratan wajib tahap `kegiatan_perencanaan`, termasuk RAB untuk kegiatan beranggaran lebih dari 0 (Q42; §14.7). Gerbang kegiatan dan RAB dikecualikan untuk periode lampau 2026 dan Rencana Aksi 2026 data awal (Q46).
 8. **Gerbang keras Pengukuran**: Sistem menolak pengajuan Pengukuran bila Rencana Aksi (indikator × tahun) belum `disahkan`, bila ada komponen aktif dengan nilai `null` (kecuali realisasi berstatus `belum_dapat_diukur`, Q47), bila narasi pengukuran atau tindak lanjut atas rekomendasi yang disetujui pada periode sebelumnya kosong (Q45, Q51), atau bila ada persyaratan bukti dukung wajib tahap pengukuran yang belum terpenuhi (mode file/tautan/teks sesuai yang diizinkan) — kecuali pada periode lampau 2026 (§12.6; semula disebut jadwal retroaktif).
 9. **Gerbang keras Kegiatan**: Sistem menolak transisi status Kegiatan `rencana → terlaksana` bila ada persyaratan bukti dukung wajib bertahap `kegiatan` yang belum terpenuhi (§15.6); pengecualian lama bagi persyaratan bertanda `tidak_dapat_dipenuhi` dihapus Q44. Transisi ke `tidak_terlaksana`/`ditunda`/`batal` hanya mensyaratkan `justifikasi` terisi.

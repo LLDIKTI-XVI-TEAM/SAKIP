@@ -104,6 +104,7 @@ use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
 use App\Http\Controllers\Verifikasi\SahkanPengukuran;
 use App\Http\Controllers\Verifikasi\ShowVerifikasi;
 use App\Http\Controllers\Verifikasi\VerifyPengukuran;
+use App\Http\Middleware\EnsureJadwalKoreksiActorIsActive;
 use App\Http\Middleware\EnsureKegiatanActorIsActive;
 use App\Http\Middleware\EnsureKlaimKegiatanActorIsActive;
 use App\Http\Middleware\EnsurePenanggungJawabActorIsActive;
@@ -170,6 +171,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/jadwal/{jadwal}/kesiapan-aktivasi', [JadwalController::class, 'readiness'])->whereUuid('jadwal')->name('jadwal.activation-readiness');
     Route::post('/jadwal/{jadwal}/aktivasi', [JadwalController::class, 'activate'])->whereUuid('jadwal')->name('jadwal.activate');
     Route::post('/jadwal/{jadwal}/tutup', [JadwalController::class, 'close'])->whereUuid('jadwal')->name('jadwal.close');
+    Route::post('/jadwal/{jadwal}/buka-kembali', [JadwalController::class, 'reopen'])->withoutMiddleware('active')->middleware(EnsureJadwalKoreksiActorIsActive::class)->whereUuid('jadwal')->name('jadwal.reopen');
     Route::post('/jadwal/{jadwal}/revisi-jendela', [JadwalController::class, 'reviseWindows'])->whereUuid('jadwal')->name('jadwal.revise-windows');
     Route::post('/jadwal/{jadwal}/indikator', [JadwalController::class, 'addIndicator'])->whereUuid('jadwal')->name('jadwal.add-indicator');
     Route::get('/jadwal/{jadwal}/snapshot', [SnapshotIndikatorController::class, 'index'])->whereUuid('jadwal')->name('jadwal.snapshot.index');

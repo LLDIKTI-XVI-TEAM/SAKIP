@@ -81,10 +81,10 @@ class JadwalTahunan extends Model
         return $this->status === 'aktif' && $this->activated_at !== null;
     }
 
-    /** Tahun terkunci bila ditutup resmi (bisa sebelum tanggal) atau tanggal `penutupan` lewat pada tanggal bisnis. */
+    /** Sesi koreksi tidak membuka kembali mutasi normal, termasuk sebelum penutupan asli dan setelah deadline sesi. */
     public function tahunDitutup(?CarbonInterface $pada = null): bool
     {
-        if ($this->status === 'ditutup') {
+        if ($this->status === 'ditutup' || $this->koreksi_mulai !== null || $this->koreksi_sampai !== null || $this->lingkup_koreksi !== null) {
             return true;
         }
         $penutupan = $this->penutupan?->toDateString();
