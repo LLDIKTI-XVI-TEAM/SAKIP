@@ -10,13 +10,16 @@ use App\Models\PeriodeJadwal;
 use App\Models\Renstra;
 use App\Models\User;
 use App\Policies\JadwalTahunanPolicy;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Jadwal\JadwalActivationReadiness;
+use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ShowJadwalEditor
 {
-    public function __construct(private readonly JadwalTahunanPolicy $policy, private readonly JadwalActivationReadiness $readiness) {}
+    public function __construct(private readonly JadwalTahunanPolicy $policy, private readonly JadwalActivationReadiness $readiness,
+        private readonly PermissionResolver $resolver) {}
 
     /** Parent, seluruh pilihan, metadata, dan token dibaca bersama; tidak menjadi partial/lazy props. @return array<string, mixed> */
     public function handle(User $actor, ?JadwalTahunan $jadwal = null): array
@@ -66,6 +69,7 @@ class ShowJadwalEditor
                 return [...$window, ...$child->periode->only(['nama', 'urutan', 'aktif', 'is_nilai_akhir', ...Periode::TANGGAL]), 'periode_revisi' => $child->periode->revisi];
             })->sortBy('urutan')->values()->all();
             $canTambah = $current->status === 'aktif' && ! $current->tahunDitutup() && $this->policy->tambahIndikator($actor)->allowed();
+            $bacaIndikator = $this->resolver->resolve($actor, PermissionCodes::INDIKATOR_READ)->allowed;
 
             return ['jadwal' => [...$attributes, 'renstra' => $renstra->only(['id', 'nama', 'status', 'tahun_mulai', 'tahun_selesai']), 'periode' => $windows],
                 // can.activate hanya izin; kalender read-only tetap dapat diaktifkan bila readiness server lolos.
@@ -75,7 +79,7 @@ class ShowJadwalEditor
                     'tambah_indikator' => $canTambah, 'reopen' => $canReopen && $current->status === 'ditutup'],
                 'koreksi' => $koreksi,
                 // Hanya metadata snapshot terakhir per indikator; pembaca sesi menerima indikator tercakup saja.
-                'koreksi_indikator_options' => ($canReopen && $current->status === 'ditutup') || $koreksi !== null
+                'koreksi_indikator_options' => $bacaIndikator && (($canReopen && $current->status === 'ditutup') || $koreksi !== null)
                     ? JadwalSnapshot::where('jadwal_id', $current->id)
                         ->when(! ($canReopen && $current->status === 'ditutup'), fn ($query) => $query->whereIn('indikator_id', $current->lingkup_koreksi['indikator_ids'] ?? []))
                         ->distinct('indikator_id')->orderBy('indikator_id')->orderByDesc('nomor_versi')->get(['indikator_id', 'nama'])

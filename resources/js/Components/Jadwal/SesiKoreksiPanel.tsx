@@ -33,6 +33,7 @@ export function SesiKoreksiPanel({ jadwalId, revisi, canReopen, koreksi, indikat
     const disabled = form.processing || unknown || Boolean(recovery.recovery);
     const lengkap = form.data.koreksi_mulai !== '' && form.data.koreksi_sampai > form.data.koreksi_mulai
         && Object.values(form.data.lingkup_koreksi).every((ids) => ids.length > 0);
+    const namaIndikator = koreksi?.lingkup.indikator_ids.map((id) => indikator.find((item) => item.id === id)?.nama) ?? [];
     const path = `/jadwal/${jadwalId}/buka-kembali`;
     const markUnknown = () => { setOpen(false); setUnknown(true); };
     const confirm = () => {
@@ -61,7 +62,7 @@ export function SesiKoreksiPanel({ jadwalId, revisi, canReopen, koreksi, indikat
                 <p className="font-semibold">Sesi koreksi {koreksi.status}</p>
                 <p>{waktu(koreksi.mulai)} – {waktu(koreksi.sampai)} WITA</p>
                 <p>Jenis data: {koreksi.lingkup.jenis_objek.map((jenis) => jenis === 'rencana_aksi' ? 'Rencana Aksi' : 'Pengukuran').join(', ')}.</p>
-                <p>Indikator: {koreksi.lingkup.indikator_ids.map((id) => indikator.find((item) => item.id === id)?.nama ?? id).join('; ')}.</p>
+                <p>Indikator: {namaIndikator.every(Boolean) ? namaIndikator.join('; ') : `${namaIndikator.length} indikator`}.</p>
                 <p>Periode: {koreksi.lingkup.periode_ids.map((id) => periode.find((item) => item.periode_id === id)?.nama ?? id).join(', ')}.</p>
                 {koreksi.status === 'berakhir' && <p>Waktu koreksi selesai. Tutup jadwal sebelum membuka sesi berikutnya.</p>}
             </div>}
@@ -90,7 +91,9 @@ export function SesiKoreksiPanel({ jadwalId, revisi, canReopen, koreksi, indikat
                             {option.nama}
                         </label>)}
                     </div>
-                    {options.length === 0 && <p className="text-sm text-muted">Belum ada pilihan {label.toLowerCase()} pada jadwal ini.</p>}
+                    {options.length === 0 && <p className="text-sm text-muted">{key === 'indikator_ids'
+                        ? 'Tidak ada indikator yang dapat Anda baca. Periksa izin baca atau ketersediaan indikator pada jadwal.'
+                        : `Belum ada pilihan ${label.toLowerCase()} pada jadwal ini.`}</p>}
                 </fieldset>)}
                 <div className="flex justify-end"><Button type="button" disabled={disabled || !lengkap} onClick={() => setOpen(true)}>Buka kembali untuk koreksi</Button></div>
             </>}

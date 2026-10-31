@@ -66,6 +66,19 @@ it('menampilkan sesi berakhir tanpa menawarkan pembukaan tanpa capability', () =
     render(<SesiKoreksiPanel {...options} canReopen={false} koreksi={{ status: 'berakhir', mulai: '2026-11-01T00:00:00Z', sampai: '2026-11-02T09:00:00Z',
         lingkup: { jenis_objek: ['rencana_aksi'], indikator_ids: ['indikator-1'], periode_ids: ['periode-1'] } }} />);
     expect(screen.getByText('Sesi koreksi berakhir')).toBeTruthy();
+    expect(screen.getByText('Indikator: Indikator uji.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Buka kembali untuk koreksi' })).toBeNull();
     expect(screen.getByText(/PIC tidak otomatis mendapat akses/)).toBeTruthy();
+});
+
+it('menampilkan jumlah indikator tanpa UUID ketika nama tidak tersedia', () => {
+    render(<SesiKoreksiPanel {...options} canReopen={false} indikator={[]} koreksi={{ status: 'berjalan', mulai: '2026-11-01T00:00:00Z', sampai: '2026-11-02T09:00:00Z',
+        lingkup: { jenis_objek: ['rencana_aksi'], indikator_ids: ['indikator-1', 'indikator-2'], periode_ids: ['periode-1'] } }} />);
+    expect(screen.getByText('Indikator: 2 indikator.')).toBeTruthy();
+    expect(screen.queryByText(/indikator-1|indikator-2/)).toBeNull();
+});
+
+it('menjelaskan pilihan indikator kosong saat izin baca tidak tersedia', () => {
+    render(<SesiKoreksiPanel {...options} indikator={[]} />);
+    expect(screen.getByText('Tidak ada indikator yang dapat Anda baca. Periksa izin baca atau ketersediaan indikator pada jadwal.')).toBeTruthy();
 });

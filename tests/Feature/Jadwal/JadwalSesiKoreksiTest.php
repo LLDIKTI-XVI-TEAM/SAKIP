@@ -133,6 +133,52 @@ class JadwalSesiKoreksiTest extends TestCase
         $this->assertSame(3, AuditLog::where('tindakan', 'jadwal.buka_kembali_ditolak')->count());
     }
 
+    public static function visibilitasIndikatorSesi(): array
+    {
+        return [
+            'jadwal ditutup dengan deny' => ['ditutup', true],
+            'sesi aktif dengan deny' => ['aktif', true],
+            'jadwal ditutup ulang dengan deny' => ['ditutup ulang', true],
+            'jadwal ditutup dengan izin baca' => ['ditutup', false],
+            'sesi aktif dengan izin baca' => ['aktif', false],
+            'jadwal ditutup ulang dengan izin baca' => ['ditutup ulang', false],
+        ];
+    }
+
+    #[DataProvider('visibilitasIndikatorSesi')]
+    public function test_nama_indikator_sesi_memerlukan_izin_baca(string $status, bool $deny): void
+    {
+        $actor = $this->activator(['jadwal:buka_kembali', 'indikator:read']);
+        if ($deny) {
+            $this->denyPermission($actor, 'indikator:read');
+        }
+        if ($status !== 'ditutup') {
+            $this->buka($actor)->assertSessionHasNoErrors();
+        }
+        if ($status === 'ditutup ulang') {
+            $this->actingAs($this->activator(['jadwal:tutup']))->post("/jadwal/{$this->jadwal->id}/tutup", [
+                'expected_revisi' => $this->jadwal->fresh()->revisi, 'alasan' => 'Tutup ulang fixture',
+            ])->assertSessionHasNoErrors();
+        }
+        $snapshot = JadwalSnapshot::where('jadwal_id', $this->jadwal->id)->sole();
+        $expected = $deny ? [] : [['id' => $snapshot->indikator_id, 'nama' => $snapshot->nama]];
+
+        $response = $this->actingAs($actor)->get("/jadwal/{$this->jadwal->id}")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('koreksi_indikator_options', $expected));
+        if ($deny) {
+            $response->assertDontSee($snapshot->nama);
+        }
+    }
+
+    public function test_tanpa_izin_baca_indikator_nama_tidak_dikirim(): void
+    {
+        $actor = $this->activator(['jadwal:buka_kembali']);
+        $snapshot = JadwalSnapshot::where('jadwal_id', $this->jadwal->id)->sole();
+        $this->actingAs($actor)->get("/jadwal/{$this->jadwal->id}")->assertOk()
+            ->assertInertia(fn ($page) => $page->where('koreksi_indikator_options', []))
+            ->assertDontSee($snapshot->nama);
+    }
+
     public function test_sesi_terjadwal_dan_kedaluwarsa_tetap_mengunci_mutasi_normal(): void
     {
         $actor = $this->activator(['jadwal:buka_kembali']);
