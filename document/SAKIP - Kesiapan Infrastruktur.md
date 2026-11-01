@@ -28,7 +28,7 @@ Bagian ini dibuktikan dari repositori dan CI, lalu diulang pada lingkungan tujua
 
 | Item | Bukti di repositori | Bukti pada lingkungan tujuan | Yang tidak dibuktikan | Status UAT | Status produksi | Diverifikasi oleh/tanggal |
 |---|---|---|---|---|---|---|
-| CI exact HEAD | `.github/workflows/ci.yml`: sembilan pemeriksaan, tanpa job deploy | SHA rilis dan tautan run CI yang lulus 9/9 | Konfigurasi, data, dan layanan lingkungan tujuan | Belum ditetapkan | Belum ditetapkan | — |
+| CI exact HEAD | `.github/workflows/ci.yml`: sembilan pemeriksaan, tanpa job deploy | SHA rilis dan tautan run CI yang lulus 9/9. Untuk SHA yang hanya berisi perubahan dokumen, jalankan CI manual (`workflow_dispatch`) agar kesembilan pemeriksaan benar-benar berjalan | Konfigurasi, data, dan layanan lingkungan tujuan | Belum ditetapkan | Belum ditetapkan | — |
 | Build aset | Plan P.2: `bun install`, lalu `bun run build` | Build dengan Bun pada SHA rilis | `Containerfile` dan `compose.yaml` hanya untuk pengembangan dan memasang `nodejs`/`npm`, berbeda dari Plan P.1–P.2; belum ada artefak deployment produksi | Belum ditetapkan | Belum ditetapkan | — |
 | Migrasi | Plan P.2: `php artisan migrate --force` setelah build aset | Hasil migrasi pada SHA rilis | Backup sebelum migrasi (§2 baris 6) | Belum ditetapkan | Belum ditetapkan | — |
 | Seeder konfigurasi | `DatabaseSeeder` hanya memanggil `AccessCatalogSeeder`, `PengaturanSeeder`, dan `PeriodeSeeder`, tanpa fixture testing (`SeedProduksiTanpaFixtureTest`, ISS-15.01 AC-3) | Hasil seeder pada SHA rilis | Data awal 2026 (ISS-15.01) | Belum ditetapkan | Belum ditetapkan | — |
