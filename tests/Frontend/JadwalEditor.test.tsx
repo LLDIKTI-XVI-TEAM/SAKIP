@@ -612,7 +612,9 @@ it('revisi jendela PIC di dalam sesi koreksi menampilkan rentang sesi dan period
     expect(screen.getByText(/di dalam sesi koreksi yang berjalan/)).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
     expect(screen.getByText(/Kedua tanggal jendela wajib berada di dalam sesi ini/).textContent).toContain('25 Jan 2027');
-    expect(screen.getByText(/Periode yang dapat dibuka/).textContent).toContain('Triwulan I.');
+    expect(screen.getByText(/Periode yang dapat dibuka/).textContent).toBe('Periode yang dapat dibuka: Triwulan I.');
+    // Aturan tahun berikutnya tidak berlaku di dalam sesi sehingga catatannya disembunyikan.
+    expect(screen.queryByText(/Hanya periode terakhir boleh masuk tahun berikutnya/)).toBeNull();
 });
 it('revisi jendela PIC tetap mengirim token baseline form setelah ditolak basi dan props berganti', async () => {
     const aktif = { ...jadwal, status: 'aktif' as const };

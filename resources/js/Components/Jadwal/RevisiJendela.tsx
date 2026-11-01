@@ -21,7 +21,7 @@ export function RevisiJendelaPanel({ tahun, dalamSesi = false, onStart }: { tahu
             <CardContent className="space-y-3 p-4 sm:p-5">
                 <p className="text-sm">
                     {dalamSesi
-                        ? `Buka jendela pengisian PIC tahun ${tahun} di dalam sesi koreksi yang berjalan. Tanpa pembukaan ini PIC tidak dapat ikut mengoreksi.`
+                        ? `Buka jendela pengisian PIC tahun ${tahun} di dalam sesi koreksi yang berjalan.`
                         : `Perpanjang atau buka ulang jendela pengisian periode tahun ${tahun} secara resmi.`}{' '}
                     Revisi wajib beralasan dan tercatat di jejak audit.
                 </p>
@@ -105,6 +105,8 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, koreksi = null
                 tahun={tahun}
                 errors={errors}
                 editable={false}
+                // Aturan tahun berikutnya tidak berlaku di dalam sesi; batasnya dijelaskan kotak sesi di bawah.
+                note={koreksi?.status !== 'berjalan'}
                 disabled={form.processing || blocked}
                 options={[]}
                 emptyMessage=""
@@ -132,7 +134,6 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, koreksi = null
                             <p>
                                 Periode yang dapat dibuka:{' '}
                                 {koreksi.lingkup.periode_ids.map((id) => periode.find((item) => item.periode_id === id)?.nama ?? id).join(', ')}.
-                                Periode lain tidak dapat diubah.
                             </p>
                         </div>
                     )}
