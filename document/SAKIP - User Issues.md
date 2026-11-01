@@ -5522,6 +5522,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.04 · [Feature] EWS H-7, H-3, H-1 Menjelang Tenggat Pengisian
 
@@ -5587,6 +5588,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.05 · [Feature] Rekap Progres untuk Tim Perencanaan H-3 & H-1
 
@@ -5647,6 +5649,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.06 · [Feature] Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
 
@@ -5712,6 +5715,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.07 · [Infrastructure] Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
 
@@ -5772,6 +5776,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 
 ---
@@ -6054,6 +6059,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-13.05 · [Feature] Penyederhanaan Kewajiban Alasan
@@ -6645,6 +6651,7 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2).
 
 
 ---
