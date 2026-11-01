@@ -1088,7 +1088,7 @@ Sebelum batas masing-masing tercapai, Perencanaan (dan pengunggah) dapat menghap
 - Format dan ukuran maksimum per persyaratan ditetapkan Perencanaan di Persyaratan Berkas (§18.2) dan menimpa default konfigurasi. Daftar mode yang diizinkan per persyaratan tetap milik `jenis_berkas` (Perencanaan).
 - Tampilan daftar berkas terunggah (semacam file manager) masuk backlog tahap 3 (Q44 §44.1 butir 3, Q46 §46.3).
 
-**Batas tegas:** penyimpanan file fisik tetap privat di disk VPS (`storage/app/berkas/...`), diakses lewat route ber-permission (streamed download) — **bukan** URL publik (Q44 §44.1 butir 4).
+**Batas tegas:** penyimpanan file fisik tetap privat di disk VPS (`storage/app/private/berkas/...`), diakses lewat route ber-permission (streamed download) — **bukan** URL publik (Q44 §44.1 butir 4).
 
 ### 18.10 Lampiran Bebas pada Kegiatan
 
