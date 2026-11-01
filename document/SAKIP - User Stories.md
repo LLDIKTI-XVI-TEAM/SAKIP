@@ -2884,7 +2884,7 @@ Matriks memuat seluruh 89 User Story per 24 Oktober 2026, termasuk US-11.06 yang
 | **US-14.02** | Modul 3: 3.9 | §12.6 | §13 | correction session |
 | **US-14.03** | Modul 3: 3.12 | §12.3, §12.6 | §13 | PIC windows |
 | **US-15.01** | S.1, P.5 | Pembuka, §12.6, §32 | §15 | initial data |
-| **US-15.02** | P.1–P.4 | §6, §28, §34 | §22 | operational dependencies |
+| **US-15.02** | P.1–P.4 | §6, §28, §34 | — | operational dependencies |
 | **US-15.03** | P.4 | Pembuka, §32 | — | UAT/acceptance records |
 
 ## Definition of Done Global

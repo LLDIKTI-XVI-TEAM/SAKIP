@@ -6541,7 +6541,7 @@ Perubahan per request (tanpa nomor baris kode):
 **Labels:** `infrastructure`, `release-uat`, `P1`, `backend`, `ops`  
 **Plan:** P.1–P.4  
 **PRD:** §6, §28, §34  
-**Workflow:** §22  
+**Workflow:** —  
 **Data Model/Entitas:** operational dependencies
 
 #### User Story
@@ -6764,7 +6764,7 @@ Decision gate dianggap selesai bila:
 | `US-14.02` | `ISS-14.02` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.03` | `ISS-14.03` | Modul 3: 3.12 | §12.3, §12.6 | §13 | ✅ 1:1 |
 | `US-15.01` | `ISS-15.01` | S.1, P.5 | Pembuka, §12.6, §32 | §15 | ✅ 1:1 |
-| `US-15.02` | `ISS-15.02` | P.1–P.4 | §6, §28, §34 | §22 | ✅ 1:1 |
+| `US-15.02` | `ISS-15.02` | P.1–P.4 | §6, §28, §34 | — | ✅ 1:1 |
 | `US-15.03` | `ISS-15.03` | P.4 | Pembuka, §32 | — | ✅ 1:1 |
 
 ## 7. Checklist Sebelum Issue Dipindahkan ke GitHub Issues
