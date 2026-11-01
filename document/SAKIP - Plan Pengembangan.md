@@ -1195,6 +1195,12 @@ Aturan berikut berlaku di seluruh Plan ini dan menjadi rujukan wajib bagi siapa 
 - **Konsekuensi untuk delegasi coding:** setiap brief task yang didelegasikan (mis. ke agen coding eksternal) WAJIB menyebutkan secara eksplisit di mana logika diletakkan — "server: Form Request X" atau "server: Policy Y" untuk otorisasi/validasi bisnis, dan "klien: hanya menampilkan hasil dari props Z" untuk UI — sehingga tidak ada ambiguitas yang berujung logika bisnis/izin bocor ke komponen React.
 
 
+### P.4 Kesiapan operasional dan penerimaan rilis
+
+- **Scope:** PM bersama pengelola infrastruktur menetapkan owner dan kesiapan layanan pendukung (Q30): realm/client Keycloak, domain/HTTPS, VPS, PostgreSQL, storage privat, backup dan uji pemulihan, queue worker, scheduler, monitoring, notifikasi eksternal, dukungan insiden, bootstrap Superadmin, dan credential deployment. Owner, status, bukti, dan blocker dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi dipisah (Q2, ISS-15.03); data awal mengikuti S.1 dan ISS-15.01.
+- **Dependency:** P.1, P.2, ISS-15.01.
+- **DoD:** setiap layanan memiliki owner dan bukti pada lingkungan tujuan, atau tercatat sebagai blocker/risiko; uji pemulihan berbukti; readiness aplikasi dan readiness operasional dinilai terpisah; notifikasi eksternal mengikuti Q46 §46.3; go-live tidak diklaim dari selesainya coding atau CI hijau.
+
 ### P.5 Gate Q32 sebelum UAT final
 
 - **Scope:** verifikasi bahwa seluruh corrective alignment Q32 sudah selesai: 5 role; Grant Unit 7 scoped + `delegasi:update`; role-permission read-only; onboarding tanpa role; logout terpisah; PJ tanpa role PIC; periode lampau 2026; formula IKU final.
