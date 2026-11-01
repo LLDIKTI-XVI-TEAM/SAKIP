@@ -615,6 +615,18 @@ it('revisi jendela PIC di dalam sesi koreksi menampilkan rentang sesi dan period
     expect(screen.getByText(/Periode yang dapat dibuka/).textContent).toBe('Periode yang dapat dibuka: Triwulan I.');
     // Aturan tahun berikutnya tidak berlaku di dalam sesi sehingga catatannya disembunyikan.
     expect(screen.queryByText(/Hanya periode terakhir boleh masuk tahun berikutnya/)).toBeNull();
+
+    // Galat periode di luar lingkup tidak terikat ke input tanggal, jadi wajib tampil di ringkasan beserta nama periodenya.
+    fireEvent.change(screen.getByLabelText('Triwulan IV: Selesai pengisian'), { target: { value: '2027-02-05' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan revisi' }));
+    const dialog = screen.getByRole('dialog');
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Jendela PIC koreksi.');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Simpan revisi' }));
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => {
+        options?.onError?.({ 'periode.1.periode_id': 'Periode ini di luar lingkup sesi koreksi; jendelanya tidak dapat diubah.' });
+    });
+    expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('Triwulan IV: Periode ini di luar lingkup sesi koreksi'))).toBe(true);
 });
 it('revisi jendela PIC tetap mengirim token baseline form setelah ditolak basi dan props berganti', async () => {
     const aktif = { ...jadwal, status: 'aktif' as const };

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Jadwal\BukaKembaliJadwal;
+use App\Actions\Jadwal\TutupJadwal;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
@@ -13,6 +15,7 @@ use App\Models\Permission;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -62,6 +65,35 @@ class IndexPengukuranTest extends TestCase
             ->has('konteks', 2)->where('konteks.0.tahun', 2026)->where('konteks.1.tahun', 2027)->where('pagination.total', 2)
             ->where('pengukurans.0.tahun', 2026)->where('pengukurans.0.jenis', 'existing')
             ->where('pengukurans.1.tahun', 2027)->where('pengukurans.1.jenis', 'absent')->where('pengukurans.1.jadwal_id', $next->id));
+    }
+
+    public function test_pic_melihat_setiap_periode_yang_jendelanya_dibuka_di_dalam_sesi_koreksi(): void
+    {
+        $this->pengukuran->delete();
+        $tw1 = $this->pengukuran->periode;
+        $tw2 = Periode::create(['nama' => 'Triwulan II', 'urutan' => 2, 'aktif' => true, 'is_nilai_akhir' => false, 'bulan_mulai' => 4, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30]);
+        PeriodeJadwal::create(['jadwal_id' => $this->jadwal->id, 'periode_id' => $tw2->id, 'pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-15']);
+        $pic = $this->userWithRole('pegawai');
+        $this->grant($pic, 'pengukuran:create');
+        PenugasanIndikator::create(['indikator_id' => $this->context->indikator_id, 'user_id' => $pic->id, 'tanggal_mulai_berlaku' => '2026-02-01', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $perencana = $this->userWithRole('perencanaan');
+        $this->travelTo(Carbon::parse('2027-01-05 09:00:00', 'Asia/Makassar'));
+        app(TutupJadwal::class)->handle($perencana, $this->jadwal->id, ['expected_revisi' => $this->jadwal->fresh()->revisi, 'alasan' => 'Tahun ditutup.']);
+        app(BukaKembaliJadwal::class)->handle($perencana, $this->jadwal->id, [
+            'expected_revisi' => $this->jadwal->fresh()->revisi, 'alasan' => 'Koreksi TW I dan TW II.',
+            'koreksi_mulai' => '2027-01-05T08:00', 'koreksi_sampai' => '2027-01-08T17:00',
+            'lingkup_koreksi' => ['jenis_objek' => ['pengukuran'], 'indikator_ids' => [$this->context->indikator_id], 'periode_ids' => [$tw1->id, $tw2->id]],
+        ]);
+        $this->actingAs($perencana)->post("/jadwal/{$this->jadwal->id}/revisi-jendela", [
+            'expected_revisi' => $this->jadwal->fresh()->revisi, 'alasan' => 'Jendela PIC koreksi.',
+            'periode' => [['periode_id' => $tw1->id, 'pengisian_mulai' => '2027-01-05', 'pengisian_selesai' => '2027-01-08'],
+                ['periode_id' => $tw2->id, 'pengisian_mulai' => '2027-01-05', 'pengisian_selesai' => '2027-01-08']],
+        ])->assertSessionHasNoErrors();
+
+        // PIC tidak dapat memilih periode; daftar default harus memuat setiap jendela PIC yang dibuka di dalam sesi.
+        $this->daftar($pic)->assertOk()->assertInertia(fn ($page) => $page->where('can.selectPeriod', false)->has('pengukurans', 2)
+            ->where('pengukurans', fn ($rows) => collect($rows)->pluck('periode.id')->sort()->values()->all() === collect([$tw1->id, $tw2->id])->sort()->values()->all()
+                && collect($rows)->every(fn ($row) => $row['can']['create'] === true)));
     }
 
     public function test_konteks_kosong_membedakan_pengisian_belum_dimulai_dan_tanpa_jadwal_aktif(): void

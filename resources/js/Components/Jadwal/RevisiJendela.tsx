@@ -54,8 +54,13 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, koreksi = null
     const [awal] = useState(() => ({ periode, revisi }));
     const form = useForm({ alasan: '', periode: awal.periode });
     const errors = form.errors as Record<string, string | undefined>;
-    // Galat per kolom tampil di tabel; sisanya (penutupan, token, daftar periode) diringkas di atas tombol.
-    const umum = Object.entries(errors).filter(([field]) => field !== 'alasan' && !field.startsWith('periode.'));
+    // Galat tanggal tampil di tabel; sisanya (penutupan, token, periode di luar lingkup) diringkas di atas tombol.
+    const umum = Object.entries(errors)
+        .filter(([field]) => field !== 'alasan' && !/^periode\.\d+\.pengisian_/.test(field))
+        .map(([field, message]): [string, string | undefined] => {
+            const index = /^periode\.(\d+)\./.exec(field)?.[1];
+            return [field, index === undefined ? message : `${form.data.periode[Number(index)]?.nama}: ${message}`];
+        });
     const berubah = form.data.periode.some((item, index) => tanggal.some((key) => item[key] !== awal.periode[index]?.[key]));
     const blocked = unknown || Boolean(recovery.recovery);
     const path = `/jadwal/${jadwalId}/revisi-jendela`;
