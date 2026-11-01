@@ -214,8 +214,9 @@ class BukaKembaliPengukuranTest extends TestCase
         $this->jadwal->update(['status' => 'ditutup']);
         $token = $this->token();
 
+        // Jadwal nonaktif sekaligus menandai tahun ditutup: kedua pesan wajib tampil, bukan salah satu.
         $this->kirimJson($this->actor, ['versi' => $token, 'alasan' => self::ALASAN])
-            ->assertUnprocessable()->assertJsonPath('errors.versi', ['Jadwal tahunan harus aktif.']);
+            ->assertUnprocessable()->assertJsonPath('errors.versi', ['Jadwal tahunan harus aktif.', self::PESAN_TUTUP]);
 
         $this->assertSame('disahkan', $this->pengukuran->fresh()->status_alur);
         $this->assertSame($token, $this->token());

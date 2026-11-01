@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, Layers } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
@@ -10,7 +10,9 @@ import { Input } from '@/Components/Input';
 import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { PenutupanPanel } from '@/Components/Jadwal/PenutupanPanel';
+import { SesiKoreksiPanel } from '@/Components/Jadwal/SesiKoreksiPanel';
 import { RevisiJendela, RevisiJendelaPanel } from '@/Components/Jadwal/RevisiJendela';
+import { TambahIndikatorPanel } from '@/Components/Jadwal/TambahIndikatorPanel';
 import { Select } from '@/Components/Select';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { statusJadwal } from '@/lib/jadwal';
@@ -32,7 +34,18 @@ export default function Editor(props: JadwalEditorProps) {
     return <JadwalEditor key={props.jadwal?.id ?? 'create'} {...props} />;
 }
 
-function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_options }: JadwalEditorProps) {
+function JadwalEditor({
+    jadwal,
+    can,
+    koreksi,
+    koreksi_indikator_options,
+    read_only_reason,
+    renstra_options,
+    periode_options,
+    indikator_belum_terjadwal,
+    periode_mulai_default,
+    perjanjian_kinerja_id,
+}: JadwalEditorProps) {
     const form = useForm<JadwalForm>({
         renstra_id: jadwal?.renstra_id ?? '',
         tahun: jadwal ? String(jadwal.tahun) : '',
@@ -166,11 +179,17 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
             ]}
         >
             <Head title={title} />
-            <div className="mb-5">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <Link href="/jadwal" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     Kembali ke daftar
                 </Link>
+                {jadwal && jadwal.status !== 'draft' && (
+                    <Link href={`/jadwal/${jadwal.id}/snapshot`} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                        <Layers className="h-4 w-4" aria-hidden="true" />
+                        Snapshot indikator
+                    </Link>
+                )}
             </div>
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {failure && !recovery.recovery && (
@@ -370,11 +389,27 @@ function JadwalEditor({ jadwal, can, read_only_reason, renstra_options, periode_
                     />
                 </div>
             )}
+            {jadwal && can.tambah_indikator && indikator_belum_terjadwal.length > 0 && (
+                <div className="mt-5">
+                    <TambahIndikatorPanel
+                        jadwalId={jadwal.id}
+                        tahun={jadwal.tahun}
+                        periode={jadwal.periode}
+                        kandidat={indikator_belum_terjadwal}
+                        periodeMulaiDefault={periode_mulai_default}
+                        perjanjianKinerjaId={perjanjian_kinerja_id}
+                    />
+                </div>
+            )}
             {jadwal && can.close && (
                 <div className="mt-5">
                     <PenutupanPanel jadwalId={jadwal.id} tahun={jadwal.tahun} revisi={jadwal.revisi} />
                 </div>
             )}
+            {jadwal && (can.reopen || koreksi) && <div className="mt-5">
+                <SesiKoreksiPanel jadwalId={jadwal.id} revisi={jadwal.revisi} canReopen={can.reopen} koreksi={koreksi}
+                    indikator={koreksi_indikator_options} periode={jadwal.periode} />
+            </div>}
         </AuthenticatedLayout>
     );
 }

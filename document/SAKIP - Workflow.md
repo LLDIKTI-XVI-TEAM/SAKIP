@@ -675,7 +675,7 @@ sequenceDiagram
 
 **Gerbang keempat tidak memacetkan alur:** karena lampiran dokumen PK boleh dipenuhi lewat mode file/tautan/teks (§3.3, §10) dan unggahan file selalu aktif (Q44), gerbang 4 tidak pernah menjadi penghalang keras yang tidak dapat diatasi. Ketentuan semula — bila unggahan file dimatikan pada setelan aplikasi dan belum ada lampiran mode lain, sistem menandai persyaratan `tidak_dapat_dipenuhi` dan tetap meloloskan gerbang secara administratif (§10.5) — digantikan Q44 karena saklar unggahan dihapus; penanda yang sudah tercatat tetap menjadi histori.
 
-**Sifat idempoten dan imutabilitas snapshot:** logika pembuatan snapshot pada langkah 7–8 dipanggil ulang, dengan perilaku yang sama, setiap kali `jadwal:buka_kembali` dijalankan (§13) — mis. saat indikator baru ditambahkan di tengah tahun. Baris snapshot yang **sudah terbit** bersifat beku dan tidak dapat diubah lagi, termasuk baris `jadwal_snapshot_komponen` anaknya, baik sudah maupun belum dirujuk (Q35 §35.1). Koreksi konteks selalu dibuat sebagai versi snapshot baru yang teraudit; versi lama tetap utuh. Persetujuan revisi PK yang mengubah target juga menerbitkan versi snapshot baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I; revisi yang hanya mengganti dokumen tidak menerbitkan versi snapshot (Q40, §3.3). Tidak ada restatement data historis — perubahan definisi komponen di tengah tahun (§6) tidak pernah mengubah makna data historis yang sudah dibekukan.
+**Sifat idempoten dan imutabilitas snapshot:** logika langkah 7–8 digunakan saat aktivasi pertama, dengan replay aktivasi idempoten. Q77 (keputusan PM 29 Oktober 2026, ISS-14.02) menetapkan buka-kembali tanpa pembentukan snapshot otomatis; indikator baru memakai ISS-03.04 dengan periode mulai eksplisit (§13). Baris snapshot yang **sudah terbit** bersifat beku dan tidak dapat diubah lagi, termasuk baris `jadwal_snapshot_komponen` anaknya, baik sudah maupun belum dirujuk (Q35 §35.1). Koreksi konteks selalu dibuat sebagai versi snapshot baru yang teraudit; versi lama tetap utuh. Persetujuan revisi PK yang mengubah target juga menerbitkan versi snapshot baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I; revisi yang hanya mengganti dokumen tidak menerbitkan versi snapshot (Q40, §3.3). Tidak ada restatement data historis — perubahan definisi komponen di tengah tahun (§6) tidak pernah mengubah makna data historis yang sudah dibekukan.
 
 ---
 
@@ -1467,7 +1467,8 @@ flowchart TD
 
 📋 Perencanaan / ⚙️ Superadmin
   8. Untuk pengukuran yang sudah Disahkan, masih dapat dibuka-kembali (pengukuran:buka_kembali)
-     menjadi Dikembalikan, dengan alasan wajib, selama Jadwal Tahunan belum penutupan — lihat §13
+     menjadi Dikembalikan, dengan alasan wajib, selama Jadwal Tahunan belum penutupan atau di
+     dalam sesi koreksi resmi yang mencakup indikator × periode × pengukuran — lihat §13
 
 (Fase Lanjutan, belum dibangun: pengukuran yang sudah Disahkan bisa memerlukan tahap tambahan
 pengukuran:setujui oleh Pimpinan sebelum benar-benar dianggap final, jika
@@ -1484,7 +1485,7 @@ stateDiagram-v2
     Diverifikasi --> Dikembalikan: pengukuran:kembalikan (Perencanaan, alasan wajib)
     Diverifikasi --> Disahkan: pengukuran:sahkan (Perencanaan)\nFASE AWAL: langsung, tanpa approval Pimpinan\ntunduk gerbang pemisahan tugas F1/F2 §20
     Dikembalikan --> Draft: penanggung jawab/Perencanaan merevisi
-    Disahkan --> Dikembalikan: pengukuran:buka_kembali\n(Perencanaan/Superadmin, alasan wajib,\nhanya sebelum jadwal.penutupan)
+    Disahkan --> Dikembalikan: pengukuran:buka_kembali\n(Perencanaan/Superadmin, alasan wajib,\nsebelum jadwal.penutupan atau\ndalam sesi koreksi tercakup)
     Disahkan --> [*]: status final Fase Awal\n(sampai jadwal.penutupan) -\nsiap direkomendasikan Pimpinan (§17)\ndan ditetapkan status capaiannya (§16)
 
     note right of Disahkan
@@ -1517,11 +1518,13 @@ stateDiagram-v2
 
 ## 13. Alur Buka-Kembali
 
+> **Q77 — Sesi Koreksi Jadwal Tahunan (keputusan PM 29 Oktober 2026, ISS-14.02):** kontrak sesi dan snapshot di bawah menggantikan ketentuan lama penerbitan snapshot otomatis saat buka-kembali. Ini bukan konfirmasi tertulis Tim Perencanaan atas keputusan baseline yang masih menunggu.
+
 Koreksi data rencana aksi/pengukuran/jadwal disediakan lewat tiga permission berbeda, masing-masing untuk situasi yang berbeda:
 
 | Lapis | Permission | Transisi | Alasan | Batasan waktu | Pelaku |
 |---|---|---|---|---|---|
-| 1 — Rencana Aksi | `rencana_aksi:buka_kembali` | `disahkan → dikembalikan` | Wajib | Hanya **sebelum** `jadwal_tahunan.penutupan` | Perencanaan / Superadmin |
+| 1 — Rencana Aksi | `rencana_aksi:buka_kembali` | `disahkan → dikembalikan` | Wajib | Sebelum `penutupan` atau sesi resmi yang mencakup Rencana Aksi dan indikator terkait | Perencanaan / Superadmin |
 | 2 — Pengukuran | `pengukuran:buka_kembali` | `Disahkan → Dikembalikan` | Wajib | Hanya **sebelum** `jadwal.penutupan` | Perencanaan / Superadmin |
 | 3 — Jadwal | `jadwal:buka_kembali` | `ditutup → aktif` | Wajib | Hanya **setelah** `jadwal.penutupan` (atau kapan saja jadwal berstatus `ditutup`) | Perencanaan / Superadmin |
 
@@ -1546,29 +1549,31 @@ Koreksi data rencana aksi/pengukuran/jadwal disediakan lewat tiga permission ber
        pengukuran yang sudah terlanjur diajukan sebelumnya pada periode lain; gerbang hanya
        dievaluasi ulang pada pengajuan BARU
 
-  Lapis 2 — Pengukuran, sebelum penutupan jadwal:
+  Lapis 2 — Pengukuran, sebelum penutupan jadwal atau di dalam sesi koreksi yang mencakup baris:
   4. Menemukan pengukuran berstatus Disahkan yang perlu dikoreksi
   5. Menjalankan aksi pengukuran:buka_kembali, wajib mengisi alasan
-     → Jadwal sudah penutupan: aksi DITOLAK — jalur ini sudah tertutup, lanjut ke Lapis 3
-     → Jadwal belum penutupan: Status pengukuran kembali ke Dikembalikan
+     → Di luar sesi koreksi yang mencakup indikator × periode × pengukuran: aksi DITOLAK —
+       jalur ini sudah tertutup, lanjut ke Lapis 3
+     → Jadwal belum penutupan atau baris tercakup sesi koreksi: Status pengukuran kembali ke
+       Dikembalikan (Q35 §35.2; Q67)
   6. Penanggung jawab/Perencanaan merevisi nilai/narasi/catatan (kembali ke alur §12
      langkah 7)
 
   Lapis 3 — Jadwal, setelah penutupan jadwal (mekanisme standar, bukan sekadar darurat):
-  7. Menjalankan aksi jadwal:buka_kembali pada Jadwal Tahunan berstatus ditutup, wajib
-     mengisi alasan → Status jadwal kembali ke aktif
-  8. Dipakai untuk beberapa skenario:
-     a. Koreksi rencana aksi/pengukuran pasca-penutupan — begitu jadwal aktif kembali, Lapis 1
-        dan Lapis 2 tersedia lagi untuk baris yang relevan
-        → Dalam sesi koreksi ini PIC hanya dapat mengubah RA pada periode yang jendela
-          pengisiannya dibuka kembali secara resmi (Q19, ISS-14.03); di luar itu koreksi RA
-          dilakukan Perencanaan (Q41 §41.2 butir 6)
-     b. Memasukkan indikator baru di tengah tahun (mis. akibat revisi Kepmen IKU, §14) —
-        begitu jadwal aktif kembali, trigger snapshot idempoten (§5 langkah 7–8) berjalan ulang
-        dan membuat baris jadwal_snapshot (+ jadwal_snapshot_komponen) baru khusus untuk
-        indikator yang belum punya pasangan snapshot pada jadwal ini, tanpa menyentuh baris
-        snapshot lama
-  9. Setelah koreksi/penambahan selesai, menjalankan jadwal:tutup kembali → Status: ditutup
+  7. Menjalankan jadwal:buka_kembali pada jadwal ditutup dengan alasan, awal/akhir sesi,
+     jenis data, indikator dan periode eksplisit → aktif; closed_at direset,
+     penutupan asli dan activated_at tetap. Awal < akhir, input WITA, rentang inklusif.
+  8. Selama sesi berlangsung, hanya jalur Perencanaan boleh mengoreksi RA/Pengukuran
+     tercakup; status record, izin, deny dan gerbang kelengkapan tetap berlaku.
+     → Sesi terjadwal/berakhir atau ditutup ulang menolak koreksi. Pembukaan sebelum
+       penutupan asli tidak membuka jalur normal maupun PIC.
+     → PIC tetap terkunci; pembukaan jendelanya melalui ISS-14.03, di luar issue ini.
+     → Kegiatan, klaim, dan berkas kegiatan tetap terkunci.
+     → Snapshot tidak dibentuk/diubah oleh buka-kembali; indikator baru menggunakan
+       ISS-03.04 dengan periode mulai eksplisit. Buka-kembali pengukuran Disahkan
+       (ISS-08.03) tetap dependency terpisah, bukan dibuat oleh sesi ini.
+  9. Setelah koreksi selesai, jadwal:tutup kembali → ditutup; penutupan manual segera
+     menghentikan sesi meskipun akhir waktunya belum lewat. Tidak ada scheduler baru.
 
 Seluruh transisi pada ketiga lapis tercatat di audit_log; alasan tetap wajib (Q43 §43.2
 butir 1). Penutupan jadwal hanya menghentikan mutasi data kinerja: unggahan arsip PDF
@@ -1586,31 +1591,30 @@ stateDiagram-v2
     state "Pengukuran: Dikembalikan" as PDikembalikan
 
     JAktif --> JDitutup: jadwal:tutup
-    JDitutup --> JAktif: jadwal:buka_kembali\n(alasan wajib - mekanisme standar,\nkoreksi ATAU indikator baru)
+    JDitutup --> JAktif: jadwal:buka_kembali\n(alasan, waktu dan lingkup wajib)
 
-    RADisahkan --> RADikembalikan: rencana_aksi:buka_kembali\n(alasan wajib, HANYA sebelum penutupan)
-    PDisahkan --> PDikembalikan: pengukuran:buka_kembali\n(alasan wajib, HANYA sebelum penutupan)
+    RADisahkan --> RADikembalikan: rencana_aksi:buka_kembali\n(alasan wajib, sebelum penutupan\natau dalam sesi resmi tercakup)
+    PDisahkan --> PDikembalikan: pengukuran:buka_kembali\n(alasan wajib, sebelum penutupan\natau dalam sesi resmi tercakup)
 
     note right of JDitutup
         Setelah jadwal.penutupan, satu-satunya
         jalur koreksi adalah jadwal:buka_kembali.
-        rencana_aksi:buka_kembali dan
-        pengukuran:buka_kembali langsung tidak
-        lagi tersedia sampai jadwal aktif kembali.
+        Rencana Aksi memerlukan sesi resmi tercakup;
+        buka-kembali Pengukuran Disahkan tetap
+        melalui implementasi ISS-08.03 terpisah.
         Unggahan arsip PDF dokumen resmi tetap
         dapat dilakukan (Q48 §48.2 butir 5).
     end note
 
     note right of JAktif
-        Saat jadwal kembali aktif via buka_kembali,
-        trigger snapshot idempoten berjalan ulang -
-        hanya membuat baris baru (termasuk snapshot
-        komponen) untuk pasangan (jadwal, indikator)
-        yang belum ada.
+        Buka-kembali hanya membuka sesi koreksi
+        Perencanaan pada waktu dan lingkup eksplisit.
+        Snapshot dan tanggal aktivasi pertama tetap.
+        Indikator baru melalui ISS-03.04.
     end note
 ```
 
-**Perbedaan mendasar dengan cakupan Fase Awal lain:** `jadwal:buka_kembali` bukan sekadar jalur darurat, melainkan **mekanisme standar** untuk beberapa kebutuhan operasional yang sama pentingnya: koreksi data setelah penutupan (baik rencana aksi maupun pengukuran), dan penambahan indikator baru di tengah tahun berjalan (§14). Ketiga permission buka-kembali (`rencana_aksi:buka_kembali`, `pengukuran:buka_kembali`, `jadwal:buka_kembali`) memakai pola alasan-wajib dan pencatatan audit yang konsisten, sehingga jejaknya seragam meski tahap dan entitasnya berbeda.
+`jadwal:buka_kembali` merupakan mekanisme standar koreksi setelah penutupan, dengan alasan wajib dan audit. Penambahan indikator pada jadwal aktif tetap melalui ISS-03.04, bukan efek samping pembukaan sesi.
 
 ---
 
@@ -2329,7 +2333,7 @@ flowchart TD
 
 ## 25. Alur Keluaran Dokumen Resmi: Rencana Aksi Tahunan dan Laporan Kinerja Triwulan
 
-> **Q48 (13 Oktober 2026):** SAKIP menghasilkan dua dokumen gabungan untuk satu lembaga dalam format Excel — **Rencana Aksi tahunan** per jadwal tahunan dan **Laporan Kinerja Triwulan** per periode — lalu PDF yang ditandatangani elektronik di luar aplikasi diunggah kembali sebagai arsip resmi. Dokumen PK tidak dihasilkan SAKIP; PDF PK bertanda tangan tetap menjadi lampiran PK (§3.3). Dikerjakan pada US/ISS-10.05, tahap 2 (Q46 §46.3); bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR (Q48 §48.3). Status implementasi: belum.
+> **Q48 (13 Oktober 2026):** SAKIP menghasilkan dua dokumen gabungan untuk satu lembaga dalam format Excel — **Rencana Aksi tahunan** per jadwal tahunan dan **Laporan Kinerja Triwulan** per periode — lalu PDF yang ditandatangani elektronik di luar aplikasi diunggah kembali sebagai arsip resmi. Dokumen PK tidak dihasilkan SAKIP; PDF PK bertanda tangan tetap menjadi lampiran PK (§3.3). Dikerjakan pada US/ISS-10.05, tahap 2 (Q46 §46.3); bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR (Q48 §48.3). Status implementasi: sebagian — slice arsip PDF bertanda tangan tersedia melalui [PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208); generator Excel belum diimplementasikan dan menunggu pengesahan format ISS-10.04.
 
 ```
 📋 Perencanaan / ✍️ Pimpinan / ⚙️ Superadmin (permission laporan:ekspor)

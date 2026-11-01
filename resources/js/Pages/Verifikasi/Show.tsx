@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type ReactNode } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
@@ -8,7 +8,7 @@ import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { Table, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow, tableCellResponsive } from '@/Components/Table';
 import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
 import { StatusCapaianBadge } from '@/Components/Pengukuran/StatusCapaianBadge';
 import type { HistoriVersiPengukuran, Pengukuran } from '@/Pages/Pengukuran/types';
@@ -24,14 +24,7 @@ import ClaimedActivities from './ClaimedActivities';
 const labelJalur = (jalur: 'pic' | 'perencanaan' | null): string =>
     jalur === null ? '—' : jalur === 'pic' ? 'PIC' : 'Perencanaan';
 
-function HistoriField({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <div className="min-w-0">
-            <dt className="text-xs font-medium text-muted">{label}</dt>
-            <dd className="mt-0.5 break-words text-xs font-semibold text-ink">{children}</dd>
-        </div>
-    );
-}
+const selHistori = `${tableCellResponsive} block align-top md:table-cell`;
 
 /** Dialog alasan wajib untuk membuka kembali pengukuran yang telah disahkan. */
 function BukaKembaliDialog({ pengukuran, onClose }: { pengukuran: Pengukuran; onClose: () => void }) {
@@ -320,92 +313,61 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                     {historiVersi.length === 0 ? (
                         <p className="px-6 py-10 text-center text-sm text-muted">Belum ada versi pengajuan.</p>
                     ) : (
-                        <>
-                            <Table wrapperClassName="hidden md:block" aria-label="Histori versi pengukuran">
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Versi</TableHead>
-                                        <TableHead>Diajukan</TableHead>
-                                        <TableHead>Disahkan</TableHead>
-                                        <TableHead>Jalur</TableHead>
-                                        <TableHead>Status capaian</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {historiVersi.map((item) => (
-                                        <TableRow key={item.id}>
-                                            <TableCell className="whitespace-nowrap">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="font-semibold">Versi {item.nomor}</span>
-                                                    {item.resmi && <Badge variant="primary" size="sm">Resmi</Badge>}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap">{formatTanggal(item.diajukan_at, { withTime: true })}</TableCell>
-                                            <TableCell className="whitespace-nowrap">
-                                                {item.disahkan_at === null
-                                                    ? <span className="text-muted">Belum disahkan</span>
-                                                    : formatTanggal(item.disahkan_at, { withTime: true })}
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap">{labelJalur(item.jalur_pengajuan)}</TableCell>
-                                            <TableCell>
-                                                {item.status_capaian === null ? (
-                                                    <span className="text-muted">Belum ditetapkan</span>
-                                                ) : (
-                                                    <div className="min-w-0">
-                                                        <StatusCapaianBadge kode={item.status_capaian.status} size="sm" />
-                                                        {(item.status_capaian.penetap || item.status_capaian.ditetapkan_pada) && (
-                                                            <p className="mt-1 break-words text-muted">
-                                                                {item.status_capaian.penetap?.nama ?? 'Penetap tidak tercatat'}
-                                                                {item.status_capaian.ditetapkan_pada
-                                                                    ? ` · ${formatTanggal(item.status_capaian.ditetapkan_pada, { withTime: true })}`
-                                                                    : ''}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-
-                            <ul className="divide-y divide-border md:hidden">
+                        <Table wrapperClassName="overflow-x-visible" className="block md:table" aria-label="Histori versi pengukuran">
+                            <TableHeader className="max-md:sr-only">
+                                <TableRow>
+                                    <TableHead>Versi</TableHead>
+                                    <TableHead>Diajukan</TableHead>
+                                    <TableHead>Disahkan</TableHead>
+                                    <TableHead>Jalur</TableHead>
+                                    <TableHead>Status capaian</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody className="block md:table-row-group">
                                 {historiVersi.map((item) => (
-                                    <li key={item.id} className="space-y-3 p-4">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <p className="text-sm font-semibold text-ink">Versi {item.nomor}</p>
-                                            {item.resmi && <Badge variant="primary" size="sm">Resmi</Badge>}
-                                        </div>
-                                        <dl className="grid grid-cols-2 gap-3">
-                                            <HistoriField label="Diajukan">{formatTanggal(item.diajukan_at, { withTime: true })}</HistoriField>
-                                            <HistoriField label="Disahkan">
-                                                {item.disahkan_at === null
-                                                    ? <span className="font-normal text-muted">Belum disahkan</span>
-                                                    : formatTanggal(item.disahkan_at, { withTime: true })}
-                                            </HistoriField>
-                                            <HistoriField label="Jalur">{labelJalur(item.jalur_pengajuan)}</HistoriField>
-                                            <HistoriField label="Status capaian">
-                                                {item.status_capaian === null ? (
-                                                    <span className="font-normal text-muted">Belum ditetapkan</span>
-                                                ) : (
-                                                    <>
-                                                        <StatusCapaianBadge kode={item.status_capaian.status} size="sm" />
-                                                        {(item.status_capaian.penetap || item.status_capaian.ditetapkan_pada) && (
-                                                            <span className="mt-1 block break-words text-xs font-normal text-muted">
-                                                                {item.status_capaian.penetap?.nama ?? 'Penetap tidak tercatat'}
-                                                                {item.status_capaian.ditetapkan_pada
-                                                                    ? ` · ${formatTanggal(item.status_capaian.ditetapkan_pada, { withTime: true })}`
-                                                                    : ''}
-                                                            </span>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </HistoriField>
-                                        </dl>
-                                    </li>
+                                    <TableRow key={item.id} className="block min-w-0 space-y-2 p-4 md:table-row md:space-y-0 md:p-0">
+                                        <TableCell className={selHistori}>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-semibold">Versi {item.nomor}</span>
+                                                {item.resmi && <Badge variant="primary" size="sm">Resmi</Badge>}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className={`${selHistori} md:whitespace-nowrap`}>
+                                            <TableCellLabel>Diajukan</TableCellLabel>
+                                            {formatTanggal(item.diajukan_at, { withTime: true })}
+                                        </TableCell>
+                                        <TableCell className={`${selHistori} md:whitespace-nowrap`}>
+                                            <TableCellLabel>Disahkan</TableCellLabel>
+                                            {item.disahkan_at === null
+                                                ? <span className="text-muted">Belum disahkan</span>
+                                                : formatTanggal(item.disahkan_at, { withTime: true })}
+                                        </TableCell>
+                                        <TableCell className={`${selHistori} md:whitespace-nowrap`}>
+                                            <TableCellLabel>Jalur</TableCellLabel>
+                                            {labelJalur(item.jalur_pengajuan)}
+                                        </TableCell>
+                                        <TableCell className={selHistori}>
+                                            <TableCellLabel>Status capaian</TableCellLabel>
+                                            {item.status_capaian === null ? (
+                                                <span className="text-muted">Belum ditetapkan</span>
+                                            ) : (
+                                                <div className="min-w-0">
+                                                    <StatusCapaianBadge kode={item.status_capaian.status} size="sm" />
+                                                    {(item.status_capaian.penetap || item.status_capaian.ditetapkan_pada) && (
+                                                        <p className="mt-1 break-words text-muted">
+                                                            {item.status_capaian.penetap?.nama ?? 'Penetap tidak tercatat'}
+                                                            {item.status_capaian.ditetapkan_pada
+                                                                ? ` · ${formatTanggal(item.status_capaian.ditetapkan_pada, { withTime: true })}`
+                                                                : ''}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </ul>
-                        </>
+                            </TableBody>
+                        </Table>
                     )}
                 </Card>
 

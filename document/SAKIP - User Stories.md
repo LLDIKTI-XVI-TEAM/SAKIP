@@ -610,7 +610,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 - Koreksi salah ketik nomor atau tanggal PK tetap memakai koreksi teraudit US-02.09; perubahan target resmi memakai revisi berversi (Q40 §40.1 butir 8).
 - Aturan lama yang mencantumkan nomor dan tanggal surat Eselon I pada kolom `alasan` digantikan isian tersendiri (Q40 §40.3).
-- Q40 tidak merinci kapan suatu periode dianggap "sudah ditutup"; definisinya ditetapkan saat refinement bersama US-03.03 sebelum implementasi.
+- Q40 tidak merinci kapan suatu periode dianggap "sudah ditutup"; definisinya ditetapkan saat refinement US-02.12 sebelum implementasi (Q79 §79.2 butir 4).
 - PDF PK bertanda tangan diunggah per versi PK dan mengikuti permission PK (Q48 §48.2 butir 1–2).
 - Sebelum story ini tersedia, PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK (US-02.11); PK perubahan yang mengubah target dan terbit sebelum story ini selesai ditangani dengan keputusan baru PM (Q50 §50.7).
 - **Di luar cakupan:** revisi dan riwayat target Renstra (US-02.10), versi penuh Renstra (Q40 §40.2 butir 4), dan koreksi salah ketik (US-02.09).
@@ -802,9 +802,13 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 ### US-03.03 · Koreksi Snapshot Terkendali dan Versioning Konteks
 
-> **Q40/Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (US-02.12): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-6). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3).
+> **Q40/Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (US-02.12): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-8). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3).
 >
 > **Q47 (13 Oktober 2026):** koreksi snapshot juga menjadi jalur perubahan penanda dinilai tahunan setelah jadwal aktif (Q47 §47.1 butir 2).
+>
+> **Q79 (30 Oktober 2026):** versi koreksi disalin dari data master terkini setelah master diperbaiki, periode mulainya tidak lebih awal dari versi yang digantikan, dan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada tidak dipindahkan. Acceptance Criteria diselaraskan dengan issue #91.
+>
+> **Status implementasi — issue #91:** AC-1–AC-7 memiliki bukti test pada PR implementasi issue #91; AC-8 menunggu penerbitan versi oleh revisi PK berversi (US-02.12). Rincian test dan batas bukti tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks). Centang bukan persetujuan QA/UAT atau deployment.
 
 | Field | Detail |
 |---|---|
@@ -812,8 +816,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 | **Prioritas** | 🟡 P1 · Tahap 3 (Q46 §46.3; prasyarat US-02.12) |
 | **Story Points** | 8 |
 | **Modul** | Periode, Jadwal, Snapshot, Efektivitas, dan Backfill |
-| **Dependensi** | Snapshot tersedia; koreksi memiliki alasan dan rujukan resmi. |
-| **Otorisasi** | `target:update` / permission substantif terkait serta guard jadwal. |
+| **Dependensi** | Snapshot tersedia; data master sudah diperbaiki; koreksi memiliki alasan dan rujukan resmi (Q79 §79.1). |
+| **Otorisasi** | `indikator:read` ditambah izin per kelompok kolom yang berubah: `target:update`, `indikator:update`, `komponen:update` (Q79 §79.1 butir 5), serta guard jadwal. |
 | **Dampak Data** | `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`. |
 
 > **Sebagai** Tim Perencanaan,  
@@ -822,14 +826,18 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
-- [ ] **AC-2:** Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
-- [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
-- [ ] **AC-4:** Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
-- [ ] **AC-5:** Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
-- [ ] **AC-6:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9)*
+- [x] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
+- [x] **AC-2:** Given koreksi valid, Then versi baru berisi data master terkini dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, `rujukan_koreksi`, dan `komposisi_final = true` dalam satu transaksi. *(Q79 §79.1)*
+- [x] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable (guard DB tetap aktif).
+- [x] **AC-4:** Given pengukuran (termasuk `draft`/`dikembalikan`) atau versi Rencana Aksi yang sudah diajukan/disahkan merujuk versi lama, Then rujukannya tidak berpindah ke versi koreksi; Rencana Aksi draf hanya mengikuti versi baru lewat jalur simpan yang sudah ada (token 409 dan rekonsiliasi draf). *(Q79 §79.3)*
+- [x] **AC-5:** Given snapshot tidak cocok dengan jadwal/indikator di URL, bukan versi terbaru, tidak berselisih dengan data master, `periode_mulai_id` bukan periode jadwal atau lebih awal dari periode mulai versi yang digantikan, atau unit indikator di data master berbeda dari unit Rencana Aksi yang sudah ada untuk tahun jadwal, When koreksi dibuat, Then ditolak. *(Q79 §79.1 butir 3 dan 8, §79.2 butir 1)*
+- [x] **AC-6:** Given dua koreksi bersamaan pada snapshot yang sama, Then tepat satu berhasil (lock dan unique index), yang lain ditolak karena usang.
+- [x] **AC-7:** Given aktor tidak memiliki izin untuk kelompok kolom yang berubah, atau deny cocok, Then ditolak 403 dan teraudit; alasan atau rujukan kosong ditolak 422. *(Q43 §43.2 butir 3, Q79 §79.1 butir 5–6)*
+- [ ] **AC-8:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9; pada US-03.03 dibuktikan dengan periode mulai eksplisit, Q79 §79.2 butir 4)*
 
 ### US-03.04 · Penambahan Indikator Baru di Tengah Tahun & Periode Mulai Berlaku
+
+> **Status implementasi — issue #188:** AC-1–AC-5 memiliki bukti test pada PR #197; rincian test dan batas bukti tercatat pada [ISS-03.04](SAKIP%20-%20User%20Issues.md#iss-0304--feature-penambahan-indikator-baru-di-tengah-tahun--periode-mulai-berlaku). Centang bukan persetujuan QA/UAT atau deployment.
 
 | Field | Detail |
 |---|---|
@@ -847,11 +855,11 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 ### US-03.05 · Pengisian Periode Lampau 2026 oleh Perencanaan
 
@@ -2039,6 +2047,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-4:** Given perubahan format setelah persetujuan, Then perubahan harus masuk catatan keputusan/UAT baru.
 
 ### US-10.05 · Keluaran Rencana Aksi Tahunan dan Laporan Kinerja Triwulan serta Unggah PDF Bertanda Tangan
+> **Status implementasi — slice arsip ISS-10.05 ([PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208)):** halaman Dokumen Resmi, katalog/preset `laporan:unggah`, arsip PDF pada jadwal tahunan/periode, penggantian append-only, unduhan privat dengan akses seluruh unit, serta audit unggah tersedia. Keputusan K3–K7 mengikuti [komentar PM 29 Oktober](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179#issuecomment-6476048514). AC-5 hanya selesai untuk unduh arsip; generator AC-1–AC-4 masih menunggu pengesahan format ISS-10.04. Status implementasi ini tidak menyatakan penerimaan UAT atau deployment. Sinkronisasi Q75/Q76 dan issue producer snapshot mengikuti tindak lanjut PM.
 
 | Field | Detail |
 |---|---|
@@ -2062,10 +2071,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-3:** Given indikator yang RA atau pengukurannya belum disahkan, Then indikator tetap tercantum dengan keterangan "belum disahkan" tanpa angka resmi. *(Q48 §48.1 butir 2)*
 - [ ] **AC-4:** Given periode tanpa target atau realisasi belum dapat diukur, Then keluaran memakai keterangan yang sama dengan dashboard ("Tanpa target periode", "Belum dapat diukur"). *(Q47 §47.3–§47.4)*
 - [ ] **AC-5:** Given pengguna tanpa `laporan:ekspor`, When meminta keluaran atau mengunduh arsip, Then ditolak 403. *(Q48 §48.1 butir 6, §48.2 butir 2)*
-- [ ] **AC-6:** Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
-- [ ] **AC-7:** Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
-- [ ] **AC-8:** Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
-- [ ] **AC-9:** Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
+- [x] **AC-6:** Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
+- [x] **AC-7:** Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
+- [x] **AC-8:** Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
+- [x] **AC-9:** Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
 
 **Business Rules / Catatan**
 
@@ -2617,6 +2626,8 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-14.02 · Pembukaan Kembali Jadwal untuk Sesi Koreksi Perencanaan
 
+> **Status implementasi (28 Oktober 2026):** implementasi dan verifikasi lokal sesi koreksi tersedia: PostgreSQL disposable, 27 test khusus sesi/konkurensi (223 assertion, tanpa kegagalan; warning environment), 47 test frontend, Pint, PHPStan level 3, typecheck/lint/build, dan smoke browser buka/tutup ulang pada desktop 1280×720 serta mobile 390×844. Rujukan kontrak diselaraskan ke Q77 di Keputusan Penyelarasan sesuai keputusan PM 29 Oktober 2026 (review PR #199); status implementasi dan checkbox tidak berubah. Checkbox menunjukkan bukti teknis, bukan penerimaan UAT, merge, deployment, atau migrasi database aplikasi. UAT SSO Tim Perencanaan tetap belum dilakukan.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-14.02` |
@@ -2633,11 +2644,11 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
-- [ ] **AC-2:** Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
-- [ ] **AC-3:** Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
-- [ ] **AC-4:** Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
-- [ ] **AC-5:** Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
+- [x] **AC-1:** Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
+- [x] **AC-2:** Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
+- [x] **AC-3:** Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
+- [x] **AC-4:** Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
+- [x] **AC-5:** Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
 
 ### US-14.03 · Pembukaan Jendela PIC di Dalam Sesi Koreksi
 
@@ -2721,7 +2732,7 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 - [ ] **AC-1:** Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
 - [ ] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
 - [ ] **AC-3:** Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
-- [ ] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
+- [x] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
 
 ### US-15.03 · Tahapan UAT, Penerimaan, dan Produksi yang Terpisah
 

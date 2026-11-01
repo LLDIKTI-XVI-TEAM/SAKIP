@@ -15,7 +15,7 @@ use Illuminate\Testing\TestResponse;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
 
-/** Dalam sesi koreksi, kunci tanggal tetap berlaku bagi PIC sampai jendela pengisian dibuka resmi (Q19, Q41 §41.2 butir 6). */
+/** Sesi koreksi perencanaan tidak memberi akses PIC melalui perubahan tanggal jendela saja. */
 class RencanaAksiKoreksiKunciTanggalTest extends TestCase
 {
     use RefreshDatabase, RencanaAksiFixtures;
@@ -58,10 +58,10 @@ class RencanaAksiKoreksiKunciTanggalTest extends TestCase
         // Kontrol positif: koreksi di luar jendela PIC tetap dapat dilakukan Perencanaan.
         $this->simpanTarget($fixture, $header, $fixture['periode1'], 10, $fixture['perencanaan'])->assertSessionHasNoErrors();
 
-        // Pembukaan jendela di dalam sesi koreksi (ISS-14.03) disimulasikan langsung; kunci mengikuti tanggal berlaku.
+        // Perubahan tanggal saja bukan aksi resmi pembukaan akses PIC.
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)
             ->update(['pengisian_selesai' => '2027-01-10']);
-        $this->simpanTarget($fixture, $header, $fixture['periode1'], 12)->assertSessionHasNoErrors();
+        $this->simpanTarget($fixture, $header, $fixture['periode1'], 12)->assertSessionHasErrors('jendela');
     }
 
     private function penggunaDenganPeran(string $kode): User

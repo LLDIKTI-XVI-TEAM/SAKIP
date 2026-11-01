@@ -83,6 +83,10 @@ class GerbangKlaimKegiatan
      */
     public function pelanggaranBisnis(User $aktor, PermissionDecision $ra, RencanaAksi $header, IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $periodeIds): ?array
     {
+        // Sesi RA tidak memberi pengecualian atas kunci tahun kegiatan/klaim.
+        if ($jadwal->tahunDitutup()) {
+            return ['jendela', 'Tahun kegiatan sudah ditutup; sesi koreksi Rencana Aksi tidak membuka perubahan klaim kegiatan.'];
+        }
         if (Unit::whereKey((string) $header->unit_id)->sharedLock()->value('status') !== 'aktif') {
             return ['unit_id', 'Unit pemilik rencana aksi berstatus nonaktif.'];
         }

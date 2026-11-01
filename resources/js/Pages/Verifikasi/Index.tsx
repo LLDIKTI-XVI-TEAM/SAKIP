@@ -19,12 +19,14 @@ interface VerifikasiIndexProps {
     pagination: PengukuranPagination;
     filters?: FilterVerifikasi;
     selected_filters?: PilihanFilterTerpilih;
+    /** Capability tautan antrean Disahkan; dihitung server dari izin baca dan buka kembali. */
+    can?: { buka_kembali?: boolean };
 }
 
 const defaultFilters: FilterVerifikasi = { status: 'diajukan', renstra_id: '', tahun: '', periode_id: '', unit_id: '' };
 const defaultSelected: PilihanFilterTerpilih = { renstra_id: null, periode_id: null, unit_id: null };
 
-export default function VerifikasiIndex({ pengukurans = [], pagination, filters = defaultFilters, selected_filters = defaultSelected }: VerifikasiIndexProps) {
+export default function VerifikasiIndex({ pengukurans = [], pagination, filters = defaultFilters, selected_filters = defaultSelected, can }: VerifikasiIndexProps) {
     const formatNilai = useFormatNilai();
     const labelUnit = useLabelUnit();
 
@@ -32,7 +34,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination, filters 
         <AuthenticatedLayout
             title="Verifikasi & Pengesahan Kinerja"
             breadcrumbs={[{ label: 'Verifikasi Kinerja' }]}
-            headerActions={
+            headerActions={can?.buka_kembali === true ? (
                 <Link
                     href="/verifikasi/disahkan"
                     aria-label="Buka antrean pengukuran disahkan untuk koreksi"
@@ -41,7 +43,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination, filters 
                     <RotateCcw className="h-4 w-4" aria-hidden="true" />
                     Pengukuran Disahkan
                 </Link>
-            }
+            ) : undefined}
         >
             <Head title="Verifikasi Kinerja" />
 

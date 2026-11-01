@@ -6,6 +6,7 @@ use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\Periode;
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -130,6 +131,31 @@ class IndexPengukuranDisahkanTest extends TestCase
             ->where('can.buka_kembali', true));
     }
 
+    public function test_antrean_urut_pengesahan_versi_resmi_terbaru_dan_baris_tanpa_versi_di_akhir(): void
+    {
+        $lama = $this->headerUntuk($this->indikatorBaru('I-LAMA'));
+        $this->sahkanHeader($lama);
+
+        $this->travelTo(now()->addMinute());
+        $baru = $this->headerUntuk($this->indikatorBaru('I-BARU'));
+        $this->sahkanHeader($baru);
+
+        $this->travelTo(now()->addMinute());
+        $this->sahkanHeader($this->pengukuran);
+
+        // Baris `disahkan` tanpa versi sah tidak mengarang waktu pengesahan: wajib di akhir antrean.
+        $tanpaVersi = $this->headerUntuk($this->indikatorBaru('I-TANPA'));
+        $tanpaVersi->forceFill(['status_alur' => 'disahkan'])->save();
+
+        $this->actingAs($this->userWithRole('perencanaan'))->get(self::HALAMAN)->assertOk()->assertInertia(fn ($page) => $page
+            ->has('pengukurans', 4)
+            ->where('pengukurans.0.id', $this->pengukuran->id)
+            ->where('pengukurans.1.id', $baru->id)
+            ->where('pengukurans.2.id', $lama->id)
+            ->where('pengukurans.3.id', $tanpaVersi->id)
+            ->where('pagination.total', 4));
+    }
+
     public function test_pegawai_tanpa_izin_ditolak_403_pada_halaman_dan_pilihan(): void
     {
         $this->sahkanHeader($this->pengukuran);
@@ -138,6 +164,24 @@ class IndexPengukuranDisahkanTest extends TestCase
         // Tanpa `pengukuran:buka_kembali` halaman tidak boleh terbuka, termasuk lookup filternya.
         $this->actingAs($pegawai)->get(self::HALAMAN)->assertForbidden();
         $this->actingAs($pegawai)->getJson(self::HALAMAN.'/pilihan?jenis=unit')->assertForbidden();
+    }
+
+    public function test_izin_buka_kembali_tanpa_izin_baca_tetap_ditolak_403_pada_halaman_dan_pilihan(): void
+    {
+        $this->sahkanHeader($this->pengukuran);
+        $perencanaan = $this->userWithRole('perencanaan');
+
+        // Pembanding: kedua izin efektif, sehingga halaman terbuka sebelum izin baca dicabut.
+        $this->actingAs($perencanaan)->get(self::HALAMAN)->assertOk();
+
+        // Cabut izin baca dari peran: izin buka-kembali tetap ada, tetapi gerbang halaman wajib fail-closed.
+        DB::table('role_permissions')
+            ->where('role_id', Role::where('kode', 'perencanaan')->value('id'))
+            ->where('permission_id', Permission::where('kode', 'pengukuran:read')->value('id'))
+            ->delete();
+
+        $this->actingAs($perencanaan)->get(self::HALAMAN)->assertForbidden();
+        $this->actingAs($perencanaan)->getJson(self::HALAMAN.'/pilihan?jenis=unit')->assertForbidden();
     }
 
     public function test_antrean_hanya_memuat_pengukuran_disahkan(): void
@@ -192,6 +236,32 @@ class IndexPengukuranDisahkanTest extends TestCase
         $this->assertTersembunyi($perencanaan);
     }
 
+    public function test_lingkup_sesi_koreksi_wajib_memuat_indikator_dan_periode_baris_bukan_hanya_jenis_objek(): void
+    {
+        $this->sahkanHeader($this->pengukuran);
+        $perencanaan = $this->userWithRole('perencanaan');
+        $this->travelTo(now()->setDate(2027, 1, 5)->setTime(9, 0));
+
+        // Jendela aktif dan `jenis_objek` sudah memuat `pengukuran`; penolakan harus datang dari lingkup baris.
+        $benar = ['jenis_objek' => ['pengukuran'], 'indikator_ids' => [$this->pengukuran->indikator_id],
+            'periode_ids' => [$this->pengukuran->periode_id]];
+        $kasus = [
+            'indikator lain' => [...$benar, 'indikator_ids' => [(string) Str::uuid()]],
+            'periode lain' => [...$benar, 'periode_ids' => [(string) Str::uuid()]],
+            'indikator kosong' => [...$benar, 'indikator_ids' => []],
+            'periode kosong' => [...$benar, 'periode_ids' => []],
+        ];
+
+        foreach ($kasus as $nama => $lingkup) {
+            $this->sesiKoreksi('2027-01-01 00:00:00', '2027-01-31 23:59:59', $lingkup);
+            $this->assertTersembunyi($perencanaan);
+        }
+
+        // Kontrol: lingkup yang benar-benar mencakup baris membukanya, sehingga penolakan di atas bukan efek jadwal.
+        $this->sesiKoreksi('2027-01-01 00:00:00', '2027-01-31 23:59:59', $benar);
+        $this->assertTampil($perencanaan, $this->pengukuran);
+    }
+
     public function test_sesi_koreksi_yang_sudah_berakhir_tidak_membuka_baris(): void
     {
         $this->sahkanHeader($this->pengukuran);
@@ -214,6 +284,22 @@ class IndexPengukuranDisahkanTest extends TestCase
 
         // Batas bawah jendela wajib dihormati: sesi yang belum dimulai tidak membuka baris.
         $this->assertTersembunyi($perencanaan);
+    }
+
+    public function test_metadata_sesi_koreksi_menutup_jalur_normal_walau_penutupan_belum_lewat(): void
+    {
+        $this->sahkanHeader($this->pengukuran);
+        $perencanaan = $this->userWithRole('perencanaan');
+        $this->sesiKoreksi('2026-05-01 00:00:00', '2026-05-31 23:59:59', ['jenis_objek' => ['pengukuran'],
+            'indikator_ids' => [$this->pengukuran->indikator_id], 'periode_ids' => [$this->pengukuran->periode_id]]);
+
+        // Penutupan 2026-12-31 belum lewat, tetapi metadata sesi yang terisi sendiri menandai tahun ditutup:
+        // sebelum jendela dimulai baris tidak boleh tampil lewat jalur normal.
+        $this->assertTersembunyi($perencanaan);
+
+        // Di dalam jendela, baris tetap dapat dikoreksi.
+        $this->travelTo(now()->setDate(2026, 5, 15)->setTime(9, 0));
+        $this->assertTampil($perencanaan, $this->pengukuran);
     }
 
     public function test_lingkup_koreksi_null_tidak_membuka_baris_pascapenutupan(): void
@@ -260,6 +346,28 @@ class IndexPengukuranDisahkanTest extends TestCase
             ->where('pagination.total', 1));
 
         // Lookup filter memakai scope yang sama: unit ter-deny tidak ditawarkan lagi.
+        $this->actingAs($perencanaan)->getJson(self::HALAMAN.'/pilihan?jenis=unit')->assertOk()
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $unitLain->id);
+    }
+
+    public function test_deny_izin_baca_per_unit_menyembunyikan_baris_unit_itu_dan_lookupnya(): void
+    {
+        $this->sahkanHeader($this->pengukuran);
+        $unitLain = $this->unitBaru('Unit Lain');
+        $barisLain = $this->barisUnit($unitLain, 'I-LAIN');
+        $perencanaan = $this->userWithRole('perencanaan');
+
+        // Deny hanya izin baca dan hanya unit fixture: izin buka-kembali tetap utuh, halaman tetap terbuka.
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $perencanaan->id,
+            'permission_id' => Permission::where('kode', 'pengukuran:read')->value('id'),
+            'unit_id' => $this->unit->id, 'alasan' => 'Penolakan baca sintetis',
+            'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+
+        $this->actingAs($perencanaan)->get(self::HALAMAN)->assertOk()->assertInertia(fn ($page) => $page
+            ->has('pengukurans', 1)
+            ->where('pengukurans.0.id', $barisLain->id)
+            ->where('pagination.total', 1));
+
         $this->actingAs($perencanaan)->getJson(self::HALAMAN.'/pilihan?jenis=unit')->assertOk()
             ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $unitLain->id);
     }

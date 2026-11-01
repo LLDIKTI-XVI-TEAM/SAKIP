@@ -83,10 +83,6 @@ function tabelDisahkan(): HTMLElement {
     return screen.getByRole('table', { name: 'Daftar pengukuran yang telah disahkan' });
 }
 
-function kartuDisahkan(): HTMLElement {
-    return screen.getByRole('list', { name: 'Daftar pengukuran disahkan' });
-}
-
 describe('Antrean pengukuran disahkan', () => {
     it('merender baris antrean: indikator, unit, periode, versi resmi, nilai, status, dan tautan aksi', () => {
         render(tampilan());
@@ -101,13 +97,9 @@ describe('Antrean pengukuran disahkan', () => {
         expect(within(tabel).getByText('88,00 %')).toBeTruthy();
         expect(within(tabel).getByText('Disahkan')).toBeTruthy();
 
-        const aksi = within(tabel).getByRole('link', { name: 'Buka kembali pengukuran IKU-UJI periode Triwulan I 2026' });
+        const aksi = within(tabel).getByRole('link', { name: 'Lihat detail untuk membuka kembali' });
         expect(aksi.getAttribute('href')).toBe('/verifikasi/pengukuran-1');
-
-        const mobile = screen.getByRole('list', { name: 'Daftar pengukuran disahkan' });
-        expect(within(mobile).getByText('Indikator uji disahkan')).toBeTruthy();
-        expect(within(mobile).getByText('Versi 3')).toBeTruthy();
-        expect(within(mobile).getByRole('link', { name: 'Buka kembali pengukuran IKU-UJI periode Triwulan I 2026' }).getAttribute('href')).toBe('/verifikasi/pengukuran-1');
+        expect(screen.getAllByRole('table')).toHaveLength(1);
     });
 
     it('menandai baris tanpa versi resmi sebagai Belum ada versi sah', () => {
@@ -135,9 +127,8 @@ describe('Antrean pengukuran disahkan', () => {
             pagination: { current_page: 1, last_page: 1, total: 0, prev_page_url: null, next_page_url: null },
         }));
 
-        expect(screen.getByText('Tidak ada pengukuran disahkan')).toBeTruthy();
+        expect(within(tabelDisahkan()).getByText('Tidak ada pengukuran disahkan')).toBeTruthy();
         expect(screen.getByText('Belum ada pengukuran yang disahkan dan tersedia untuk koreksi.')).toBeTruthy();
-        expect(screen.queryByRole('table')).toBeNull();
         unmount();
 
         render(tampilan({
@@ -145,7 +136,7 @@ describe('Antrean pengukuran disahkan', () => {
             pagination: { current_page: 3, last_page: 3, total: 5, prev_page_url: '/verifikasi/disahkan?page=2', next_page_url: null },
         }));
 
-        expect(screen.getByText('Tidak ada pengukuran di halaman ini')).toBeTruthy();
+        expect(within(tabelDisahkan()).getByText('Tidak ada pengukuran di halaman ini')).toBeTruthy();
         expect(screen.getByText(/masih ada 5 pengukuran disahkan pada halaman lain/)).toBeTruthy();
         expect(screen.queryByText('Tidak ada pengukuran disahkan')).toBeNull();
     });
@@ -156,7 +147,7 @@ describe('Antrean pengukuran disahkan', () => {
         }));
 
         const nav = screen.getByRole('navigation', { name: 'Halaman pengukuran disahkan' });
-        expect(within(nav).getByText('Halaman 2 dari 3 · 87 baris')).toBeTruthy();
+        expect(within(nav).getByText('Halaman 2 dari 3 · 87 pengukuran disahkan')).toBeTruthy();
         expect(within(nav).getByRole('link', { name: 'Sebelumnya' }).getAttribute('href')).toBe('/verifikasi/disahkan?page=1');
         expect(within(nav).getByRole('link', { name: 'Berikutnya' }).getAttribute('href')).toBe('/verifikasi/disahkan?page=3');
         unmount();
@@ -170,19 +161,20 @@ describe('Antrean pengukuran disahkan', () => {
         expect(within(navTerakhir).queryByRole('link', { name: 'Berikutnya' })).toBeNull();
     });
 
-    it('menampilkan notice hanya baca dan menyembunyikan tautan aksi saat can.buka_kembali false atau absen', () => {
+    it('tetap menampilkan tautan detail tanpa notice hanya baca meski can.buka_kembali false atau absen', () => {
         const { unmount } = render(tampilan({ can: { buka_kembali: false } }));
 
-        expect(screen.getByRole('status').textContent).toContain('Anda tidak memiliki izin membuka kembali pengukuran. Halaman ini hanya dapat dibaca.');
-        expect(screen.queryByRole('link', { name: /Buka kembali pengukuran/ })).toBeNull();
-        expect(within(tabelDisahkan()).getByText('Hanya baca')).toBeTruthy();
-        expect(within(kartuDisahkan()).getByText('Hanya baca')).toBeTruthy();
+        expect(within(tabelDisahkan()).getByRole('link', { name: 'Lihat detail untuk membuka kembali' }).getAttribute('href')).toBe('/verifikasi/pengukuran-1');
+        expect(screen.queryByText('Hanya baca')).toBeNull();
+        expect(screen.queryByText(/hanya dapat dibaca/i)).toBeNull();
+        expect(screen.queryByRole('status')).toBeNull();
         unmount();
 
         render(<PengukuranDisahkan pengukurans={[dasar]} pagination={pagination} filters={filters} selected_filters={selectedFilters} />);
 
-        expect(screen.getByRole('status').textContent).toContain('Halaman ini hanya dapat dibaca');
-        expect(screen.queryByRole('link', { name: /Buka kembali pengukuran/ })).toBeNull();
+        expect(within(tabelDisahkan()).getByRole('link', { name: 'Lihat detail untuk membuka kembali' }).getAttribute('href')).toBe('/verifikasi/pengukuran-1');
+        expect(screen.queryByText('Hanya baca')).toBeNull();
+        expect(screen.queryByRole('status')).toBeNull();
     });
 
     it('memakai lookupUrl antrean disahkan dan menyembunyikan filter status', async () => {

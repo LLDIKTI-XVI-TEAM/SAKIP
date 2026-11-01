@@ -1,14 +1,17 @@
 import type { ReactNode } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { RotateCcw, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/Badge';
 import { Card } from '@/Components/Card';
 import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import {
+    Table, TableActionLink, TableBody, TableCell, TableCellLabel, TableEmptyRow, TableHead, TableHeader, TableRow, tableCellResponsive,
+} from '@/Components/Table';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import Pagination from '@/Pages/Pengukuran/Pagination';
 import type { Pengukuran, PengukuranPagination } from '@/Pages/Pengukuran/types';
 import Filters, { type FilterVerifikasi, type PilihanFilterTerpilih } from './Filters';
 
@@ -25,35 +28,27 @@ interface PengukuranDisahkanProps {
     pagination: PengukuranPagination;
     filters?: FilterVerifikasi;
     selected_filters?: PilihanFilterTerpilih;
+    /**
+     * Capability server. Otorisasi buka kembali tetap ditegakkan server (403), sehingga
+     * halaman tidak lagi bercabang berdasarkan prop ini.
+     */
     can?: { buka_kembali: boolean };
 }
 
 const defaultFilters: FilterVerifikasi = { renstra_id: '', tahun: '', periode_id: '', unit_id: '' };
 const defaultSelected: PilihanFilterTerpilih = { renstra_id: null, periode_id: null, unit_id: null };
-const tautanPaginasi = 'inline-flex items-center rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25';
-const tautanAksi = 'inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25';
-
-function Data({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <div className="min-w-0">
-            <dt className="text-xs font-medium text-muted">{label}</dt>
-            <dd className="mt-0.5 break-words text-xs font-semibold text-ink">{children}</dd>
-        </div>
-    );
-}
+const sel = `${tableCellResponsive} block align-top md:table-cell`;
+const selKanan = `${sel} md:text-right`;
 
 export default function PengukuranDisahkan({
     pengukurans = [],
     pagination,
     filters = defaultFilters,
     selected_filters = defaultSelected,
-    can,
 }: PengukuranDisahkanProps) {
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const labelUnit = useLabelUnit();
-    // Capability tetap berasal dari server; absennya prop diperlakukan sebagai tanpa izin.
-    const dapatBukaKembali = can?.buka_kembali === true;
     const adaFilter = [filters.renstra_id, filters.tahun, filters.periode_id, filters.unit_id].some((value) => value !== '');
 
     const nilai = (p: Pengukuran): string => {
@@ -81,21 +76,7 @@ export default function PengukuranDisahkan({
             </>
         );
     };
-    const aksi = (p: Pengukuran): ReactNode => {
-        const iku = p.penugasan_indikator.indikator_kinerja;
-        if (!dapatBukaKembali) return <span className="text-xs font-normal text-muted">Hanya baca</span>;
-
-        return (
-            <Link
-                href={`/verifikasi/${p.id}`}
-                aria-label={`Buka kembali pengukuran ${iku.kode} periode ${periode(p)}`}
-                className={tautanAksi}
-            >
-                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                Buka Kembali
-            </Link>
-        );
-    };
+    const halamanKosong = pagination.total > 0;
 
     return (
         <AuthenticatedLayout
@@ -110,12 +91,6 @@ export default function PengukuranDisahkan({
                     alasan wajib diisi dan tercatat pada audit log, sedangkan versi lama tetap tersimpan sebagai histori.
                 </p>
 
-                {!dapatBukaKembali && (
-                    <div role="status" className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-ink">
-                        Anda tidak memiliki izin membuka kembali pengukuran. Halaman ini hanya dapat dibaca.
-                    </div>
-                )}
-
                 <Card>
                     <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-4 sm:px-5">
                         <div className="min-w-0">
@@ -127,130 +102,78 @@ export default function PengukuranDisahkan({
 
                     <Filters key={JSON.stringify([filters, selected_filters])} filters={filters} selected={selected_filters} showStatus={false} lookupUrl="/verifikasi/disahkan/pilihan" actionUrl="/verifikasi/disahkan" />
 
-                    {pengukurans.length === 0 ? (
-                        <div role="status" className="px-5 py-10 text-center">
-                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border bg-soft text-muted">
-                                <Search className="h-6 w-6" aria-hidden="true" />
-                            </div>
-                            {pagination.total === 0 ? (
-                                <>
-                                    <p className="mt-3 text-sm font-semibold text-ink">Tidak ada pengukuran disahkan</p>
-                                    <p className="mx-auto mt-1 max-w-md text-xs text-muted">
-                                        {adaFilter
+                    <Table wrapperClassName="overflow-x-visible" className="block md:table" aria-label="Daftar pengukuran yang telah disahkan">
+                        <TableHeader className="max-md:sr-only">
+                            <TableRow>
+                                <TableHead className="whitespace-normal">KODE &amp; INDIKATOR</TableHead>
+                                <TableHead>{labelUnit.toUpperCase()}</TableHead>
+                                <TableHead>PERIODE</TableHead>
+                                <TableHead>VERSI RESMI</TableHead>
+                                <TableHead className="text-right">NILAI</TableHead>
+                                <TableHead>STATUS</TableHead>
+                                <TableHead className="text-right">AKSI</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody className="block md:table-row-group">
+                            {pengukurans.length === 0 ? (
+                                <TableEmptyRow
+                                    colSpan={7}
+                                    icon={halamanKosong ? RotateCcw : Search}
+                                    title={halamanKosong ? 'Tidak ada pengukuran di halaman ini' : 'Tidak ada pengukuran disahkan'}
+                                    description={halamanKosong
+                                        ? `Halaman ini tidak memuat pengukuran, tetapi masih ada ${pagination.total} pengukuran disahkan pada halaman lain. Gunakan tautan Sebelumnya di bawah untuk kembali ke halaman berisi pengukuran.`
+                                        : adaFilter
                                             ? 'Tidak ada pengukuran disahkan yang sesuai filter ini. Ubah atau reset filter untuk melihat antrean lain.'
                                             : 'Belum ada pengukuran yang disahkan dan tersedia untuk koreksi.'}
-                                    </p>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="mt-3 text-sm font-semibold text-ink">Tidak ada pengukuran di halaman ini</p>
-                                    <p className="mx-auto mt-1 max-w-md text-xs text-muted">
-                                        Halaman ini tidak memuat pengukuran, tetapi masih ada {pagination.total} pengukuran disahkan pada halaman lain.
-                                        Gunakan tautan Sebelumnya di bawah untuk kembali ke halaman berisi pengukuran.
-                                    </p>
-                                </>
-                            )}
-                        </div>
-                    ) : (
-                        <>
-                            <Table wrapperClassName="hidden md:block" aria-label="Daftar pengukuran yang telah disahkan">
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="px-3 py-3">KODE &amp; INDIKATOR</TableHead>
-                                        <TableHead className="px-3 py-3">{labelUnit.toUpperCase()}</TableHead>
-                                        <TableHead className="px-3 py-3">PERIODE</TableHead>
-                                        <TableHead className="px-3 py-3">VERSI RESMI</TableHead>
-                                        <TableHead className="px-3 py-3 text-right">NILAI</TableHead>
-                                        <TableHead className="px-3 py-3">STATUS</TableHead>
-                                        <TableHead className="px-3 py-3 text-right">AKSI</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {pengukurans.map((p) => {
-                                        const iku = p.penugasan_indikator.indikator_kinerja;
+                                />
+                            ) : pengukurans.map((p) => {
+                                const iku = p.penugasan_indikator.indikator_kinerja;
 
-                                        return (
-                                            <TableRow key={p.id} className="hover:bg-soft transition-colors">
-                                                <TableCell className="max-w-xs px-3 py-3 align-top">
-                                                    <p className="text-xs font-bold text-ink">{iku.kode}</p>
-                                                    <p className="mt-0.5 whitespace-normal break-words text-xs leading-relaxed text-muted">{iku.nama}</p>
-                                                </TableCell>
-                                                <TableCell className="px-3 py-3 align-top text-xs text-ink">{p.penugasan_indikator.unit_kerja.nama}</TableCell>
-                                                <TableCell className="px-3 py-3 align-top text-xs text-ink">{periode(p)}</TableCell>
-                                                <TableCell className="px-3 py-3 align-top text-xs text-ink">{versi(p)}</TableCell>
-                                                <TableCell className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums text-ink">
-                                                    <span className="block font-semibold">{nilai(p)}</span>
-                                                    {p.status_perhitungan !== 'terhitung' && (
-                                                        <span className="mt-1 block">
-                                                            <StatusPerhitunganBadge status={p.status_perhitungan} size="sm" />
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="px-3 py-3 align-top">
-                                                    <Badge status={p.status} />
-                                                </TableCell>
-                                                <TableCell className="px-3 py-3 text-right align-top">{aksi(p)}</TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-
-                            <ul aria-label="Daftar pengukuran disahkan" className="divide-y divide-border md:hidden">
-                                {pengukurans.map((p) => {
-                                    const iku = p.penugasan_indikator.indikator_kinerja;
-
-                                    return (
-                                        <li key={p.id} className="space-y-3 p-4">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-bold text-primary">{iku.kode}</p>
-                                                    <p className="mt-0.5 break-words text-sm font-semibold leading-snug text-ink">{iku.nama}</p>
-                                                </div>
-                                                <Badge status={p.status} size="sm" className="shrink-0" />
-                                            </div>
-                                            <dl className="grid grid-cols-2 gap-3">
-                                                <Data label={labelUnit}>{p.penugasan_indikator.unit_kerja.nama}</Data>
-                                                <Data label="Periode">{periode(p)}</Data>
-                                                <Data label="Versi resmi">{versi(p)}</Data>
-                                                <Data label="Nilai">
-                                                    <span className="block">{nilai(p)}</span>
-                                                    {p.status_perhitungan !== 'terhitung' && (
-                                                        <span className="mt-1 block">
-                                                            <StatusPerhitunganBadge status={p.status_perhitungan} size="sm" />
-                                                        </span>
-                                                    )}
-                                                </Data>
-                                            </dl>
-                                            {dapatBukaKembali && (
-                                                <Link
-                                                    href={`/verifikasi/${p.id}`}
-                                                    aria-label={`Buka kembali pengukuran ${iku.kode} periode ${periode(p)}`}
-                                                    className={`${tautanAksi} w-full`}
-                                                >
-                                                    <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                                                    Buka Kembali
-                                                </Link>
+                                return (
+                                    <TableRow key={p.id} className="block min-w-0 space-y-2 p-4 md:table-row md:space-y-0 md:p-0">
+                                        <TableCell className={sel}>
+                                            <p className="text-xs font-bold text-ink">{iku.kode}</p>
+                                            <p className="mt-0.5 whitespace-normal break-words text-xs leading-relaxed text-muted">{iku.nama}</p>
+                                        </TableCell>
+                                        <TableCell className={sel}>
+                                            <TableCellLabel>{labelUnit}</TableCellLabel>
+                                            <span className="break-words text-xs text-ink">{p.penugasan_indikator.unit_kerja.nama}</span>
+                                        </TableCell>
+                                        <TableCell className={sel}>
+                                            <TableCellLabel>Periode</TableCellLabel>
+                                            <span className="text-xs text-ink">{periode(p)}</span>
+                                        </TableCell>
+                                        <TableCell className={sel}>
+                                            {versi(p)}
+                                        </TableCell>
+                                        <TableCell className={selKanan}>
+                                            <TableCellLabel>Nilai</TableCellLabel>
+                                            <span className="block font-semibold tabular-nums text-ink">{nilai(p)}</span>
+                                            {p.status_perhitungan !== 'terhitung' && (
+                                                <span className="mt-1 block">
+                                                    <StatusPerhitunganBadge status={p.status_perhitungan} size="sm" />
+                                                </span>
                                             )}
-                                            {!dapatBukaKembali && <p className="text-xs font-normal text-muted">Hanya baca</p>}
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </>
-                    )}
+                                        </TableCell>
+                                        <TableCell className={sel}>
+                                            <TableCellLabel>Status</TableCellLabel>
+                                            <Badge status={p.status} />
+                                        </TableCell>
+                                        <TableCell className={selKanan}>
+                                            <TableActionLink
+                                                href={`/verifikasi/${p.id}`}
+                                                label="Lihat detail untuk membuka kembali"
+                                                tooltip="Lihat detail untuk membuka kembali"
+                                                icon={RotateCcw}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
 
-                    {pagination.last_page > 1 && (
-                        <nav aria-label="Halaman pengukuran disahkan" className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
-                            {pagination.prev_page_url
-                                ? <Link href={pagination.prev_page_url} preserveScroll className={tautanPaginasi}>Sebelumnya</Link>
-                                : <span aria-hidden="true" />}
-                            <p className="text-xs text-muted">Halaman {pagination.current_page} dari {pagination.last_page} · {pagination.total} baris</p>
-                            {pagination.next_page_url
-                                ? <Link href={pagination.next_page_url} preserveScroll className={tautanPaginasi}>Berikutnya</Link>
-                                : <span aria-hidden="true" />}
-                        </nav>
-                    )}
+                    <Pagination pagination={pagination} label="pengukuran disahkan" />
                 </Card>
             </div>
         </AuthenticatedLayout>

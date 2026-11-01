@@ -59,6 +59,8 @@ final class PermissionCodes
 
     public const JADWAL_TUTUP = 'jadwal:tutup';
 
+    public const JADWAL_BUKA_KEMBALI = 'jadwal:buka_kembali';
+
     // Rekomendasi Pimpinan
     public const REKOMENDASI_TETAPKAN = 'rekomendasi:tetapkan';
 
@@ -138,9 +140,13 @@ final class PermissionCodes
 
     public const KOMPONEN_READ = 'komponen:read';
 
+    public const KOMPONEN_UPDATE = 'komponen:update';
+
     public const LAPORAN_READ = 'laporan:read';
 
     public const LAPORAN_EKSPOR = 'laporan:ekspor';
+
+    public const LAPORAN_UNGGAH = 'laporan:unggah';
 
     /**
      * 15 Kode Permission Utama dalam Scope 10 Issue Aktif (§5)

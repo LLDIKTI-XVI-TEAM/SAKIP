@@ -20,6 +20,7 @@ use App\Http\Controllers\Auth\RedirectToKeycloak;
 use App\Http\Controllers\Dashboard\IndexDashboard;
 use App\Http\Controllers\Indikator\IndikatorKomponenController;
 use App\Http\Controllers\Jadwal\JadwalController;
+use App\Http\Controllers\Jadwal\SnapshotIndikatorController;
 use App\Http\Controllers\JenisBerkas\JenisBerkasController;
 use App\Http\Controllers\Kegiatan\AlihkanKegiatanLama;
 use App\Http\Controllers\Kegiatan\BerkasKegiatanController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Kegiatan\KegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
 use App\Http\Controllers\Kegiatan\RealisasiKegiatanRencanaAksi;
 use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
+use App\Http\Controllers\Laporan\DokumenResmiController;
 use App\Http\Controllers\Laporan\EksporRekapIndikatorPeriodeController;
 use App\Http\Controllers\Laporan\RekapIndikatorPeriodeController;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
@@ -104,6 +106,7 @@ use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
 use App\Http\Controllers\Verifikasi\SahkanPengukuran;
 use App\Http\Controllers\Verifikasi\ShowVerifikasi;
 use App\Http\Controllers\Verifikasi\VerifyPengukuran;
+use App\Http\Middleware\EnsureJadwalKoreksiActorIsActive;
 use App\Http\Middleware\EnsureKegiatanActorIsActive;
 use App\Http\Middleware\EnsureKlaimKegiatanActorIsActive;
 use App\Http\Middleware\EnsurePenanggungJawabActorIsActive;
@@ -170,7 +173,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/jadwal/{jadwal}/kesiapan-aktivasi', [JadwalController::class, 'readiness'])->whereUuid('jadwal')->name('jadwal.activation-readiness');
     Route::post('/jadwal/{jadwal}/aktivasi', [JadwalController::class, 'activate'])->whereUuid('jadwal')->name('jadwal.activate');
     Route::post('/jadwal/{jadwal}/tutup', [JadwalController::class, 'close'])->whereUuid('jadwal')->name('jadwal.close');
+    Route::post('/jadwal/{jadwal}/buka-kembali', [JadwalController::class, 'reopen'])->withoutMiddleware('active')->middleware(EnsureJadwalKoreksiActorIsActive::class)->whereUuid('jadwal')->name('jadwal.reopen');
     Route::post('/jadwal/{jadwal}/revisi-jendela', [JadwalController::class, 'reviseWindows'])->whereUuid('jadwal')->name('jadwal.revise-windows');
+    Route::post('/jadwal/{jadwal}/indikator', [JadwalController::class, 'addIndicator'])->whereUuid('jadwal')->name('jadwal.add-indicator');
+    Route::get('/jadwal/{jadwal}/snapshot', [SnapshotIndikatorController::class, 'index'])->whereUuid('jadwal')->name('jadwal.snapshot.index');
+    Route::post('/jadwal/{jadwal}/snapshot/{snapshot}/koreksi', [SnapshotIndikatorController::class, 'koreksi'])->whereUuid(['jadwal', 'snapshot'])->name('jadwal.snapshot.koreksi');
     Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
     Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
     Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');
@@ -193,6 +200,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
     Route::post('/akses/peran/{user}/status', UserStatus::class)->whereUuid('user')->name('user-status.update');
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
+    Route::get('/laporan/dokumen-resmi', [DokumenResmiController::class, 'index'])->name('laporan.dokumen-resmi');
+    Route::post('/laporan/dokumen-resmi/arsip', [DokumenResmiController::class, 'store'])->name('laporan.dokumen-resmi.unggah');
+    Route::get('/laporan/dokumen-resmi/arsip/{berkas}', [DokumenResmiController::class, 'download'])->whereUuid('berkas')->name('laporan.dokumen-resmi.unduh');
     Route::get('/laporan/rekap', RekapIndikatorPeriodeController::class)->name('laporan.rekap');
     Route::get('/laporan/rekap/ekspor', EksporRekapIndikatorPeriodeController::class)->name('laporan.rekap.ekspor');
 
@@ -242,7 +252,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/verifikasi/pilihan', [IndexVerifikasi::class, 'pilihan'])->name('verifikasi.pilihan');
     // Didaftarkan sebelum `/verifikasi/{id}` agar tidak bergantung pada urutan pencocokan rute.
     Route::get('/verifikasi/status-capaian', [StatusCapaianController::class, 'index'])->name('status-capaian.index');
-    // Antrean Disahkan (Plan 6.3, keputusan K1) tetap halaman terpisah dari antrean reviu.
+    // Antrean Disahkan (Plan 6.3, Q67) tetap halaman terpisah dari antrean reviu.
     Route::get('/verifikasi/disahkan', IndexPengukuranDisahkan::class)->name('verifikasi.disahkan');
     Route::get('/verifikasi/disahkan/pilihan', [IndexPengukuranDisahkan::class, 'pilihan'])->name('verifikasi.disahkan.pilihan');
     Route::get('/verifikasi/{id}', ShowVerifikasi::class)->whereUuid('id')->name('verifikasi.show');

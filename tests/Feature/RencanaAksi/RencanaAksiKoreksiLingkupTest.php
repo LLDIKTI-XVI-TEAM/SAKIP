@@ -45,10 +45,10 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        $this->tutupJadwalDenganKoreksiSatuPeriode($fixture);
+        $this->bukaSesiKoreksiSatuPeriode($fixture);
 
         // Payload baca mengekspos lingkup koreksi.
-        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('rencanaAksi.koreksi.aktif', true)
@@ -56,7 +56,7 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
                 ->where('rencanaAksi.can.update', true));
 
         // Bentuk UI koreksi parsial — hanya periode tercakup dikirim.
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
@@ -81,10 +81,10 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        $this->tutupJadwalDenganKoreksiSatuPeriode($fixture);
+        $this->bukaSesiKoreksiSatuPeriode($fixture);
 
         // Periode luar lingkup tetap ditolak backend (fail-closed).
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
@@ -99,8 +99,8 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
 
     /**
      * Lingkup tanpa kunci `periode_ids` tidak mencakup periode apa pun
-     * (gagal tertutup, sama dengan PengukuranKinerjaPolicy): header boleh
-     * dibuka, tetapi tidak ada target yang boleh dikoreksi.
+     * (gagal tertutup, sama dengan PengukuranKinerjaPolicy): header tetap dapat
+     * dibaca, tetapi tidak ada target yang boleh dikoreksi.
      */
     public function test_lingkup_tanpa_periode_ids_menolak_semua_periode(): void
     {
@@ -114,7 +114,7 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
         $fixture['jadwal']->update([
-            'status' => 'ditutup',
+            'status' => 'aktif',
             'penutupan' => '2026-03-05',
             'koreksi_mulai' => '2026-03-01 00:00:00',
             'koreksi_sampai' => '2026-03-31 23:59:59',
@@ -124,14 +124,14 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
             ],
         ]);
 
-        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('rencanaAksi.koreksi.aktif', true)
+                ->where('rencanaAksi.koreksi.aktif', false)
                 ->where('rencanaAksi.koreksi.periode_ids', [])
                 ->where('rencanaAksi.can.update', false));
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
@@ -155,7 +155,7 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
         ])->assertSessionHasNoErrors();
         $header = RencanaAksi::where('indikator_id', $fixture['indikator']->id)->sole();
 
-        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")
+        $this->actingAs($fixture['perencanaan'])->get("/rencana-aksi/{$header->id}")
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('rencanaAksi.koreksi.aktif', false));
@@ -164,10 +164,10 @@ class RencanaAksiKoreksiLingkupTest extends TestCase
     /**
      * @param  array<string, mixed>  $fixture
      */
-    private function tutupJadwalDenganKoreksiSatuPeriode(array $fixture): void
+    private function bukaSesiKoreksiSatuPeriode(array $fixture): void
     {
         $fixture['jadwal']->update([
-            'status' => 'ditutup',
+            'status' => 'aktif',
             'penutupan' => '2026-03-05',
             'koreksi_mulai' => '2026-03-01 00:00:00',
             'koreksi_sampai' => '2026-03-31 23:59:59',

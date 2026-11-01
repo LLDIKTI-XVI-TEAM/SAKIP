@@ -196,19 +196,22 @@ class PresentPengukuran
                 'download_url' => $b['mode'] === 'file' ? route('pengukuran.bukti', ['id' => $p->id, 'buktiId' => $b['id']]) : ($b['tautan'] ?? null)], $items);
         }
         $data['riwayats'] = $p->riwayats()->with('user:id,nama')->limit(50)->get()->map(fn ($r) => [...$r->only(['id', 'status_dari', 'status_ke', 'catatan']), 'created_at' => $r->created_at->toIso8601String(), 'user' => $r->user?->only(['id', 'nama'])])->all();
-        // Histori versi baca-saja: satu query versi, satu query status berlaku per versi (batch), satu query penetap.
-        // Payload beku versi tidak pernah dikirim; hanya metadata dan status capaian yang berlaku.
-        $versions = $p->versions()->get();
-        $statusPerVersi = StatusCapaian::berlakuPerVersi($versions->modelKeys())->load('ditetapkanOleh:id,nama');
-        $ratifiedId = $p->ratifiedVersion?->id;
-        $data['histori_versi'] = $versions->map(function (KinerjaSnapshot $versi) use ($statusPerVersi, $ratifiedId) {
-            $status = $statusPerVersi->get($versi->id);
+        // Histori versi baca-saja hanya untuk halaman reviu: satu query versi bermuatan kolom minimal
+        // (payload `snapshot` jsonb tidak pernah dimuat), satu query status berlaku per versi (batch),
+        // satu query penetap. Halaman edit tidak membutuhkan histori ini.
+        if ($review) {
+            $versions = $p->versions()->get(['id', 'pengukuran_id', 'nomor', 'diajukan_at', 'disahkan_at', 'jalur_pengajuan']);
+            $statusPerVersi = StatusCapaian::berlakuPerVersi($versions->modelKeys())->load('ditetapkanOleh:id,nama');
+            $ratifiedId = $p->ratifiedVersion?->id;
+            $data['histori_versi'] = $versions->map(function (KinerjaSnapshot $versi) use ($statusPerVersi, $ratifiedId) {
+                $status = $statusPerVersi->get($versi->id);
 
-            return ['id' => $versi->id, 'nomor' => $versi->nomor, 'diajukan_at' => $versi->diajukan_at?->toIso8601String(),
-                'disahkan_at' => $versi->disahkan_at?->toIso8601String(), 'jalur_pengajuan' => $versi->jalur_pengajuan, 'resmi' => $versi->id === $ratifiedId,
-                'status_capaian' => $status ? ['status' => $status->status, 'sumber' => $status->sumber,
-                    'penetap' => $status->ditetapkanOleh?->only(['id', 'nama']), 'ditetapkan_pada' => $status->created_at?->toIso8601String()] : null];
-        })->all();
+                return ['id' => $versi->id, 'nomor' => $versi->nomor, 'diajukan_at' => $versi->diajukan_at?->toIso8601String(),
+                    'disahkan_at' => $versi->disahkan_at?->toIso8601String(), 'jalur_pengajuan' => $versi->jalur_pengajuan, 'resmi' => $versi->id === $ratifiedId,
+                    'status_capaian' => $status ? ['status' => $status->status, 'sumber' => $status->sumber,
+                        'penetap' => $status->ditetapkanOleh?->only(['id', 'nama']), 'ditetapkan_pada' => $status->created_at?->toIso8601String()] : null];
+            })->all();
+        }
         $this->prepareSummary(new Collection([$p]));
         $data['self_approval'] = $data['self_approval'] || (bool) $p->getAttribute('self_verified');
         $data['reviu_terlambat'] = (bool) $p->getAttribute('late_review');

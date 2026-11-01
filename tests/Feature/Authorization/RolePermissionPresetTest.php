@@ -35,7 +35,7 @@ class RolePermissionPresetTest extends TestCase
             $this->assertNull($creation->nilai_lama);
             $this->assertEquals($role->only(['kode', 'nama', 'is_sistem', 'urutan', 'aktif']), $creation->nilai_baru);
         }
-        $this->assertDatabaseCount('role_permissions', 166);
+        $this->assertDatabaseCount('role_permissions', 168);
         $this->assertSame(5, AuditLog::where('tindakan', 'role_permissions.ubah')->count());
         $audit = AuditLog::where('tindakan', 'role_permissions.ubah')->firstOrFail();
         $this->assertSame(['permissions' => []], $audit->nilai_lama);
@@ -109,7 +109,7 @@ class RolePermissionPresetTest extends TestCase
         $before = $existing->fresh()->getRawOriginal();
         $sync = app(SyncRolePermissionPresets::class);
         $events = $sync->handle('test-release', 'Lengkapi katalog parsial', 'test-cli');
-        $this->assertSame(80, $events); // 4 role + 71 permission + 5 membership.
+        $this->assertSame(81, $events); // 4 peran + 72 izin + 5 perubahan keanggotaan preset.
         $this->assertSame($events, AuditLog::where('sumber', 'preset_release')->count());
         $this->assertSame(4, AuditLog::where('tindakan', 'roles.tambah')->count());
         $this->assertDatabaseMissing('audit_log', ['tindakan' => 'roles.tambah', 'objek_id' => $existing->id]);

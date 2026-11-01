@@ -58,6 +58,6 @@ class BootstrapSuperadminCommandTest extends TestCase
         $this->assertSame('aktif', $user->fresh()->status);
         $this->assertSame(0, $user->roles()->count());
         $this->assertDatabaseCount('auth_bootstraps', 0);
-        $this->assertDatabaseCount('role_permissions', 166);
+        $this->assertDatabaseCount('role_permissions', 168);
     }
 }

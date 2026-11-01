@@ -381,10 +381,10 @@ Setiap task memiliki tiga bagian wajib:
 - **Dependency:** 3.2, 2.6, 2.10.
 - **DoD:** Migrasi berjalan; model dapat diisi dan dibaca sesuai struktur snapshot; kolom bernama `unit_id` (bukan `tim_kerja_id`) dan mencakup `arah`, `tipe_perhitungan`, `baseline`.
 
-### 3.7 Trigger idempoten pembuatan `jadwal_snapshot` saat aktivasi/buka-kembali
-- **Scope:** Logic aplikasi (dipanggil dari 3.5 dan dari 3.9 saat `jadwal:buka_kembali`) yang mengambil seluruh indikator aktif milik Renstra terkait dan, untuk tiap indikator, **hanya** membuat baris `jadwal_snapshot` baru jika pasangan `(jadwal_id, indikator_id)` belum memiliki baris — baris yang sudah ada dilewati, tidak pernah ditimpa. Baris baru menyalin nama/definisi/satuan/presisi/desimal_tampilan/unit_id/arah/tipe_perhitungan/baseline dari master serta `target_tahunan` untuk tahun jadwal. Audit log pembuatan snapshot memakai `actor_id` = pengguna yang menjalankan aksi aktivasi/buka_kembali.
+### 3.7 Trigger idempoten pembuatan `jadwal_snapshot` saat aktivasi
+- **Scope:** Logic aplikasi dipanggil dari 3.5 saat aktivasi pertama, mengambil seluruh indikator aktif milik Renstra terkait dan, untuk tiap indikator, **hanya** membuat baris `jadwal_snapshot` baru jika pasangan `(jadwal_id, indikator_id)` belum memiliki baris — baris yang sudah ada dilewati, tidak pernah ditimpa. Baris baru menyalin nama/definisi/satuan/presisi/desimal_tampilan/unit_id/arah/tipe_perhitungan/baseline dari master serta `target_tahunan` untuk tahun jadwal. Audit log pembuatan snapshot memakai `actor_id` pelaku aktivasi. Q77 (keputusan PM 29 Oktober 2026, ISS-14.02): buka-kembali tidak memanggil pembentukan snapshot; penambahan indikator pada jadwal aktif melalui ISS-03.04 dengan periode mulai eksplisit.
 - **Dependency:** 3.5, 2.7, 2.10, 3.6.
-- **DoD:** Setelah aktivasi jadwal dengan N indikator aktif terkait, query `jadwal_snapshot WHERE jadwal_id = ...` mengembalikan tepat N baris; memanggil logic ini ulang tanpa perubahan data (idempoten) tidak menambah baris baru maupun mengubah baris lama; setelah menambahkan 1 indikator baru dan memanggil ulang logic ini (mensimulasikan `jadwal:buka_kembali`), hanya 1 baris baru terbentuk sementara N baris lama tidak berubah; mengubah `indikator.nama` master setelah snapshot terbentuk tidak mengubah nilai `nama` pada baris snapshot yang sudah ada; audit_log baris snapshot baru memiliki `actor_id` sama dengan pelaku aktivasi/buka_kembali.
+- **DoD:** Aktivasi dengan N indikator aktif membentuk tepat N snapshot; replay aktivasi tidak menambah atau mengubah snapshot. Buka-kembali tetap mempertahankan seluruh snapshot meskipun master memiliki indikator baru. Penambahan indikator baru diuji melalui jalur ISS-03.04. Perubahan nama master tidak mengubah nama beku; audit pembentukan snapshot menyimpan pelaku aktivasi.
 
 ### 3.8 Guard imutabilitas baris `jadwal_snapshot` sejak terbit
 
@@ -400,9 +400,9 @@ Setiap task memiliki tiga bagian wajib:
 
 > **Q52 (14 Oktober 2026):** penutupan jadwal (`jadwal:tutup`) juga wajib alasan pengguna; alasan divalidasi dan disanitasi server, lalu dicatat di `audit_log` bersama `dasar_izin` (Q52 §52.1 butir 1; ISS-14.01, PR #109). Daftar Rencana Aksi dan Pengukuran tahun yang ditutup tetap terbaca baca-saja (ISS-14.01 AC-6; PR #117). Buka kembali dan sesi koreksi tetap mengikuti ISS-14.02.
 
-- **Scope:** Transisi status `aktif → ditutup` (mengisi `closed_at`) dan `ditutup → aktif` (`jadwal:buka_kembali`, alasan wajib, memicu ulang trigger idempoten 3.7); permission `jadwal:tutup`, `jadwal:buka_kembali`. Dokumentasikan dalam kode/komentar bahwa buka_kembali adalah jalur standar untuk koreksi pasca-penutupan maupun penambahan indikator baru di tengah tahun — bukan jalur darurat semata.
+- **Scope:** Transisi `aktif → ditutup` mengisi `closed_at`; `ditutup → aktif` melalui `jadwal:buka_kembali` mewajibkan alasan dan lingkup/waktu eksplisit, mereset `closed_at`, serta mempertahankan `penutupan`, `activated_at`, dan snapshot. Sesi hanya membuka jalur Perencanaan pada jenis objek, indikator, dan periode tercakup; PIC tetap terkunci sampai jalur ISS-14.03. Kegiatan, klaim, dan berkas kegiatan tetap terkunci. Sesi terjadwal/berakhir tidak membuka mutasi normal; penutupan ulang manual segera mengakhiri akses koreksi. Refinement mengikuti Q77 (keputusan PM 29 Oktober 2026), lihat Data Model §2.15 dan Workflow §13.
 - **Dependency:** 3.5, 3.7.
-- **DoD:** Test Pest memverifikasi transisi status dan pengisian/reset `closed_at` sesuai arah transisi; percobaan `jadwal:buka_kembali` tanpa alasan ditolak; setiap transisi tercatat audit_log; setelah buka_kembali, indikator baru yang ditambahkan sejak jadwal ditutup mendapat baris snapshot baru (menguji integrasi dengan 3.7) tanpa mengubah baris snapshot lama.
+- **DoD:** Test memverifikasi transisi dan pengisian/reset `closed_at`, alasan/izin/lingkup/waktu/revisi invalid ditolak, audit transisi dan penolakan, pembatasan PIC/objek di luar lingkup, sesi terjadwal/berakhir dan tutup ulang, serta snapshot tetap utuh tanpa penerbitan otomatis. Penulisan bersamaan hanya menghasilkan satu transisi.
 
 ### 3.10 Tampilan status jadwal & indikator per jendela waktu periode (jendela rencana aksi dihapus Q41)
 - **Scope:** Halaman/komponen yang menampilkan jadwal aktif beserta status jendela pengisian **per periode** (jendela reviu dihapus Q70) (dari `jadwal_periode`, bukan dari `jadwal_tahunan`), berjalan berdasarkan tanggal hari ini vs kolom `jadwal_periode` yang relevan. Tampilan status jendela **rencana aksi** tingkat tahun (semula dari `jadwal_tahunan.rencana_aksi_mulai/selesai`, mis. "Masa penyusunan rencana aksi dibuka/ditutup") dihapus karena Rencana Aksi tidak lagi memakai jendela penyusunan (Q41, 11.9).
@@ -536,7 +536,7 @@ Setiap task memiliki tiga bagian wajib:
 - **DoD:** frontend test (Vitest + React Testing Library): mengubah nilai salah satu komponen pada form memperbarui tampilan nilai turunan secara reaktif tanpa reload halaman penuh; test Pest memastikan nilai yang tersimpan tetap hasil hitungan sisi server; field `pengukuran.nilai` tidak dapat diketik langsung (disabled/readonly) untuk indikator berkomponen, dibuktikan dengan percobaan submit payload yang memaksa nilai `pengukuran.nilai` custom — nilai yang tersimpan tetap hasil hitungan sistem, bukan payload custom tsb.
 
 ### 5.15 Migrasi `jadwal_snapshot_komponen`
-- **Scope:** Migrasi tabel anak baru `jadwal_snapshot_komponen`: `jadwal_snapshot_id` (FK), `kode`, `label`, `peran`, `bobot`, `urutan`. Diisi oleh trigger snapshot (3.7 diperluas) saat aktivasi/buka-kembali jadwal, menyalin seluruh komponen aktif indikator pada saat itu.
+- **Scope:** Migrasi tabel anak baru `jadwal_snapshot_komponen`: `jadwal_snapshot_id` (FK), `kode`, `label`, `peran`, `bobot`, `urutan`. Diisi oleh trigger snapshot (3.7 diperluas) saat aktivasi pertama jadwal, menyalin seluruh komponen aktif indikator pada saat itu; penambahan indikator berikutnya melalui ISS-03.04, bukan otomatis saat buka-kembali (Q77, ISS-14.02).
 - **Dependency:** 3.6, 3.7, 2.14.
 - **DoD:** Setelah aktivasi jadwal untuk indikator berkomponen dengan N komponen aktif, `jadwal_snapshot_komponen WHERE jadwal_snapshot_id = ...` menghasilkan tepat N baris; mengubah definisi `indikator_komponen` (bobot/label) setelah snapshot terbentuk tidak mengubah baris snapshot komponen yang sudah ada (test Pest membandingkan nilai sebelum dan sesudah perubahan master); form pengisian komponen (5.14) membaca definisi dari `jadwal_snapshot_komponen`, bukan langsung dari `indikator_komponen` master.
 
@@ -570,9 +570,9 @@ Setiap task memiliki tiga bagian wajib:
 - **DoD:** Halaman menampilkan hanya baris berstatus `diverifikasi`; aksi "Sahkan" pada halaman ini memanggil logic 5.9 dan memperbarui tampilan tanpa reload penuh (reaktif di sisi klien).
 
 ### 6.3 Dashboard kerja Perencanaan — antrean Disahkan (buka-kembali)
-- **Scope:** halaman Inertia + komponen React menampilkan daftar pengukuran berstatus `disahkan` yang jadwalnya aktif dan belum `penutupan`, atau berada dalam sesi koreksi resmi untuk pengukuran (Q35 §35.2), dengan aksi "Buka Kembali" yang memicu logic 5.10 (memerlukan alasan via modal/form).
+- **Scope:** halaman Inertia + komponen React menampilkan daftar pengukuran berstatus `disahkan` yang masih dapat dibuka kembali — jadwal aktif dan belum `penutupan`, atau baris tercakup sesi koreksi resmi untuk indikator × periode × `pengukuran` (Q35 §35.2; Q67) — dengan aksi "Buka Kembali" yang memicu logic 5.10 (memerlukan alasan via modal/form).
 - **Dependency:** 5.10, 6.2.
-- **DoD:** Halaman hanya menampilkan baris `disahkan` pada jadwal aktif yang belum penutupan; baris pascapenutupan hanya muncul bila sesi koreksi resmi untuk pengukuran sedang berjalan dan detail tetap menolak bila indikator/periode di luar lingkup (Q35 §35.2). Submit alasan kosong pada aksi buka-kembali ditolak validasi; submit valid mengeluarkan baris dari antrean ini ke alur revisi (`dikembalikan`) lalu dapat diajukan ulang sebagai versi baru.
+- **DoD:** Halaman hanya menampilkan baris `disahkan` yang masih dapat dibuka kembali: jadwal aktif dan belum penutupan, atau baris tercakup sesi koreksi resmi untuk indikator × periode × `pengukuran` (Q35 §35.2; Q67). Akses memerlukan `pengukuran:read` dan `pengukuran:buka_kembali`; deny per unit menyembunyikan baris dan pilihannya. Submit alasan kosong pada aksi buka-kembali ditolak validasi; submit valid mengeluarkan baris dari antrean ini ke alur revisi (`dikembalikan`) lalu dapat diajukan ulang sebagai versi baru.
 
 ### 6.4 Form Status Capaian manual
 
@@ -1194,6 +1194,12 @@ Aturan berikut berlaku di seluruh Plan ini dan menjadi rujukan wajib bagi siapa 
 - **Penulisan audit** (`AuditLogger::catat(...)`, Modul 10) **HANYA** dipanggil dari kode server pada titik transisi/mutasi data yang relevan — tidak pernah dari sisi klien, dan tidak ada endpoint yang menerima payload audit siap-pakai dari luar.
 - **Konsekuensi untuk delegasi coding:** setiap brief task yang didelegasikan (mis. ke agen coding eksternal) WAJIB menyebutkan secara eksplisit di mana logika diletakkan — "server: Form Request X" atau "server: Policy Y" untuk otorisasi/validasi bisnis, dan "klien: hanya menampilkan hasil dari props Z" untuk UI — sehingga tidak ada ambiguitas yang berujung logika bisnis/izin bocor ke komponen React.
 
+
+### P.4 Kesiapan operasional dan penerimaan rilis
+
+- **Scope:** PM bersama pengelola infrastruktur menetapkan owner dan kesiapan layanan pendukung (Q30): realm/client Keycloak, domain/HTTPS, VPS, PostgreSQL, storage privat, backup dan uji pemulihan, queue worker, scheduler, monitoring, notifikasi eksternal, dukungan insiden, bootstrap Superadmin, dan credential deployment. Owner, status, bukti, dan blocker dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi dipisah (Q2, ISS-15.03); data awal mengikuti S.1 dan ISS-15.01.
+- **Dependency:** P.1, P.2, ISS-15.01.
+- **DoD:** setiap layanan memiliki owner dan bukti pada lingkungan tujuan, atau tercatat sebagai blocker/risiko; uji pemulihan berbukti; readiness aplikasi dan readiness operasional dinilai terpisah; notifikasi eksternal mengikuti Q46 §46.3; go-live tidak diklaim dari selesainya coding atau CI hijau.
 
 ### P.5 Gate Q32 sebelum UAT final
 

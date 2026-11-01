@@ -70,3 +70,14 @@ Parser Babel hanya membaca sintaks TS/TSX. Pilihan ini diperlukan karena peer
 range `typescript-eslint` yang diperiksa belum mencakup TypeScript 7 proyek.
 Pemeriksaan tipe tetap menjadi job TypeScript (`bun run typecheck`). Dependency
 lint merupakan dev dependency dan tidak diimpor oleh aplikasi.
+
+`minimatch` dikunci pada 11.0.1 untuk
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249). Versi ESLint dan
+parser Babel dipertahankan. Patch Bun hanya menambahkan default export ESM
+beserta deklarasi tipenya agar consumer lint existing tetap kompatibel;
+algoritma matcher versi patched tidak diubah. `bun install --frozen-lockfile`
+menerapkan patch dari `patches/`. Audit tetap memeriksa semua advisory.
+Patch dapat dilepas setelah kedua consumer lint beralih ke named export.
+
+Job lint juga menjalankan `node --test .github/ci/minimatch-compat.test.mjs`
+untuk memeriksa pemilihan berkas dan pengecualian lewat consumer CommonJS/ESM.

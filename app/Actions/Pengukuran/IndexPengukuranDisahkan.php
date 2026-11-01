@@ -2,6 +2,7 @@
 
 namespace App\Actions\Pengukuran;
 
+use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\Periode;
 use App\Models\Renstra;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Antrean pengukuran `disahkan` untuk koreksi resmi (Plan 6.3, keputusan K1):
+ * Antrean pengukuran `disahkan` untuk koreksi resmi (Plan 6.3, Q67):
  * halaman terpisah `/verifikasi/disahkan`; antrean reviu `/verifikasi` tidak berubah.
  * Baris hanya memuat metadata dan tautan detail, tanpa ability/policy per baris, agar tidak ada N+1.
  */
@@ -21,12 +22,14 @@ class IndexPengukuranDisahkan
 {
     private const PERMISSION = 'pengukuran:buka_kembali';
 
+    private const PERMISSION_BACA = 'pengukuran:read';
+
     public function __construct(private PresentPengukuran $present, private PermissionResolver $resolver) {}
 
     /** @return array<string, mixed> */
     public function handle(User $actor, array $input = []): array
     {
-        // Gerbang fail-closed: tanpa izin buka-kembali halaman ini tidak pernah dibuka.
+        // Gerbang fail-closed: tanpa izin baca dan izin buka-kembali halaman ini tidak pernah dibuka.
         $this->pastikanBoleh($actor);
 
         $filters = [];
@@ -47,7 +50,16 @@ class IndexPengukuranDisahkan
             $query->whereRaw(PengukuranKinerja::targetUnitSql().' = ?', [$filters['unit_id']]);
         }
 
-        $page = $query->orderByDesc('updated_at')->orderBy('id')->withCount('buktiDukungs')->paginate(20)->withQueryString();
+        $page = $query->select('pengukuran_kinerjas.*')
+            // Q67 §67.1 butir 4: versi resmi terbaru lebih dulu, lalu id sebagai pemecah seri yang stabil.
+            ->selectSub(KinerjaSnapshot::query()->from('pengukuran_versi as versi_resmi')
+                ->select('versi_resmi.disahkan_at')
+                ->whereColumn('versi_resmi.pengukuran_id', 'pengukuran_kinerjas.id')
+                ->whereNotNull('versi_resmi.disahkan_at')
+                ->orderByDesc('versi_resmi.nomor')->limit(1), 'disahkan_resmi_pada')
+            ->orderByRaw('disahkan_resmi_pada DESC NULLS LAST')
+            ->orderByDesc('pengukuran_kinerjas.id')
+            ->withCount('buktiDukungs')->paginate(20)->withQueryString();
         $this->present->prepareSummary($page->getCollection());
 
         $selected = [];
@@ -88,9 +100,13 @@ class IndexPengukuranDisahkan
             'page' => $page->currentPage(), 'has_more' => $page->hasMorePages()];
     }
 
+    /**
+     * Gerbang fail-closed: izin baca menjaga antrean tidak membocorkan baris unit yang tidak boleh dibaca,
+     * dan izin buka-kembali menjaga halaman ini tidak menjadi pintu masuk koreksi.
+     */
     private function pastikanBoleh(User $actor): void
     {
-        if (! $this->resolver->allows($actor, self::PERMISSION)) {
+        if (! $this->resolver->allows($actor, self::PERMISSION_BACA) || ! $this->resolver->allows($actor, self::PERMISSION)) {
             throw new AuthorizationException('Anda tidak memiliki izin membuka kembali pengukuran.');
         }
     }
@@ -114,7 +130,7 @@ class IndexPengukuranDisahkan
 
     /**
      * Dasar daftar dan lookup: hanya pengukuran `disahkan` pada jadwal yang layak dikoreksi,
-     * dengan deny per unit yang menang juga di daftar.
+     * dengan deny per unit yang menang juga di daftar — baik deny izin buka-kembali maupun izin baca.
      *
      * @return Builder<PengukuranKinerja>
      */
@@ -122,17 +138,18 @@ class IndexPengukuranDisahkan
     {
         $query = PengukuranKinerja::query()
             ->where('status_alur', 'disahkan')
-            ->whereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $this->resolver->unitDitolak($actor, self::PERMISSION));
+            ->whereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $this->resolver->unitDitolak($actor, self::PERMISSION))
+            ->whereNotIn(DB::raw(PengukuranKinerja::targetUnitSql()), $this->resolver->unitDitolak($actor, self::PERMISSION_BACA));
 
         return $this->batasiJadwalLayak($query);
     }
 
     /**
-     * Kelayakan jadwal untuk koreksi (Plan 6.3 DoD; Q35 §35.2, AC-4): jadwal `aktif` yang `penutupan`-nya
-     * belum lewat pada tanggal bisnis, atau jadwal yang sedang di dalam sesi koreksi resmi yang mencakup
-     * `pengukuran`. Filter ini hanya level jadwal dan berjalan di SQL tanpa query per baris; kecocokan
-     * indikator × periode × lingkup tetap milik `PengukuranKinerjaPolicy` saat detail dibuka, sehingga
-     * baris yang tampil di sini belum tentu boleh dibuka kembali.
+     * Kelayakan jadwal untuk koreksi (Plan 6.3 DoD; Q35 §35.2): jadwal `aktif` yang tahunnya belum ditutup
+     * pada tanggal bisnis, atau jadwal yang sedang di dalam sesi koreksi resmi yang mencakup pengukuran
+     * ini. Cabang sesi menyalin kriteria `SesiKoreksiJadwal::berlaku`: jendela inklusif yang urut, lingkup
+     * berupa array tidak kosong, dan `jenis_objek`/`indikator_ids`/`periode_ids` memuat baris ini.
+     * Filter berjalan di SQL tanpa query per baris; policy tetap menjadi keputusan akhir saat detail dibuka.
      *
      * @param  Builder<PengukuranKinerja>  $query
      * @return Builder<PengukuranKinerja>
@@ -145,11 +162,32 @@ class IndexPengukuranDisahkan
         return $query->whereHas('jadwalSnapshot.jadwal', fn ($jadwal) => $jadwal
             ->where('status', 'aktif')
             ->where(fn ($layak) => $layak
-                ->where('penutupan', '>=', $hariIni)
+                // Tahun belum ditutup: metadata sesi yang terisi sendiri menutup jalur normal (tahunDitutup()).
+                ->where(fn ($normal) => $normal
+                    ->where('penutupan', '>=', $hariIni)
+                    ->whereNull('koreksi_mulai')
+                    ->whereNull('koreksi_sampai')
+                    ->whereNull('lingkup_koreksi'))
                 ->orWhere(fn ($koreksi) => $koreksi
                     ->where('koreksi_mulai', '<=', $sekarang)
                     ->where('koreksi_sampai', '>=', $sekarang)
-                    // `lingkup_koreksi` jsonb: array `jenis_objek` harus memuat "pengukuran".
-                    ->whereRaw("lingkup_koreksi->'jenis_objek' @> '\"pengukuran\"'::jsonb"))));
+                    ->whereColumn('koreksi_mulai', '<', 'koreksi_sampai')
+                    ->whereRaw($this->lingkupArrayTidakKosong('jenis_objek'))
+                    ->whereRaw($this->lingkupArrayTidakKosong('indikator_ids'))
+                    ->whereRaw($this->lingkupArrayTidakKosong('periode_ids'))
+                    ->whereRaw("lingkup_koreksi->'jenis_objek' @> '\"pengukuran\"'::jsonb")
+                    ->whereRaw("lingkup_koreksi->'indikator_ids' @> to_jsonb(pengukuran_kinerjas.indikator_id::text)")
+                    ->whereRaw("lingkup_koreksi->'periode_ids' @> to_jsonb(pengukuran_kinerjas.periode_id::text)"))));
+    }
+
+    /**
+     * Kondisi SQL: jalur lingkup harus array tidak kosong. `CASE` menjaga `jsonb_array_length` tidak
+     * dievaluasi pada nilai non-array, sehingga metadata rusak menutup baris alih-alih menggagalkan query.
+     */
+    private function lingkupArrayTidakKosong(string $jalur): string
+    {
+        $nilai = "lingkup_koreksi->'{$jalur}'";
+
+        return "jsonb_typeof({$nilai}) = 'array' AND jsonb_array_length(CASE WHEN jsonb_typeof({$nilai}) = 'array' THEN {$nilai} END) > 0";
     }
 }

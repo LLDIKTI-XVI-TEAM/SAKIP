@@ -271,4 +271,6 @@ jobs:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ env.BUN_VERSION }}-${{ hashFiles('bun.lock') }}
       - run: bun install --frozen-lockfile
+      - name: Uji kompatibilitas matcher lint
+        run: node --test .github/ci/minimatch-compat.test.mjs
       - run: bun run lint
