@@ -6557,7 +6557,7 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] **AC-3:** Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
 - [x] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
 
-> **Status per 1 November 2026 (branch `docs/iss-15-02-kesiapan-infrastruktur`):** checklist tersedia di `document/SAKIP - Kesiapan Infrastruktur.md`. AC-4 terpenuhi: layanan tanpa owner atau bukti tercatat sebagai blocker/risiko (checklist §2, §4, §5). AC-1 dan AC-3 menunggu penetapan owner dan uji pemulihan oleh PM bersama pengelola infrastruktur. AC-2 berlaku saat notifikasi eksternal diaktifkan; aktivasinya ditunda (Q46 §46.3) dan daftar periksanya ada pada checklist §3. TEST-1–TEST-4 diganti verifikasi manual/acceptance UAT-1–UAT-4 karena objeknya kepemilikan dan prosedur operasional di luar kode (keputusan PM 1 November 2026). Status ini **bukan** UAT accepted atau deployment.
+> **Status per 1 November 2026 (branch `docs/iss-15-02-kesiapan-infrastruktur`):** checklist tersedia di `document/SAKIP - Kesiapan Infrastruktur.md`. AC-4 terpenuhi: layanan tanpa owner atau bukti tercatat sebagai blocker/risiko (checklist §2, §4, §5). AC-1 dan AC-3 menunggu penetapan owner dan uji pemulihan oleh PM bersama pengelola infrastruktur. AC-2 berlaku saat notifikasi eksternal diaktifkan; aktivasinya ditunda (Q46 §46.3) dan daftar periksanya ada pada checklist §3. TEST-1–TEST-4 diganti verifikasi manual/acceptance UAT-1–UAT-4 karena objeknya kepemilikan dan prosedur operasional di luar kode (keputusan PM 1 November 2026). DoD konsistensi dokumentasi belum terpenuhi: PRD, Workflow, Data Model, dan Plan menulis path berkas `storage/app/berkas/...`, sedangkan kode menyimpan di `storage/app/private/berkas/...`; penyelarasannya menunggu keputusan PM. Status ini **bukan** UAT accepted atau deployment.
 
 #### Implementation Tasks
 
@@ -6587,7 +6587,7 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 
 ### ISS-15.03 · [UAT] Tahapan UAT, Penerimaan, dan Produksi yang Terpisah
 
