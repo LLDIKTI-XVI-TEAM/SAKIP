@@ -6559,11 +6559,11 @@ Perubahan per request (tanpa nomor baris kode):
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
-- [ ] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
+- [x] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia. *(Q80 §80.1: terpenuhi oleh gate checklist kesiapan §3 selama notifikasi eksternal belum diaktifkan.)*
 - [ ] **AC-3:** Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
 - [x] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
 
-> **Status per 1 November 2026 (branch `docs/iss-15-02-kesiapan-infrastruktur`):** checklist tersedia di `document/SAKIP - Kesiapan Infrastruktur.md`. AC-4 terpenuhi: layanan tanpa owner atau bukti tercatat sebagai blocker/risiko (checklist §2, §4, §5). AC-1 dan AC-3 menunggu penetapan owner dan uji pemulihan oleh PM bersama pengelola infrastruktur. AC-2 berlaku saat notifikasi eksternal diaktifkan; aktivasinya ditunda (Q46 §46.3) dan daftar periksanya ada pada checklist §3. TEST-1–TEST-4 diganti verifikasi manual/acceptance UAT-1–UAT-4 karena objeknya kepemilikan dan prosedur operasional di luar kode (keputusan PM 1 November 2026, PR #214). DoD konsistensi dokumentasi belum terpenuhi: PRD, Workflow, Data Model, dan Plan menulis path berkas `storage/app/berkas/...`, sedangkan kode menyimpan di `storage/app/private/berkas/...`; penyelarasannya menunggu keputusan PM. Status ini **bukan** UAT accepted atau deployment.
+> **Status per 1 November 2026 (PR #214, diperbarui Q80):** checklist tersedia di `document/SAKIP - Kesiapan Infrastruktur.md`. AC-4 terpenuhi: layanan tanpa owner atau bukti tercatat sebagai blocker/risiko (checklist §2, §4, §5). AC-2 terpenuhi oleh gate checklist §3 selama notifikasi eksternal belum diaktifkan (Q80 §80.1). AC-1 dan AC-3 menunggu penetapan owner dan uji pemulihan di lingkungan UAT oleh PM bersama pengelola infrastruktur (Q80 §80.2). TEST-1–TEST-4 diganti verifikasi manual/acceptance UAT-1–UAT-4 karena objeknya kepemilikan dan prosedur operasional di luar kode (keputusan PM 1 November 2026, PR #214). Status ini **bukan** UAT accepted atau deployment.
 
 #### Implementation Tasks
 
@@ -6593,7 +6593,7 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 
 ### ISS-15.03 · [UAT] Tahapan UAT, Penerimaan, dan Produksi yang Terpisah
 
