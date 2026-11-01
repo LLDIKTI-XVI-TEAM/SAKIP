@@ -6555,37 +6555,39 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] **AC-1:** Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
 - [ ] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
 - [ ] **AC-3:** Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
-- [ ] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
+- [x] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
+
+> **Status per 1 November 2026 (branch `docs/iss-15-02-kesiapan-infrastruktur`):** checklist tersedia di `document/SAKIP - Kesiapan Infrastruktur.md`. AC-4 terpenuhi: layanan tanpa owner atau bukti tercatat sebagai blocker/risiko (checklist §2, §4, §5). AC-1 dan AC-3 menunggu penetapan owner dan uji pemulihan oleh PM bersama pengelola infrastruktur. AC-2 berlaku saat notifikasi eksternal diaktifkan; aktivasinya ditunda (Q46 §46.3) dan daftar periksanya ada pada checklist §3. TEST-1–TEST-4 diganti verifikasi manual/acceptance UAT-1–UAT-4 karena objeknya kepemilikan dan prosedur operasional di luar kode (keputusan PM 1 November 2026). Status ini **bukan** UAT accepted atau deployment.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
+- [x] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
 
 **B. Backend / Domain**
 - [ ] Pisahkan readiness aplikasi dari readiness operasional: Keycloak, HTTPS, DB/storage, backup/restore, queue worker, scheduler, WA/Email, monitoring, dan owner harus diverifikasi.
-- [ ] Jangan menandai produksi siap hanya karena automated test aplikasi lulus.
+- [x] Jangan menandai produksi siap hanya karena automated test aplikasi lulus.
 
 **C. Authorization & Audit**
-- [ ] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
+- [x] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
 
 **E. Integration / Operations**
 - [ ] Dokumentasikan owner, environment, health check, backup, restore test, queue worker, scheduler, storage, domain/HTTPS, dan dependency eksternal.
-- [ ] Sediakan checklist readiness UAT/production yang dapat ditandatangani/diterima pihak berwenang.
+- [x] Sediakan checklist readiness UAT/production yang dapat ditandatangani/diterima pihak berwenang.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
+- [ ] UAT-1: Verifikasi manual/acceptance — Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
+- [ ] UAT-2: Verifikasi manual/acceptance — Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
+- [ ] UAT-3: Verifikasi manual/acceptance — Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
+- [ ] UAT-4: Verifikasi manual/acceptance — Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 
 ### ISS-15.03 · [UAT] Tahapan UAT, Penerimaan, dan Produksi yang Terpisah
 
