@@ -182,6 +182,10 @@ class PengukuranRevisiJendelaTest extends TestCase
 
         $this->simpanDraf($pic)->assertSessionHasErrors('versi');
         $this->assertNull($this->pengukuran->fresh()->nilai);
+        // Jendela lama yang kebetulan berada di dalam sesi bukan pembukaan resmi: tanpa Revisi Jendela PIC, PIC tetap ditolak.
+        DB::table('jadwal_periode')->where('jadwal_id', $this->jadwal->id)->update(['pengisian_mulai' => '2027-01-04', 'pengisian_selesai' => '2027-01-06']);
+        $this->simpanDraf($pic)->assertSessionHasErrors('versi');
+        $this->assertNull($this->pengukuran->fresh()->nilai);
         // Kontrol positif: sesi koreksi yang sama tetap terbuka bagi Perencanaan.
         $this->simpanDraf($this->userWithRole('perencanaan'))->assertSessionHasNoErrors();
     }

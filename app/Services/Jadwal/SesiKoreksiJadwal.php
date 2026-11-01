@@ -49,12 +49,14 @@ class SesiKoreksiJadwal
     }
 
     /**
-     * Jendela PIC dibuka resmi di dalam sesi bila seluruh tanggalnya berada di dalam rentang sesi dan berjalan pada `$pada`;
-     * jendela lama yang dimulai sebelum sesi tidak membuka akses PIC. Lingkup periode diperiksa pemanggil lewat `berlaku()`.
+     * Jendela PIC dibuka resmi di dalam sesi bila periodenya ditandai Revisi Jendela PIC selama sesi ini
+     * (`lingkup_koreksi.jendela_pic_ids`, dikosongkan setiap buka kembali), seluruh tanggalnya berada di dalam rentang sesi,
+     * dan berjalan pada `$pada`. Jendela lama yang kebetulan berada di dalam sesi tidak membuka akses PIC.
+     * Lingkup periode diperiksa pemanggil lewat `berlaku()`.
      */
     public static function jendelaPicTerbuka(JadwalTahunan $jadwal, ?PeriodeJadwal $jendela, ?CarbonInterface $pada = null): bool
     {
-        if (! $jendela || ! self::berjalan($jadwal, $pada)) {
+        if (! $jendela || ! self::berjalan($jadwal, $pada) || ! in_array($jendela->periode_id, $jadwal->lingkup_koreksi['jendela_pic_ids'] ?? [], true)) {
             return false;
         }
         [$mulaiSesi, $akhirSesi] = self::rentangTanggal($jadwal);

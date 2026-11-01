@@ -88,7 +88,8 @@ class JadwalRevisiJendelaSesiKoreksiTest extends TestCase
     public function test_revisi_dalam_sesi_membuka_jendela_periode_lingkup_tanpa_mengubah_penutupan_dan_sesi(): void
     {
         $perencana = $this->activator(['jadwal:update']);
-        $tetap = $this->jadwal->only(['status', 'penutupan', 'closed_at', 'activated_at', 'koreksi_mulai', 'koreksi_sampai', 'lingkup_koreksi']);
+        $tetap = $this->jadwal->only(['status', 'penutupan', 'closed_at', 'activated_at', 'koreksi_mulai', 'koreksi_sampai']);
+        $lingkup = $this->jadwal->lingkup_koreksi;
         $this->actingAs($perencana)->get("/jadwal/{$this->jadwal->id}")->assertInertia(fn (Assert $page) => $page->where('can.revise_windows', true));
 
         // Batas sesi inklusif per tanggal bisnis: hari pembukaan sampai hari akhir sesi.
@@ -97,6 +98,8 @@ class JadwalRevisiJendelaSesiKoreksiTest extends TestCase
 
         $fresh = $this->jadwal->fresh();
         $this->assertEquals($tetap, $fresh->only(array_keys($tetap)));
+        // Lingkup sesi tetap; hanya penanda pembukaan resmi untuk periode yang diubah ditambahkan.
+        $this->assertEquals([...$lingkup, 'jendela_pic_ids' => [$this->tw1->id]], $fresh->lingkup_koreksi);
         $this->assertSame($this->jadwal->revisi + 1, $fresh->revisi);
         $this->assertSame(['pengisian_mulai' => '2027-01-25', 'pengisian_selesai' => '2027-02-10'], $this->jendelaTersimpan()[$this->tw1->id]);
         $audit = AuditLog::where('tindakan', 'jadwal.revisi_jendela')->sole();

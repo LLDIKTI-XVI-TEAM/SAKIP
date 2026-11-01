@@ -25,7 +25,8 @@ class RevisiJendelaPic
     /**
      * Revisi resmi jendela pengisian periode anggota jadwal aktif (Q18; jendela reviu dihapus Q70),
      * atau pembukaan jendela PIC di dalam sesi koreksi yang berjalan (Plan 3.12): hanya periode lingkup
-     * yang boleh berubah dan tanggalnya wajib di dalam sesi; penutupan dan metadata sesi tidak diubah.
+     * yang boleh berubah dan tanggalnya wajib di dalam sesi; periode yang diubah ditandai sebagai pembukaan resmi
+     * di `lingkup_koreksi.jendela_pic_ids`, sedangkan penutupan, rentang, dan lingkup sesi tidak diubah.
      * Hanya tanggal jendela dan revisi yang berubah; guard PIC membaca nilai baru
      * langsung dari `jadwal_periode`.
      * Urutan kunci jadwal → periode jadwal sama dengan writer pengukuran.
@@ -88,9 +89,16 @@ class RevisiJendelaPic
                 if (! $changed) {
                     return $jadwal;
                 }
-                $jadwal->forceFill(['revisi' => $jadwal->revisi + 1])->save();
+                $lingkup = $jadwal->lingkup_koreksi;
+                if ($dalamSesi) {
+                    // Penanda pembukaan resmi terikat ke sesi ini; buka kembali berikutnya menulis lingkup baru tanpa penanda.
+                    $before['jendela_pic_ids'] = $lingkup['jendela_pic_ids'] ?? [];
+                    $lingkup['jendela_pic_ids'] = array_values(array_unique([...$before['jendela_pic_ids'], ...$diubah]));
+                }
+                $jadwal->forceFill(['revisi' => $jadwal->revisi + 1, 'lingkup_koreksi' => $lingkup])->save();
                 $this->audit->catat(actor: $actor, tindakan: 'jadwal.revisi_jendela', objekTipe: 'jadwal', objekId: $jadwal->id, nilaiLama: $before,
-                    nilaiBaru: ['revisi' => $jadwal->revisi, 'periode' => $jadwal->draftAttributes()['periode']],
+                    nilaiBaru: ['revisi' => $jadwal->revisi, 'periode' => $jadwal->draftAttributes()['periode'],
+                        ...($dalamSesi ? ['jendela_pic_ids' => $lingkup['jendela_pic_ids']] : [])],
                     alasan: AuditReason::sanitize($data['alasan']), dasarIzin: $decision->toAuditBasis());
 
                 return $jadwal;
