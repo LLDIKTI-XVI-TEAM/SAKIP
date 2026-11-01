@@ -97,8 +97,10 @@ export interface IndikatorBelumTerjadwal {
 
 export interface JadwalEditorProps {
     jadwal: JadwalDetail | null;
-    /** close, revise_windows, dan tambah_indikator sudah memuat status jadwal dari server. */
-    can: { create: boolean; update: boolean; activate: boolean; close: boolean; revise_windows: boolean; tambah_indikator: boolean };
+    /** close, revise_windows, reopen, dan tambah_indikator sudah memuat status jadwal dari server. */
+    can: { create: boolean; update: boolean; activate: boolean; close: boolean; revise_windows: boolean; tambah_indikator: boolean; reopen: boolean };
+    koreksi: SesiKoreksi | null;
+    koreksi_indikator_options: { id: string; nama: string }[];
     read_only_reason: string | null;
     /** Indikator Renstra yang belum masuk jadwal; kosong bila can.tambah_indikator false. */
     indikator_belum_terjadwal: IndikatorBelumTerjadwal[];
@@ -109,6 +111,19 @@ export interface JadwalEditorProps {
     renstra_options: JadwalRenstraOption[];
     /** Periode aktif untuk ditambahkan; kosong bila kalender hanya dapat dibaca. */
     periode_options: PeriodeOption[];
+}
+
+export interface LingkupKoreksi {
+    jenis_objek: string[];
+    indikator_ids: string[];
+    periode_ids: string[];
+}
+
+export interface SesiKoreksi {
+    status: 'terjadwal' | 'berjalan' | 'berakhir' | 'ditutup';
+    mulai: string;
+    sampai: string;
+    lingkup: LingkupKoreksi;
 }
 
 /** Pratinjau server yang advisory; hanya agregat, tanpa nama/nilai indikator atau identitas lampiran. */

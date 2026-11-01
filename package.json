@@ -44,8 +44,12 @@
         "tailwind-merge": "^3.7.0"
     },
     "overrides": {
+        "minimatch": "11.0.1",
         "shell-quote": "1.11.0",
         "source-map-js": "1.2.2"
     },
-    "packageManager": "bun@1.3.11"
+    "packageManager": "bun@1.3.11",
+    "patchedDependencies": {
+        "minimatch@11.0.1": "patches/minimatch@11.0.1.patch"
+    }
 }

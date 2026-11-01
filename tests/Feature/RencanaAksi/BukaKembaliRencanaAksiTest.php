@@ -362,11 +362,9 @@ class BukaKembaliRencanaAksiTest extends TestCase
     }
 
     /**
-     * Dalam sesi koreksi pascapenutupan (Q41 §41.2 butir 6), PIC hanya boleh
-     * menulis periode yang jendela pengisiannya dibuka kembali secara resmi;
-     * periode lain ditolak.
+     * Sesi koreksi hanya membuka tulis Perencanaan pada periode tercakup.
      */
-    public function test_sesi_koreksi_pic_hanya_boleh_periode_dibuka_resmi(): void
+    public function test_sesi_koreksi_perencanaan_hanya_boleh_periode_tercakup(): void
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
@@ -391,7 +389,7 @@ class BukaKembaliRencanaAksiTest extends TestCase
         ]);
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $dibuka,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
@@ -399,7 +397,7 @@ class BukaKembaliRencanaAksiTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame($dibuka + 1, $header->fresh()->versi);
 
-        $this->actingAs($fixture['pic'])->post("/rencana-aksi/{$header->id}/target", [
+        $this->actingAs($fixture['perencanaan'])->post("/rencana-aksi/{$header->id}/target", [
             'expected_versi' => $dibuka + 1,
             'expected_snapshot_id' => $fixture['snapshot']->id,
             'expected_snapshot_versi' => 1,
@@ -409,7 +407,7 @@ class BukaKembaliRencanaAksiTest extends TestCase
         $this->assertTrue(AuditLog::where('tindakan', 'rencana_aksi.ubah_ditolak')->where('objek_id', $header->id)->exists());
     }
 
-    public function test_props_koreksi_tetap_mengunci_periode_sampai_jendela_pengisian_dibuka_resmi(): void
+    public function test_props_koreksi_tetap_mengunci_pic_meski_tanggal_jendela_diubah(): void
     {
         $fixture = $this->buatFixtureManual();
         $header = $this->drafManual($fixture);
@@ -442,12 +440,12 @@ class BukaKembaliRencanaAksiTest extends TestCase
                 ->where('rencanaAksi.periode_terkunci', [$fixture['periode1']->id, $fixture['periode2']->id])
                 ->where('rencanaAksi.can.update', false));
 
-        // Pembukaan jendela TW II di dalam sesi koreksi (ISS-14.03) disimulasikan langsung.
+        // Mengubah tanggal saja tidak membuka akses PIC dalam sesi Perencanaan.
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-03-20']);
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('rencanaAksi.periode_terkunci', [$fixture['periode1']->id])
-                ->where('rencanaAksi.can.update', true));
+                ->where('rencanaAksi.can.update', false));
     }
 
     public function test_penutupan_tanpa_sesi_koreksi_menolak_buka_kembali_dan_mengaudit_penolakan(): void

@@ -1,0 +1,20 @@
+diff --git a/dist/esm/index.d.ts b/dist/esm/index.d.ts
+index 2247bba1b3d19e4de64150ba4d44bd82de532d5f..694f43cee4bd5ef492784cbe96b16f1bb9d254b3 100644
+--- a/dist/esm/index.d.ts
++++ b/dist/esm/index.d.ts
+@@ -182,4 +182,5 @@ export declare class Minimatch {
+ export { escape } from './escape.js';
+ export { unescape } from './unescape.js';
+ export type { Form };
++export default minimatch;
+ //# sourceMappingURL=index.d.ts.map
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index ab804c2db6951836630594a59844233756d3957c..baf9b51bd0be323caa9493da3cefeecdd608b342 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -1498,4 +1498,5 @@ export { unescape } from './unescape.js';
+ minimatch.Minimatch = Minimatch;
+ minimatch.escape = escape;
+ minimatch.unescape = unescape;
++export default minimatch;
+ //# sourceMappingURL=index.js.map

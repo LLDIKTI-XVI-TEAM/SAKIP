@@ -2626,6 +2626,8 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-14.02 · Pembukaan Kembali Jadwal untuk Sesi Koreksi Perencanaan
 
+> **Status implementasi (28 Oktober 2026):** implementasi dan verifikasi lokal sesi koreksi tersedia: PostgreSQL disposable, 27 test khusus sesi/konkurensi (223 assertion, tanpa kegagalan; warning environment), 47 test frontend, Pint, PHPStan level 3, typecheck/lint/build, dan smoke browser buka/tutup ulang pada desktop 1280×720 serta mobile 390×844. Rujukan kontrak diselaraskan ke Q77 di Keputusan Penyelarasan sesuai keputusan PM 29 Oktober 2026 (review PR #199); status implementasi dan checkbox tidak berubah. Checkbox menunjukkan bukti teknis, bukan penerimaan UAT, merge, deployment, atau migrasi database aplikasi. UAT SSO Tim Perencanaan tetap belum dilakukan.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-14.02` |
@@ -2642,11 +2644,11 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
-- [ ] **AC-2:** Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
-- [ ] **AC-3:** Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
-- [ ] **AC-4:** Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
-- [ ] **AC-5:** Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
+- [x] **AC-1:** Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
+- [x] **AC-2:** Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
+- [x] **AC-3:** Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
+- [x] **AC-4:** Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
+- [x] **AC-5:** Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
 
 ### US-14.03 · Pembukaan Jendela PIC di Dalam Sesi Koreksi
 

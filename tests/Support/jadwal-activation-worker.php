@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Jadwal\ActivateJadwal;
+use App\Actions\Jadwal\BukaKembaliJadwal;
 use App\Actions\Jadwal\KoreksiSnapshot;
 use App\Actions\Jadwal\SaveJadwalDraft;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
@@ -69,6 +70,7 @@ try {
     $data = $payload['data'] ?? [];
     $result = match ($payload['operation']) {
         'activate' => app(ActivateJadwal::class)->handle($actor, $payload['id'], $data),
+        'reopen_jadwal' => app(BukaKembaliJadwal::class)->handle($actor, $payload['id'], $data),
         'save_target' => app(SaveTargetTahunan::class)->handle($actor, $payload['id'], $payload['year'], $data),
         'archive' => app(DestroyIndikator::class)->handle($actor, IndikatorKinerja::findOrFail($payload['id']), 'Arsip fixture konkurensi'),
         'formula' => app(ChangeIndicatorFormula::class)->handle($actor, IndikatorKinerja::findOrFail($payload['id']), $data),

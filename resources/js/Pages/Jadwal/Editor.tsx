@@ -10,6 +10,7 @@ import { Input } from '@/Components/Input';
 import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { PenutupanPanel } from '@/Components/Jadwal/PenutupanPanel';
+import { SesiKoreksiPanel } from '@/Components/Jadwal/SesiKoreksiPanel';
 import { RevisiJendela, RevisiJendelaPanel } from '@/Components/Jadwal/RevisiJendela';
 import { TambahIndikatorPanel } from '@/Components/Jadwal/TambahIndikatorPanel';
 import { Select } from '@/Components/Select';
@@ -36,6 +37,8 @@ export default function Editor(props: JadwalEditorProps) {
 function JadwalEditor({
     jadwal,
     can,
+    koreksi,
+    koreksi_indikator_options,
     read_only_reason,
     renstra_options,
     periode_options,
@@ -403,6 +406,10 @@ function JadwalEditor({
                     <PenutupanPanel jadwalId={jadwal.id} tahun={jadwal.tahun} revisi={jadwal.revisi} />
                 </div>
             )}
+            {jadwal && (can.reopen || koreksi) && <div className="mt-5">
+                <SesiKoreksiPanel jadwalId={jadwal.id} revisi={jadwal.revisi} canReopen={can.reopen} koreksi={koreksi}
+                    indikator={koreksi_indikator_options} periode={jadwal.periode} />
+            </div>}
         </AuthenticatedLayout>
     );
 }
