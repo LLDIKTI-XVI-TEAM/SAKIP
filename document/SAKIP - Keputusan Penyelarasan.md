@@ -2279,8 +2279,8 @@ Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 
 |---|---|---|
 | Penerima walkthrough/UAT, tanggal penerimaan dan tanggal produksi | PM + Perencanaan | Belum tercatat final; target integrasi proyek tidak otomatis sama dengan go-live. |
 | Contoh keluaran Excel penerimaan | Perencanaan | Layout/kolom/presisi/narasi final masih perlu disahkan untuk UAT. |
-| Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. |
-| Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. |
+| Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. Owner, status, bukti, dan blocker per layanan dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02); per 1 November 2026 seluruh owner belum ditetapkan. |
+| Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. Daftar periksanya ada pada `SAKIP - Kesiapan Infrastruktur.md` §3; aktivasinya mengikuti ISS-12.x setelah Tahap 2 (Q46 §46.3). |
 | Daftar penetapan awal 2026 | Perencanaan | Daftar unit, mapping indikator→unit, PJ, dan grant turunan dari penetapan PJ perlu disiapkan sebelum operasional TW IV (Q46; semula TW III). Pemetaan unit sementara tercantum pada asumsi kerja di bawah. |
 | Konfirmasi tertulis Q38–Q52 | PM + Perencanaan | Menunggu; tanggal kirim, bentuk, dan hasil dicatat pada pengantar Q39–Q46, pengantar Q47–Q51, dan Q52 §52.4. |
 | Contoh dokumen PK, Rencana Aksi, dan Pengukuran | Perencanaan | **Selesai.** Diterima sebagai lima dokumen resmi 2026 dan dianalisis pada Q47–Q51. |
