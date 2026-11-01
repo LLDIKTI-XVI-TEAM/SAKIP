@@ -188,6 +188,10 @@ class IndexRencanaAksi
             // Daftar periode terkunci bagi aktor untuk UI hanya-baca per
             // periode; Perencanaan dikecualikan sehingga daftarnya kosong.
             $terkunciIds = $this->jendela->jalurPerencanaan($keputusanUbah) ? [] : array_keys($rincianKunci);
+            // Dalam sesi koreksi, periode tanpa jendela PIC resmi di dalam sesi ikut hanya-baca bagi PIC.
+            if ($koreksi['aktif'] && ! $this->jendela->jalurPerencanaan($keputusanUbah)) {
+                $terkunciIds = array_values(array_unique([...$terkunciIds, ...array_diff($efektifIds->all(), $this->jendela->periodeJendelaPicSesi($jadwal, $efektifIds->all()))]));
+            }
 
             // Metadata indikator (nama, satuan, arah, tipe, presisi,
             // desimal_tampilan, dinilai_tahunan) berasal dari jadwal_snapshot

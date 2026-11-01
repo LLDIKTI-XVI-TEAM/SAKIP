@@ -5,13 +5,14 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
+import { waktu } from '@/Components/Jadwal/SesiKoreksiPanel';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import type { JadwalPeriode } from '@/types/periode-jadwal';
+import type { JadwalPeriode, SesiKoreksi } from '@/types/periode-jadwal';
 
 const tanggal = ['pengisian_mulai', 'pengisian_selesai'] as const;
 const linkClass = 'text-sm font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/30 rounded';
 
-export function RevisiJendelaPanel({ tahun, onStart }: { tahun: number; onStart: () => void }) {
+export function RevisiJendelaPanel({ tahun, dalamSesi = false, onStart }: { tahun: number; dalamSesi?: boolean; onStart: () => void }) {
     return (
         <Card>
             <CardHeader>
@@ -19,8 +20,10 @@ export function RevisiJendelaPanel({ tahun, onStart }: { tahun: number; onStart:
             </CardHeader>
             <CardContent className="space-y-3 p-4 sm:p-5">
                 <p className="text-sm">
-                    Perpanjang atau buka ulang jendela pengisian periode tahun {tahun} secara resmi. Revisi wajib beralasan
-                    dan tercatat di jejak audit.
+                    {dalamSesi
+                        ? `Buka jendela pengisian PIC tahun ${tahun} di dalam sesi koreksi yang berjalan. Tanpa pembukaan ini PIC tidak dapat ikut mengoreksi.`
+                        : `Perpanjang atau buka ulang jendela pengisian periode tahun ${tahun} secara resmi.`}{' '}
+                    Revisi wajib beralasan dan tercatat di jejak audit.
                 </p>
                 <div className="flex justify-end">
                     <Button id="revisi-jendela-mulai" type="button" onClick={onStart}>
@@ -38,10 +41,12 @@ interface RevisiJendelaProps {
     /** Revisi jadwal saat form dibuka; disimpan bersama baseline tanggal sebagai expected_revisi. */
     revisi: number;
     periode: JadwalPeriode[];
+    /** Sesi koreksi jadwal; bila berjalan, rentang dan periode lingkupnya menjadi batas revisi yang divalidasi server. */
+    koreksi?: SesiKoreksi | null;
     onCancel: () => void;
 }
 
-export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: RevisiJendelaProps) {
+export function RevisiJendela({ jadwalId, tahun, revisi, periode, koreksi = null, onCancel }: RevisiJendelaProps) {
     const [open, setOpen] = useState(false);
     const [unknown, setUnknown] = useState(false);
     const recovery = useAuthRecovery();
@@ -118,6 +123,19 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: Re
                         Ubah tanggal yang perlu direvisi. Batas baru langsung berlaku bagi PIC; penugasan, izin unit, dan
                         status data tetap diperiksa.
                     </p>
+                    {koreksi?.status === 'berjalan' && (
+                        <div className="space-y-1 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+                            <p>
+                                Sesi koreksi: {waktu(koreksi.mulai)} – {waktu(koreksi.sampai)} WITA. Kedua tanggal jendela
+                                wajib berada di dalam sesi ini.
+                            </p>
+                            <p>
+                                Periode yang dapat dibuka:{' '}
+                                {koreksi.lingkup.periode_ids.map((id) => periode.find((item) => item.periode_id === id)?.nama ?? id).join(', ')}.
+                                Periode lain tidak dapat diubah.
+                            </p>
+                        </div>
+                    )}
                     <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
                     {unknown && (
                         <div role="alert" className="space-y-1 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">

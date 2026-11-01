@@ -440,11 +440,11 @@ class BukaKembaliRencanaAksiTest extends TestCase
                 ->where('rencanaAksi.periode_terkunci', [$fixture['periode1']->id, $fixture['periode2']->id])
                 ->where('rencanaAksi.can.update', false));
 
-        // Mengubah tanggal saja tidak membuka akses PIC dalam sesi Perencanaan.
+        // Memperpanjang tanggal selesai saja tidak membuka akses PIC: jendela dimulai sebelum sesi sehingga tetap hanya-baca.
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2026-03-20']);
         $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('rencanaAksi.periode_terkunci', [$fixture['periode1']->id])
+                ->where('rencanaAksi.periode_terkunci', [$fixture['periode1']->id, $fixture['periode2']->id])
                 ->where('rencanaAksi.can.update', false));
     }
 

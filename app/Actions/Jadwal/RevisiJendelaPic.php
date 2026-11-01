@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
 use App\Services\Jadwal\JadwalDraftRules;
+use App\Services\Jadwal\SesiKoreksiJadwal;
 use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
@@ -22,7 +23,9 @@ class RevisiJendelaPic
     public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit, private readonly JadwalDraftRules $rules) {}
 
     /**
-     * Revisi resmi jendela pengisian periode anggota jadwal aktif (Q18; jendela reviu dihapus Q70).
+     * Revisi resmi jendela pengisian periode anggota jadwal aktif (Q18; jendela reviu dihapus Q70),
+     * atau pembukaan jendela PIC di dalam sesi koreksi yang berjalan (Plan 3.12): hanya periode lingkup
+     * yang boleh berubah dan tanggalnya wajib di dalam sesi; penutupan dan metadata sesi tidak diubah.
      * Hanya tanggal jendela dan revisi yang berubah; guard PIC membaca nilai baru
      * langsung dari `jadwal_periode`.
      * Urutan kunci jadwal → periode jadwal sama dengan writer pengukuran.
@@ -42,8 +45,9 @@ class RevisiJendelaPic
                 }
                 Periode::lockConfiguration();
                 $jadwal = JadwalTahunan::whereKey($jadwalId)->lockForUpdate()->firstOrFail();
-                if ($jadwal->status !== 'aktif' || $jadwal->tahunDitutup()) {
-                    throw ValidationException::withMessages(['jadwal' => 'Revisi jendela PIC hanya untuk jadwal aktif yang belum melewati penutupan.']);
+                $dalamSesi = SesiKoreksiJadwal::berjalan($jadwal);
+                if (! $dalamSesi && ($jadwal->status !== 'aktif' || $jadwal->tahunDitutup())) {
+                    throw ValidationException::withMessages(['jadwal' => 'Revisi jendela PIC hanya untuk jadwal aktif yang belum melewati penutupan atau di dalam sesi koreksi yang berjalan.']);
                 }
                 if ($jadwal->revisi !== (int) $data['expected_revisi']) {
                     throw ValidationException::withMessages(['jadwal' => 'Jadwal sudah berubah. Muat ulang detail jadwal sebelum merevisi jendela.']);
@@ -65,7 +69,13 @@ class RevisiJendelaPic
                     'urutan' => $periode->urutan,
                     ...(in_array($periode->id, $mulaiDiubah, true) ? ['batas_awal_pengisian' => $periode->batasAwalPengisian($jadwal->tahun)] : []),
                 ]])->all();
-                $this->rules->validate(['tahun' => $jadwal->tahun, 'penutupan' => $jadwal->penutupan->toDateString(), 'periode' => $requested], $metadata);
+                if ($dalamSesi) {
+                    $diubah = array_column(array_filter($requested, fn (array $window): bool => $window['pengisian_mulai'] !== $lama[$window['periode_id']]['pengisian_mulai']
+                        || $window['pengisian_selesai'] !== $lama[$window['periode_id']]['pengisian_selesai']), 'periode_id');
+                    $this->rules->validateSesiKoreksi(['periode' => $requested], $metadata, $diubah, $jadwal->lingkup_koreksi['periode_ids'], SesiKoreksiJadwal::rentangTanggal($jadwal));
+                } else {
+                    $this->rules->validate(['tahun' => $jadwal->tahun, 'penutupan' => $jadwal->penutupan->toDateString(), 'periode' => $requested], $metadata);
+                }
                 $changed = false;
                 foreach ($requested as $window) {
                     $row = $windows->get($window['periode_id']);

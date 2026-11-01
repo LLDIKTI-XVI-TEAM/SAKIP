@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Pengukuran;
 
+use App\Actions\Jadwal\BukaKembaliJadwal;
+use App\Actions\Jadwal\TutupJadwal;
 use App\Models\AuditLog;
 use App\Models\PenugasanIndikator;
 use App\Models\Permission;
@@ -182,6 +184,48 @@ class PengukuranRevisiJendelaTest extends TestCase
         $this->assertNull($this->pengukuran->fresh()->nilai);
         // Kontrol positif: sesi koreksi yang sama tetap terbuka bagi Perencanaan.
         $this->simpanDraf($this->userWithRole('perencanaan'))->assertSessionHasNoErrors();
+    }
+
+    public function test_jendela_pic_resmi_di_dalam_sesi_membuka_akses_pic_sampai_sesi_berakhir(): void
+    {
+        $pic = $this->pic();
+        $perencana = $this->userWithRole('perencanaan');
+        $this->travelTo(Carbon::parse('2027-01-05 09:00:00', 'Asia/Makassar'));
+        app(TutupJadwal::class)->handle($perencana, $this->jadwal->id, ['expected_revisi' => $this->jadwal->fresh()->revisi, 'alasan' => 'Tahun ditutup.']);
+        app(BukaKembaliJadwal::class)->handle($perencana, $this->jadwal->id, [
+            'expected_revisi' => $this->jadwal->fresh()->revisi, 'alasan' => 'Koreksi pengukuran TW I.',
+            'koreksi_mulai' => '2027-01-05T08:00', 'koreksi_sampai' => '2027-01-08T17:00',
+            'lingkup_koreksi' => ['jenis_objek' => ['pengukuran'], 'indikator_ids' => [$this->pengukuran->indikator_id], 'periode_ids' => [$this->pengukuran->periode_id]],
+        ]);
+        $tutup = AuditLog::where('tindakan', 'jadwal.tutup')->sole()->only(['id', 'nilai_lama', 'nilai_baru']);
+
+        // Tahun dibuka tetapi jendela PIC belum dibuka: PIC ditolak, Perencanaan tetap dapat mengoreksi.
+        $this->simpanDraf($pic)->assertSessionHasErrors('versi');
+        $this->assertNull($this->pengukuran->fresh()->nilai);
+
+        $this->actingAs($perencana)->post("/jadwal/{$this->jadwal->id}/revisi-jendela", [
+            'expected_revisi' => $this->jadwal->fresh()->revisi, 'alasan' => 'Jendela PIC koreksi TW I.',
+            'periode' => [['periode_id' => $this->pengukuran->periode_id, 'pengisian_mulai' => '2027-01-05', 'pengisian_selesai' => '2027-01-08']],
+        ])->assertSessionHasNoErrors();
+
+        $this->simpanDraf($pic)->assertSessionHasNoErrors();
+        $this->assertEquals(70, $this->pengukuran->fresh()->nilai);
+        // Jendela baru tidak melonggarkan PJ efektif maupun status record.
+        $bukanPj = $this->userWithRole('pegawai');
+        $this->grant($bukanPj, 'pengukuran:update');
+        $this->simpanDraf($bukanPj, 71)->assertSessionHasErrors('versi');
+        $this->ajukan($pic)->assertSessionHasNoErrors();
+        $this->assertSame('diajukan', $this->pengukuran->fresh()->status_alur);
+        $this->simpanDraf($pic, 72)->assertSessionHasErrors('versi');
+        DB::table('pengukuran_kinerjas')->where('id', $this->pengukuran->id)->update(['status_alur' => 'dikembalikan']);
+
+        // Sesi berakhir pukul 17.00 meski tanggal jendela masih berlaku: akses PIC tertutup tanpa mengubah penutupan.
+        $this->travelTo(Carbon::parse('2027-01-08 17:01:00', 'Asia/Makassar'));
+        $this->simpanDraf($pic, 73)->assertSessionHasErrors('versi');
+        $this->assertEquals(75, $this->pengukuran->fresh()->nilai);
+        $fresh = $this->jadwal->fresh();
+        $this->assertSame('2026-12-31', $fresh->penutupan->toDateString());
+        $this->assertSame($tutup, AuditLog::where('tindakan', 'jadwal.tutup')->sole()->only(['id', 'nilai_lama', 'nilai_baru']));
     }
 
     public function test_revisi_tidak_mengubah_penanda_reviu_terlambat_yang_sudah_tercatat(): void

@@ -195,7 +195,9 @@ class PengukuranKinerjaPolicy
             'draft', 'ajukan' => 'pengukuran:update',
             'verifikasi' => 'pengukuran:verifikasi', 'sahkan' => 'pengukuran:sahkan', 'kembalikan' => 'pengukuran:kembalikan',
         });
-        if ($schedule->tahunDitutup() && (! $correction || ! $planning)) {
+        // PIC hanya ikut koreksi lewat jendela resmi di dalam sesi; jendela lama yang masih berjalan tidak membuka akses.
+        $picDalamSesi = ! $planning && in_array($command, ['draft', 'ajukan'], true) && SesiKoreksiJadwal::jendelaPicTerbuka($schedule, $period);
+        if ($schedule->tahunDitutup() && (! $correction || ! ($planning || $picDalamSesi))) {
             $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
         }
         $statuses = match ($command) {
@@ -241,7 +243,8 @@ class PengukuranKinerjaPolicy
         if ($schedule->status !== 'aktif') {
             $errors[] = 'Jadwal tahunan harus aktif.';
         }
-        if ($schedule->tahunDitutup() && ($decision['roles'] === [] || ! $this->sesiKoreksiAktif($schedule, $snapshot->indikator_id, $period->periode_id))) {
+        if ($schedule->tahunDitutup() && (! $this->sesiKoreksiAktif($schedule, $snapshot->indikator_id, $period->periode_id)
+            || ($decision['roles'] === [] && ! SesiKoreksiJadwal::jendelaPicTerbuka($schedule, $period)))) {
             $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
         }
         if ($decision['roles'] === []) {

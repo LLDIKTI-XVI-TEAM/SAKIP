@@ -171,7 +171,7 @@ class JadwalRevisiJendelaTest extends TestCase
     {
         $perencana = $this->activator(['jadwal:update']);
         $draft = JadwalTahunan::create(['renstra_id' => $this->ready['renstra']->id, 'tahun' => 2027, 'penutupan' => '2028-01-31', 'status' => 'draft']);
-        $pesan = 'Revisi jendela PIC hanya untuk jadwal aktif yang belum melewati penutupan.';
+        $pesan = 'Revisi jendela PIC hanya untuk jadwal aktif yang belum melewati penutupan atau di dalam sesi koreksi yang berjalan.';
 
         $this->revisi($perencana, ['expected_revisi' => 1], $draft->id)->assertSessionHasErrors(['jadwal' => $pesan]);
         $this->travelTo(now()->setDate(2027, 1, 20));
