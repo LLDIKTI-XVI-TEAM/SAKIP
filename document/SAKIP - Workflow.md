@@ -1320,7 +1320,7 @@ Setiap penghapusan tercatat `audit_log` (soft delete lewat `dihapus_pada`/`dihap
 - Pengiriman bukti mencatat `mode` dan sumbernya: untuk `file` — nama asli, ukuran, mime; untuk `tautan` — nilai tautan tersimpan utuh pada baris `berkas` dan dicatat sebagai perubahan biasa; untuk `teks` — panjang teks, bukan salinannya. Berlaku sama pada keenam induk.
 - Pembuatan/ubah/hapus `regulasi` (nilai_lama/nilai_baru + alasan), perubahan `renstra.regulasi_id`/`indikator.regulasi_id`, unggah/hapus lampiran dokumen dasar (mode + sumber), dan penandaan `tidak_dapat_dipenuhi` pada gerbang keempat aktivasi jadwal (histori sebelum Q44) — seluruhnya tercatat `audit_log`.
 - Unggahan arsip dokumen resmi (Rencana Aksi tahunan, Laporan Kinerja Triwulan) tercatat `audit_log` dan tidak mengubah data, status, maupun snapshot (Q48 §48.2 butir 4).
-- Penyimpanan file fisik tetap di disk VPS (`storage/app/berkas/...`), diakses lewat route ber-permission (streamed download) — **bukan** URL publik, konsisten dengan model akses berbasis permission yang berlaku di seluruh aplikasi, untuk seluruh induk (Q44 §44.1 butir 4). Mode `tautan` dan `teks` tidak memakai storage aplikasi sama sekali.
+- Penyimpanan file fisik tetap di disk VPS (`storage/app/private/berkas/...`), diakses lewat route ber-permission (streamed download) — **bukan** URL publik, konsisten dengan model akses berbasis permission yang berlaku di seluruh aplikasi, untuk seluruh induk (Q44 §44.1 butir 4). Mode `tautan` dan `teks` tidak memakai storage aplikasi sama sekali.
 
 ---
 

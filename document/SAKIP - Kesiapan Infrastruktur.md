@@ -1,7 +1,7 @@
 # Kesiapan Infrastruktur dan Layanan Eksternal — Checklist sebelum UAT dan Produksi
 
-> **Traceability:** Issue [#186](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/186) · `ISS-15.02` · `US-15.02` · Q2 · Q30 · Q46 §46.3 · Plan P.1, P.2, P.4
-> **Basis dokumen:** `development` `91f313e2` (1 November 2026)
+> **Traceability:** Issue [#186](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/186) · `ISS-15.02` · `US-15.02` · Q2 · Q30 · Q46 §46.3 · Q80 · Plan P.1, P.2, P.4
+> **Basis dokumen:** `development` `91f313e2` (1 November 2026); diperbarui Q80 pada `086259b5`
 > **Sifat dokumen:** artefak kesiapan operasional. Bukan bukti deployment, bukan penerimaan UAT, dan bukan persetujuan produksi.
 
 ## Cara memakai dokumen ini
@@ -60,7 +60,7 @@ Bagian ini dibuktikan dari repositori dan CI, lalu diulang pada lingkungan tujua
 
 ## 3. Notifikasi Eksternal (AC-2)
 
-Notifikasi WA/Email tidak diaktifkan pada rilis ini; urutan pengerjaannya mengikuti rencana sprint setelah Tahap 2 (Q46 §46.3). Sebelum diaktifkan pada ISS-12.01–ISS-12.07 dan ISS-13.04, setiap butir berikut harus berstatus `Siap berbukti`.
+Notifikasi WA/Email tidak diaktifkan pada rilis ini; urutan pengerjaannya mengikuti rencana sprint setelah Tahap 2 (Q46 §46.3). Sebelum notifikasi eksternal diaktifkan pada ISS-12.03–ISS-12.07 dan ISS-13.04, setiap butir berikut harus berstatus `Siap berbukti` (Q80 §80.1). Selama belum diaktifkan, gate ini memenuhi AC-2 ISS-15.02.
 
 | Kebutuhan | Keterangan | Owner | Status | Bukti |
 |---|---|---|---|---|
@@ -77,7 +77,7 @@ Notifikasi WA/Email tidak diaktifkan pada rilis ini; urutan pengerjaannya mengik
 
 ## 4. Uji Pemulihan (AC-3)
 
-Backup dianggap siap hanya bila pemulihannya pernah diuji dan berbukti. Kriteria minimum di bawah ini adalah usulan; kebijakan final ditetapkan owner backup (§2 baris 6).
+Backup dianggap siap hanya bila pemulihannya pernah diuji dan berbukti. Uji di lingkungan UAT cukup untuk AC-3 ISS-15.02; sebelum produksi diterima, uji diulang di lingkungan produksi (Q80 §80.2). Kriteria minimum di bawah ini adalah usulan; kebijakan final ditetapkan owner backup (§2 baris 6).
 
 1. Basis data dan storage privat dipulihkan dari backup ke lingkungan terpisah, tanpa menimpa lingkungan yang sedang dipakai.
 2. Aplikasi hasil pemulihan dapat boot (`/up` 200) dan data contoh dapat dibaca.
@@ -97,7 +97,7 @@ Backup dianggap siap hanya bila pemulihannya pernah diuji dan berbukti. Kriteria
 | 1 | Owner layanan §2 belum ditetapkan | Kesiapan UAT dan produksi tidak dapat diverifikasi | ISS-15.02 AC-1; UAT; produksi | PM bersama pengelola infrastruktur menetapkan owner (Q30) |
 | 2 | Realm/client Keycloak lingkungan UAT belum tersedia | Akun UAT lima role dan PIC operasional tidak dapat dibuat | ISS-15.01 AC-5 | §2 baris 1 |
 | 3 | Uji pemulihan belum ada | Backup belum terbukti dapat dipulihkan | ISS-15.02 AC-3; produksi | §4 |
-| 4 | Notifikasi eksternal belum diaktifkan | Tidak ada pemberitahuan atau pengingat WA/Email | ISS-12.01–ISS-12.07, ISS-13.04 | Setelah Tahap 2 (Q46 §46.3); §3 |
+| 4 | Notifikasi eksternal belum diaktifkan | Tidak ada pemberitahuan atau pengingat WA/Email | ISS-12.03–ISS-12.07, ISS-13.04 | Setelah Tahap 2 (Q46 §46.3); §3 |
 | 5 | Belum ada artefak deployment produksi dan dokumen Deployment & Operations | Urutan rilis dan prosedur pemulihan belum baku | Produksi | System Architecture §17 |
 | 6 | Belum ada identitas rilis (tag/Release) | Build yang diuji dan dirilis belum dapat dicatat | ISS-15.03 AC-5 | ISS-15.03 |
 
