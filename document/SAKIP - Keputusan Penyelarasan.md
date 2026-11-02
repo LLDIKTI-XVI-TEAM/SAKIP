@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **30 Oktober 2026**
+Pembaruan terakhir: **1 November 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -81,6 +81,10 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Rapat evaluasi 23 Oktober 2026 (Q70–Q74)** menetapkan tanggal periode tanpa tahun di Master Periode dan jadwal tanpa jendela reviu (Q70); revisi target Renstra aktif melalui mode revisi dengan justifikasi wajib (Q71); penolakan target PK yang menyimpang dari target Renstra serta alasan perubahan target PK yang wajib (Q72); baseline otomatis dan tabel target PK tanpa kolom Target Renstra (Q73); serta kegiatan yang dikelola dari Rencana Aksi beserta form realisasi dan biaya terpakai (Q74).
 
 **Keputusan 30 Oktober 2026 (Q79)** menetapkan bahwa versi koreksi snapshot disalin dari data master terkini setelah master diperbaiki, dengan periode mulai yang tidak lebih awal dari versi yang digantikan dan tanpa memindahkan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada, serta menyelaraskan Acceptance Criteria ISS-03.03 dengan issue #91.
+
+**Keputusan 1 November 2026 (Q67)** menetapkan antrean pengukuran Disahkan sebagai halaman terpisah `/verifikasi/disahkan` yang hanya memuat pengukuran yang masih dapat dibuka kembali, dengan syarat izin baca dan buka kembali; antrean reviu `/verifikasi` tetap memuat Diajukan dan Diverifikasi.
+
+**Keputusan 1 November 2026 (Q80)** menetapkan bahwa AC-2 ISS-15.02 terpenuhi oleh gate checklist kesiapan infrastruktur selama notifikasi eksternal belum diaktifkan, dan gate itu menjadi Definition of Done issue notifikasi eksternal; uji pemulihan di lingkungan UAT cukup untuk ISS-15.02 dan diulang di produksi sebelum produksi diterima; serta path berkas di dokumen diselaraskan dengan implementasi.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -1290,7 +1294,7 @@ Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#1
 ## 46.4 Dampak dan traceability
 
 - Q32.7 dan Q32.8; PRD §12.6, §33; Data Model §8.4; Workflow §15; Plan (prioritas dan urutan modul); User Issues §4.1; US/ISS-03.05 dan 07.05.
-- Status implementasi: belum.
+- Status implementasi: sisi pengukuran terverifikasi test (PR #210) melalui `PengukuranPeriodeLampauMatrixTest`, `PengukuranTanpaBackfillTest`, dan `PengukuranProvenanceLampauTest`; sisi Rencana Aksi dirujuk ke ISS-03.05 (#146) dengan status per issue. Data awal 2026 dan AC-4 menunggu UAT ISS-15.01.
 
 ---
 
@@ -1903,6 +1907,33 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 ---
 
+# Keputusan Q67 — Antrean Pengukuran Disahkan untuk Buka Kembali
+
+**Keputusan PM: 1 November 2026 (WITA), review PR #212 (ISS-08.03, [Issue #181](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/181)).** Menetapkan bentuk antrean Plan 6.3 yang oleh issue #181 diserahkan ke refinement. Keputusan ini menggantikan usulan 21 Oktober 2026 berupa opsi Disahkan pada filter status `/verifikasi`, yang belum pernah dicatat dan menjadi alasan nomor Q67 dicadangkan. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 67.1 Permukaan dan isi
+
+1. Antrean pengukuran Disahkan adalah halaman terpisah `/verifikasi/disahkan`, dibuka dari tombol "Pengukuran Disahkan" pada halaman Verifikasi & Pengesahan Kinerja. Antrean reviu `/verifikasi` tetap hanya memuat `diajukan` dan `diverifikasi`, dan filter "Status antrean" tidak mendapat opsi Disahkan.
+2. Halaman hanya memuat pengukuran `disahkan` yang masih dapat dibuka kembali. Jadwalnya `aktif` dan tahun belum ditutup (tanggal bisnis belum melewati `penutupan` dan jadwal tidak sedang atau pernah dibuka untuk sesi koreksi, Q77 butir 3), atau baris itu tercakup sesi koreksi resmi untuk indikator × periode × `pengukuran` (Workflow §13 Lapis 3 butir 8a, Q35 §35.2). Kondisi per baris yang jarang terjadi, seperti unit nonaktif dan indikator arsip, tetap ditolak di halaman detail dengan pesan dari server.
+3. Kolom: kode dan nama indikator, unit, periode, versi resmi (nomor dan tanggal pengesahan), nilai, status, serta tautan ke detail. Buka kembali dilakukan dari halaman detail dengan alasan wajib (Q43 §43.2 butir 1); halaman antrean tidak mengubah data.
+4. Filter Renstra, Tahun, Periode, dan Unit mengambil pilihan dari cakupan antrean yang sama. Urutan mengikuti waktu pengesahan versi resmi, terbaru lebih dulu, dengan 20 baris per halaman.
+
+## 67.2 Akses
+
+1. Halaman dan pilihan filternya memerlukan `pengukuran:read` dan `pengukuran:buka_kembali`; tanpa salah satunya permintaan ditolak 403. Baris pada unit yang dikenai deny atas salah satu izin itu tidak tampil (deny eksplisit menang, Q32).
+2. Tombol "Pengukuran Disahkan" pada `/verifikasi` hanya tampil bila server menyatakan pengguna memiliki kedua izin tersebut.
+3. Detail `/verifikasi/{id}` juga dapat dibuka pemegang `pengukuran:buka_kembali` pada unit target, di samping pemegang izin reviu, dan tetap mensyaratkan `pengukuran:read` pada unit itu.
+
+## 67.3 Dampak dan traceability
+
+- Plan 6.3 (scope dan DoD), US/ISS-08.03 task D, Workflow §13 Lapis 2, PRD §19.5.
+- Kebutuhan melihat seluruh pengukuran Disahkan, termasuk pada jadwal yang sudah ditutup, dilayani halaman Pengukuran dan Rekap Indikator per Periode. Tidak ada daftar baca-saja tambahan di `/verifikasi`.
+- Tidak ada migrasi, permission baru, maupun perubahan alur status.
+- Status implementasi: PR #212.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
 # Keputusan Q68 — Tabel Monitoring Penanggung Jawab
 
 **Keputusan PM: 22 Oktober 2026 (WITA), perbaikan ISS-04.01.** Mengubah Q32 §32.2 (daftar "PJ aktif tanpa hak isi") dan menutup D-01 ISS-04.01. Q67 dicadangkan untuk keputusan lain, sehingga keputusan ini bernomor Q68. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
@@ -2280,7 +2311,7 @@ Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 
 | Penerima walkthrough/UAT, tanggal penerimaan dan tanggal produksi | PM + Perencanaan | Belum tercatat final; target integrasi proyek tidak otomatis sama dengan go-live. |
 | Contoh keluaran Excel penerimaan | Perencanaan | Layout/kolom/presisi/narasi final masih perlu disahkan untuk UAT. |
 | Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. Owner, status, bukti, dan blocker per layanan dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). |
-| Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. Daftar periksanya ada pada `SAKIP - Kesiapan Infrastruktur.md` §3; aktivasinya mengikuti ISS-12.x setelah Tahap 2 (Q46 §46.3). |
+| Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. Daftar periksanya ada pada `SAKIP - Kesiapan Infrastruktur.md` §3; aktivasinya mengikuti ISS-12.x setelah Tahap 2 (Q46 §46.3) dengan gate Q80 §80.1. |
 | Daftar penetapan awal 2026 | Perencanaan | Daftar unit, mapping indikator→unit, PJ, dan grant turunan dari penetapan PJ perlu disiapkan sebelum operasional TW IV (Q46; semula TW III). Pemetaan unit sementara tercantum pada asumsi kerja di bawah. |
 | Konfirmasi tertulis Q38–Q52 | PM + Perencanaan | Menunggu; tanggal kirim, bentuk, dan hasil dicatat pada pengantar Q39–Q46, pengantar Q47–Q51, dan Q52 §52.4. |
 | Contoh dokumen PK, Rencana Aksi, dan Pengukuran | Perencanaan | **Selesai.** Diterima sebagai lima dokumen resmi 2026 dan dianalisis pada Q47–Q51. |
@@ -2451,3 +2482,31 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 - Data Model §2.17 (`periode_mulai_id` dan perilaku koreksi) dan §2.36 (kriteria "belum ditutup"); US/ISS-03.03.
 - Pembaca versi efektif per periode, rekonsiliasi draf Rencana Aksi, dan gerbang pengajuan pengukuran tidak berubah oleh keputusan ini.
 - Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. Issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) dan §79.3 butir 4 belum dikerjakan. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
+# Keputusan Q80 — Gate Notifikasi Eksternal, Lingkungan Uji Pemulihan, dan Penyelarasan Dokumen ISS-15.02
+
+**Keputusan PM: 1 November 2026 (WITA)**, rencana penyelesaian [issue #186](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/186) (ISS-15.02) setelah PR #214. Memperjelas Q30 dan Q46 §46.3 untuk AC-2 dan AC-3 ISS-15.02, serta menyelaraskan path penyimpanan berkas pada dokumen dengan implementasi. Mengubah US/ISS-15.02; Definition of Done ISS-12.03–ISS-12.07, ISS-13.04, dan ISS-15.03; `SAKIP - Kesiapan Infrastruktur.md` §3–§5; serta PRD, Workflow, Data Model, dan Plan (path berkas). Pencatatan ini bukan persetujuan UAT, produksi, atau aktivasi notifikasi.
+
+## 80.1 AC-2 ISS-15.02 dan gate notifikasi eksternal
+
+1. Selama notifikasi eksternal (WhatsApp/Email) belum diaktifkan (Q46 §46.3), AC-2 ISS-15.02 terpenuhi oleh gate pada `SAKIP - Kesiapan Infrastruktur.md` §3: setiap kebutuhan (provider, template, sumber kontak, jam kirim dan zona waktu, pengirim, credential, retry, dan bukti delivery) tercatat dengan status `Belum diaktifkan`.
+2. Notifikasi eksternal tidak diaktifkan di lingkungan UAT atau produksi sebelum seluruh butir §3 berstatus `Siap berbukti`. Gate ini menjadi butir Definition of Done ISS-12.03–ISS-12.07 dan ISS-13.04. ISS-12.01 dan ISS-12.02 bersifat in-app dan tidak terkena gate ini.
+3. Pembuktian butir §3 dicentang pada issue notifikasi yang mengaktifkannya, bukan pada ISS-15.02.
+
+## 80.2 Lingkungan uji pemulihan
+
+1. Uji pemulihan berbukti pada lingkungan UAT cukup untuk AC-3 ISS-15.02.
+2. Sebelum produksi diterima, uji pemulihan diulang pada lingkungan produksi dan dicatat pada checklist kesiapan §4. Gate ini menjadi butir Definition of Done ISS-15.03.
+
+## 80.3 Penyelarasan dokumen
+
+1. Path fisik berkas pada PRD, Workflow, Data Model, dan Plan diselaraskan dengan implementasi: `storage/app/private/berkas/...` (disk `local`, ADR-0006). Lokasi berkas dan kode tidak berubah.
+2. Kolom Workflow pada traceability US/ISS-15.02 menjadi "—" karena Workflow §22 adalah tabel Peran vs Aksi dan tidak memuat alur infrastruktur.
+
+## 80.4 Dampak dan traceability
+
+- Q30 dan Q46 §46.3 diperjelas; Q4 tidak berubah.
+- US/ISS-15.02 (AC-2 dan DoD), DoD ISS-12.03–ISS-12.07, ISS-13.04, dan ISS-15.03; `SAKIP - Kesiapan Infrastruktur.md` §3–§5; PRD §18.9, Workflow §10.6, Data Model §2.30, serta Plan 13.5 dan P.1 (path berkas).
+- Status keputusan: keputusan PM 1 November 2026. Aturan bisnis yang disahkan Tim Perencanaan (Q1) tidak berubah, sehingga konfirmasi tertulis tidak diminta.

@@ -1088,7 +1088,7 @@ Sebelum batas masing-masing tercapai, Perencanaan (dan pengunggah) dapat menghap
 - Format dan ukuran maksimum per persyaratan ditetapkan Perencanaan di Persyaratan Berkas (§18.2) dan menimpa default konfigurasi. Daftar mode yang diizinkan per persyaratan tetap milik `jenis_berkas` (Perencanaan).
 - Tampilan daftar berkas terunggah (semacam file manager) masuk backlog tahap 3 (Q44 §44.1 butir 3, Q46 §46.3).
 
-**Batas tegas:** penyimpanan file fisik tetap privat di disk VPS (`storage/app/berkas/...`), diakses lewat route ber-permission (streamed download) — **bukan** URL publik (Q44 §44.1 butir 4).
+**Batas tegas:** penyimpanan file fisik tetap privat di disk VPS (`storage/app/private/berkas/...`), diakses lewat route ber-permission (streamed download) — **bukan** URL publik (Q44 §44.1 butir 4).
 
 ### 18.10 Lampiran Bebas pada Kegiatan
 
@@ -1144,8 +1144,8 @@ Gerbang-gerbang ini **dikecualikan pada periode lampau 2026** (§12.6; semula di
 
 ### 19.5 Koreksi Setelah Pengesahan
 
-- **Sebelum penutupan jadwal**: Perencanaan/Superadmin dapat mengembalikan pengukuran yang sudah **Disahkan** ke status **Dikembalikan** melalui permission `pengukuran:buka_kembali`, dengan **alasan wajib** diisi. Jalur ini hanya tersedia sebelum `penutupan` jadwal tahunan tercapai.
-- **Setelah penutupan jadwal**: satu-satunya jalur koreksi adalah `jadwal:buka_kembali` (§12.6) — membuka jadwal (`ditutup → aktif`), melakukan koreksi yang diperlukan (termasuk membuka kembali pengukuran individual bila perlu), lalu menutup ulang jadwal (`jadwal:tutup`). Seluruh rangkaian ini tercatat penuh di audit log.
+- **Sebelum penutupan jadwal**: Perencanaan/Superadmin dapat mengembalikan pengukuran yang sudah **Disahkan** ke status **Dikembalikan** melalui permission `pengukuran:buka_kembali`, dengan **alasan wajib** diisi. Jalur ini tersedia sebelum `penutupan` jadwal tahunan tercapai, atau di dalam sesi koreksi resmi yang mencakup indikator × periode × `pengukuran` (Q35 §35.2; Q67; Workflow §13 Lapis 3).
+- **Setelah penutupan jadwal**: di luar sesi koreksi resmi, satu-satunya jalur koreksi adalah `jadwal:buka_kembali` (§12.6) — membuka jadwal (`ditutup → aktif`), melakukan koreksi yang diperlukan (termasuk membuka kembali pengukuran individual bila perlu), lalu menutup ulang jadwal (`jadwal:tutup`). Seluruh rangkaian ini tercatat penuh di audit log.
 
 ---
 
@@ -1488,7 +1488,7 @@ Kriteria berikut harus terpenuhi agar MVP dianggap layak rilis:
 10. **Mesin perhitungan komponen**: Untuk indikator bertipe `rasio_persen`/`penjumlahan`, sistem menghitung `pengukuran.nilai` secara otomatis dan benar dari `pengukuran_komponen` sesuai definisi `indikator_komponen` (peran dan bobot), termasuk penanganan pembagian nol sebagai "tidak dapat dihitung".
 11. **Deadline pengisian per periode dan kunci periode Rencana Aksi** *(diperbarui Q41)*: PIC ditolak sistem saat mencoba membuat/mengubah/mengajukan Pengukuran setelah `pengisian_selesai` periode yang bersangkutan terlewati, dan saat menyimpan draf, mengajukan, atau menyimpan versi baru Rencana Aksi yang mengubah target atau daftar kegiatan periode yang `pengisian_selesai`-nya sudah lewat (422, teraudit); di luar periode terkunci, PIC dapat menyusun dan mengajukan Rencana Aksi sejak jadwal aktif sampai `penutupan` tanpa memeriksa jendela penyusunan (`rencana_aksi_selesai` tidak lagi dibaca). Perencanaan tetap dapat melakukannya sampai `penutupan` jadwal tahunan.
 12. **Alur linear Rencana Aksi dan Pengukuran**: Transisi status pada kedua entitas hanya dapat mengikuti urutan yang diizinkan (Draft→Diajukan→Diverifikasi→Disahkan, dengan Dikembalikan sebagai jalur balik dari Diajukan/Diverifikasi/Disahkan); transisi di luar urutan ini ditolak sistem.
-13. **Buka kembali setelah pengesahan**: Sebelum `penutupan`, `pengukuran:buka_kembali`/`rencana_aksi:buka_kembali` berhasil memindahkan status Disahkan ke Dikembalikan dengan alasan wajib; setelah `penutupan`, permintaan yang sama ditolak dan hanya `jadwal:buka_kembali` yang dapat membuka jalur koreksi.
+13. **Buka kembali setelah pengesahan**: Sebelum `penutupan`, atau di dalam sesi koreksi resmi yang mencakup indikator × periode × objek, `pengukuran:buka_kembali`/`rencana_aksi:buka_kembali` berhasil memindahkan status Disahkan ke Dikembalikan dengan alasan wajib (Q35 §35.2; Q67). Di luar sesi tersebut setelah `penutupan`, permintaan yang sama ditolak dan hanya `jadwal:buka_kembali` yang dapat membuka jalur koreksi.
 14. **Validasi narasi pengukuran** *(digantikan Q45; semula validasi catatan wajib berbasis arah dan `wajib_catatan`)*: Pengajuan pengukuran ditolak jika `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, atau jika `tindak_lanjut_rekomendasi` kosong padahal terdapat rekomendasi berstatus disetujui pada periode sebelumnya (Q45, Q51); `catatan` kosong tidak lagi menyebabkan penolakan, dan saklar `wajib_catatan` tidak tampil pada form indikator. Gerbang ini dikecualikan untuk periode lampau 2026 (Q46).
 15. **Klaim kegiatan tidak mengubah nilai komponen**: Menambah/menghapus baris `klaim_kegiatan` tidak mengubah nilai `pengukuran_komponen`/`rencana_aksi_target` mana pun secara otomatis.
 16. **Optimistic locking**: Update pengukuran/rencana aksi dengan nomor `versi` usang ditolak dengan pesan konflik yang jelas.

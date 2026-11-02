@@ -21,8 +21,12 @@ class IndexVerifikasi extends Controller
             'renstra_id' => ['nullable', 'uuid'], 'tahun' => ['nullable', 'integer', 'between:1,9999'],
             'periode_id' => ['nullable', 'uuid'], 'unit_id' => ['nullable', 'uuid'],
         ]);
+        $actor = $request->user();
+        // Capability tautan ke antrean Disahkan; gerbang 403 halaman ini tetap ditentukan izin reviu.
+        $bolehBukaKembali = $resolver->allows($actor, 'pengukuran:read') && $resolver->allows($actor, 'pengukuran:buka_kembali');
 
-        return Inertia::render('Verifikasi/Index', $action->handle($request->user(), $permissions, $filters));
+        return Inertia::render('Verifikasi/Index', ['can' => ['buka_kembali' => $bolehBukaKembali]]
+            + $action->handle($actor, $permissions, $filters));
     }
 
     public function pilihan(Request $request, IndexVerifikasiAction $action, PermissionResolver $resolver): JsonResponse

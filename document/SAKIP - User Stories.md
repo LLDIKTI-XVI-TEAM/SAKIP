@@ -1696,11 +1696,11 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
-- [ ] Tidak ada `is_backfill` atau tipe pengukuran khusus.
-- [ ] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
-- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi.
-- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6)*
+- [x] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
+- [x] Tidak ada `is_backfill` atau tipe pengukuran khusus. *(kolom lama `historis` masih ada di skema tetapi ditolak saat pengajuan)*
+- [x] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
+- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi. *(rujukan UAT ISS-15.01)*
+- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6 — bagian pengecualian gerbang terbukti test; bagian data menunggu UAT ISS-15.01)*
 
 ### US-07.06 · Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
@@ -1808,11 +1808,11 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
-- [ ] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
-- [ ] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [x] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [x] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
 
 ---
 
@@ -2730,7 +2730,7 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 **Acceptance Criteria**
 
 - [ ] **AC-1:** Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
-- [ ] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
+- [x] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia. *(Q80 §80.1: terpenuhi oleh gate checklist kesiapan §3 selama notifikasi eksternal belum diaktifkan.)*
 - [ ] **AC-3:** Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
 - [x] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
 
@@ -2884,7 +2884,7 @@ Matriks memuat seluruh 89 User Story per 24 Oktober 2026, termasuk US-11.06 yang
 | **US-14.02** | Modul 3: 3.9 | §12.6 | §13 | correction session |
 | **US-14.03** | Modul 3: 3.12 | §12.3, §12.6 | §13 | PIC windows |
 | **US-15.01** | S.1, P.5 | Pembuka, §12.6, §32 | §15 | initial data |
-| **US-15.02** | P.1–P.4 | §6, §28, §34 | §22 | operational dependencies |
+| **US-15.02** | P.1–P.4 | §6, §28, §34 | — | operational dependencies |
 | **US-15.03** | P.4 | Pembuka, §32 | — | UAT/acceptance records |
 
 ## Definition of Done Global

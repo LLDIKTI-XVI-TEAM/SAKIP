@@ -1320,7 +1320,7 @@ Setiap penghapusan tercatat `audit_log` (soft delete lewat `dihapus_pada`/`dihap
 - Pengiriman bukti mencatat `mode` dan sumbernya: untuk `file` — nama asli, ukuran, mime; untuk `tautan` — nilai tautan tersimpan utuh pada baris `berkas` dan dicatat sebagai perubahan biasa; untuk `teks` — panjang teks, bukan salinannya. Berlaku sama pada keenam induk.
 - Pembuatan/ubah/hapus `regulasi` (nilai_lama/nilai_baru + alasan), perubahan `renstra.regulasi_id`/`indikator.regulasi_id`, unggah/hapus lampiran dokumen dasar (mode + sumber), dan penandaan `tidak_dapat_dipenuhi` pada gerbang keempat aktivasi jadwal (histori sebelum Q44) — seluruhnya tercatat `audit_log`.
 - Unggahan arsip dokumen resmi (Rencana Aksi tahunan, Laporan Kinerja Triwulan) tercatat `audit_log` dan tidak mengubah data, status, maupun snapshot (Q48 §48.2 butir 4).
-- Penyimpanan file fisik tetap di disk VPS (`storage/app/berkas/...`), diakses lewat route ber-permission (streamed download) — **bukan** URL publik, konsisten dengan model akses berbasis permission yang berlaku di seluruh aplikasi, untuk seluruh induk (Q44 §44.1 butir 4). Mode `tautan` dan `teks` tidak memakai storage aplikasi sama sekali.
+- Penyimpanan file fisik tetap di disk VPS (`storage/app/private/berkas/...`), diakses lewat route ber-permission (streamed download) — **bukan** URL publik, konsisten dengan model akses berbasis permission yang berlaku di seluruh aplikasi, untuk seluruh induk (Q44 §44.1 butir 4). Mode `tautan` dan `teks` tidak memakai storage aplikasi sama sekali.
 
 ---
 
@@ -1467,7 +1467,8 @@ flowchart TD
 
 📋 Perencanaan / ⚙️ Superadmin
   8. Untuk pengukuran yang sudah Disahkan, masih dapat dibuka-kembali (pengukuran:buka_kembali)
-     menjadi Dikembalikan, dengan alasan wajib, selama Jadwal Tahunan belum penutupan — lihat §13
+     menjadi Dikembalikan, dengan alasan wajib, selama Jadwal Tahunan belum penutupan atau di
+     dalam sesi koreksi resmi yang mencakup indikator × periode × pengukuran — lihat §13
 
 (Fase Lanjutan, belum dibangun: pengukuran yang sudah Disahkan bisa memerlukan tahap tambahan
 pengukuran:setujui oleh Pimpinan sebelum benar-benar dianggap final, jika
@@ -1484,7 +1485,7 @@ stateDiagram-v2
     Diverifikasi --> Dikembalikan: pengukuran:kembalikan (Perencanaan, alasan wajib)
     Diverifikasi --> Disahkan: pengukuran:sahkan (Perencanaan)\nFASE AWAL: langsung, tanpa approval Pimpinan\ntunduk gerbang pemisahan tugas F1/F2 §20
     Dikembalikan --> Draft: penanggung jawab/Perencanaan merevisi
-    Disahkan --> Dikembalikan: pengukuran:buka_kembali\n(Perencanaan/Superadmin, alasan wajib,\nhanya sebelum jadwal.penutupan)
+    Disahkan --> Dikembalikan: pengukuran:buka_kembali\n(Perencanaan/Superadmin, alasan wajib,\nsebelum jadwal.penutupan atau\ndalam sesi koreksi tercakup)
     Disahkan --> [*]: status final Fase Awal\n(sampai jadwal.penutupan) -\nsiap direkomendasikan Pimpinan (§17)\ndan ditetapkan status capaiannya (§16)
 
     note right of Disahkan
@@ -1548,11 +1549,14 @@ Koreksi data rencana aksi/pengukuran/jadwal disediakan lewat tiga permission ber
        pengukuran yang sudah terlanjur diajukan sebelumnya pada periode lain; gerbang hanya
        dievaluasi ulang pada pengajuan BARU
 
-  Lapis 2 — Pengukuran, sebelum penutupan jadwal:
+  Lapis 2 — Pengukuran, sebelum penutupan jadwal atau di dalam sesi koreksi yang mencakup baris:
   4. Menemukan pengukuran berstatus Disahkan yang perlu dikoreksi
   5. Menjalankan aksi pengukuran:buka_kembali, wajib mengisi alasan
-     → Jadwal sudah penutupan: aksi DITOLAK — jalur ini sudah tertutup, lanjut ke Lapis 3
-     → Jadwal belum penutupan: Status pengukuran kembali ke Dikembalikan
+     → Tahun sudah ditutup (tanggal bisnis melewati `penutupan`, atau jadwal pernah dibuka untuk
+       sesi koreksi — Q77 butir 3) dan baris tidak tercakup sesi koreksi yang berlaku: aksi
+       DITOLAK — lanjut ke Lapis 3
+     → Tahun belum ditutup atau baris tercakup sesi koreksi yang berlaku: Status pengukuran
+       kembali ke Dikembalikan (Q35 §35.2; Q67)
   6. Penanggung jawab/Perencanaan merevisi nilai/narasi/catatan (kembali ke alur §12
      langkah 7)
 
@@ -1591,7 +1595,7 @@ stateDiagram-v2
     JDitutup --> JAktif: jadwal:buka_kembali\n(alasan, waktu dan lingkup wajib)
 
     RADisahkan --> RADikembalikan: rencana_aksi:buka_kembali\n(alasan wajib, sebelum penutupan\natau dalam sesi resmi tercakup)
-    PDisahkan --> PDikembalikan: pengukuran:buka_kembali\n(alasan wajib, HANYA sebelum penutupan)
+    PDisahkan --> PDikembalikan: pengukuran:buka_kembali\n(alasan wajib, sebelum penutupan\natau dalam sesi resmi tercakup)
 
     note right of JDitutup
         Setelah jadwal.penutupan, satu-satunya
@@ -1713,7 +1717,7 @@ flowchart TD
 
 ## 15. Alur Periode Lampau 2026 dan Data Awal
 
-> **Q46, Q47, Q50 (13 Oktober 2026):** dengan pola pelaporan pada minggu pertama bulan setelah triwulan, **TW III 2026** ikut menjadi periode lampau yang diisi Perencanaan, dan **TW IV 2026** menjadi triwulan pertama workflow normal PIC operasional dengan pelaporan awal Januari 2027 (Q46 §46.1 butir 2). Gerbang baru Q42–Q45 dikecualikan untuk periode lampau, sedangkan kunci per triwulan (Q41) bukan bagian pengecualian itu (Q46 §46.1 butir 1, dikoreksi 13 Oktober 2026). Data awal 2026 diisi Perencanaan dari dokumen resmi 2026, dengan target TW I–III dicatat kosong (Q46 §46.1 butir 6, Q47 §47.2 butir 4). Semula TW I–II periode lampau dan TW III–IV normal (Q32.7) — diperbarui Q46. Status implementasi: belum (US/ISS-03.05, 07.05, 15.01).
+> **Q46, Q47, Q50 (13 Oktober 2026):** dengan pola pelaporan pada minggu pertama bulan setelah triwulan, **TW III 2026** ikut menjadi periode lampau yang diisi Perencanaan, dan **TW IV 2026** menjadi triwulan pertama workflow normal PIC operasional dengan pelaporan awal Januari 2027 (Q46 §46.1 butir 2). Gerbang baru Q42–Q45 dikecualikan untuk periode lampau, sedangkan kunci per triwulan (Q41) bukan bagian pengecualian itu (Q46 §46.1 butir 1, dikoreksi 13 Oktober 2026). Data awal 2026 diisi Perencanaan dari dokumen resmi 2026, dengan target TW I–III dicatat kosong (Q46 §46.1 butir 6, Q47 §47.2 butir 4). Semula TW I–II periode lampau dan TW III–IV normal (Q32.7) — diperbarui Q46. Status implementasi: sisi pengukuran terverifikasi test (PR #210) melalui `PengukuranPeriodeLampauMatrixTest`, `PengukuranTanpaBackfillTest`, dan `PengukuranProvenanceLampauTest`; sisi Rencana Aksi dirujuk ke ISS-03.05 (status per issue), sedangkan ISS-15.01 (data awal 2026) menunggu UAT.
 >
 > **Q63 (19 Oktober 2026):** bukti wajib tahap `rencana_aksi` dikecualikan pada jalur Perencanaan untuk RA data awal 2026 dan RA seluruh-periode-lampau; PIC tidak pernah dikecualikan, termasuk gerbang minimal satu kegiatan (lihat butir 4–6).
 

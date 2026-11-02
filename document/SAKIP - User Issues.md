@@ -3942,18 +3942,20 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria
 
-- [ ] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
-- [ ] Tidak ada `is_backfill` atau tipe pengukuran khusus.
-- [ ] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
-- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi.
-- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6)*
+- [x] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
+- [x] Tidak ada `is_backfill` atau tipe pengukuran khusus. *(tidak ada kolom/flag `is_backfill` maupun jalur khusus yang dapat dipakai; kolom lama `sumber_nilai = historis`, `alasan_historis`, dan `sumber_historis` masih ada di skema tetapi ditolak saat pengajuan — pembersihannya non-goal issue ini)*
+- [x] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
+- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi. *(rujukan UAT ISS-15.01; otomatis hanya sebatas seed produksi)*
+- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6 — bagian pengecualian gerbang terbukti test; bagian data menunggu UAT ISS-15.01)*
 
 #### Automated Tests
 
-- [ ] Uji hanya jalur Perencanaan yang dapat mengisi TW I–III 2026, sedangkan user scoped tetap mengikuti jendela.
-- [ ] Uji tidak ada `is_backfill` atau tipe pengukuran khusus, dan nilai terhubung ke Jadwal/Snapshot yang sah serta teraudit.
-- [ ] Uji 66,395 dan 87,08 tidak dicatat sebagai realisasi IKU 1.3 TW II.
-- [ ] Uji gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026; UAT memverifikasi realisasi dan narasi TW I–II sesuai Laporan Kinerja Triwulan I–II 2026.
+- [x] Uji hanya jalur Perencanaan yang dapat mengisi TW I–III 2026, sedangkan user scoped tetap mengikuti jendela.
+- [x] Uji tidak ada `is_backfill` atau tipe pengukuran khusus, dan nilai terhubung ke Jadwal/Snapshot yang sah serta teraudit.
+- [ ] Uji 66,395 dan 87,08 tidak dicatat sebagai realisasi IKU 1.3 TW II. *(otomatis sebatas seed produksi; data menunggu UAT ISS-15.01)*
+- [ ] Uji gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026; UAT memverifikasi realisasi dan narasi TW I–II sesuai Laporan Kinerja Triwulan I–II 2026. *(bagian pengecualian gerbang terbukti test; bagian UAT belum)*
+
+> **Status verifikasi (PR #210):** AC-1, AC-2, dan AC-3 terbukti oleh `tests/Feature/PeriodeLampau/PengukuranPeriodeLampauMatrixTest.php`, `PengukuranTanpaBackfillTest.php`, dan `PengukuranProvenanceLampauTest.php` (16 kasus lulus) di atas fixture `PengukuranPeriodeLampauFixtures`; matriks tidak menemukan celah sehingga tidak ada perubahan kode produksi. AC-4 dan bagian data AC-5 tetap menunggu UAT ISS-15.01. Status: terverifikasi test, belum UAT.
 
 ### ISS-07.06 · [Feature] Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
@@ -4149,14 +4151,14 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] **AC-3:** Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
 - [x] **AC-4:** Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
 - [x] **AC-5:** Given versi stale, When sahkan, Then ditolak.
-- [ ] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+- [x] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
 - [x] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`.
 - [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat. (Dikembalikan `[ ]` 15 Oktober 2026 menunggu ISS-08.03 — temuan review PR #107.)
+- [x] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
 
 **B. Backend / Domain**
 - [x] Pengesahan memakai `pengukuran_versi.diajukan_by` + `jalur_pengajuan`, menolak versi stale, dan mengisi metadata pengesahan atomik.
@@ -4180,7 +4182,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi stale, When sahkan, Then ditolak.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 - [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 - [x] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
 
@@ -4218,50 +4220,60 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
-- [ ] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
-- [ ] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [x] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [x] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `status_capaian`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
+- [x] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `status_capaian`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
 
 **B. Backend / Domain**
-- [ ] Jangan reset/hapus `status_capaian` versi lama. Versi koreksi baru mulai tanpa status capaian sampai ditetapkan setelah pengesahan.
-- [ ] Selama koreksi belum disahkan, laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] Jangan reset/hapus `status_capaian` versi lama. Versi koreksi baru mulai tanpa status capaian sampai ditetapkan setelah pengesahan.
+- [x] Selama koreksi belum disahkan, laporan resmi tetap memakai versi disahkan sebelumnya.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:buka_kembali` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:buka_kembali` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Pengukuran Disahkan & Histori Status Capaian**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Pengukuran Disahkan & Histori Status Capaian**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`. (Menunggu evidence QA browser desktop/mobile; SSO belum tersedia saat implementasi.)
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+
+#### Status Implementasi (PR #212)
+
+- AC-1: `BukaKembaliPengukuranTest::test_buka_kembali_alasan_sah_memindahkan_header_dan_mencatat_audit_histori`.
+- AC-2: `BukaKembaliPengukuranTest::test_versi_resmi_dan_status_capaian_lama_tetap_utuh_setelah_buka_kembali`.
+- AC-3: `BukaKembaliPengukuranTest::test_pengajuan_ulang_membuat_versi_baru_tanpa_status_capaian`.
+- AC-4: `BukaKembaliPengukuranTest::test_jadwal_ditutup_tanpa_sesi_koreksi_ditolak_422`, `test_tanggal_melewati_penutupan_tanpa_sesi_koreksi_ditolak_422_dengan_pesan_sesi_koreksi`, `test_sesi_koreksi_sah_menerima_buka_kembali_pascapenutupan`, `test_sesi_koreksi_tanpa_periode_atau_tanpa_pengukuran_ditolak_422`.
+- AC-5: `BukaKembaliPengukuranTest::test_laporan_resmi_tetap_memakai_versi_disahkan_sebelumnya`, `test_laporan_resmi_tetap_memakai_versi_1_tepat_setelah_buka_kembali`.
+- Antrean dan akses: `IndexPengukuranDisahkanTest` (izin baca + buka kembali, deny per unit, lingkup sesi per baris, urutan waktu pengesahan); `VerifikasiIndexCapabilityTest` (prop `can.buka_kembali` pada `/verifikasi`).
+- ISS-08.02 AC-6/TEST-6: dibuktikan oleh `test_laporan_resmi_tetap_memakai_versi_disahkan_sebelumnya` dan `test_laporan_resmi_tetap_memakai_versi_1_tepat_setelah_buka_kembali`; AC-2/AC-3 di atas membuktikan versi resmi lama tetap tersimpan saat koreksi dibuat. Bukti snapshot-vs-master: `RekapIndikatorPeriodeTest::test_versi_sah_tetap_dibaca_ketika_koreksi_dan_master_berubah` dan `SahkanPengukuranTest::test_snapshot_beku_tetap_dibaca_setelah_master_berubah` (sudah ada di `development`).
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). (Menunggu evidence QA browser desktop/mobile; SSO belum tersedia saat implementasi.)
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 
 ---
@@ -5522,6 +5534,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.04 · [Feature] EWS H-7, H-3, H-1 Menjelang Tenggat Pengisian
 
@@ -5587,6 +5600,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.05 · [Feature] Rekap Progres untuk Tim Perencanaan H-3 & H-1
 
@@ -5647,6 +5661,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.06 · [Feature] Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
 
@@ -5712,6 +5727,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.07 · [Infrastructure] Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
 
@@ -5772,6 +5788,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 
 ---
@@ -6054,6 +6071,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-13.05 · [Feature] Penyederhanaan Kewajiban Alasan
@@ -6537,7 +6555,7 @@ Perubahan per request (tanpa nomor baris kode):
 **Labels:** `infrastructure`, `release-uat`, `P1`, `backend`, `ops`  
 **Plan:** P.1–P.4  
 **PRD:** §6, §28, §34  
-**Workflow:** §22  
+**Workflow:** —  
 **Data Model/Entitas:** operational dependencies
 
 #### User Story
@@ -6555,11 +6573,11 @@ Perubahan per request (tanpa nomor baris kode):
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
-- [ ] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
+- [x] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia. *(Q80 §80.1: terpenuhi oleh gate checklist kesiapan §3 selama notifikasi eksternal belum diaktifkan.)*
 - [ ] **AC-3:** Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
 - [x] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
 
-> **Status per 1 November 2026 (branch `docs/iss-15-02-kesiapan-infrastruktur`):** checklist tersedia di `document/SAKIP - Kesiapan Infrastruktur.md`. AC-4 terpenuhi: layanan tanpa owner atau bukti tercatat sebagai blocker/risiko (checklist §2, §4, §5). AC-1 dan AC-3 menunggu penetapan owner dan uji pemulihan oleh PM bersama pengelola infrastruktur. AC-2 berlaku saat notifikasi eksternal diaktifkan; aktivasinya ditunda (Q46 §46.3) dan daftar periksanya ada pada checklist §3. TEST-1–TEST-4 diganti verifikasi manual/acceptance UAT-1–UAT-4 karena objeknya kepemilikan dan prosedur operasional di luar kode (keputusan PM 1 November 2026, PR #214). DoD konsistensi dokumentasi belum terpenuhi: PRD, Workflow, Data Model, dan Plan menulis path berkas `storage/app/berkas/...`, sedangkan kode menyimpan di `storage/app/private/berkas/...`; penyelarasannya menunggu keputusan PM. Status ini **bukan** UAT accepted atau deployment.
+> **Status per 1 November 2026 (PR #214, diperbarui Q80):** checklist tersedia di `document/SAKIP - Kesiapan Infrastruktur.md`. AC-4 terpenuhi: layanan tanpa owner atau bukti tercatat sebagai blocker/risiko (checklist §2, §4, §5). AC-2 terpenuhi oleh gate checklist §3 selama notifikasi eksternal belum diaktifkan (Q80 §80.1). AC-1 dan AC-3 menunggu penetapan owner dan uji pemulihan di lingkungan UAT oleh PM bersama pengelola infrastruktur (Q80 §80.2). TEST-1–TEST-4 diganti verifikasi manual/acceptance UAT-1–UAT-4 karena objeknya kepemilikan dan prosedur operasional di luar kode (keputusan PM 1 November 2026, PR #214). Status ini **bukan** UAT accepted atau deployment.
 
 #### Implementation Tasks
 
@@ -6589,7 +6607,7 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 
 ### ISS-15.03 · [UAT] Tahapan UAT, Penerimaan, dan Produksi yang Terpisah
 
@@ -6647,6 +6665,7 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2).
 
 
 ---
@@ -6759,7 +6778,7 @@ Decision gate dianggap selesai bila:
 | `US-14.02` | `ISS-14.02` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.03` | `ISS-14.03` | Modul 3: 3.12 | §12.3, §12.6 | §13 | ✅ 1:1 |
 | `US-15.01` | `ISS-15.01` | S.1, P.5 | Pembuka, §12.6, §32 | §15 | ✅ 1:1 |
-| `US-15.02` | `ISS-15.02` | P.1–P.4 | §6, §28, §34 | §22 | ✅ 1:1 |
+| `US-15.02` | `ISS-15.02` | P.1–P.4 | §6, §28, §34 | — | ✅ 1:1 |
 | `US-15.03` | `ISS-15.03` | P.4 | Pembuka, §32 | — | ✅ 1:1 |
 
 ## 7. Checklist Sebelum Issue Dipindahkan ke GitHub Issues
