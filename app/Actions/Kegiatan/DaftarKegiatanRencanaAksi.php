@@ -96,7 +96,11 @@ class DaftarKegiatanRencanaAksi
             ->orderBy('kegiatan.nama')
             ->orderBy('klaim_kegiatan.id')
             ->get(['klaim_kegiatan.id', 'klaim_kegiatan.kegiatan_id', 'klaim_kegiatan.komponen_id', 'klaim_kegiatan.arah_dampak',
-                'klaim_kegiatan.catatan', 'klaim_kegiatan.sumber_klaim', 'kegiatan.periode_id', 'kegiatan.nama', 'kegiatan.status', 'kegiatan.anggaran']);
+                'klaim_kegiatan.catatan', 'klaim_kegiatan.sumber_klaim', 'kegiatan.periode_id', 'kegiatan.nama', 'kegiatan.status', 'kegiatan.anggaran', 'kegiatan.kegiatan_asal_id']);
+        // Jejak penundaan dua arah (Q41 §41.4 butir 2): asal dari lanjutan dan lanjutan dari kegiatan yang ditunda, satu query per arah.
+        $asal = Kegiatan::whereIn('id', $daftar->pluck('kegiatan_asal_id')->filter()->unique()->values()->all())->get(['id', 'periode_id'])->keyBy('id');
+        $lanjutan = Kegiatan::whereIn('kegiatan_asal_id', $daftar->pluck('kegiatan_id')->unique()->values()->all())->get(['id', 'kegiatan_asal_id', 'periode_id'])->keyBy('kegiatan_asal_id');
+        $tautan = fn (?Kegiatan $kegiatan): ?array => $kegiatan ? ['id' => (string) $kegiatan->id, 'periode_id' => (string) $kegiatan->periode_id] : null;
         $bersama = $this->anggaran->kegiatanBersama($daftar->pluck('kegiatan_id')->map(fn ($id): string => (string) $id)->unique()->values()->all());
 
         return [
@@ -113,6 +117,8 @@ class DaftarKegiatanRencanaAksi
                 'komponen_id' => $klaim->komponen_id,
                 'arah_dampak' => $klaim->arah_dampak,
                 'catatan' => $klaim->catatan,
+                'asal' => $tautan($asal->get((string) $klaim->getAttribute('kegiatan_asal_id'))),
+                'lanjutan' => $tautan($lanjutan->get((string) $klaim->kegiatan_id)),
             ])->values()->all(),
             'total' => $this->anggaran->perRencanaAksi($header),
             // Jalur penautan kegiatan existing yang belum punya klaim apa pun.
