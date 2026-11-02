@@ -6,8 +6,10 @@ use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalSnapshotKomponen;
+use App\Models\JadwalTahunan;
 use App\Models\PengukuranKinerja;
 use App\Models\Periode;
+use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
@@ -71,6 +73,37 @@ trait PengukuranPeriodeLampauFixtures
             'versi' => $pengukuran->fresh()->versi,
             'action' => 'ajukan',
             ...$payload,
+        ]);
+    }
+
+    /**
+     * Jendela tersimpan satu periode pada jadwal, dibaca ulang dari DB.
+     */
+    private function jendelaPeriode(JadwalTahunan $jadwal, Periode $periode): PeriodeJadwal
+    {
+        return PeriodeJadwal::where('jadwal_id', $jadwal->id)->where('periode_id', $periode->id)->sole();
+    }
+
+    /**
+     * Revisi resmi jendela lewat route ISS-03.06: seluruh periode anggota
+     * jadwal wajib dikirim persis, dengan `pengisian_selesai` periode tertentu
+     * ditimpa dan `pengisian_mulai` tetap nilai tersimpan.
+     *
+     * @param  array<string, string>  $selesaiBaru  `periode_id` => tanggal selesai baru.
+     */
+    private function revisiJendela(JadwalTahunan $jadwal, User $aktor, array $selesaiBaru): TestResponse
+    {
+        $periode = PeriodeJadwal::where('jadwal_id', $jadwal->id)->orderBy('id')->get()
+            ->map(fn (PeriodeJadwal $window): array => [
+                'periode_id' => $window->periode_id,
+                'pengisian_mulai' => $window->pengisian_mulai->toDateString(),
+                'pengisian_selesai' => $selesaiBaru[$window->periode_id] ?? $window->pengisian_selesai->toDateString(),
+            ])->all();
+
+        return $this->actingAs($aktor)->post("/jadwal/{$jadwal->id}/revisi-jendela", [
+            'expected_revisi' => $jadwal->fresh()->revisi,
+            'alasan' => 'Perpanjangan jendela pengisian periode lampau untuk pengisian data awal.',
+            'periode' => $periode,
         ]);
     }
 

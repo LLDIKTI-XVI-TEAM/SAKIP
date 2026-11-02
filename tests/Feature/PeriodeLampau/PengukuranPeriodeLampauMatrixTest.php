@@ -5,7 +5,6 @@ namespace Tests\Feature\PeriodeLampau;
 use App\Models\JadwalTahunan;
 use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
-use App\Models\PeriodeJadwal;
 use App\Services\RencanaAksi\PeriodeTanpaTarget;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -106,24 +105,39 @@ class PengukuranPeriodeLampauMatrixTest extends TestCase
     public function test_jendela_diperpanjang_melewati_aktivasi_menjadikan_periode_normal(): void
     {
         $fixture = $this->siapkanPengukuranPeriodeLampau2026();
-        $fixture['jadwal']->periode()->where('periode_id', $fixture['periode1']->id)
-            ->update(['pengisian_selesai' => '2026-04-20']);
+        $jadwal = JadwalTahunan::findOrFail($fixture['jadwal']->id);
+
+        // Kontrol status awal: sebelum revisi resmi, TW I masih periode lampau.
+        $this->assertTrue(PeriodeTanpaTarget::isPeriodeLampau($jadwal, $this->jendelaPeriode($jadwal, $fixture['periode1'])));
+
+        // Perpanjangan lewat revisi resmi jendela (ISS-03.06), bukan update langsung.
+        $this->revisiJendela($jadwal, $fixture['perencanaan'], [
+            $fixture['periode1']->id => '2026-04-20',
+        ])->assertSessionHasNoErrors()->assertRedirect("/jadwal/{$jadwal->id}");
 
         // Q41 §41.2 catatan 19 Oktober 2026: batas baru melewati tanggal
         // aktivasi 5 April, sehingga TW I bukan lagi periode lampau.
-        $jendela = PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)->sole();
-        $this->assertFalse(PeriodeTanpaTarget::isPeriodeLampau(JadwalTahunan::findOrFail($fixture['jadwal']->id), $jendela));
+        $jadwal = $jadwal->fresh();
+        $jendela = $this->jendelaPeriode($jadwal, $fixture['periode1']);
+        $this->assertSame('2026-04-20', $jendela->pengisian_selesai->toDateString());
+        $this->assertFalse(PeriodeTanpaTarget::isPeriodeLampau($jadwal, $jendela));
 
-        // PIC kembali dapat membentuk draf pada jendela yang diperpanjang.
-        $pengukuran = $this->drafPengukuran($fixture, $fixture['periode1'], $fixture['pic']);
+        // Gerbang RA TW I dipenuhi lebih dulu agar satu-satunya gerbang tersisa
+        // adalah narasi; PIC kembali dapat membentuk draf pada jendela diperpanjang.
         $this->sahkanRencanaAksi($fixture, $fixture['periode1']);
+        $pengukuran = $this->drafPengukuran($fixture, $fixture['periode1'], $fixture['pic']);
 
-        // Gerbang narasi normal berlaku lagi; tidak ada penolakan jendela PIC.
-        $ditolak = $this->kirimPengukuran($pengukuran, $fixture['perencanaan'], ['nilai' => 70]);
-        $ditolak->assertUnprocessable()->assertJsonValidationErrors(self::NARASI_WAJIB)->assertJsonMissingValidationErrors('versi');
+        // PIC tidak lagi dikecualikan: narasi wajib menahan, tetapi tidak ada
+        // penolakan jendela PIC (`versi`), karena TW I bukan periode lampau.
+        $this->kirimPengukuran($pengukuran, $fixture['pic'], ['nilai' => 70])
+            ->assertUnprocessable()->assertJsonValidationErrors(self::NARASI_WAJIB)->assertJsonMissingValidationErrors('versi');
 
-        $this->kirimPengukuran($pengukuran, $fixture['perencanaan'], ['nilai' => 70, ...$this->narasiLengkap()])
+        $this->kirimPengukuran($pengukuran, $fixture['pic'], ['nilai' => 70, ...$this->narasiLengkap()])
             ->assertRedirect('/pengukuran');
+
+        $versi = $pengukuran->fresh()->latestVersion;
+        $this->assertSame('pic', $versi->jalur_pengajuan);
+        $this->assertSame(['diajukan', 2], [$pengukuran->fresh()->status_alur, $pengukuran->fresh()->versi]);
         $this->assertSame(1, KinerjaSnapshot::count());
     }
 }
