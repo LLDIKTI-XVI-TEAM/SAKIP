@@ -3,6 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowRight, BarChart2, Check, FileText, Info, RotateCcw, Send, ShieldCheck, UserX } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
+import { PengingatKontekstual, type PengingatPageProps } from '@/Components/PengingatKontekstual';
 import { DashboardFilter } from '@/Components/Dashboard/DashboardFilter';
 import { PanelKegiatan, TabelKegiatanPerIku } from '@/Components/Dashboard/PanelKegiatan';
 import { PanelRencanaAksi } from '@/Components/Dashboard/PanelRencanaAksi';
@@ -40,7 +41,8 @@ export default function DashboardIndex({
     grafik,
     progresRencanaAksi,
     kegiatan,
-}: DashboardProps) {
+    pengingat,
+}: DashboardProps & PengingatPageProps) {
     const { auth, errors } = usePage<SharedPageProps & { errors?: Record<string, string> }>().props;
     const persen = persenDisahkan(stats.disahkan, stats.total);
     const descDraft = stats.tidak_mengisi > 0 ? `${stats.tidak_mengisi} tidak mengisi (melewati batas pengisian)` : kartuStatus.draft.desc;
@@ -56,6 +58,8 @@ export default function DashboardIndex({
             <Head title="Dashboard" />
             {/* Tanpa judul tampak; heading tetap ada untuk navigasi pembaca layar. */}
             <h1 className="sr-only">Dashboard</h1>
+
+            <PengingatKontekstual pengingat={pengingat} />
 
             <div className="space-y-5">
                 {pilihan.renstra.length > 0 && (

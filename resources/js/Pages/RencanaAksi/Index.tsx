@@ -4,6 +4,7 @@ import { ClipboardList, Eye, MoreHorizontal, Plus, ShieldCheck } from 'lucide-re
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { ActionMenu, type ActionMenuItem } from '@/Components/ActionMenu';
 import { Card } from '@/Components/Card';
+import { PengingatKontekstual, type PengingatPageProps } from '@/Components/PengingatKontekstual';
 import { Badge } from '@/Components/Badge';
 import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
@@ -76,7 +77,7 @@ function AksiBaris({ baris }: { baris: BarisRencanaAksi }) {
     );
 }
 
-export default function RencanaAksiIndex({ daftar, pagination, filters }: RencanaAksiIndexProps) {
+export default function RencanaAksiIndex({ daftar, pagination, filters, pengingat }: RencanaAksiIndexProps & PengingatPageProps) {
     const adaFilter = filters.status !== 'semua';
     // Baris "Belum dibuat" belum berupa rencana aksi, jadi label jumlah mengikuti isinya.
     const labelJumlah = adaFilter && filters.status !== 'belum_dibuat' ? 'rencana aksi' : 'indikator';
@@ -84,6 +85,8 @@ export default function RencanaAksiIndex({ daftar, pagination, filters }: Rencan
     return (
         <AuthenticatedLayout title="Rencana Aksi" breadcrumbs={[{ label: 'Rencana Aksi' }]}>
             <Head title="Rencana Aksi" />
+
+            <PengingatKontekstual pengingat={pengingat ? { pribadi: pengingat.pribadi, pk: [] } : undefined} />
 
             <Card>
                 {/* Filter status mempersatukan daftar dan antrean review (Q59). */}

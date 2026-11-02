@@ -492,6 +492,13 @@ export default function ModalAlasan({
 | `Tooltip` | `Components/Tooltip.tsx` | Tombol ikon; wajib disertai `aria-label` pada tombolnya |
 | `LampiranDraftFields` | `Components/LampiranDraftFields.tsx` | Editor draf lampiran file/tautan/teks pada form master; field khusus modul lewat `renderExtraFields` (mode tautan/teks) atau `renderItemFields` (setiap item, mis. keterangan lampiran PK) |
 | `BerkasLampiranItem` | `Components/BerkasLampiranItem.tsx` | Baris lampiran tersimpan di halaman detail; unduhan memakai URL ber-otorisasi dari server, tautan hanya http/https |
+| `Banner`, `PengingatKontekstual` | `Components/Banner.tsx`, `Components/PengingatKontekstual.tsx` | Pengingat hasil evaluasi server pada Dashboard, daftar Pengukuran, dan daftar Rencana Aksi |
+
+#### Banner pengingat kontekstual
+
+`Banner` menerima `id`, `signature`, `tingkat` (`info`, `warning`, `danger`), `judul`, `keterangan`, serta `href`/`label` opsional dari server. React hanya merender hasil; tanggal, hitungan kewajiban, izin, tingkat urgensi, dan tujuan tautan diputuskan server. Gunakan token `info`/`info-dark`, `warning`/`warning-dark`, atau `danger`/`danger-dark`, teks minimal `text-xs`, ikon berlabel melalui teks, dan `<Link>` Inertia. Info/peringatan memakai `role="status"`; bahaya memakai `role="alert"`.
+
+`PengingatKontekstual` memisahkan bagian **Kewajiban Anda**, **Ringkasan Pengajuan**, dan **Perjanjian Kinerja** hanya bila ada pesan yang terlihat. Judul kelompok ditempatkan sebagai heading di dalam card berwarna masing-masing, tanpa judul tambahan di luar card. Dashboard dapat memuat ketiganya; daftar Pengukuran memuat pribadi dan PK; daftar Rencana Aksi hanya pribadi. Tombol tutup bernama aksesibel dan berukuran sentuh 44px. Penutupan berada dalam state komponen, hanya untuk signature saat itu; navigasi Inertia, muat ulang, atau perubahan signature menampilkan pengingat kembali. Tidak ada polling, penyimpanan browser, atau mutasi server untuk menutup pesan. Pada mode fokus daftar Pengukuran, sediakan tautan **Lihat semua** untuk kembali ke daftar biasa.
 
 Pola halaman detail: tautan "← Kembali ke daftar" (`<Link>`) di kiri dan aksi berukuran `sm` di kanan, satu `h1` dari `AuthenticatedLayout`, `Card` dengan judul objek dan `Badge` status, lalu daftar data `dl` dua kolom.
 

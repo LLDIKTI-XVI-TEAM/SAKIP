@@ -3,6 +3,7 @@
 namespace App\Actions\Dashboard;
 
 use App\Models\User;
+use App\Services\Pengingat\PengingatKontekstual;
 
 class GetDashboard
 {
@@ -19,7 +20,13 @@ class GetDashboard
         $konteks = $this->konteks->handle($actor, $filter, $today);
         [$renstra, $jadwal, $periode] = [$konteks['renstra'], $konteks['jadwal'], $konteks['periodeJadwal']];
 
+        $status = $this->status->handle($actor, $konteks, $today);
+        $evaluator = app(PengingatKontekstual::class);
+        $pengingat = $evaluator->handle($actor, 'dashboard:read');
+        $pengingat['ringkasan'] = $evaluator->ringkasan($actor, $jadwal, $periode, $status['stats']);
+
         return [
+            'pengingat' => $pengingat,
             'tahun' => $konteks['tahun'],
             'filter' => $konteks['filter'],
             'pilihan' => $konteks['pilihan'],
@@ -30,7 +37,7 @@ class GetDashboard
                 'nama_periode' => $periode->periode->nama.' '.$jadwal->tahun,
                 'status' => $konteks['periodeAktif'] ? 'aktif' : 'terakhir',
             ] : null,
-            ...$this->status->handle($actor, $konteks, $today),
+            ...$status,
             'progresRencanaAksi' => $this->rencanaAksi->handle($konteks),
             'kegiatan' => $this->kegiatan->handle($actor, $konteks, $today),
         ];

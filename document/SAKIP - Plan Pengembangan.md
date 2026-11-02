@@ -1081,6 +1081,13 @@ Setiap task memiliki tiga bagian wajib:
 
 ---
 
+## Modul 14 — Alert Kontekstual
+
+### 14.1 Banner pengingat kontekstual (ISS-12.01)
+- **Scope:** evaluator read-only server untuk kewajiban PJ efektif lintas filter, countdown WITA H-7/H-3/H-1 dan keterlambatan, tally Perencanaan hanya pada Dashboard, serta PK draf tahun berjalan/berikutnya. Komponen Banner dipasang pada Dashboard, daftar Pengukuran, dan daftar RA sesuai refinement PM K1–K12 pada [#218](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/218). Mode fokus hanya kewajiban pribadi periode yang sah; navigasi ini tidak memberi hak input atau pemilih periode bebas. Tidak membuat notifikasi tersimpan, kanal eksternal, scheduler, permission, atau migrasi baru.
+- **Dependency:** data jadwal, kewajiban, PJ efektif, resolver akses, readiness PK, dan tally dashboard yang tersedia. Kelulusan test integrasi R-K11b serta DoD penuh menunggu ISS-14.03; bagian mandiri dapat dikerjakan lebih dahulu. Pembukaan jendela PIC tetap scope ISS-14.03.
+- **DoD:** AC/TEST ISS-12.01 selain item yang dihapus Q41 terbukti; refinement K1–K12 memiliki verifikasi terkait; browser smoke desktop/mobile lulus; gate kualitas terpenuhi; R-K11b lulus melalui pembukaan PIC resmi tanpa memperluas scope issue. Hasil parsial tidak dianggap DoD penuh, UAT, atau deployment.
+
 ## Seed Data Pengembangan/Testing
 
 ### S.1 Seeder Laravel — data minimal validasi model

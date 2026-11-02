@@ -10,6 +10,7 @@ use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Pengingat\PengingatKontekstual;
 use App\Services\Pengukuran\DaftarKewajibanPengukuran;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -40,12 +41,15 @@ class IndexPengukuran
     {
         Gate::forUser($actor)->authorize('viewAny', PengukuranKinerja::class);
         $canSelect = $this->resolver->allowsRoleNavigation($actor, 'pengukuran:update');
+        $focus = ($query['fokus'] ?? null) === 'kewajiban';
+        $pengingat = app(PengingatKontekstual::class);
         $filtered = array_key_exists('jadwal_id', $query) || array_key_exists('periode_id', $query);
-        if ($filtered && ! $canSelect) {
+        if ($filtered && ! $canSelect && ! $focus) {
             throw new AuthorizationException('Pemilihan periode hanya tersedia untuk jalur Perencanaan.');
         }
-        $query = Validator::make($query, ['page' => ['nullable', 'integer', 'min:1'],
+        $query = Validator::make($query, ['page' => ['nullable', 'integer', 'min:1'], 'fokus' => ['nullable', 'in:kewajiban'], 'asal' => ['nullable', 'in:pengukuran:read,dashboard:read,rencana_aksi:read'],
             ...($filtered ? ['jadwal_id' => ['required', 'uuid'], 'periode_id' => ['required', 'uuid']] : [])])->validate();
+        $aksesPengingat = $focus ? ($query['asal'] ?? 'pengukuran:read') : 'pengukuran:read';
         $today = today(config('app.business_timezone'))->toDateString();
         // shortcut: memuat semua jadwal aktif dan ditutup (±1 per tahun, ≤12 periode per jadwal), batasi tahun histori bila jadwal ditutup mencapai puluhan.
         $schedules = JadwalTahunan::whereIn('status', ['aktif', 'ditutup'])->orderByRaw("CASE WHEN status = 'aktif' THEN 0 ELSE 1 END")->orderBy('tahun')->orderBy('id')->get()->keyBy('id');
@@ -58,7 +62,16 @@ class IndexPengukuran
                 ->reject(fn ($period) => $period->pengisian_mulai->toDateString() > ($closedOn[$period->jadwal_id] ?? $today))
                 ->unique('jadwal_id')->keyBy('id');
 
-        $page = $this->kewajiban->query($periods->keys()->all(), $this->resolver->unitDitolak($actor, 'pengukuran:read'), $today)->paginate(20, page: $query['page'] ?? 1)->withQueryString();
+        if ($focus) {
+            abort_unless($filtered && $periods->count() === 1, 403);
+            $permitted = $pengingat->periode()->modelKeys();
+            abort_unless(in_array($periods->first()->id, $permitted, true), 403);
+            abort_unless($pengingat->pribadiQuery($actor, $periods->keys()->all(), $aksesPengingat, hanyaBelumTuntas: false)->exists(), 403);
+            $rowsQuery = $pengingat->pribadiQuery($actor, $periods->keys()->all(), $aksesPengingat);
+        } else {
+            $rowsQuery = $this->kewajiban->query($periods->keys()->all(), $this->resolver->unitDitolak($actor, 'pengukuran:read'), $today);
+        }
+        $page = $rowsQuery->paginate(20, page: $query['page'] ?? 1)->withQueryString();
         $items = collect($page->items());
         $headers = PengukuranKinerja::with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
             ->withCount(['buktiDukungs' => fn ($q) => $q->current()])->whereIn('id', $items->pluck('pengukuran_id')->filter())->get()->keyBy('id');
@@ -102,9 +115,10 @@ class IndexPengukuran
         $options = $schedules->filter(fn ($schedule) => $schedule->status === 'ditutup' || $schedule->lingkup_koreksi !== null || $today <= $schedule->penutupan->toDateString());
 
         return [
+            'pengingat' => $pengingat->handle($actor, $aksesPengingat),
             'konteks' => $selected->map(fn ($schedule) => ['jadwal_id' => $schedule->id, 'tahun' => $schedule->tahun,
                 'periode' => ($period = $periods->firstWhere('jadwal_id', $schedule->id)) ? $this->periodDto($period, $schedule->tahun) : null])->values()->all(),
-            'filters' => ['jadwal_id' => $filtered ? $periods->first()->jadwal_id : null, 'periode_id' => $filtered ? $periods->first()->periode_id : null],
+            'filters' => ['jadwal_id' => $filtered ? $periods->first()->jadwal_id : null, 'periode_id' => $filtered ? $periods->first()->periode_id : null, ...($focus ? ['fokus' => 'kewajiban'] : [])],
             'can' => ['selectPeriod' => $canSelect],
             ...($canSelect ? ['pilihan_jadwal' => $this->scheduleOptions($options)] : []),
             'pengukurans' => $rows,
