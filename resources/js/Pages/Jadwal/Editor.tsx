@@ -318,6 +318,7 @@ function JadwalEditor({
                         tahun={jadwal.tahun}
                         revisi={jadwal.revisi}
                         periode={jadwal.periode}
+                        koreksi={koreksi}
                         onCancel={() => {
                             setRevising(false);
                             requestAnimationFrame(() => document.getElementById('revisi-jendela-mulai')?.focus());
@@ -381,6 +382,7 @@ function JadwalEditor({
                 <div className="mt-5">
                     <RevisiJendelaPanel
                         tahun={jadwal.tahun}
+                        dalamSesi={koreksi?.status === 'berjalan'}
                         onStart={() => {
                             setRevising(true);
                             const first = jadwal.periode[0]?.periode_id;

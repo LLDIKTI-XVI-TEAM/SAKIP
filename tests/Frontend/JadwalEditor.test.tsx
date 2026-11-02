@@ -602,6 +602,32 @@ it('revisi jendela PIC hanya untuk can.revise_windows, mengubah tanggal saja, da
     await userEvent.click(screen.getByRole('button', { name: 'Batal' }));
     expect(screen.getByRole('button', { name: 'Revisi Jendela PIC' })).toBeTruthy();
 });
+it('revisi jendela PIC di dalam sesi koreksi menampilkan rentang sesi dan periode lingkup', async () => {
+    const aktif = { ...jadwal, status: 'aktif' as const };
+    const koreksi = { status: 'berjalan' as const, mulai: '2027-01-25T00:00:00+00:00', sampai: '2027-02-10T09:00:00+00:00',
+        lingkup: { jenis_objek: ['pengukuran'], indikator_ids: ['indikator-1'], periode_ids: ['periode-1'] } };
+    const can = { create: false, update: false, activate: false, close: false, revise_windows: true, reopen: false, tambah_indikator: false };
+    render(<Editor {...props} jadwal={aktif} koreksi={koreksi} read_only_reason="Hanya baca." can={can} />);
+
+    expect(screen.getByText(/di dalam sesi koreksi yang berjalan/)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
+    expect(screen.getByText(/Kedua tanggal jendela wajib berada di dalam sesi ini/).textContent).toContain('25 Jan 2027');
+    expect(screen.getByText(/Periode yang dapat dibuka/).textContent).toBe('Periode yang dapat dibuka: Triwulan I.');
+    // Aturan tahun berikutnya tidak berlaku di dalam sesi sehingga catatannya disembunyikan.
+    expect(screen.queryByText(/Hanya periode terakhir boleh masuk tahun berikutnya/)).toBeNull();
+
+    // Galat periode di luar lingkup tidak terikat ke input tanggal, jadi wajib tampil di ringkasan beserta nama periodenya.
+    fireEvent.change(screen.getByLabelText('Triwulan IV: Selesai pengisian'), { target: { value: '2027-02-05' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Simpan revisi' }));
+    const dialog = screen.getByRole('dialog');
+    await userEvent.type(within(dialog).getByRole('textbox'), 'Jendela PIC koreksi.');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Simpan revisi' }));
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => {
+        options?.onError?.({ 'periode.1.periode_id': 'Periode ini di luar lingkup sesi koreksi; jendelanya tidak dapat diubah.' });
+    });
+    expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('Triwulan IV: Periode ini di luar lingkup sesi koreksi'))).toBe(true);
+});
 it('revisi jendela PIC tetap mengirim token baseline form setelah ditolak basi dan props berganti', async () => {
     const aktif = { ...jadwal, status: 'aktif' as const };
     const readOnly = 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.';

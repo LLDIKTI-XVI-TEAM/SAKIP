@@ -10,6 +10,7 @@ use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Policies\PengukuranKinerjaPolicy;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Jadwal\SesiKoreksiJadwal;
 use App\Services\Pengingat\PengingatKontekstual;
 use App\Services\Pengukuran\DaftarKewajibanPengukuran;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -55,12 +56,17 @@ class IndexPengukuran
         $schedules = JadwalTahunan::whereIn('status', ['aktif', 'ditutup'])->orderByRaw("CASE WHEN status = 'aktif' THEN 0 ELSE 1 END")->orderBy('tahun')->orderBy('id')->get()->keyBy('id');
         $closedOn = $schedules->where('status', 'ditutup')->whereNotNull('closed_at')
             ->map(fn ($schedule) => Carbon::parse($schedule->closed_at)->timezone(config('app.business_timezone'))->toDateString());
-        $periods = $filtered ? $this->selectedPeriod($schedules, $query, $today)
-            : PeriodeJadwal::with('periode')->whereIn('jadwal_id', $schedules->modelKeys())->where('pengisian_mulai', '<=', $today)
+        if ($filtered) {
+            $periods = $this->selectedPeriod($schedules, $query, $today);
+        } else {
+            $started = PeriodeJadwal::with('periode')->whereIn('jadwal_id', $schedules->modelKeys())->where('pengisian_mulai', '<=', $today)
                 ->orderByDesc('pengisian_mulai')->orderBy('id')->get()
                 // Tahun ditutup berhenti pada periode yang sudah dimulai saat penutupan, tidak ikut maju bersama hari ini.
-                ->reject(fn ($period) => $period->pengisian_mulai->toDateString() > ($closedOn[$period->jadwal_id] ?? $today))
-                ->unique('jadwal_id')->keyBy('id');
+                ->reject(fn ($period) => $period->pengisian_mulai->toDateString() > ($closedOn[$period->jadwal_id] ?? $today));
+            // Setiap jendela PIC yang terbuka di dalam sesi koreksi ikut tampil karena PIC tidak dapat memakai filter periode.
+            $periods = $started->unique('jadwal_id')
+                ->merge($started->filter(fn ($period) => SesiKoreksiJadwal::jendelaPicTerbuka($schedules[$period->jadwal_id], $period)))->keyBy('id');
+        }
 
         if ($focus) {
             abort_unless($filtered && $periods->count() === 1, 403);
@@ -81,7 +87,7 @@ class IndexPengukuran
         $creatable = $items->whereNull('pengukuran_id')->where('berlaku', true)->values();
         $targets = $this->present->periodTargets($creatable->map(fn ($row) => ['indikator_id' => $row->indikator_id, 'tahun' => (int) $row->tahun,
             'periode_id' => $row->periode_id, 'jadwal_snapshot_id' => $row->jadwal_snapshot_id, 'unit_id' => $row->unit_id])->all());
-        $targets = array_combine($creatable->map(fn ($row) => $row->jadwal_id.':'.$row->indikator_id)->all(), $targets);
+        $targets = array_combine($creatable->map(fn ($row) => $row->periode_jadwal_id.':'.$row->indikator_id)->all(), $targets);
         $snapshots = $creatable->isEmpty() ? collect() : JadwalSnapshot::with('unit')->whereIn('id', $creatable->pluck('jadwal_snapshot_id'))->get()->keyBy('id');
         $decisions = $this->resolver->decideManyForUnits($actor, ['pengukuran:create'], $creatable->pluck('unit_id')->unique()->values()->all());
 
@@ -107,8 +113,8 @@ class IndexPengukuran
             }
 
             return [...$base, 'jenis' => 'absent', 'berlaku' => (bool) $row->berlaku, 'pengukuran' => null,
-                'target' => $row->berlaku ? $targets[$row->jadwal_id.':'.$row->indikator_id]['target'] : null,
-                'tanpa_target_periode' => $row->berlaku && $targets[$row->jadwal_id.':'.$row->indikator_id]['tanpa_target_periode'], 'can' => ['create' => $create]];
+                'target' => $row->berlaku ? $targets[$row->periode_jadwal_id.':'.$row->indikator_id]['target'] : null,
+                'tanpa_target_periode' => $row->berlaku && $targets[$row->periode_jadwal_id.':'.$row->indikator_id]['tanpa_target_periode'], 'can' => ['create' => $create]];
         })->all();
 
         $selected = $filtered ? $schedules->only($periods->first()->jadwal_id) : $schedules;

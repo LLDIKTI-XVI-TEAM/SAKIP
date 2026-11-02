@@ -918,7 +918,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 - [x] **AC-1:** Given deadline PIC perlu diubah, When Perencanaan mengisi alasan dan batas baru, Then jendela resmi diperbarui dan audit menyimpan batas lama/baru.
 - [x] **AC-2:** Given PIC mencoba bekerja di luar jendela yang berlaku, Then ditolak meskipun jadwal berstatus aktif.
-- [ ] **AC-3:** Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan. *(Dikerjakan US-14.03.)*
+- [x] **AC-3:** Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan. *(Dibuktikan US-14.03.)*
 - [x] **AC-4:** Given jendela dibuka untuk PIC, Then grant unit, PIC efektif, deny, status record, dan gerbang kelengkapan tetap wajib.
 - [x] **AC-5:** Given `jadwal:buka_kembali` dilakukan tanpa revisi jendela PIC, Then PIC tetap tidak memperoleh akses koreksi otomatis.
 - [x] **AC-6:** Given `pengisian_selesai` periode P diperpanjang secara resmi, Then kunci Rencana Aksi periode P bagi PIC ikut bergeser ke batas baru. *(Q41 §41.2 butir 5)*
@@ -1190,7 +1190,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
 - [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08 — review 14 Oktober 2026)*
-- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Menunggu CI exact-HEAD M1.)*
+- [x] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Dibuktikan US-14.03.)*
 
 > **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, regresi RA, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tests/Frontend/RencanaAksiKoreksi.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `feature/iss-05.06-buka-kembali-ra`; bukan persetujuan UAT, merge, maupun deployment. Selaras Q41/Q43. Review 14 Oktober 2026: AC-6 dikembalikan `[ ]` karena frasa "atau daftar kegiatan" baru ditegakkan pada level target periode (writer klaim tahap RA milik ISS-06.02/06.08). AC-3 dan AC-7 dikembalikan `[ ]` menunggu CI exact-HEAD untuk kunci berbasis perubahan (B1) dan lingkup koreksi berbasis perubahan (M1).
 
@@ -1696,11 +1696,11 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
-- [ ] Tidak ada `is_backfill` atau tipe pengukuran khusus.
-- [ ] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
-- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi.
-- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6)*
+- [x] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
+- [x] Tidak ada `is_backfill` atau tipe pengukuran khusus. *(kolom lama `historis` masih ada di skema tetapi ditolak saat pengajuan)*
+- [x] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
+- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi. *(rujukan UAT ISS-15.01)*
+- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6 — bagian pengecualian gerbang terbukti test; bagian data menunggu UAT ISS-15.01)*
 
 ### US-07.06 · Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
@@ -1808,11 +1808,11 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
-- [ ] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
-- [ ] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [x] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [x] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
 
 ---
 
@@ -2672,11 +2672,11 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given sesi koreksi aktif, When Perencanaan membuka jendela PIC dengan alasan dan batas baru, Then deadline baru wajib berada di dalam sesi koreksi.
-- [ ] **AC-2:** Given PIC bekerja dalam jendela baru, Then scope unit, PIC efektif, grant, deny, status record, dan gate lain tetap diperiksa.
-- [ ] **AC-3:** Given tahun dibuka tetapi jendela PIC belum dibuka, When PIC mencoba mutasi, Then ditolak.
-- [ ] **AC-4:** Given jendela koreksi berakhir, Then akses PIC kembali tertutup tanpa perlu mengubah histori penutupan asli.
-- [ ] **AC-5:** Given jendela pengisian periode P dibuka kembali di dalam sesi koreksi, Then PIC juga dapat mengubah Rencana Aksi periode P, sedangkan RA periode lain hanya dapat dikoreksi Perencanaan. *(Q41 §41.2 butir 6)*
+- [x] **AC-1:** Given sesi koreksi aktif, When Perencanaan membuka jendela PIC dengan alasan dan batas baru, Then deadline baru wajib berada di dalam sesi koreksi.
+- [x] **AC-2:** Given PIC bekerja dalam jendela baru, Then scope unit, PIC efektif, grant, deny, status record, dan gate lain tetap diperiksa.
+- [x] **AC-3:** Given tahun dibuka tetapi jendela PIC belum dibuka, When PIC mencoba mutasi, Then ditolak.
+- [x] **AC-4:** Given jendela koreksi berakhir, Then akses PIC kembali tertutup tanpa perlu mengubah histori penutupan asli.
+- [x] **AC-5:** Given jendela pengisian periode P dibuka kembali di dalam sesi koreksi, Then PIC juga dapat mengubah Rencana Aksi periode P, sedangkan RA periode lain hanya dapat dikoreksi Perencanaan. *(Q41 §41.2 butir 6)*
 
 ---
 
@@ -2754,11 +2754,11 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
-- [ ] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
-- [ ] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live.
-- [ ] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
-- [ ] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat.
+- [x] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
+- [x] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
+- [x] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live. *(Q46 §46.3: tenggat WA/Email sebelum 9 November 2026 tidak berlaku lagi; 9 November 2026 tetap batas integrasi Tahap 1 dan bukan tanggal go-live.)*
+- [x] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
+- [x] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat. *(Format pencatatan tersedia pada `SAKIP - Tahapan UAT dan Rilis.md` §6; isian pertama dibuat saat penerimaan pertama.)*
 
 ---
 

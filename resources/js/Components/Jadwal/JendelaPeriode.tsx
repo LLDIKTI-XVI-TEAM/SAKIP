@@ -20,6 +20,8 @@ interface JendelaPeriodeProps {
     tahun?: number;
     errors: Record<string, string | undefined>;
     editable: boolean;
+    /** Tampilkan catatan aturan kalender di bawah tabel; default true. */
+    note?: boolean;
     disabled: boolean;
     /** Periode aktif yang belum dipilih. */
     options: PeriodeOption[];
@@ -35,6 +37,7 @@ export function JendelaPeriode({
     tahun,
     errors,
     editable,
+    note = true,
     disabled,
     options,
     emptyMessage,
@@ -175,13 +178,15 @@ export function JendelaPeriode({
                     ))}
                 </tbody>
             </Table>
-            <div className="flex items-start gap-2 border-t border-border px-4 py-4 text-xs leading-relaxed text-muted sm:px-6">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                <p>
-                    Hanya periode terakhir boleh masuk tahun berikutnya. Perencanaan dapat memverifikasi pengukuran
-                    sejak diajukan sampai penutupan.
-                </p>
-            </div>
+            {note && (
+                <div className="flex items-start gap-2 border-t border-border px-4 py-4 text-xs leading-relaxed text-muted sm:px-6">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                    <p>
+                        Hanya periode terakhir boleh masuk tahun berikutnya. Perencanaan dapat memverifikasi pengukuran
+                        sejak diajukan sampai penutupan.
+                    </p>
+                </div>
+            )}
         </Card>
     );
 }

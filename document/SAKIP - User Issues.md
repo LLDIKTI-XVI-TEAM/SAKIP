@@ -2085,7 +2085,7 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 
 - [x] **AC-1:** Given deadline PIC perlu diubah, When Perencanaan mengisi alasan dan batas baru, Then jendela resmi diperbarui dan audit menyimpan batas lama/baru.
 - [x] **AC-2:** Given PIC mencoba bekerja di luar jendela yang berlaku, Then ditolak meskipun jadwal berstatus aktif.
-- [ ] **AC-3:** Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan. *(Dikerjakan ISS-14.03; revisi pada issue ini hanya untuk jadwal `aktif` yang belum melewati `penutupan`.)*
+- [x] **AC-3:** Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan. *(Dibuktikan ISS-14.03.)*
 - [x] **AC-4:** Given jendela dibuka untuk PIC, Then grant unit, PIC efektif, deny, status record, dan gerbang kelengkapan tetap wajib.
 - [x] **AC-5:** Given `jadwal:buka_kembali` dilakukan tanpa revisi jendela PIC, Then PIC tetap tidak memperoleh akses koreksi otomatis.
 - [x] **AC-6:** Given `pengisian_selesai` periode P diperpanjang secara resmi, Then kunci Rencana Aksi periode P bagi PIC ikut bergeser ke batas baru. *(Q41 §41.2 butir 5)*
@@ -2107,7 +2107,7 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 - [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan perubahan deadline/jendela resmi dengan alasan dan audit before/after. Setelah penutupan, jendela PIC baru harus berada di dalam sesi koreksi dan lingkup koreksi. *(Revisi pada jadwal aktif selesai; pembukaan setelah penutupan dikerjakan ISS-14.03.)*
+- [x] Implementasikan perubahan deadline/jendela resmi dengan alasan dan audit before/after. Setelah penutupan, jendela PIC baru harus berada di dalam sesi koreksi dan lingkup koreksi. *(Revisi pada jadwal aktif selesai pada issue ini; pembukaan di dalam sesi koreksi selesai pada ISS-14.03.)*
 - [x] Pastikan kunci RA per periode (aturan bersama ISS-05.07 pada `JendelaTulisRencanaAksi`) membaca `pengisian_selesai` yang berlaku setelah revisi, tanpa salinan tanggal terpisah (Q41 §41.2 butir 5).
 
 **C. Authorization & Audit**
@@ -2124,14 +2124,14 @@ Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai 
 
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC perlu diubah, When Perencanaan mengisi alasan dan batas baru, Then jendela resmi diperbarui dan audit menyimpan batas lama/baru.
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given PIC mencoba bekerja di luar jendela yang berlaku, Then ditolak meskipun jadwal berstatus aktif.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan. *(ISS-14.03)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jadwal sebelumnya ditutup dan sedang dalam sesi koreksi, When jendela PIC dibuka, Then jendela baru wajib berada di dalam `koreksi_mulai..koreksi_sampai` dan hanya untuk lingkup yang diizinkan. *(ISS-14.03, `JadwalRevisiJendelaSesiKoreksiTest`)*
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela dibuka untuk PIC, Then grant unit, PIC efektif, deny, status record, dan gerbang kelengkapan tetap wajib.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given `jadwal:buka_kembali` dilakukan tanpa revisi jendela PIC, Then PIC tetap tidak memperoleh akses koreksi otomatis.
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given `pengisian_selesai` periode P diperpanjang secara resmi, Then kunci Rencana Aksi periode P bagi PIC ikut bergeser ke batas baru. *(Q41 §41.2 butir 5)*
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-3/TEST-3 menunggu ISS-14.03.)*
+- [ ] Semua Acceptance Criteria dan test pada issue ini lulus. *(AC-3/TEST-3 dibuktikan ISS-14.03; menunggu CI exact-HEAD PR ISS-14.03.)*
 - [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline. *(Rujukan "Plan Modul 3: 3.12" belum memiliki bagian di Plan Pengembangan.)*
@@ -2746,7 +2746,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
 - [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08)*
-- [ ] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Menunggu CI exact-HEAD untuk penilaian lingkup berbasis perubahan M1.)*
+- [x] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Dibuktikan ISS-14.03 memakai sesi dan jendela PIC dari aksi resmi.)*
 
 > **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, regresi `RencanaAksiAjukanTest`/`SahkanRencanaAksiTest`/`ReviewRencanaAksiTest`, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tests/Frontend/RencanaAksiKoreksi.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `feature/iss-05.06-buka-kembali-ra`; bukan persetujuan UAT, merge, maupun deployment. Selaras Q41: jendela penyusunan tidak lagi dibaca, guard kunci per periode berbasis perubahan di `JendelaTulisRencanaAksi`. Review 14 Oktober 2026: AC-6/TEST-6/DoD-1 dikembalikan `[ ]` karena frasa "atau daftar kegiatan" baru ditegakkan pada level target periode — writer klaim tahap RA belum ada (milik ISS-06.02/06.08). AC-3/TEST-3 dan AC-7/TEST-7 dikembalikan `[ ]` menunggu CI exact-HEAD untuk kunci berbasis perubahan (B1) dan lingkup koreksi berbasis perubahan (M1). Checklist `design-system.md` dan browser smoke desktop/mobile belum dilakukan.
 
@@ -2780,7 +2780,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Menunggu CI exact-HEAD M1.)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Dibuktikan ISS-14.03, `RencanaAksiKoreksiKunciTanggalTest`.)*
 
 #### Definition of Done
 
@@ -3942,18 +3942,20 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria
 
-- [ ] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
-- [ ] Tidak ada `is_backfill` atau tipe pengukuran khusus.
-- [ ] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
-- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi.
-- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6)*
+- [x] Pengisian hanya memakai jalur Perencanaan untuk periode lampau (TW I–III 2026). *(Q46 §46.1 butir 2; semula TW I–II)*
+- [x] Tidak ada `is_backfill` atau tipe pengukuran khusus. *(tidak ada kolom/flag `is_backfill` maupun jalur khusus yang dapat dipakai; kolom lama `sumber_nilai = historis`, `alasan_historis`, dan `sumber_historis` masih ada di skema tetapi ditolak saat pengajuan — pembersihannya non-goal issue ini)*
+- [x] Nilai tetap terhubung ke Jadwal/Snapshot yang sah dan teraudit.
+- [ ] Data TW II IKU 3 (kode PK IKU 1.3, Q50 §50.4) tidak menggunakan 66,395 atau 87,08 sebagai realisasi. *(rujukan UAT ISS-15.01; otomatis hanya sebatas seed produksi)*
+- [ ] Realisasi dan narasi pengukuran TW I–II diisi dari Laporan Kinerja Triwulan I–II 2026 (rekomendasinya mengikuti US-09.01 dan US-15.01); gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026. *(Q46 §46.1 butir 1 dan 6 — bagian pengecualian gerbang terbukti test; bagian data menunggu UAT ISS-15.01)*
 
 #### Automated Tests
 
-- [ ] Uji hanya jalur Perencanaan yang dapat mengisi TW I–III 2026, sedangkan user scoped tetap mengikuti jendela.
-- [ ] Uji tidak ada `is_backfill` atau tipe pengukuran khusus, dan nilai terhubung ke Jadwal/Snapshot yang sah serta teraudit.
-- [ ] Uji 66,395 dan 87,08 tidak dicatat sebagai realisasi IKU 1.3 TW II.
-- [ ] Uji gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026; UAT memverifikasi realisasi dan narasi TW I–II sesuai Laporan Kinerja Triwulan I–II 2026.
+- [x] Uji hanya jalur Perencanaan yang dapat mengisi TW I–III 2026, sedangkan user scoped tetap mengikuti jendela.
+- [x] Uji tidak ada `is_backfill` atau tipe pengukuran khusus, dan nilai terhubung ke Jadwal/Snapshot yang sah serta teraudit.
+- [ ] Uji 66,395 dan 87,08 tidak dicatat sebagai realisasi IKU 1.3 TW II. *(otomatis sebatas seed produksi; data menunggu UAT ISS-15.01)*
+- [ ] Uji gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026; UAT memverifikasi realisasi dan narasi TW I–II sesuai Laporan Kinerja Triwulan I–II 2026. *(bagian pengecualian gerbang terbukti test; bagian UAT belum)*
+
+> **Status verifikasi (PR #210):** AC-1, AC-2, dan AC-3 terbukti oleh `tests/Feature/PeriodeLampau/PengukuranPeriodeLampauMatrixTest.php`, `PengukuranTanpaBackfillTest.php`, dan `PengukuranProvenanceLampauTest.php` (16 kasus lulus) di atas fixture `PengukuranPeriodeLampauFixtures`; matriks tidak menemukan celah sehingga tidak ada perubahan kode produksi. AC-4 dan bagian data AC-5 tetap menunggu UAT ISS-15.01. Status: terverifikasi test, belum UAT.
 
 ### ISS-07.06 · [Feature] Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
@@ -4149,14 +4151,14 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] **AC-3:** Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
 - [x] **AC-4:** Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
 - [x] **AC-5:** Given versi stale, When sahkan, Then ditolak.
-- [ ] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+- [x] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
 - [x] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `audit_log`.
 - [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat. (Dikembalikan `[ ]` 15 Oktober 2026 menunggu ISS-08.03 — temuan review PR #107.)
+- [x] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
 
 **B. Backend / Domain**
 - [x] Pengesahan memakai `pengukuran_versi.diajukan_by` + `jalur_pengajuan`, menolak versi stale, dan mengisi metadata pengesahan atomik.
@@ -4180,7 +4182,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi stale, When sahkan, Then ditolak.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 - [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 - [x] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
 
@@ -4218,50 +4220,60 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
-- [ ] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
-- [ ] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
-- [ ] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
-- [ ] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] **AC-1:** Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [x] **AC-2:** Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [x] **AC-3:** Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [x] **AC-5:** Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `status_capaian`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
+- [x] Implementasikan/validasi persistence untuk dampak data: `pengukuran`, `pengukuran_versi`, `status_capaian`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Pastikan `pengukuran_versi`/referensi `pengukuran_versi_id` konsisten; versi resmi lama tetap tersimpan ketika koreksi dibuat.
 
 **B. Backend / Domain**
-- [ ] Jangan reset/hapus `status_capaian` versi lama. Versi koreksi baru mulai tanpa status capaian sampai ditetapkan setelah pengesahan.
-- [ ] Selama koreksi belum disahkan, laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] Jangan reset/hapus `status_capaian` versi lama. Versi koreksi baru mulai tanpa status capaian sampai ditetapkan setelah pengesahan.
+- [x] Selama koreksi belum disahkan, laporan resmi tetap memakai versi disahkan sebelumnya.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:buka_kembali` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengukuran:buka_kembali` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Pengukuran Disahkan & Histori Status Capaian**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Buka-Kembali Pengukuran Disahkan & Histori Status Capaian**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`. (Menunggu evidence QA browser desktop/mobile; SSO belum tersedia saat implementasi.)
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan wajib dan waktu koreksi sah, When buka kembali dilakukan, Then header menjadi `dikembalikan`.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given versi lama sudah disahkan, Then versi lama dan status capaian yang terkait versi itu tetap tersimpan sebagai histori.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diperbaiki lalu diajukan ulang, Then `pengukuran_versi` baru dibuat; versi baru belum memiliki status capaian sampai ditetapkan setelah pengesahan.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali pengukuran langsung dicoba, Then ditolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi belum disahkan, Then laporan resmi tetap memakai versi disahkan sebelumnya.
+
+#### Status Implementasi (PR #212)
+
+- AC-1: `BukaKembaliPengukuranTest::test_buka_kembali_alasan_sah_memindahkan_header_dan_mencatat_audit_histori`.
+- AC-2: `BukaKembaliPengukuranTest::test_versi_resmi_dan_status_capaian_lama_tetap_utuh_setelah_buka_kembali`.
+- AC-3: `BukaKembaliPengukuranTest::test_pengajuan_ulang_membuat_versi_baru_tanpa_status_capaian`.
+- AC-4: `BukaKembaliPengukuranTest::test_jadwal_ditutup_tanpa_sesi_koreksi_ditolak_422`, `test_tanggal_melewati_penutupan_tanpa_sesi_koreksi_ditolak_422_dengan_pesan_sesi_koreksi`, `test_sesi_koreksi_sah_menerima_buka_kembali_pascapenutupan`, `test_sesi_koreksi_tanpa_periode_atau_tanpa_pengukuran_ditolak_422`.
+- AC-5: `BukaKembaliPengukuranTest::test_laporan_resmi_tetap_memakai_versi_disahkan_sebelumnya`, `test_laporan_resmi_tetap_memakai_versi_1_tepat_setelah_buka_kembali`.
+- Antrean dan akses: `IndexPengukuranDisahkanTest` (izin baca + buka kembali, deny per unit, lingkup sesi per baris, urutan waktu pengesahan); `VerifikasiIndexCapabilityTest` (prop `can.buka_kembali` pada `/verifikasi`).
+- ISS-08.02 AC-6/TEST-6: dibuktikan oleh `test_laporan_resmi_tetap_memakai_versi_disahkan_sebelumnya` dan `test_laporan_resmi_tetap_memakai_versi_1_tepat_setelah_buka_kembali`; AC-2/AC-3 di atas membuktikan versi resmi lama tetap tersimpan saat koreksi dibuat. Bukti snapshot-vs-master: `RekapIndikatorPeriodeTest::test_versi_sah_tetap_dibaca_ketika_koreksi_dan_master_berubah` dan `SahkanPengukuranTest::test_snapshot_beku_tetap_dibaca_setelah_master_berubah` (sudah ada di `development`).
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas). (Menunggu evidence QA browser desktop/mobile; SSO belum tersedia saat implementasi.)
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 
 ---
@@ -6401,6 +6413,8 @@ Perubahan per request (tanpa nomor baris kode):
 
 > **Q41 (13 Oktober 2026):** jendela pengisian yang dibuka kembali di dalam sesi koreksi juga menentukan periode Rencana Aksi yang boleh diubah PIC; di luar periode tersebut koreksi RA dilakukan Perencanaan (Q41 §41.2 butir 6). AC-5 ditambahkan karena issue ini belum dikerjakan.
 
+> **Refinement pelaksanaan (1 November 2026; menunggu konfirmasi PM pada review PR):** (1) jendela PIC dianggap dibuka resmi di dalam sesi bila periodenya diubah lewat Revisi Jendela PIC selama sesi berjalan (penanda `lingkup_koreksi.jendela_pic_ids`, tanpa kolom baru; buka kembali berikutnya menulis lingkup baru tanpa penanda) dan tanggal mulai serta selesainya berada di dalam rentang tanggal sesi (WITA); jendela lama, termasuk yang kebetulan sudah berada di dalam rentang sesi, tidak membuka akses PIC. (2) Request revisi tetap memuat seluruh periode anggota jadwal; periode di luar `lingkup_koreksi.periode_ids` wajib tidak berubah. (3) Di dalam sesi, aturan tahun pelaporan, tumpang tindih antarperiode, dan penutupan setelah jendela terakhir tidak diperiksa; sebagai gantinya kedua tanggal jendela yang berubah wajib di dalam sesi dan berurutan, sedangkan batas awal Q70 tetap berlaku. (4) Revisi `pengisian_selesai` TW I–III 2026 di dalam sesi menjadikan periode tersebut periode normal, sesuai perilaku saat ini (catatan Q41 §41.2 butir 5).
+
 **Terkait User Story:** `US-14.03`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
@@ -6424,44 +6438,44 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given sesi koreksi aktif, When Perencanaan membuka jendela PIC dengan alasan dan batas baru, Then deadline baru wajib berada di dalam sesi koreksi.
-- [ ] **AC-2:** Given PIC bekerja dalam jendela baru, Then scope unit, PIC efektif, grant, deny, status record, dan gate lain tetap diperiksa.
-- [ ] **AC-3:** Given tahun dibuka tetapi jendela PIC belum dibuka, When PIC mencoba mutasi, Then ditolak.
-- [ ] **AC-4:** Given jendela koreksi berakhir, Then akses PIC kembali tertutup tanpa perlu mengubah histori penutupan asli.
-- [ ] **AC-5:** Given jendela pengisian periode P dibuka kembali di dalam sesi koreksi, Then PIC juga dapat mengubah Rencana Aksi periode P, sedangkan RA periode lain hanya dapat dikoreksi Perencanaan. *(Q41 §41.2 butir 6)*
+- [x] **AC-1:** Given sesi koreksi aktif, When Perencanaan membuka jendela PIC dengan alasan dan batas baru, Then deadline baru wajib berada di dalam sesi koreksi.
+- [x] **AC-2:** Given PIC bekerja dalam jendela baru, Then scope unit, PIC efektif, grant, deny, status record, dan gate lain tetap diperiksa.
+- [x] **AC-3:** Given tahun dibuka tetapi jendela PIC belum dibuka, When PIC mencoba mutasi, Then ditolak.
+- [x] **AC-4:** Given jendela koreksi berakhir, Then akses PIC kembali tertutup tanpa perlu mengubah histori penutupan asli.
+- [x] **AC-5:** Given jendela pengisian periode P dibuka kembali di dalam sesi koreksi, Then PIC juga dapat mengubah Rencana Aksi periode P, sedangkan RA periode lain hanya dapat dikoreksi Perencanaan. *(Q41 §41.2 butir 6)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan`/`jadwal_periode`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan`/`jadwal_periode`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Akses PIC pada koreksi memerlukan aksi `jadwal:update` terpisah untuk jendela resmi yang berada dalam sesi koreksi dan tetap memeriksa grant/PIC efektif/deny/status.
+- [x] Akses PIC pada koreksi memerlukan aksi `jadwal:update` terpisah untuk jendela resmi yang berada dalam sesi koreksi dan tetap memeriksa grant/PIC efektif/deny/status.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `jadwal:update` untuk revisi jendela PIC resmi.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `jadwal:update` untuk revisi jendela PIC resmi.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pembukaan Jendela PIC di Dalam Sesi Koreksi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Pembukaan Jendela PIC di Dalam Sesi Koreksi**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`. *(Menunggu browser smoke desktop/mobile.)*
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi aktif, When Perencanaan membuka jendela PIC dengan alasan dan batas baru, Then deadline baru wajib berada di dalam sesi koreksi.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given PIC bekerja dalam jendela baru, Then scope unit, PIC efektif, grant, deny, status record, dan gate lain tetap diperiksa.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given tahun dibuka tetapi jendela PIC belum dibuka, When PIC mencoba mutasi, Then ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela koreksi berakhir, Then akses PIC kembali tertutup tanpa perlu mengubah histori penutupan asli.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given jendela pengisian periode P dibuka kembali di dalam sesi koreksi, Then PIC juga dapat mengubah Rencana Aksi periode P, sedangkan RA periode lain hanya dapat dikoreksi Perencanaan. *(Q41 §41.2 butir 6)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi aktif, When Perencanaan membuka jendela PIC dengan alasan dan batas baru, Then deadline baru wajib berada di dalam sesi koreksi.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given PIC bekerja dalam jendela baru, Then scope unit, PIC efektif, grant, deny, status record, dan gate lain tetap diperiksa.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given tahun dibuka tetapi jendela PIC belum dibuka, When PIC mencoba mutasi, Then ditolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela koreksi berakhir, Then akses PIC kembali tertutup tanpa perlu mengubah histori penutupan asli.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given jendela pengisian periode P dibuka kembali di dalam sesi koreksi, Then PIC juga dapat mengubah Rencana Aksi periode P, sedangkan RA periode lain hanya dapat dikoreksi Perencanaan. *(Q41 §41.2 butir 6)*
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
@@ -6622,22 +6636,24 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
-- [ ] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
-- [ ] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live.
-- [ ] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
-- [ ] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat.
+- [x] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
+- [x] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
+- [x] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live. *(Q46 §46.3: tenggat WA/Email sebelum 9 November 2026 tidak berlaku lagi; 9 November 2026 tetap batas integrasi Tahap 1 dan bukan tanggal go-live.)*
+- [x] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
+- [x] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat. *(Format pencatatan tersedia pada `SAKIP - Tahapan UAT dan Rilis.md` §6; isian pertama dibuat saat penerimaan pertama.)*
+
+> **Status per 2 November 2026 (issue [#187](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/187)):** tahapan tersedia di `SAKIP - Tahapan UAT dan Rilis.md` (keputusan PM K3–K7). AC-1 dan AC-2 terpenuhi oleh empat status beserta pihak penetap serta syarat masuk/keluarnya (§2), AC-3 oleh kalender target (§1), AC-4 oleh isian `Belum ditetapkan` (§1, §4, §6), dan AC-5 oleh format catatan keputusan (§6). UAT-1–UAT-5 dicentang setelah dokumen direview PM bersama Tim Perencanaan. Belum ada paket UAT karena lingkungan UAT (ISS-15.02) serta akun UAT lima role dan PIC operasional (ISS-15.01 AC-5) belum tersedia. Status ini **bukan** UAT accepted atau deployment.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
+- [x] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
 
 **B. Backend / Domain**
-- [ ] Pisahkan status siap diuji, evaluasi/perbaikan, diterima, dan produksi. Tanggal target integrasi bukan otomatis tanggal go-live.
+- [x] Pisahkan status siap diuji, evaluasi/perbaikan, diterima, dan produksi. Tanggal target integrasi bukan otomatis tanggal go-live.
 
 **C. Authorization & Audit**
-- [ ] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
+- [x] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
 
 #### Automated Tests / Verification
 
@@ -6650,10 +6666,10 @@ Perubahan per request (tanpa nomor baris kode):
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2).
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2). *(Menjadi syarat masuk status Produksi, `SAKIP - Tahapan UAT dan Rilis.md` §2.3.)*
 
 
 ---

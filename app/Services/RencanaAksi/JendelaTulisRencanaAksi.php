@@ -24,8 +24,9 @@ use Carbon\CarbonInterface;
  * `pengisian_selesai` P terlewati — termasuk periode lampau saat aktivasi
  * (tanggalnya sudah lewat sehingga otomatis terkunci) dan hasil revisi resmi
  * jendela (Q18) karena yang dibaca selalu nilai berlaku. Sesi koreksi
- * hanya membuka jalur Perencanaan pada waktu dan lingkup sah; pembukaan
- * PIC memerlukan aksi resmi terpisah, bukan perubahan tanggal saja.
+ * membuka jalur Perencanaan pada waktu dan lingkup sah; PIC hanya pada
+ * periode yang jendelanya dibuka resmi di dalam rentang sesi (Q19, Q41
+ * §41.2 butir 6), bukan karena jendela lama masih berjalan.
  *
  * Dipisah agar gerbang tulis (`EnsureDraftRencanaAksi`,
  * `SimpanTargetPeriode`, `AjukanRencanaAksi`, `GerbangBuktiRencanaAksi`,
@@ -84,7 +85,8 @@ class JendelaTulisRencanaAksi
     public function penilaian(User $aktor, PermissionDecision $keputusan, IndikatorKinerja $indikator, JadwalTahunan $jadwal, string $tindakan, array $periodeIds = [], ?string $picUserId = null, ?CarbonInterface $pada = null): array
     {
         $pada ??= now();
-        if ($this->tahunDitutup($jadwal, $pada) && (! $this->jalurPerencanaan($keputusan) || ! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds, $pada))) {
+        if ($this->tahunDitutup($jadwal, $pada) && (! $this->dalamKoreksiSah($indikator, $jadwal, $periodeIds, $pada)
+            || (! $this->jalurPerencanaan($keputusan) && ! $this->jendelaPicSesi($jadwal, $periodeIds, $pada)))) {
             return ['jenis' => 'penutupan', 'pesan' => "Tahun jadwal telah ditutup; {$tindakan} memerlukan sesi koreksi resmi.", 'terkunci' => []];
         }
 
@@ -214,6 +216,34 @@ class JendelaTulisRencanaAksi
     private function dalamKoreksiSah(IndikatorKinerja $indikator, JadwalTahunan $jadwal, array $periodeIds, CarbonInterface $pada): bool
     {
         return SesiKoreksiJadwal::berlaku($jadwal, 'rencana_aksi', (string) $indikator->id, $periodeIds, $pada);
+    }
+
+    /**
+     * Periode yang jendela PIC-nya dibuka resmi di dalam sesi dan berjalan pada `$pada` (Q41 §41.2 butir 6).
+     *
+     * @param  list<string>  $periodeIds
+     * @return list<string>
+     */
+    public function periodeJendelaPicSesi(JadwalTahunan $jadwal, array $periodeIds, ?CarbonInterface $pada = null): array
+    {
+        return PeriodeJadwal::where('jadwal_id', $jadwal->id)->whereIn('periode_id', $periodeIds)->get()
+            ->filter(fn (PeriodeJadwal $jendela): bool => SesiKoreksiJadwal::jendelaPicTerbuka($jadwal, $jendela, $pada))
+            ->map(fn (PeriodeJadwal $jendela): string => (string) $jendela->periode_id)->values()->all();
+    }
+
+    /**
+     * Setiap periode yang ditulis PIC wajib memiliki jendela resmi di dalam sesi; tanpa dimensi periode
+     * (pembuatan header, capability) cukup satu periode lingkup yang jendelanya terbuka.
+     *
+     * @param  list<string>  $periodeIds
+     */
+    private function jendelaPicSesi(JadwalTahunan $jadwal, array $periodeIds, CarbonInterface $pada): bool
+    {
+        if ($periodeIds === []) {
+            return $this->periodeJendelaPicSesi($jadwal, $this->periodeLingkupKoreksi($jadwal), $pada) !== [];
+        }
+
+        return array_diff($periodeIds, $this->periodeJendelaPicSesi($jadwal, $periodeIds, $pada)) === [];
     }
 
     private function tanggalBisnis(CarbonInterface $pada): string

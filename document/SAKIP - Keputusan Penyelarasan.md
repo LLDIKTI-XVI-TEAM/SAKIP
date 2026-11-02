@@ -82,6 +82,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 30 Oktober 2026 (Q79)** menetapkan bahwa versi koreksi snapshot disalin dari data master terkini setelah master diperbaiki, dengan periode mulai yang tidak lebih awal dari versi yang digantikan dan tanpa memindahkan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada, serta menyelaraskan Acceptance Criteria ISS-03.03 dengan issue #91.
 
+**Keputusan 1 November 2026 (Q67)** menetapkan antrean pengukuran Disahkan sebagai halaman terpisah `/verifikasi/disahkan` yang hanya memuat pengukuran yang masih dapat dibuka kembali, dengan syarat izin baca dan buka kembali; antrean reviu `/verifikasi` tetap memuat Diajukan dan Diverifikasi.
+
 **Keputusan 1 November 2026 (Q80)** menetapkan bahwa AC-2 ISS-15.02 terpenuhi oleh gate checklist kesiapan infrastruktur selama notifikasi eksternal belum diaktifkan, dan gate itu menjadi Definition of Done issue notifikasi eksternal; uji pemulihan di lingkungan UAT cukup untuk ISS-15.02 dan diulang di produksi sebelum produksi diterima; serta path berkas di dokumen diselaraskan dengan implementasi.
 
 Prinsip penyelarasan yang tetap berlaku:
@@ -101,7 +103,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | ID | Ketentuan yang diadopsi | Rujukan utama |
 |---|---|---|
 | Q1 | PM mengelola baseline/catatan keputusan; Perencanaan mengesahkan domain dan UAT; teknis menetapkan implementasi. | Pembuka PRD; Plan P.4 |
-| Q2 | Pisahkan siap diuji, evaluasi/perbaikan, diterima, dan produksi. Target integrasi sebelum 9 November 2026 dan evaluasi/revisi 16–30 November berasal dari Q4 PM; tanggal penerimaan/go-live belum ditetapkan. | PRD pembuka, §28, §32; Plan P.4 |
+| Q2 | Pisahkan siap diuji, evaluasi/perbaikan, diterima, dan produksi. Target integrasi sebelum 9 November 2026 dan evaluasi/revisi 16–30 November berasal dari Q4 PM; tanggal penerimaan/go-live belum ditetapkan. | PRD pembuka, §28, §32; Plan P.4; `SAKIP - Tahapan UAT dan Rilis.md` |
 | Q3 | Tetapkan daftar penggunaan pertama: tahun/periode, indikator, unit/PIC, data awal dan arsip wajib; Perencanaan memverifikasi sebelum aktivasi. Input manual/backfill, tanpa menambah impor. | PRD pembuka, §12.6; Plan S.1/P.4 |
 | Q4 | In-app baseline MVP; WA/email sebelum 9 November 2026. Pembukaan jadwal, pengingat PIC H-7/H-3/H-1, rekap Perencanaan H-3/H-1, serta pengembalian berkas. **Tenggat WA/email digantikan Q46 §46.3 (17 Oktober 2026):** ISS-12.01–ISS-12.07 dan ISS-13.04 mengikuti rencana sprint setelah Tahap 2. | PRD §28; Workflow §22; Plan 14; Model pengaturan |
 | Q5 | IKU 3 lima input, masing-masing koefisien 0,5; subtotal SAKIP merupakan tampilan turunan. Mesin formula bertingkat generik tetap ditunda. | PRD §17.10–17.11; Plan 5.13/5.17 |
@@ -118,7 +120,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q16 | Jadwal normal mewajibkan jendela RA selesai sebelum pengisian pertama; indikator baru/revisi/backfill/pembukaan resmi memakai jalur pengecualian teraudit. **Digantikan Q41:** Rencana Aksi tidak lagi memakai jendela penyusunan; periode terkunci bagi PIC setelah jendela pengisiannya lewat. | PRD §12.3; Plan 3.4; Q41 |
 | Q17 | Perencanaan dapat menyelesaikan reviu sampai penutupan tahunan; lewat batas reviu diberi penanda terlambat. **Diubah Q70:** jendela reviu dihapus; reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan tanpa penanda terlambat baru. | PRD §12.3, §31; Q70 |
 | Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. **Q41:** berlaku untuk jendela pengisian pengukuran; jendela penyusunan RA sudah dihapus. **Dilengkapi Q57:** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama. **Q70:** jendela reviu dihapus, sehingga revisi hanya menyangkut jendela pengisian. | PRD §12.3; Plan 3.12; Q41; Q57; Q70 |
-| Q19 | Koreksi setelah penutupan memerlukan buka kembali dengan lingkup dan durasi eksplisit; tanggal penutupan asli dipertahankan. PIC memerlukan aksi pembukaan jendela terpisah Q18 dalam waktu/lingkup sesi koreksi, bukan otomatis dari buka tahun. | PRD §12.6, §19.5 |
+| Q19 | Koreksi setelah penutupan memerlukan buka kembali dengan lingkup dan durasi eksplisit; tanggal penutupan asli dipertahankan. PIC memerlukan aksi pembukaan jendela terpisah Q18 dalam waktu/lingkup sesi koreksi, bukan otomatis dari buka tahun. **Status implementasi (ISS-14.03):** revisi jendela PIC resmi tersedia di dalam sesi koreksi berjalan; kedua tanggal jendela wajib di dalam rentang sesi dan hanya untuk periode lingkup; akses PIC hanya terbuka bagi periode yang diubah lewat aksi tersebut selama sesi, lalu akses PIC berakhir bersama sesi tanpa mengubah penutupan asli. Bukan penerimaan UAT atau deployment. | PRD §12.6, §19.5 |
 | Q20 | Indikator baru memiliki periode mulai berlaku; periode sebelumnya Tidak berlaku dan tidak menjadi target/missing/nol. **Status implementasi (PR #197):** penambahan indikator ke jadwal aktif dengan periode mulai pilihan tersedia lewat aksi beralasan; periode sebelumnya tampil Tidak berlaku. | PRD §10.5, §14.7, §23 |
 | Q21 | Backfill dapat menerima skor historis final tanpa komponen, dengan sumber/alasan/penanda dan alur pengesahan; tidak mengubah tipe master atau membuat komponen rekaan. | PRD §12.6, §17.6 |
 | Q22 | Bukti kegiatan memakai union persyaratan global dan indikator yang diklaim; klaim baru setelah terlaksana memeriksa bukti tambahan. | PRD §15.6; Workflow §8–10 |
@@ -1073,7 +1075,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:04:43–1:09:38, 1:19:12–1:24:52, dan 1
 3. Perencanaan dikecualikan sampai `penutupan`, sama seperti pengecualian Perencanaan pada jendela pengisian.
 4. Periode lampau 2026 pada saat aktivasi jadwal (Q46) sudah terkunci bagi PIC sejak aktivasi.
 5. Kunci mengikuti nilai `pengisian_selesai` yang berlaku, termasuk hasil revisi resmi jendela pengisian (Q18, ISS-03.06): perpanjangan jendela pengisian periode P ikut menggeser kunci RA periode P bagi PIC. (PM, saat penyelarasan Q47–Q51) *(Catatan 19 Oktober 2026: periode lampau 2026 yang jendelanya diperpanjang melewati tanggal aktivasi menjadi periode normal. Akibatnya target wajib, kecuali untuk indikator dinilai tahunan pada periode sebelum nilai akhir; gerbang pengukuran (RA sah, target versi sah, bukti, narasi) berlaku; anggaran kegiatan berlaku bagi PIC, sedangkan jalur Perencanaan 2026 tetap dikecualikan sebagai data awal (Q32.7). Kunci bagi PIC tetap mengikuti batas pengisian yang baru: terbuka hanya bila batas itu belum lewat. Perubahan ini dapat dibatalkan dengan revisi jendela berikutnya, yang tercatat di audit beserta alasannya ([keputusan PM 19 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/130#issuecomment-6322219488)).)*
-6. Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan. (PM, saat penyelarasan Q47–Q51)
+6. Dalam sesi koreksi setelah penutupan, PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi RA dilakukan Perencanaan. (PM, saat penyelarasan Q47–Q51) *Status implementasi (ISS-14.03): PIC hanya dapat mengubah RA pada periode yang jendelanya dibuka resmi di dalam rentang sesi.*
 
 ## 41.3 Aturan yang tetap berlaku
 
@@ -1292,7 +1294,7 @@ Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#1
 ## 46.4 Dampak dan traceability
 
 - Q32.7 dan Q32.8; PRD §12.6, §33; Data Model §8.4; Workflow §15; Plan (prioritas dan urutan modul); User Issues §4.1; US/ISS-03.05 dan 07.05.
-- Status implementasi: belum.
+- Status implementasi: sisi pengukuran terverifikasi test (PR #210) melalui `PengukuranPeriodeLampauMatrixTest`, `PengukuranTanpaBackfillTest`, dan `PengukuranProvenanceLampauTest`; sisi Rencana Aksi dirujuk ke ISS-03.05 (#146) dengan status per issue. Data awal 2026 dan AC-4 menunggu UAT ISS-15.01.
 
 ---
 
@@ -1905,6 +1907,33 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 ---
 
+# Keputusan Q67 — Antrean Pengukuran Disahkan untuk Buka Kembali
+
+**Keputusan PM: 1 November 2026 (WITA), review PR #212 (ISS-08.03, [Issue #181](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/181)).** Menetapkan bentuk antrean Plan 6.3 yang oleh issue #181 diserahkan ke refinement. Keputusan ini menggantikan usulan 21 Oktober 2026 berupa opsi Disahkan pada filter status `/verifikasi`, yang belum pernah dicatat dan menjadi alasan nomor Q67 dicadangkan. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 67.1 Permukaan dan isi
+
+1. Antrean pengukuran Disahkan adalah halaman terpisah `/verifikasi/disahkan`, dibuka dari tombol "Pengukuran Disahkan" pada halaman Verifikasi & Pengesahan Kinerja. Antrean reviu `/verifikasi` tetap hanya memuat `diajukan` dan `diverifikasi`, dan filter "Status antrean" tidak mendapat opsi Disahkan.
+2. Halaman hanya memuat pengukuran `disahkan` yang masih dapat dibuka kembali. Jadwalnya `aktif` dan tahun belum ditutup (tanggal bisnis belum melewati `penutupan` dan jadwal tidak sedang atau pernah dibuka untuk sesi koreksi, Q77 butir 3), atau baris itu tercakup sesi koreksi resmi untuk indikator × periode × `pengukuran` (Workflow §13 Lapis 3 butir 8a, Q35 §35.2). Kondisi per baris yang jarang terjadi, seperti unit nonaktif dan indikator arsip, tetap ditolak di halaman detail dengan pesan dari server.
+3. Kolom: kode dan nama indikator, unit, periode, versi resmi (nomor dan tanggal pengesahan), nilai, status, serta tautan ke detail. Buka kembali dilakukan dari halaman detail dengan alasan wajib (Q43 §43.2 butir 1); halaman antrean tidak mengubah data.
+4. Filter Renstra, Tahun, Periode, dan Unit mengambil pilihan dari cakupan antrean yang sama. Urutan mengikuti waktu pengesahan versi resmi, terbaru lebih dulu, dengan 20 baris per halaman.
+
+## 67.2 Akses
+
+1. Halaman dan pilihan filternya memerlukan `pengukuran:read` dan `pengukuran:buka_kembali`; tanpa salah satunya permintaan ditolak 403. Baris pada unit yang dikenai deny atas salah satu izin itu tidak tampil (deny eksplisit menang, Q32).
+2. Tombol "Pengukuran Disahkan" pada `/verifikasi` hanya tampil bila server menyatakan pengguna memiliki kedua izin tersebut.
+3. Detail `/verifikasi/{id}` juga dapat dibuka pemegang `pengukuran:buka_kembali` pada unit target, di samping pemegang izin reviu, dan tetap mensyaratkan `pengukuran:read` pada unit itu.
+
+## 67.3 Dampak dan traceability
+
+- Plan 6.3 (scope dan DoD), US/ISS-08.03 task D, Workflow §13 Lapis 2, PRD §19.5.
+- Kebutuhan melihat seluruh pengukuran Disahkan, termasuk pada jadwal yang sudah ditutup, dilayani halaman Pengukuran dan Rekap Indikator per Periode. Tidak ada daftar baca-saja tambahan di `/verifikasi`.
+- Tidak ada migrasi, permission baru, maupun perubahan alur status.
+- Status implementasi: PR #212.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
 # Keputusan Q68 — Tabel Monitoring Penanggung Jawab
 
 **Keputusan PM: 22 Oktober 2026 (WITA), perbaikan ISS-04.01.** Mengubah Q32 §32.2 (daftar "PJ aktif tanpa hak isi") dan menutup D-01 ISS-04.01. Q67 dicadangkan untuk keputusan lain, sehingga keputusan ini bernomor Q68. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
@@ -2279,7 +2308,7 @@ Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 
 
 | Item | Pemilik keputusan | Status / yang masih diperlukan |
 |---|---|---|
-| Penerima walkthrough/UAT, tanggal penerimaan dan tanggal produksi | PM + Perencanaan | Belum tercatat final; target integrasi proyek tidak otomatis sama dengan go-live. |
+| Penerima walkthrough/UAT, tanggal penerimaan dan tanggal produksi | PM + Perencanaan | Belum ditetapkan; target integrasi proyek tidak otomatis sama dengan go-live. Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi beserta format pencatatan penerima, tanggal, dan build ada pada `SAKIP - Tahapan UAT dan Rilis.md` (ISS-15.03). |
 | Contoh keluaran Excel penerimaan | Perencanaan | Layout/kolom/presisi/narasi final masih perlu disahkan untuk UAT. |
 | Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. Owner, status, bukti, dan blocker per layanan dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). |
 | Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. Daftar periksanya ada pada `SAKIP - Kesiapan Infrastruktur.md` §3; aktivasinya mengikuti ISS-12.x setelah Tahap 2 (Q46 §46.3) dengan gate Q80 §80.1. |

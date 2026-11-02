@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Actions\Jadwal\BukaKembaliJadwal;
+use App\Actions\Jadwal\TutupJadwal;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\Permission;
@@ -9,9 +11,11 @@ use App\Models\RencanaAksi;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
 
@@ -62,6 +66,41 @@ class RencanaAksiKoreksiKunciTanggalTest extends TestCase
         PeriodeJadwal::where('jadwal_id', $fixture['jadwal']->id)->where('periode_id', $fixture['periode1']->id)
             ->update(['pengisian_selesai' => '2027-01-10']);
         $this->simpanTarget($fixture, $header, $fixture['periode1'], 12)->assertSessionHasErrors('jendela');
+    }
+
+    public function test_jendela_pic_resmi_di_dalam_sesi_hanya_membuka_rencana_aksi_periode_tersebut(): void
+    {
+        $fixture = $this->fixture();
+        $header = $this->buatDraf($fixture);
+        $jadwal = $fixture['jadwal'];
+        // Jendela lama TW II masih berjalan saat sesi tetapi dimulai sebelum sesi: bukan pembukaan resmi bagi PIC.
+        PeriodeJadwal::where('jadwal_id', $jadwal->id)->where('periode_id', $fixture['periode2']->id)->update(['pengisian_selesai' => '2027-01-20']);
+        $this->travelTo(Carbon::parse('2027-01-05 09:00:00', 'Asia/Makassar'));
+        app(TutupJadwal::class)->handle($fixture['perencanaan'], $jadwal->id, ['expected_revisi' => $jadwal->fresh()->revisi, 'alasan' => 'Tahun ditutup.']);
+        app(BukaKembaliJadwal::class)->handle($fixture['perencanaan'], $jadwal->id, [
+            'expected_revisi' => $jadwal->fresh()->revisi, 'alasan' => 'Koreksi Rencana Aksi.',
+            'koreksi_mulai' => '2027-01-05T08:00', 'koreksi_sampai' => '2027-01-31T17:00',
+            'lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [$fixture['indikator']->id],
+                'periode_ids' => [$fixture['periode1']->id, $fixture['periode2']->id]],
+        ]);
+        $this->actingAs($fixture['perencanaan'])->post("/jadwal/{$jadwal->id}/revisi-jendela", [
+            'expected_revisi' => $jadwal->fresh()->revisi, 'alasan' => 'Jendela PIC koreksi TW I.',
+            'periode' => [
+                ['periode_id' => $fixture['periode1']->id, 'pengisian_mulai' => '2027-01-05', 'pengisian_selesai' => '2027-01-10'],
+                ['periode_id' => $fixture['periode2']->id, 'pengisian_mulai' => '2026-04-15', 'pengisian_selesai' => '2027-01-20'],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->simpanTarget($fixture, $header, $fixture['periode1'], 15)->assertSessionHasNoErrors();
+        $this->actingAs($fixture['pic'])->get("/rencana-aksi/{$header->id}")->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('rencanaAksi.periode_dapat_ditulis', [$fixture['periode1']->id])->where('rencanaAksi.can.update', true));
+        // Periode lain dalam lingkup sesi tanpa jendela PIC resmi hanya dapat dikoreksi Perencanaan.
+        $this->simpanTarget($fixture, $header, $fixture['periode2'], 16)->assertSessionHasErrors('jendela');
+        $this->simpanTarget($fixture, $header, $fixture['periode2'], 16, $fixture['perencanaan'])->assertSessionHasNoErrors();
+
+        // Setelah jendela PIC berakhir, periode tersebut kembali terkunci bagi PIC walau sesi masih berjalan.
+        $this->travelTo(Carbon::parse('2027-01-11 09:00:00', 'Asia/Makassar'));
+        $this->simpanTarget($fixture, $header, $fixture['periode1'], 17)->assertSessionHasErrors('jendela');
     }
 
     private function penggunaDenganPeran(string $kode): User

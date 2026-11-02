@@ -40,6 +40,45 @@ class JadwalDraftRules
     }
 
     /**
+     * Revisi jendela PIC di dalam sesi koreksi: tahun pelaporan, tumpang tindih antarperiode, dan penutupan tidak
+     * diperiksa karena jendela dibuka setelah penutupan; sebagai gantinya jendela yang berubah wajib termasuk lingkup
+     * dan seluruh tanggalnya berada di dalam rentang tanggal sesi. Batas awal Q70 tetap berlaku.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, array{urutan: int, batas_awal_pengisian?: ?string}>  $periodeMetadata
+     * @param  list<string>  $diubah  periode_id yang tanggal jendelanya berubah
+     * @param  list<string>  $lingkup  `lingkup_koreksi.periode_ids`
+     * @param  array{0: string, 1: string}  $rentangSesi
+     */
+    public function validateSesiKoreksi(array $data, array $periodeMetadata, array $diubah, array $lingkup, array $rentangSesi): void
+    {
+        $errors = $this->batasAwalErrors($data, $periodeMetadata);
+        [$mulaiSesi, $akhirSesi] = $rentangSesi;
+        $rentang = implode('–', array_map(fn (string $tanggal): string => CarbonImmutable::parse($tanggal)->locale('id')->translatedFormat('j F Y'), $rentangSesi));
+        foreach ($data['periode'] as $index => $window) {
+            if (! in_array($window['periode_id'], $diubah, true)) {
+                continue;
+            }
+            if (! in_array($window['periode_id'], $lingkup, true)) {
+                $errors["periode.$index.periode_id"] = 'Periode ini di luar lingkup sesi koreksi; jendelanya tidak dapat diubah.';
+
+                continue;
+            }
+            foreach (self::WINDOW_FIELDS as $field) {
+                if ($window[$field] < $mulaiSesi || $window[$field] > $akhirSesi) {
+                    $errors["periode.$index.$field"] ??= "Tanggal harus berada di dalam sesi koreksi ($rentang).";
+                }
+            }
+            if ($window['pengisian_mulai'] > $window['pengisian_selesai']) {
+                $errors["periode.$index.pengisian_selesai"] ??= 'Tanggal harus sama dengan atau setelah tanggal jendela sebelumnya.';
+            }
+        }
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      * @param  array<string, array{urutan: int, batas_awal_pengisian?: ?string}>  $periodeMetadata
      * @return array<string, string>
