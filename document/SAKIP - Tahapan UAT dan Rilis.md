@@ -76,7 +76,7 @@ Syarat masuk:
 2. CI exact HEAD lulus 9/9 untuk SHA paket. SHA yang hanya berisi perubahan dokumen menjalankan CI manual (`SAKIP - Kesiapan Infrastruktur.md` §1).
 3. Lingkungan UAT tersedia (ISS-15.02): readiness aplikasi `SAKIP - Kesiapan Infrastruktur.md` §1 berstatus UAT `Siap berbukti` untuk SHA paket, dan layanan §2 yang belum siap tercatat sebagai blocker/risiko pada §5 dokumen tersebut.
 4. Akun UAT lima role dan PIC operasional tersedia (ISS-15.01 AC-5).
-5. Cakupan ISS dan acceptance criteria yang diuji tercatat pada §4.
+5. Cakupan ISS beserta PR-nya dan acceptance criteria yang diuji tercatat pada §4.
 
 Syarat keluar:
 
@@ -135,9 +135,9 @@ Dokumen ini tidak menyalin kriteria penerimaan. Acuannya:
 
 ## 4. Paket UAT
 
-Kode paket berurutan: `Paket-01`, `Paket-02`, dan seterusnya. Kolom **Status** hanya berisi salah satu dari empat status §2.
+Kode paket berurutan: `Paket-01`, `Paket-02`, dan seterusnya. Kolom **Cakupan** mencatat setiap ISS beserta nomor PR yang memasukkannya ke `development` (mis. `ISS-xx.yy · #N`). Kolom **Status** hanya berisi salah satu dari empat status §2.
 
-| Paket | Build (SHA penuh `development`) | Cakupan ISS | Siap diuji (tanggal, dicatat oleh) | Status | Hasil UAT (§5) | Daftar perbaikan | Diterima (§6) | Produksi (§6) |
+| Paket | Build (SHA penuh `development`) | Cakupan (ISS · PR) | Siap diuji (tanggal, dicatat oleh) | Status | Hasil UAT (§5) | Daftar perbaikan | Diterima (§6) | Produksi (§6) |
 |---|---|---|---|---|---|---|---|---|
 | — | — | — | Belum ada paket | — | — | — | Belum ditetapkan | Belum ditetapkan |
 
