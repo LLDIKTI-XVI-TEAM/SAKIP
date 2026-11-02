@@ -32,7 +32,8 @@ class IndexPengukuran
      * memakai snapshot yang dijepit; tanpa header memakai nomor_versi terbesar yang sudah efektif pada urutan periode, atau
      * versi terendah sebagai identitas "Tidak berlaku". Deny baca disaring per unit baris (unit snapshot tersebut, bukan unit
      * master) sebelum paginate, dan indikator arsip tanpa header dikeluarkan. Baris existing hanya ringkasan; izin create
-     * seluruh unit halaman dievaluasi satu batch dan guard pembentukan memakai data pramuat, tanpa query per baris/unit.
+     * seluruh unit halaman dievaluasi satu batch dan guard pembentukan memakai data pramuat. Capability pemindahan
+     * dinilai per header berlabel versi lama, dibatasi pagination 20 baris.
      *
      * @param  array<string, mixed>  $query  query string halaman
      * @return array<string, mixed>
@@ -86,11 +87,15 @@ class IndexPengukuran
             if ($row->pengukuran_id !== null) {
                 $summary = $this->present->handle($headers[$row->pengukuran_id], $actor);
                 $context = $summary['penugasan_indikator'];
+                $versiBerlaku = $row->berlaku && in_array($summary['status'], ['draft', 'dikembalikan'], true)
+                    && $row->jadwal_snapshot_id !== $row->snapshot_berlaku_id
+                    ? ['id' => $row->snapshot_berlaku_id, 'nomor' => (int) $row->nomor_versi_berlaku] : null;
 
                 // Metadata dari presenter (versi beku setelah diajukan) agar daftar sama dengan detail walau master berubah.
                 return [...$base, 'periode' => $summary['periode_jadwal'], 'indikator' => Arr::only($context['indikator_kinerja'], ['kode', 'nama', 'satuan', 'desimal_tampilan']),
-                    'unit' => $context['unit_kerja'], 'pic' => $context['pic'], 'jenis' => 'existing', 'can' => ['create' => false],
-                    'pengukuran' => Arr::only($summary, ['id', 'status', 'nilai', 'status_perhitungan', 'target', 'tanpa_target_periode', 'bukti_count', 'self_approval', 'reviu_terlambat'])];
+                    'unit' => $context['unit_kerja'], 'pic' => $context['pic'], 'jenis' => 'existing', 'versi_berlaku' => $versiBerlaku,
+                    'can' => ['create' => false, 'pindahSnapshot' => $versiBerlaku !== null && Gate::forUser($actor)->allows('pindahSnapshot', $headers[$row->pengukuran_id])],
+                    'pengukuran' => Arr::only($summary, ['id', 'versi', 'status', 'nilai', 'status_perhitungan', 'target', 'tanpa_target_periode', 'bukti_count', 'self_approval', 'reviu_terlambat'])];
             }
             $create = false;
             if ($row->berlaku) {

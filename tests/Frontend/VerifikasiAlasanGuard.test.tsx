@@ -20,6 +20,7 @@ const PESAN_ALASAN_TERSEDIA = 'Alasan aksi tersedia yang tidak boleh tampil di n
 
 const dasar: Pengukuran = {
     id: '7b2a8af8-3d18-42bb-9b34-ff0bcce043a5', versi: 4, nomor_pengajuan: 1,
+    versi_berlaku: null,
     jalur_pengajuan: 'perencanaan', self_approval: false, reviu_terlambat: false, status: 'diverifikasi', target: 100,
     nilai: 80, status_perhitungan: 'terhitung', sumber_nilai: 'manual', catatan: '', alasan_tidak_dapat_dihitung: null,
     komponen: [], prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [],

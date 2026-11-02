@@ -11,6 +11,7 @@ import { Tooltip } from '@/Components/Tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import type { BarisPengukuran, KonteksPengukuran, PilihanJadwalPengukuran } from './types';
 import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
+import { PindahVersiButton } from '@/Components/Pengukuran/PindahVersiButton';
 import { Pagination, type PaginationLinkItem } from '@/Components/Pagination';
 import { useFormatNilai } from './formatNilai';
 
@@ -86,6 +87,7 @@ function StatusBaris({ baris }: { baris: BarisPengukuran }) {
     return (
         <div className="flex flex-col items-start gap-1">
             <Badge status={p.status} size="sm" />
+            {baris.versi_berlaku && <Badge variant="warning" size="sm">Versi lama</Badge>}
             <span className="inline-flex items-center gap-1 text-xs text-muted"><StatusPerhitunganBadge status={p.status_perhitungan} size="sm" /> · {p.bukti_count} bukti</span>
             {p.self_approval && <span className="text-xs font-medium text-info-dark">Persetujuan sendiri</span>}
             {p.reviu_terlambat && <span className="text-xs font-medium text-warning-dark">Reviu terlambat</span>}
@@ -98,12 +100,16 @@ function AksiBaris({ baris }: { baris: BarisPengukuran }) {
         const label = ['draft', 'dikembalikan'].includes(baris.pengukuran.status) ? 'Buka Draft' : 'Detail';
 
         return (
-            <Tooltip content={label} align="right">
-                <Link href={`/pengukuran/${baris.pengukuran.id}/edit`} aria-label={`${label} ${labelBaris(baris)}`}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
-                    <Eye className="h-4 w-4" aria-hidden="true" />
-                </Link>
-            </Tooltip>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+                <Tooltip content={label} align="right">
+                    <Link href={`/pengukuran/${baris.pengukuran.id}/edit`} aria-label={`${label} ${labelBaris(baris)}`}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                </Tooltip>
+                {baris.can.pindahSnapshot && baris.versi_berlaku && <PindahVersiButton pengukuranId={baris.pengukuran.id}
+                    versi={baris.pengukuran.versi} versiBerlaku={baris.versi_berlaku} size="sm" labelAksesibel={`Pindahkan ${labelBaris(baris)}`} />}
+            </div>
         );
     }
 
