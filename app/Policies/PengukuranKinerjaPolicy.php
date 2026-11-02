@@ -97,6 +97,11 @@ class PengukuranKinerjaPolicy
         return $this->capability($user, $p, 'kembalikan', 'pengukuran:kembalikan');
     }
 
+    public function reopen(User $user, PengukuranKinerja $p): Response
+    {
+        return $this->capability($user, $p, 'buka_kembali', 'pengukuran:buka_kembali');
+    }
+
     /**
      * Tombol/route penetapan status capaian. Guard penuh per versi dijalankan Action atas baris terkunci;
      * di sini dipakai versi sah terakhir agar UI tidak menawarkan tindakan yang pasti ditolak (Q-B, Q-C).
@@ -194,12 +199,15 @@ class PengukuranKinerjaPolicy
         $planning = $this->usesPlanningPath($user, $p, match ($command) {
             'draft', 'ajukan' => 'pengukuran:update',
             'verifikasi' => 'pengukuran:verifikasi', 'sahkan' => 'pengukuran:sahkan', 'kembalikan' => 'pengukuran:kembalikan',
+            'buka_kembali' => 'pengukuran:buka_kembali',
         });
         if ($schedule->tahunDitutup() && (! $correction || ! $planning)) {
-            $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
+            $errors[] = $command === 'buka_kembali'
+                ? 'Tahun sudah ditutup; buka kembali jadwal tahunan (jadwal:buka_kembali) lalu ulangi di dalam sesi koreksi yang mencakup pengukuran ini.'
+                : 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
         }
         $statuses = match ($command) {
-            'draft','ajukan' => ['draft', 'dikembalikan'], 'verifikasi' => ['diajukan'], 'sahkan' => ['diverifikasi'], 'kembalikan' => ['diajukan', 'diverifikasi']
+            'draft','ajukan' => ['draft', 'dikembalikan'], 'verifikasi' => ['diajukan'], 'sahkan' => ['diverifikasi'], 'kembalikan' => ['diajukan', 'diverifikasi'], 'buka_kembali' => ['disahkan']
         };
         if (! in_array($p->status_alur, $statuses, true)) {
             $errors[] = 'Status pengukuran tidak sesuai untuk tindakan ini.';
@@ -211,6 +219,19 @@ class PengukuranKinerjaPolicy
                 }
                 if (($pesanJendela = $this->pesanJendelaPic($date, $period)) !== null) {
                     $errors[] = $pesanJendela;
+                }
+            }
+        } elseif ($command === 'buka_kembali') {
+            // Hanya versi resmi terakhir yang boleh dibuka; versi koreksi yang belum disahkan tidak punya status resmi.
+            $ratified = $p->ratifiedVersion;
+            if (! $ratified || $ratified->disahkan_at === null) {
+                $errors[] = 'Pengukuran belum memiliki versi resmi yang disahkan; buka kembali tidak tersedia.';
+            } else {
+                $version = $p->latestVersion;
+                if (! $version || $version->id !== $ratified->id) {
+                    $errors[] = 'Versi resmi pengukuran bukan versi terakhir; muat ulang sebelum membuka kembali.';
+                } elseif ($version->jadwal_snapshot_id !== $p->jadwal_snapshot_id) {
+                    $errors[] = 'Snapshot versi resmi tidak cocok dengan konteks pengukuran.';
                 }
             }
         } else {

@@ -82,6 +82,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 30 Oktober 2026 (Q79)** menetapkan bahwa versi koreksi snapshot disalin dari data master terkini setelah master diperbaiki, dengan periode mulai yang tidak lebih awal dari versi yang digantikan dan tanpa memindahkan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada, serta menyelaraskan Acceptance Criteria ISS-03.03 dengan issue #91.
 
+**Keputusan 1 November 2026 (Q67)** menetapkan antrean pengukuran Disahkan sebagai halaman terpisah `/verifikasi/disahkan` yang hanya memuat pengukuran yang masih dapat dibuka kembali, dengan syarat izin baca dan buka kembali; antrean reviu `/verifikasi` tetap memuat Diajukan dan Diverifikasi.
+
 **Keputusan 1 November 2026 (Q80)** menetapkan bahwa AC-2 ISS-15.02 terpenuhi oleh gate checklist kesiapan infrastruktur selama notifikasi eksternal belum diaktifkan, dan gate itu menjadi Definition of Done issue notifikasi eksternal; uji pemulihan di lingkungan UAT cukup untuk ISS-15.02 dan diulang di produksi sebelum produksi diterima; serta path berkas di dokumen diselaraskan dengan implementasi.
 
 Prinsip penyelarasan yang tetap berlaku:
@@ -1901,6 +1903,33 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 - PRD §23; Plan 7.2 dan catatan Modul 7; design-system (dashboard); US/ISS-10.01.
 - Data halaman dashboard tidak lagi memuat hitungan per status tampilan, kecuali `stats.tidak_mengisi` untuk kartu Draft (§66.1 butir 3). Akses, daftar kewajiban, dan query lain tidak berubah, dan tidak ada migrasi.
 - Status implementasi: PR tindak lanjut ISS-10.01.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
+# Keputusan Q67 — Antrean Pengukuran Disahkan untuk Buka Kembali
+
+**Keputusan PM: 1 November 2026 (WITA), review PR #212 (ISS-08.03, [Issue #181](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/181)).** Menetapkan bentuk antrean Plan 6.3 yang oleh issue #181 diserahkan ke refinement. Keputusan ini menggantikan usulan 21 Oktober 2026 berupa opsi Disahkan pada filter status `/verifikasi`, yang belum pernah dicatat dan menjadi alasan nomor Q67 dicadangkan. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment.
+
+## 67.1 Permukaan dan isi
+
+1. Antrean pengukuran Disahkan adalah halaman terpisah `/verifikasi/disahkan`, dibuka dari tombol "Pengukuran Disahkan" pada halaman Verifikasi & Pengesahan Kinerja. Antrean reviu `/verifikasi` tetap hanya memuat `diajukan` dan `diverifikasi`, dan filter "Status antrean" tidak mendapat opsi Disahkan.
+2. Halaman hanya memuat pengukuran `disahkan` yang masih dapat dibuka kembali. Jadwalnya `aktif` dan tahun belum ditutup (tanggal bisnis belum melewati `penutupan` dan jadwal tidak sedang atau pernah dibuka untuk sesi koreksi, Q77 butir 3), atau baris itu tercakup sesi koreksi resmi untuk indikator × periode × `pengukuran` (Workflow §13 Lapis 3 butir 8a, Q35 §35.2). Kondisi per baris yang jarang terjadi, seperti unit nonaktif dan indikator arsip, tetap ditolak di halaman detail dengan pesan dari server.
+3. Kolom: kode dan nama indikator, unit, periode, versi resmi (nomor dan tanggal pengesahan), nilai, status, serta tautan ke detail. Buka kembali dilakukan dari halaman detail dengan alasan wajib (Q43 §43.2 butir 1); halaman antrean tidak mengubah data.
+4. Filter Renstra, Tahun, Periode, dan Unit mengambil pilihan dari cakupan antrean yang sama. Urutan mengikuti waktu pengesahan versi resmi, terbaru lebih dulu, dengan 20 baris per halaman.
+
+## 67.2 Akses
+
+1. Halaman dan pilihan filternya memerlukan `pengukuran:read` dan `pengukuran:buka_kembali`; tanpa salah satunya permintaan ditolak 403. Baris pada unit yang dikenai deny atas salah satu izin itu tidak tampil (deny eksplisit menang, Q32).
+2. Tombol "Pengukuran Disahkan" pada `/verifikasi` hanya tampil bila server menyatakan pengguna memiliki kedua izin tersebut.
+3. Detail `/verifikasi/{id}` juga dapat dibuka pemegang `pengukuran:buka_kembali` pada unit target, di samping pemegang izin reviu, dan tetap mensyaratkan `pengukuran:read` pada unit itu.
+
+## 67.3 Dampak dan traceability
+
+- Plan 6.3 (scope dan DoD), US/ISS-08.03 task D, Workflow §13 Lapis 2, PRD §19.5.
+- Kebutuhan melihat seluruh pengukuran Disahkan, termasuk pada jadwal yang sudah ditutup, dilayani halaman Pengukuran dan Rekap Indikator per Periode. Tidak ada daftar baca-saja tambahan di `/verifikasi`.
+- Tidak ada migrasi, permission baru, maupun perubahan alur status.
+- Status implementasi: PR #212.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
