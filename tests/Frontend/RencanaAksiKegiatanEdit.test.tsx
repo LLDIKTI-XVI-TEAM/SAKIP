@@ -31,7 +31,7 @@ const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV', tanggal: { bulan
 const rencana: RencanaKegiatan = {
     id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: null,
     sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: null, status: 'rencana',
-    version_token: 'v1', justifikasi: null, periode_nama: 'Triwulan IV', periode_tujuan: null,
+    version_token: 'v1', justifikasi: null, periode_nama: 'Triwulan IV', periode_tujuan: null, periode_asal: null,
     tanggal_realisasi: null, biaya_terpakai: null, realisasi_peserta: null, uraian_pelaksanaan: null, kendala: null, strategi_tindaklanjut: null,
 };
 const tigaStatus: StatusTujuan[] = ['ditunda', 'tidak_terlaksana', 'batal'];
@@ -287,6 +287,15 @@ it('menawarkan aksi status dari capability server dan mengunci form setelah stat
     expect(screen.getByText('Data rencana terkunci karena status sudah berubah.')).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).closest('fieldset')!.disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Simpan kegiatan' })).toBeNull();
+});
+
+it('kartu status kegiatan lanjutan menunjuk periode kegiatan asal', () => {
+    const { rerender } = render(<KegiatanEdit {...props} />);
+    expect(screen.queryByText(/^Lanjutan dari/)).toBeNull();
+
+    rerender(<KegiatanEdit {...props} kegiatan={{ ...rencana, periode_asal: 'Triwulan I' }} />);
+    const kartu = within(screen.getByRole('region', { name: 'Status pelaksanaan' }));
+    expect(kartu.getByText('Lanjutan dari kegiatan yang ditunda pada Triwulan I 2026.')).toBeTruthy();
 });
 
 it('menerima nama hingga 500 karakter dan tujuan opsional', () => {
