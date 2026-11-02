@@ -146,11 +146,11 @@ it('modal menampilkan selisih berlabel dan hanya periode mulai yang tidak mundur
     const select = within(dialog).getByLabelText<HTMLSelectElement>(/Periode mulai berlaku/);
     expect(select.value).toBe('periode-2');
     expect(within(select).getAllByRole<HTMLOptionElement>('option').map((option) => option.value)).toEqual(['periode-2', 'periode-3']);
-    expect(within(dialog).queryByText(/dilepas saat draf disimpan berikutnya/)).toBeNull();
+    expect(within(dialog).queryByText(/dilepas saat draf disimpan/)).toBeNull();
 
     await user.selectOptions(select, 'periode-3');
-    expect(within(dialog).getByText('Target draf Rencana Aksi untuk periode sebelum Triwulan III dilepas saat draf disimpan berikutnya.')).toBeTruthy();
-    expect(within(dialog).getByText(/Periode sebelum Triwulan III tetap memakai versi yang berlaku untuk masing-masing periode\./)).toBeTruthy();
+    expect(within(dialog).getByText('Target draf Rencana Aksi sebelum Triwulan III dilepas saat draf disimpan.')).toBeTruthy();
+    expect(within(dialog).getByText('Sebelum Triwulan III: tidak berubah.')).toBeTruthy();
 });
 
 it('kalimat periode sebelumnya tidak tampil bila periode mulai adalah periode pertama jadwal', async () => {
@@ -159,8 +159,9 @@ it('kalimat periode sebelumnya tidak tampil bila periode mulai adalah periode pe
     render(<SnapshotIndikator {...props} indikator={[mulaiPertama, sama]} />);
     const dialog = await bukaKoreksi(user);
 
-    expect(within(dialog).queryByText(/Periode sebelum/)).toBeNull();
-    expect(within(dialog).getByText(/Pengukuran baru sejak Triwulan I memakai versi koreksi/)).toBeTruthy();
+    expect(within(dialog).queryByText(/^Sebelum /)).toBeNull();
+    expect(within(dialog).getByText('Sejak Triwulan I: memakai versi koreksi; pengukuran draf atau dikembalikan versi lama perlu dipindahkan.')).toBeTruthy();
+    expect(within(dialog).getByText('Pengajuan sejak Triwulan I menunggu Rencana Aksi disahkan ulang.')).toBeTruthy();
 });
 
 it('props terbaru tanpa selisih menonaktifkan pengiriman dan menjelaskan alasannya', async () => {
@@ -256,21 +257,20 @@ it('konfirmasi hanya mengikuti pengukuran sebelum periode terpilih dan direset s
     const dialog = await bukaKoreksi(user);
     const select = within(dialog).getByLabelText<HTMLSelectElement>(/Periode mulai berlaku/);
     const konfirmasi = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Terbitkan versi koreksi' });
-    const labelCentang = 'Saya mengerti pengukuran ini tetap dinilai dengan versi lamanya.';
+    const labelCentang = 'Saya mengerti, pengukuran ini tetap dinilai dengan versi lama.';
     await user.type(within(dialog).getByLabelText(/Alasan perubahan/), 'Koreksi target.');
     await user.type(within(dialog).getByLabelText(/Rujukan resmi koreksi/), 'Nota uji.');
     expect(within(dialog).queryByRole('checkbox')).toBeNull();
     expect(konfirmasi.disabled).toBe(false);
-    expect(within(dialog).getByText('Pengukuran draf atau dikembalikan sejak Triwulan I yang masih memakai versi lama perlu dipindahkan ke versi koreksi sebelum diajukan.')).toBeTruthy();
+    expect(within(dialog).getByText('Sejak Triwulan I: memakai versi koreksi; pengukuran draf atau dikembalikan versi lama perlu dipindahkan.')).toBeTruthy();
 
     await user.selectOptions(select, 'periode-2');
-    expect(within(dialog).getByText('Pengukuran yang belum disahkan pada periode sebelum Triwulan II tetap dinilai dengan versi lamanya dan tetap dapat diajukan.')).toBeTruthy();
-    const daftarTw2 = within(dialog).getByRole('list', { name: 'Pengukuran belum disahkan sebelum Triwulan II' });
+    const daftarTw2 = within(dialog).getByRole('list', { name: '1 pengukuran belum disahkan sebelum Triwulan II' });
     expect(within(daftarTw2).getAllByRole('listitem')).toHaveLength(1);
     expect(daftarTw2.textContent).toContain('Triwulan I');
     expect(daftarTw2.textContent).toContain('Draft');
     expect(daftarTw2.textContent).toContain('Versi 1');
-    expect(within(dialog).getByText('Pengukuran draf atau dikembalikan sejak Triwulan II yang masih memakai versi lama perlu dipindahkan ke versi koreksi sebelum diajukan.')).toBeTruthy();
+    expect(within(dialog).getByText('Sejak Triwulan II: memakai versi koreksi; pengukuran draf atau dikembalikan versi lama perlu dipindahkan.')).toBeTruthy();
     expect(konfirmasi.disabled).toBe(true);
     await user.click(within(dialog).getByRole('checkbox', { name: labelCentang }));
     expect(konfirmasi.disabled).toBe(false);
@@ -278,7 +278,7 @@ it('konfirmasi hanya mengikuti pengukuran sebelum periode terpilih dan direset s
     await user.selectOptions(select, 'periode-3');
     expect(within(dialog).getByRole<HTMLInputElement>('checkbox', { name: labelCentang }).checked).toBe(false);
     expect(konfirmasi.disabled).toBe(true);
-    const items = within(within(dialog).getByRole('list', { name: 'Pengukuran belum disahkan sebelum Triwulan III' })).getAllByRole('listitem');
+    const items = within(within(dialog).getByRole('list', { name: '2 pengukuran belum disahkan sebelum Triwulan III' })).getAllByRole('listitem');
     expect(items).toHaveLength(2);
     for (const [index, periode, status, versi] of [[0, 'Triwulan I', 'Draft', 'Versi 1'], [1, 'Triwulan II', 'Diverifikasi', 'Versi 2']] as const) {
         expect(items[index].textContent).toContain(periode);
@@ -296,8 +296,7 @@ it('konfirmasi hanya mengikuti pengukuran sebelum periode terpilih dan direset s
 
     await user.selectOptions(select, 'periode-1');
     expect(within(dialog).queryByRole('checkbox')).toBeNull();
-    expect(within(dialog).queryByRole('list', { name: /Pengukuran belum disahkan sebelum/ })).toBeNull();
-    expect(within(dialog).queryByText(/Pengukuran yang belum disahkan pada periode sebelum/)).toBeNull();
+    expect(within(dialog).queryByRole('list', { name: /pengukuran belum disahkan sebelum/ })).toBeNull();
     expect(konfirmasi.disabled).toBe(false);
     await user.selectOptions(select, 'periode-2');
     expect(within(dialog).getByRole<HTMLInputElement>('checkbox', { name: labelCentang }).checked).toBe(false);

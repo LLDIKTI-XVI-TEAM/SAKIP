@@ -2538,7 +2538,7 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 ## 81.3 Konfirmasi pada form koreksi snapshot
 
 1. Form koreksi menampilkan pengukuran berstatus selain `disahkan` pada periode sebelum periode mulai yang dipilih, untuk indikator dan jadwal yang dikoreksi, beserta periode dan statusnya. Bila daftar tidak kosong, koreksi hanya dikirim setelah konfirmasi eksplisit. Server menghitung ulang daftar di dalam transaksi koreksi; daftar tidak kosong tanpa konfirmasi ditolak dan dicatat seperti penolakan aturan koreksi lain. Audit `jadwal_snapshot.koreksi` mencatat id pengukuran dalam daftar hasil server.
-2. Ini peringatan, bukan penolakan, karena periode mulai tidak dapat dimundurkan (Q79 §79.2 butir 1). Teks peringatan: "Pengukuran yang belum disahkan pada periode sebelum {periode} tetap dinilai dengan versi lamanya dan tetap dapat diajukan." Judul daftar: "Pengukuran belum disahkan sebelum {periode}", dengan periode, status, dan nomor versi tiap pengukuran. Teks konfirmasi: "Saya mengerti pengukuran ini tetap dinilai dengan versi lamanya." Form juga selalu menampilkan: "Pengukuran draf atau dikembalikan sejak {periode} yang masih memakai versi lama perlu dipindahkan ke versi koreksi sebelum diajukan."
+2. Ini peringatan, bukan penolakan, karena periode mulai tidak dapat dimundurkan (Q79 §79.2 butir 1). Judul daftar: "{jumlah} pengukuran belum disahkan sebelum {periode}", dengan periode, status, dan nomor versi tiap pengukuran. Teks konfirmasi: "Saya mengerti, pengukuran ini tetap dinilai dengan versi lama." Daftar dampak koreksi pada form juga selalu menampilkan: "Sejak {periode}: memakai versi koreksi; pengukuran draf atau dikembalikan versi lama perlu dipindahkan."
 
 ## 81.4 Dampak dan traceability
 

@@ -173,31 +173,32 @@ export function KoreksiSnapshotModal({ jadwalId, periode, baris, onClose, onUnkn
                             onChange={(event) => form.setData('rujukan_koreksi', event.target.value)}
                         />
                         {terpilih && (
-                            <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-                                <p>
-                                    {adaPeriodeSebelumnya && `Periode sebelum ${terpilih.nama} tetap memakai versi yang berlaku untuk masing-masing periode. `}
-                                    Pengukuran baru sejak {terpilih.nama} memakai versi koreksi dan baru dapat diajukan setelah Rencana Aksi dibuka kembali dan
-                                    disahkan ulang.
+                            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+                                <p className="mb-1 font-semibold">Dampak koreksi mulai {terpilih.nama}</p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {adaPeriodeSebelumnya && <li>Sebelum {terpilih.nama}: tidak berubah.</li>}
+                                    <li>Sejak {terpilih.nama}: memakai versi koreksi; pengukuran draf atau dikembalikan versi lama perlu dipindahkan.</li>
+                                    <li>Pengajuan sejak {terpilih.nama} menunggu Rencana Aksi disahkan ulang.</li>
+                                    {terpilih.urutan > urutanMinimum && <li>Target draf Rencana Aksi sebelum {terpilih.nama} dilepas saat draf disimpan.</li>}
+                                </ul>
+                            </div>
+                        )}
+                        {terpilih && pengukuranSebelumnya.length > 0 && (
+                            <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
+                                <p id="pengukuran-sebelum-koreksi" className="font-semibold">
+                                    {pengukuranSebelumnya.length} pengukuran belum disahkan sebelum {terpilih.nama}
                                 </p>
-                                <p>Pengukuran draf atau dikembalikan sejak {terpilih.nama} yang masih memakai versi lama perlu dipindahkan ke versi koreksi sebelum diajukan.</p>
-                                {pengukuranSebelumnya.length > 0 && <>
-                                    <p>Pengukuran yang belum disahkan pada periode sebelum {terpilih.nama} tetap dinilai dengan versi lamanya dan tetap dapat diajukan.</p>
-                                    <p id="pengukuran-sebelum-koreksi" className="font-semibold">Pengukuran belum disahkan sebelum {terpilih.nama}</p>
-                                    <ul aria-labelledby="pengukuran-sebelum-koreksi" className="space-y-2">
-                                        {pengukuranSebelumnya.map((item) => <li key={item.periode_id} className="flex flex-wrap items-center gap-2">
-                                            <span>{item.periode.nama}</span><Badge status={item.status_alur} size="sm" /><span>Versi {item.nomor_versi}</span>
-                                        </li>)}
-                                    </ul>
-                                    <label className="flex items-start gap-2">
-                                        <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={form.processing}
-                                            checked={form.data.konfirmasi_pengukuran_sebelumnya}
-                                            onChange={(event) => form.setData('konfirmasi_pengukuran_sebelumnya', event.target.checked)} />
-                                        Saya mengerti pengukuran ini tetap dinilai dengan versi lamanya.
-                                    </label>
-                                </>}
-                                {terpilih.urutan > urutanMinimum && (
-                                    <p>Target draf Rencana Aksi untuk periode sebelum {terpilih.nama} dilepas saat draf disimpan berikutnya.</p>
-                                )}
+                                <ul aria-labelledby="pengukuran-sebelum-koreksi" className="space-y-2">
+                                    {pengukuranSebelumnya.map((item) => <li key={item.periode_id} className="flex flex-wrap items-center gap-2">
+                                        <span>{item.periode.nama}</span><Badge status={item.status_alur} size="sm" /><span>Versi {item.nomor_versi}</span>
+                                    </li>)}
+                                </ul>
+                                <label className="flex items-start gap-2">
+                                    <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={form.processing}
+                                        checked={form.data.konfirmasi_pengukuran_sebelumnya}
+                                        onChange={(event) => form.setData('konfirmasi_pengukuran_sebelumnya', event.target.checked)} />
+                                    Saya mengerti, pengukuran ini tetap dinilai dengan versi lama.
+                                </label>
                             </div>
                         )}
                     </div>
