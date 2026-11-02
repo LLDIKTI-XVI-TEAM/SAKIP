@@ -21,11 +21,20 @@ use Illuminate\Testing\TestResponse;
 
 /**
  * Fixture bersama matriks periode lampau 2026 (ISS-03.05): jadwal dengan
- * TW I–III lampau saat aktivasi (pengisian selesai 31 Maret, aktivasi 5
- * April) dan TW IV normal (pengisian sampai 31 Desember), snapshot target
- * PK manual, PIC bergrant `rencana_aksi:create/update/ajukan` beserta
- * penugasan PJ efektif, dan aktor Perencanaan. Waktu uji berada di
- * 10 April 2026 (setelah jadwal aktif, sebelum pengisian TW IV selesai).
+ * TW I–III lampau saat aktivasi (seluruh `pengisian_selesai` sebelum
+ * aktivasi 5 April) dan TW IV normal (pengisian sampai 31 Desember),
+ * snapshot target PK manual, PIC bergrant
+ * `rencana_aksi:create/update/ajukan` beserta penugasan PJ efektif, dan
+ * aktor Perencanaan. Waktu uji berada di 10 April 2026 (setelah jadwal
+ * aktif, sebelum pengisian TW IV selesai).
+ *
+ * Urutan jendela sengaja kronologis menurut tanggal, bukan nomor urut
+ * (`JadwalDraftRules` mengurutkan berdasarkan `pengisian_mulai`): TW II
+ * 1–20 Januari, TW III 21 Januari–28 Februari, TW I 1–31 Maret, lalu TW IV
+ * 1 Oktober–31 Desember. Dengan begitu tidak ada jendela yang tumpang tindih
+ * dan memperpanjang TW I sampai 20 April (melewati aktivasi) tetap tidak
+ * bertabrakan dengan TW III (selesai 28 Februari) maupun TW IV (mulai
+ * 1 Oktober). Penutupan 31 Januari 2027 berada setelah jendela terakhir.
  *
  * Status lampau dihitung `PeriodeTanpaTarget::isPeriodeLampau` dari
  * `pengisian_selesai < activated_at` (WITA), bukan dari tanggal uji.
@@ -74,19 +83,30 @@ trait PeriodeLampauFixtures
         $jadwal = JadwalTahunan::create([
             'renstra_id' => $renstra->id,
             'tahun' => 2026,
-            'penutupan' => '2026-12-31',
+            'penutupan' => '2027-01-31',
             'status' => 'aktif',
             'activated_at' => '2026-04-05 09:00:00',
         ]);
-        // TW I–III: pengisian sudah lewat saat aktivasi 5 April (lampau).
-        foreach ([$periode1, $periode2, $periode3] as $periode) {
-            PeriodeJadwal::create([
-                'jadwal_id' => $jadwal->id,
-                'periode_id' => $periode->id,
-                'pengisian_mulai' => '2026-03-01',
-                'pengisian_selesai' => '2026-03-31',
-            ]);
-        }
+        // Jendela disusun kronologis per tanggal agar lolos validasi tumpang
+        // tindih, dan ketiganya tetap selesai sebelum aktivasi 5 April (lampau).
+        PeriodeJadwal::create([
+            'jadwal_id' => $jadwal->id,
+            'periode_id' => $periode2->id,
+            'pengisian_mulai' => '2026-01-01',
+            'pengisian_selesai' => '2026-01-20',
+        ]);
+        PeriodeJadwal::create([
+            'jadwal_id' => $jadwal->id,
+            'periode_id' => $periode3->id,
+            'pengisian_mulai' => '2026-01-21',
+            'pengisian_selesai' => '2026-02-28',
+        ]);
+        PeriodeJadwal::create([
+            'jadwal_id' => $jadwal->id,
+            'periode_id' => $periode1->id,
+            'pengisian_mulai' => '2026-03-01',
+            'pengisian_selesai' => '2026-03-31',
+        ]);
         // TW IV: pengisian belum lewat saat aktivasi (normal).
         PeriodeJadwal::create([
             'jadwal_id' => $jadwal->id,
