@@ -4261,8 +4261,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - AC-3: `BukaKembaliPengukuranTest::test_pengajuan_ulang_membuat_versi_baru_tanpa_status_capaian`.
 - AC-4: `BukaKembaliPengukuranTest::test_jadwal_ditutup_tanpa_sesi_koreksi_ditolak_422`, `test_tanggal_melewati_penutupan_tanpa_sesi_koreksi_ditolak_422_dengan_pesan_sesi_koreksi`, `test_sesi_koreksi_sah_menerima_buka_kembali_pascapenutupan`, `test_sesi_koreksi_tanpa_periode_atau_tanpa_pengukuran_ditolak_422`.
 - AC-5: `BukaKembaliPengukuranTest::test_laporan_resmi_tetap_memakai_versi_disahkan_sebelumnya`, `test_laporan_resmi_tetap_memakai_versi_1_tepat_setelah_buka_kembali`.
-- Antrean dan akses: `IndexPengukuranDisahkanTest` (izin baca + buka kembali, deny per unit, lingkup sesi per baris, urutan waktu pengesahan).
-- ISS-08.02 AC-6/TEST-6: dibuktikan oleh `test_laporan_resmi_tetap_memakai_versi_disahkan_sebelumnya` dan `test_laporan_resmi_tetap_memakai_versi_1_tepat_setelah_buka_kembali`; AC-2/AC-3 di atas membuktikan versi resmi lama tetap tersimpan saat koreksi dibuat.
+- Antrean dan akses: `IndexPengukuranDisahkanTest` (izin baca + buka kembali, deny per unit, lingkup sesi per baris, urutan waktu pengesahan); `VerifikasiIndexCapabilityTest` (prop `can.buka_kembali` pada `/verifikasi`).
+- ISS-08.02 AC-6/TEST-6: dibuktikan oleh `test_laporan_resmi_tetap_memakai_versi_disahkan_sebelumnya` dan `test_laporan_resmi_tetap_memakai_versi_1_tepat_setelah_buka_kembali`; AC-2/AC-3 di atas membuktikan versi resmi lama tetap tersimpan saat koreksi dibuat. Bukti snapshot-vs-master: `RekapIndikatorPeriodeTest::test_versi_sah_tetap_dibaca_ketika_koreksi_dan_master_berubah` dan `SahkanPengukuranTest::test_snapshot_beku_tetap_dibaca_setelah_master_berubah` (sudah ada di `development`).
 
 #### Definition of Done
 

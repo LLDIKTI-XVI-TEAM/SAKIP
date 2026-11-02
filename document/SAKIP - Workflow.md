@@ -1552,10 +1552,11 @@ Koreksi data rencana aksi/pengukuran/jadwal disediakan lewat tiga permission ber
   Lapis 2 — Pengukuran, sebelum penutupan jadwal atau di dalam sesi koreksi yang mencakup baris:
   4. Menemukan pengukuran berstatus Disahkan yang perlu dikoreksi
   5. Menjalankan aksi pengukuran:buka_kembali, wajib mengisi alasan
-     → Di luar sesi koreksi yang mencakup indikator × periode × pengukuran: aksi DITOLAK —
-       jalur ini sudah tertutup, lanjut ke Lapis 3
-     → Jadwal belum penutupan atau baris tercakup sesi koreksi: Status pengukuran kembali ke
-       Dikembalikan (Q35 §35.2; Q67)
+     → Tahun sudah ditutup (tanggal bisnis melewati `penutupan`, atau jadwal pernah dibuka untuk
+       sesi koreksi — Q77 butir 3) dan baris tidak tercakup sesi koreksi yang berlaku: aksi
+       DITOLAK — lanjut ke Lapis 3
+     → Tahun belum ditutup atau baris tercakup sesi koreksi yang berlaku: Status pengukuran
+       kembali ke Dikembalikan (Q35 §35.2; Q67)
   6. Penanggung jawab/Perencanaan merevisi nilai/narasi/catatan (kembali ke alur §12
      langkah 7)
 
