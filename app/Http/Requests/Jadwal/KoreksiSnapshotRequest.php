@@ -14,7 +14,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 
 /**
- * Payload koreksi hanya periode mulai, alasan, rujukan, dan token versi; nilai konteks disalin server dari data master
+ * Payload koreksi hanya periode mulai, alasan, rujukan, token versi, dan konfirmasi pengukuran sebelumnya; konteks disalin server dari data master
  * (Q79 §79.1). Izin per kelompok kolom bergantung pada selisih terkunci, sehingga di sini cukup izin baca indikator
  * ditambah salah satu izin koreksi.
  */
@@ -46,6 +46,7 @@ class KoreksiSnapshotRequest extends FormRequest
             'rujukan_koreksi' => ['required', 'string', 'max:1000', AuditReason::validate(...)],
             'expected_snapshot_id' => ['required', 'uuid'],
             'expected_snapshot_versi' => ['required', 'integer', 'min:1'],
+            'konfirmasi_pengukuran_sebelumnya' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -71,6 +72,7 @@ class KoreksiSnapshotRequest extends FormRequest
             'expected_snapshot_versi.required' => 'Data snapshot tidak lengkap. Muat ulang halaman snapshot.',
             'expected_snapshot_versi.integer' => 'Data snapshot tidak valid. Muat ulang halaman snapshot.',
             'expected_snapshot_versi.min' => 'Data snapshot tidak valid. Muat ulang halaman snapshot.',
+            'konfirmasi_pengukuran_sebelumnya.boolean' => 'Konfirmasi pengukuran sebelumnya tidak valid. Muat ulang halaman snapshot.',
         ];
     }
 

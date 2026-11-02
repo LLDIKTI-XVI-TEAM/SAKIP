@@ -30,6 +30,7 @@ const berbeda: SnapshotIndikatorRow = {
     target: '94',
     snapshot_id: 'snapshot-a2',
     nomor_versi: 2,
+    pengukuran_belum_disahkan: [],
     periode_mulai: { id: 'periode-2', nama: 'Triwulan II', urutan: 2 },
     selisih: {
         kolom: [
@@ -149,7 +150,7 @@ it('modal menampilkan selisih berlabel dan hanya periode mulai yang tidak mundur
 
     await user.selectOptions(select, 'periode-3');
     expect(within(dialog).getByText('Target draf Rencana Aksi untuk periode sebelum Triwulan III dilepas saat draf disimpan berikutnya.')).toBeTruthy();
-    expect(within(dialog).getByText(/Periode sebelum Triwulan III tetap memakai versi 2\./)).toBeTruthy();
+    expect(within(dialog).getByText(/Periode sebelum Triwulan III tetap memakai versi yang berlaku untuk masing-masing periode\./)).toBeTruthy();
 });
 
 it('kalimat periode sebelumnya tidak tampil bila periode mulai adalah periode pertama jadwal', async () => {
@@ -197,6 +198,7 @@ it('mengirim periode, alasan, rujukan, dan token versi setelah kedua isian wajib
         rujukan_koreksi: 'Nota dinas 7/2026',
         expected_snapshot_id: 'snapshot-a2',
         expected_snapshot_versi: 2,
+        konfirmasi_pengukuran_sebelumnya: false,
     });
 });
 
@@ -239,4 +241,65 @@ it('hasil yang tidak terkonfirmasi menutup modal dan meminta memuat ulang', asyn
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('link', { name: 'Periksa snapshot terbaru' }).getAttribute('href')).toBe('/jadwal/jadwal-1/snapshot');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Koreksi snapshot IKU-A' }).disabled).toBe(true);
+});
+
+it('konfirmasi hanya mengikuti pengukuran sebelum periode terpilih dan direset saat periode berubah', async () => {
+    const user = userEvent.setup();
+    const denganPengukuran: SnapshotIndikatorRow = {
+        ...berbeda, periode_mulai: { id: 'periode-1', nama: 'Triwulan I', urutan: 1 },
+        pengukuran_belum_disahkan: [
+            { periode_id: 'periode-2', status_alur: 'diverifikasi', nomor_versi: 2 },
+            { periode_id: 'periode-1', status_alur: 'draft', nomor_versi: 1 },
+        ],
+    };
+    render(<SnapshotIndikator {...props} indikator={[denganPengukuran]} />);
+    const dialog = await bukaKoreksi(user);
+    const select = within(dialog).getByLabelText<HTMLSelectElement>(/Periode mulai berlaku/);
+    const konfirmasi = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Terbitkan versi koreksi' });
+    const labelCentang = 'Saya mengerti pengukuran ini tetap dinilai dengan versi lamanya.';
+    await user.type(within(dialog).getByLabelText(/Alasan perubahan/), 'Koreksi target.');
+    await user.type(within(dialog).getByLabelText(/Rujukan resmi koreksi/), 'Nota uji.');
+    expect(within(dialog).queryByRole('checkbox')).toBeNull();
+    expect(konfirmasi.disabled).toBe(false);
+    expect(within(dialog).getByText('Pengukuran draf atau dikembalikan sejak Triwulan I yang masih memakai versi lama perlu dipindahkan ke versi koreksi sebelum diajukan.')).toBeTruthy();
+
+    await user.selectOptions(select, 'periode-2');
+    expect(within(dialog).getByText('Pengukuran yang belum disahkan pada periode sebelum Triwulan II tetap dinilai dengan versi lamanya dan tetap dapat diajukan.')).toBeTruthy();
+    const daftarTw2 = within(dialog).getByRole('list', { name: 'Pengukuran belum disahkan sebelum Triwulan II' });
+    expect(within(daftarTw2).getAllByRole('listitem')).toHaveLength(1);
+    expect(daftarTw2.textContent).toContain('Triwulan I');
+    expect(daftarTw2.textContent).toContain('Draft');
+    expect(daftarTw2.textContent).toContain('Versi 1');
+    expect(within(dialog).getByText('Pengukuran draf atau dikembalikan sejak Triwulan II yang masih memakai versi lama perlu dipindahkan ke versi koreksi sebelum diajukan.')).toBeTruthy();
+    expect(konfirmasi.disabled).toBe(true);
+    await user.click(within(dialog).getByRole('checkbox', { name: labelCentang }));
+    expect(konfirmasi.disabled).toBe(false);
+
+    await user.selectOptions(select, 'periode-3');
+    expect(within(dialog).getByRole<HTMLInputElement>('checkbox', { name: labelCentang }).checked).toBe(false);
+    expect(konfirmasi.disabled).toBe(true);
+    const items = within(within(dialog).getByRole('list', { name: 'Pengukuran belum disahkan sebelum Triwulan III' })).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    for (const [index, periode, status, versi] of [[0, 'Triwulan I', 'Draft', 'Versi 1'], [1, 'Triwulan II', 'Diverifikasi', 'Versi 2']] as const) {
+        expect(items[index].textContent).toContain(periode);
+        expect(items[index].textContent).toContain(status);
+        expect(items[index].textContent).toContain(versi);
+    }
+    await user.click(within(dialog).getByRole('checkbox', { name: labelCentang }));
+    await user.click(konfirmasi);
+    expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({
+        periode_mulai_id: 'periode-3', konfirmasi_pengukuran_sebelumnya: true,
+    });
+    act(() => opsiKirim().onError({ konfirmasi_pengukuran_sebelumnya: 'Periksa daftar terkini lalu centang konfirmasi.' }));
+    expect(within(dialog).getByRole('alert').textContent).toContain('Periksa daftar terkini lalu centang konfirmasi.');
+    expect(within(dialog).getByLabelText(/Alasan perubahan/).getAttribute('aria-invalid')).toBe('false');
+
+    await user.selectOptions(select, 'periode-1');
+    expect(within(dialog).queryByRole('checkbox')).toBeNull();
+    expect(within(dialog).queryByRole('list', { name: /Pengukuran belum disahkan sebelum/ })).toBeNull();
+    expect(within(dialog).queryByText(/Pengukuran yang belum disahkan pada periode sebelum/)).toBeNull();
+    expect(konfirmasi.disabled).toBe(false);
+    await user.selectOptions(select, 'periode-2');
+    expect(within(dialog).getByRole<HTMLInputElement>('checkbox', { name: labelCentang }).checked).toBe(false);
+    expect(konfirmasi.disabled).toBe(true);
 });

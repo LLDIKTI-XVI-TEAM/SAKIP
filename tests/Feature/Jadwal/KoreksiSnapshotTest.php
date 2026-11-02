@@ -3,12 +3,14 @@
 namespace Tests\Feature\Jadwal;
 
 use App\Actions\Jadwal\KoreksiSnapshot;
+use App\Actions\Jadwal\ShowSnapshotIndikator;
 use App\Actions\Jadwal\TambahIndikatorJadwal;
 use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\PengukuranKinerja;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\Permission;
@@ -22,6 +24,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesDashboardFixture;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
@@ -486,5 +489,101 @@ class KoreksiSnapshotTest extends TestCase
             ->where('indikator', [])->where('can.koreksi', false)->where('can.baca_indikator', false));
         $halaman($this->userWithRole('pegawai'))->assertForbidden();
         $this->actingAs($perencana)->get('/jadwal/'.Str::uuid().'/snapshot')->assertNotFound();
+    }
+
+    private function pengukuranSnapshot(JadwalSnapshot $snapshot, string $periodeId, string $status): PengukuranKinerja
+    {
+        return PengukuranKinerja::create(['indikator_id' => $snapshot->indikator_id, 'tahun' => 2026,
+            'periode_id' => $periodeId, 'jadwal_snapshot_id' => $snapshot->id, 'sumber_nilai' => 'manual',
+            'status_alur' => $status, 'created_by' => $this->actor->id]);
+    }
+
+    public static function statusBelumDisahkan(): array
+    {
+        return [['draft'], ['dikembalikan'], ['diajukan'], ['diverifikasi']];
+    }
+
+    #[DataProvider('statusBelumDisahkan')]
+    public function test_pengukuran_sebelum_periode_mulai_memerlukan_konfirmasi_dan_id_server_diaudit(string $status): void
+    {
+        $lama = $this->terjadwal();
+        $pengukuran = $this->pengukuranSnapshot($lama, $this->tw1->periode_id, $status);
+        $this->ubahTarget($lama, '85');
+        $url = "/jadwal/{$this->jadwal->id}/snapshot/{$lama->id}/koreksi";
+        $payload = $this->payload($lama, ['periode_mulai_id' => $this->tw2->periode_id]);
+
+        $this->actingAs($this->actor)->postJson($url, $payload)->assertUnprocessable()->assertJsonPath(
+            'errors.konfirmasi_pengukuran_sebelumnya.0',
+            'Ada pengukuran belum disahkan pada periode sebelum periode mulai. Periksa daftarnya lalu centang konfirmasi.');
+
+        $this->assertSame(1, $this->versi($lama));
+        $this->assertSame(1, $this->penolakan('aturan_koreksi'));
+        $this->actingAs($this->actor)->postJson($url, [...$payload, 'konfirmasi_pengukuran_sebelumnya' => true])->assertRedirect();
+        $this->assertSame(2, $this->versi($lama));
+        $audit = AuditLog::where('tindakan', 'jadwal_snapshot.koreksi')->sole();
+        $this->assertSame([$pengukuran->id], $audit->nilai_baru['pengukuran_sebelum_periode_mulai']);
+        $this->assertSame($lama->id, $pengukuran->fresh()->jadwal_snapshot_id);
+    }
+
+    public static function koreksiTanpaKonfirmasi(): array
+    {
+        return [['tanpa_pengukuran'], ['disahkan'], ['hanya_tw2'], ['mulai_tw1']];
+    }
+
+    #[DataProvider('koreksiTanpaKonfirmasi')]
+    public function test_koreksi_tanpa_pengukuran_belum_sah_sebelumnya_tidak_memerlukan_konfirmasi(string $kasus): void
+    {
+        $lama = $this->terjadwal();
+        if ($kasus !== 'tanpa_pengukuran') {
+            $this->pengukuranSnapshot($lama, $kasus === 'hanya_tw2' ? $this->tw2->periode_id : $this->tw1->periode_id,
+                $kasus === 'disahkan' ? 'disahkan' : 'draft');
+        }
+        $this->ubahTarget($lama, '85');
+
+        $this->koreksi($this->actor, $lama, ['periode_mulai_id' => $kasus === 'mulai_tw1' ? $this->tw1->periode_id : $this->tw2->periode_id])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(2, $this->versi($lama));
+        $this->assertSame([], AuditLog::where('tindakan', 'jadwal_snapshot.koreksi')->sole()->nilai_baru['pengukuran_sebelum_periode_mulai']);
+    }
+
+    public function test_konfirmasi_pengukuran_sebelumnya_harus_boolean(): void
+    {
+        $lama = $this->terjadwal();
+        $this->ubahTarget($lama, '85');
+
+        $this->actingAs($this->actor)->postJson("/jadwal/{$this->jadwal->id}/snapshot/{$lama->id}/koreksi",
+            $this->payload($lama, ['konfirmasi_pengukuran_sebelumnya' => 'ya']))->assertUnprocessable()
+            ->assertJsonPath('errors.konfirmasi_pengukuran_sebelumnya.0',
+                'Konfirmasi pengukuran sebelumnya tidak valid. Muat ulang halaman snapshot.');
+
+        $this->assertSame(1, $this->versi($lama));
+        $this->assertSame(1, $this->penolakan('input_tidak_valid'));
+    }
+
+    public function test_props_pengukuran_belum_disahkan_hanya_tiga_field_dan_hanya_untuk_pemilik_izin_koreksi(): void
+    {
+        $lama = $this->terjadwal();
+        $this->pengukuranSnapshot($lama, $this->tw1->periode_id, 'draft');
+        $this->pengukuranSnapshot($lama, $this->tw2->periode_id, 'diverifikasi');
+        $this->pengukuranSnapshot($lama, $this->tw3->periode_id, 'disahkan');
+        $perencana = $this->userWithRole('perencanaan');
+        $this->tolak($perencana, 'pengukuran:read');
+
+        $props = app(ShowSnapshotIndikator::class)->handle($perencana, $this->jadwal->id);
+        $row = collect($props['indikator'])->firstWhere('indikator_id', $lama->indikator_id);
+        $this->assertTrue($props['can']['koreksi']);
+        $this->assertEqualsCanonicalizing([
+            ['periode_id' => $this->tw1->periode_id, 'status_alur' => 'draft', 'nomor_versi' => 1],
+            ['periode_id' => $this->tw2->periode_id, 'status_alur' => 'diverifikasi', 'nomor_versi' => 1],
+        ], $row['pengukuran_belum_disahkan']);
+
+        foreach (['target:update', 'indikator:update', 'komponen:update'] as $permission) {
+            $this->tolak($perencana, $permission);
+        }
+        $props = app(ShowSnapshotIndikator::class)->handle($perencana, $this->jadwal->id);
+        $row = collect($props['indikator'])->firstWhere('indikator_id', $lama->indikator_id);
+        $this->assertFalse($props['can']['koreksi']);
+        $this->assertSame([], $row['pengukuran_belum_disahkan']);
     }
 }

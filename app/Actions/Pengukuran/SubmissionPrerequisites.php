@@ -2,6 +2,7 @@
 
 namespace App\Actions\Pengukuran;
 
+use App\Models\JadwalSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
@@ -17,7 +18,8 @@ class SubmissionPrerequisites
 
     /**
      * Rekomendasi berasal dari pembacaan yang sama dengan tampilan/token dan versi beku.
-     * Mode mutasi menerima RA yang dikunci sebelum indikator; target tetap berasal dari versi sah.
+     * Mode mutasi menerima RA yang dikunci sebelum indikator; target berasal dari versi sah bernomor terbesar
+     * dengan snapshot pengukuran yang sama. Pengukuran harus memakai versi berlaku periodenya, kecuali periode lampau.
      */
     public function handle(PengukuranKinerja $pengukuran, ?array $rekomendasi, bool $lock = false, ?RencanaAksi $lockedPlan = null, ?PeriodeJadwal $lockedPeriod = null): array
     {
@@ -37,14 +39,19 @@ class SubmissionPrerequisites
         $ra = $lock ? $lockedPlan : RencanaAksi::where('indikator_id', $pengukuran->indikator_id)->where('tahun', $pengukuran->tahun)->first();
         // Klaim melekat ke header RA; periode lampau dapat mengajukan sebelum RA disahkan.
         $claimPlanId = $ra && $ra->unit_id === $pengukuran->targetUnitId() && $ra->jadwal_tahunan_id === $snapshot?->jadwal_id ? $ra->id : null;
-        if (! $ra || $ra->status_alur !== 'disahkan') {
+        $berlaku = ! $periodeLampau && $snapshot && $period
+            ? JadwalSnapshot::versiBerlaku($snapshot->jadwal_id, $pengukuran->indikator_id, $period->periode->urutan) : null;
+        if (! $periodeLampau && $berlaku?->id !== $pengukuran->jadwal_snapshot_id) {
+            $gateErrors[] = 'Pengukuran ini memakai versi indikator lama. Tim Perencanaan perlu memindahkannya ke versi terbaru sebelum diajukan.';
+        } elseif (! $ra || $ra->status_alur !== 'disahkan') {
             $gateErrors[] = 'Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.';
+        } elseif ($ra->unit_id !== $pengukuran->targetUnitId()) {
+            $gateErrors[] = 'Unit rencana aksi berbeda dengan unit pengukuran.';
         } else {
-            $version = RencanaAksiVersi::where('rencana_aksi_id', $ra->id)->orderByDesc('nomor')->when($lock, fn ($q) => $q->lockForUpdate())->first();
-            if (! $version || ! $version->disahkan_at || ! $version->disahkan_by || $version->jadwal_snapshot_id !== $pengukuran->jadwal_snapshot_id
-                || $ra->unit_id !== $pengukuran->targetUnitId()) {
-                $gateErrors[] = 'Versi rencana aksi sah harus cocok dengan snapshot dan unit pengukuran.';
-                $version = null;
+            $version = RencanaAksiVersi::where('rencana_aksi_id', $ra->id)->where('jadwal_snapshot_id', $pengukuran->jadwal_snapshot_id)
+                ->whereNotNull('disahkan_at')->whereNotNull('disahkan_by')->orderByDesc('nomor')->when($lock, fn ($q) => $q->lockForUpdate())->first();
+            if (! $version) {
+                $gateErrors[] = 'Belum ada versi rencana aksi sah untuk snapshot pengukuran ini.';
             } else {
                 $targets = $version->snapshot['target_periode'] ?? [];
                 $periodTarget = collect($targets)->firstWhere('periode_id', $pengukuran->periode_id);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,19 @@ class PengukuranKinerja extends Model
     protected $fillable = ['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'alasan_tidak_dapat_dihitung', 'alasan_historis', 'sumber_historis', 'catatan', ...self::NARASI, 'status_alur', 'versi', 'created_by'];
 
     protected $casts = ['tahun' => 'integer', 'nilai' => 'decimal:12', 'versi' => 'integer'];
+
+    /**
+     * Pratinjau pengukuran belum disahkan dan cek ulang di transaksi koreksi snapshot.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeBelumDisahkanPadaJadwal(Builder $query, string $jadwalId): void
+    {
+        $query->join('jadwal_snapshot', 'jadwal_snapshot.id', '=', 'pengukuran_kinerjas.jadwal_snapshot_id')
+            ->where('jadwal_snapshot.jadwal_id', $jadwalId)->where('pengukuran_kinerjas.status_alur', '<>', 'disahkan')
+            ->select(['pengukuran_kinerjas.id', 'pengukuran_kinerjas.indikator_id', 'pengukuran_kinerjas.periode_id',
+                'pengukuran_kinerjas.status_alur', 'jadwal_snapshot.nomor_versi']);
+    }
 
     /** @return BelongsTo<IndikatorKinerja, $this> */
     public function indikator(): BelongsTo
