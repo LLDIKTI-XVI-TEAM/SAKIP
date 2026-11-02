@@ -868,11 +868,24 @@ class PindahSnapshotPengukuranTest extends TestCase
             $this->targetKomponen($this->tw2->id, ['A' => 30, 'B' => 5]),
         ]);
         $this->koreksi([], ['A' => 'penjumlah', 'C' => 'penjumlah']);
+        // Q81 §81.2 butir 3: halaman isi tetap menampilkan target RA sah bersnapshot lama, sama dengan daftar.
+        $target = app(PresentPengukuran::class)->handle($this->pengukuran->fresh(), $this->actor, detail: true)['target'];
 
-        $this->ajukan()->assertUnprocessable()->assertJsonPath('errors.pengajuan.0',
+        $this->ajukan()->assertUnprocessable()->assertJsonCount(1, 'errors.pengajuan')->assertJsonPath('errors.pengajuan.0',
             'Pengukuran ini memakai versi indikator lama. Tim Perencanaan perlu memindahkannya ke versi terbaru sebelum diajukan.');
 
         $this->assertSame(0, $this->pengukuran->versions()->count());
+        $this->assertEquals(35, $target);
+        $this->assertEquals($this->barisPengukuran()['pengukuran']['target'], $target);
+    }
+
+    public function test_pesan_versi_lama_menggantikan_galat_rencana_aksi(): void
+    {
+        $this->rantai(versiRa: false);
+        $this->koreksi([], ['A' => 'penjumlah', 'C' => 'penjumlah']);
+
+        $this->ajukan()->assertUnprocessable()->assertJsonCount(1, 'errors.pengajuan')->assertJsonPath('errors.pengajuan.0',
+            'Pengukuran ini memakai versi indikator lama. Tim Perencanaan perlu memindahkannya ke versi terbaru sebelum diajukan.');
     }
 
     public function test_tw2_dengan_versi_lama_ditolak_setelah_ra_koreksi_disahkan(): void

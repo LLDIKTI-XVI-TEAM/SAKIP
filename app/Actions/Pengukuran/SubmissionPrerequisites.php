@@ -41,9 +41,7 @@ class SubmissionPrerequisites
         $claimPlanId = $ra && $ra->unit_id === $pengukuran->targetUnitId() && $ra->jadwal_tahunan_id === $snapshot?->jadwal_id ? $ra->id : null;
         $berlaku = ! $periodeLampau && $snapshot && $period
             ? JadwalSnapshot::versiBerlaku($snapshot->jadwal_id, $pengukuran->indikator_id, $period->periode->urutan) : null;
-        if (! $periodeLampau && $berlaku?->id !== $pengukuran->jadwal_snapshot_id) {
-            $gateErrors[] = 'Pengukuran ini memakai versi indikator lama. Tim Perencanaan perlu memindahkannya ke versi terbaru sebelum diajukan.';
-        } elseif (! $ra || $ra->status_alur !== 'disahkan') {
+        if (! $ra || $ra->status_alur !== 'disahkan') {
             $gateErrors[] = 'Rencana aksi indikator/tahun ini harus disahkan sebelum pengajuan.';
         } elseif ($ra->unit_id !== $pengukuran->targetUnitId()) {
             $gateErrors[] = 'Unit rencana aksi berbeda dengan unit pengukuran.';
@@ -84,6 +82,10 @@ class SubmissionPrerequisites
                     }
                 }
             }
+        }
+        // Pesan versi lama menggantikan galat RA, tetapi target RA sah bersnapshot sama tetap dibaca untuk tampilan (Q81 §81.2 butir 3).
+        if (! $periodeLampau && $berlaku?->id !== $pengukuran->jadwal_snapshot_id) {
+            $gateErrors = ['Pengukuran ini memakai versi indikator lama. Tim Perencanaan perlu memindahkannya ke versi terbaru sebelum diajukan.'];
         }
         if ($pengukuran->status_perhitungan === 'belum_diisi') {
             $gateErrors[] = 'Nilai manual atau seluruh komponen snapshot wajib diisi.';
