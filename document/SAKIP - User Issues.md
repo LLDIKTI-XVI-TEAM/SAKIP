@@ -3955,7 +3955,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Uji 66,395 dan 87,08 tidak dicatat sebagai realisasi IKU 1.3 TW II. *(otomatis sebatas seed produksi; data menunggu UAT ISS-15.01)*
 - [ ] Uji gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026; UAT memverifikasi realisasi dan narasi TW I–II sesuai Laporan Kinerja Triwulan I–II 2026. *(bagian pengecualian gerbang terbukti test; bagian UAT belum)*
 
-> **Status verifikasi (30 Oktober 2026, branch `feature/iss-07-05-periode-lampau-perencanaan`):** AC-1, AC-2, dan AC-3 terbukti oleh `tests/Feature/PeriodeLampau/PengukuranPeriodeLampauMatrixTest.php`, `PengukuranTanpaBackfillTest.php`, dan `PengukuranProvenanceLampauTest.php` (16 kasus lulus, 170 assertion) di atas fixture `PengukuranPeriodeLampauFixtures`; matriks tidak menemukan celah sehingga tidak ada perubahan kode produksi. AC-4 dan bagian data AC-5 tetap menunggu UAT ISS-15.01. Status: terverifikasi test, belum di-merge, belum UAT.
+> **Status verifikasi (PR #210):** AC-1, AC-2, dan AC-3 terbukti oleh `tests/Feature/PeriodeLampau/PengukuranPeriodeLampauMatrixTest.php`, `PengukuranTanpaBackfillTest.php`, dan `PengukuranProvenanceLampauTest.php` (16 kasus lulus) di atas fixture `PengukuranPeriodeLampauFixtures`; matriks tidak menemukan celah sehingga tidak ada perubahan kode produksi. AC-4 dan bagian data AC-5 tetap menunggu UAT ISS-15.01. Status: terverifikasi test, belum UAT.
 
 ### ISS-07.06 · [Feature] Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
