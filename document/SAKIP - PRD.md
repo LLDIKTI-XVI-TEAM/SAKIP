@@ -1393,7 +1393,7 @@ Yang boleh dikelola secara dinamis lewat modul ini **hanya teks dan preferensi p
 
 ## 28. Alert Kontekstual
 
-> **Status implementasi lokal — 3 November 2026:** bagian mandiri banner tenggat/kewajiban pribadi dan kelengkapan PK tersedia melalui ISS-12.01, mengikuti refinement PM K1–K12 pada [#218](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/218). Ini tidak menyelesaikan seluruh alert dalam bagian ini. Browser smoke lokal dengan data sintetis telah memverifikasi Dashboard, fokus Pengukuran, daftar Rencana Aksi, dan tampilan desktop/mobile; cakupannya bukan seluruh role atau SSO. Integrasi pembukaan jendela PIC dalam sesi koreksi dan DoD penuh menunggu ISS-14.03. Bukan pernyataan UAT, merge, atau deployment.
+> **Status implementasi lokal — 3 November 2026:** banner tenggat/kewajiban pribadi dan kelengkapan PK tersedia melalui ISS-12.01, mengikuti refinement PM K1–K12 pada [#218](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/218). Ini tidak menyelesaikan seluruh alert dalam bagian ini. Browser smoke lokal dengan data sintetis telah memverifikasi Dashboard, fokus Pengukuran, daftar Rencana Aksi, dan tampilan desktop/mobile; cakupannya bukan seluruh role atau SSO. Integrasi pembukaan PIC dalam sesi koreksi telah diuji melalui writer resmi ISS-14.03 dan helper sesi yang sama dengan Policy, terbatas pada indikator × periode yang dibuka. Bukan pernyataan UAT, merge, atau deployment.
 
 Pada Fase Awal, alert kontekstual mencakup notifikasi/tampilan dalam aplikasi (bukan email/push eksternal, kecuali diputuskan lain kemudian) untuk:
 

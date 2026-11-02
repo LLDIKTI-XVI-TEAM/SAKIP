@@ -70,10 +70,10 @@ class IndexPengukuran
 
         if ($focus) {
             abort_unless($filtered && $periods->count() === 1, 403);
-            $permitted = $pengingat->periode()->modelKeys();
-            abort_unless(in_array($periods->first()->id, $permitted, true), 403);
-            abort_unless($pengingat->pribadiQuery($actor, $periods->keys()->all(), $aksesPengingat, hanyaBelumTuntas: false)->exists(), 403);
-            $rowsQuery = $pengingat->pribadiQuery($actor, $periods->keys()->all(), $aksesPengingat);
+            $permitted = $pengingat->periode()->whereIn('id', $periods->keys()->all());
+            abort_unless($permitted->count() === 1, 403);
+            abort_unless($pengingat->pribadiQuery($actor, $permitted, $aksesPengingat, hanyaBelumTuntas: false)->exists(), 403);
+            $rowsQuery = $pengingat->pribadiQuery($actor, $permitted, $aksesPengingat);
         } else {
             $rowsQuery = $this->kewajiban->query($periods->keys()->all(), $this->resolver->unitDitolak($actor, 'pengukuran:read'), $today);
         }

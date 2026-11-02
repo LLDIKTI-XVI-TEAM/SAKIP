@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Jadwal\JadwalActivationReadiness;
+use App\Services\Jadwal\SesiKoreksiJadwal;
 use App\Services\PenanggungJawab\WorkReadiness;
 use App\Services\Pengukuran\DaftarKewajibanPengukuran;
 use App\Services\RencanaAksi\PeriodeTanpaTarget;
@@ -21,7 +22,7 @@ class PengingatKontekstual
     public function __construct(private PermissionResolver $izin, private DaftarKewajibanPengukuran $kewajiban, private WorkReadiness $readiness, private JadwalActivationReadiness $aktivasi) {}
 
     /**
-     * Periode normal yang sudah dibuka, termasuk terlambat, tanpa membuka sesi koreksi PIC.
+     * Periode normal termasuk terlambat, atau jendela PIC resmi di dalam sesi koreksi.
      *
      * @return Collection<int, PeriodeJadwal>
      */
@@ -29,18 +30,34 @@ class PengingatKontekstual
     {
         $today = today(config('app.business_timezone'));
 
-        return PeriodeJadwal::with(['jadwal', 'periode'])->whereHas('jadwal', fn ($q) => $q->where('status', 'aktif')->where('penutupan', '>=', $today->toDateString())
-            ->whereNull('koreksi_mulai')->whereNull('koreksi_sampai')->whereNull('lingkup_koreksi'))
+        return PeriodeJadwal::with(['jadwal', 'periode'])->whereHas('jadwal', fn ($q) => $q->where('status', 'aktif'))
             ->where('pengisian_mulai', '<=', $today->toDateString())->get()
-            ->reject(fn ($p) => $p->jadwal->tahunDitutup() || PeriodeTanpaTarget::isPeriodeLampau($p->jadwal, $p))->values();
+            ->filter(fn ($p) => (! $p->jadwal->tahunDitutup() || SesiKoreksiJadwal::jendelaPicTerbuka($p->jadwal, $p))
+                && ! PeriodeTanpaTarget::isPeriodeLampau($p->jadwal, $p))->values();
     }
 
-    /** Query bersama hitungan dan fokus; pemeriksaan akses tetap sah sesudah semua kewajiban diajukan. */
-    public function pribadiQuery(User $actor, array $periodeIds, string $aksesHalaman = 'pengukuran:read', bool $hanyaBelumTuntas = true): Builder
+    /**
+     * Query bersama hitungan dan fokus; pemeriksaan akses tetap sah sesudah semua kewajiban diajukan.
+     *
+     * @param  Collection<int|string, PeriodeJadwal>  $periodes  Kandidat dengan relasi jadwal dan periode yang sudah dimuat.
+     */
+    public function pribadiQuery(User $actor, Collection $periodes, string $aksesHalaman = 'pengukuran:read', bool $hanyaBelumTuntas = true): Builder
     {
-        $q = $this->kewajiban->query($periodeIds, $this->izin->unitDitolak($actor, 'pengukuran:read'), today(config('app.business_timezone'))->toDateString())
+        $q = $this->kewajiban->query($periodes->modelKeys(), $this->izin->unitDitolak($actor, 'pengukuran:read'), today(config('app.business_timezone'))->toDateString())
             ->where('pic.user_id', $actor->id)->where('k.berlaku', true)->where('u.status', 'aktif')->where('i.status', '!=', 'arsip')
             ->when($hanyaBelumTuntas, fn ($q) => $q->where(fn ($q) => $q->whereNull('h.id')->orWhereIn('h.status_alur', ['draft', 'dikembalikan'])))
+            ->where(function ($q) use ($periodes) {
+                $q->whereRaw('1 = 0');
+                foreach ($periodes as $p) {
+                    if (! $p->jadwal->tahunDitutup()) {
+                        $q->orWhere('k.periode_jadwal_id', $p->id);
+                    } elseif (SesiKoreksiJadwal::jendelaPicTerbuka($p->jadwal, $p)) {
+                        $ids = array_values(array_filter($p->jadwal->lingkup_koreksi['indikator_ids'],
+                            fn ($id) => SesiKoreksiJadwal::berlaku($p->jadwal, 'pengukuran', $id, [$p->periode_id])));
+                        $q->orWhere(fn ($q) => $q->where('k.periode_jadwal_id', $p->id)->whereIn('k.indikator_id', $ids));
+                    }
+                }
+            })
             ->whereNotIn('cs.unit_id', $this->izin->unitDitolak($actor, $aksesHalaman));
         if (! $this->izin->allows($actor, 'pengukuran:read') || ! $this->izin->allows($actor, $aksesHalaman)) {
             $q->whereRaw('1 = 0');
@@ -74,7 +91,7 @@ class PengingatKontekstual
     public function handle(User $actor, string $aksesHalaman = 'pengukuran:read', bool $pk = true): array
     {
         $periods = $this->periode()->keyBy('id');
-        $q = $this->pribadiQuery($actor, $periods->keys()->all(), $aksesHalaman)->reorder();
+        $q = $this->pribadiQuery($actor, $periods, $aksesHalaman)->reorder();
         if ($aksesHalaman === 'rencana_aksi:read') {
             $q->leftJoin('rencana_aksi as ra', fn ($join) => $join->on('ra.indikator_id', '=', 'k.indikator_id')->on('ra.tahun', '=', 'k.tahun'));
         }
