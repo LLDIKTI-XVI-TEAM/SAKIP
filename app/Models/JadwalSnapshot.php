@@ -22,6 +22,15 @@ class JadwalSnapshot extends Model
 
     protected $casts = ['presisi' => 'integer', 'desimal_tampilan' => 'integer', 'target' => 'decimal:12', 'baseline' => 'decimal:12', 'nomor_versi' => 'integer', 'komposisi_final' => 'boolean', 'dinilai_tahunan' => 'boolean'];
 
+    /** Versi berlaku = nomor_versi terbesar yang periode mulainya tidak lebih akhir dari periode yang diminta. */
+    public static function versiBerlaku(string $jadwalId, string $indikatorId, int $urutanPeriode): ?self
+    {
+        return self::join('periode', 'periode.id', '=', 'jadwal_snapshot.periode_mulai_id')
+            ->where('jadwal_snapshot.jadwal_id', $jadwalId)->where('jadwal_snapshot.indikator_id', $indikatorId)
+            ->where('periode.urutan', '<=', $urutanPeriode)->select('jadwal_snapshot.*')
+            ->orderByDesc('jadwal_snapshot.nomor_versi')->first();
+    }
+
     /** @return BelongsTo<JadwalTahunan, $this> */
     public function jadwal(): BelongsTo
     {
