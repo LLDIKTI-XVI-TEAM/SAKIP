@@ -92,10 +92,40 @@ class TotalAnggaranKegiatanTest extends TestCase
         $this->assertSame('700000', $this->total->perRencanaAksi($this->header)['total']);
         $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
 
-        // Klaim ke Rencana Aksi IKU lain pun memindahkan hitungan ke lanjutan.
-        $this->klaim($lanjutan, $this->headerIkuLain());
-        $this->assertSame('0', $this->total->perRencanaAksi($this->header)['total']);
+        // Pengecualian per lingkup (Q69 §69.6 butir 4): klaim lanjutan ke RA IKU lain tidak mengeluarkan asal dari RA dan IKU ini,
+        // sedangkan total unit yang menghitung kegiatan unik memindahkan hitungan ke lanjutan.
+        $headerLain = $this->headerIkuLain();
+        $this->klaim($lanjutan, $headerLain);
+        $this->assertSame('700000', $this->total->perRencanaAksi($this->header)['total']);
+        $this->assertSame('700000', $this->total->perIku((string) $this->fixture['indikator']->id, 2026)['total']);
+        $this->assertSame('700000', $this->total->perRencanaAksi($headerLain)['total']);
         $this->assertSame('700000', $this->total->perUnitTahun($unit, 2026)['total']);
+
+        // Setelah lanjutan diklaim ke RA yang sama, hanya lanjutan yang terhitung di RA ini.
+        $this->klaim($lanjutan);
+        $hasil = $this->total->perRencanaAksi($this->header);
+        // TW I hanya tinggal kegiatan pendukung fixture beranggaran 0.
+        $this->assertSame(['700000', '0', '700000'], [$hasil['total'], $hasil['per_periode'][$this->fixture['periode1']->id]['total'],
+            $hasil['per_periode'][$this->fixture['periode2']->id]['total']]);
+    }
+
+    public function test_total_beku_menilai_pengecualian_dari_klaim_tahap_ra_saja(): void
+    {
+        $asal = $this->kegiatan('Pelatihan asesor', 700000, null, ['status' => 'ditunda']);
+        $this->klaim($asal);
+        $lanjutan = $this->kegiatan('Pelatihan asesor', 700000, $this->fixture['periode2'], ['kegiatan_asal_id' => $asal->id]);
+        $pengukuran = PengukuranKinerja::create(['indikator_id' => $this->fixture['indikator']->id, 'tahun' => 2026, 'periode_id' => $this->fixture['periode2']->id,
+            'jadwal_snapshot_id' => $this->fixture['snapshot']->id, 'sumber_nilai' => 'manual', 'created_by' => $this->fixture['pic']->id]);
+        KlaimKegiatan::create(['rencana_aksi_id' => $this->header->id, 'kegiatan_id' => $lanjutan->id, 'arah_dampak' => 'menambah',
+            'sumber_klaim' => 'pengukuran', 'pengukuran_id' => $pengukuran->id, 'created_by' => $this->fixture['pic']->id, 'created_at' => now()]);
+
+        // Total live memindahkan hitungan ke lanjutan; total beku hanya mengenal klaim tahap RA sehingga asal tetap terhitung.
+        $live = $this->total->perRencanaAksi($this->header);
+        $beku = $this->total->perRencanaAksi($this->header, tahapRaSaja: true);
+        $this->assertSame(['700000', '0', '700000'], [$live['total'], $live['per_periode'][$this->fixture['periode1']->id]['total'],
+            $live['per_periode'][$this->fixture['periode2']->id]['total']]);
+        $this->assertSame(['700000', '700000'], [$beku['total'], $beku['per_periode'][$this->fixture['periode1']->id]['total']]);
+        $this->assertArrayNotHasKey($this->fixture['periode2']->id, $beku['per_periode']);
     }
 
     public function test_rantai_penundaan_menghitung_anggaran_sekali(): void
