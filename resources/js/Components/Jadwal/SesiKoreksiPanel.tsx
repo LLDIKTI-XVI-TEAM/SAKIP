@@ -17,7 +17,7 @@ interface Props {
     periode: { periode_id: string; nama: string }[];
 }
 
-const waktu = (value: string) => new Intl.DateTimeFormat('id-ID', {
+export const waktu = (value: string) => new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Makassar',
 }).format(new Date(value));
 

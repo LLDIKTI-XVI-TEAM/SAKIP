@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Policies\JadwalTahunanPolicy;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Jadwal\JadwalActivationReadiness;
+use App\Services\Jadwal\SesiKoreksiJadwal;
 use App\Support\PermissionCodes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -75,7 +76,7 @@ class ShowJadwalEditor
                 // can.activate hanya izin; kalender read-only tetap dapat diaktifkan bila readiness server lolos.
                 // can.close, can.revise_windows, dan can.tambah_indikator memuat status agar tombol tidak ditawarkan untuk jadwal yang pasti ditolak.
                 'can' => ['create' => $canCreate, 'update' => $reason === null, 'activate' => $canActivate, 'close' => $canClose && $current->status === 'aktif',
-                    'revise_windows' => $current->status === 'aktif' && ! $current->tahunDitutup() && $this->policy->update($actor)->allowed(),
+                    'revise_windows' => (SesiKoreksiJadwal::berjalan($current) || ($current->status === 'aktif' && ! $current->tahunDitutup())) && $this->policy->update($actor)->allowed(),
                     'tambah_indikator' => $canTambah, 'reopen' => $canReopen && $current->status === 'ditutup'],
                 'koreksi' => $koreksi,
                 // Hanya metadata snapshot terakhir per indikator; pembaca sesi menerima indikator tercakup saja.

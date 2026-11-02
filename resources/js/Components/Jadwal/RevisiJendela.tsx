@@ -5,13 +5,14 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
+import { waktu } from '@/Components/Jadwal/SesiKoreksiPanel';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import type { JadwalPeriode } from '@/types/periode-jadwal';
+import type { JadwalPeriode, SesiKoreksi } from '@/types/periode-jadwal';
 
 const tanggal = ['pengisian_mulai', 'pengisian_selesai'] as const;
 const linkClass = 'text-sm font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/30 rounded';
 
-export function RevisiJendelaPanel({ tahun, onStart }: { tahun: number; onStart: () => void }) {
+export function RevisiJendelaPanel({ tahun, dalamSesi = false, onStart }: { tahun: number; dalamSesi?: boolean; onStart: () => void }) {
     return (
         <Card>
             <CardHeader>
@@ -19,8 +20,10 @@ export function RevisiJendelaPanel({ tahun, onStart }: { tahun: number; onStart:
             </CardHeader>
             <CardContent className="space-y-3 p-4 sm:p-5">
                 <p className="text-sm">
-                    Perpanjang atau buka ulang jendela pengisian periode tahun {tahun} secara resmi. Revisi wajib beralasan
-                    dan tercatat di jejak audit.
+                    {dalamSesi
+                        ? `Buka jendela pengisian PIC tahun ${tahun} di dalam sesi koreksi yang berjalan.`
+                        : `Perpanjang atau buka ulang jendela pengisian periode tahun ${tahun} secara resmi.`}{' '}
+                    Revisi wajib beralasan dan tercatat di jejak audit.
                 </p>
                 <div className="flex justify-end">
                     <Button id="revisi-jendela-mulai" type="button" onClick={onStart}>
@@ -38,10 +41,12 @@ interface RevisiJendelaProps {
     /** Revisi jadwal saat form dibuka; disimpan bersama baseline tanggal sebagai expected_revisi. */
     revisi: number;
     periode: JadwalPeriode[];
+    /** Sesi koreksi jadwal; bila berjalan, rentang dan periode lingkupnya menjadi batas revisi yang divalidasi server. */
+    koreksi?: SesiKoreksi | null;
     onCancel: () => void;
 }
 
-export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: RevisiJendelaProps) {
+export function RevisiJendela({ jadwalId, tahun, revisi, periode, koreksi = null, onCancel }: RevisiJendelaProps) {
     const [open, setOpen] = useState(false);
     const [unknown, setUnknown] = useState(false);
     const recovery = useAuthRecovery();
@@ -49,8 +54,13 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: Re
     const [awal] = useState(() => ({ periode, revisi }));
     const form = useForm({ alasan: '', periode: awal.periode });
     const errors = form.errors as Record<string, string | undefined>;
-    // Galat per kolom tampil di tabel; sisanya (penutupan, token, daftar periode) diringkas di atas tombol.
-    const umum = Object.entries(errors).filter(([field]) => field !== 'alasan' && !field.startsWith('periode.'));
+    // Galat tanggal tampil di tabel; sisanya (penutupan, token, periode di luar lingkup) diringkas di atas tombol.
+    const umum = Object.entries(errors)
+        .filter(([field]) => field !== 'alasan' && !/^periode\.\d+\.pengisian_/.test(field))
+        .map(([field, message]): [string, string | undefined] => {
+            const index = /^periode\.(\d+)\./.exec(field)?.[1];
+            return [field, index === undefined ? message : `${form.data.periode[Number(index)]?.nama}: ${message}`];
+        });
     const berubah = form.data.periode.some((item, index) => tanggal.some((key) => item[key] !== awal.periode[index]?.[key]));
     const blocked = unknown || Boolean(recovery.recovery);
     const path = `/jadwal/${jadwalId}/revisi-jendela`;
@@ -100,6 +110,8 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: Re
                 tahun={tahun}
                 errors={errors}
                 editable={false}
+                // Aturan tahun berikutnya tidak berlaku di dalam sesi; batasnya dijelaskan kotak sesi di bawah.
+                note={koreksi?.status !== 'berjalan'}
                 disabled={form.processing || blocked}
                 options={[]}
                 emptyMessage=""
@@ -118,6 +130,18 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, onCancel }: Re
                         Ubah tanggal yang perlu direvisi. Batas baru langsung berlaku bagi PIC; penugasan, izin unit, dan
                         status data tetap diperiksa.
                     </p>
+                    {koreksi?.status === 'berjalan' && (
+                        <div className="space-y-1 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+                            <p>
+                                Sesi koreksi: {waktu(koreksi.mulai)} – {waktu(koreksi.sampai)} WITA. Kedua tanggal jendela
+                                wajib berada di dalam sesi ini.
+                            </p>
+                            <p>
+                                Periode yang dapat dibuka:{' '}
+                                {koreksi.lingkup.periode_ids.map((id) => periode.find((item) => item.periode_id === id)?.nama ?? id).join(', ')}.
+                            </p>
+                        </div>
+                    )}
                     <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
                     {unknown && (
                         <div role="alert" className="space-y-1 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
