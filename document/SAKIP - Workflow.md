@@ -1548,6 +1548,8 @@ Koreksi data rencana aksi/pengukuran/jadwal disediakan lewat tiga permission ber
      → Rencana aksi yang kembali ke dikembalikan/draft TIDAK otomatis mencabut gerbang
        pengukuran yang sudah terlanjur diajukan sebelumnya pada periode lain; gerbang hanya
        dievaluasi ulang pada pengajuan BARU
+     → Saat koreksi snapshot, bila ada pengukuran belum disahkan pada periode sebelum periode mulai, form menampilkannya → Perencanaan mengonfirmasi secara eksplisit → versi koreksi terbit (Q81 §81.3)
+     → Setelah Rencana Aksi disahkan ulang dengan versi koreksi snapshot, pengukuran draf/dikembalikan sejak periode mulai versi koreksi yang masih memakai versi lama dipindahkan Perencanaan lewat Pindahkan ke versi terbaru (Q79 §79.3 butir 4); pengukuran periode sebelumnya tetap diajukan dengan versi lama (Q81 §81.2)
 
   Lapis 2 — Pengukuran, sebelum penutupan jadwal atau di dalam sesi koreksi yang mencakup baris:
   4. Menemukan pengukuran berstatus Disahkan yang perlu dikoreksi

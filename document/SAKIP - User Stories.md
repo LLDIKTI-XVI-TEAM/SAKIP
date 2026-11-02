@@ -810,6 +810,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 >
 > **Status implementasi — issue #91:** AC-1–AC-7 memiliki bukti test pada PR implementasi issue #91; AC-8 menunggu penerbitan versi oleh revisi PK berversi (US-02.12). Rincian test dan batas bukti tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks). Centang bukan persetujuan QA/UAT atau deployment.
 
+> **Status implementasi — issue #220 (2026-11-02, PR #<n>):** pemindahan eksplisit dan teraudit oleh Perencanaan dengan alasan opsional (Q79 §79.3 butir 4), gerbang pengajuan dan target per snapshot serta konfirmasi koreksi (Q81) telah diimplementasikan dan diuji lokal. Penerbitan koreksi tetap tidak memindahkan rujukan otomatis. Bukti test tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks); AC-8 tetap menunggu US-02.12. Ini bukan persetujuan QA/UAT, merge, atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-03.03` |
