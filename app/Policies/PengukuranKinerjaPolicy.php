@@ -9,6 +9,7 @@ use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Jadwal\SesiKoreksiJadwal;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\DB;
@@ -44,9 +45,9 @@ class PengukuranKinerjaPolicy
      * Jalur Perencanaan (global) bila allow berasal dari peran; allow yang hanya dari grant unit
      * adalah jalur PIC yang tunduk pada PJ efektif dan jendela (Data Model §4.2; ADR-0002).
      */
-    public function usesPlanningPath(User $user, PengukuranKinerja $p): bool
+    public function usesPlanningPath(User $user, PengukuranKinerja $p, string $permission = 'pengukuran:update'): bool
     {
-        $decision = $this->resolver->decide($user, 'pengukuran:update', $p->targetUnitId());
+        $decision = $this->resolver->decide($user, $permission, $p->targetUnitId());
 
         return $decision['allowed'] && $decision['roles'] !== [];
     }
@@ -189,7 +190,12 @@ class PengukuranKinerjaPolicy
             $errors[] = 'Periode belum termasuk kewajiban efektif indikator pada jadwal ini.';
         }
         $correction = $this->sesiKoreksiAktif($schedule, $p->indikator_id, $p->periode_id);
-        if ($date > $schedule->penutupan->toDateString() && ! $correction) {
+        // Jalur mengikuti izin tindakan; deny input tidak mencabut izin review yang berbeda.
+        $planning = $this->usesPlanningPath($user, $p, match ($command) {
+            'draft', 'ajukan' => 'pengukuran:update',
+            'verifikasi' => 'pengukuran:verifikasi', 'sahkan' => 'pengukuran:sahkan', 'kembalikan' => 'pengukuran:kembalikan',
+        });
+        if ($schedule->tahunDitutup() && (! $correction || ! $planning)) {
             $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
         }
         $statuses = match ($command) {
@@ -199,7 +205,7 @@ class PengukuranKinerjaPolicy
             $errors[] = 'Status pengukuran tidak sesuai untuk tindakan ini.';
         }
         if (in_array($command, ['draft', 'ajukan'], true)) {
-            if (! $this->usesPlanningPath($user, $p)) {
+            if (! $planning) {
                 if ($p->effectivePic()?->user_id !== $user->id) {
                     $errors[] = 'Tindakan ini memerlukan penugasan PIC yang efektif.';
                 }
@@ -235,7 +241,7 @@ class PengukuranKinerjaPolicy
         if ($schedule->status !== 'aktif') {
             $errors[] = 'Jadwal tahunan harus aktif.';
         }
-        if ($date > $schedule->penutupan->toDateString() && ! $this->sesiKoreksiAktif($schedule, $snapshot->indikator_id, $period->periode_id)) {
+        if ($schedule->tahunDitutup() && ($decision['roles'] === [] || ! $this->sesiKoreksiAktif($schedule, $snapshot->indikator_id, $period->periode_id))) {
             $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
         }
         if ($decision['roles'] === []) {
@@ -267,10 +273,6 @@ class PengukuranKinerjaPolicy
     /** Sesi koreksi resmi membuka tahun yang ditutup hanya untuk indikator × periode × jenis objek dalam lingkupnya. */
     private function sesiKoreksiAktif(JadwalTahunan $schedule, string $indicatorId, string $periodId): bool
     {
-        $scope = $schedule->lingkup_koreksi ?? [];
-
-        return $schedule->koreksi_mulai && $schedule->koreksi_sampai && now()->betweenIncluded($schedule->koreksi_mulai, $schedule->koreksi_sampai)
-            && in_array($indicatorId, $scope['indikator_ids'] ?? [], true) && in_array($periodId, $scope['periode_ids'] ?? [], true)
-            && in_array('pengukuran', $scope['jenis_objek'] ?? [], true);
+        return SesiKoreksiJadwal::berlaku($schedule, 'pengukuran', $indicatorId, [$periodId]);
     }
 }

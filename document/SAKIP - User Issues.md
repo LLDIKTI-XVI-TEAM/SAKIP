@@ -1414,7 +1414,7 @@ kegiatan:update
 - **Dampak Data:** `renstra_pk_versi` (nomor versi, `nomor_surat`, `tanggal_surat`, periode mulai berlaku), `renstra_pk_versi_target`, `berkas` (lampiran PK per versi), `jadwal_snapshot` (versi baru bila target berubah), `audit_log`.
 - **Keputusan terkait:** Q40 §40.1, Q35 §35.1, Q43 §43.2 butir 3, Q48 §48.2 butir 1, Q50 §50.7, Q46 §46.3.
 - **Rule:** koreksi salah ketik nomor atau tanggal PK tetap memakai koreksi teraudit ISS-02.09; perubahan target resmi memakai revisi berversi (Q40 §40.1 butir 8). Nomor dan tanggal surat Eselon I disimpan sebagai isian tersendiri, menggantikan aturan lama yang mencantumkannya pada kolom `alasan` (Q40 §40.3).
-- **Rule:** Q40 tidak merinci kapan suatu periode dianggap "sudah ditutup"; definisinya ditetapkan saat refinement bersama ISS-03.03 sebelum implementasi.
+- **Rule:** Q40 tidak merinci kapan suatu periode dianggap "sudah ditutup"; definisinya ditetapkan saat refinement ISS-02.12 sebelum implementasi (Q79 §79.2 butir 4).
 - **Rule:** sebelum issue ini selesai, PK perubahan yang hanya mengubah anggaran memakai lampiran tambahan PK (Q50 §50.7 butir 1); PK perubahan yang mengubah target sebelum issue ini selesai ditangani melalui keputusan PM baru (Q50 §50.7 butir 2).
 - **Di luar cakupan:** revisi dan riwayat target Renstra (ISS-02.10), versi penuh Renstra (Q40 §40.2 butir 4), dan koreksi salah ketik (ISS-02.09).
 
@@ -1868,7 +1868,9 @@ kegiatan:update
 
 ### ISS-03.03 · [Feature] Koreksi Snapshot Terkendali dan Versioning Konteks
 
-> **Q40, Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (ISS-02.12, Q40 §40.1 butir 9): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-6). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3). Koreksi snapshot tetap wajib alasan (Q43 §43.2 butir 3). Penanda `dinilai_tahunan` yang dibekukan pada snapshot (Q47 §47.1 butir 2) diubah melalui koreksi ini setelah jadwal aktif.
+> **Q40, Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (ISS-02.12, Q40 §40.1 butir 9): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-8). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3). Koreksi snapshot tetap wajib alasan (Q43 §43.2 butir 3). Penanda `dinilai_tahunan` yang dibekukan pada snapshot (Q47 §47.1 butir 2) diubah melalui koreksi ini setelah jadwal aktif.
+
+> **Q79 (30 Oktober 2026):** versi koreksi disalin dari data master terkini setelah master diperbaiki dan ditolak bila tidak ada selisih; periode mulainya tidak lebih awal dari versi yang digantikan; rujukan pengukuran dan versi Rencana Aksi yang sudah ada tidak dipindahkan; izin dinilai per kelompok kolom yang berubah. Acceptance Criteria diselaraskan dengan issue #91 (Q79 §79.4).
 
 **Terkait User Story:** `US-03.03`  
 **Prioritas:** 🟡 P1 · Tahap 3 (Q46 §46.3)  
@@ -1887,44 +1889,50 @@ kegiatan:update
 
 #### Kontrak Teknis
 
-- **Dependensi:** Snapshot tersedia; koreksi memiliki alasan dan rujukan resmi.
-- **Otorisasi:** `target:update` / permission substantif terkait serta guard jadwal.
+- **Dependensi:** Snapshot tersedia; data master sudah diperbaiki; koreksi memiliki alasan dan rujukan resmi (Q79 §79.1).
+- **Otorisasi:** `indikator:read` (sama dengan penulis target dan indikator lain) ditambah izin per kelompok kolom yang berubah: `target:update`, `indikator:update`, `komponen:update` (Q79 §79.1 butir 5), serta guard jadwal; halaman dibaca dengan izin detail jadwal tahunan (Q79 §79.5).
 - **Dampak Data:** `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
-- **Batasan dari ISS-05.01 (PR #62):** aktivasi pertama di `ActivateJadwal` dan trigger database `finalisasi_snapshot_saat_jadwal_aktif` (setiap transisi status ke `aktif`, termasuk jalur buka-kembali yang akan datang) membekukan **seluruh** snapshot jadwal yang masih `komposisi_final = false`. Bila koreksi berversi memakai draf snapshot yang belum terbit, kedua jalur itu wajib mengecualikan draf koreksi agar tidak ikut dibekukan sebelum waktunya.
+- **Batasan dari ISS-05.01 (PR #62):** aktivasi pertama di `ActivateJadwal` dan trigger database `finalisasi_snapshot_saat_jadwal_aktif` (setiap transisi status ke `aktif`, termasuk jalur buka-kembali yang akan datang) membekukan **seluruh** snapshot jadwal yang masih `komposisi_final = false`. Bila koreksi berversi memakai draf snapshot yang belum terbit, kedua jalur itu wajib mengecualikan draf koreksi agar tidak ikut dibekukan sebelum waktunya. Koreksi dibuat dalam satu transaksi tanpa draf koreksi, sehingga kedua jalur tersebut tidak berubah.
+
+> **Status implementasi — issue #91 (2026-10-30):** centang menunjukkan bukti implementasi dan test pada PR implementasi issue #91, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 dan AC-2 `KoreksiSnapshotTest::test_koreksi_menerbitkan_versi_baru_dari_data_master_tanpa_mengubah_versi_lama`, `KoreksiSnapshotTest::test_koreksi_menyalin_komponen_aktif_master_dan_komponen_lama_tetap`, `KoreksiSnapshotTest::test_audit_koreksi_memuat_definisi_dan_label_komponen_yang_berubah`; AC-3 `KoreksiSnapshotTest::test_versi_lama_tetap_beku_setelah_koreksi`; AC-4 `KoreksiSnapshotTest::test_rujukan_pengukuran_dan_rencana_aksi_tidak_berpindah`; AC-5 `KoreksiSnapshotTest::test_snapshot_tidak_cocok_atau_bukan_versi_terbaru_ditolak`, `KoreksiSnapshotTest::test_tanpa_selisih_dan_periode_mulai_tidak_sah_ditolak`, `KoreksiSnapshotTest::test_jadwal_tidak_aktif_atau_data_master_tidak_layak_ditolak`, `KoreksiSnapshotTest::test_koreksi_pindah_unit_ditolak_bila_rencana_aksi_sudah_ada_pada_unit_lama`; AC-6 `JadwalActivationConcurrencyTest::test_concurrent_snapshot_corrections_publish_one_version_and_reject_the_stale_one`, `JadwalActivationConcurrencyTest::test_correction_waits_for_target_writer_and_copies_the_committed_target`, `JadwalActivationConcurrencyTest::test_correction_and_action_plan_target_save_queue_in_both_orders`, `KoreksiSnapshotTest::test_konflik_lock_menjadi_penolakan_muat_ulang_dengan_audit`; AC-7 `KoreksiSnapshotTest::test_izin_per_kelompok_kolom_dan_penolakan_teraudit`, `KoreksiSnapshotTest::test_alasan_dan_rujukan_wajib_serta_field_tak_dikenal_ditolak`. AC-8 belum dicentang: versi dengan periode mulai eksplisit dan pembaca per periode dibuktikan `KoreksiSnapshotTest::test_periode_sebelum_periode_mulai_koreksi_tetap_memakai_versi_lama` (TEST-8, Q79 §79.2 butir 4), sedangkan penerbitan saat persetujuan revisi PK menunggu ISS-02.12. Halaman Snapshot Indikator: `KoreksiSnapshotTest::test_halaman_snapshot_menampilkan_versi_selisih_dan_izin_koreksi` dan `tests/Frontend/JadwalSnapshotIndikator.test.tsx`. Seperti detail jadwal, isi indikator pada halaman ini hanya dikirim kepada pemegang `indikator:read`.
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
-- [ ] **AC-2:** Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
-- [ ] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
-- [ ] **AC-4:** Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
-- [ ] **AC-5:** Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
-- [ ] **AC-6:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9)*
+- [x] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
+- [x] **AC-2:** Given koreksi valid, Then versi baru berisi data master terkini dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, `rujukan_koreksi`, dan `komposisi_final = true` dalam satu transaksi. *(Q79 §79.1)*
+- [x] **AC-3:** Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable (guard DB tetap aktif).
+- [x] **AC-4:** Given pengukuran (termasuk `draft`/`dikembalikan`) atau versi Rencana Aksi yang sudah diajukan/disahkan merujuk versi lama, Then rujukannya tidak berpindah ke versi koreksi; Rencana Aksi draf hanya mengikuti versi baru lewat jalur simpan yang sudah ada (token 409 dan rekonsiliasi draf). *(Q79 §79.3)*
+- [x] **AC-5:** Given snapshot tidak cocok dengan jadwal/indikator di URL, bukan versi terbaru, tidak berselisih dengan data master, `periode_mulai_id` bukan periode jadwal atau lebih awal dari periode mulai versi yang digantikan, atau unit indikator di data master berbeda dari unit Rencana Aksi yang sudah ada untuk tahun jadwal, When koreksi dibuat, Then ditolak. *(Q79 §79.1 butir 3 dan 8, §79.2 butir 1)*
+- [x] **AC-6:** Given dua koreksi bersamaan pada snapshot yang sama, Then tepat satu berhasil (lock dan unique index), yang lain ditolak karena usang.
+- [x] **AC-7:** Given aktor tidak memiliki izin untuk kelompok kolom yang berubah, atau deny cocok, Then ditolak 403 dan teraudit; alasan atau rujukan kosong ditolak 422. *(Q43 §43.2 butir 3, Q79 §79.1 butir 5–6)*
+- [ ] **AC-8:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9; pada ISS-03.03 dibuktikan dengan periode mulai eksplisit, Q79 §79.2 butir 4)*
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
-- [ ] Jaga snapshot idempoten/berversi: snapshot yang telah terbit tidak boleh di-update in-place (Q35 §35.1).
+- [x] Implementasikan/validasi persistence untuk dampak data: `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Jaga snapshot idempoten/berversi: snapshot yang telah terbit tidak boleh di-update in-place (Q35 §35.1).
 
 **B. Backend / Domain**
-- [ ] Koreksi selalu membuat versi pengganti dengan `menggantikan_id`, alasan, dan rujukan resmi, baik sebelum maupun sesudah snapshot dirujuk, dan selalu diaudit (Q35 §35.1).
+- [x] Koreksi selalu membuat versi pengganti dengan `menggantikan_id`, alasan, dan rujukan resmi, baik sebelum maupun sesudah snapshot dirujuk, dan selalu diaudit (Q35 §35.1).
+- [x] Nilai versi koreksi disalin dari data master terkini dan periode mulainya mengikuti Q79 §79.2; rujukan pengukuran dan versi Rencana Aksi yang sudah ada tidak dipindahkan (Q79 §79.3).
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `target:update` / permission substantif terkait serta guard jadwal.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: izin per kelompok kolom yang berubah (Q79 §79.1 butir 5) serta guard jadwal.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah terbit, When koreksi diperlukan, Then baris versi baru dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi`.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran hendak memakai snapshot koreksi, Then pengukuran harus diajukan dan disahkan ulang; tidak ada propagasi diam-diam.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi snapshot tidak cocok indikator/jadwal, When koreksi dibuat, Then ditolak.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9)*
-- [ ] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given koreksi valid, Then versi baru berisi data master terkini dibuat dengan `nomor_versi + 1`, `menggantikan_id`, `alasan_koreksi`, `rujukan_koreksi`, dan `komposisi_final = true` dalam satu transaksi.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi lama telah dirujuk laporan/pengajuan, Then versi lama dan komponen anaknya tetap immutable.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran (termasuk `draft`/`dikembalikan`) atau versi Rencana Aksi yang sudah diajukan/disahkan merujuk versi lama, Then rujukannya tidak berpindah; Rencana Aksi draf ditolak 409 dengan token lama lalu mengikuti versi baru setelah dimuat ulang.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given snapshot tidak cocok dengan jadwal/indikator, bukan versi terbaru, tidak berselisih dengan data master, periode mulai tidak sah, atau memindahkan unit indikator yang sudah memiliki Rencana Aksi tahun jadwal, When koreksi dibuat, Then ditolak.
+- [x] TEST-6 (CONCURRENCY): Buat Pest Integration test yang membuktikan — Given dua koreksi bersamaan pada snapshot yang sama, Then tepat satu berhasil dan yang lain ditolak karena usang; koreksi bersamaan dengan simpan target Rencana Aksi tidak deadlock.
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given aktor tanpa izin kelompok kolom yang berubah atau dengan deny cocok, Then 403 dan teraudit, dengan kontrol positif; alasan atau rujukan kosong ditolak 422.
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given versi koreksi dengan periode mulai eksplisit, Then pembaca versi efektif per periode memakai versi lama sebelum periode mulai dan versi koreksi sejak periode mulai, dan `rujukan_koreksi` tersimpan. *(Q40 §40.1 butir 4 dan 9; Q79 §79.2 butir 4)*
 
 #### Definition of Done
 
@@ -1957,13 +1965,15 @@ kegiatan:update
 - **Otorisasi:** `jadwal:buka_kembali` untuk penambahan snapshot beralasan pada jadwal aktif; permission indikator terkait.
 - **Dampak Data:** `jadwal_snapshot`, `jadwal_snapshot_komponen`, `audit_log`.
 
+> **Status implementasi — issue #188 (2026-10-27):** centang menunjukkan bukti implementasi dan test pada PR #197, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `TambahIndikatorJadwalTest::test_snapshot_baru_memakai_periode_mulai_pilihan_anggota_jadwal`, `TambahIndikatorJadwalTest::test_periode_mulai_wajib_dan_harus_anggota_jadwal`; AC-2 `TambahIndikatorJadwalTest::test_periode_sebelum_mulai_tidak_berlaku_di_dashboard_pengukuran_rencana_aksi_dan_rekap`; AC-3 `TambahIndikatorJadwalTest::test_snapshot_lama_tidak_berubah_dan_indikator_terjadwal_ditolak`, `JadwalActivationTest::test_existing_draft_snapshots_are_kept_and_only_missing_pairs_are_created`, `SnapshotFinalisasiDatabaseTest`; AC-4 `TambahIndikatorJadwalTest::test_jendela_pic_dan_baris_jadwal_tidak_berubah`; AC-5 `TambahIndikatorJadwalTest::test_audit_memuat_alasan_detail_dan_dasar_izin`, `TambahIndikatorJadwalTest::test_izin_dicek_dan_penolakan_teraudit_di_luar_rollback`, `TambahIndikatorJadwalTest::test_jadwal_bukan_aktif_atau_lewat_penutupan_ditolak`.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] **AC-1:** Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] **AC-2:** Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] **AC-3:** Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] **AC-4:** Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] **AC-5:** Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 #### Implementation Tasks
 
@@ -1989,11 +1999,11 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru ditambahkan pada jadwal aktif, When snapshot dibuat, Then `periode_mulai_id` wajib ditetapkan dan merupakan anggota jadwal.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When dashboard/laporan menghitung kewajiban, Then statusnya **Tidak berlaku**, bukan Belum Mengisi/Tidak Mengisi/nol.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot indikator lama sudah ada, When indikator baru ditambahkan, Then snapshot lama tidak ditimpa.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given deadline PIC lama tidak diubah, When penambahan indikator dilakukan, Then akses PIC tidak otomatis dibuka; jendela resmi harus diatur terpisah jika diperlukan.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tindakan dilakukan, Then alasan dan detail penambahan tercatat di audit.
 
 #### Definition of Done
 
@@ -4806,6 +4816,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-10.05 · [Feature] Keluaran Rencana Aksi Tahunan dan Laporan Kinerja Triwulan serta Unggah PDF Bertanda Tangan
+> **Status implementasi — slice arsip ISS-10.05 ([PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208)):** halaman Dokumen Resmi, katalog/preset `laporan:unggah`, arsip PDF pada jadwal tahunan/periode, penggantian append-only, unduhan privat dengan akses seluruh unit, serta audit unggah tersedia. Keputusan K3–K7 mengikuti [komentar PM 29 Oktober](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179#issuecomment-6476048514). AC-5 hanya selesai untuk unduh arsip; generator AC-1–AC-4 masih menunggu pengesahan format ISS-10.04. Status implementasi ini tidak menyatakan penerimaan UAT atau deployment. Sinkronisasi Q75/Q76 dan issue producer snapshot mengikuti tindak lanjut PM.
 
 > **Acuan format (ISS-10.04):** susunan berkas, test, dan UAT keluaran ini memakai `document/SAKIP - Acuan Keluaran Excel.md` §3–§4. Status pengesahan contoh dicatat pada dokumen tersebut.
 
@@ -4843,10 +4854,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] **AC-3:** Given indikator yang RA atau pengukurannya belum disahkan, Then indikator tetap tercantum dengan keterangan "belum disahkan" tanpa angka resmi. *(Q48 §48.1 butir 2)*
 - [ ] **AC-4:** Given periode tanpa target atau realisasi belum dapat diukur, Then keluaran memakai keterangan yang sama dengan dashboard ("Tanpa target periode", "Belum dapat diukur"). *(Q47 §47.3–§47.4)*
 - [ ] **AC-5:** Given pengguna tanpa `laporan:ekspor`, When meminta keluaran atau mengunduh arsip, Then ditolak 403. *(Q48 §48.1 butir 6, §48.2 butir 2)*
-- [ ] **AC-6:** Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
-- [ ] **AC-7:** Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
-- [ ] **AC-8:** Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
-- [ ] **AC-9:** Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
+- [x] **AC-6:** Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
+- [x] **AC-7:** Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
+- [x] **AC-8:** Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
+- [x] **AC-9:** Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
 
 #### Implementation Tasks
 
@@ -4879,12 +4890,12 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator yang RA atau pengukurannya belum disahkan, Then indikator tetap tercantum dengan keterangan "belum disahkan" tanpa angka resmi. *(Q48 §48.1 butir 2)*
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target atau realisasi belum dapat diukur, Then keluaran memakai keterangan yang sama dengan dashboard ("Tanpa target periode", "Belum dapat diukur"). *(Q47 §47.3–§47.4)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengguna tanpa `laporan:ekspor`, When meminta keluaran atau mengunduh arsip, Then ditolak 403. *(Q48 §48.1 butir 6, §48.2 butir 2)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
-- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
-- [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
-- [ ] FORMAT ARSIP: Uji arsip selain PDF atau melebihi batas teknis unggahan ditolak (Q48 §48.2 butir 7, Q44 §44.2).
-- [ ] PERMISSION: Uji `laporan:unggah` terdaftar tidak sensitif pada katalog dan preset Perencanaan serta Superadmin, sedangkan setiap unggahan tetap tercatat di audit (Q48 §48.2 butir 2).
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan dengan `laporan:unggah`, When mengunggah PDF bertanda tangan untuk Rencana Aksi tahunan (induk jadwal tahunan) atau Laporan Kinerja Triwulan (induk periode jadwal), Then berkas tersimpan beserta keterangan; satu induk boleh memiliki lebih dari satu berkas. *(Q48 §48.2 butir 1–2)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given arsip sudah diunggah, When dihapus, Then ditolak; koreksi dilakukan dengan mengunggah berkas pengganti beserta keterangan. *(Q48 §48.2 butir 3)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given arsip diunggah, Then data, status, dan snapshot tidak berubah, dan unggahan tercatat di audit. *(Q48 §48.2 butir 4)*
+- [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahunan berstatus `ditutup`, When Perencanaan mengunggah arsip, Then unggahan diterima tanpa membuka kembali jadwal. *(Q48 §48.2 butir 5)*
+- [x] FORMAT ARSIP: Uji arsip selain PDF atau melebihi batas teknis unggahan ditolak (Q48 §48.2 butir 7, Q44 §44.2). Bukti: `ArsipDokumenResmiTest::test_validasi_pdf_dan_metadata_dan_audit_penolakan`.
+- [x] PERMISSION: Uji `laporan:unggah` terdaftar tidak sensitif pada katalog dan preset Perencanaan serta Superadmin, sedangkan setiap unggahan tetap tercatat di audit (Q48 §48.2 butir 2). Bukti: `AccessFoundationTest::test_catalog_and_presets_match_the_release_contract` dan `ArsipDokumenResmiTest::test_arsip_ditutup_append_only_dan_tidak_mengubah_data_kinerja`.
 - [ ] TAMPILAN BERSAMAAN: Uji periode tanpa target yang realisasinya `belum_dapat_diukur` tercantum sebagai "Belum dapat diukur" pada keluaran (Q47 §47.3 butir 3).
 
 #### Definition of Done
@@ -5513,6 +5524,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.04 · [Feature] EWS H-7, H-3, H-1 Menjelang Tenggat Pengisian
 
@@ -5578,6 +5590,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.05 · [Feature] Rekap Progres untuk Tim Perencanaan H-3 & H-1
 
@@ -5638,6 +5651,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.06 · [Feature] Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
 
@@ -5703,6 +5717,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 ### ISS-12.07 · [Infrastructure] Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
 
@@ -5763,6 +5778,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 
 
 ---
@@ -6045,6 +6061,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
 - [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
 
 ### ISS-13.05 · [Feature] Penyederhanaan Kewajiban Alasan
@@ -6308,6 +6325,8 @@ Perubahan per request (tanpa nomor baris kode):
 
 ### ISS-14.02 · [Feature] Pembukaan Kembali Jadwal untuk Sesi Koreksi Perencanaan
 
+> **Status implementasi (28 Oktober 2026):** implementasi dan verifikasi lokal sesi koreksi tersedia: PostgreSQL disposable, 27 test khusus sesi/konkurensi (223 assertion, tanpa kegagalan; warning environment), 47 test frontend, Pint, PHPStan level 3, typecheck/lint/build, dan smoke browser buka/tutup ulang pada desktop 1280×720 serta mobile 390×844. Rujukan kontrak diselaraskan ke Q77 di Keputusan Penyelarasan sesuai keputusan PM 29 Oktober 2026 (review PR #199); status implementasi dan checkbox tidak berubah. Checkbox menunjukkan bukti teknis, bukan penerimaan UAT, merge, deployment, atau migrasi database aplikasi. UAT SSO Tim Perencanaan tetap belum dilakukan.
+
 > **Q41 (13 Oktober 2026):** dalam sesi koreksi setelah penutupan, koreksi Rencana Aksi dilakukan Perencanaan; PIC hanya dapat mengubah RA pada periode yang jendela pengisiannya dibuka kembali secara resmi melalui ISS-14.03 (Q41 §41.2 butir 6, Q19). Pembukaan tahun tetap tidak membuka hak PIC secara otomatis (AC-4).
 
 **Terkait User Story:** `US-14.02`  
@@ -6334,49 +6353,49 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
-- [ ] **AC-2:** Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
-- [ ] **AC-3:** Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
-- [ ] **AC-4:** Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
-- [ ] **AC-5:** Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
+- [x] **AC-1:** Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
+- [x] **AC-2:** Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
+- [x] **AC-3:** Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
+- [x] **AC-4:** Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
+- [x] **AC-5:** Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan.koreksi_*`, `lingkup_koreksi`, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `jadwal_tahunan.koreksi_*`, `lingkup_koreksi`, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Buka tahun membuat sesi koreksi Perencanaan dengan `koreksi_mulai`, `koreksi_sampai`, `lingkup_koreksi`, alasan, dan audit; tanggal penutupan asli tidak ditimpa.
-- [ ] Jangan memberi akses PIC otomatis hanya karena status jadwal kembali aktif.
+- [x] Buka tahun membuat sesi koreksi Perencanaan dengan `koreksi_mulai`, `koreksi_sampai`, `lingkup_koreksi`, alasan, dan audit; tanggal penutupan asli tidak ditimpa.
+- [x] Jangan memberi akses PIC otomatis hanya karena status jadwal kembali aktif.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `jadwal:buka_kembali` (sensitif).
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `jadwal:buka_kembali` (sensitif).
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Pembukaan Kembali Jadwal untuk Sesi Koreksi Perencanaan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Pembukaan Kembali Jadwal untuk Sesi Koreksi Perencanaan**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given alasan, `koreksi_mulai`, `koreksi_sampai`, dan `lingkup_koreksi` valid, When dibuka, Then status kembali aktif untuk sesi koreksi dan tanggal `penutupan` asli tidak ditimpa.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given objek tidak termasuk `lingkup_koreksi`, When Perencanaan mencoba memutasi, Then ditolak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given waktu di luar sesi koreksi, When mutasi koreksi dilakukan, Then ditolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pembukaan tahun dilakukan, Then **hak PIC tidak otomatis terbuka**.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given sesi selesai, When jadwal ditutup kembali, Then status menjadi `ditutup` dan seluruh peristiwa koreksi tetap teraudit.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
-- [ ] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-14.03 · [Feature] Pembukaan Jendela PIC di Dalam Sesi Koreksi
 
@@ -6524,7 +6543,7 @@ Perubahan per request (tanpa nomor baris kode):
 **Labels:** `infrastructure`, `release-uat`, `P1`, `backend`, `ops`  
 **Plan:** P.1–P.4  
 **PRD:** §6, §28, §34  
-**Workflow:** §22  
+**Workflow:** —  
 **Data Model/Entitas:** operational dependencies
 
 #### User Story
@@ -6542,39 +6561,41 @@ Perubahan per request (tanpa nomor baris kode):
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
-- [ ] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
+- [x] **AC-2:** Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia. *(Q80 §80.1: terpenuhi oleh gate checklist kesiapan §3 selama notifikasi eksternal belum diaktifkan.)*
 - [ ] **AC-3:** Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
-- [ ] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
+- [x] **AC-4:** Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
+
+> **Status per 1 November 2026 (PR #214, diperbarui Q80):** checklist tersedia di `document/SAKIP - Kesiapan Infrastruktur.md`. AC-4 terpenuhi: layanan tanpa owner atau bukti tercatat sebagai blocker/risiko (checklist §2, §4, §5). AC-2 terpenuhi oleh gate checklist §3 selama notifikasi eksternal belum diaktifkan (Q80 §80.1). AC-1 dan AC-3 menunggu penetapan owner dan uji pemulihan di lingkungan UAT oleh PM bersama pengelola infrastruktur (Q80 §80.2). TEST-1–TEST-4 diganti verifikasi manual/acceptance UAT-1–UAT-4 karena objeknya kepemilikan dan prosedur operasional di luar kode (keputusan PM 1 November 2026, PR #214). Status ini **bukan** UAT accepted atau deployment.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
+- [x] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
 
 **B. Backend / Domain**
 - [ ] Pisahkan readiness aplikasi dari readiness operasional: Keycloak, HTTPS, DB/storage, backup/restore, queue worker, scheduler, WA/Email, monitoring, dan owner harus diverifikasi.
-- [ ] Jangan menandai produksi siap hanya karena automated test aplikasi lulus.
+- [x] Jangan menandai produksi siap hanya karena automated test aplikasi lulus.
 
 **C. Authorization & Audit**
-- [ ] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
+- [x] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
 
 **E. Integration / Operations**
 - [ ] Dokumentasikan owner, environment, health check, backup, restore test, queue worker, scheduler, storage, domain/HTTPS, dan dependency eksternal.
-- [ ] Sediakan checklist readiness UAT/production yang dapat ditandatangani/diterima pihak berwenang.
+- [x] Sediakan checklist readiness UAT/production yang dapat ditandatangani/diterima pihak berwenang.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
+- [ ] UAT-1: Verifikasi manual/acceptance — Given rilis akan masuk UAT/produksi, Then realm/client Keycloak, domain HTTPS, database/storage, queue worker, scheduler, dan backup/pemulihan harus memiliki owner.
+- [ ] UAT-2: Verifikasi manual/acceptance — Given notifikasi eksternal akan diaktifkan, Then provider, template, sumber kontak, jam/zona waktu, dan credential tersedia.
+- [ ] UAT-3: Verifikasi manual/acceptance — Given backup tersedia, Then prosedur pemulihan harus dapat diuji/dibuktikan sesuai kebijakan operasional.
+- [ ] UAT-4: Verifikasi manual/acceptance — Given dependency eksternal belum tersedia, Then status rilis mencatatnya sebagai blocker/risiko dan tidak diasumsikan selesai.
 
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 
 ### ISS-15.03 · [UAT] Tahapan UAT, Penerimaan, dan Produksi yang Terpisah
 
@@ -6632,6 +6653,7 @@ Perubahan per request (tanpa nomor baris kode):
 - [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
 - [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
 - [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [ ] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2).
 
 
 ---
@@ -6744,7 +6766,7 @@ Decision gate dianggap selesai bila:
 | `US-14.02` | `ISS-14.02` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.03` | `ISS-14.03` | Modul 3: 3.12 | §12.3, §12.6 | §13 | ✅ 1:1 |
 | `US-15.01` | `ISS-15.01` | S.1, P.5 | Pembuka, §12.6, §32 | §15 | ✅ 1:1 |
-| `US-15.02` | `ISS-15.02` | P.1–P.4 | §6, §28, §34 | §22 | ✅ 1:1 |
+| `US-15.02` | `ISS-15.02` | P.1–P.4 | §6, §28, §34 | — | ✅ 1:1 |
 | `US-15.03` | `ISS-15.03` | P.4 | Pembuka, §32 | — | ✅ 1:1 |
 
 ## 7. Checklist Sebelum Issue Dipindahkan ke GitHub Issues

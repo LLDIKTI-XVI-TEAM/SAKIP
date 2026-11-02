@@ -545,9 +545,8 @@ class RencanaAksiAjukanTest extends TestCase
         $this->ajukan($fixture['pic'], $header, 2)
             ->assertSessionHasErrors(['jendela' => 'Tahun jadwal telah ditutup; pengajuan memerlukan sesi koreksi resmi.']);
 
-        // Tanpa versi sah tidak ada pembanding sehingga dinilai sebagai daftar
-        // kosong: lingkup parsial pun menerima pengajuan awal PIC maupun
-        // Perencanaan selama sesi koreksinya sah.
+        // Tanpa versi sah tidak ada pembanding; Perencanaan dapat mengajukan
+        // dalam lingkup parsial, sedangkan PIC tetap ditolak selama sesi.
         $fixture['jadwal']->update([
             'koreksi_mulai' => '2026-03-16 00:00:00',
             'koreksi_sampai' => '2026-03-31 23:59:59',
@@ -557,7 +556,8 @@ class RencanaAksiAjukanTest extends TestCase
                 'periode_ids' => [$fixture['periode2']->id],
             ],
         ]);
-        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasNoErrors();
+        $this->ajukan($fixture['pic'], $header, 2)->assertSessionHasErrors('jendela');
+        $this->ajukan($fixture['perencanaan'], $header, 2)->assertSessionHasNoErrors();
         $this->assertSame('diajukan', $header->fresh()->status_alur);
 
         $kedua = $this->buatFixtureManual();
@@ -614,7 +614,7 @@ class RencanaAksiAjukanTest extends TestCase
         $this->ajukan($fixture['perencanaan'], $header, $diubah)->assertSessionHasErrors(['jendela' => $pesanTutup]);
         $this->assertSame('dikembalikan', $header->fresh()->status_alur);
 
-        // Perubahan TW II di dalam lingkup [TW II]: PIC maupun Perencanaan diterima.
+        // Perubahan TW II di dalam lingkup [TW II]: Perencanaan diterima.
         $kedua = $this->buatFixtureManual();
         $headerKedua = $this->drafManual($kedua, 100, 100);
         $this->actingAs($kedua['pic'])->post("/rencana-aksi/{$headerKedua->id}/ajukan", ['expected_versi' => 2])->assertSessionHasNoErrors();
@@ -641,7 +641,8 @@ class RencanaAksiAjukanTest extends TestCase
         $this->ajukan($kedua['pic'], $headerKedua, $diubahKedua)->assertSessionHasErrors('jendela');
         PeriodeJadwal::where('jadwal_id', $kedua['jadwal']->id)->where('periode_id', $kedua['periode2']->id)
             ->update(['pengisian_selesai' => '2026-04-15']);
-        $this->ajukan($kedua['pic'], $headerKedua, $diubahKedua)->assertSessionHasNoErrors();
+        $this->ajukan($kedua['pic'], $headerKedua, $diubahKedua)->assertSessionHasErrors('jendela');
+        $this->ajukan($kedua['perencanaan'], $headerKedua, $diubahKedua)->assertSessionHasNoErrors();
         $this->assertSame('diajukan', $headerKedua->fresh()->status_alur);
     }
 

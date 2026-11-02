@@ -135,7 +135,7 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
                 ->where('rencanaAksi.target_pk', '100.000000000000'));
     }
 
-    public function test_jadwal_ditutup_dengan_koreksi_sah_tetap_memakai_frozen_snapshot_terbaru(): void
+    public function test_sesi_koreksi_sah_tetap_memakai_frozen_snapshot_terbaru(): void
     {
         $fixture = $this->buatFixtureManual();
         $this->travelTo(now()->setDate(2026, 3, 10)->setTime(9, 0));
@@ -178,9 +178,9 @@ class RencanaAksiFrozenSnapshotTest extends TestCase
         $fixture['indikator']->update(['tipe_perhitungan' => 'rasio_persen', 'presisi' => 5]);
 
         $fixture['jadwal']->update([
-            'status' => 'ditutup',
+            'status' => 'aktif',
             'penutupan' => '2026-03-05',
-            'closed_at' => now(),
+            'closed_at' => null,
             'koreksi_mulai' => '2026-03-01 00:00:00',
             'koreksi_sampai' => '2026-03-31 23:59:59',
             'lingkup_koreksi' => [

@@ -31,7 +31,7 @@ let mockCan: Partial<NonNullable<SharedPageProps['auth']['can']>> = {
     verifikasi: true,
     statusCapaian: true,
     rekomendasi: true,
-    laporan_read: true,
+    laporan_read: true, dokumenResmi: true,
     unit: true,
     jenisBerkas: true,
     assignRole: true,
@@ -100,7 +100,7 @@ afterEach(() => {
         verifikasi: true,
         statusCapaian: true,
         rekomendasi: true,
-        laporan_read: true,
+        laporan_read: true, dokumenResmi: true,
         unit: true,
         jenisBerkas: true,
         assignRole: true,
@@ -153,8 +153,8 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
         if (pelaksanaan.type === 'group') {
             expect(pelaksanaan.group.label).toBe('Pelaksanaan & Evaluasi');
             // Kegiatan bukan menu mandiri lagi: permukaannya ada di dalam Rencana Aksi (Q74 §74.1).
-            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan', 'Status Capaian', 'Rekomendasi Pimpinan', 'Rekapitulasi']);
-            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'pengukuran', 'verifikasi', 'statusCapaian', 'rekomendasi', 'laporan_read']);
+            expect(pelaksanaan.group.children.map((c) => c.label)).toEqual(['Rencana Aksi', 'Pengukuran Kinerja', 'Verifikasi & Pengesahan', 'Status Capaian', 'Rekomendasi Pimpinan', 'Rekapitulasi', 'Dokumen Resmi']);
+            expect(pelaksanaan.group.children.map((c) => c.canKey)).toEqual(['rencanaAksi', 'pengukuran', 'verifikasi', 'statusCapaian', 'rekomendasi', 'laporan_read', 'dokumenResmi']);
         }
 
         expect(masterData.type).toBe('group');
@@ -208,7 +208,7 @@ describe('Test A — Menu Grouping & Inventory Integrity', () => {
             hrefs.add(item.href);
         });
 
-        expect(allItems).toHaveLength(22); // 1 menu langsung + 21 submenu
+        expect(allItems).toHaveLength(23); // 1 menu langsung + 22 submenu
         // Menu Kegiatan mandiri sudah dilebur ke dalam halaman Rencana Aksi.
         expect(allItems.some((item) => item.href === '/kegiatan' || item.label === 'Kegiatan')).toBe(false);
     });

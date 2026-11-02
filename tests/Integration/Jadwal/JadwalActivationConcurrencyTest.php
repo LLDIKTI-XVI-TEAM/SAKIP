@@ -4,13 +4,17 @@ namespace Tests\Integration\Jadwal;
 
 use App\Actions\Access\CreateDeny;
 use App\Actions\Jadwal\ActivateJadwal;
+use App\Actions\Jadwal\BukaKembaliJadwal;
+use App\Actions\Jadwal\KoreksiSnapshot;
 use App\Actions\Jadwal\SaveJadwalDraft;
+use App\Actions\Jadwal\TutupJadwal;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
 use App\Actions\Perencanaan\PindahUnitIndikator;
 use App\Actions\Perencanaan\StoreIndikator;
 use App\Actions\Periode\SavePeriode;
 use App\Actions\PerjanjianKinerja\DeleteBerkasPerjanjianKinerja;
+use App\Actions\RencanaAksi\SimpanTargetPeriode;
 use App\Actions\TargetTahunan\SaveTargetTahunan;
 use App\Actions\TargetTahunan\ShowTargetTahunan;
 use App\Models\AuditLog;
@@ -18,7 +22,9 @@ use App\Models\Berkas;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\PenugasanIndikator;
 use App\Models\Permission;
+use App\Models\RencanaAksi;
 use App\Models\TargetKinerja;
 use App\Models\Unit;
 use App\Models\User;
@@ -35,8 +41,8 @@ use Tests\Support\JadwalActivationFixtures;
 use Tests\TestCase;
 
 /**
- * Race aktivasi vs writer produksi pada PostgreSQL dua koneksi: proses test memegang lock writer pertama di
- * transaksi terbuka, worker terpisah menjalankan lawannya dan dibuktikan terblokir sebelum commit.
+ * Race aktivasi dan koreksi snapshot vs writer produksi pada PostgreSQL dua koneksi: proses test memegang lock writer
+ * pertama di transaksi terbuka, worker terpisah menjalankan lawannya dan dibuktikan terblokir sebelum commit.
  */
 class JadwalActivationConcurrencyTest extends TestCase
 {
@@ -287,10 +293,106 @@ class JadwalActivationConcurrencyTest extends TestCase
         $this->assertSame('ditolak', AuditLog::where('tindakan', 'jadwal.aktivasi_ditolak')->sole()->dasar_izin['keputusan']);
     }
 
+    public function test_concurrent_snapshot_corrections_publish_one_version_and_reject_the_stale_one(): void
+    {
+        $this->readyJadwal();
+        app(ActivateJadwal::class)->handle($this->activator(), $this->ready['jadwal']->id, $this->activationPayload());
+        $lama = JadwalSnapshot::sole();
+        TargetKinerja::where('indikator_kinerja_id', $lama->indikator_id)->update(['target_tahunan' => '80.5']);
+        // Dua aktor berbeda agar worker antre pada lock domain (indikator/snapshot), bukan pada baris aktor yang sama.
+        $job = $this->correctionJob($this->activator(['indikator:read', 'target:update']), $lama);
+        DB::beginTransaction();
+        app(KoreksiSnapshot::class)->handle($this->activator(['indikator:read', 'target:update']), $this->ready['jadwal']->id, $lama->id, $job['data']);
+        $this->assertSame(['outcome' => 'validation', 'fields' => ['expected_snapshot_id']], $this->raceAgainstOpenTransaction($job));
+        $this->assertSame([1, 2], JadwalSnapshot::orderBy('nomor_versi')->pluck('nomor_versi')->all());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal_snapshot.koreksi')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal_snapshot.koreksi_ditolak')->count());
+    }
+
+    public function test_correction_waits_for_target_writer_and_copies_the_committed_target(): void
+    {
+        $this->readyJadwal();
+        app(ActivateJadwal::class)->handle($this->activator(), $this->ready['jadwal']->id, $this->activationPayload());
+        $lama = JadwalSnapshot::sole();
+        $writer = $this->activator(['indikator:read', 'target:update']);
+        $state = app(ShowTargetTahunan::class)->handle($writer, $lama->indikator_id, 2026);
+        $job = $this->correctionJob($this->activator(['indikator:read', 'target:update']), $lama);
+        DB::beginTransaction();
+        app(SaveTargetTahunan::class)->handle($writer, $lama->indikator_id, 2026, ['baseline' => null, 'target_tahunan' => '95', 'expected_state' => $state['expected_state'],
+            'operation_id' => (string) Str::uuid(), 'alasan' => 'Salah ketik target PK']);
+        $this->assertSame(['outcome' => 'changed', 'changed' => null], $this->raceAgainstOpenTransaction($job));
+        $this->assertSame('95.000000000000', JadwalSnapshot::where('nomor_versi', 2)->sole()->getRawOriginal('target'));
+    }
+
+    /** Koreksi dan simpan target RA sama-sama mengunci indikator sebelum jadwal dan snapshot, sehingga keduanya antre tanpa deadlock. */
+    public function test_correction_and_action_plan_target_save_queue_in_both_orders(): void
+    {
+        $this->readyJadwal();
+        app(ActivateJadwal::class)->handle($this->activator(), $this->ready['jadwal']->id, $this->activationPayload());
+        $lama = JadwalSnapshot::sole();
+        TargetKinerja::where('indikator_kinerja_id', $lama->indikator_id)->update(['target_tahunan' => '80.5']);
+        $penyusun = $this->activator(['rencana_aksi:update']);
+        // Izin tulis RA dinilai per unit header; grant global fixture tidak mencakup unit.
+        DB::table('user_permission_granted')->insert(['id' => (string) Str::uuid(), 'user_id' => $penyusun->id,
+            'permission_id' => Permission::where('kode', 'rencana_aksi:update')->value('id'), 'unit_id' => $this->ready['unit']->id,
+            'alasan' => 'Fixture unit', 'diberikan_oleh' => $this->ready['owner']->id, 'created_at' => now()]);
+        PenugasanIndikator::create(['indikator_id' => $lama->indikator_id, 'user_id' => $penyusun->id, 'tanggal_mulai_berlaku' => '2026-01-01',
+            'ditetapkan_oleh' => $this->ready['owner']->id, 'created_at' => now()]);
+        $header = RencanaAksi::create(['indikator_id' => $lama->indikator_id, 'tahun' => 2026, 'unit_id' => $this->ready['unit']->id,
+            'jadwal_tahunan_id' => $this->ready['jadwal']->id, 'snapshot_draf_id' => $lama->id, 'penanggung_jawab_id' => $penyusun->id,
+            'status_alur' => 'draft', 'created_by' => $penyusun->id]);
+        $simpan = fn (JadwalSnapshot $token): array => ['expected_versi' => $header->fresh()->versi, 'expected_snapshot_id' => $token->id,
+            'expected_snapshot_versi' => $token->nomor_versi, 'targets' => [['periode_id' => $this->ready['periode']->id, 'komponen_id' => null, 'nilai' => 80, 'keterangan' => null]]];
+
+        // Simpan target RA dulu: koreksi menunggu lalu terbit.
+        $job = $this->correctionJob($this->activator(['indikator:read', 'target:update']), $lama);
+        DB::beginTransaction();
+        app(SimpanTargetPeriode::class)->handle($penyusun, $header->id, $simpan($lama));
+        $this->assertSame(['outcome' => 'changed', 'changed' => null], $this->raceAgainstOpenTransaction($job));
+        $baru = JadwalSnapshot::where('nomor_versi', 2)->sole();
+
+        // Koreksi dulu: simpan target RA dengan token versi lama menunggu lalu ditolak usang.
+        TargetKinerja::where('indikator_kinerja_id', $lama->indikator_id)->update(['target_tahunan' => '81']);
+        $job = ['operation' => 'simpan_target_ra', 'actor_id' => $penyusun->id, 'id' => $header->id, 'data' => $simpan($baru)];
+        DB::beginTransaction();
+        app(KoreksiSnapshot::class)->handle($this->activator(['indikator:read', 'target:update']), $this->ready['jadwal']->id, $baru->id, $this->correctionJob($penyusun, $baru)['data']);
+        $this->assertSame(['outcome' => 'validation', 'fields' => ['expected_snapshot_id']], $this->raceAgainstOpenTransaction($job));
+        $this->assertSame([1, 2, 3], JadwalSnapshot::orderBy('nomor_versi')->pluck('nomor_versi')->all());
+    }
+
+    private function correctionJob(User $actor, JadwalSnapshot $snapshot): array
+    {
+        return ['operation' => 'koreksi_snapshot', 'actor_id' => $actor->id, 'id' => $this->ready['jadwal']->id, 'snapshot_id' => $snapshot->id,
+            'data' => ['periode_mulai_id' => $snapshot->periode_mulai_id, 'alasan_koreksi' => 'Target PK salah ketik', 'rujukan_koreksi' => 'Nota dinas fixture',
+                'expected_snapshot_id' => $snapshot->id, 'expected_snapshot_versi' => $snapshot->nomor_versi]];
+    }
+
     private function activationJob(?User $actor = null, ?int $expectedRevisi = null): array
     {
         return ['operation' => 'activate', 'actor_id' => ($actor ?? $this->activator())->id, 'id' => $this->ready['jadwal']->id,
             'data' => $this->activationPayload($expectedRevisi ? ['expected_revisi' => $expectedRevisi] : [])];
+    }
+
+    public function test_dua_pembukaan_sesi_hanya_mencatat_satu_transisi_dan_menolak_penulis_basi(): void
+    {
+        $this->readyJadwal();
+        $jadwal = app(ActivateJadwal::class)->handle($this->activator(), $this->ready['jadwal']->id, $this->activationPayload());
+        $jadwal = JadwalTahunan::findOrFail($this->ready['jadwal']->id);
+        app(TutupJadwal::class)->handle($this->activator(['jadwal:tutup']), $jadwal->id, ['expected_revisi' => $jadwal->revisi, 'alasan' => 'Penutupan fixture']);
+        $actors = [$this->activator(['jadwal:buka_kembali']), $this->activator(['jadwal:buka_kembali'])];
+        $data = ['expected_revisi' => $jadwal->fresh()->revisi, 'alasan' => 'Koreksi resmi',
+            'koreksi_mulai' => '2026-10-07T08:00', 'koreksi_sampai' => '2026-10-08T17:00',
+            'lingkup_koreksi' => ['jenis_objek' => ['rencana_aksi'], 'indikator_ids' => [JadwalSnapshot::sole()->indikator_id], 'periode_ids' => [$this->ready['periode']->id]]];
+        $before = $this->snapshotFingerprint();
+        DB::beginTransaction();
+        app(BukaKembaliJadwal::class)->handle($actors[0], $jadwal->id, $data);
+        $result = $this->raceAgainstOpenTransaction(['operation' => 'reopen_jadwal', 'actor_id' => $actors[1]->id, 'id' => $jadwal->id, 'data' => $data]);
+        $this->assertSame(['outcome' => 'validation', 'fields' => ['jadwal']], $result);
+        $this->assertSame('aktif', $jadwal->fresh()->status);
+        $this->assertSame($data['expected_revisi'] + 1, $jadwal->fresh()->revisi);
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.buka_kembali')->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'jadwal.buka_kembali_ditolak')->count());
+        $this->assertSame($before, $this->snapshotFingerprint());
     }
 
     private function newIndicatorPayload(): array

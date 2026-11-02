@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **25 Oktober 2026**
+Pembaruan terakhir: **1 November 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -80,6 +80,10 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Rapat evaluasi 23 Oktober 2026 (Q70–Q74)** menetapkan tanggal periode tanpa tahun di Master Periode dan jadwal tanpa jendela reviu (Q70); revisi target Renstra aktif melalui mode revisi dengan justifikasi wajib (Q71); penolakan target PK yang menyimpang dari target Renstra serta alasan perubahan target PK yang wajib (Q72); baseline otomatis dan tabel target PK tanpa kolom Target Renstra (Q73); serta kegiatan yang dikelola dari Rencana Aksi beserta form realisasi dan biaya terpakai (Q74).
 
+**Keputusan 30 Oktober 2026 (Q79)** menetapkan bahwa versi koreksi snapshot disalin dari data master terkini setelah master diperbaiki, dengan periode mulai yang tidak lebih awal dari versi yang digantikan dan tanpa memindahkan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada, serta menyelaraskan Acceptance Criteria ISS-03.03 dengan issue #91.
+
+**Keputusan 1 November 2026 (Q80)** menetapkan bahwa AC-2 ISS-15.02 terpenuhi oleh gate checklist kesiapan infrastruktur selama notifikasi eksternal belum diaktifkan, dan gate itu menjadi Definition of Done issue notifikasi eksternal; uji pemulihan di lingkungan UAT cukup untuk ISS-15.02 dan diulang di produksi sebelum produksi diterima; serta path berkas di dokumen diselaraskan dengan implementasi.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -115,7 +119,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | Q17 | Perencanaan dapat menyelesaikan reviu sampai penutupan tahunan; lewat batas reviu diberi penanda terlambat. **Diubah Q70:** jendela reviu dihapus; reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan tanpa penanda terlambat baru. | PRD §12.3, §31; Q70 |
 | Q18 | Perencanaan berwenang dapat mengubah jendela resmi PIC dengan alasan, batas baru, dan audit batas lama. Di luar jendela PIC tetap terkunci. **Q41:** berlaku untuk jendela pengisian pengukuran; jendela penyusunan RA sudah dihapus. **Dilengkapi Q57:** revisi resmi dapat ikut menyesuaikan jendela reviu periode yang sama. **Q70:** jendela reviu dihapus, sehingga revisi hanya menyangkut jendela pengisian. | PRD §12.3; Plan 3.12; Q41; Q57; Q70 |
 | Q19 | Koreksi setelah penutupan memerlukan buka kembali dengan lingkup dan durasi eksplisit; tanggal penutupan asli dipertahankan. PIC memerlukan aksi pembukaan jendela terpisah Q18 dalam waktu/lingkup sesi koreksi, bukan otomatis dari buka tahun. | PRD §12.6, §19.5 |
-| Q20 | Indikator baru memiliki periode mulai berlaku; periode sebelumnya Tidak berlaku dan tidak menjadi target/missing/nol. | PRD §10.5, §14.7, §23 |
+| Q20 | Indikator baru memiliki periode mulai berlaku; periode sebelumnya Tidak berlaku dan tidak menjadi target/missing/nol. **Status implementasi (PR #197):** penambahan indikator ke jadwal aktif dengan periode mulai pilihan tersedia lewat aksi beralasan; periode sebelumnya tampil Tidak berlaku. | PRD §10.5, §14.7, §23 |
 | Q21 | Backfill dapat menerima skor historis final tanpa komponen, dengan sumber/alasan/penanda dan alur pengesahan; tidak mengubah tipe master atau membuat komponen rekaan. | PRD §12.6, §17.6 |
 | Q22 | Bukti kegiatan memakai union persyaratan global dan indikator yang diklaim; klaim baru setelah terlaksana memeriksa bukti tambahan. | PRD §15.6; Workflow §8–10 |
 | Q23 | Saat unggahan mati, hanya kewajiban mode file dikecualikan; mode lain tetap diwajibkan sesuai kombinasi. Penanda/audit menjelaskan pengecualian. Pengecualian khusus lampiran PK existing tetap berlaku. **Digantikan Q44:** saklar unggahan dihapus sehingga unggahan file selalu aktif; histori penanda lama tetap tersimpan. | PRD §18.5–18.7 dan §12.4; Q44 |
@@ -803,7 +807,7 @@ Q35 menutup tiga kontrak yang ditemukan saat review ISS-05.01: aturan dokumen ma
 1. `jadwal_tahunan.lingkup_koreksi` tanpa `periode_ids` berarti **tidak ada periode yang tercakup**; tidak ada pengartian "semua periode".
 2. Berlaku untuk Rencana Aksi dan Pengukuran.
 
-**Status implementasi:** Pengukuran (`PengukuranKinerjaPolicy`, sudah di `development`) dan Rencana Aksi (`JendelaTulisRencanaAksi`, PR #62) memperlakukan `periode_ids` yang tidak ada sebagai daftar kosong. Penetapan lingkup koreksi tetap milik ISS-14.02.
+**Status implementasi (ISS-14.02, PR #199):** penetapan lingkup eksplisit dan evaluasi gagal tertutup diterapkan melalui `BukaKembaliJadwal` serta `SesiKoreksiJadwal`, yang dipakai Rencana Aksi dan Pengukuran. Daftar jenis data, indikator, dan periode wajib tidak kosong; metadata tidak lengkap tidak membuka akses. Kontrak sesi mengikuti Q77; bukan penerimaan UAT atau deployment.
 
 ## 35.3 Batas Periode per Jadwal
 
@@ -1033,7 +1037,7 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 6. Capaian akhir tahun dinilai terhadap target **PK akhir**, yaitu versi yang berlaku pada periode nilai akhir. (PM)
 7. Rencana Aksi tidak diubah otomatis. Selisih target periode terakhir dengan target PK baru tampil sebagai deviasi yang wajib dijelaskan (ADR-0008); target periode yang belum terkunci disesuaikan lewat buka-kembali (ISS-05.06). (PM)
 8. Koreksi salah ketik nomor atau tanggal PK tetap memakai jalur koreksi teraudit (ISS-02.09); perubahan target resmi memakai revisi berversi.
-9. Prasyarat implementasi: alur koreksi snapshot berversi (ISS-03.03), yang belum dikerjakan. Revisi PK dijadwalkan pada tahap 3 (§46.3).
+9. Prasyarat implementasi: alur koreksi snapshot berversi (ISS-03.03), yang belum dikerjakan. Revisi PK dijadwalkan pada tahap 3 (§46.3). *(Catatan 30 Oktober 2026: alur koreksi snapshot berversi diimplementasikan untuk ISS-03.03 (Q79); revisi PK berversi tetap belum.)*
 
 ## 40.2 Revisi Renstra
 
@@ -1417,7 +1421,7 @@ Sumber: Rencana Aksi 2026, Laporan Kinerja Triwulan I–II 2026, dan Perjanjian 
 - PRD §5.1, §7.2, §24, §30, §31; Data Model §2.30 (induk `berkas` baru `jadwal_tahunan` dan `jadwal_periode`) dan katalog permission (`laporan:unggah`); Workflow (alur buat, tanda tangan di luar aplikasi, dan unggah); Plan modul 8 (task 8.5) dan 13; System Architecture §14.
 - User Stories/Issues: issue baru **US/ISS-10.05**, tahap 2 (Q46 §46.3); US/ISS-10.02 dan 14.01 diberi catatan.
 - Bila pembuatan berkas memerlukan pustaka baru, keputusannya dicatat sebagai ADR.
-- Status implementasi: sebagian. Kolom `berkas.keterangan` sudah ada dan dipakai lampiran PK (ISS-02.11, Q65 §65.3); induk arsip `jadwal_tahunan`/`jadwal_periode`, `laporan:unggah`, dan pemakaian keterangan untuk induk lain belum (ISS-10.05). Ekspor rekap ISS-10.03 ([PR #198](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/198)) sudah menerapkan `laporan:ekspor` (§48.1 butir 6) serta pembaca data bersama halaman dan ekspor. Keluaran resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan tetap ISS-10.05; penerimaan format Q29 tetap ISS-10.04. Acuan format §48.1 butir 5 dicatat pada `SAKIP - Acuan Keluaran Excel.md` (ISS-10.04); per 29 Oktober 2026 ketiga keluaran masih berstatus "Draf — belum disahkan Perencanaan".
+- Status implementasi: sebagian. Kolom `berkas.keterangan` sudah ada dan dipakai lampiran PK (ISS-02.11, Q65 §65.3); induk arsip `jadwal_tahunan`/`jadwal_periode`, katalog/preset `laporan:unggah`, serta keterangan dan penggantian arsip append-only tersedia melalui [PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208) (slice arsip ISS-10.05). Ekspor rekap ISS-10.03 ([PR #198](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/198)) sudah menerapkan `laporan:ekspor` (§48.1 butir 6) serta pembaca data bersama halaman dan ekspor. Generator Excel resmi Rencana Aksi tahunan dan Laporan Kinerja Triwulan belum diimplementasikan dan tetap milik ISS-10.05; penerimaan format Q29 tetap ISS-10.04. Acuan format §48.1 butir 5 dicatat pada `SAKIP - Acuan Keluaran Excel.md` (ISS-10.04); per 29 Oktober 2026 ketiga keluaran masih berstatus "Draf — belum disahkan Perencanaan".
 
 ---
 
@@ -1542,8 +1546,10 @@ Sumber: Laporan Kinerja Triwulan I–II 2026 — rekomendasi per indikator berca
 
 1. Kegiatan tidak terikat Renstra. Tahun kegiatan T terkunci bila ada jadwal non-draft tahun T yang terkunci menurut §52.2; tahun tanpa jadwal tidak terkunci.
 2. Perubahan kegiatan memeriksa tahun lama dan tahun baru, sehingga kegiatan tidak dapat dipindahkan keluar dari tahun yang terkunci.
-3. Kegiatan belum memiliki pengecualian sesi koreksi; ISS-14.02 menetapkan lingkupnya bila diperlukan.
-4. Klaim kegiatan belum memiliki jalur tulis. Penulis klaim kelak memakai aturan yang sama.
+3. Kegiatan, klaim, dan berkas kegiatan tetap terkunci selama sesi koreksi ISS-14.02, termasuk bila Rencana Aksi tercakup (Q77 butir 2).
+4. Penulis klaim kegiatan mengikuti kunci tahun yang sama melalui `GerbangKlaimKegiatan`; pembukaan sesi tidak memberi pengecualian untuk klaim.
+
+**Status implementasi (ISS-14.02, PR #199):** `JadwalTahunan::tahunDitutup()` mempertahankan kunci mutasi normal ketika metadata sesi ada; `GerbangKlaimKegiatan` dan gerbang berkas kegiatan mengikuti kunci tahun tersebut. Lingkup koreksi resmi mengikuti Q77. Status ini bukan penerimaan UAT atau deployment.
 
 ## 52.4 Dampak dan traceability
 
@@ -1833,7 +1839,7 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 1. Snapshot yang sudah terbentuk tidak menghalangi perubahan target PK di halaman Perjanjian Kinerja. Izin simpan (`indikator:read` dan `target:update`, Q39 §39.3 butir 3) serta aturan baca-saja yang sudah ada tetap berlaku.
 2. Alasan perubahan target PK opsional, termasuk setelah snapshot terbentuk (Q43 §43.3 butir 2). *(Digantikan Q72 §72.2: alasan perubahan target PK wajib.)* Isian `rujukan_sumber` dipertahankan sebagai isian opsional; nilainya tidak disimpan pada target PK dan hanya tercatat di audit.
-3. Perubahan tersebut bukan koreksi PK (Q43 §43.2 butir 3) dan bukan revisi PK (Q40). Koreksi salah ketik nomor atau tanggal PK memakai ISS-02.09, perubahan target resmi memakai revisi PK berversi (Q40 §40.1 butir 8, ISS-02.12), dan salah ketik target yang sudah beku memakai versi snapshot pengganti (Q35 §35.1). Ketiga jalur itu belum tersedia (ISS-02.09, ISS-02.12, ISS-03.03).
+3. Perubahan tersebut bukan koreksi PK (Q43 §43.2 butir 3) dan bukan revisi PK (Q40). Koreksi salah ketik nomor atau tanggal PK memakai ISS-02.09, perubahan target resmi memakai revisi PK berversi (Q40 §40.1 butir 8, ISS-02.12), dan salah ketik target yang sudah beku memakai versi snapshot pengganti (Q35 §35.1). Ketiga jalur itu belum tersedia (ISS-02.09, ISS-02.12, ISS-03.03). *(Catatan 30 Oktober 2026: versi snapshot pengganti tersedia melalui ISS-03.03, disalin dari data master setelah target PK diperbaiki (Q79 §79.1).)*
 4. Perubahan tersebut tidak mengubah `jadwal_snapshot`, rekonsiliasi Rencana Aksi (ADR-0008), maupun pengukuran tahun tersebut, yang tetap membaca target PK dari snapshot (Q39 §39.1 butir 3).
 5. Halaman PK menampilkan target PK yang tersimpan. Bila jadwal tahun PK berstatus `aktif` atau `ditutup`, halaman PK menampilkan pemberitahuan bahwa perubahan tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun tersebut.
 6. Editor menampilkan pemberitahuan yang sama bila indikator tersebut sudah memiliki snapshot tahun itu, dan menyebut bahwa perubahan resmi yang mengubah target menunggu revisi PK berversi (ISS-02.12) atau, sebelum itu tersedia, keputusan PM (Q50 §50.7 butir 2). Tidak ada guard baru.
@@ -2275,8 +2281,8 @@ Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 
 |---|---|---|
 | Penerima walkthrough/UAT, tanggal penerimaan dan tanggal produksi | PM + Perencanaan | Belum tercatat final; target integrasi proyek tidak otomatis sama dengan go-live. |
 | Contoh keluaran Excel penerimaan | Perencanaan | Layout/kolom/presisi/narasi final masih perlu disahkan untuk UAT. |
-| Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. |
-| Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. |
+| Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. Owner, status, bukti, dan blocker per layanan dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). |
+| Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. Daftar periksanya ada pada `SAKIP - Kesiapan Infrastruktur.md` §3; aktivasinya mengikuti ISS-12.x setelah Tahap 2 (Q46 §46.3) dengan gate Q80 §80.1. |
 | Daftar penetapan awal 2026 | Perencanaan | Daftar unit, mapping indikator→unit, PJ, dan grant turunan dari penetapan PJ perlu disiapkan sebelum operasional TW IV (Q46; semula TW III). Pemetaan unit sementara tercantum pada asumsi kerja di bawah. |
 | Konfirmasi tertulis Q38–Q52 | PM + Perencanaan | Menunggu; tanggal kirim, bentuk, dan hasil dicatat pada pengantar Q39–Q46, pengantar Q47–Q51, dan Q52 §52.4. |
 | Contoh dokumen PK, Rencana Aksi, dan Pengukuran | Perencanaan | **Selesai.** Diterima sebagai lima dokumen resmi 2026 dan dianalisis pada Q47–Q51. |
@@ -2361,6 +2367,23 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
 5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.
 
+# Keputusan Q77 — Sesi Koreksi Jadwal Tahunan
+
+**Keputusan PM: 29 Oktober 2026 (WITA), [review PR #199](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6490862740).** PM menetapkan keenam butir refinement sesi koreksi ISS-14.02. Q77 menambahkan validasi akhir sesi pada butir 6, sebagaimana ditegaskan pada [re-review PM](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6495008769). Pencatatan keputusan bukan penerimaan QA/UAT, merge, atau deployment. Dasar keputusan: Q19, Q35 §35.2, Q41 §41.2, dan Q52 §52.3:
+
+1. Lingkup wajib eksplisit dengan daftar tidak kosong `jenis_objek` (`rencana_aksi`, `pengukuran`), `indikator_ids` yang memiliki snapshot jadwal, dan `periode_ids` anggota jadwal. Tidak ada wildcard atau dimensi unit baru; izin dasar dan deny tetap diperiksa.
+2. Kegiatan, klaim dan berkas kegiatan tetap terkunci, termasuk saat jenis data Rencana Aksi tercakup (Q52 §52.3).
+3. Jadwal `ditutup → aktif` hanya membuka sesi koreksi, termasuk sebelum `penutupan` asli. Sesi berlaku pada status `aktif` dan rentang inklusif; sesudah akhir sesi seluruh koreksi ditolak meskipun status masih aktif. Tutup ulang manual segera menghentikan akses; tanpa scheduler baru.
+4. PIC tetap ditolak pada sesi yang dibuat issue ini, sekalipun jendela lama masih berjalan atau tanggalnya diubah langsung. Pembukaan PIC resmi tetap melalui ISS-14.03, bukan ditambahkan pada issue ini.
+5. Buka-kembali tidak membentuk snapshot otomatis. Indikator baru memakai ISS-03.04 dengan periode mulai eksplisit; ketentuan lama Workflow §5/§13 dan Plan 3.7/3.9 tentang pembentukan snapshot saat buka-kembali diselaraskan.
+6. Input waktu WITA disimpan UTC; awal harus sebelum akhir, kedua batas inklusif, sesi mendatang boleh dijadwalkan. Pada saat pembukaan, akhir sesi wajib setelah waktu sekarang (WITA); nilai yang sama atau sudah lewat ditolak. `closed_at` direset, nilai sebelumnya tetap di audit; `penutupan` dan `activated_at` dipertahankan.
+
+**Catatan butir 2:** butir 2 ditinjau ulang bila koreksi kegiatan dibutuhkan saat pelaporan TW IV 2026.
+
+**Status implementasi:** sesi, lingkup, dan penguncian existing telah diterapkan oleh ISS-14.02 pada PR #199. Validasi akhir sesi pada butir 6 diterapkan saat pembukaan jadwal; pencatatan implementasi ini tidak menyatakan QA/UAT diterima.
+
+**Traceability:** Q19, Q35 §35.2, Q41 §41.2, Q52 §52.3; ISS-14.02 / US-14.02 (issue #182); PRD §12.6/§19.5; Workflow §5/§13; Plan 3.7/3.9; Data Model §2.15/§2.32.
+
 ---
 
 # Keputusan Q78 — Status Capaian per Versi Pengukuran
@@ -2382,3 +2405,79 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 - **Status implementasi ISS-09.02:** implemented dan verified melalui test backend, Vitest, serta CI exact HEAD PR #203. Keputusan ini tidak menyatakan merge, UAT, atau deployment.
 - **Traceability:** Q43 (kewajiban alasan), Q47 §47.3 butir 4 (penetapan tidak tersedia), Q50 §50.2 (target PK bernilai penuh), Q64 §64.1 (status tampilan), ISS-10.01 dan ISS-10.02 (konsumen status capaian), PRD §21 dan §23, Workflow §16, Data Model §2.21, Plan 6.4–6.6 dan 7.1.
 - **Status keputusan:** Keputusan PM 28–29 Oktober 2026 (review PR #203); konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
+# Keputusan Q79 — Sumber, Periode Mulai, dan Dampak Koreksi Snapshot
+
+**Keputusan PM: 30 Oktober 2026 (WITA)**, analisis [issue #91](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/91) (ISS-03.03) sebelum dikerjakan. Memperjelas Q35 §35.1 butir 2 (asal nilai versi baru) dan Q65 §65.1 butir 3 (jalur salah ketik target yang sudah beku), serta menetapkan keputusan terbuka issue #91. Mengubah US/ISS-03.03 (Acceptance Criteria) serta Data Model §2.17 dan §2.36. Pencatatan ini bukan persetujuan implementasi, QA/UAT, merge, atau deployment.
+
+## 79.1 Sumber nilai versi koreksi
+
+1. Versi koreksi disalin dari data master terkini saat koreksi dijalankan: atribut indikator, target dan baseline PK tahun jadwal, serta komponen aktif. Tidak ada isian bebas untuk nilai snapshot.
+2. Kesalahan diperbaiki lebih dulu di halaman master yang sudah ada: Sasaran & Indikator (atribut indikator dan penanda dinilai tahunan, Q47 §47.1), Perjanjian Kinerja (target PK, Q65 §65.1), dan komponen indikator. Validasi master tetap berlaku.
+3. Sebelum koreksi, halaman snapshot menampilkan selisih antara versi terbaru dan data master per kolom, termasuk komponen. Koreksi ditolak bila tidak ada selisih; perubahan periode mulai saja tidak dihitung sebagai selisih.
+4. Seluruh selisih ikut tersalin; pengguna tidak memilih sebagian kolom. Perubahan master yang dimaksudkan untuk jadwal berikutnya (Q47 §47.1 butir 2) ikut terbawa bila koreksi dijalankan, dan tampil pada selisih sebelum koreksi dikonfirmasi.
+5. Izin dinilai per kelompok kolom yang berbeda, dibaca ulang di dalam transaksi, dan deny menang: `target` dan `baseline` memerlukan `target:update`; `nama`, `definisi`, `satuan`, `unit_id`, `arah`, `presisi`, `desimal_tampilan`, dan `dinilai_tahunan` memerlukan `indikator:update`; `tipe_perhitungan` dan komponen memerlukan `komponen:update`.
+6. `alasan_koreksi` dan `rujukan_koreksi` wajib (Q43 §43.2 butir 3).
+7. Butir 1–4 berlaku untuk koreksi oleh pengguna (ISS-03.03). Sumber target versi yang diterbitkan revisi PK (Q40 §40.1 butir 4) ditetapkan pada ISS-02.12.
+8. *(Tambahan 30 Oktober 2026, keputusan PM atas review PR #213.)* Koreksi ditolak bila unit penanggung jawab di data master berbeda dari unit header Rencana Aksi yang sudah ada untuk indikator dan tahun jadwal. Unit header tidak pernah berubah, sehingga versi dengan unit lain akan menolak penyimpanan target dan pengajuan Rencana Aksi serta pengajuan pengukuran pada versi itu. Indikator tanpa Rencana Aksi tetap dapat dikoreksi ke unit baru. Pemindahan unit Rencana Aksi yang sudah ada menjadi issue lanjutan.
+
+## 79.2 Periode mulai berlaku versi koreksi
+
+1. `periode_mulai_id` wajib, merupakan periode jadwal yang sama, dan urutannya tidak lebih awal dari periode mulai versi yang digantikan. Isian awalnya sama dengan periode mulai versi yang digantikan.
+2. Periode sebelum periode mulai versi koreksi tetap memakai versi lama.
+3. Rencana Aksi membaca versi terbaru dan hanya periode sejak periode mulainya. Bila periode mulai versi koreksi lebih akhir dari versi yang digantikan, target draf periode sebelumnya dilepas oleh rekonsiliasi draf yang sudah ada saat penyimpanan berikutnya, sedangkan target periode itu tetap tersimpan pada versi Rencana Aksi yang sudah diajukan atau disahkan. Form koreksi menampilkan peringatan ini.
+4. Kriteria "periode pertama yang belum ditutup" untuk versi yang diterbitkan revisi PK (Q40 §40.1 butir 4) ditetapkan pada refinement ISS-02.12. ISS-03.03 membuktikan AC-8 dengan periode mulai yang diisi eksplisit.
+
+## 79.3 Pengukuran dan Rencana Aksi pada versi lama
+
+1. Koreksi tidak memindahkan rujukan pengukuran maupun versi Rencana Aksi ke versi baru, termasuk pengukuran berstatus `draft` atau `dikembalikan`.
+2. Pengukuran yang dibuat sesudah koreksi untuk periode sejak periode mulai versi koreksi memakai versi koreksi, dan baru dapat diajukan setelah Rencana Aksi disahkan ulang dengan versi tersebut melalui buka-kembali (Q40 §40.1 butir 7).
+3. Setelah Rencana Aksi disahkan ulang dengan versi koreksi, pengukuran `draft` atau `dikembalikan` yang masih merujuk versi lama tidak dapat diajukan, karena gerbang pengajuan mensyaratkan snapshot yang sama dengan versi Rencana Aksi sah. Form koreksi menampilkan dampak butir 2–3.
+4. Pemindahan eksplisit dan teraudit pengukuran `draft`/`dikembalikan` ke versi koreksi menjadi issue lanjutan, yang wajib selesai sebelum koreksi snapshot pertama dijalankan pada data produksi.
+
+## 79.4 Acceptance Criteria ISS-03.03
+
+1. US/ISS-03.03 memakai delapan Acceptance Criteria issue #91: AC-6 (dua koreksi serentak) dan AC-7 (izin per kelompok kolom serta alasan dan rujukan wajib) ditambahkan, AC-4 memakai redaksi issue dengan cakupan butir 79.3, dan AC-6 lama (versi akibat revisi PK) menjadi AC-8.
+2. AC-2 dan AC-5 memuat 79.1 butir 1, 3, dan 8 serta 79.2 butir 1.
+
+## 79.5 Izin halaman Snapshot Indikator
+
+1. Halaman Snapshot Indikator dibaca dengan izin yang sama dengan detail jadwal tahunan.
+2. Tombol Koreksi tampil bila izin baca terpenuhi dan aktor memiliki salah satu dari `target:update`, `indikator:update`, atau `komponen:update`. Keputusan akhir di server mengikuti 79.1 butir 5.
+
+## 79.6 Dampak dan traceability
+
+- Q35 §35.1 dan Q65 §65.1 butir 3 diperjelas; Q40 §40.1 tidak berubah.
+- Data Model §2.17 (`periode_mulai_id` dan perilaku koreksi) dan §2.36 (kriteria "belum ditutup"); US/ISS-03.03.
+- Pembaca versi efektif per periode, rekonsiliasi draf Rencana Aksi, dan gerbang pengajuan pengukuran tidak berubah oleh keputusan ini.
+- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. Issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) dan §79.3 butir 4 belum dikerjakan. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
+# Keputusan Q80 — Gate Notifikasi Eksternal, Lingkungan Uji Pemulihan, dan Penyelarasan Dokumen ISS-15.02
+
+**Keputusan PM: 1 November 2026 (WITA)**, rencana penyelesaian [issue #186](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/186) (ISS-15.02) setelah PR #214. Memperjelas Q30 dan Q46 §46.3 untuk AC-2 dan AC-3 ISS-15.02, serta menyelaraskan path penyimpanan berkas pada dokumen dengan implementasi. Mengubah US/ISS-15.02; Definition of Done ISS-12.03–ISS-12.07, ISS-13.04, dan ISS-15.03; `SAKIP - Kesiapan Infrastruktur.md` §3–§5; serta PRD, Workflow, Data Model, dan Plan (path berkas). Pencatatan ini bukan persetujuan UAT, produksi, atau aktivasi notifikasi.
+
+## 80.1 AC-2 ISS-15.02 dan gate notifikasi eksternal
+
+1. Selama notifikasi eksternal (WhatsApp/Email) belum diaktifkan (Q46 §46.3), AC-2 ISS-15.02 terpenuhi oleh gate pada `SAKIP - Kesiapan Infrastruktur.md` §3: setiap kebutuhan (provider, template, sumber kontak, jam kirim dan zona waktu, pengirim, credential, retry, dan bukti delivery) tercatat dengan status `Belum diaktifkan`.
+2. Notifikasi eksternal tidak diaktifkan di lingkungan UAT atau produksi sebelum seluruh butir §3 berstatus `Siap berbukti`. Gate ini menjadi butir Definition of Done ISS-12.03–ISS-12.07 dan ISS-13.04. ISS-12.01 dan ISS-12.02 bersifat in-app dan tidak terkena gate ini.
+3. Pembuktian butir §3 dicentang pada issue notifikasi yang mengaktifkannya, bukan pada ISS-15.02.
+
+## 80.2 Lingkungan uji pemulihan
+
+1. Uji pemulihan berbukti pada lingkungan UAT cukup untuk AC-3 ISS-15.02.
+2. Sebelum produksi diterima, uji pemulihan diulang pada lingkungan produksi dan dicatat pada checklist kesiapan §4. Gate ini menjadi butir Definition of Done ISS-15.03.
+
+## 80.3 Penyelarasan dokumen
+
+1. Path fisik berkas pada PRD, Workflow, Data Model, dan Plan diselaraskan dengan implementasi: `storage/app/private/berkas/...` (disk `local`, ADR-0006). Lokasi berkas dan kode tidak berubah.
+2. Kolom Workflow pada traceability US/ISS-15.02 menjadi "—" karena Workflow §22 adalah tabel Peran vs Aksi dan tidak memuat alur infrastruktur.
+
+## 80.4 Dampak dan traceability
+
+- Q30 dan Q46 §46.3 diperjelas; Q4 tidak berubah.
+- US/ISS-15.02 (AC-2 dan DoD), DoD ISS-12.03–ISS-12.07, ISS-13.04, dan ISS-15.03; `SAKIP - Kesiapan Infrastruktur.md` §3–§5; PRD §18.9, Workflow §10.6, Data Model §2.30, serta Plan 13.5 dan P.1 (path berkas).
+- Status keputusan: keputusan PM 1 November 2026. Aturan bisnis yang disahkan Tim Perencanaan (Q1) tidak berubah, sehingga konfirmasi tertulis tidak diminta.

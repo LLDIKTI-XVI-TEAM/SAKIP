@@ -27,7 +27,7 @@ final class PermissionCatalog
         'akses' => ['update'],
         'delegasi' => ['update'],
         'dashboard' => ['read'],
-        'laporan' => ['read', 'ekspor'],
+        'laporan' => ['read', 'ekspor', 'unggah'],
         'audit' => ['read'],
         'pengaturan' => ['update'],
     ];

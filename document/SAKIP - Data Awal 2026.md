@@ -200,7 +200,7 @@ Semua pengisian data awal memakai Action aplikasi dan meninggalkan jejak `audit_
 | Pegawai | `pegawai` | 1 akun | Menunggu Keycloak | Realm Keycloak sesuai konfigurasi deployment | — |
 | PIC operasional | `pegawai` + grant unit (+ PJ) | 1 akun pegawai dengan grant unit | Menunggu Keycloak + konfigurasi grant | Preset permission & eligibility assignment; grant harus disiapkan | — |
 
-**Aturan:** dokumen ini hanya mencatat kode role, status, dan blocker. Password/token **tidak boleh** ditulis di repo, dokumen, issue, atau PR. Akun pertama di lingkungan baru dibuat lewat `php artisan sakip:bootstrap-superadmin` (bukan kredensial bersama di repo).
+**Aturan:** dokumen ini hanya mencatat kode role, status, dan blocker. Password/token **tidak boleh** ditulis di repo, dokumen, issue, atau PR. Akun pertama di lingkungan baru dibuat lewat `php artisan sakip:bootstrap-superadmin` (bukan kredensial bersama di repo). Status realm/client Keycloak dicatat pada `SAKIP - Kesiapan Infrastruktur.md` §2 baris 1 (ISS-15.02).
 
 ---
 
@@ -236,7 +236,7 @@ Izin yang dipakai: `rekomendasi:tetapkan` (dimiliki preset Perencanaan dan Pimpi
 | Nilai target PK resmi | Menunggu konfirmasi | Nilai penuh vs tercetak | Konfirmasi Perencanaan |
 | Formula/komponen indikator | Menunggu konfirmasi | Komponen produksi belum disetel | Konfirmasi Perencanaan |
 | Unit/PJ final | Menunggu konfirmasi | Baris unit/PJ masih asumsi kerja | Konfirmasi Perencanaan |
-| Akun UAT 5 role + PIC operasional | Menunggu Keycloak | UAT belum bisa dijalankan penuh | ISS-15.02 |
+| Akun UAT 5 role + PIC operasional | Menunggu Keycloak | UAT belum bisa dijalankan penuh | ISS-15.02 (`SAKIP - Kesiapan Infrastruktur.md` §2 baris 1, §5 baris 2) |
 
 ---
 
