@@ -18,7 +18,7 @@
 6. Kolom **Diverifikasi oleh/tanggal** diisi PM atau pengelola infrastruktur setelah memeriksa bukti.
 7. Layanan tanpa owner atau tanpa bukti tetap tercatat sebagai blocker/risiko (§5) dan tidak dianggap selesai.
 
-**Semantik status:** `Implemented` ≠ `Verified` ≠ `Merged` ≠ `UAT Accepted` ≠ `Deployed`. Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi mengikuti ISS-15.03.
+**Semantik status:** `Implemented` ≠ `Verified` ≠ `Merged` ≠ `UAT Accepted` ≠ `Deployed`. Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi mengikuti `SAKIP - Tahapan UAT dan Rilis.md` (ISS-15.03).
 
 ---
 
@@ -34,7 +34,7 @@ Bagian ini dibuktikan dari repositori dan CI, lalu diulang pada lingkungan tujua
 | Seeder konfigurasi | `DatabaseSeeder` hanya memanggil `AccessCatalogSeeder`, `PengaturanSeeder`, dan `PeriodeSeeder`, tanpa fixture testing (`SeedProduksiTanpaFixtureTest`, ISS-15.01 AC-3) | Hasil seeder pada SHA rilis | Data awal 2026 (ISS-15.01) | Belum ditetapkan | Belum ditetapkan | — |
 | Health check | Route `/up` (`bootstrap/app.php`) | Respons `/up` 200 | `/up` hanya membuktikan aplikasi dapat boot; tidak memeriksa basis data, queue, Keycloak, maupun storage | Belum ditetapkan | Belum ditetapkan | — |
 | Akun pertama | `php artisan sakip:bootstrap-superadmin` setelah `AccessCatalogSeeder`; referensi operator dan alasan wajib dan dicatat di audit (`App\Actions\Auth\BootstrapSuperadmin`; test perintah `BootstrapSuperadminCommandTest`) | Superadmin pertama terbentuk dan tercatat di Jejak Audit | Akun UAT lain (ISS-15.01 AC-5) | Belum ditetapkan | Belum ditetapkan | — |
-| Identitas build | Belum ada tag atau GitHub Release; `main` belum diperbarui sejak 18 September 2026 | SHA/versi yang diuji dan dirilis | — | Belum ditetapkan | Belum ditetapkan | — |
+| Identitas build | Belum ada tag atau GitHub Release; `main` belum diperbarui sejak 18 September 2026 | SHA penuh yang diuji dan dirilis, dicatat per paket pada `SAKIP - Tahapan UAT dan Rilis.md` §4 dan §6 (K5) | — | Belum ditetapkan | Belum ditetapkan | — |
 
 ---
 
@@ -99,7 +99,7 @@ Backup dianggap siap hanya bila pemulihannya pernah diuji dan berbukti. Uji di l
 | 3 | Uji pemulihan belum ada | Backup belum terbukti dapat dipulihkan | ISS-15.02 AC-3; produksi | §4 |
 | 4 | Notifikasi eksternal belum diaktifkan | Tidak ada pemberitahuan atau pengingat WA/Email | ISS-12.03–ISS-12.07, ISS-13.04 | Setelah Tahap 2 (Q46 §46.3); §3 |
 | 5 | Belum ada artefak deployment produksi dan dokumen Deployment & Operations | Urutan rilis dan prosedur pemulihan belum baku | Produksi | System Architecture §17 |
-| 6 | Belum ada identitas rilis (tag/Release) | Build yang diuji dan dirilis belum dapat dicatat | ISS-15.03 AC-5 | ISS-15.03 |
+| 6 | Belum ada tag atau GitHub Release | Build yang diuji dan dirilis hanya dapat ditelusuri lewat SHA penuh (`SAKIP - Tahapan UAT dan Rilis.md` K5) | — | Mekanisme tag/Release ditetapkan PM di luar ISS-15.03 |
 
 ---
 

@@ -103,7 +103,7 @@ Prinsip penyelarasan yang tetap berlaku:
 | ID | Ketentuan yang diadopsi | Rujukan utama |
 |---|---|---|
 | Q1 | PM mengelola baseline/catatan keputusan; Perencanaan mengesahkan domain dan UAT; teknis menetapkan implementasi. | Pembuka PRD; Plan P.4 |
-| Q2 | Pisahkan siap diuji, evaluasi/perbaikan, diterima, dan produksi. Target integrasi sebelum 9 November 2026 dan evaluasi/revisi 16–30 November berasal dari Q4 PM; tanggal penerimaan/go-live belum ditetapkan. | PRD pembuka, §28, §32; Plan P.4 |
+| Q2 | Pisahkan siap diuji, evaluasi/perbaikan, diterima, dan produksi. Target integrasi sebelum 9 November 2026 dan evaluasi/revisi 16–30 November berasal dari Q4 PM; tanggal penerimaan/go-live belum ditetapkan. | PRD pembuka, §28, §32; Plan P.4; `SAKIP - Tahapan UAT dan Rilis.md` |
 | Q3 | Tetapkan daftar penggunaan pertama: tahun/periode, indikator, unit/PIC, data awal dan arsip wajib; Perencanaan memverifikasi sebelum aktivasi. Input manual/backfill, tanpa menambah impor. | PRD pembuka, §12.6; Plan S.1/P.4 |
 | Q4 | In-app baseline MVP; WA/email sebelum 9 November 2026. Pembukaan jadwal, pengingat PIC H-7/H-3/H-1, rekap Perencanaan H-3/H-1, serta pengembalian berkas. **Tenggat WA/email digantikan Q46 §46.3 (17 Oktober 2026):** ISS-12.01–ISS-12.07 dan ISS-13.04 mengikuti rencana sprint setelah Tahap 2. | PRD §28; Workflow §22; Plan 14; Model pengaturan |
 | Q5 | IKU 3 lima input, masing-masing koefisien 0,5; subtotal SAKIP merupakan tampilan turunan. Mesin formula bertingkat generik tetap ditunda. | PRD §17.10–17.11; Plan 5.13/5.17 |
@@ -2308,7 +2308,7 @@ Keputusan bisnis yang sebelumnya OPEN pada daftar klarifikasi 24 September 2026 
 
 | Item | Pemilik keputusan | Status / yang masih diperlukan |
 |---|---|---|
-| Penerima walkthrough/UAT, tanggal penerimaan dan tanggal produksi | PM + Perencanaan | Belum tercatat final; target integrasi proyek tidak otomatis sama dengan go-live. |
+| Penerima walkthrough/UAT, tanggal penerimaan dan tanggal produksi | PM + Perencanaan | Belum ditetapkan; target integrasi proyek tidak otomatis sama dengan go-live. Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi beserta format pencatatan penerima, tanggal, dan build ada pada `SAKIP - Tahapan UAT dan Rilis.md` (ISS-15.03). |
 | Contoh keluaran Excel penerimaan | Perencanaan | Layout/kolom/presisi/narasi final masih perlu disahkan untuk UAT. |
 | Infrastruktur produksi | PM/pengelola infrastruktur | Domain/HTTPS, owner layanan, backup/pemulihan, storage, monitoring, dan credential deployment perlu dibuktikan. Owner, status, bukti, dan blocker per layanan dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). |
 | Operasional notifikasi eksternal | Pemilik layanan + Perencanaan | Provider, jam kirim, zona waktu, template, nomor/email pengirim, retry, dan bukti delivery perlu ditetapkan. Daftar periksanya ada pada `SAKIP - Kesiapan Infrastruktur.md` §3; aktivasinya mengikuti ISS-12.x setelah Tahap 2 (Q46 §46.3) dengan gate Q80 §80.1. |
