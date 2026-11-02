@@ -2752,11 +2752,11 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
-- [ ] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
-- [ ] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live.
-- [ ] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
-- [ ] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat.
+- [x] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
+- [x] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
+- [x] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live. *(Q46 §46.3: tenggat WA/Email sebelum 9 November 2026 tidak berlaku lagi; 9 November 2026 tetap batas integrasi Tahap 1 dan bukan tanggal go-live.)*
+- [x] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
+- [x] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat. *(Format pencatatan tersedia pada `SAKIP - Tahapan UAT dan Rilis.md` §6; isian pertama dibuat saat penerimaan pertama.)*
 
 ---
 

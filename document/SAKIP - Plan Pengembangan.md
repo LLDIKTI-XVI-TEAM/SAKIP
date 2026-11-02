@@ -1197,7 +1197,7 @@ Aturan berikut berlaku di seluruh Plan ini dan menjadi rujukan wajib bagi siapa 
 
 ### P.4 Kesiapan operasional dan penerimaan rilis
 
-- **Scope:** PM bersama pengelola infrastruktur menetapkan owner dan kesiapan layanan pendukung (Q30): realm/client Keycloak, domain/HTTPS, VPS, PostgreSQL, storage privat, backup dan uji pemulihan, queue worker, scheduler, monitoring, notifikasi eksternal, dukungan insiden, bootstrap Superadmin, dan credential deployment. Owner, status, bukti, dan blocker dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi dipisah (Q2, ISS-15.03); data awal mengikuti S.1 dan ISS-15.01.
+- **Scope:** PM bersama pengelola infrastruktur menetapkan owner dan kesiapan layanan pendukung (Q30): realm/client Keycloak, domain/HTTPS, VPS, PostgreSQL, storage privat, backup dan uji pemulihan, queue worker, scheduler, monitoring, notifikasi eksternal, dukungan insiden, bootstrap Superadmin, dan credential deployment. Owner, status, bukti, dan blocker dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi dipisah dan dicatat pada `SAKIP - Tahapan UAT dan Rilis.md` (Q2, ISS-15.03); data awal mengikuti S.1 dan ISS-15.01.
 - **Dependency:** P.1, P.2, ISS-15.01.
 - **DoD:** setiap layanan memiliki owner dan bukti pada lingkungan tujuan, atau tercatat sebagai blocker/risiko; uji pemulihan berbukti; readiness aplikasi dan readiness operasional dinilai terpisah; notifikasi eksternal mengikuti Q46 §46.3; go-live tidak diklaim dari selesainya coding atau CI hijau.
 

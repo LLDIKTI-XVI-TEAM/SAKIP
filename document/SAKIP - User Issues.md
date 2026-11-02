@@ -6634,22 +6634,24 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
-- [ ] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
-- [ ] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live.
-- [ ] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
-- [ ] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat.
+- [x] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
+- [x] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
+- [x] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live. *(Q46 §46.3: tenggat WA/Email sebelum 9 November 2026 tidak berlaku lagi; 9 November 2026 tetap batas integrasi Tahap 1 dan bukan tanggal go-live.)*
+- [x] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
+- [x] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat. *(Format pencatatan tersedia pada `SAKIP - Tahapan UAT dan Rilis.md` §6; isian pertama dibuat saat penerimaan pertama.)*
+
+> **Status per 2 November 2026 (issue [#187](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/187)):** tahapan tersedia di `SAKIP - Tahapan UAT dan Rilis.md` (keputusan PM K3–K7). AC-1 dan AC-2 terpenuhi oleh empat status beserta pihak penetap serta syarat masuk/keluarnya (§2), AC-3 oleh kalender target (§1), AC-4 oleh isian `Belum ditetapkan` (§1, §4, §6), dan AC-5 oleh format catatan keputusan (§6). UAT-1–UAT-5 dicentang setelah dokumen direview PM bersama Tim Perencanaan. Belum ada paket UAT karena lingkungan UAT (ISS-15.02) serta akun UAT lima role dan PIC operasional (ISS-15.01 AC-5) belum tersedia. Status ini **bukan** UAT accepted atau deployment.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
+- [x] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
 
 **B. Backend / Domain**
-- [ ] Pisahkan status siap diuji, evaluasi/perbaikan, diterima, dan produksi. Tanggal target integrasi bukan otomatis tanggal go-live.
+- [x] Pisahkan status siap diuji, evaluasi/perbaikan, diterima, dan produksi. Tanggal target integrasi bukan otomatis tanggal go-live.
 
 **C. Authorization & Audit**
-- [ ] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
+- [x] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
 
 #### Automated Tests / Verification
 
@@ -6662,10 +6664,10 @@ Perubahan per request (tanpa nomor baris kode):
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2).
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2). *(Menjadi syarat masuk status Produksi, `SAKIP - Tahapan UAT dan Rilis.md` §2.3.)*
 
 
 ---
