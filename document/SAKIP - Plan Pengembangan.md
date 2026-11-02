@@ -982,9 +982,9 @@ Setiap task memiliki tiga bagian wajib:
 
 > **Q41 (13 Oktober 2026):** PIC tidak dapat menghapus klaim tahap Rencana Aksi pada periode yang terkunci karena daftar kegiatan periode tersebut tidak boleh berubah (Q41 §41.2 butir 2, 11.9).
 
-- **Scope:** Aksi hapus `klaim_kegiatan` oleh PIC pembuat klaim atau Perencanaan, hanya diizinkan selama `rencana_aksi` induknya belum berstatus `disahkan`.
+- **Scope:** Aksi hapus `klaim_kegiatan` oleh PIC pembuat klaim atau Perencanaan, hanya diizinkan selama `rencana_aksi` induknya berstatus `draft` atau `dikembalikan` (PRD §16.5; Workflow §9 butir 7; Q41 §41.2).
 - **Dependency:** 12.6, 11.3.
-- **DoD:** Test Pest: penghapusan klaim pada rencana aksi berstatus `draft`/`diajukan`/`diverifikasi`/`dikembalikan` berhasil dan tercatat audit_log; penghapusan pada rencana aksi berstatus `disahkan` ditolak; pemohon selain pembuat klaim/Perencanaan (mis. PIC unit lain) mendapat 403.
+- **DoD:** Test Pest: penghapusan klaim pada rencana aksi berstatus `draft`/`dikembalikan` berhasil dan tercatat audit_log; penghapusan pada rencana aksi berstatus `diajukan`/`diverifikasi`/`disahkan` ditolak; pemohon selain pembuat klaim/Perencanaan (mis. PIC unit lain) mendapat 403.
 
 ### 12.11 Gerbang bukti dukung pada transisi Kegiatan `rencana → terlaksana`
 
