@@ -254,4 +254,35 @@ describe('Buka kembali pengukuran disahkan', () => {
         expect(within(dialog).getByRole('textbox', { name: /Alasan perubahan/ })).toBeTruthy();
         expect(within(dialog).getByRole('button', { name: 'Batal' })).toBeTruthy();
     });
+
+    it('tab basi mempertahankan galat versi dan alasan saat props versi berubah tanpa menutup dialog', async () => {
+        // Tab yang tertinggal menerima props versi baru setelah kiriman basi. Dialog harus tetap ter-mount,
+        // agar galat versi, tombol muat ulang, dan alasan yang sudah diketik tidak terhapus oleh remount.
+        const user = userEvent.setup();
+        const { rerender } = render(tampilan({ versi: 5 }));
+
+        await user.click(tombolPemicu());
+        const dialog = dialogBukaKembali();
+        await user.type(within(dialog).getByRole('textbox', { name: /Alasan perubahan/ }), 'Koreksi resmi nilai TW I.');
+        await user.click(within(dialog).getByRole('button', { name: 'Buka Kembali' }));
+
+        const galatVersi = 'Status pengukuran tidak sesuai untuk tindakan ini.';
+        form.errors = { versi: galatVersi };
+        const onError = form.posts[0].options.onError as (errors: Record<string, string>) => void;
+        act(() => { onError({ versi: galatVersi }); });
+
+        expect(within(dialog).getByRole('alert').textContent).toContain(galatVersi);
+        expect(within(dialog).getByRole('button', { name: 'Muat ulang halaman' })).toBeTruthy();
+        expect(within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Buka Kembali' }).disabled).toBe(true);
+
+        rerender(tampilan({ versi: 6 }));
+
+        const dialogSetelahVersiBaru = dialogBukaKembali();
+        expect(dialogSetelahVersiBaru).toBe(dialog);
+        expect((dialogSetelahVersiBaru as HTMLDialogElement).open).toBe(true);
+        expect(within(dialogSetelahVersiBaru).getByRole('alert').textContent).toContain(galatVersi);
+        expect(within(dialogSetelahVersiBaru).getByRole('button', { name: 'Muat ulang halaman' })).toBeTruthy();
+        expect(within(dialogSetelahVersiBaru).getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan perubahan/ }).value).toBe('Koreksi resmi nilai TW I.');
+        expect(within(dialogSetelahVersiBaru).getByRole<HTMLButtonElement>('button', { name: 'Buka Kembali' }).disabled).toBe(true);
+    });
 });

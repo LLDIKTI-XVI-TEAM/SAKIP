@@ -422,7 +422,7 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                     </div>
                 )}
                 {decision && <DecisionDialog key={`${pengukuran.id}-${decision}`} pengukuran={pengukuran} decision={decision} onClose={closeDecision} />}
-                {reopenTerbuka && <BukaKembaliDialog key={`${pengukuran.id}-${pengukuran.versi}`} pengukuran={pengukuran} onClose={() => setReopenTerbuka(false)} />}
+                {reopenTerbuka && <BukaKembaliDialog key={pengukuran.id} pengukuran={pengukuran} onClose={() => setReopenTerbuka(false)} />}
             </div>
         </AuthenticatedLayout>
     );
