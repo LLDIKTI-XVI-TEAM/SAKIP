@@ -86,6 +86,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 1 November 2026 (Q80)** menetapkan bahwa AC-2 ISS-15.02 terpenuhi oleh gate checklist kesiapan infrastruktur selama notifikasi eksternal belum diaktifkan, dan gate itu menjadi Definition of Done issue notifikasi eksternal; uji pemulihan di lingkungan UAT cukup untuk ISS-15.02 dan diulang di produksi sebelum produksi diterima; serta path berkas di dokumen diselaraskan dengan implementasi.
 
+**Keputusan 2 November 2026 (Q81)** menetapkan bahwa pengukuran pada periode sebelum periode mulai versi koreksi snapshot tetap dapat diajukan dengan versi Rencana Aksi sah yang memakai snapshot yang sama, dan bahwa form koreksi menampilkan pengukuran belum disahkan pada periode itu dengan konfirmasi eksplisit.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -2463,8 +2465,12 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 
 1. Koreksi tidak memindahkan rujukan pengukuran maupun versi Rencana Aksi ke versi baru, termasuk pengukuran berstatus `draft` atau `dikembalikan`.
 2. Pengukuran yang dibuat sesudah koreksi untuk periode sejak periode mulai versi koreksi memakai versi koreksi, dan baru dapat diajukan setelah Rencana Aksi disahkan ulang dengan versi tersebut melalui buka-kembali (Q40 §40.1 butir 7).
-3. Setelah Rencana Aksi disahkan ulang dengan versi koreksi, pengukuran `draft` atau `dikembalikan` yang masih merujuk versi lama tidak dapat diajukan, karena gerbang pengajuan mensyaratkan snapshot yang sama dengan versi Rencana Aksi sah. Form koreksi menampilkan dampak butir 2–3.
-4. Pemindahan eksplisit dan teraudit pengukuran `draft`/`dikembalikan` ke versi koreksi menjadi issue lanjutan, yang wajib selesai sebelum koreksi snapshot pertama dijalankan pada data produksi.
+3. Pengukuran `draft` atau `dikembalikan` pada periode sejak periode mulai versi koreksi yang masih merujuk versi lama tidak dapat diajukan sebelum dipindahkan (butir 4), termasuk sebelum Rencana Aksi disahkan ulang (Q81 §81.2 butir 2). Pengukuran periode sebelum periode mulai diajukan dengan versi Rencana Aksi sah yang memakai snapshot yang sama (Q81 §81.2). Form koreksi menampilkan dampak butir 2–3 (Q81 §81.3).
+4. Pemindahan eksplisit dan teraudit pengukuran `draft`/`dikembalikan` ke versi koreksi menjadi issue lanjutan, yang wajib selesai sebelum koreksi snapshot pertama dijalankan pada data produksi. *(Tambahan 3 November 2026, keputusan PM K2–K4 atas [review PR #238](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/238#issuecomment-6597582130).)* Aturan pemindahan:
+   - Izin `pengukuran:update` lewat peran (jalur Perencanaan) pada unit versi lama dan unit versi tujuan; deny menang (Q32). PIC tidak dapat memindahkan. Izin koreksi snapshot tidak disyaratkan, karena yang berubah adalah data pengukuran, bukan snapshot.
+   - Alasan opsional; bila kosong, server mengisi alasan baku (Q43 §43.1).
+   - Penolakan dicatat sebagai `pengukuran.ditolak` dengan `tindakan_diminta` = `pindah_snapshot`.
+   - Penanda versi lama dan tombol Pindahkan hanya tampil di daftar Pengukuran dan halaman isi pengukuran.
 
 ## 79.4 Acceptance Criteria ISS-03.03
 
@@ -2480,8 +2486,8 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 
 - Q35 §35.1 dan Q65 §65.1 butir 3 diperjelas; Q40 §40.1 tidak berubah.
 - Data Model §2.17 (`periode_mulai_id` dan perilaku koreksi) dan §2.36 (kriteria "belum ditutup"); US/ISS-03.03.
-- Pembaca versi efektif per periode, rekonsiliasi draf Rencana Aksi, dan gerbang pengajuan pengukuran tidak berubah oleh keputusan ini.
-- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. Issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) dan §79.3 butir 4 belum dikerjakan. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+- Pembaca versi efektif per periode dan rekonsiliasi draf Rencana Aksi tidak berubah oleh keputusan ini. Gerbang pengajuan pengukuran diubah Q81 §81.2.
+- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. §79.3 butir 4 diimplementasikan untuk issue #220 (PR #238) sebagai pemindahan manual oleh Perencanaan dengan alasan opsional; issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) tetap belum dikerjakan. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ---
 
@@ -2510,3 +2516,39 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 - Q30 dan Q46 §46.3 diperjelas; Q4 tidak berubah.
 - US/ISS-15.02 (AC-2 dan DoD), DoD ISS-12.03–ISS-12.07, ISS-13.04, dan ISS-15.03; `SAKIP - Kesiapan Infrastruktur.md` §3–§5; PRD §18.9, Workflow §10.6, Data Model §2.30, serta Plan 13.5 dan P.1 (path berkas).
 - Status keputusan: keputusan PM 1 November 2026. Aturan bisnis yang disahkan Tim Perencanaan (Q1) tidak berubah, sehingga konfirmasi tertulis tidak diminta.
+
+---
+
+# Keputusan Q81 — Gerbang Pengajuan Pengukuran Versi Lama dan Konfirmasi Form Koreksi
+
+**Keputusan PM: 2 November 2026 (WITA)**, analisis [issue #220](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/220) ([komentar keputusan](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/220#issuecomment-6567839710)). Mempersempit Q79 §79.3 butir 3 dan mencabut Q79 §79.6 butir 3 untuk gerbang pengajuan pengukuran. Mengubah Data Model §2.17 dan §2.20 serta Workflow §13. Pencatatan ini bukan persetujuan implementasi, QA/UAT, merge, atau deployment.
+
+## 81.1 Masalah
+
+1. Periode sebelum periode mulai versi koreksi tetap memakai versi lama (Q79 §79.2 butir 2). Setelah Rencana Aksi disahkan ulang dengan versi koreksi, versi Rencana Aksi sah terakhir merujuk versi koreksi dan hanya memuat target periode sejak periode mulainya.
+2. Gerbang pengajuan semula mensyaratkan snapshot pengukuran sama dengan snapshot versi Rencana Aksi sah terakhir. Pengukuran periode sebelumnya yang belum disahkan tidak dapat diajukan, dan tidak dapat dipindahkan karena versi koreksi tidak berlaku pada periodenya.
+3. Contoh: versi 2 berlaku mulai TW2; pengukuran TW1 berstatus `dikembalikan` pada versi 1; Rencana Aksi disahkan ulang dengan versi 2. Pengukuran TW1 tidak dapat diajukan maupun dipindahkan.
+
+## 81.2 Gerbang pengajuan pengukuran
+
+1. Gerbang memakai versi Rencana Aksi bernomor terbesar yang sudah disahkan **dan** `jadwal_snapshot_id`-nya sama dengan pengukuran, bukan versi terbaru. Target periode dibaca dari versi itu dan `pengukuran_versi.rencana_aksi_versi_id` merujuk versi tersebut. Syarat header Rencana Aksi `disahkan` dan unit tidak berubah. Tanpa versi seperti itu, pengajuan ditolak dengan pesan "Belum ada versi rencana aksi sah untuk snapshot pengukuran ini."
+2. *(Rincian dari analisis issue #220; disetujui 3 November 2026 sebagai keputusan PM K1 atas [review PR #238](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/238#issuecomment-6597582130).)* Pengukuran hanya dapat diajukan bila snapshot-nya adalah versi yang berlaku untuk periodenya, yaitu nomor versi terbesar dengan periode mulai tidak lebih akhir dari periode itu. Pengukuran periode sejak periode mulai versi koreksi yang masih merujuk versi lama ditolak sampai dipindahkan (Q79 §79.3 butir 4), termasuk sebelum Rencana Aksi disahkan ulang. Pada contoh 81.1: pengukuran TW1 pada versi 1 diajukan dengan versi Rencana Aksi bersnapshot versi 1; pengukuran TW2 pada versi 1 ditolak.
+3. *(Rincian dari analisis issue #220; disetujui 3 November 2026 sebagai keputusan PM K1 atas [review PR #238](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/238#issuecomment-6597582130).)* Target periode pada daftar Pengukuran, halaman isi pengukuran, dan dashboard status indikator dibaca dengan aturan butir 1, seperti laporan rekap.
+4. Pilihan lain tidak diambil:
+   - menolak pengesahan ulang Rencana Aksi selama masih ada pengukuran periode sebelum periode mulai yang belum disahkan, karena pekerjaan pada periode lama akan menahan Rencana Aksi beserta seluruh pengukuran periode sejak periode mulai;
+   - tidak mengubah aturan dan meminta Perencanaan memilih periode mulai pada periode terawal yang pengukurannya belum disahkan, karena cara ini memaksa koreksi untuk periode sejak periode mulai ikut mengubah konteks periode sebelumnya, dan tidak dapat dipulihkan karena periode mulai tidak dapat dimundurkan (Q79 §79.2 butir 1).
+5. Periode lampau 2026 tetap dikecualikan dari gerbang Rencana Aksi (Q46 §46.1).
+
+## 81.3 Konfirmasi pada form koreksi snapshot
+
+1. Form koreksi menampilkan pengukuran berstatus selain `disahkan` pada periode sebelum periode mulai yang dipilih, untuk indikator dan jadwal yang dikoreksi, beserta periode dan statusnya. Bila daftar tidak kosong, koreksi hanya dikirim setelah konfirmasi eksplisit. Server menghitung ulang daftar di dalam transaksi koreksi; daftar tidak kosong tanpa konfirmasi ditolak dan dicatat seperti penolakan aturan koreksi lain. Audit `jadwal_snapshot.koreksi` mencatat id pengukuran dalam daftar hasil server.
+2. Ini peringatan, bukan penolakan, karena periode mulai tidak dapat dimundurkan (Q79 §79.2 butir 1). Judul daftar: "{jumlah} pengukuran belum disahkan sebelum {periode}", dengan periode, status, dan nomor versi tiap pengukuran. Teks konfirmasi: "Saya mengerti, pengukuran ini tetap dinilai dengan versi lama." Daftar dampak koreksi pada form juga selalu menampilkan: "Sejak {periode}: memakai versi koreksi; pengukuran draf atau dikembalikan versi lama perlu dipindahkan."
+
+## 81.4 Dampak dan traceability
+
+- Q79 §79.3 butir 3 dipersempit ke pengukuran periode sejak periode mulai versi koreksi; Q79 §79.6 butir 3 dicabut untuk gerbang pengajuan pengukuran. Pembaca versi efektif per periode dan rekonsiliasi draf Rencana Aksi tidak berubah.
+- Data Model §2.17 (perilaku koreksi) dan §2.20 (gerbang rencana aksi); Workflow §13 Lapis 1; US/ISS-03.03 melalui issue #220 (AC-6, AC-7).
+- Jadwal 2026: periode lampau Q46 (pengisian selesai sebelum tanggal aktivasi; TW I–III kecuali jendelanya direvisi melewati tanggal itu) dibebaskan dari gerbang Rencana Aksi (butir 5), sehingga butir 1 tidak mengubah lolos atau tolaknya pengajuan periode itu. Berlaku penuh mulai jadwal 2027.
+- *(Rincian dari analisis issue #220; disetujui 3 November 2026 sebagai keputusan PM K1 atas [review PR #238](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/238#issuecomment-6597582130).)* Butir 2 juga berlaku pada periode 2026 yang bukan periode lampau, termasuk TW IV, bila indikatornya memiliki versi koreksi.
+- Belum ditangani: (a) koreksi yang terbit sebelum Rencana Aksi pertama kali disahkan, sehingga pengukuran periode sebelum periode mulai tidak memiliki versi Rencana Aksi sah bersnapshot lama; (b) pengukuran periode sejak periode mulai yang sedang `diajukan` atau `diverifikasi` pada versi lama saat koreksi tetap dapat disahkan dengan versi lama.
+- Status implementasi: §81.2–§81.3 diimplementasikan pada issue #220 (PR #238); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.

@@ -29,9 +29,11 @@ use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
+use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
 use App\Models\JenisBerkas;
 use App\Models\PengukuranKinerja;
+use App\Models\PengukuranKomponen;
 use App\Models\PenugasanIndikator;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
@@ -1361,6 +1363,91 @@ class MutationConcurrencyTest extends TestCase
         $this->assertSame($pic->id, $audit->actor_id);
         $this->assertSame('otorisasi', $audit->nilai_baru['jenis_penolakan']);
         $this->assertSame('no_allow', $audit->dasar_izin['reason']);
+    }
+
+    /** Aktor berbeda memastikan serialisasi terjadi pada header, bukan sekadar lock user. */
+    public function test_dua_pemindahan_snapshot_bersamaan_hanya_satu_berhasil_dan_satu_konflik(): void
+    {
+        [$operator, $pengukuran, $tujuan, $komponen] = $this->pemindahanSnapshotFixture();
+        $perencana = User::factory()->create(['status' => 'aktif']);
+        $perencana->roles()->attach(Role::where('kode', 'perencanaan')->value('id'),
+            ['id' => Str::uuid(), 'sumber_pemberian' => 'manual', 'diberikan_oleh' => $operator->id, 'created_at' => now()]);
+        $payloads = array_map(fn ($actor) => ['actor_id' => $actor->id, 'pengukuran_id' => $pengukuran->id,
+            'test_now' => now()->toIso8601String(), 'expected_error_status' => 409,
+            'data' => ['versi' => 1, 'expected_snapshot_id' => $tujuan->id, 'expected_snapshot_versi' => 2]],
+            [$operator, $perencana]);
+
+        $hasil = $this->race('pengukuran-pindah-snapshot', $pengukuran->id, '', $payloads,
+            prepare: fn () => PengukuranKinerja::whereKey($pengukuran->id)->lockForUpdate()->firstOrFail(),
+            assertBlocked: function (array $pids): void {
+                foreach ($pids as $pid) {
+                    $query = (string) DB::table('pg_stat_activity')->where('pid', $pid)->value('query');
+                    $this->assertStringContainsString('"pengukuran_kinerjas"', $query);
+                    $this->assertStringContainsString('for update', $query);
+                }
+            });
+
+        $this->assertEqualsCanonicalizing([$tujuan->id, 'conflict'], $hasil);
+        $header = $pengukuran->fresh();
+        $this->assertSame([$tujuan->id, 'draft', 2, 'belum_diisi'],
+            [$header->jadwal_snapshot_id, $header->status_alur, $header->versi, $header->status_perhitungan]);
+        $nilai = $header->komponen()->pluck('nilai', 'komponen_id')->all();
+        $this->assertCount(2, $nilai);
+        $this->assertSame(2, $header->komponen()->count());
+        $this->assertEquals(3, $nilai[$komponen['A']->id]);
+        $this->assertArrayNotHasKey($komponen['B']->id, $nilai);
+        $this->assertNull($nilai[$komponen['C']->id]);
+        $this->assertSame(0, $header->versions()->count());
+        $this->assertSame(0, $header->riwayats()->count());
+        $this->assertSame(1, AuditLog::where('tindakan', 'pengukuran.pindah_snapshot')->count());
+        $ditolak = AuditLog::where('tindakan', 'pengukuran.ditolak')->sole();
+        $this->assertSame('pindah_snapshot', $ditolak->nilai_baru['tindakan_diminta']);
+        $this->assertArrayHasKey('versi', $ditolak->nilai_baru['alasan_penolakan']);
+    }
+
+    /** Rantai komponen sendiri; komposisi setiap snapshot difinalkan sebelum dijepit header. */
+    private function pemindahanSnapshotFixture(): array
+    {
+        [$operator, $indikator, $a] = $this->formulaFixture();
+        $this->travelTo(now()->setDate(2026, 6, 15)->setTime(9, 0));
+        $komponen = ['A' => $a];
+        foreach (['B', 'C'] as $urutan => $kode) {
+            $komponen[$kode] = IndikatorKomponen::create(['indikator_id' => $indikator->id, 'kode' => $kode,
+                'label' => $kode, 'peran' => 'penjumlah', 'bobot' => 1, 'urutan' => $urutan + 2, 'aktif' => true, 'created_by' => $operator->id]);
+        }
+        $renstra = $indikator->sasaranStrategis->renstra;
+        $pk = RenstraPk::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'nomor_pk' => 'PK-PINDAH',
+            'tanggal_pk' => '2026-01-01', 'created_by' => $operator->id]);
+        $jadwal = JadwalTahunan::create(['renstra_id' => $renstra->id, 'tahun' => 2026, 'renstra_pk_id' => $pk->id,
+            'penutupan' => '2026-12-31', 'status' => 'aktif', 'activated_at' => '2026-01-01 00:00:00']);
+        $snapshots = [];
+        foreach ([1 => ['A', 'B'], 2 => ['A', 'C']] as $nomor => $kodeKomponen) {
+            $periode = Periode::create(['nama' => 'Triwulan '.$nomor, 'urutan' => $nomor, 'aktif' => true, 'is_nilai_akhir' => false]);
+            PeriodeJadwal::create(['jadwal_id' => $jadwal->id, 'periode_id' => $periode->id,
+                'pengisian_mulai' => $nomor === 1 ? '2026-03-01' : '2026-06-01',
+                'pengisian_selesai' => $nomor === 1 ? '2026-03-31' : '2026-06-30']);
+            $snapshot = JadwalSnapshot::create(['jadwal_id' => $jadwal->id, 'indikator_id' => $indikator->id,
+                'periode_mulai_id' => $periode->id, 'unit_id' => $indikator->unit_id, 'nama' => $indikator->nama, 'satuan' => 'poin',
+                'arah' => 'naik_baik', 'tipe_perhitungan' => 'penjumlahan', 'presisi' => 2, 'desimal_tampilan' => 2,
+                'target' => 70, 'nomor_versi' => $nomor, 'menggantikan_id' => $snapshots[1]->id ?? null,
+                'komposisi_final' => false]);
+            foreach ($kodeKomponen as $kode) {
+                $k = $komponen[$kode];
+                JadwalSnapshotKomponen::create(['jadwal_snapshot_id' => $snapshot->id, 'komponen_id' => $k->id,
+                    ...$k->only(['kode', 'label', 'peran', 'bobot', 'urutan'])]);
+            }
+            $snapshot->update(['komposisi_final' => true]);
+            $snapshots[$nomor] = $snapshot;
+        }
+        $pengukuran = PengukuranKinerja::create(['indikator_id' => $indikator->id, 'tahun' => 2026,
+            'periode_id' => $snapshots[2]->periode_mulai_id, 'jadwal_snapshot_id' => $snapshots[1]->id,
+            'sumber_nilai' => 'komponen', 'nilai' => 8, 'status_perhitungan' => 'terhitung', 'created_by' => $operator->id]);
+        foreach (['A' => 3, 'B' => 5] as $kode => $nilai) {
+            PengukuranKomponen::create(['pengukuran_id' => $pengukuran->id, 'komponen_id' => $komponen[$kode]->id,
+                'nilai' => $nilai, 'updated_by' => $operator->id, 'updated_at' => now()]);
+        }
+
+        return [$operator, $pengukuran, $snapshots[2], $komponen];
     }
 
     public function test_two_submission_requests_with_one_token_create_one_version(): void

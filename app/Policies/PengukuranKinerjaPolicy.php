@@ -7,6 +7,7 @@ use App\Models\JadwalTahunan;
 use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
+use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Jadwal\SesiKoreksiJadwal;
@@ -75,6 +76,49 @@ class PengukuranKinerjaPolicy
     {
         // Input terkini disimpan dan diperiksa atomik oleh Action; kesiapan draf bukan izin tombol.
         return $this->capability($user, $p, 'ajukan', 'pengukuran:update');
+    }
+
+    public function pindahSnapshot(User $user, PengukuranKinerja $p): Response
+    {
+        if (! in_array($p->status_alur, ['draft', 'dikembalikan'], true)) {
+            return Response::deny('Status pengukuran tidak sesuai untuk tindakan ini.');
+        }
+        $lama = $p->jadwalSnapshot;
+        $tujuan = JadwalSnapshot::versiBerlaku($lama->jadwal_id, $p->indikator_id, $p->periode->urutan);
+        if ($tujuan) {
+            $tujuan->setRelation('jadwal', $lama->jadwal);
+        }
+        $decisionLama = $this->resolver->decide($user, 'pengukuran:update', $lama->unit_id);
+        $decisionTujuan = $tujuan && $tujuan->unit_id !== $lama->unit_id
+            ? $this->resolver->decide($user, 'pengukuran:update', $tujuan->unit_id) : $decisionLama;
+        if (! $decisionLama['allowed'] || $decisionLama['roles'] === [] || ! $decisionTujuan['allowed'] || $decisionTujuan['roles'] === []) {
+            return Response::deny('Izin tindakan tidak tersedia atau telah dicabut.');
+        }
+        $errors = $this->pindahSnapshotErrors($user, $p, $tujuan);
+
+        return $errors === [] ? Response::allow() : Response::deny(implode(' ', $errors));
+    }
+
+    /**
+     * Guard memakai salinan header dengan versi tujuan; header dan objek relasi asli tidak dimutasi.
+     *
+     * @return list<string>
+     */
+    public function pindahSnapshotErrors(User $user, PengukuranKinerja $p, ?JadwalSnapshot $tujuan): array
+    {
+        if (! $tujuan || $tujuan->id === $p->jadwal_snapshot_id || $tujuan->nomor_versi <= $p->jadwalSnapshot->nomor_versi) {
+            return ['Tidak ada versi yang lebih baru untuk periode pengukuran ini.'];
+        }
+        $q = clone $p;
+        $q->jadwal_snapshot_id = $tujuan->id;
+        $q->setRelation('jadwalSnapshot', $tujuan);
+        $errors = $this->businessErrors($user, $q, 'draft');
+        $unitRa = RencanaAksi::where('indikator_id', $p->indikator_id)->where('tahun', $p->tahun)->value('unit_id');
+        if ($unitRa !== null && $unitRa !== $tujuan->unit_id) {
+            $errors[] = 'Unit pada versi terbaru berbeda dengan unit Rencana Aksi tahun ini.';
+        }
+
+        return $errors;
     }
 
     public function uploadEvidence(User $user, PengukuranKinerja $p): bool

@@ -66,10 +66,7 @@ class EnsureDraftPengukuran
                     throw new AuthorizationException('Izin tindakan tidak tersedia atau telah dicabut.');
                 }
                 $this->arsipGuard->pastikanDapatDibuatkan($indicator, 'pengukuran');
-                // Versi terpilih: nomor_versi terbesar di antara snapshot yang sudah efektif pada urutan periode ini.
-                $effectiveId = JadwalSnapshot::join('periode', 'periode.id', '=', 'jadwal_snapshot.periode_mulai_id')
-                    ->where('jadwal_snapshot.jadwal_id', $snapshot->jadwal_id)->where('jadwal_snapshot.indikator_id', $indicator->id)
-                    ->where('periode.urutan', '<=', $period->periode->urutan)->orderByDesc('jadwal_snapshot.nomor_versi')->value('jadwal_snapshot.id');
+                $effectiveId = JadwalSnapshot::versiBerlaku($snapshot->jadwal_id, $indicator->id, $period->periode->urutan)?->id;
                 if ($effectiveId === null) {
                     throw ValidationException::withMessages(['periode_id' => 'Periode belum termasuk kewajiban efektif indikator pada jadwal ini.']);
                 }

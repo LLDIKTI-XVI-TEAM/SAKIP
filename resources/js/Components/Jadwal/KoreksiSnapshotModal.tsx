@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { Badge } from '@/Components/Badge';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
@@ -57,17 +58,22 @@ export function KoreksiSnapshotModal({ jadwalId, periode, baris, onClose, onUnkn
     const recovery = useAuthRecovery();
     const formatNilai = useFormatNilai();
     const formatDesimal = (nilai: string) => formatNilai(nilai, baris.desimal_tampilan);
-    const form = useForm({ periode_mulai_id: baris.periode_mulai?.id ?? '', alasan_koreksi: '', rujukan_koreksi: '' });
+    const form = useForm({ periode_mulai_id: baris.periode_mulai?.id ?? '', alasan_koreksi: '', rujukan_koreksi: '', konfirmasi_pengukuran_sebelumnya: false });
     const errors = form.errors as Record<string, string | undefined>;
     const serverErrors = Object.entries(errors).filter(([field]) => !['alasan_koreksi', 'rujukan_koreksi', 'periode_mulai_id'].includes(field));
     const urutanMinimum = baris.periode_mulai?.urutan ?? 0;
     const pilihan = [...periode].sort((a, b) => a.urutan - b.urutan).filter((item) => item.urutan >= urutanMinimum);
     const terpilih = pilihan.find((item) => item.id === form.data.periode_mulai_id);
     const adaPeriodeSebelumnya = terpilih !== undefined && periode.some((item) => item.urutan < terpilih.urutan);
+    const pengukuranSebelumnya = baris.pengukuran_belum_disahkan.flatMap((item) => {
+        const period = periode.find((period) => period.id === item.periode_id);
+        return period && terpilih && period.urutan < terpilih.urutan ? [{ ...item, periode: period }] : [];
+    }).sort((a, b) => a.periode.urutan - b.periode.urutan);
     // Props terbaru setelah penolakan usang bisa sudah sama dengan master; server tetap menolak koreksi tanpa selisih.
     const adaSelisih = baris.selisih.kolom.length > 0 || baris.selisih.komponen !== null;
     const tidakDapatDikirim = !adaSelisih || form.data.alasan_koreksi.trim() === '' || form.data.rujukan_koreksi.trim() === ''
-        || form.data.periode_mulai_id === '' || Boolean(recovery.recovery);
+        || form.data.periode_mulai_id === '' || Boolean(recovery.recovery)
+        || (pengukuranSebelumnya.length > 0 && !form.data.konfirmasi_pengukuran_sebelumnya);
     const path = `/jadwal/${jadwalId}/snapshot/${baris.snapshot_id}/koreksi`;
 
     const confirm = () => {
@@ -152,7 +158,7 @@ export function KoreksiSnapshotModal({ jadwalId, periode, baris, onClose, onUnkn
                             required
                             value={form.data.periode_mulai_id}
                             error={errors.periode_mulai_id}
-                            onChange={(event) => form.setData('periode_mulai_id', event.target.value)}
+                            onChange={(event) => form.setData({ ...form.data, periode_mulai_id: event.target.value, konfirmasi_pengukuran_sebelumnya: false })}
                             options={pilihan.map((item) => ({ value: item.id, label: item.nama }))}
                         />
                         <Textarea
@@ -167,16 +173,32 @@ export function KoreksiSnapshotModal({ jadwalId, periode, baris, onClose, onUnkn
                             onChange={(event) => form.setData('rujukan_koreksi', event.target.value)}
                         />
                         {terpilih && (
-                            <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-                                <p>
-                                    {adaPeriodeSebelumnya && `Periode sebelum ${terpilih.nama} tetap memakai versi ${baris.nomor_versi}. `}
-                                    Pengukuran baru sejak {terpilih.nama} memakai versi koreksi dan baru dapat diajukan setelah Rencana Aksi dibuka kembali dan
-                                    disahkan ulang.
+                            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+                                <p className="mb-1 font-semibold">Dampak koreksi mulai {terpilih.nama}</p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {adaPeriodeSebelumnya && <li>Sebelum {terpilih.nama}: tidak berubah.</li>}
+                                    <li>Sejak {terpilih.nama}: memakai versi koreksi; pengukuran draf atau dikembalikan versi lama perlu dipindahkan.</li>
+                                    <li>Pengajuan sejak {terpilih.nama} menunggu Rencana Aksi disahkan ulang.</li>
+                                    {terpilih.urutan > urutanMinimum && <li>Target draf Rencana Aksi sebelum {terpilih.nama} dilepas saat draf disimpan.</li>}
+                                </ul>
+                            </div>
+                        )}
+                        {terpilih && pengukuranSebelumnya.length > 0 && (
+                            <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
+                                <p id="pengukuran-sebelum-koreksi" className="font-semibold">
+                                    {pengukuranSebelumnya.length} pengukuran belum disahkan sebelum {terpilih.nama}
                                 </p>
-                                <p>Pengukuran draf atau dikembalikan pada versi lama tidak dapat diajukan setelah Rencana Aksi disahkan ulang.</p>
-                                {terpilih.urutan > urutanMinimum && (
-                                    <p>Target draf Rencana Aksi untuk periode sebelum {terpilih.nama} dilepas saat draf disimpan berikutnya.</p>
-                                )}
+                                <ul aria-labelledby="pengukuran-sebelum-koreksi" className="space-y-2">
+                                    {pengukuranSebelumnya.map((item) => <li key={item.periode_id} className="flex flex-wrap items-center gap-2">
+                                        <span>{item.periode.nama}</span><Badge status={item.status_alur} size="sm" /><span>Versi {item.nomor_versi}</span>
+                                    </li>)}
+                                </ul>
+                                <label className="flex items-start gap-2">
+                                    <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary" disabled={form.processing}
+                                        checked={form.data.konfirmasi_pengukuran_sebelumnya}
+                                        onChange={(event) => form.setData('konfirmasi_pengukuran_sebelumnya', event.target.checked)} />
+                                    Saya mengerti, pengukuran ini tetap dinilai dengan versi lama.
+                                </label>
                             </div>
                         )}
                     </div>

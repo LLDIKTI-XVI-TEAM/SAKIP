@@ -16,6 +16,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ childr
 
 const pengukuran: Pengukuran = {
     id: 'pengukuran-uji', versi: 2, nomor_pengajuan: 1, status: 'diajukan', jalur_pengajuan: 'pic',
+    versi_berlaku: null,
     self_approval: false, reviu_terlambat: true, nilai: '80', target: '100', status_perhitungan: 'terhitung', sumber_nilai: 'manual',
     catatan: null, alasan_tidak_dapat_dihitung: null, komponen: [], bukti_dukungs: [], bukti_count: 0,
     prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [],

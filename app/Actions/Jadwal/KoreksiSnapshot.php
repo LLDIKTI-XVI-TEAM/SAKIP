@@ -7,6 +7,7 @@ use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\PengukuranKinerja;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
@@ -135,8 +136,17 @@ class KoreksiSnapshot
                     throw $tolak(self::PESAN_UNIT_RA);
                 }
 
+                $jadwal->loadMissing('periode.periode');
+                $sebelum = $jadwal->periode->filter(fn (PeriodeJadwal $window): bool => $window->periode->urutan < $mulai->periode->urutan)
+                    ->pluck('periode_id')->all();
+                $ids = PengukuranKinerja::belumDisahkanPadaJadwal($jadwal->id)->where('pengukuran_kinerjas.indikator_id', $indikator->id)
+                    ->whereIn('pengukuran_kinerjas.periode_id', $sebelum)->orderBy('pengukuran_kinerjas.id')->pluck('pengukuran_kinerjas.id')->all();
+                if ($ids !== [] && ! ($data['konfirmasi_pengukuran_sebelumnya'] ?? false)) {
+                    throw ValidationException::withMessages(['konfirmasi_pengukuran_sebelumnya' => 'Ada pengukuran belum disahkan pada periode sebelum periode mulai. Periksa daftarnya lalu centang konfirmasi.']);
+                }
+
                 return $this->snapshots->terbitkanKoreksi($actor, $terbaru, $indikator, $target, $mulai->periode_id,
-                    AuditReason::sanitize($data['alasan_koreksi']), AuditReason::sanitize($data['rujukan_koreksi']), $basis);
+                    AuditReason::sanitize($data['alasan_koreksi']), AuditReason::sanitize($data['rujukan_koreksi']), $basis, $ids);
             });
         } catch (AuthorizationException|ValidationException|QueryException|DeadlockException $exception) {
             // Deadlock/serialization/lock timeout menjadi konflik aman dan unique versi ganda menjadi token usang;

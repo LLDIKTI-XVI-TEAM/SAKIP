@@ -17,6 +17,7 @@ import { Modal } from '@/Components/Modal';
 import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
 import type { LampiranDraft } from '@/types/lampiran';
 import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
+import { PindahVersiButton } from '@/Components/Pengukuran/PindahVersiButton';
 import type { Pengukuran } from './types';
 import EvidenceList from './EvidenceList';
 import { useFormatNilai } from './formatNilai';
@@ -162,6 +163,12 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
             {lastRejection && pengukuran.status === 'dikembalikan' && <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark"><h2 className="font-semibold">Catatan perbaikan</h2><p className="mt-1 whitespace-pre-wrap">{lastRejection.catatan}</p><p className="mt-2 text-xs">Dikembalikan oleh {lastRejection.user?.nama || 'Verifikator'}</p></div>}
             {!can.update && <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">Formulir hanya dapat dibaca sesuai status dan izin akses Anda.</p>}
             {historical && <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">Nilai historis hanya dapat dikoreksi melalui alur backfill resmi.</p>}
+            {pengukuran.versi_berlaku && <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark">
+                <p>Memakai versi lama. Versi {pengukuran.versi_berlaku.nomor} berlaku untuk periode ini.</p>
+                {can.pindahSnapshot && <PindahVersiButton pengukuranId={pengukuran.id} versi={pengukuran.versi}
+                    versiBerlaku={pengukuran.versi_berlaku} labelAksesibel={`Pindahkan ${indikator.kode}`}
+                    disabledReason={isDirty ? 'Simpan perubahan dulu' : undefined} />}
+            </div>}
             <Card>
                 <CardHeader className="items-start gap-4"><CardTitle className="min-w-0 flex-1 break-words">{indikator.kode} · {indikator.nama}</CardTitle><Badge status={pengukuran.status} /></CardHeader>
                 <CardContent className="space-y-3">
