@@ -175,6 +175,11 @@ class RollOverKegiatanTest extends TestCase
 
         $this->assertFalse(KlaimKegiatan::where('kegiatan_id', $lanjutan->id)->exists());
         $this->assertSame($lanjutan->id, AuditLog::where('tindakan', 'klaim_kegiatan.tambah_ditolak')->sole()->objek_id);
+
+        // Setelah diklaim otomatis, halaman tidak menawarkan operasi yang pasti ditolak walau RA unit/tahun yang sama masih draf.
+        $this->bentukDraf()->assertSessionHasNoErrors();
+        $this->actingAs($this->fixture['pic'])->get("/rencana-aksi/{$this->header->id}/kegiatan/{$lanjutan->id}")->assertOk()->assertInertia(fn ($page) => $page
+            ->where('klaim.can.tambah', false)->where('klaim.opsiRencanaAksi', []));
     }
 
     public function test_persyaratan_perencanaan_tidak_diperiksa_untuk_lanjutan_tahap_pengukuran(): void
