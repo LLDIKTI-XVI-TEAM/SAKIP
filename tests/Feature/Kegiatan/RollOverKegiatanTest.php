@@ -229,14 +229,25 @@ class RollOverKegiatanTest extends TestCase
         // Urutan sama dengan transisi ditunda (advisory → header RA) dan writer RA (header RA → indikator) agar klaim tertunda tidak deadlock.
         DB::enableQueryLog();
         $this->bentukDraf()->assertSessionHasNoErrors();
-        $sql = array_column(DB::getQueryLog(), 'query');
-        $posisi = fn (string $pola): ?int => array_key_first(array_filter($sql, fn (string $query): bool => preg_match($pola, $query) === 1));
 
-        $advisory = $posisi('/pg_advisory_xact_lock/');
-        $headerRa = $posisi('/from "rencana_aksi".*for key share/');
-        $indikator = $posisi('/from "indikator_kinerjas".*for update/');
+        $advisory = $this->posisiAdvisoryLanjutan();
+        $headerRa = $this->posisiQuery('/from "rencana_aksi".*for key share/');
+        $indikator = $this->posisiQuery('/from "indikator_kinerjas".*for update/');
         $this->assertNotContains(null, [$advisory, $headerRa, $indikator]);
         $this->assertTrue($advisory < $headerRa && $headerRa < $indikator, "advisory {$advisory}, header RA {$headerRa}, indikator {$indikator}");
+    }
+
+    public function test_transisi_ditunda_mengunci_advisory_sebelum_header_ra_dan_kegiatan(): void
+    {
+        // Advisory tahun × periode tujuan menyerialkan ditunda dengan pembentukan draf; tanpanya lanjutan dapat tertinggal tanpa klaim.
+        DB::enableQueryLog();
+        $this->tunda()->assertSessionHasNoErrors();
+
+        $advisory = $this->posisiAdvisoryLanjutan();
+        $headerRa = $this->posisiQuery('/from "rencana_aksi".*for update/');
+        $kegiatan = $this->posisiQuery('/from "kegiatan".*for update/');
+        $this->assertNotContains(null, [$advisory, $headerRa, $kegiatan]);
+        $this->assertTrue($advisory < $headerRa && $headerRa < $kegiatan, "advisory {$advisory}, header RA {$headerRa}, kegiatan {$kegiatan}");
     }
 
     public function test_halaman_ra_dan_form_menautkan_asal_dan_lanjutan_dua_arah(): void
@@ -256,6 +267,20 @@ class RollOverKegiatanTest extends TestCase
             ->assertOk()->viewData('page')['props']['kegiatan'];
         $this->assertSame([$this->fixture['periode2']->nama, null], [$form($this->asal)['periode_tujuan'], $form($this->asal)['periode_asal']]);
         $this->assertSame([null, $this->asal->periode->nama], [$form($lanjutan)['periode_tujuan'], $form($lanjutan)['periode_asal']]);
+    }
+
+    private function posisiQuery(string $pola): ?int
+    {
+        return array_key_first(array_filter(array_column(DB::getQueryLog(), 'query'), fn (string $query): bool => preg_match($pola, $query) === 1));
+    }
+
+    /** Advisory kunci kegiatan lanjutan; dibedakan lewat binding karena `Periode::lockConfiguration` juga memakai advisory lock. */
+    private function posisiAdvisoryLanjutan(): ?int
+    {
+        $tahunPeriode = 'sakip:kegiatan-lanjutan:2026:'.strtolower($this->fixture['periode2']->id);
+
+        return array_key_first(array_filter(DB::getQueryLog(), fn (array $log): bool => str_contains($log['query'], 'pg_advisory_xact_lock(')
+            && in_array($tahunPeriode, $log['bindings'], true)));
     }
 
     private function lanjutan(): Kegiatan
