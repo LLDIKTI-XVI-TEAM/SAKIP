@@ -89,11 +89,17 @@ it('memuat ringkasan rencana, status, form realisasi, dan berkas pelaksanaan tan
 });
 
 it('mempertahankan pesan Master Periode saat tanggal periode belum diatur', () => {
-    render(<KegiatanRealisasi {...props} pelaksanaan={{ ...props.pelaksanaan, periode_tanggal: null }} />);
+    // Bentuk respons server: objek empat null (bukan null), dengan `rentang` min/max null pada kondisi yang sama.
+    render(<KegiatanRealisasi {...props} pelaksanaan={{ ...props.pelaksanaan, rentang: null,
+        periode_tanggal: { bulan_mulai: null, hari_mulai: null, bulan_selesai: null, hari_selesai: null } }} />);
 
     expect(screen.getByText('Tanggal periode belum diatur di Master Periode.')).toBeTruthy();
     expect(screen.queryByText(/Rentang periode Triwulan IV/)).toBeNull();
-    expect(screen.getByLabelText<HTMLInputElement>(/Tanggal realisasi/).min).toBe('2026-10-01');
+    expect(screen.queryByText('1 Okt–31 Des 2026')).toBeNull();
+    const tanggal = screen.getByLabelText<HTMLInputElement>(/Tanggal realisasi/);
+    expect(tanggal.getAttribute('min')).toBeNull();
+    expect(tanggal.getAttribute('max')).toBeNull();
+    expect(tanggal.getAttribute('aria-describedby') ?? '').not.toContain('tanggal-rentang');
 });
 
 it('menautkan kembali ke kegiatan rencana aksi dan memberi breadcrumb catat realisasi', () => {

@@ -228,7 +228,7 @@ export function AuthenticatedLayout({
                         )}
                         <div className="min-w-0 flex-1">
                             <span className="text-lg font-bold tracking-tight text-white leading-tight block truncate">{appName}</span>
-                            <HoverScrollText className="text-[10px] font-semibold text-white/75 tracking-wider leading-tight">
+                            <HoverScrollText className="text-xs font-semibold text-white/75 tracking-wider leading-tight">
                                 {instansiNama}
                             </HoverScrollText>
                         </div>

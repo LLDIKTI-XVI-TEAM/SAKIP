@@ -9,6 +9,7 @@ import { Textarea } from '@/Components/Textarea';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { formatRentangPeriode } from '@/lib/rentangPeriode';
 import type { PeriodeKegiatanOption, StatusTujuan } from '@/types/kegiatan';
 
 /** Label dan ikon aksi status, dipakai menu baris daftar dan kartu status form. */
@@ -55,9 +56,12 @@ export function StatusKegiatanModal({ kegiatan, status, opsiPeriodeTujuan, fokus
     const path = `/kegiatan/${kegiatan.id}/status`;
     const periodeTujuan = opsiPeriodeTujuan.find((opsi) => opsi.id === form.data.periode_tujuan_id);
     const idRentangPeriode = `${formId}-periode-rentang`;
+    // Server mengirim objek empat null (bukan null) saat tanggal periode tujuan belum diatur; formatRentangPeriode
+    // mengembalikan null untuk bentuk itu, sehingga paragraf dan aria-describedby hanya aktif bila rentang benar-benar ada.
+    const rentangTujuan = formatRentangPeriode(periodeTujuan?.tanggal ?? null, kegiatan.tahun);
     // Select memasang aria-describedby miliknya sendiri lalu ditimpa props; sertakan id galat dan id rentang agar keduanya terbaca.
     const idGalatPeriode = form.errors.periode_tujuan_id ? `${formId}-periode-error` : null;
-    const describedByPeriode = [idGalatPeriode, periodeTujuan ? idRentangPeriode : null].filter(Boolean).join(' ') || undefined;
+    const describedByPeriode = [idGalatPeriode, rentangTujuan ? idRentangPeriode : null].filter(Boolean).join(' ') || undefined;
     const galatUmum = form.errors.status || form.errors.expected_state;
 
     // Fokus antarlangkah dipasang setelah commit, saat elemen langkah tujuan sudah ada; nilai awal null tidak
@@ -156,10 +160,10 @@ export function StatusKegiatanModal({ kegiatan, status, opsiPeriodeTujuan, fokus
                                 onChange={(event) => form.setData('periode_tujuan_id', event.target.value)} error={form.errors.periode_tujuan_id}
                                 aria-describedby={describedByPeriode}
                                 options={[{ value: '', label: 'Pilih periode tujuan' }, ...opsiPeriodeTujuan.map((opsi) => ({ value: opsi.id, label: opsi.nama }))]} />
-                            {periodeTujuan && (
+                            {rentangTujuan && (
                                 <p id={idRentangPeriode} className="mt-1.5 text-xs text-muted">
                                     Rentang periode tujuan
-                                    <RentangPeriode tanggal={periodeTujuan.tanggal} tahun={kegiatan.tahun} />
+                                    <RentangPeriode tanggal={periodeTujuan?.tanggal ?? null} tahun={kegiatan.tahun} />
                                 </p>
                             )}
                         </div>

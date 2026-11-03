@@ -54,6 +54,27 @@ it('meminta konfirmasi final sebelum menunda dan mengirim periode tujuan', () =>
     expect(data).toEqual({ status: 'ditunda', justifikasi: 'Narasumber berhalangan.', periode_tujuan_id: 'tw2', expected_state: 'v1' });
 });
 
+it('tidak merender rentang tujuan atau aria-describedby rentang saat tanggal periode tujuan belum diatur', () => {
+    // Bentuk respons server: objek empat null (bukan null) untuk periode yang tanggalnya belum diatur.
+    const opsiTanpaTanggal = [{
+        id: 'tw2', nama: 'Triwulan II',
+        tanggal: { bulan_mulai: null, hari_mulai: null, bulan_selesai: null, hari_selesai: null },
+    }];
+    render(<StatusKegiatanModal kegiatan={kegiatan} status="ditunda" opsiPeriodeTujuan={opsiTanpaTanggal}
+        fokusCadangan={createRef<HTMLElement>()} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText(/Periode tujuan/), { target: { value: 'tw2' } });
+    expect(screen.queryByText(/Rentang periode tujuan/)).toBeNull();
+    expect(screen.getByLabelText(/Periode tujuan/).getAttribute('aria-describedby') ?? '').not.toContain('periode-rentang');
+
+    // Blok konfirmasi tetap menampilkan nama periode + tahun tanpa elemen rentang kosong.
+    isi('Narasumber berhalangan.');
+    klik('Lanjutkan');
+    const dialog = screen.getByRole('dialog', { name: 'Tunda kegiatan?' });
+    expect(dialog.textContent).toContain('Triwulan II');
+    expect(dialog.textContent).not.toContain('Rentang periode tujuan');
+});
+
 it('menandai tidak terlaksana langsung tanpa periode tujuan', () => {
     buka('tidak_terlaksana');
     expect(screen.getByRole('dialog', { name: 'Tandai tidak terlaksana' })).toBeTruthy();

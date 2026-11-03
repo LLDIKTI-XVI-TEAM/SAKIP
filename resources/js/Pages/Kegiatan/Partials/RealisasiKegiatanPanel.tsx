@@ -7,6 +7,7 @@ import { Input } from '@/Components/Input';
 import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Textarea } from '@/Components/Textarea';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { formatRentangPeriode } from '@/lib/rentangPeriode';
 import { bantuanAnggaran } from '@/lib/rupiah';
 import type { KegiatanFormProps, RencanaKegiatan } from '@/types/kegiatan';
 
@@ -49,6 +50,10 @@ export function RealisasiKegiatanPanel({ kegiatan, can, pelaksanaan, halamanUbah
     const terkunci = !can.catat_realisasi;
     const data = terkunci ? nilaiAwal(kegiatan) : form.data;
     const path = `/kegiatan/${kegiatan.id}/realisasi`;
+    // Server mengirim objek empat null (bukan null) saat tanggal Master Periode belum diatur; formatRentangPeriode
+    // mengembalikan null untuk bentuk itu. `pelaksanaan.rentang` (dipakai min/max) juga null tepat pada kondisi yang
+    // sama, jadi keduanya disyaratkan agar paragraf rentang tidak pernah tampil tanpa batas tanggal.
+    const rentangPeriode = pelaksanaan.rentang ? formatRentangPeriode(pelaksanaan.periode_tanggal, kegiatan.tahun) : null;
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -104,9 +109,9 @@ export function RealisasiKegiatanPanel({ kegiatan, can, pelaksanaan, halamanUbah
                         <div>
                             <Input id={`${id}-tanggal`} label="Tanggal realisasi" type="date" min={pelaksanaan.rentang?.mulai} max={pelaksanaan.rentang?.selesai}
                                 value={data.tanggal_realisasi} onChange={(e) => form.setData('tanggal_realisasi', e.target.value)} error={form.errors.tanggal_realisasi}
-                                aria-describedby={pelaksanaan.periode_tanggal ? `${id}-tanggal-rentang` : undefined}
-                                helperText={pelaksanaan.periode_tanggal ? undefined : 'Tanggal periode belum diatur di Master Periode.'} />
-                            {pelaksanaan.periode_tanggal && (
+                                aria-describedby={rentangPeriode ? `${id}-tanggal-rentang` : undefined}
+                                helperText={rentangPeriode ? undefined : 'Tanggal periode belum diatur di Master Periode.'} />
+                            {rentangPeriode && (
                                 <p id={`${id}-tanggal-rentang`} className="mt-1.5 text-xs text-muted">
                                     Rentang periode {kegiatan.periode_nama}
                                     <RentangPeriode tanggal={pelaksanaan.periode_tanggal} tahun={kegiatan.tahun} />

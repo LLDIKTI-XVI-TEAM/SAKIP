@@ -30,7 +30,9 @@ describe('formatTanggal', () => {
 });
 
 describe('formatTanggal untuk tanggal murni YYYY-MM-DD', () => {
-    it.each(['UTC', 'Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura'])(
+    // `America/Los_Angeles` (barat UTC) hanya pengunci regresi: implementasi meng-anchor tanggal murni ke UTC
+    // sehingga hari kalender tidak bergeser ke 30 Maret seperti bila diparse `new Date('2026-03-31')` lalu diformat berzona.
+    it.each(['UTC', 'Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura', 'America/Los_Angeles'])(
         'memformat 2026-03-31 sebagai 31 Maret 2026 pada zona tampilan %s',
         (zona) => {
             expect(formatTanggal('2026-03-31', {}, zona, 'd F Y', 'id-ID')).toBe('31 Maret 2026');
