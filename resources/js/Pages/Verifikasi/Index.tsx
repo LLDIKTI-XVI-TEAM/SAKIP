@@ -93,7 +93,7 @@ export default function VerifikasiIndex({ pengukurans = [], pagination, filters 
                                         </TableCell>
                                         <TableCell className="px-6 py-4">
                                             <div className="font-medium text-ink">{unit?.nama}</div>
-                                            <div className="text-[11px] text-muted mt-0.5">
+                                            <div className="text-xs text-muted mt-0.5">
                                                 PIC: {pic?.nama || '-'}
                                             </div>
                                         </TableCell>
@@ -120,8 +120,8 @@ export default function VerifikasiIndex({ pengukurans = [], pagination, filters 
                                             <div className="flex flex-col items-center gap-1">
                                                 <Badge status={p.status} />
                                                 {p.jalur_pengajuan && <span className="text-xs text-muted">{p.jalur_pengajuan === 'pic' ? 'Jalur PIC' : 'Jalur Perencanaan'}</span>}
-                                                {p.self_approval && <span className="text-[11px] font-medium text-info-dark">Persetujuan sendiri</span>}
-                                                {p.reviu_terlambat && <span className="text-[11px] font-medium text-warning-dark">Reviu terlambat</span>}
+                                                {p.self_approval && <span className="text-xs font-medium text-info-dark">Persetujuan sendiri</span>}
+                                                {p.reviu_terlambat && <span className="text-xs font-medium text-warning-dark">Reviu terlambat</span>}
                                             </div>
                                         </TableCell>
                                         <TableCell className="px-6 py-4 text-left">

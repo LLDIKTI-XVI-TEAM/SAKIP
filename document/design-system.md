@@ -342,6 +342,8 @@ export default function Badge({ variant = 'muted', children, className = '' }: B
 }
 ```
 
+> **Tipografi badge:** tipografi badge minimal `text-xs` (12px) pada semua varian dan ukuran; prop `size` (`sm`/`md`) hanya membedakan padding horizontal (`px-2` vs `px-2.5`), bukan mengecilkan huruf.
+
 #### Static Mapping untuk Status SAKIP:
 
 ```tsx

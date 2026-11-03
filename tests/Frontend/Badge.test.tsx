@@ -6,15 +6,35 @@ import { WorkReadinessList } from '@/Components/Access/WorkReadinessList';
 afterEach(cleanup);
 
 describe('Badge canonical', () => {
-    it('memakai teks success gelap pada ukuran kecil tanpa mengubah background atau border', () => {
+    it('memakai teks success gelap pada ukuran kecil dengan tipografi 12px tanpa mengubah background atau border', () => {
         render(<Badge variant="success" size="sm" dot>Tersedia</Badge>);
         const badge = screen.getByText('Tersedia');
         expect(badge.classList.contains('text-success-dark')).toBe(true);
         expect(badge.classList.contains('text-success')).toBe(false);
         expect(badge.classList.contains('bg-success/10')).toBe(true);
         expect(badge.classList.contains('border-success/20')).toBe(true);
-        expect(badge.classList.contains('text-[11px]')).toBe(true);
+        // text-xs = 12px, batas minimum tipografi badge.
+        expect(badge.classList.contains('text-xs')).toBe(true);
+        expect(badge.classList.contains('text-[11px]')).toBe(false);
         expect(badge.querySelector('[aria-hidden="true"]')?.classList.contains('bg-success')).toBe(true);
+    });
+
+    it('menjaga tipografi minimal 12px pada ukuran sm dan md; size hanya membedakan padding', () => {
+        render(
+            <>
+                <Badge variant="muted" size="sm">Kecil</Badge>
+                <Badge variant="muted" size="md">Sedang</Badge>
+            </>
+        );
+
+        for (const label of ['Kecil', 'Sedang']) {
+            const badge = screen.getByText(label);
+            expect(badge.classList.contains('text-xs')).toBe(true);
+            expect(badge.classList.contains('text-[11px]')).toBe(false);
+        }
+
+        expect(screen.getByText('Kecil').classList.contains('px-2')).toBe(true);
+        expect(screen.getByText('Sedang').classList.contains('px-2.5')).toBe(true);
     });
 
     it.each<[BadgeVariant, string, string]>([
