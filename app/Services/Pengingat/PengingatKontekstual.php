@@ -69,8 +69,8 @@ class PengingatKontekstual
         return $q;
     }
 
-    /** Semua tanggal dan tingkat urgensi ditentukan pada hari bisnis WITA, bukan tanggal perangkat. */
-    public function tenggat(PeriodeJadwal $periode): ?array
+    /** Hari bisnis WITA; arahan keterlambatan mengikuti jalur aktor tanpa mengubah izin input. */
+    public function tenggat(PeriodeJadwal $periode, bool $jalurPerencanaan): ?array
     {
         $today = CarbonImmutable::today(config('app.business_timezone'));
         $end = CarbonImmutable::parse($periode->pengisian_selesai->toDateString(), config('app.business_timezone'));
@@ -81,10 +81,11 @@ class PengingatKontekstual
         }
         $tingkat = $days <= $ambang['danger'] ? 'danger' : ($days <= $ambang['warning'] ? 'warning' : 'info');
         $date = $end->locale('id')->translatedFormat('j F Y');
+        $pesanLewat = $jalurPerencanaan ? "Batas pengisian PIC terlewat sejak $date." : "Batas pengisian terlewat sejak $date. Hubungi Tim Perencanaan.";
 
         return ['tingkat' => $tingkat, 'lewat' => $days < 0, 'tanggal' => $date,
             'judul' => $days < 0 ? 'Batas pengisian terlewat' : ($days === 0 ? 'Batas pengisian hari ini' : "Batas pengisian: $days hari lagi"),
-            'keterangan' => $days < 0 ? "Batas pengisian terlewat sejak $date. Hubungi Tim Perencanaan." : "Batas pengisian $date."];
+            'keterangan' => $days < 0 ? $pesanLewat : "Batas pengisian $date."];
     }
 
     /** Payload eksplisit, tanpa model mentah dan tanpa dataset indikator penuh. */
@@ -100,11 +101,12 @@ class PengingatKontekstual
             ->groupBy('k.periode_jadwal_id', 'cs.unit_id')->get();
         $personal = [];
         $rights = [];
+        $jalurPerencanaan = $groups->isNotEmpty() && $this->izin->allowsRoleNavigation($actor, 'pengukuran:update');
         $decisions = $groups->isEmpty() ? [] : $this->izin->decideManyForUnits($actor, PermissionCatalog::UNIT_SCOPED, $groups->pluck('unit_id')->unique()->all());
         foreach ($groups->groupBy('periode_jadwal_id') as $periodId => $entries) {
             $p = $periods[$periodId];
             $g = (object) ['absen' => $entries->sum('absen'), 'draft' => $entries->sum('draft'), 'revisi' => $entries->sum('revisi'), 'jumlah' => $entries->sum('jumlah')];
-            $deadline = $this->tenggat($p);
+            $deadline = $this->tenggat($p, $jalurPerencanaan);
             if ($deadline === null) {
                 continue;
             }
@@ -132,7 +134,7 @@ class PengingatKontekstual
             if ($missing) {
                 $description .= ' Hak input pada unit ini belum tersedia; hubungi Tim Perencanaan atau pengelola akses';
             }
-            $href = $deadline['lewat'] || $missing ? null : route('pengukuran.index', ['fokus' => 'kewajiban', 'jadwal_id' => $p->jadwal_id, 'periode_id' => $p->periode_id, 'asal' => $aksesHalaman]);
+            $href = ($deadline['lewat'] && ! $jalurPerencanaan) || $missing ? null : route('pengukuran.index', ['fokus' => 'kewajiban', 'jadwal_id' => $p->jadwal_id, 'periode_id' => $p->periode_id, 'asal' => $aksesHalaman]);
             $personal[] = $this->item('pribadi:'.$p->id, $deadline['tingkat'], $deadline['judul'].' · '.$p->periode->nama.' '.$p->jadwal->tahun,
                 $description, $href, $p->pengisian_selesai->toDateString().':'.$g->jumlah);
         }
@@ -146,7 +148,7 @@ class PengingatKontekstual
         if (! $jadwal || ! $periode || $jadwal->tahunDitutup() || ! $this->izin->allowsRoleNavigation($actor, 'pengukuran:update')) {
             return [];
         }
-        $deadline = $this->tenggat($periode);
+        $deadline = $this->tenggat($periode, true);
         $n = $stats['belum_mengisi'] + $stats['draft'] + $stats['dikembalikan'];
         if (! $deadline || $n === 0) {
             return [];

@@ -12,6 +12,7 @@ use App\Services\Pengingat\PengingatKontekstual;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Tests\Concerns\CreatesPengukuranFixture;
 use Tests\TestCase;
@@ -33,8 +34,17 @@ class PengingatKontekstualTest extends TestCase
                     $this->assertStringContainsString('Batas pengisian hari ini', $items[0]['judul']);
                 }
                 if ($day === 16) {
-                    $this->assertNull($items[0]['href']);
-                    $this->assertStringContainsString('Hubungi Tim Perencanaan.', $items[0]['keterangan']);
+                    $this->assertStringContainsString('1 Tidak mengisi', $items[0]['keterangan']);
+                    $this->assertStringContainsString('Batas pengisian PIC terlewat sejak 15 Maret 2026.', $items[0]['keterangan']);
+                    $this->assertStringNotContainsString('Hubungi Tim Perencanaan', $items[0]['keterangan']);
+                    $this->assertNotNull($items[0]['href']);
+                    $this->assertTrue(Gate::forUser($this->actor)->allows('update', $this->pengukuran->fresh()));
+                    $this->actingAs($this->actor)->get($items[0]['href'])->assertOk()->assertInertia(fn ($page) => $page
+                        ->where('filters.fokus', 'kewajiban')->where('pagination.total', 1)->where('pengukurans.0.pengukuran.id', $this->pengukuran->id));
+                    DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id,
+                        'permission_id' => Permission::where('kode', 'pengukuran:update')->value('id'), 'unit_id' => $this->unit->id,
+                        'alasan' => 'Pengujian deny input setelah tenggat', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+                    $this->assertNull(app(PengingatKontekstual::class)->handle($this->actor)['pribadi'][0]['href']);
                 }
             }
         }
@@ -150,6 +160,32 @@ class PengingatKontekstualTest extends TestCase
         $this->assertStringContainsString('6 dari 10 indikator belum diajukan', $items[0]['keterangan']);
         $this->assertSame([], app(PengingatKontekstual::class)->ringkasan($this->userWithRole('pegawai'), $this->jadwal, $p,
             ['total' => 10, 'belum_mengisi' => 2, 'draft' => 3, 'dikembalikan' => 1]));
+    }
+
+    public function test_ringkasan_setelah_tenggat_memakai_pesan_netral_dan_tally_tetap_tampil(): void
+    {
+        $this->travelTo(now()->setDate(2026, 3, 16));
+        $p = $this->jadwal->periode()->with('periode')->first();
+        $items = app(PengingatKontekstual::class)->ringkasan($this->actor, $this->jadwal, $p,
+            ['total' => 10, 'belum_mengisi' => 2, 'draft' => 3, 'dikembalikan' => 1, 'tidak_mengisi' => 3]);
+
+        $this->assertCount(1, $items);
+        $this->assertSame('danger', $items[0]['tingkat']);
+        $this->assertSame('Batas pengisian PIC terlewat sejak 15 Maret 2026. 6 dari 10 indikator belum diajukan.', $items[0]['keterangan']);
+    }
+
+    public function test_pic_grant_only_setelah_tenggat_tetap_diarahkan_ke_perencanaan_tanpa_tautan(): void
+    {
+        $pic = $this->userWithRole('pegawai');
+        $this->grant($pic, 'pengukuran:update');
+        PenugasanIndikator::create(['indikator_id' => $this->context->indikator_id, 'user_id' => $pic->id,
+            'tanggal_mulai_berlaku' => '2026-03-01', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->travelTo(now()->setDate(2026, 3, 16));
+        $items = app(PengingatKontekstual::class)->handle($pic)['pribadi'];
+
+        $this->assertCount(1, $items);
+        $this->assertSame('Batas pengisian terlewat sejak 15 Maret 2026. Hubungi Tim Perencanaan. 1 Tidak mengisi.', $items[0]['keterangan']);
+        $this->assertNull($items[0]['href']);
     }
 
     public function test_periode_lampau_dan_koreksi_tidak_menghasilkan_banner_normal(): void
