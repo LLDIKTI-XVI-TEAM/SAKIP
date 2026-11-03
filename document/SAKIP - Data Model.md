@@ -1390,6 +1390,13 @@ Menyatakan kegiatan mana yang mendukung suatu rencana aksi/indikator, dan berdam
 
 **Validasi unit:** `kegiatan.unit_id` harus sama dengan unit `rencana_aksi`/indikator yang diklaim; klaim lintas unit **ditolak sistem**.
 
+**Klaim tahap pengukuran kegiatan lanjutan (Q41 §41.4 butir 2, Q69 §69.5; diterapkan ISS-06.05):**
+- **Contoh:** kegiatan K pada TW I diklaim RA R (indikator I, komponen C) dengan `sumber_klaim = rencana_aksi`, lalu ditunda ke TW II dan membentuk lanjutan K′ (`kegiatan_asal_id` = K). Sistem menambahkan baris `rencana_aksi_id` = R, `kegiatan_id` = K′, `komponen_id` = C, `arah_dampak` dan `catatan` disalin dari klaim K, `sumber_klaim = pengukuran`, dan `pengukuran_id` = baris `pengukuran` I × tahun × TW II.
+- **Waktu pembentukan:** baris dibuat dalam transaksi `ditunda` bila baris pengukuran itu sudah ada, atau saat baris itu dibentuk.
+- **Sumber:** seluruh klaim rantai asal, satu per RA × komponen, hanya ke RA dengan unit dan tahun yang sama.
+- **Duplikasi:** unique di atas mencegah duplikasi, dan CHECK `klaim_sumber_cocok` mewajibkan `pengukuran_id`.
+- **Penjagaan:** klaim tahap `rencana_aksi` untuk kegiatan lanjutan ditolak sistem. Tidak ada kolom baru.
+
 **Hak hapus:** klaim dapat dihapus oleh PIC pembuat klaim atau Perencanaan, selama induknya (`rencana_aksi`) berstatus draf atau dikembalikan (klaim ikut dibekukan saat pengajuan; keputusan PM 16 Oktober 2026 pada PR #111); penghapusan tercatat di `audit_log`. PIC tidak dapat menambah atau menghapus klaim tahap RA atas kegiatan pada periode yang sudah terkunci; Perencanaan dikecualikan sampai `penutupan` (Q41 §41.2, §2.16).
 
 **Penjumlahan anggaran (Q42 §42.2 butir 4–6; diterapkan ISS-06.08, tampilan dashboard per IKU mengikuti ISS-10.01):** anggaran kegiatan yang diklaim dijumlahkan otomatis per periode, per rencana aksi, dan per IKU. Kegiatan yang diklaim pada lebih dari satu rencana aksi/IKU ditampilkan penuh di setiap IKU dengan penanda **"kegiatan bersama"**, sedangkan total per unit dan per tahun dihitung dari **kegiatan unik** agar tidak terhitung ganda. Penanda dan total adalah nilai turunan tampilan, tidak disimpan. Kegiatan dengan `anggaran` kosong (data lama, data awal 2026, atau periode lampau 2026; Q46 §46.1 butir 3) tidak dihitung sebagai `0`, dan total menandai keberadaannya. Kegiatan lanjutan hasil geser periode (`kegiatan_asal_id`) menyalin `anggaran` kegiatan asal dan dapat diubah; kegiatan asal berstatus `ditunda` tidak dihitung dalam total setelah lanjutannya diklaim (Q69 §69.6), dinilai per lingkup (Q69 §69.6 butir 4), sehingga anggarannya hanya terhitung pada kegiatan lanjutan. Total yang sudah dibekukan pada `rencana_aksi_versi` tidak berubah (Q42 §42.2 butir 6).
