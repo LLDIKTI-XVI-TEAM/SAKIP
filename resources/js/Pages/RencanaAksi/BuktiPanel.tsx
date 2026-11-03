@@ -210,9 +210,13 @@ export default function BuktiPanel({ rencanaAksiId, bukti, nomor }: BuktiPanelPr
                                                     {req.pemenuhan.tidak_dapat_dipenuhi ? 'Dikecualikan' : 'Terpenuhi'}
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="warning">
-                                                    Kurang: {req.pemenuhan.mode_kurang.map((mode) => LABEL_MODE[mode]).join(', ')}
-                                                </Badge>
+                                                <>
+                                                    {/* Badge tidak membungkus baris; rincian mode kurang ditulis di bawahnya agar tidak meluber ke kolom aksi. */}
+                                                    <Badge variant="warning">Belum terpenuhi</Badge>
+                                                    {req.pemenuhan.mode_kurang.length > 0 && (
+                                                        <p className="mt-1 break-words text-xs text-muted">Kurang: {req.pemenuhan.mode_kurang.map((mode) => LABEL_MODE[mode]).join(', ')}</p>
+                                                    )}
+                                                </>
                                             )}
                                         </TableCell>
                                         {can.upload && (
