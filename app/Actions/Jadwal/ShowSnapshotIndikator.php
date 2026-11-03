@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalSnapshot;
 use App\Models\JadwalTahunan;
+use App\Models\PengukuranKinerja;
 use App\Models\PeriodeJadwal;
 use App\Models\TargetKinerja;
 use App\Models\Unit;
@@ -27,6 +28,8 @@ class ShowSnapshotIndikator
      * pemegang `indikator:read`, sehingga aktor yang hanya berizin aktivasi/penutupan tidak menerima data tersebut.
      * Jumlah baris dibatasi indikator Renstra jadwal sehingga tidak dipaginasi.
      * Selisih adalah pratinjau: koreksi menghitung ulang dan menilai izin per kolom di bawah lock.
+     * Daftar pengukuran belum disahkan juga dihitung ulang dalam transaksi koreksi. Pemilik can.koreksi menerima
+     * periode, status, dan nomor versi tanpa saringan deny pengukuran:read per unit; nilai dan identitas pengukuran tidak dikirim.
      *
      * @return array<string, mixed>
      */
@@ -45,8 +48,9 @@ class ShowSnapshotIndikator
             ->whereIn('objek_id', $versi->flatten()->pluck('id'))->get(['objek_id', 'waktu'])->mapWithKeys(fn (AuditLog $log): array => [$log->objek_id => $log->waktu]);
         $bolehKoreksi = $bacaIndikator && $jadwal->status === 'aktif' && ! $jadwal->tahunDitutup()
             && collect(SelisihSnapshotMaster::IZIN)->contains(fn (string $kode): bool => $this->resolver->resolve($actor, $kode)->allowed);
+        $pengukuran = $bolehKoreksi ? PengukuranKinerja::belumDisahkanPadaJadwal($jadwal->id)->get()->groupBy('indikator_id') : collect();
 
-        $indikator = $versi->map(function (Collection $daftar, string $indikatorId) use ($master, $targets, $units, $diterbitkan): array {
+        $indikator = $versi->map(function (Collection $daftar, string $indikatorId) use ($master, $targets, $units, $diterbitkan, $pengukuran): array {
             /** @var JadwalSnapshot $terbaru */
             $terbaru = $daftar->last();
             $sumber = $master->get($indikatorId);
@@ -63,6 +67,8 @@ class ShowSnapshotIndikator
                 'snapshot_id' => $terbaru->id,
                 'nomor_versi' => $terbaru->nomor_versi,
                 'periode_mulai' => $terbaru->periodeMulai?->only(['id', 'nama', 'urutan']),
+                'pengukuran_belum_disahkan' => ($pengukuran->get($indikatorId) ?? collect())
+                    ->map(fn (PengukuranKinerja $row): array => $row->only(['periode_id', 'status_alur', 'nomor_versi']))->values()->all(),
                 'selisih' => [
                     // Unit ditampilkan dengan namanya; kolom lain tetap nilai mentah yang diberi label di klien.
                     'kolom' => array_map(fn (array $row): array => $row['kolom'] === 'unit_id'

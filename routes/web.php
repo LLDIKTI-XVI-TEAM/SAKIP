@@ -41,6 +41,7 @@ use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
 use App\Http\Controllers\Pengukuran\EnsureDraftPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
+use App\Http\Controllers\Pengukuran\PindahSnapshotPengukuran;
 use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
 use App\Http\Controllers\Perencanaan\ChangeIndicatorFormula;
@@ -244,6 +245,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->whereUuid('id')->name('pengukuran.edit');
     Route::post('/pengukuran/{id}', UpdatePengukuran::class)->whereUuid('id')->name('pengukuran.update');
     Route::post('/pengukuran/{id}/pratinjau', PreviewPengukuran::class)->whereUuid('id')->name('pengukuran.preview');
+    Route::post('/pengukuran/{id}/pindah-snapshot', PindahSnapshotPengukuran::class)->whereUuid('id')->name('pengukuran.pindah-snapshot');
     Route::get('/pengukuran/{id}/bukti/{buktiId}', [DownloadBuktiPengukuran::class, '__invoke'])->whereUuid('id')->whereUuid('buktiId')->name('pengukuran.bukti');
     Route::get('/pengukuran/{id}/bukti-klaim/{buktiId}', DownloadBuktiKlaimPengukuran::class)->whereUuid('id')->whereUuid('buktiId')->name('pengukuran.bukti-klaim');
 

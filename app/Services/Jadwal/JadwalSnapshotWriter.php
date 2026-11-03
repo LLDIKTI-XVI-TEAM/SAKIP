@@ -19,10 +19,11 @@ use Illuminate\Support\Str;
  * Dipisah karena dipakai bersama oleh ActivateJadwal (seluruh indikator baru saat aktivasi),
  * TambahIndikatorJadwal (satu indikator pada jadwal aktif), dan KoreksiSnapshot (versi pengganti),
  * agar isi beku dan bentuk audit tidak bercabang.
- * Service tidak memeriksa izin, tidak membuka transaksi, tidak mengunci, dan tidak menilai kelayakan.
- * Caller memegang transaksi serta lock indikator, target, dan komponen aktif, dan sudah memastikan
+ * Service mendukung use case yang tetap dimiliki Action: tidak memeriksa izin, membuka transaksi, mengunci, atau menilai kelayakan.
+ * Action pemanggil memegang transaksi serta lock indikator, target, dan komponen aktif, dan sudah memastikan
  * indikator dapat dibekukan serta target tidak null. `$indikator->komponen` harus berisi komponen
  * aktif yang sudah dimuat dan terurut. Nilai decimal disalin sebagai string mentah numeric(30,12).
+ * Daftar pengukuran yang dikonfirmasi dihitung KoreksiSnapshot di bawah lock indikator; Service hanya mencatatnya ke audit.
  */
 class JadwalSnapshotWriter
 {
@@ -49,9 +50,10 @@ class JadwalSnapshotWriter
      * Caller sudah mengunci `$pendahulu` sebagai versi terbaru pasangan jadwal × indikator.
      *
      * @param  array<string, mixed>  $dasarIzin
+     * @param  list<string>  $pengukuranSebelumPeriodeMulai  ID hasil pemeriksaan server yang sudah dikonfirmasi
      */
     public function terbitkanKoreksi(User $actor, JadwalSnapshot $pendahulu, IndikatorKinerja $indikator, TargetKinerja $target,
-        string $periodeMulaiId, string $alasan, string $rujukan, array $dasarIzin): string
+        string $periodeMulaiId, string $alasan, string $rujukan, array $dasarIzin, array $pengukuranSebelumPeriodeMulai): string
     {
         [$snapshot, $komponen] = $this->sisipkan(['jadwal_id' => $pendahulu->jadwal_id, 'nomor_versi' => $pendahulu->nomor_versi + 1,
             'menggantikan_id' => $pendahulu->id, 'alasan_koreksi' => $alasan, 'rujukan_koreksi' => $rujukan], $indikator, $target, $periodeMulaiId);
@@ -62,7 +64,8 @@ class JadwalSnapshotWriter
         $this->audit->catat(actor: $actor, tindakan: 'jadwal_snapshot.koreksi', objekTipe: 'jadwal_snapshot', objekId: $snapshot->id,
             nilaiLama: [...$this->konteksAudit($pendahulu, $komponenLama, (bool) $pendahulu->komposisi_final, denganLabel: true), 'definisi' => $pendahulu->definisi],
             nilaiBaru: [...$this->konteksAudit($snapshot, $komponen, denganLabel: true), 'definisi' => $snapshot->definisi,
-                'menggantikan_id' => $pendahulu->id, 'rujukan_koreksi' => $rujukan],
+                'menggantikan_id' => $pendahulu->id, 'rujukan_koreksi' => $rujukan,
+                'pengukuran_sebelum_periode_mulai' => $pengukuranSebelumPeriodeMulai],
             alasan: $alasan, dasarIzin: $dasarIzin);
 
         return $snapshot->id;

@@ -1896,6 +1896,24 @@ kegiatan:update
 
 > **Status implementasi — issue #91 (2026-10-30):** centang menunjukkan bukti implementasi dan test pada PR implementasi issue #91, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 dan AC-2 `KoreksiSnapshotTest::test_koreksi_menerbitkan_versi_baru_dari_data_master_tanpa_mengubah_versi_lama`, `KoreksiSnapshotTest::test_koreksi_menyalin_komponen_aktif_master_dan_komponen_lama_tetap`, `KoreksiSnapshotTest::test_audit_koreksi_memuat_definisi_dan_label_komponen_yang_berubah`; AC-3 `KoreksiSnapshotTest::test_versi_lama_tetap_beku_setelah_koreksi`; AC-4 `KoreksiSnapshotTest::test_rujukan_pengukuran_dan_rencana_aksi_tidak_berpindah`; AC-5 `KoreksiSnapshotTest::test_snapshot_tidak_cocok_atau_bukan_versi_terbaru_ditolak`, `KoreksiSnapshotTest::test_tanpa_selisih_dan_periode_mulai_tidak_sah_ditolak`, `KoreksiSnapshotTest::test_jadwal_tidak_aktif_atau_data_master_tidak_layak_ditolak`, `KoreksiSnapshotTest::test_koreksi_pindah_unit_ditolak_bila_rencana_aksi_sudah_ada_pada_unit_lama`; AC-6 `JadwalActivationConcurrencyTest::test_concurrent_snapshot_corrections_publish_one_version_and_reject_the_stale_one`, `JadwalActivationConcurrencyTest::test_correction_waits_for_target_writer_and_copies_the_committed_target`, `JadwalActivationConcurrencyTest::test_correction_and_action_plan_target_save_queue_in_both_orders`, `KoreksiSnapshotTest::test_konflik_lock_menjadi_penolakan_muat_ulang_dengan_audit`; AC-7 `KoreksiSnapshotTest::test_izin_per_kelompok_kolom_dan_penolakan_teraudit`, `KoreksiSnapshotTest::test_alasan_dan_rujukan_wajib_serta_field_tak_dikenal_ditolak`. AC-8 belum dicentang: versi dengan periode mulai eksplisit dan pembaca per periode dibuktikan `KoreksiSnapshotTest::test_periode_sebelum_periode_mulai_koreksi_tetap_memakai_versi_lama` (TEST-8, Q79 §79.2 butir 4), sedangkan penerbitan saat persetujuan revisi PK menunggu ISS-02.12. Halaman Snapshot Indikator: `KoreksiSnapshotTest::test_halaman_snapshot_menampilkan_versi_selisih_dan_izin_koreksi` dan `tests/Frontend/JadwalSnapshotIndikator.test.tsx`. Seperti detail jadwal, isi indikator pada halaman ini hanya dikirim kepada pemegang `indikator:read`.
 
+> **Status implementasi — issue #220 (2026-11-02, PR #238):** pemindahan manual dan teraudit pengukuran `draft`/`dikembalikan` oleh Perencanaan ke versi yang berlaku pada periodenya (Q79 §79.3 butir 4), gerbang pengajuan dan target per snapshot (Q81 §81.2), serta konfirmasi koreksi snapshot (Q81 §81.3) telah diimplementasikan dan diuji lokal. Alasan pemindahan opsional dengan alasan baku server bila kosong (Q43 §43.1); ketentuan alasan wajib pada issue #220 tidak berlaku. Penerbitan koreksi tetap tidak memindahkan rujukan otomatis. Bukti ini bukan persetujuan QA/UAT, merge, atau deployment; AC-8 ISS-03.03 tetap menunggu ISS-02.12.
+
+Nomor TEST/AC pada tabel berikut milik issue #220; penomoran AC issue #91 di bawah tetap berlaku untuk penerbitan koreksi.
+
+| Bukti issue #220 | Test |
+|---|---|
+| TEST-1 / AC-1 | `PindahSnapshotPengukuranTest::test_draf_dipindahkan_dengan_rekonsiliasi_dan_alasan_baku_tanpa_mengubah_jejak`; `PindahSnapshotPengukuranTest::test_pengukuran_dikembalikan_mempertahankan_status_dan_menyimpan_alasan_tersanitasi`; `PindahSnapshotPengukuranTest::test_hasil_buka_kembali_dapat_dipindahkan_tanpa_mengubah_status_capaian_versi_resmi` |
+| TEST-1b / rekonsiliasi tipe, peran, presisi, dan belum dapat diukur | `PindahSnapshotPengukuranTest::test_perubahan_penjumlahan_ke_rasio_mengosongkan_nilai_komponen_dengan_peran_baru`; `PindahSnapshotPengukuranTest::test_pertukaran_peran_rasio_dengan_id_tetap_mengosongkan_kedua_nilai`; `PindahSnapshotPengukuranTest::test_hasil_hitung_komponen_tidak_dibawa_sebagai_nilai_manual`; `PindahSnapshotPengukuranTest::test_nilai_manual_dibulatkan_ulang_saat_presisi_turun`; `PindahSnapshotPengukuranTest::test_belum_dapat_diukur_tetap_saat_tipe_tidak_berubah`; `PindahSnapshotPengukuranTest::test_belum_dapat_diukur_tetap_saat_tipe_berubah` |
+| TEST-2 / AC-2 | `PindahSnapshotPengukuranTest::test_status_diajukan_diverifikasi_dan_disahkan_ditolak_tanpa_mutasi` |
+| TEST-3 / AC-3 | `PindahSnapshotPengukuranTest::test_pemindahan_menunggu_ra_sah_bersnapshot_tujuan_sebelum_pengajuan` |
+| TEST-4 / AC-4, izin dua unit dan token | `PindahSnapshotPengukuranTest::test_pic_dengan_grant_dan_penugasan_tetap_ditolak`; `PindahSnapshotPengukuranTest::test_deny_unit_tujuan_menang_dan_dasar_penolakan_dicatat`; `PindahSnapshotPengukuranTest::test_lintas_unit_mencatat_dasar_izin_tujuan_dan_dasar_unit_lama_secara_terpisah`; `PindahSnapshotPengukuranTest::test_unit_rencana_aksi_yang_berbeda_ditolak_dan_diaudit`; `PindahSnapshotPengukuranTest::test_unit_tujuan_nonaktif_ditolak_sebagai_aturan_bisnis`; `PindahSnapshotPengukuranTest::test_unit_lama_nonaktif_tetap_dapat_dipindahkan_ke_unit_tujuan_aktif`; `PindahSnapshotPengukuranTest::test_koreksi_mulai_tw2_tidak_dapat_dipakai_untuk_memindahkan_tw1`; `PindahSnapshotPengukuranTest::test_field_tujuan_liar_dan_alasan_terlalu_panjang_ditolak_form_request`; `PindahSnapshotPengukuranTest::test_token_header_usang_ditolak_409_sebelum_guard_tidak_ada_versi_baru`; `PindahSnapshotPengukuranTest::test_versi_tujuan_baru_setelah_halaman_dibuka_menghasilkan_409`; `PindahSnapshotPengukuranTest::test_uuid_huruf_besar_dinormalisasi_dan_id_tak_dikenal_tidak_membuat_audit` |
+| TEST-4b / sesi koreksi dan jendela PIC | `PindahSnapshotPengukuranTest::test_tahun_ditutup_tanpa_sesi_menolak_pemindahan`; `PindahSnapshotPengukuranTest::test_sesi_belum_mulai_kedaluwarsa_atau_salah_lingkup_menolak_pemindahan`; `PindahSnapshotPengukuranTest::test_sesi_aktif_dalam_lingkup_membolehkan_pemindahan_perencanaan`; `PindahSnapshotPengukuranTest::test_pic_dengan_jendela_koreksi_resmi_tetap_tidak_boleh_memindahkan` |
+| TEST-5 / AC-5 | `MutationConcurrencyTest::test_dua_pemindahan_snapshot_bersamaan_hanya_satu_berhasil_dan_satu_konflik` |
+| TEST-6 / AC-6, gerbang dan target Q81 | `PindahSnapshotPengukuranTest::test_tw1_memakai_ra_sah_terbesar_untuk_snapshot_lama_dan_mengabaikan_klaim_periode_lain`; `PindahSnapshotPengukuranTest::test_tw2_dengan_versi_lama_ditolak_sebelum_ra_koreksi_disahkan`; `PindahSnapshotPengukuranTest::test_tw2_dengan_versi_lama_ditolak_setelah_ra_koreksi_disahkan`; `PindahSnapshotPengukuranTest::test_klaim_komponen_di_luar_snapshot_pada_periode_yang_sama_tetap_ditolak`; `PindahSnapshotPengukuranTest::test_tw1_tanpa_ra_sah_bersnapshot_lama_ditolak_dengan_pesan_khusus`; `PindahSnapshotPengukuranTest::test_unit_ra_berbeda_ditolak_setelah_snapshot_lolos_syarat_versi_berlaku`; `PindahSnapshotPengukuranTest::test_periode_lampau_tetap_memuat_target_dan_versi_ra_meski_snapshot_bukan_versi_berlaku` |
+| TEST-7 / AC-7, konfirmasi dan props Q81 | `KoreksiSnapshotTest::test_pengukuran_sebelum_periode_mulai_memerlukan_konfirmasi_dan_id_server_diaudit`; `KoreksiSnapshotTest::test_koreksi_tanpa_pengukuran_belum_sah_sebelumnya_tidak_memerlukan_konfirmasi`; `KoreksiSnapshotTest::test_konfirmasi_pengukuran_sebelumnya_harus_boolean`; `KoreksiSnapshotTest::test_props_pengukuran_belum_disahkan_hanya_tiga_field_dan_hanya_untuk_pemilik_izin_koreksi` |
+| TEST-8 / props daftar-detail dan Policy tanpa mutasi | `PindahSnapshotPengukuranTest::test_props_versi_berlaku_dan_capability_perencanaan_atau_pic_pada_daftar_dan_detail`; `PindahSnapshotPengukuranTest::test_props_tanpa_label_setelah_dipindahkan_dan_sesudah_diajukan`; `PindahSnapshotPengukuranTest::test_baris_sebelum_periode_efektif_tidak_diberi_label_versi_lama`; `PindahSnapshotPengukuranTest::test_policy_memeriksa_salinan_tanpa_mengubah_header_dan_relasi_aslinya` |
+| Vitest / pemindahan dan konfirmasi koreksi | `tests/Frontend/PengukuranPindahVersi.test.tsx`; `tests/Frontend/JadwalSnapshotIndikator.test.tsx` |
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given snapshot sudah terbit, baik belum maupun sudah dirujuk RA/Pengukuran/versi pengajuan, When koreksi diminta, Then baris snapshot dan komponennya tidak diubah in-place; koreksi dibuat sebagai versi baru (AC-2) dan audit menyimpan konteks lama/baru. *(Q35 §35.1)*
@@ -3325,31 +3343,33 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
+- [x] **AC-1:** Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
 - [ ] **AC-2:** Given klaim menjadi bagian snapshot Pengukuran, When koreksi dilakukan, Then koreksi mengikuti siklus Pengukuran terkait dan baru masuk versi berikutnya.
-- [ ] **AC-3:** Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
-- [ ] **AC-4:** Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
+  - Catatan 3 November 2026: penulis klaim tahap pengukuran dibuat di ISS-06.05 bagian 2 (#221); jalur koreksinya dikerjakan sebagai lanjutan ISS-06.06 (#223) setelah #221 merge. Sampai jalur itu tersedia, upaya hapus klaim tahap pengukuran ditolak dan diaudit; AC ini tetap terbuka dan #223 tetap open setelah PR ini.
+- [x] **AC-3:** Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
+- [x] **AC-4:** Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `klaim_kegiatan`, versi RA/Pengukuran, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `klaim_kegiatan`, versi RA/Pengukuran, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Koreksi klaim harus mengikuti siklus versi sumber (RA atau Pengukuran) dan tidak mengubah snapshot versi historis.
+- [ ] Koreksi klaim harus mengikuti siklus versi sumber (RA atau Pengukuran) dan tidak mengubah snapshot versi historis. *(Siklus RA terbukti; siklus Pengukuran dikerjakan lanjutan ISS-06.06 (#223) setelah #221 merge.)*
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Kewenangan mengikuti sumber yang sedang dikoreksi.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Kewenangan mengikuti sumber yang sedang dikoreksi. *(Sumber RA terbukti; sumber pengukuran mengikuti AC-2.)*
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given klaim menjadi bagian snapshot Pengukuran, When koreksi dilakukan, Then koreksi mengikuti siklus Pengukuran terkait dan baru masuk versi berikutnya.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
+  - Catatan 3 November 2026: test yang ada membuktikan penolakan dan audit; test siklus koreksi pengukuran dikerjakan pada lanjutan ISS-06.06 (#223) setelah #221 merge.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
 
 #### Definition of Done
 
@@ -6634,22 +6654,24 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
-- [ ] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
-- [ ] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live.
-- [ ] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
-- [ ] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat.
+- [x] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
+- [x] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
+- [x] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live. *(Q46 §46.3: tenggat WA/Email sebelum 9 November 2026 tidak berlaku lagi; 9 November 2026 tetap batas integrasi Tahap 1 dan bukan tanggal go-live.)*
+- [x] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
+- [x] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat. *(Format pencatatan tersedia pada `SAKIP - Tahapan UAT dan Rilis.md` §6; isian pertama dibuat saat penerimaan pertama.)*
+
+> **Status per 2 November 2026 (issue [#187](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/187)):** tahapan tersedia di `SAKIP - Tahapan UAT dan Rilis.md` (keputusan PM K3–K7). AC-1 dan AC-2 terpenuhi oleh empat status beserta pihak penetap serta syarat masuk/keluarnya (§2), AC-3 oleh kalender target (§1), AC-4 oleh isian `Belum ditetapkan` (§1, §4, §6), dan AC-5 oleh format catatan keputusan (§6). UAT-1–UAT-5 dicentang setelah dokumen direview PM bersama Tim Perencanaan. Belum ada paket UAT karena lingkungan UAT (ISS-15.02) serta akun UAT lima role dan PIC operasional (ISS-15.01 AC-5) belum tersedia. Status ini **bukan** UAT accepted atau deployment.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
+- [x] Tidak menambah skema domain tanpa keputusan eksplisit; simpan artefak/checklist penerimaan di mekanisme dokumentasi proyek yang telah ditetapkan.
 
 **B. Backend / Domain**
-- [ ] Pisahkan status siap diuji, evaluasi/perbaikan, diterima, dan produksi. Tanggal target integrasi bukan otomatis tanggal go-live.
+- [x] Pisahkan status siap diuji, evaluasi/perbaikan, diterima, dan produksi. Tanggal target integrasi bukan otomatis tanggal go-live.
 
 **C. Authorization & Audit**
-- [ ] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
+- [x] Tidak menciptakan permission baru hanya untuk checklist governance/UAT kecuali PRD secara eksplisit menambahkannya.
 
 #### Automated Tests / Verification
 
@@ -6662,10 +6684,10 @@ Perubahan per request (tanpa nomor baris kode):
 #### Definition of Done
 
 - [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
-- [ ] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2).
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Sebelum status produksi, uji pemulihan pada lingkungan produksi tercatat pada `SAKIP - Kesiapan Infrastruktur.md` §4 (Q80 §80.2). *(Menjadi syarat masuk status Produksi, `SAKIP - Tahapan UAT dan Rilis.md` §2.3.)*
 
 
 ---

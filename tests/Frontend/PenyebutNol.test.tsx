@@ -24,6 +24,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ childr
 
 const measurement: Pengukuran = {
     id: '7b2a8af8-3d18-42bb-9b34-ff0bcce043a5', versi: 4, nomor_pengajuan: 1,
+    versi_berlaku: null,
     jalur_pengajuan: 'pic', self_approval: false, reviu_terlambat: false, status: 'draft', target: 100,
     nilai: 80, status_perhitungan: 'terhitung', sumber_nilai: 'manual', catatan: '', alasan_tidak_dapat_dihitung: null,
     komponen: [], prasyarat: { siap: true, alasan: [] }, persyaratan_bukti: [],
@@ -70,8 +71,8 @@ const konteksBaris = {
     indikator_id: 'ind-1', jadwal_id: 'jad-1', jadwal_snapshot_id: 'snap-1', tahun: 2026, periode: tw1, pic: null,
     indikator: { kode: 'IKU-UJI', nama: 'Indikator Uji', satuan: '%', desimal_tampilan: 2 }, unit: { id: 'unit-1', nama: 'Unit Uji' },
 };
-const ringkasan = { id: measurement.id, status: 'draft' as const, nilai: 80, status_perhitungan: 'terhitung' as const, target: 100, bukti_count: 0, self_approval: false, reviu_terlambat: false };
-const baris = (kode: string, row: Partial<BarisPengukuran>): BarisPengukuran => ({ ...konteksBaris, indikator_id: kode, indikator: { ...konteksBaris.indikator, kode }, ...row } as BarisPengukuran);
+const ringkasan = { id: measurement.id, versi: measurement.versi, status: 'draft' as const, nilai: 80, status_perhitungan: 'terhitung' as const, target: 100, bukti_count: 0, self_approval: false, reviu_terlambat: false };
+const baris = (kode: string, row: Partial<BarisPengukuran>): BarisPengukuran => ({ ...konteksBaris, indikator_id: kode, indikator: { ...konteksBaris.indikator, kode }, ...(row.jenis === 'existing' ? { versi_berlaku: null } : {}), ...row } as BarisPengukuran);
 const indexProps = (pengukurans: BarisPengukuran[], extra: Record<string, unknown> = {}) => ({
     konteks: [{ jadwal_id: 'jad-1', tahun: 2026, periode: tw1 }], filters: { jadwal_id: null, periode_id: null }, can: { selectPeriod: false },
     pengukurans, pagination: { links: [], from: 1, to: pengukurans.length, total: pengukurans.length }, ...extra,

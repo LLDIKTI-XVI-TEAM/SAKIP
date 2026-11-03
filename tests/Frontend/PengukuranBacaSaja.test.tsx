@@ -15,6 +15,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({ AuthenticatedLayout: ({ childr
 
 const tersimpan: Pengukuran = {
     id: '7b2a8af8-3d18-42bb-9b34-ff0bcce043a5', versi: 4, nomor_pengajuan: 1,
+    versi_berlaku: null,
     jalur_pengajuan: 'pic', self_approval: false, reviu_terlambat: false, status: 'draft', target: 100,
     nilai: null, status_perhitungan: 'tidak_dapat_dihitung', sumber_nilai: 'komponen', catatan: '', alasan_tidak_dapat_dihitung: 'Penyebut nol',
     komponen: [{ komponen_id: 'a', kode: 'A', label: 'Komponen A', peran: 'pembilang', bobot: null, nilai: '5' }],

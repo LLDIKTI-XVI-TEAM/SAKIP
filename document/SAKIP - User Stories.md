@@ -810,6 +810,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 >
 > **Status implementasi — issue #91:** AC-1–AC-7 memiliki bukti test pada PR implementasi issue #91; AC-8 menunggu penerbitan versi oleh revisi PK berversi (US-02.12). Rincian test dan batas bukti tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks). Centang bukan persetujuan QA/UAT atau deployment.
 
+> **Status implementasi — issue #220 (2026-11-02, PR #238):** pemindahan eksplisit dan teraudit oleh Perencanaan dengan alasan opsional (Q79 §79.3 butir 4), gerbang pengajuan dan target per snapshot serta konfirmasi koreksi (Q81) telah diimplementasikan dan diuji lokal. Penerbitan koreksi tetap tidak memindahkan rujukan otomatis. Bukti test tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks); AC-8 tetap menunggu US-02.12. Ini bukan persetujuan QA/UAT, merge, atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-03.03` |
@@ -1439,10 +1441,12 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
+- [x] **AC-1:** Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
 - [ ] **AC-2:** Given klaim menjadi bagian snapshot Pengukuran, When koreksi dilakukan, Then koreksi mengikuti siklus Pengukuran terkait dan baru masuk versi berikutnya.
-- [ ] **AC-3:** Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
-- [ ] **AC-4:** Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
+- [x] **AC-3:** Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
+- [x] **AC-4:** Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
+
+**Status implementasi (3 November 2026):** AC-1, AC-3, dan AC-4 terbukti oleh automated test. AC-2 tetap terbuka: penulis klaim tahap pengukuran dibuat di ISS-06.05 bagian 2 (#221), sedangkan jalur koreksinya dikerjakan sebagai lanjutan ISS-06.06 (#223) setelah #221 merge. Sampai jalur itu tersedia, upaya koreksi klaim tahap pengukuran ditolak dan diaudit.
 
 ### US-06.07 · Koreksi Bukti Kegiatan secara Append-Only
 
@@ -2752,11 +2756,11 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
-- [ ] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
-- [ ] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live.
-- [ ] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
-- [ ] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat.
+- [x] **AC-1:** Given fitur selesai secara teknis, Then statusnya dapat menjadi siap diuji tanpa otomatis dianggap diterima.
+- [x] **AC-2:** Given UAT menemukan masalah, Then hasil masuk evaluasi/perbaikan sampai acceptance criteria terpenuhi.
+- [x] **AC-3:** Given tanggal target integrasi notifikasi sebelum 9 November 2026, Then tanggal tersebut tidak otomatis menjadi tanggal go-live. *(Q46 §46.3: tenggat WA/Email sebelum 9 November 2026 tidak berlaku lagi; 9 November 2026 tetap batas integrasi Tahap 1 dan bukan tanggal go-live.)*
+- [x] **AC-4:** Given tanggal penerimaan/produksi belum ditetapkan, Then dokumen tidak mengarang tanggal atau penerima UAT.
+- [x] **AC-5:** Given acceptance disetujui, Then pihak penerima, tanggal, build/versi, dan catatan keputusan dicatat. *(Format pencatatan tersedia pada `SAKIP - Tahapan UAT dan Rilis.md` §6; isian pertama dibuat saat penerimaan pertama.)*
 
 ---
 

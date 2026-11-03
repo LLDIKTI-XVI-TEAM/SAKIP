@@ -42,6 +42,7 @@ export const statusPerhitungan = { belum_diisi: 'Belum diisi', terhitung: 'Terhi
 export interface Pengukuran {
     id: string;
     versi: number;
+    versi_berlaku: { id: string; nomor: number } | null;
     nomor_pengajuan: number;
     jalur_pengajuan: 'pic' | 'perencanaan' | null;
     self_approval: boolean;
@@ -106,6 +107,7 @@ export interface HistoriVersiPengukuran {
 }
 
 export interface PengukuranCapabilities {
+    pindahSnapshot?: boolean;
     viewClaims?: boolean;
     claimEvidence?: boolean;
     view: boolean;
@@ -159,7 +161,7 @@ export interface PengukuranPagination {
     next_page_url: string | null;
 }
 
-export type RingkasanPengukuran = Pick<Pengukuran, 'id' | 'status' | 'nilai' | 'status_perhitungan' | 'target' | 'tanpa_target_periode' | 'bukti_count' | 'self_approval' | 'reviu_terlambat'>;
+export type RingkasanPengukuran = Pick<Pengukuran, 'id' | 'versi' | 'status' | 'nilai' | 'status_perhitungan' | 'target' | 'tanpa_target_periode' | 'bukti_count' | 'self_approval' | 'reviu_terlambat'>;
 
 export interface KonteksBarisPengukuran {
     indikator_id: string;
@@ -174,7 +176,7 @@ export interface KonteksBarisPengukuran {
 
 /** Baris kewajiban: header existing, belum diisi (berlaku), atau sebelum efektif ("Tidak berlaku"). */
 export type BarisPengukuran = KonteksBarisPengukuran & (
-    | { jenis: 'existing'; pengukuran: RingkasanPengukuran; can: { create: false } }
+    | { jenis: 'existing'; pengukuran: RingkasanPengukuran; versi_berlaku: { id: string; nomor: number } | null; can: { create: false; pindahSnapshot?: boolean } }
     | { jenis: 'absent'; berlaku: true; pengukuran: null; target: string | number | null; tanpa_target_periode?: boolean; can: { create: boolean } }
     | { jenis: 'absent'; berlaku: false; pengukuran: null; target: null; tanpa_target_periode?: boolean; can: { create: false } }
 );

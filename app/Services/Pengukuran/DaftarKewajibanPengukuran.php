@@ -7,6 +7,12 @@ use App\Models\PenugasanIndikator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Membangun query kewajiban yang dipakai IndexPengukuran dan StatusIndikatorDashboard.
+ * Pemilihan snapshot dan header dibagi agar kedua pemakai membaca kewajiban yang sama.
+ * Service hanya membangun query; otorisasi, pagination, dan penyajian tetap milik pemanggil,
+ * tanpa locking, transaksi, penyimpanan, atau audit.
+ */
 class DaftarKewajibanPengukuran
 {
     /**
@@ -24,7 +30,7 @@ class DaftarKewajibanPengukuran
         $selected = DB::table('jadwal_snapshot as s')->join('jadwal_periode as jp', 'jp.jadwal_id', '=', 's.jadwal_id')
             ->join('periode as pr', 'pr.id', '=', 'jp.periode_id')->join('periode as pm', 'pm.id', '=', 's.periode_mulai_id')
             ->join('jadwal_tahunan as j', 'j.id', '=', 's.jadwal_id')->whereIn('jp.id', $periodeJadwalIds)
-            ->selectRaw("DISTINCT ON (s.jadwal_id, s.indikator_id, jp.id) s.jadwal_id, s.indikator_id, s.id as snapshot_id, jp.id as periode_jadwal_id, jp.periode_id, j.tahun, j.status, {$effective} as berlaku")
+            ->selectRaw("DISTINCT ON (s.jadwal_id, s.indikator_id, jp.id) s.jadwal_id, s.indikator_id, s.id as snapshot_id, s.nomor_versi, jp.id as periode_jadwal_id, jp.periode_id, j.tahun, j.status, {$effective} as berlaku")
             ->orderBy('s.jadwal_id')->orderBy('s.indikator_id')->orderBy('jp.id')->orderByRaw("{$effective} DESC")
             ->orderByRaw("CASE WHEN {$effective} THEN -s.nomor_versi ELSE s.nomor_versi END");
 
@@ -38,6 +44,7 @@ class DaftarKewajibanPengukuran
             ->where(fn ($q) => $q->whereNotNull('h.id')->orWhere('i.status', '!=', IndikatorKinerja::STATUS_ARSIP))
             ->whereNotIn('cs.unit_id', $unitDitolak)
             ->select(['k.jadwal_id', 'k.indikator_id', 'k.periode_jadwal_id', 'k.periode_id', 'k.tahun', 'k.berlaku', 'h.id as pengukuran_id', 'cs.id as jadwal_snapshot_id',
+                'k.snapshot_id as snapshot_berlaku_id', 'k.nomor_versi as nomor_versi_berlaku',
                 'cs.nama', 'cs.satuan', 'cs.desimal_tampilan', 'i.kode', 'u.id as unit_id', 'u.nama as unit_nama', 'pic.user_id as pic_id', 'picu.nama as pic_nama',
                 'i.sasaran_strategis_id', 'k.status as jadwal_status', 'cs.arah', 'cs.target as target_pk'])
             ->orderByRaw("CASE WHEN k.status = 'aktif' THEN 0 ELSE 1 END")->orderBy('k.tahun')->orderBy('k.jadwal_id')->orderBy('i.kode')->orderBy('i.id');

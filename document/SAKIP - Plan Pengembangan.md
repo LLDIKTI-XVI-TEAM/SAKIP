@@ -979,13 +979,13 @@ Setiap task memiliki tiga bagian wajib:
 - **Dependency:** 12.6, 12.3.
 - **DoD:** Test Pest: klaim terhadap kegiatan berstatus `batal` dan `tidak_terlaksana` masing-masing berhasil tersimpan tanpa penolakan; status kegiatan tsb ikut tampil pada tampilan rekapitulasi (diverifikasi lewat komponen 8.3) sebagai bagian narasi kendala.
 
-### 12.10 Penghapusan klaim (sebelum rencana aksi disahkan)
+### 12.10 Penghapusan klaim tahap RA (rencana aksi draf atau dikembalikan)
 
 > **Q41 (13 Oktober 2026):** PIC tidak dapat menghapus klaim tahap Rencana Aksi pada periode yang terkunci karena daftar kegiatan periode tersebut tidak boleh berubah (Q41 §41.2 butir 2, 11.9).
 
-- **Scope:** Aksi hapus `klaim_kegiatan` oleh PIC pembuat klaim atau Perencanaan, hanya diizinkan selama `rencana_aksi` induknya belum berstatus `disahkan`.
+- **Scope:** Aksi hapus `klaim_kegiatan` dengan `sumber_klaim = rencana_aksi` oleh PIC pembuat klaim atau Perencanaan, hanya diizinkan selama `rencana_aksi` induknya berstatus `draft` atau `dikembalikan` (PRD §16.5; Workflow §9 butir 7; Q41 §41.2). Koreksi klaim tahap pengukuran mengikuti siklus pengukuran dan dikerjakan sebagai lanjutan ISS-06.06 (#223) setelah penulisnya tersedia di ISS-06.05 bagian 2 (#221).
 - **Dependency:** 12.6, 11.3.
-- **DoD:** Test Pest: penghapusan klaim pada rencana aksi berstatus `draft`/`diajukan`/`diverifikasi`/`dikembalikan` berhasil dan tercatat audit_log; penghapusan pada rencana aksi berstatus `disahkan` ditolak; pemohon selain pembuat klaim/Perencanaan (mis. PIC unit lain) mendapat 403.
+- **DoD:** Test Pest: penghapusan klaim pada rencana aksi berstatus `draft`/`dikembalikan` berhasil dan tercatat audit_log; penghapusan pada rencana aksi berstatus `diajukan`/`diverifikasi`/`disahkan` ditolak; pemohon selain pembuat klaim/Perencanaan (mis. PIC unit lain) mendapat 403.
 
 ### 12.11 Gerbang bukti dukung pada transisi Kegiatan `rencana → terlaksana`
 
@@ -1198,7 +1198,7 @@ Aturan berikut berlaku di seluruh Plan ini dan menjadi rujukan wajib bagi siapa 
 
 ### P.4 Kesiapan operasional dan penerimaan rilis
 
-- **Scope:** PM bersama pengelola infrastruktur menetapkan owner dan kesiapan layanan pendukung (Q30): realm/client Keycloak, domain/HTTPS, VPS, PostgreSQL, storage privat, backup dan uji pemulihan, queue worker, scheduler, monitoring, notifikasi eksternal, dukungan insiden, bootstrap Superadmin, dan credential deployment. Owner, status, bukti, dan blocker dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi dipisah (Q2, ISS-15.03); data awal mengikuti S.1 dan ISS-15.01.
+- **Scope:** PM bersama pengelola infrastruktur menetapkan owner dan kesiapan layanan pendukung (Q30): realm/client Keycloak, domain/HTTPS, VPS, PostgreSQL, storage privat, backup dan uji pemulihan, queue worker, scheduler, monitoring, notifikasi eksternal, dukungan insiden, bootstrap Superadmin, dan credential deployment. Owner, status, bukti, dan blocker dicatat pada `SAKIP - Kesiapan Infrastruktur.md` (ISS-15.02). Tahapan siap diuji, evaluasi/perbaikan, diterima, dan produksi dipisah dan dicatat pada `SAKIP - Tahapan UAT dan Rilis.md` (Q2, ISS-15.03); data awal mengikuti S.1 dan ISS-15.01.
 - **Dependency:** P.1, P.2, ISS-15.01.
 - **DoD:** setiap layanan memiliki owner dan bukti pada lingkungan tujuan, atau tercatat sebagai blocker/risiko; uji pemulihan berbukti; readiness aplikasi dan readiness operasional dinilai terpisah; notifikasi eksternal mengikuti Q46 §46.3; go-live tidak diklaim dari selesainya coding atau CI hijau.
 

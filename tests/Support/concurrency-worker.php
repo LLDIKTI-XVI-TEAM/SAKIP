@@ -11,6 +11,7 @@ use App\Actions\PenanggungJawab\AssignPenanggungJawab;
 use App\Actions\PenanggungJawab\ChangePenanggungJawab;
 use App\Actions\PenanggungJawab\ReadPenanggungJawab;
 use App\Actions\Pengukuran\ApprovePengukuran;
+use App\Actions\Pengukuran\PindahkanPengukuranKeVersiSnapshot;
 use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
@@ -98,6 +99,7 @@ try {
             'unit-delete' => app(DeleteUnitAction::class)->handle($actor, $assignment['unit_id'], 'Alasan penghapusan fixture', $initialDecision),
             'sync-presets' => app(SyncRolePermissionPresets::class)->handle('test-release', 'Fixture konkurensi rilis', 'test-process:'.getmypid()),
             'pengukuran-ajukan' => app(SubmitPengukuran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->status_alur,
+            'pengukuran-pindah-snapshot' => app(PindahkanPengukuranKeVersiSnapshot::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->jadwal_snapshot_id,
             'pengukuran-sahkan' => app(ApprovePengukuran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->status_alur,
             'pengukuran-ensure-draft' => performPengukuranEnsureDraft($assignment),
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment'])['status'],
@@ -145,6 +147,7 @@ try {
             'revoke-deny' => 'deny_id',
             'ra-verifikasi', 'ra-kembalikan' => 'expected_versi',
             'pengukuran-ajukan' => $assignment['expected_error_field'] ?? 'versi',
+            'pengukuran-pindah-snapshot' => $assignment['expected_error_field'] ?? 'versi',
             // Penolakan bisnis gerbang review bersama (mis. unit dinonaktifkan selagi menunggu kunci).
             'rencana-sahkan' => 'businessErrors',
             // Pemenang race menaikkan versi header; yang kalah membaca baris segar dan ditolak pada token versi.
