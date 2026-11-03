@@ -16,7 +16,18 @@ class PilihanStatusKegiatanTest extends TestCase
 
         $this->assertSame(['ditunda', 'tidak_terlaksana', 'batal'], $p['status']);
         $this->assertSame(['tw2', 'tw3'], array_column($p['periode_tujuan'], 'id'));
-        $this->assertSame(['id' => 'tw2', 'nama' => 'Triwulan II'], $p['periode_tujuan'][0]);
+        $this->assertSame(['id' => 'tw2', 'nama' => 'Triwulan II',
+            'tanggal' => ['bulan_mulai' => null, 'hari_mulai' => null, 'bulan_selesai' => null, 'hari_selesai' => null]], $p['periode_tujuan'][0]);
+    }
+
+    public function test_periode_tujuan_membawa_tanggal_master(): void
+    {
+        $tw2 = $this->periode('tw2', 'Triwulan II', 2)->forceFill(['bulan_mulai' => 4, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30]);
+        $aktif = collect([$this->periode('tw1', 'Triwulan I', 1), $tw2]);
+
+        $p = $this->kegiatan('rencana', 'tw1')->pilihanStatus($aktif);
+
+        $this->assertSame(['bulan_mulai' => 4, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30], $p['periode_tujuan'][0]['tanggal']);
     }
 
     public function test_tidak_terlaksana_hanya_tunda_dan_batal(): void

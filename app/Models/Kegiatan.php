@@ -75,13 +75,14 @@ class Kegiatan extends Model
      * diterapkan dan tidak diterapkan di sini; bila diterapkan, penyaringannya di caller (`DaftarKegiatan`/`FormKegiatan`),
      * sehingga signature tetap.
      *
-     * @param  Collection<int, Periode>  $periodeAktif  Periode aktif berkolom `id, nama, urutan`, urut `urutan, id`; relasi `periode` wajib dimuat.
-     * @return array{status: list<string>, periode_tujuan: list<array{id: string, nama: string}>}
+     * @param  Collection<int, Periode>  $periodeAktif  Periode aktif berkolom `id, nama, urutan, ...Periode::TANGGAL`, urut `urutan, id`; relasi `periode` wajib dimuat.
+     * @return array{status: list<string>, periode_tujuan: list<array{id: string, nama: string, tanggal: array<string, mixed>}>}
      */
     public function pilihanStatus(Collection $periodeAktif): array
     {
         $tujuan = $periodeAktif->filter(fn (Periode $periode): bool => $periode->urutan > $this->periode->urutan)
-            ->map(fn (Periode $periode): array => ['id' => (string) $periode->id, 'nama' => (string) $periode->nama])->values()->all();
+            ->map(fn (Periode $periode): array => ['id' => (string) $periode->id, 'nama' => (string) $periode->nama,
+                'tanggal' => $periode->only(Periode::TANGGAL)])->values()->all();
         $status = self::TRANSISI_STATUS[$this->status] ?? [];
 
         return [

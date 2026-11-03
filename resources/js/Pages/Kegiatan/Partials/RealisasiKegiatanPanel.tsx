@@ -4,6 +4,7 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Textarea } from '@/Components/Textarea';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { bantuanAnggaran } from '@/lib/rupiah';
@@ -100,9 +101,18 @@ export function RealisasiKegiatanPanel({ kegiatan, can, pelaksanaan, halamanUbah
                         {failure || errors.expected_state || errors.status || errors.bukti || 'Periksa kembali isian realisasi yang ditandai.'}
                     </div>}
                     <fieldset disabled={terkunci || form.processing || blocked} className="grid gap-5 sm:grid-cols-2">
-                        <Input id={`${id}-tanggal`} label="Tanggal realisasi" type="date" min={pelaksanaan.rentang?.mulai} max={pelaksanaan.rentang?.selesai}
-                            value={data.tanggal_realisasi} onChange={(e) => form.setData('tanggal_realisasi', e.target.value)} error={form.errors.tanggal_realisasi}
-                            helperText={pelaksanaan.rentang ? `Rentang periode: ${pelaksanaan.rentang.mulai} sampai ${pelaksanaan.rentang.selesai}.` : 'Tanggal periode belum diatur di Master Periode.'} />
+                        <div>
+                            <Input id={`${id}-tanggal`} label="Tanggal realisasi" type="date" min={pelaksanaan.rentang?.mulai} max={pelaksanaan.rentang?.selesai}
+                                value={data.tanggal_realisasi} onChange={(e) => form.setData('tanggal_realisasi', e.target.value)} error={form.errors.tanggal_realisasi}
+                                aria-describedby={pelaksanaan.periode_tanggal ? `${id}-tanggal-rentang` : undefined}
+                                helperText={pelaksanaan.periode_tanggal ? undefined : 'Tanggal periode belum diatur di Master Periode.'} />
+                            {pelaksanaan.periode_tanggal && (
+                                <p id={`${id}-tanggal-rentang`} className="mt-1.5 text-xs text-muted">
+                                    Rentang periode {kegiatan.periode_nama}
+                                    <RentangPeriode tanggal={pelaksanaan.periode_tanggal} tahun={kegiatan.tahun} />
+                                </p>
+                            )}
+                        </div>
                         <Input id={`${id}-biaya`} label="Biaya terpakai (Rp)" type="number" inputMode="numeric" min={0} step={1} max="999999999999999"
                             value={data.biaya_terpakai} onChange={(e) => form.setData('biaya_terpakai', e.target.value)} error={form.errors.biaya_terpakai}
                             helperText={`${bantuanAnggaran(data.biaya_terpakai)} Boleh melebihi anggaran rencana; total anggaran tetap memakai rencana.`} />

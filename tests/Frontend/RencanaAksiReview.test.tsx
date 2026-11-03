@@ -41,7 +41,7 @@ const rencanaAksi: ReviewRencanaAksi = {
     indikator: { kode: 'IKU-1', nama: 'Label indikator dibekukan', satuan: '%', desimal_tampilan: 2 },
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
-    target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
+    target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, periode_tanggal: { bulan_mulai: 1, hari_mulai: 1, bulan_selesai: 3, hari_selesai: 31 }, nilai: '10.25', status_perhitungan: null, keterangan: null, komponen: [] }],
     klaim: [{ id: 'klaim-1', periode_nama: 'Triwulan I', nama: 'Bimtek beku', status: 'rencana', komponen: null, arah_dampak: 'menambah', catatan: 'Catatan beku', anggaran: '1500000' }],
     anggaran_kegiatan: { total: '1500000', belum_diisi: 1, per_periode: { 'p-1': { total: '1500000', belum_diisi: 1 } } },
     bukti_dukungs: [{ id: 'bukti-1', mode: 'file', nama_asli: 'versi-dua.pdf', tautan: null, isi_teks: null, download_url: '/rencana-aksi/ra-1/versi/versi-2/bukti/bukti-1/unduh' }],
@@ -69,6 +69,7 @@ describe('Review Rencana Aksi', () => {
         expect(screen.getByText('Unit versi pengajuan')).toBeTruthy();
         expect(screen.getByText('Pengaju Lama')).toBeTruthy();
         expect(screen.getByText('10,25 %')).toBeTruthy();
+        expect(screen.getByText('1 Jan–31 Mar 2026')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Lihat versi' }).getAttribute('href')).toBe('/rencana-aksi/ra-1/review?versi=versi-1');
         expect(screen.getByRole('link', { name: 'Unduh file' }).getAttribute('href')).toBe(rencanaAksi.bukti_dukungs[0].download_url);
         expect(screen.getByText('Bimtek beku')).toBeTruthy();
@@ -91,14 +92,21 @@ describe('Review Rencana Aksi', () => {
     });
     it('memformat target dan komponen sesuai desimal dan satuan indikator beku', () => {
         renderReview({ target_periode: [
-            { periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '74.000000000000', status_perhitungan: 'terhitung', keterangan: null,
+            { periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, periode_tanggal: { bulan_mulai: 1, hari_mulai: 1, bulan_selesai: 3, hari_selesai: 31 }, nilai: '74.000000000000', status_perhitungan: 'terhitung', keterangan: null,
                 komponen: [{ komponen_id: 'k-1', kode: 'n', label: 'Pembilang', nilai: '37.000000000000', keterangan: null }] },
-            { periode_id: 'p-2', periode_nama: 'Triwulan II', periode_urutan: 2, nilai: null, status_perhitungan: 'tidak_dapat_dihitung', keterangan: null, komponen: [] },
+            { periode_id: 'p-2', periode_nama: 'Triwulan II', periode_urutan: 2, periode_tanggal: { bulan_mulai: 4, hari_mulai: 1, bulan_selesai: 6, hari_selesai: 30 }, nilai: null, status_perhitungan: 'tidak_dapat_dihitung', keterangan: null, komponen: [] },
         ] });
         expect(screen.getByText('74,00 %')).toBeTruthy();
         expect(screen.getByText('37,00')).toBeTruthy();
         expect(screen.getByText('Tidak dapat dihitung')).toBeTruthy();
+        expect(screen.getByText('1 Apr–30 Jun 2026')).toBeTruthy();
         expect(screen.queryByText(/000000/)).toBeNull();
+    });
+
+    it('tidak merender rentang bila tanggal periode belum diatur', () => {
+        renderReview({ target_periode: [{ ...rencanaAksi.target_periode[0], periode_tanggal: null }] });
+        expect(screen.queryByText('1 Jan–31 Mar 2026')).toBeNull();
+        expect(screen.getAllByText('Triwulan I').length).toBeGreaterThan(0);
     });
 
     it('capability server menyembunyikan aksi/bukti dan alasan bisnis tetap terbaca', () => {

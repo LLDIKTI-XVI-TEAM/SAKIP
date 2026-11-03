@@ -7,8 +7,9 @@ import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import type { KegiatanOption, StatusTujuan } from '@/types/kegiatan';
+import type { PeriodeKegiatanOption, StatusTujuan } from '@/types/kegiatan';
 
 /** Label dan ikon aksi status, dipakai menu baris daftar dan kartu status form. */
 export const aksiStatusKegiatan: Record<StatusTujuan, { label: string; icon: LucideIcon; danger?: boolean }> = {
@@ -27,7 +28,7 @@ const TEKS: Record<StatusTujuan, { judul: string; konfirmasi?: { judul: string; 
 interface StatusKegiatanModalProps {
     kegiatan: { id: string; nama: string; tahun: number; periode: string; version_token: string };
     status: StatusTujuan;
-    opsiPeriodeTujuan: KegiatanOption[];
+    opsiPeriodeTujuan: PeriodeKegiatanOption[];
     /** Tujuan fokus setelah sukses bila pemicu sudah hilang dari DOM atau tidak pernah difokus. */
     fokusCadangan: RefObject<HTMLElement | null>;
     onClose: () => void;
@@ -52,7 +53,11 @@ export function StatusKegiatanModal({ kegiatan, status, opsiPeriodeTujuan, fokus
     const formId = useId();
     const peringatan = useRef<HTMLParagraphElement>(null);
     const path = `/kegiatan/${kegiatan.id}/status`;
-    const periodeTujuan = opsiPeriodeTujuan.find((opsi) => opsi.id === form.data.periode_tujuan_id)?.nama;
+    const periodeTujuan = opsiPeriodeTujuan.find((opsi) => opsi.id === form.data.periode_tujuan_id);
+    const idRentangPeriode = `${formId}-periode-rentang`;
+    // Select memasang aria-describedby miliknya sendiri lalu ditimpa props; sertakan id galat dan id rentang agar keduanya terbaca.
+    const idGalatPeriode = form.errors.periode_tujuan_id ? `${formId}-periode-error` : null;
+    const describedByPeriode = [idGalatPeriode, periodeTujuan ? idRentangPeriode : null].filter(Boolean).join(' ') || undefined;
     const galatUmum = form.errors.status || form.errors.expected_state;
 
     // Fokus antarlangkah dipasang setelah commit, saat elemen langkah tujuan sudah ada; nilai awal null tidak
@@ -137,18 +142,27 @@ export function StatusKegiatanModal({ kegiatan, status, opsiPeriodeTujuan, fokus
                         <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
                         <div>
                             <p ref={peringatan} tabIndex={-1} className="font-semibold focus:outline-none">{teks.konfirmasi.final}</p>
-                            {status === 'ditunda' && <p className="mt-0.5">Kegiatan lanjutan dibuat di {periodeTujuan}.</p>}
+                            {status === 'ditunda' && <p className="mt-0.5">Kegiatan lanjutan dibuat di {periodeTujuan?.nama}.</p>}
                         </div>
                     </div>
                     <dl className="space-y-2 rounded-lg border border-border bg-soft/50 p-3 text-sm">
-                        {status === 'ditunda' && <div><dt className="text-xs text-muted">Periode tujuan</dt><dd className="font-medium text-ink">{periodeTujuan} {kegiatan.tahun}</dd></div>}
+                        {status === 'ditunda' && <div><dt className="text-xs text-muted">Periode tujuan</dt><dd className="font-medium text-ink">{periodeTujuan?.nama} {kegiatan.tahun}<RentangPeriode tanggal={periodeTujuan?.tanggal ?? null} tahun={kegiatan.tahun} /></dd></div>}
                         <div><dt className="text-xs text-muted">Justifikasi</dt><dd className="whitespace-pre-line break-words font-medium text-ink">{form.data.justifikasi}</dd></div>
                     </dl>
                 </> : <fieldset disabled={form.processing || blocked} className="space-y-4">
                     {status === 'ditunda' && (
-                        <Select id={`${formId}-periode`} label="Periode tujuan" required value={form.data.periode_tujuan_id}
-                            onChange={(event) => form.setData('periode_tujuan_id', event.target.value)} error={form.errors.periode_tujuan_id}
-                            options={[{ value: '', label: 'Pilih periode tujuan' }, ...opsiPeriodeTujuan.map((opsi) => ({ value: opsi.id, label: opsi.nama }))]} />
+                        <div>
+                            <Select id={`${formId}-periode`} label="Periode tujuan" required value={form.data.periode_tujuan_id}
+                                onChange={(event) => form.setData('periode_tujuan_id', event.target.value)} error={form.errors.periode_tujuan_id}
+                                aria-describedby={describedByPeriode}
+                                options={[{ value: '', label: 'Pilih periode tujuan' }, ...opsiPeriodeTujuan.map((opsi) => ({ value: opsi.id, label: opsi.nama }))]} />
+                            {periodeTujuan && (
+                                <p id={idRentangPeriode} className="mt-1.5 text-xs text-muted">
+                                    Rentang periode tujuan
+                                    <RentangPeriode tanggal={periodeTujuan.tanggal} tahun={kegiatan.tahun} />
+                                </p>
+                            )}
+                        </div>
                     )}
                     <Textarea id={`${formId}-justifikasi`} label="Justifikasi" required maxLength={10000} rows={4}
                         placeholder="Jelaskan alasan perubahan status kegiatan." value={form.data.justifikasi}

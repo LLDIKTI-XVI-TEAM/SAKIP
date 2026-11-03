@@ -42,7 +42,8 @@ const props: KegiatanEditProps = {
     periodeOptions,
     opsiPeriodeTujuan: [],
     can: { ubah_rencana: true, ubah_status: tigaStatus, catat_realisasi: true, tandai_terlaksana: true },
-    pelaksanaan: { perlu_koreksi: false, persyaratan_kurang: [], rentang: { mulai: '2026-10-01', selesai: '2026-12-31' } },
+    pelaksanaan: { perlu_koreksi: false, persyaratan_kurang: [], rentang: { mulai: '2026-10-01', selesai: '2026-12-31' },
+        periode_tanggal: { bulan_mulai: 10, hari_mulai: 1, bulan_selesai: 12, hari_selesai: 31 } },
 };
 
 const kirim = () => fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
