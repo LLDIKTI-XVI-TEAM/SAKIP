@@ -30,7 +30,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - **Onboarding SSO** membuat user aktif tanpa role (Q38); Admin menetapkan role.
 - **Logout lokal default**, logout SSO terpisah.
 - **Initial year 2026 (Q46).** TW I–III periode lampau oleh Perencanaan; TW IV triwulan pertama workflow normal PIC operasional; tanpa `is_backfill`. Gerbang baru Q42–Q45 dikecualikan untuk periode lampau, sedangkan kunci per triwulan (Q41) bukan bagian pengecualian itu (Q46 §46.1 butir 1). Data awal 2026 diisi Perencanaan dari dokumen resmi 2026 (Q46 §46.1 butir 6). *(Semula Q32: TW I–II lampau, TW III–IV normal.)*
-- **Dua lapis target (Q39, Q50).** Target Renstra per indikator per tahun menjadi batas target PK menurut arah indikator (Q72) dan, pada Renstra `aktif`, hanya diubah lewat mode revisi dengan justifikasi wajib (Q71); target PK (`target_tahunan`) diinput Perencanaan di halaman PK dengan nilai penuh (Q50 §50.2), dibaca PJ/PIC sebagai baca-saja, dan menjadi acuan pengukuran melalui snapshot. Target PK yang menyimpang dari target Renstra menurut `arah` ditolak sampai target Renstra direvisi, dan alasan perubahan target PK wajib (Q72, menggantikan Q65 §65.2); keduanya disimpan dengan `target:update` (Q39 §39.2–§39.3). Baseline PK terisi otomatis dari realisasi periode nilai akhir tahun sebelumnya yang disahkan (Q73).
+- **Dua lapis target (Q39, Q50).** Target Renstra per indikator per tahun menjadi batas target PK menurut arah indikator (Q72) dan, pada Renstra `aktif`, hanya diubah lewat mode revisi dengan justifikasi wajib (Q71); target PK (`target_tahunan`) diinput Perencanaan di halaman PK dengan nilai penuh (Q50 §50.2), dibaca PJ/PIC sebagai baca-saja, dan menjadi acuan pengukuran melalui snapshot. Target PK yang menyimpang dari target Renstra menurut `arah` ditolak sampai target Renstra direvisi (Q72, menggantikan Q65 §65.2), dan perubahan target PK tidak meminta alasan (Q82); keduanya disimpan dengan `target:update` (Q39 §39.2–§39.3). Baseline PK terisi otomatis dari realisasi periode nilai akhir tahun sebelumnya yang disahkan (Q73).
 - **Rencana Aksi sepanjang tahun (Q41).** Tanpa jendela penyusunan RA; periode terkunci bagi PIC setelah `pengisian_selesai` periode tersebut; Perencanaan dikecualikan sampai `penutupan`.
 - **Indikator dinilai tahunan dan periode tanpa target (Q47).** Indikator dinilai tahunan boleh tanpa target pada periode sebelum periode nilai akhir, sedangkan indikator lain tetap wajib bertarget di setiap periode kecuali periode lampau 2026 (Q46 §46.1 butir 6, Q47 §47.2 butir 4); target kosong berarti tidak ditargetkan dan berbeda dari `0`. Pada periode tanpa target, capaian persen dan status capaian tidak dihitung dan tampilan memuat selisih terhadap target PK. Realisasi yang belum tersedia dicatat `status_perhitungan = belum_dapat_diukur`.
 - **Kegiatan dalam Rencana Aksi (Q42, Q49).** Kegiatan, anggaran, dan RAB menjadi bagian RA; pengajuan RA mensyaratkan minimal satu kegiatan yang diklaim pada tahap RA. Anggaran per kegiatan wajib (≥ 0) dan RAB wajib bila anggaran lebih dari 0. Nama kegiatan hingga 500 karakter, tujuan opsional, dan kegiatan dapat disalin ke periode lain yang belum terkunci (Q49). Kegiatan dibuat, diedit, dan direalisasikan dari halaman kegiatan Rencana Aksi; menu Kegiatan terpisah dihapus (Q74).
@@ -408,7 +408,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 > **Q32:** baseline IKU 3 2025 = 74,2; target 2026 = 76,25; jangan tampilkan selisih sebagai tren. 66,395/87,08 bukan realisasi.
 >
-> **Q39 (13 Oktober 2026):** `target_tahunan` tetap menyimpan **target PK** dengan domain Q33, tetapi editornya dipindah dari halaman indikator ke halaman Perjanjian Kinerja dan diinput Perencanaan; PJ/PIC membaca saja (US-02.11). Target Renstra adalah data terpisah (US-02.10). Alasan perubahan target PK wajib bila target PK yang sudah tersimpan berubah (Q72 §72.2). Perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (US-02.12, Q40); AC-4 tetap bergantung pada US-03.03.
+> **Q39 (13 Oktober 2026):** `target_tahunan` tetap menyimpan **target PK** dengan domain Q33, tetapi editornya dipindah dari halaman indikator ke halaman Perjanjian Kinerja dan diinput Perencanaan; PJ/PIC membaca saja (US-02.11). Target Renstra adalah data terpisah (US-02.10). Perubahan target PK yang sudah tersimpan tidak meminta alasan (Q82, mencabut Q72 §72.2). Perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (US-02.12, Q40); AC-4 tetap bergantung pada US-03.03.
 >
 > **Q50 (13 Oktober 2026):** target PK disimpan dengan nilai penuh yang dipakai pengukuran (mis. 94,05), bukan nilai tercetak pada dokumen PK yang dibulatkan; tampilan mengikuti `desimal_tampilan`. Baseline tetap disimpan pada `target_tahunan`, tetapi menjadi data pendukung dan bukan isi dokumen PK (Q50 §50.2–§50.3; US-02.11).
 
@@ -573,7 +573,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 - Target PK diinput Tim Perencanaan setelah angka disepakati dengan tim kerja di luar aplikasi (Q39 §39.3 butir 1).
 - Capaian dinilai terhadap target PK melalui snapshot, bukan terhadap target Renstra; target periode RA dipecah dari target PK (Q39 §39.4).
-- Perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (US-02.12); koreksi salah ketik memakai US-02.09 (Q40 §40.1 butir 8). Target PK tetap dapat diubah di halaman PK setelah snapshot terbentuk tanpa mengubah snapshot (Q65 §65.1); alasan perubahan wajib bila target PK yang sudah tersimpan berubah (Q72 §72.2).
+- Perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (US-02.12); koreksi salah ketik memakai US-02.09 (Q40 §40.1 butir 8). Target PK tetap dapat diubah di halaman PK setelah snapshot terbentuk tanpa mengubah snapshot (Q65 §65.1) dan tanpa alasan (Q82).
 - PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan pada PK (fitur lampiran PK yang ada; Q50 §50.7).
 - Keterangan lampiran tambahan tersebut (mis. "PK perubahan anggaran") disimpan pada kolom baru `berkas.keterangan` (Q48 §48.2 butir 6): opsional, paling banyak 1.000 karakter, diisi saat unggah, dan tercatat di audit (Q65 §65.3).
 - PK perubahan yang mengubah target memakai revisi berversi (US-02.12); bila revisi seperti itu terbit sebelum US-02.12 selesai, penanganannya ditetapkan PM sebagai keputusan baru (Q50 §50.7 butir 2).
@@ -660,7 +660,9 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 > **Q72 (23 Oktober 2026):** target PK yang menyimpang dari target Renstra menurut arah indikator ditolak sampai target Renstra direvisi (Q71); alasan perubahan target PK wajib dan menggantikan `alasan_deviasi_renstra`. Story ini menggantikan US-02.11 AC-3, AC-4, dan AC-8.
 
-> **Status implementasi — issue #167:** AC-1–AC-12 memiliki bukti test pada PR #206; rincian test dan batas bukti tercatat pada [ISS-02.14](SAKIP%20-%20User%20Issues.md#iss-0214--feature-penolakan-target-pk-yang-menyimpang-dan-alasan-perubahan-target-pk). Centang bukan persetujuan QA/UAT, merge, atau deployment.
+> **Q82 (3 November 2026):** isian alasan perubahan dan rujukan sumber dihapus dari editor target PK; perubahan target PK yang sudah tersimpan disimpan tanpa alasan, dan request yang masih membawa kedua isian itu ditolak. AC-6 dan AC-8 diubah; AC-13 dan AC-14 ditambahkan.
+
+> **Status implementasi — issue #167:** AC-1–AC-12 memiliki bukti test pada PR #206; AC-13 dan AC-14 pada lanjutan issue yang sama (Q82); rincian test dan batas bukti tercatat pada [ISS-02.14](SAKIP%20-%20User%20Issues.md#iss-0214--feature-penolakan-target-pk-yang-menyimpang-dan-alasan-perubahan-target-pk). Centang bukan persetujuan QA/UAT, merge, atau deployment.
 
 | Field | Detail |
 |---|---|
@@ -684,18 +686,20 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - [x] **AC-3:** Given target PK sama dengan atau lebih baik dari target Renstra menurut arah, When disimpan, Then tersimpan. *(Q72 §72.1 butir 1)*
 - [x] **AC-4:** Given target Renstra belum ada atau target PK kosong, When disimpan, Then tidak ditolak karena deviasi. *(Q72 §72.1 butir 3)*
 - [x] **AC-5:** Given target Renstra direvisi lewat US-02.13 menjadi sama dengan target PK yang tadi ditolak, When target PK disimpan ulang, Then tersimpan. *(Q72 §72.1 butir 2)*
-- [x] **AC-6:** Given target PK yang sudah tersimpan diubah tanpa alasan, When disimpan, Then ditolak dan penolakannya diaudit; dengan alasan, tersimpan dan alasan tercatat pada `audit_log.alasan`. *(Q72 §72.2 butir 1 dan 3)*
+- [x] **AC-6:** Given target PK yang sudah tersimpan diubah tanpa alasan, When disimpan, Then ditolak dan penolakannya diaudit; dengan alasan, tersimpan dan alasan tercatat pada `audit_log.alasan`. *(Q72 §72.2 butir 1 dan 3)* *(Digantikan Q82 dan AC-13: perubahan diterima tanpa alasan.)*
 - [x] **AC-7:** Given pengisian target PK pertama kali, atau hanya baseline yang berubah, When disimpan tanpa alasan, Then diterima. *(Q72 §72.2 butir 2)*
-- [x] **AC-8:** Given target PK sudah dibekukan ke snapshot, When diubah dengan alasan, Then snapshot, rekonsiliasi Rencana Aksi, dan pengukuran tidak berubah. *(Q65 §65.1 butir 1 dan 4, Q72 §72.2 butir 1)*
+- [x] **AC-8:** Given target PK sudah dibekukan ke snapshot, When diubah dengan alasan, Then snapshot, rekonsiliasi Rencana Aksi, dan pengukuran tidak berubah. *(Q65 §65.1 butir 1 dan 4, Q72 §72.2 butir 1)* *(Diubah Q82: perubahan setelah snapshot tanpa alasan.)*
 - [x] **AC-9:** Given editor target PK, Then isian alasan deviasi Renstra tidak tampil; `alasan_deviasi_renstra` dalam request tidak disimpan, dan nilai lama tetap terbaca di audit. *(Q72 §72.2 butir 4)*
 - [x] **AC-10:** Given target PK lama yang kini menyimpang karena target Renstra berubah, Then nilainya tidak diubah otomatis dan lencana deviasi tetap tampil. *(Q72 §72.1 butir 6)*
 - [x] **AC-11:** Given penolakan AC-1, Then pesan memuat tautan ke mode revisi target Renstra bagi pengguna yang berizin. *(Q72 §72.1 butir 5)*
 - [x] **AC-12:** Given PJ/PIC atau pengguna tanpa `target:update`, When request simpan langsung, Then ditolak 403.
+- [x] **AC-13:** Given target PK yang sudah tersimpan, termasuk setelah snapshot terbentuk, When diubah atau dikosongkan, Then editor tidak menampilkan bagian "Dasar perubahan", perubahan tersimpan tanpa alasan, dan audit `target_tahunan.simpan` mencatat nilai lama dan baru dengan alasan baku server. *(Q82 §82.1 butir 1, 2, dan 4)*
+- [x] **AC-14:** Given request simpan target PK yang masih membawa `alasan` atau `rujukan_sumber`, termasuk sebagai teks kosong, When disimpan, Then ditolak sebagai field yang tidak didukung, target tidak berubah, dan penolakannya diaudit. *(Q82 §82.1 butir 3)*
 
 **Business Rules / Catatan**
 
 - Penilaian menyimpang tetap `DeviasiTargetRenstra` (nilai tersimpan, tanpa pembulatan); yang berubah hanya akibatnya: ditolak, bukan alasan wajib.
-- Daftar alasan wajib Q43 yang ditegakkan US-13.05 (PR #156) diperbarui: perubahan target PK pindah dari alasan opsional ke alasan wajib (Q72 §72.3).
+- Daftar alasan wajib Q43 yang ditegakkan US-13.05 (PR #156) diperbarui: perubahan target PK pindah dari alasan opsional ke alasan wajib (Q72 §72.3). *(Dicabut Q82: perubahan target PK tidak meminta alasan.)*
 - **Di luar cakupan:** revisi PK berversi (US-02.12), yang mengikuti Q72 §72.1 butir 4 saat dikerjakan.
 
 ### US-02.15 · Baseline Otomatis dan Tabel Target PK Ringkas
@@ -2557,7 +2561,7 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 **Business Rules / Catatan**
 
 - Kewajiban alasan dari keputusan sebelumnya yang tidak disebut Q43 §43.3 tetap berlaku.
-- Perubahan target PK kini wajib alasan bila target PK yang sudah tersimpan berubah, termasuk setelah snapshot terbentuk; alasannya diisi di editor target PK (Q72 §72.2).
+- Perubahan target PK yang sudah tersimpan tidak meminta alasan, termasuk setelah snapshot terbentuk; editor target PK tidak memuat isian alasan (Q82, mencabut Q72 §72.2).
 - Implementation tasks pada ISS-13.05 memuat tabel per request: `StoreUnitGrantRequest` + `CreateUnitGrantAction` (alasan baku), form/request Penanggung Jawab, `StoreJenisBerkasRequest`/`UpdateJenisBerkasRequest`, `PindahUnitIndikatorRequest`, `ActivateJadwalRequest`, `UpdatePengaturanRequest`, `UpdatePerjanjianKinerjaRequest` (opsional sebelum PK dipakai jadwal aktif; koreksi sesudahnya tetap wajib alasan, US-02.09). Tanpa nomor baris kode.
 
 ### US-13.06 · Penghapusan Kebijakan Storage, Batas Teknis Unggahan di Konfigurasi, dan Penataan Menu Referensi
