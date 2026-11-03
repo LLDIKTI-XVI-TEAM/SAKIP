@@ -73,20 +73,24 @@ const defaultFormData: JenisBerkasFormData = {
     aktif: true,
 };
 
+// Urutan kunci mengikuti alur kerja dan dipakai untuk urutan baris maupun filter.
 const TAHAP: Record<JenisBerkasItem['tahap'], string> = {
     rencana_aksi: 'Rencana Aksi',
-    pengukuran: 'Pengukuran',
-    kegiatan: 'Kegiatan (SPJ)',
     kegiatan_perencanaan: 'Perencanaan Kegiatan',
+    kegiatan: 'Kegiatan (SPJ)',
+    pengukuran: 'Pengukuran',
 };
+const URUTAN_TAHAP = Object.keys(TAHAP);
 
 const modeBukti = (item: JenisBerkasItem) =>
-    [item.izinkan_file && 'File', item.izinkan_tautan && 'Tautan', item.izinkan_teks && 'Teks'].filter(Boolean).join(', ');
+    [item.izinkan_file && 'File', item.izinkan_tautan && 'Tautan', item.izinkan_teks && 'Teks'].filter(Boolean).join(' · ');
 
 const batasFile = (item: JenisBerkasItem) =>
-    `${item.format_diizinkan ? item.format_diizinkan.split(',').map((format) => format.trim()).join(', ') : 'Format bawaan'} · ${
-        item.ukuran_maks_kb ? `maks ${item.ukuran_maks_kb.toLocaleString('id-ID')} KB` : 'ukuran bawaan'
-    }`;
+    !item.format_diizinkan && !item.ukuran_maks_kb
+        ? 'Batas bawaan'
+        : `${item.format_diizinkan ? item.format_diizinkan.split(',').map((format) => format.trim()).join(', ') : 'Format bawaan'} · ${
+            item.ukuran_maks_kb ? `maks ${item.ukuran_maks_kb.toLocaleString('id-ID')} KB` : 'ukuran bawaan'
+        }`;
 
 export default function JenisBerkasIndex({
     jenisBerkasList = [],
@@ -113,7 +117,7 @@ export default function JenisBerkasIndex({
     const [auditReason, setAuditReason] = useState('');
     const [auditError, setAuditError] = useState<string | null>(null);
 
-    // Filter list
+    // Filter list; sort stabil menjaga urutan server (urutan, nama) di dalam tahap.
     const filteredList = useMemo(() => {
         return jenisBerkasList.filter((item) => {
             const matchesTahap = selectedTahap === '' || item.tahap === selectedTahap;
@@ -125,7 +129,7 @@ export default function JenisBerkasIndex({
                     item.indikator.nama.toLowerCase().includes(searchQuery.toLowerCase())
                 ));
             return matchesTahap && matchesSearch;
-        });
+        }).sort((a, b) => URUTAN_TAHAP.indexOf(a.tahap) - URUTAN_TAHAP.indexOf(b.tahap));
     }, [jenisBerkasList, selectedTahap, searchQuery]);
 
     const handleOpenCreate = () => {
@@ -369,7 +373,8 @@ export default function JenisBerkasIndex({
                                     </TableCell>
                                     <TableCell className="min-w-0 break-words p-0 leading-5 xl:px-4 xl:py-4 xl:align-top">
                                         <span className="mb-1 block text-muted xl:hidden">Tahap</span>
-                                        {TAHAP[item.tahap] ?? item.tahap}
+                                        {/* Kolom tahap sempit di 1280px; label panjang boleh turun baris. */}
+                                        <Badge variant="secondary" className="whitespace-normal leading-4">{TAHAP[item.tahap] ?? item.tahap}</Badge>
                                     </TableCell>
                                     <TableCell className="min-w-0 break-words p-0 leading-5 xl:px-4 xl:py-4 xl:align-top">
                                         <span className="mb-1 block text-muted xl:hidden">Lingkup</span>
@@ -383,23 +388,23 @@ export default function JenisBerkasIndex({
                                         )}
                                     </TableCell>
                                     <TableCell className="col-span-2 min-w-0 break-words p-0 leading-5 xl:px-4 xl:py-4 xl:align-top">
-                                        <span className="mb-1 block text-muted xl:hidden">Ketentuan</span>
-                                        <span className={item.wajib ? 'font-semibold text-ink' : 'text-muted'}>
-                                            {item.wajib ? 'Wajib' : 'Opsional'}
-                                        </span>
-                                        {item.semua_mode_wajib && <p className="text-muted">semua mode</p>}
-                                        {item.hanya_kegiatan_beranggaran && <p className="text-muted">hanya kegiatan beranggaran</p>}
-                                        <p className="mt-1 text-ink">{modeBukti(item)}</p>
-                                        {item.izinkan_file && <p className="mt-1 break-words text-muted">{batasFile(item)}</p>}
+                                        <span className="mb-1 block text-muted xl:hidden">Ketentuan bukti</span>
+                                        <Badge variant={item.wajib ? 'primary' : 'muted'}>{item.wajib ? 'Wajib' : 'Opsional'}</Badge>
+                                        <p className="mt-1.5 text-ink">{modeBukti(item)}</p>
+                                        {item.izinkan_file && <p className="break-words text-muted">{batasFile(item)}</p>}
+                                        {item.semua_mode_wajib && <p className="text-muted">Semua mode wajib</p>}
+                                        {item.hanya_kegiatan_beranggaran && <p className="text-muted">Hanya kegiatan beranggaran</p>}
                                     </TableCell>
                                     <TableCell className="min-w-0 p-0 xl:px-4 xl:py-4 xl:align-top">
+                                        <span className="mb-1 block text-muted xl:hidden">Status</span>
                                         <Badge variant={item.aktif !== false ? 'success' : 'muted'}>
                                             {item.aktif !== false ? 'Aktif' : 'Nonaktif'}
                                         </Badge>
                                     </TableCell>
                                     {showAksi && (
                                         <TableCell className="min-w-0 p-0 xl:px-4 xl:py-4 xl:align-top xl:text-right">
-                                            <div className="flex min-w-0 items-center justify-end gap-2">
+                                            <span className="mb-1 block text-muted xl:hidden">Aksi</span>
+                                            <div className="flex min-w-0 items-center gap-2 xl:justify-end">
                                                 {can.update && (
                                                     <Tooltip content="Edit" align="right">
                                                         <Button
