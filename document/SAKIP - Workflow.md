@@ -48,8 +48,8 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
      target_tahunan (Q39; lihat §3.3) — target PK bernilai penuh dan baseline tampil sebagai
      data pendukung, bukan isi dokumen PK (Q50 §50.2–§50.3)
      → Target PK di bawah target Renstra tahun yang sama (naik_baik; di atasnya untuk
-       turun_baik): penyimpanan DITOLAK sampai target Renstra direvisi lewat mode revisi;
-       alasan perubahan WAJIB bila target PK yang sudah tersimpan berubah (Q72)
+       turun_baik): penyimpanan DITOLAK sampai target Renstra direvisi lewat mode revisi
+       (Q72); perubahan target PK tidak meminta alasan (Q82)
   10. Melampirkan dokumen Perjanjian Kinerja (mode file/tautan/teks) pada renstra_pk tahun
       berjalan — lihat §3
   11. Mengaktifkan Renstra
@@ -442,9 +442,9 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
        Renstra belum ada atau target PK kosong tidak dinilai
      → Anjuran naik satu poin (`turun_baik`: turun satu poin) tampil sebagai panduan
        (Q72 §72.1 butir 7)
-     → Alasan perubahan target PK WAJIB bila target PK yang sudah tersimpan berubah, juga
-       setelah snapshot terbentuk; diisi pada isian di editor dan dicatat di audit (Q72 §72.2).
-       Pengisian pertama dan perubahan baseline saja tidak wajib alasan
+     → Perubahan target PK yang sudah tersimpan, juga setelah snapshot terbentuk, disimpan
+       tanpa alasan maupun rujukan sumber; audit mencatat nilai lama dan baru (Q82, mencabut
+       Q72 §72.2)
      → Setelah snapshot terbentuk, target PK tetap dapat diubah tetapi snapshot, rekonsiliasi
        Rencana Aksi, dan pengukuran tahun tsb tetap membaca target beku; halaman PK dan editor
        menampilkan pemberitahuannya (Q65 §65.1)

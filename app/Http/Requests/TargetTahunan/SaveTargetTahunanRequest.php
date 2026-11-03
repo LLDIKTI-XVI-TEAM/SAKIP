@@ -6,7 +6,6 @@ use App\Models\RenstraPk;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
-use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Contracts\Validation\Validator;
@@ -36,8 +35,7 @@ class SaveTargetTahunanRequest extends FormRequest
     public static function inputRules(): array
     {
         return ['baseline' => ['present', 'nullable', 'string', 'max:1000'], 'target_tahunan' => ['present', 'nullable', 'string', 'max:1000'],
-            'expected_state' => ['required', 'string', 'regex:/\A[a-f0-9]{64}\z/'], 'operation_id' => ['required', 'uuid'],
-            'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)], 'rujukan_sumber' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)]];
+            'expected_state' => ['required', 'string', 'regex:/\A[a-f0-9]{64}\z/'], 'operation_id' => ['required', 'uuid']];
     }
 
     public function rules(): array
@@ -60,10 +58,6 @@ class SaveTargetTahunanRequest extends FormRequest
             'expected_state.regex' => 'Data form tidak valid. Muat ulang form.',
             'operation_id.required' => 'Permintaan simpan tidak valid. Muat ulang form.',
             'operation_id.uuid' => 'Permintaan simpan tidak valid. Muat ulang form.',
-            'alasan.string' => 'Alasan harus berupa teks.',
-            'alasan.max' => 'Alasan maksimal :max karakter.',
-            'rujukan_sumber.string' => 'Rujukan sumber harus berupa teks.',
-            'rujukan_sumber.max' => 'Rujukan sumber maksimal :max karakter.',
         ];
     }
 
