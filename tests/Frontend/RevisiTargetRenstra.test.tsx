@@ -284,6 +284,53 @@ it('navigasi dengan perubahan yang belum tersimpan meminta konfirmasi dan tidak 
     expect(put).toHaveBeenCalledTimes(1);
 });
 
+it('guard navigasi tetap aktif setelah autosave ditolak validasi', async () => {
+    vi.useFakeTimers();
+    tampilkan();
+    fireEvent.change(input(2026)!, { target: { value: 'abc' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    // Server menolak seluruh payload; belum ada satu pun perubahan dalam request ini yang tersimpan.
+    await act(async () => { opsi(put).onError({ 'nilai.ind-1.2026': 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.' }); });
+
+    let event!: CustomEvent;
+    await act(async () => { event = kunjungan('/dashboard'); });
+    expect(event.defaultPrevented).toBe(true);
+    expect(screen.getByRole('dialog', { name: 'Tinggalkan halaman?' })).toBeTruthy();
+});
+
+it('ketikan baru selama autosave berjalan tidak mengosongkan status belum tersimpan', async () => {
+    vi.useFakeTimers();
+    tampilkan();
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    // Ketikan ini terjadi setelah PUT dikirim, jadi hasil PUT tersebut belum memuatnya.
+    fireEvent.change(input(2028)!, { target: { value: '31' } });
+    await act(async () => { opsi(put).onSuccess(halaman({ versi: 3 })); });
+
+    let event!: CustomEvent;
+    await act(async () => { event = kunjungan('/dashboard'); });
+    expect(event.defaultPrevented).toBe(true);
+    expect(screen.getByRole('dialog', { name: 'Tinggalkan halaman?' })).toBeTruthy();
+});
+
+it('dialog konfirmasi keluar tetap berada di document.body saat tabel berada di tab tersembunyi', () => {
+    const view = render(
+        <div hidden>
+            <TargetRenstraTable renstra={renstra()} sasarans={sasarans()} canEdit onSaved={vi.fn()} revisi={draf()} />
+        </div>,
+    );
+    fireEvent.change(within(view.container).getByLabelText('Target 2026 IKU-1'), { target: { value: '12' } });
+
+    act(() => { kunjungan('/dashboard'); });
+
+    const dialog = screen.getByRole('dialog', { name: 'Tinggalkan halaman?' });
+    // Tanpa portal dialog ikut tersembunyi bersama induknya, padahal scroll body sudah dikunci.
+    expect(dialog.parentElement).toBe(document.body);
+    expect(dialog.closest('[hidden]')).toBeNull();
+    expect(view.container.contains(dialog)).toBe(false);
+    expect(within(dialog).getByText('Perubahan yang belum tersimpan akan hilang.')).toBeTruthy();
+});
+
 it('beforeunload hanya menahan refresh saat ada perubahan yang belum tersimpan', () => {
     tampilkan();
     const bersih = new Event('beforeunload', { cancelable: true });

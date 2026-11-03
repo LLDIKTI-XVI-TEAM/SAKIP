@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Modal } from '@/Components/Modal';
 
@@ -146,5 +146,65 @@ describe('Modal Accessibility', () => {
         expect(contentContainer?.className).toContain('no-scrollbar');
         expect(contentContainer?.className).toContain('p-4');
         expect(contentContainer?.className).not.toContain('overflow-hidden');
+    });
+
+    it('merender dialog ke document.body hanya ketika portal aktif', () => {
+        const portalView = render(
+            <Modal isOpen portal onClose={vi.fn()} title="Dialog Portal">
+                <p>Isi portal</p>
+            </Modal>
+        );
+        const dialogPortal = screen.getByRole('dialog', { name: 'Dialog Portal' });
+        expect(dialogPortal.parentElement).toBe(document.body);
+        expect(portalView.container.contains(dialogPortal)).toBe(false);
+        portalView.unmount();
+
+        const inlineView = render(
+            <div data-testid="wadah">
+                <Modal isOpen onClose={vi.fn()} title="Dialog Inline">
+                    <p>Isi inline</p>
+                </Modal>
+            </div>
+        );
+        const dialogInline = screen.getByRole('dialog', { name: 'Dialog Inline' });
+        expect(dialogInline.parentElement).not.toBe(document.body);
+        expect(inlineView.container.contains(dialogInline)).toBe(true);
+        inlineView.unmount();
+    });
+
+    it('portal mempertahankan scroll lock, Escape, klik overlay, dan pengembalian fokus', () => {
+        vi.useFakeTimers();
+        const pemicu = document.createElement('button');
+        pemicu.textContent = 'Buka dialog';
+        document.body.appendChild(pemicu);
+        pemicu.focus();
+        const onClose = vi.fn();
+        try {
+            const view = render(
+                <Modal isOpen portal onClose={onClose} title="Dialog Portal">
+                    <button type="button">Aksi</button>
+                </Modal>
+            );
+            expect(document.body.style.overflow).toBe('hidden');
+
+            act(() => vi.runOnlyPendingTimers());
+            expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Tutup dialog' }));
+
+            const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+            window.dispatchEvent(escape);
+            expect(onClose).toHaveBeenCalledTimes(1);
+
+            // Klik pada overlay (bukan panel) tetap menutup dialog yang sudah dipindah ke portal.
+            fireEvent.click(screen.getByRole('dialog', { name: 'Dialog Portal' }));
+            expect(onClose).toHaveBeenCalledTimes(2);
+
+            view.unmount();
+            expect(document.body.style.overflow).toBe('unset');
+            expect(document.activeElement).toBe(pemicu);
+        } finally {
+            pemicu.remove();
+            cleanup();
+            vi.useRealTimers();
+        }
     });
 });

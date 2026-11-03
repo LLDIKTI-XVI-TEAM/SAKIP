@@ -62,6 +62,10 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
     const simpanForm = useForm({});
     const batalForm = useForm({});
     const [kotor, setKotor] = useState(false);
+    // Guard terpisah dari `kotor`: autosave yang ditolak tetap belum tersimpan walau debounce sudah dikosongkan.
+    const [belumTersimpan, setBelumTersimpan] = useState(false);
+    // Nomor urut perubahan lokal; hasil PUT hanya boleh membersihkan guard bila tidak ada ketikan sesudahnya.
+    const perubahanRef = useRef(0);
     const [konflik, setKonflik] = useState(false);
     const [belumPasti, setBelumPasti] = useState(false);
     const recovery = useAuthRecovery();
@@ -88,12 +92,16 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
     const ubah = (indikatorId: string, tahun: number, value: string) => {
         draf.setData('nilai', { ...draf.data.nilai, [indikatorId]: { ...draf.data.nilai[indikatorId], [tahun]: value } });
         setKotor(true);
+        setBelumTersimpan(true);
+        perubahanRef.current += 1;
     };
 
     useEffect(() => {
         if (!kotor || terhenti || draf.processing) return;
         const timer = setTimeout(() => {
+            // Debounce dikosongkan sebelum PUT agar penolakan validasi tidak memicu loop; guard memakai belumTersimpan.
             setKotor(false);
+            const token = perubahanRef.current;
             // Sel yang pernah disentuh dikirim ulang setiap kali; server menyimpannya idempoten.
             draf.transform((data) => ({
                 revisi_id: revisi.id,
@@ -110,6 +118,8 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                     return;
                 }
                 setTersimpanPada(new Date().toISOString());
+                // Ketikan baru selama request berjalan belum ikut tersimpan, jadi guard tidak boleh dikosongkan.
+                if (perubahanRef.current === token) setBelumTersimpan(false);
             },
             // Seperti simpan langsung target Renstra: hasil ambigu tidak dikirim ulang otomatis dan Simpan ditahan sampai draf dimuat ulang.
             onHttpException: (response) => {
@@ -124,11 +134,11 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
 
     // Jangan biarkan navigasi membuang isian yang belum terkirim. Autosave sengaja tidak di-flush di sini: PUT
     // saat unload tidak dapat dipastikan selesai, dan hasil ambigu sudah ditangani belumPasti.
-    // Permintaan autosave yang masih berjalan juga dihitung belum tersimpan: visit baru menginterupsi request itu.
-    const belumTersimpan = kotor || draf.processing;
+    // `belumTersimpan` hanya dikosongkan oleh PUT yang berhasil dan mencakup seluruh ketikan, jadi penolakan
+    // validasi tetap menjaga guard. Permintaan autosave yang masih berjalan juga dihitung: visit baru menginterupsinya.
     useEffect(() => {
         const sebelumUnload = (event: BeforeUnloadEvent) => {
-            if (!belumTersimpan) return;
+            if (!(belumTersimpan || draf.processing)) return;
             event.preventDefault();
             event.returnValue = '';
         };
@@ -148,7 +158,7 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
             }
             // Konflik, hasil belum pasti, atau sesi yang perlu dipulihkan sudah punya peringatan sendiri;
             // dialog kedua akan menyesatkan, jadi navigasi dibiarkan (isian lokal memang tidak dapat disimpan tanpa Muat ulang).
-            if (!belumTersimpan || terhenti) return;
+            if (!(belumTersimpan || draf.processing) || terhenti) return;
             event.preventDefault();
             kunjunganTertunda.current = { url: visit.url, opsi: opsiKunjungan(visit) };
             setKonfirmasiKeluar(true);
@@ -158,7 +168,7 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
             window.removeEventListener('beforeunload', sebelumUnload);
             lepaskan();
         };
-    }, [belumTersimpan, terhenti, url]);
+    }, [belumTersimpan, draf.processing, terhenti, url]);
 
     const tetapDiHalaman = () => {
         kunjunganTertunda.current = null;
@@ -262,7 +272,12 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                 helperText="Satu justifikasi untuk seluruh perubahan pada revisi ini."
                 value={draf.data.justifikasi}
                 readOnly={terhenti || simpanForm.processing || batalForm.processing}
-                onChange={(event) => { draf.setData('justifikasi', event.target.value); setKotor(true); }}
+                onChange={(event) => {
+                    draf.setData('justifikasi', event.target.value);
+                    setKotor(true);
+                    setBelumTersimpan(true);
+                    perubahanRef.current += 1;
+                }}
                 error={galat.justifikasi}
             />
             <div className="flex flex-wrap justify-end gap-2">
@@ -279,7 +294,8 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
             </div>}>
             <p className="text-sm text-ink">Seluruh isian draf dibuang dan target Renstra tidak berubah.</p>
         </Modal>
-        <Modal isOpen={konfirmasiKeluar} onClose={tetapDiHalaman} title="Tinggalkan halaman?" size="sm" showCloseButton={false}
+        {/* Portal: tabel dapat berada di tab `hidden`, jadi dialog konfirmasi tidak boleh ikut tersembunyi. */}
+        <Modal isOpen={konfirmasiKeluar} onClose={tetapDiHalaman} title="Tinggalkan halaman?" size="sm" showCloseButton={false} portal
             footer={<div className="flex flex-wrap justify-end gap-2">
                 <Button type="button" variant="outline" onClick={tetapDiHalaman}>Tetap di halaman</Button>
                 <Button type="button" variant="danger" onClick={tinggalkanHalaman}>Tinggalkan halaman</Button>
