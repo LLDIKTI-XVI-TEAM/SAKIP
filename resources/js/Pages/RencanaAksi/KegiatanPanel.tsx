@@ -52,9 +52,11 @@ const labelResponsif = 'md:inline xl:hidden';
 
 /** Penanda penundaan; menjadi tautan ke baris pasangannya bila baris itu tampil di panel ini. */
 function PenandaPenundaan({ label, target }: { label: string; target: string | null }) {
+    const badge = <Badge variant="warning">{label}</Badge>;
+
     return target
-        ? <a href={`#kegiatan-${target}`} className="mt-0.5 block w-fit rounded text-xs font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">{label}</a>
-        : <p className="mt-0.5 text-xs text-muted">{label}</p>;
+        ? <a href={`#kegiatan-${target}`} className="rounded-md underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">{badge}</a>
+        : badge;
 }
 
 /** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
@@ -193,10 +195,10 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                 <TableCell className={`col-span-2 ${selResponsif}`}>
                                                     <p className="break-words text-sm font-medium text-ink">{row.nama}</p>
                                                     {row.catatan && <p className="mt-0.5 break-words text-xs text-muted">{row.catatan}</p>}
-                                                    {row.lanjutan && <PenandaPenundaan label={`Ditunda → ${namaPeriode(row.lanjutan.periode_id)}`} target={adaDiPanel(row.lanjutan.id) ? row.lanjutan.id : null} />}
-                                                    {row.asal && <PenandaPenundaan label={`Lanjutan dari ${namaPeriode(row.asal.periode_id)}`} target={adaDiPanel(row.asal.id) ? row.asal.id : null} />}
-                                                    {(row.kegiatan_bersama || row.sumber_klaim === 'pengukuran') && (
+                                                    {(row.kegiatan_bersama || row.sumber_klaim === 'pengukuran' || row.lanjutan || row.asal) && (
                                                         <span className="mt-1.5 flex flex-wrap gap-1">
+                                                            {row.lanjutan && <PenandaPenundaan label={`Ditunda → ${namaPeriode(row.lanjutan.periode_id)}`} target={adaDiPanel(row.lanjutan.id) ? row.lanjutan.id : null} />}
+                                                            {row.asal && <PenandaPenundaan label={`Lanjutan dari ${namaPeriode(row.asal.periode_id)}`} target={adaDiPanel(row.asal.id) ? row.asal.id : null} />}
                                                             {row.kegiatan_bersama && <Badge variant="info">Kegiatan bersama</Badge>}
                                                             {row.sumber_klaim === 'pengukuran' && <Badge variant="muted">Klaim pengukuran</Badge>}
                                                         </span>

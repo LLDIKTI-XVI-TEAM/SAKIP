@@ -27,7 +27,7 @@ export function StatusPelaksanaanCard({ kegiatan, ubahStatus, opsiPeriodeTujuan 
                         <h2 id={judulStatusId} ref={judulStatus} tabIndex={-1} className="text-base font-semibold text-ink focus:outline-none">Status pelaksanaan</h2>
                         <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
                     </div>
-                    {kegiatan.periode_asal && <p className="text-sm text-muted">Lanjutan dari kegiatan yang ditunda pada {kegiatan.periode_asal} {kegiatan.tahun}.</p>}
+                    {kegiatan.periode_asal && <Badge variant="warning">Lanjutan dari {kegiatan.periode_asal} {kegiatan.tahun}</Badge>}
                     {kegiatan.justifikasi && (
                         <dl className="space-y-2 rounded-lg border border-border bg-soft/50 p-3 text-sm">
                             {kegiatan.periode_tujuan && <div><dt className="text-xs text-muted">Periode tujuan</dt><dd className="font-medium text-ink">{kegiatan.periode_tujuan} {kegiatan.tahun}</dd></div>}
