@@ -1392,7 +1392,7 @@ Menyatakan kegiatan mana yang mendukung suatu rencana aksi/indikator, dan berdam
 
 **Klaim tahap pengukuran kegiatan lanjutan (Q41 §41.4 butir 2, Q69 §69.5; diterapkan ISS-06.05):**
 - **Contoh:** kegiatan K pada TW I diklaim RA R (indikator I, komponen C) dengan `sumber_klaim = rencana_aksi`, lalu ditunda ke TW II dan membentuk lanjutan K′ (`kegiatan_asal_id` = K). Sistem menambahkan baris `rencana_aksi_id` = R, `kegiatan_id` = K′, `komponen_id` = C, `arah_dampak` dan `catatan` disalin dari klaim K, `sumber_klaim = pengukuran`, dan `pengukuran_id` = baris `pengukuran` I × tahun × TW II.
-- **Waktu pembentukan:** baris dibuat dalam transaksi `ditunda` bila baris pengukuran itu sudah ada, atau saat baris itu dibentuk.
+- **Waktu pembentukan:** baris dibuat dalam transaksi `ditunda` bila baris pengukuran itu sudah ada, atau saat baris itu dibentuk. Klaim dibentuk pada baris pengukuran periode tujuan apa pun status alurnya; pada status `diajukan`, `diverifikasi`, atau `disahkan`, klaim hanya masuk data kerja dan baru dibekukan pada pengajuan berikutnya, sedangkan versi beku tidak berubah (keputusan PM 3 November 2026 pada [review PR #236](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/236#issuecomment-6601371027)).
 - **Sumber:** seluruh klaim rantai asal, satu per RA × komponen, hanya ke RA dengan unit dan tahun yang sama.
 - **Duplikasi:** unique di atas mencegah duplikasi, dan CHECK `klaim_sumber_cocok` mewajibkan `pengukuran_id`.
 - **Penjagaan:** klaim tahap `rencana_aksi` untuk kegiatan lanjutan ditolak sistem. Tidak ada kolom baru.
