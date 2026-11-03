@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+import type { PendingVisit, VisitOptions } from '@inertiajs/core';
+import { router, useForm } from '@inertiajs/react';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -16,6 +17,30 @@ import type { IndikatorKinerjaItem, RenstraOption, RevisiTargetRenstra, SasaranS
 const KONFLIK = 'Draf revisi sudah berubah oleh pengguna lain atau tidak lagi terbuka. Muat ulang untuk melanjutkan.';
 const BELUM_PASTI = 'Hasil penyimpanan otomatis terakhir belum dapat dipastikan. Muat ulang untuk memeriksa draf terbaru sebelum melanjutkan.';
 const JEDA_AUTOSAVE = 800;
+
+// Callback asli tetap dibawa saat visit dilanjutkan karena Link/useForm lain dapat bergantung padanya (VisitOptions).
+const CALLBACK_KUNJUNGAN = ['onCancelToken', 'onBefore', 'onBeforeUpdate', 'onStart', 'onProgress', 'onFinish',
+    'onCancel', 'onSuccess', 'onError', 'onHttpException', 'onNetworkError', 'onFlash', 'onPrefetched', 'onPrefetching'] as const;
+
+/** Ambil opsi visit yang sah; id, url, dan status internal PendingVisit tidak boleh dikirim ulang. */
+function opsiKunjungan(visit: PendingVisit): VisitOptions {
+    const asal = visit as PendingVisit & Partial<VisitOptions>;
+    const opsi: VisitOptions = {
+        method: asal.method,
+        data: asal.data,
+        headers: asal.headers,
+        only: asal.only,
+        except: asal.except,
+        preserveScroll: asal.preserveScroll,
+        preserveState: asal.preserveState,
+        replace: asal.replace,
+        preserveUrl: asal.preserveUrl,
+    };
+    for (const kunci of CALLBACK_KUNJUNGAN) {
+        if (typeof asal[kunci] === 'function') (opsi as Record<string, unknown>)[kunci] = asal[kunci];
+    }
+    return opsi;
+}
 
 type Isian = Record<string, Record<string, string>>;
 
@@ -44,6 +69,9 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
     // Draf yang baru dibuka belum berisi apa pun; waktu pembuatannya bukan bukti isian tersimpan.
     const [tersimpanPada, setTersimpanPada] = useState(Object.keys(revisi.nilai).length > 0 || revisi.justifikasi ? revisi.diubah_pada : null);
     const [konfirmasiBatal, setKonfirmasiBatal] = useState(false);
+    const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
+    const kunjunganTertunda = useRef<{ url: URL; opsi: VisitOptions } | null>(null);
+    const kunjunganDisetujui = useRef<{ href: string; method: string } | null>(null);
     const galat: Record<string, string | undefined> = { ...draf.errors, ...simpanForm.errors, ...batalForm.errors };
     const years = Array.from({ length: renstra.tahun_selesai - renstra.tahun_mulai + 1 }, (_, i) => renstra.tahun_mulai + i);
     const sibuk = draf.processing || simpanForm.processing || batalForm.processing;
@@ -93,6 +121,58 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
         }, JEDA_AUTOSAVE);
         return () => clearTimeout(timer);
     }, [kotor, terhenti, draf, url, revisi.id, revisi.versi, handleHttpException]);
+
+    // Jangan biarkan navigasi membuang isian yang belum terkirim. Autosave sengaja tidak di-flush di sini: PUT
+    // saat unload tidak dapat dipastikan selesai, dan hasil ambigu sudah ditangani belumPasti.
+    // Permintaan autosave yang masih berjalan juga dihitung belum tersimpan: visit baru menginterupsi request itu.
+    const belumTersimpan = kotor || draf.processing;
+    useEffect(() => {
+        const sebelumUnload = (event: BeforeUnloadEvent) => {
+            if (!belumTersimpan) return;
+            event.preventDefault();
+            event.returnValue = '';
+        };
+        window.addEventListener('beforeunload', sebelumUnload);
+
+        const lepaskan = router.on('before', (event) => {
+            const visit = event.detail.visit;
+            if (visit.prefetch) return;
+            // Mutasi internal draf bukan navigasi halaman: PUT draf, POST simpan revisi, DELETE batal revisi.
+            if (visit.method === 'put' && visit.url.pathname === url) return;
+            if (visit.method === 'post' && visit.url.pathname === `${url}/simpan`) return;
+            if (visit.method === 'delete' && visit.url.pathname === url) return;
+            // Visit lanjutan setelah pengguna memilih "Tinggalkan halaman" tidak boleh ditahan lagi.
+            if (kunjunganDisetujui.current?.href === visit.url.href && kunjunganDisetujui.current.method === visit.method) {
+                kunjunganDisetujui.current = null;
+                return;
+            }
+            // Konflik, hasil belum pasti, atau sesi yang perlu dipulihkan sudah punya peringatan sendiri;
+            // dialog kedua akan menyesatkan, jadi navigasi dibiarkan (isian lokal memang tidak dapat disimpan tanpa Muat ulang).
+            if (!belumTersimpan || terhenti) return;
+            event.preventDefault();
+            kunjunganTertunda.current = { url: visit.url, opsi: opsiKunjungan(visit) };
+            setKonfirmasiKeluar(true);
+        });
+
+        return () => {
+            window.removeEventListener('beforeunload', sebelumUnload);
+            lepaskan();
+        };
+    }, [belumTersimpan, terhenti, url]);
+
+    const tetapDiHalaman = () => {
+        kunjunganTertunda.current = null;
+        setKonfirmasiKeluar(false);
+    };
+    const tinggalkanHalaman = () => {
+        const tertunda = kunjunganTertunda.current;
+        kunjunganTertunda.current = null;
+        setKonfirmasiKeluar(false);
+        if (!tertunda) return;
+        // Penanda hanya berlaku untuk visit berikutnya agar navigasi lain di masa depan tetap ditanya.
+        kunjunganDisetujui.current = { href: tertunda.url.href, method: tertunda.opsi.method ?? 'get' };
+        try { router.visit(tertunda.url, tertunda.opsi); } finally { kunjunganDisetujui.current = null; }
+    };
 
     const simpan = () => {
         simpanForm.transform(() => ({ revisi_id: revisi.id, versi: revisi.versi, justifikasi: draf.data.justifikasi }));
@@ -198,6 +278,13 @@ export function ModeRevisiTargetRenstra({ renstra, sasarans, revisi, onMuatUlang
                 <Button type="button" variant="danger" onClick={batal} isLoading={batalForm.processing}>Ya, batalkan revisi</Button>
             </div>}>
             <p className="text-sm text-ink">Seluruh isian draf dibuang dan target Renstra tidak berubah.</p>
+        </Modal>
+        <Modal isOpen={konfirmasiKeluar} onClose={tetapDiHalaman} title="Tinggalkan halaman?" size="sm" showCloseButton={false}
+            footer={<div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" onClick={tetapDiHalaman}>Tetap di halaman</Button>
+                <Button type="button" variant="danger" onClick={tinggalkanHalaman}>Tinggalkan halaman</Button>
+            </div>}>
+            <p className="text-sm text-ink">Perubahan yang belum tersimpan akan hilang.</p>
         </Modal>
     </div>;
 }
