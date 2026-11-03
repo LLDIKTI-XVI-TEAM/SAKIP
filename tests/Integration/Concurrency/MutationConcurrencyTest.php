@@ -32,6 +32,8 @@ use App\Models\JadwalSnapshot;
 use App\Models\JadwalSnapshotKomponen;
 use App\Models\JadwalTahunan;
 use App\Models\JenisBerkas;
+use App\Models\Kegiatan;
+use App\Models\KlaimKegiatan;
 use App\Models\PengukuranKinerja;
 use App\Models\PengukuranKomponen;
 use App\Models\PenugasanIndikator;
@@ -66,11 +68,12 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
+use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
 
 class MutationConcurrencyTest extends TestCase
 {
-    use DatabaseMigrations;
+    use DatabaseMigrations, RencanaAksiFixtures;
 
     private bool $workersStopped = true;
 
@@ -533,6 +536,36 @@ class MutationConcurrencyTest extends TestCase
             'permission' => 'delegasi:update', 'keputusan' => 'ditolak', 'alasan' => 'no_allow',
             'sumber_allow' => ['roles' => [], 'grants' => []], 'deny' => [],
         ], $audit->dasar_izin);
+    }
+
+    public function test_tunda_menunggu_pengukuran_tujuan_sebelum_mengunci_jadwal(): void
+    {
+        // Simpan draf pengukuran mengunci pengukuran lalu jadwal; ditunda yang lebih dulu memegang jadwal akan deadlock dengannya.
+        $f = $this->buatFixtureManual();
+        $this->drafManual($f);
+        $asal = Kegiatan::where('nama', 'Kegiatan pendukung')->sole();
+        $pengukuran = PengukuranKinerja::create(['indikator_id' => $f['indikator']->id, 'tahun' => 2026, 'periode_id' => $f['periode2']->id,
+            'jadwal_snapshot_id' => $f['snapshot']->id, 'sumber_nilai' => 'manual', 'status_alur' => 'draft', 'created_by' => $f['pic']->id]);
+        $prepare = fn () => PengukuranKinerja::whereKey($pengukuran->id)->lockForUpdate()->firstOrFail();
+        $assertJadwalBebas = function () use ($f): void {
+            try {
+                DB::selectOne('select id from jadwal_tahunan where id = ? for update nowait', [$f['jadwal']->id]);
+            } catch (QueryException $exception) {
+                if (($exception->errorInfo[0] ?? null) !== '55P03') {
+                    throw $exception;
+                }
+                $this->fail('Worker memegang jadwal sambil menunggu pengukuran tujuan.');
+            }
+        };
+
+        $results = $this->race('kegiatan-tunda', $asal->id, '', [[
+            'actor_id' => $f['perencanaan']->id, 'kegiatan_id' => $asal->id, 'data' => ['status' => 'ditunda', 'justifikasi' => 'Narasumber berhalangan.',
+                'periode_tujuan_id' => $f['periode2']->id, 'expected_state' => $asal->versionToken()],
+        ]], $prepare, assertBlocked: $assertJadwalBebas);
+
+        $this->assertSame(['ditunda'], $results);
+        $lanjutan = Kegiatan::where('kegiatan_asal_id', $asal->id)->sole();
+        $this->assertSame($pengukuran->id, KlaimKegiatan::where('kegiatan_id', $lanjutan->id)->sole()->pengukuran_id);
     }
 
     public function test_revoke_grant_locks_users_before_grant_row(): void

@@ -8,6 +8,7 @@ use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\PengukuranKinerja;
 use App\Models\Periode;
+use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use Illuminate\Support\Arr;
@@ -155,6 +156,19 @@ class RollOverKegiatan
             )
             SELECT id FROM rantai
             SQL, [$kegiatanId]), 'id');
+    }
+
+    /**
+     * Baris pengukuran tujuan yang akan dirujuk FK klaim lanjutan dikunci `FOR KEY SHARE` sebelum jadwal, searah
+     * mutasi pengukuran (pengukuran → jadwal, `PengukuranMutationSteps::kunciKonteks`) agar tidak saling menunggu.
+     *
+     * @param  list<string>  $headerIds  Header RA rantai asal yang sudah dikunci pemanggil.
+     */
+    public static function kunciPengukuranTujuan(array $headerIds, int $tahun, string $unitId, string $periodeId): void
+    {
+        $indikator = RencanaAksi::whereIn('id', $headerIds)->where('tahun', $tahun)->where('unit_id', $unitId)->pluck('indikator_id');
+        PengukuranKinerja::whereIn('indikator_id', $indikator)->where('tahun', $tahun)->where('periode_id', strtolower($periodeId))
+            ->orderBy('id')->lock('for key share')->get();
     }
 
     /**
