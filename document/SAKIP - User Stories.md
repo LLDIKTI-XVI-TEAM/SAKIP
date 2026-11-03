@@ -1444,7 +1444,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-3:** Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
 - [x] **AC-4:** Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
 
-**Status implementasi (2 November 2026):** AC-1, AC-3, dan AC-4 terbukti oleh automated test. AC-2 tetap terbuka karena penulis klaim tahap pengukuran mengikuti ISS-06.05 bagian 2; sampai itu tersedia, upaya koreksi klaim tahap pengukuran ditolak dan diaudit.
+**Status implementasi (3 November 2026):** AC-1, AC-3, dan AC-4 terbukti oleh automated test. AC-2 tetap terbuka: penulis klaim tahap pengukuran dibuat di ISS-06.05 bagian 2 (#221), sedangkan jalur koreksinya dikerjakan sebagai lanjutan ISS-06.06 (#223) setelah #221 merge. Sampai jalur itu tersedia, upaya koreksi klaim tahap pengukuran ditolak dan diaudit.
 
 ### US-06.07 · Koreksi Bukti Kegiatan secara Append-Only
 

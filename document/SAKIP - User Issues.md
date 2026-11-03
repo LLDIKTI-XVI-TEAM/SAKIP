@@ -3327,7 +3327,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 - [x] **AC-1:** Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
 - [ ] **AC-2:** Given klaim menjadi bagian snapshot Pengukuran, When koreksi dilakukan, Then koreksi mengikuti siklus Pengukuran terkait dan baru masuk versi berikutnya.
-  - Catatan 2 November 2026: koreksi klaim tahap pengukuran belum tersedia karena penulis klaim tahap pengukuran mengikuti ISS-06.05 bagian 2. Upaya hapus klaim tahap pengukuran ditolak dan diaudit; AC ini tetap terbuka.
+  - Catatan 3 November 2026: penulis klaim tahap pengukuran dibuat di ISS-06.05 bagian 2 (#221); jalur koreksinya dikerjakan sebagai lanjutan ISS-06.06 (#223) setelah #221 merge. Sampai jalur itu tersedia, upaya hapus klaim tahap pengukuran ditolak dan diaudit; AC ini tetap terbuka dan #223 tetap open setelah PR ini.
 - [x] **AC-3:** Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
 - [x] **AC-4:** Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
 
@@ -3338,10 +3338,10 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Koreksi klaim harus mengikuti siklus versi sumber (RA atau Pengukuran) dan tidak mengubah snapshot versi historis. *(Siklus RA terbukti; siklus Pengukuran menunggu ISS-06.05 bagian 2.)*
+- [ ] Koreksi klaim harus mengikuti siklus versi sumber (RA atau Pengukuran) dan tidak mengubah snapshot versi historis. *(Siklus RA terbukti; siklus Pengukuran dikerjakan lanjutan ISS-06.06 (#223) setelah #221 merge.)*
 
 **C. Authorization & Audit**
-- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Kewenangan mengikuti sumber yang sedang dikoreksi.
+- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: Kewenangan mengikuti sumber yang sedang dikoreksi. *(Sumber RA terbukti; sumber pengukuran mengikuti AC-2.)*
 - [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [x] Catat event audit yang ditentukan kontrak dengan aktor, objek, waktu, dan nilai lama/baru bila relevan.
 
@@ -3349,7 +3349,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given klaim menjadi bagian snapshot Pengukuran, When koreksi dilakukan, Then koreksi mengikuti siklus Pengukuran terkait dan baru masuk versi berikutnya.
-  - Catatan 2 November 2026: test yang ada membuktikan penolakan dan audit; test siklus koreksi pengukuran menunggu ISS-06.05 bagian 2.
+  - Catatan 3 November 2026: test yang ada membuktikan penolakan dan audit; test siklus koreksi pengukuran dikerjakan pada lanjutan ISS-06.06 (#223) setelah #221 merge.
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given versi historis sudah disahkan, Then klaim yang dibekukan di versi tersebut tidak berubah.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given klaim dihapus/diganti pada data kerja, Then audit tetap mempertahankan jejak perubahan.
 
