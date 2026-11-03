@@ -5359,6 +5359,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-12.01 · [Feature] Banner Pengingat Kontekstual
 
+> **Penyelarasan review PM — 3 November 2026:** sesuai [keputusan pada PR #237](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/237#issuecomment-6597670044), setelah tenggat ringkasan dan pengingat pribadi aktor jalur Perencanaan memakai teks netral `Batas pengisian PIC terlewat sejak <tanggal>.` Tautan fokus pribadi tetap tersedia bila hak input memenuhi; PIC tanpa jalur Perencanaan tetap menerima arahan menghubungi Tim Perencanaan tanpa tautan. Pengingat pada daftar RA mengikuti cakupan akses baca halaman tersebut.
+
+> **Implementasi lokal — 3 November 2026, [#218](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/218):** refinement PM K1–K12 tersedia: evaluator server, banner pribadi lintas filter, ringkasan Perencanaan hanya pada Dashboard, PK draf, mode fokus kewajiban pribadi, dan dismiss lokal. Pengingat normal berhenti menurut `JadwalTahunan::tahunDitutup()` (K11 menggantikan masa tampil K2 sebelumnya). R-K11b telah terbukti melalui `PengingatSesiKoreksiTest`: alur resmi tutup → buka kembali → revisi jendela PIC dari ISS-14.03, aktor PJ dengan grant unit, lingkup indikator × periode, serta perbandingan dengan Policy update/submit. Pembukaan tanpa marker resmi, lingkup berbeda, deny baca, dan akhir sesi diuji; mekanisme pembukaan tetap milik ISS-14.03. Browser smoke lokal memakai in-app browser dan data sintetis telah memverifikasi countdown H-7/H-3/H-0, keterlambatan, bagian pribadi/agregat/PK, tautan fokus dan Lihat semua, daftar RA, dismiss/reload, serta desktop/mobile tanpa overflow horizontal pada viewport yang diperiksa. Ini bukan pengujian seluruh role, SSO, UAT, merge, atau deployment; hasil exact-HEAD CI dicatat pada PR.
+
 > **Q41, Q44 (13 Oktober 2026):** banner tenggat penyusunan RA pada AC-1 dihapus karena Rencana Aksi tidak lagi memakai jendela penyusunan (Q41 §41.1). Penanda `tidak_dapat_dipenuhi` baru tidak lagi terjadi karena unggahan selalu aktif; penanda lama tetap histori (Q44 §44.1 butir 2). AC-1 dan AC-4 diperbarui karena issue ini belum dikerjakan.
 
 **Terkait User Story:** `US-12.01`  
@@ -5366,8 +5370,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `frontend`  
 **Plan:** Modul 14: 14.1  
-**PRD:** §28.1  
-**Workflow:** §22.1  
+**PRD:** §28  
+**Workflow:** §4, §11, §22.1  
 **Data Model/Entitas:** alert server-side
 
 #### User Story
@@ -5385,10 +5389,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** *(Dihapus Q41 §41.1; tidak dikerjakan.)* Semula: Given jendela RA aktif/mendekati batas, When halaman dibuka, Then banner menampilkan `rencana_aksi_selesai` sesuai konteks.
-- [ ] **AC-2:** Given periode pengisian aktif, Then countdown mengacu `pengisian_selesai` resmi.
-- [ ] **AC-3:** Given indikator belum diisi, Then status muncul hanya untuk periode yang berlaku.
-- [ ] **AC-4:** Given PK belum lengkap, Then Perencanaan mendapat penanda yang relevan. *(Diperbarui Q44 §44.1 butir 2; semula juga untuk bukti `tidak_dapat_dipenuhi`, yang tidak lagi terbentuk.)*
-- [ ] **AC-5:** Given props dikirim ke React, Then seluruh evaluasi status/tenggat dilakukan server-side.
+- [x] **AC-2:** Given periode pengisian aktif, Then countdown mengacu `pengisian_selesai` resmi.
+- [x] **AC-3:** Given indikator belum diisi, Then status muncul hanya untuk periode yang berlaku.
+- [x] **AC-4:** Given PK belum lengkap, Then Perencanaan mendapat penanda yang relevan. *(Diperbarui Q44 §44.1 butir 2; semula juga untuk bukti `tidak_dapat_dipenuhi`, yang tidak lagi terbentuk.)*
+- [x] **AC-5:** Given props dikirim ke React, Then seluruh evaluasi status/tenggat dilakukan server-side.
 
 #### Implementation Tasks
 
@@ -5411,10 +5415,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 #### Automated Tests / Verification
 
 - [ ] TEST-1: *(Dihapus Q41 §41.1; tidak dikerjakan.)* Semula: Buat Pest Feature/Unit test yang membuktikan — Given jendela RA aktif/mendekati batas, When halaman dibuka, Then banner menampilkan `rencana_aksi_selesai` sesuai konteks.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given periode pengisian aktif, Then countdown mengacu `pengisian_selesai` resmi.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator belum diisi, Then status muncul hanya untuk periode yang berlaku.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given PK belum lengkap, Then Perencanaan mendapat penanda yang relevan. *(Diperbarui Q44 §44.1 butir 2; semula juga untuk bukti `tidak_dapat_dipenuhi`, yang tidak lagi terbentuk.)*
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given props dikirim ke React, Then seluruh evaluasi status/tenggat dilakukan server-side.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given periode pengisian aktif, Then countdown mengacu `pengisian_selesai` resmi.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator belum diisi, Then status muncul hanya untuk periode yang berlaku.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given PK belum lengkap, Then Perencanaan mendapat penanda yang relevan. *(Diperbarui Q44 §44.1 butir 2; semula juga untuk bukti `tidak_dapat_dipenuhi`, yang tidak lagi terbentuk.)*
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given props dikirim ke React, Then seluruh evaluasi status/tenggat dilakukan server-side.
 
 #### Definition of Done
 

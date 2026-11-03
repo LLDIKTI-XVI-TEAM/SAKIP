@@ -10,6 +10,7 @@ use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Policies\RencanaAksiPolicy;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Pengingat\PengingatKontekstual;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
@@ -142,6 +143,7 @@ class DaftarRencanaAksi
         })->values()->all();
 
         return [
+            'pengingat' => app(PengingatKontekstual::class)->handle($actor, 'rencana_aksi:read', false),
             'daftar' => $daftar,
             'filters' => ['status' => $status],
             'pagination' => ['current_page' => $halaman->currentPage(), 'last_page' => $halaman->lastPage(), 'total' => $halaman->total(), 'prev_page_url' => $halaman->previousPageUrl(), 'next_page_url' => $halaman->nextPageUrl()],

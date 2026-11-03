@@ -2257,6 +2257,10 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-12.01 · Banner Pengingat Kontekstual
 
+> **Penyelarasan review PM — 3 November 2026:** sesuai [keputusan pada PR #237](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/237#issuecomment-6597670044), setelah tenggat ringkasan dan pengingat pribadi aktor jalur Perencanaan memakai teks netral `Batas pengisian PIC terlewat sejak <tanggal>.` Tautan fokus pribadi tetap tersedia bila hak input memenuhi; PIC tanpa jalur Perencanaan tetap menerima arahan menghubungi Tim Perencanaan tanpa tautan. Pengingat pada daftar RA mengikuti cakupan akses baca halaman tersebut.
+
+> **Implementasi lokal — 3 November 2026:** mengikuti keputusan PM K1–K12 pada [issue #218](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/218). Kewajiban pribadi tanpa header/draf/dikembalikan tetap diingatkan sampai diajukan; status kanonis tetap dipakai. Ambang WITA H-7/H-3/H-1 kontinu, H-0 inklusif; pengingat normal berhenti menurut `tahunDitutup()`, sementara pembukaan PIC resmi dalam sesi memakai lingkup dan helper Policy ISS-14.03. Agregat Perencanaan hanya di Dashboard; daftar RA hanya pribadi. Browser smoke lokal dengan data sintetis telah memverifikasi Dashboard, fokus Pengukuran, daftar RA, dan tampilan desktop/mobile, bukan seluruh role atau SSO. R-K11b telah terbukti melalui `PengingatSesiKoreksiTest` setelah sinkronisasi development. Bukan pernyataan UAT, merge, atau deployment.
+
 > **Q41, Q44 (13 Oktober 2026):** banner tenggat penyusunan RA pada AC-1 dihapus karena Rencana Aksi tidak lagi memakai jendela penyusunan (Q41 §41.1). Penanda `tidak_dapat_dipenuhi` baru tidak lagi terjadi karena unggahan selalu aktif; penanda lama tetap histori (Q44 §44.1 butir 2). AC-1 dan AC-4 diperbarui karena story ini belum dikerjakan.
 
 | Field | Detail |
@@ -2276,10 +2280,10 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 **Acceptance Criteria**
 
 - [ ] **AC-1:** *(Dihapus Q41 §41.1; tidak dikerjakan.)* Semula: Given jendela RA aktif/mendekati batas, When halaman dibuka, Then banner menampilkan `rencana_aksi_selesai` sesuai konteks.
-- [ ] **AC-2:** Given periode pengisian aktif, Then countdown mengacu `pengisian_selesai` resmi.
-- [ ] **AC-3:** Given indikator belum diisi, Then status muncul hanya untuk periode yang berlaku.
-- [ ] **AC-4:** Given PK belum lengkap, Then Perencanaan mendapat penanda yang relevan. *(Diperbarui Q44 §44.1 butir 2; semula juga untuk bukti `tidak_dapat_dipenuhi`, yang tidak lagi terbentuk.)*
-- [ ] **AC-5:** Given props dikirim ke React, Then seluruh evaluasi status/tenggat dilakukan server-side.
+- [x] **AC-2:** Given periode pengisian aktif, Then countdown mengacu `pengisian_selesai` resmi.
+- [x] **AC-3:** Given indikator belum diisi, Then status muncul hanya untuk periode yang berlaku.
+- [x] **AC-4:** Given PK belum lengkap, Then Perencanaan mendapat penanda yang relevan. *(Diperbarui Q44 §44.1 butir 2; semula juga untuk bukti `tidak_dapat_dipenuhi`, yang tidak lagi terbentuk.)*
+- [x] **AC-5:** Given props dikirim ke React, Then seluruh evaluasi status/tenggat dilakukan server-side.
 
 ### US-12.02 · Lonceng Notifikasi & Antrean Tugas In-App
 

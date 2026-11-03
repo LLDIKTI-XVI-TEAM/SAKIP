@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Eye, Plus } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
+import { PengingatKontekstual, type PengingatPageProps } from '@/Components/PengingatKontekstual';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
@@ -15,9 +16,9 @@ import { PindahVersiButton } from '@/Components/Pengukuran/PindahVersiButton';
 import { Pagination, type PaginationLinkItem } from '@/Components/Pagination';
 import { useFormatNilai } from './formatNilai';
 
-interface PengukuranIndexProps {
+interface PengukuranIndexProps extends PengingatPageProps {
     konteks: KonteksPengukuran[];
-    filters: { jadwal_id: string | null; periode_id: string | null };
+    filters: { jadwal_id: string | null; periode_id: string | null; fokus?: string | null };
     can: { selectPeriod: boolean };
     pilihan_jadwal?: PilihanJadwalPengukuran[];
     pengukurans: BarisPengukuran[];
@@ -116,10 +117,11 @@ function AksiBaris({ baris }: { baris: BarisPengukuran }) {
     return baris.can.create ? <TombolIsi baris={baris} /> : <span className="text-muted">—</span>;
 }
 
-export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal = [], pengukurans, pagination, errors = {} }: PengukuranIndexProps) {
+export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal = [], pengukurans, pagination, errors = {}, pengingat }: PengukuranIndexProps) {
     const formatNilai = useFormatNilai();
     const berjalan = konteks.filter((item) => item.periode);
-    const kosong = konteks.length === 0 ? 'Jadwal aktif belum tersedia' : berjalan.length === 0 ? 'Pengisian belum dimulai' : 'Belum ada indikator pada periode ini';
+    const kosong = filters.fokus && pagination.total === 0 ? 'Tidak ada kewajiban yang belum diajukan pada periode ini.'
+        : konteks.length === 0 ? 'Jadwal aktif belum tersedia' : berjalan.length === 0 ? 'Pengisian belum dimulai' : 'Belum ada indikator pada periode ini';
     const nilai = (value: string | number | null, baris: BarisPengukuran) => value === null ? '—' : `${formatNilai(value, baris.indikator.desimal_tampilan)} ${baris.indikator.satuan}`;
     const target = (baris: BarisPengukuran) => {
         if (baris.jenis === 'absent' && !baris.berlaku) return '—';
@@ -131,6 +133,15 @@ export default function PengukuranIndex({ konteks, filters, can, pilihan_jadwal 
     return (
         <AuthenticatedLayout title="Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja' }]}>
             <Head title="Pengukuran Kinerja" />
+
+            <PengingatKontekstual pengingat={pengingat ? { pribadi: pengingat.pribadi, pk: pengingat.pk } : undefined} />
+
+            {filters.fokus && (
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <p className="text-muted">Kewajiban Anda yang belum diajukan pada periode terpilih.</p>
+                    <Link href="/pengukuran" className="inline-flex min-h-11 items-center rounded-lg px-3 font-semibold text-primary underline underline-offset-4 hover:no-underline focus:outline-none focus:ring-2 focus:ring-primary/25 focus:ring-offset-1">Lihat semua</Link>
+                </div>
+            )}
 
             {can.selectPeriod && pilihan_jadwal.length > 0 && (
                 <Card className="mb-5">
