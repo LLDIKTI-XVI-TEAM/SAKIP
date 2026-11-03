@@ -68,7 +68,8 @@ class DaftarKlaimKegiatan
         // Kombinasi RA/komponen yang sudah diklaim tidak ditawarkan lagi; '' mewakili klaim tanpa komponen.
         $terpakai = $klaim->groupBy('rencana_aksi_id')->map(fn ($grup) => $grup->map(fn (KlaimKegiatan $k): string => (string) $k->komponen_id)->all());
         $opsi = [];
-        foreach ($headers as $header) {
+        // Kegiatan lanjutan hanya diklaim pada tahap pengukuran; `TambahKlaimKegiatan` menolaknya (Q41 §41.4 butir 5).
+        foreach ($kegiatan->kegiatan_asal_id === null ? $headers : [] as $header) {
             if ($header->unit_id !== $kegiatan->unit_id || ! $bolehUntuk($header)) {
                 continue;
             }
