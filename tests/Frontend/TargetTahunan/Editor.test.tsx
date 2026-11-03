@@ -19,7 +19,6 @@ const editor: TargetEditorData = {
     target_renstra: '75', tautan_target_renstra: '/perencanaan/sasaran-indikator?renstra_id=22222222-2222-4222-8222-222222222222&tab=target', status_deviasi: 'sesuai', saran_baseline: null,
 };
 const PESAN_DEVIASI = 'Target PK di bawah target Renstra 2026 (80). Revisi target Renstra dulu.';
-const LABEL_ALASAN = 'Alasan perubahan target (wajib bila target diubah)';
 // Galat field juga ber-role alert; ringkasan dikenali dari judulnya.
 const ringkasanGalat = () => {
     const ringkasan = screen.getByText('Periksa isian berikut.').closest<HTMLElement>('[role="alert"]');
@@ -68,32 +67,27 @@ it('menjaga angka historis tepat dan membedakan kosong dengan nol pada payload',
     expect(vi.mocked(router.put).mock.calls[0][1]).toMatchObject({ baseline: '999999999999999999.123456789012', target_tahunan: '0', expected_state: editor.expected_state });
 });
 
-it('setelah snapshot editor menjelaskan target beku tetap dipakai; kewajiban alasan hanya ditegakkan server', () => {
+const tanpaDasarPerubahan = () => {
+    expect(screen.queryByRole('heading', { name: 'Dasar perubahan' })).toBeNull();
+    expect(screen.queryAllByLabelText(/alasan|rujukan/i)).toHaveLength(0);
+    expect(screen.queryByText(/riwayat perubahan/)).toBeNull();
+};
+
+it('setelah snapshot editor menjelaskan target beku tetap dipakai tanpa bagian dasar perubahan (Q82)', () => {
     show();
     expect(screen.getByText(/Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun 2026/)).toBeTruthy();
     expect(screen.getByText(/menunggu revisi PK berversi atau, sebelum itu tersedia, keputusan PM/)).toBeTruthy();
-    expect(screen.getByLabelText<HTMLTextAreaElement>(LABEL_ALASAN).required).toBe(false);
-    expect(screen.getByLabelText<HTMLInputElement>('Rujukan sumber (opsional)').required).toBe(false);
+    tanpaDasarPerubahan();
 });
 
-it('dasar perubahan tampil bila target sudah tersimpan walau tanpa snapshot dan tersembunyi pada pengisian pertama', () => {
-    const { unmount } = show({ has_snapshot: false });
-    expect(screen.getByText('Alasan wajib bila target diubah; rujukan sumber opsional. Keduanya tercatat di riwayat perubahan.')).toBeTruthy();
-    expect(screen.getByLabelText(LABEL_ALASAN)).toBeTruthy();
-    unmount();
-    show({ has_snapshot: false, target_tahunan: null });
-    expect(screen.queryByLabelText(LABEL_ALASAN)).toBeNull();
-    expect(screen.queryByLabelText('Rujukan sumber (opsional)')).toBeNull();
-});
-
-it('galat alasan perubahan dari server terikat ke isian alasan', async () => {
+it('target tersimpan diubah tanpa isian alasan maupun rujukan sumber, dan payload tidak membawa keduanya (Q82)', () => {
     show({ has_snapshot: false });
+    tanpaDasarPerubahan();
     fireEvent.change(screen.getByLabelText('Target 2026'), { target: { value: '80' } });
-    const options = submit();
-    await act(async () => { options?.onError?.({ alasan: 'Isi alasan perubahan karena target PK yang tersimpan diubah.' }); options?.onFinish?.({} as ActiveVisit); });
-    const field = screen.getByLabelText<HTMLTextAreaElement>(LABEL_ALASAN);
-    expect(field.getAttribute('aria-invalid')).toBe('true');
-    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toContain('Isi alasan perubahan karena target PK yang tersimpan diubah.');
+    submit();
+    expect(payload()).toMatchObject({ baseline: '74.2345', target_tahunan: '80', expected_state: editor.expected_state });
+    expect(payload()).not.toHaveProperty('alasan');
+    expect(payload()).not.toHaveProperty('rujukan_sumber');
 });
 
 it('target Renstra ada: pembanding, anjuran, dan penanda deviasi tanpa isian alasan deviasi', () => {
@@ -235,7 +229,6 @@ it.each(['Batal', 'Muat data terbaru'])('hasil tidak cocok tetap melindungi draf
 
 it('no-op setelah snapshot tanpa metadata dan target_id null tetap hasil sah', async () => {
     show({ baseline: null, target_tahunan: null });
-    expect(screen.getByLabelText<HTMLInputElement>('Rujukan sumber (opsional)').required).toBe(false);
     const options = submit();
     await act(async () => { options?.onSuccess?.(page(receipt())); });
     expect(onSaved).toHaveBeenCalledWith('Tidak ada perubahan.');

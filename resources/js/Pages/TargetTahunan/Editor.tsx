@@ -4,7 +4,6 @@ import type { PendingVisit } from '@inertiajs/core';
 import { Link, router, useForm } from '@inertiajs/react';
 import { Modal } from '@/Components/Modal';
 import { Input } from '@/Components/Input';
-import { Textarea } from '@/Components/Textarea';
 import { Button } from '@/Components/Button';
 import { Badge } from '@/Components/Badge';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
@@ -30,8 +29,7 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
     // Saran baseline menjadi nilai awal, bukan perubahan: menutup tanpa mengubah apa pun tidak meminta konfirmasi,
     // dan saran baru tersimpan bila pengguna menekan Simpan.
     const saran = editor.saran_baseline;
-    const initialValues = { baseline: editor.baseline ?? saran?.nilai ?? '', target_tahunan: editor.target_tahunan ?? '',
-        alasan: '', rujukan_sumber: '', expected_state: editor.expected_state };
+    const initialValues = { baseline: editor.baseline ?? saran?.nilai ?? '', target_tahunan: editor.target_tahunan ?? '', expected_state: editor.expected_state };
     const form = useForm(initialValues);
     // Penolakan deviasi memakai key sendiri agar hanya galat itu yang membawa tautan ke target Renstra.
     const errors = form.errors as Record<string, string | undefined>;
@@ -197,16 +195,6 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
             {editor.has_snapshot && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">
                 Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun {editor.tahun}. Perubahan resmi yang mengubah target menunggu revisi PK berversi atau, sebelum itu tersedia, keputusan PM.
             </p>}
-            {/* Tampil selama alasan dapat diwajibkan (target sudah tersimpan) dan setelah snapshot untuk rujukan sumber.
-                Wajib-tidaknya alasan hanya dinilai server (Q72 §72.2 butir 2, §72.4 butir 4). */}
-            {editable && (editor.target_tahunan !== null || editor.has_snapshot) && <section aria-labelledby={`${id}-dasar`} className="space-y-4 border-t border-border pt-5">
-                <div>
-                    <h3 id={`${id}-dasar`} className="text-sm font-semibold text-ink">Dasar perubahan</h3>
-                    <p className="mt-0.5 text-xs text-muted">Alasan wajib bila target diubah; rujukan sumber opsional. Keduanya tercatat di riwayat perubahan.</p>
-                </div>
-                <Textarea label="Alasan perubahan target (wajib bila target diubah)" name="alasan" autoComplete="off" rows={3} value={form.data.alasan} onChange={(event) => form.setData('alasan', event.target.value)} readOnly={busy} error={form.errors.alasan} maxLength={1000} />
-                <Input label="Rujukan sumber (opsional)" name="rujukan_sumber" autoComplete="off" value={form.data.rujukan_sumber} onChange={(event) => form.setData('rujukan_sumber', event.target.value)} readOnly={busy} error={form.errors.rujukan_sumber} maxLength={1000} placeholder="Contoh: Nomor surat keputusan atau dokumen PK" />
-            </section>}
             <div className="flex justify-end gap-3 border-t border-border pt-4">
                 <Button type="button" variant="outline" disabled={busy} onClick={close}>{editable ? 'Batal' : 'Tutup'}</Button>
                 {editable && <Button type="submit" disabled={busy || blocked} isLoading={form.processing}>Simpan</Button>}

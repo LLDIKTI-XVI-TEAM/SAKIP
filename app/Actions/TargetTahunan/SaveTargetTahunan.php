@@ -8,7 +8,6 @@ use App\Models\TargetRenstra;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\ResolveLockedActor;
-use App\Support\AuditReason;
 use App\Support\DeviasiTargetRenstra;
 use App\Support\PermissionCodes;
 use App\Support\TargetTahunanDecimal;
@@ -22,8 +21,6 @@ class SaveTargetTahunan
 {
     /** Q72 §72.4 butir 6: arah, tahun, dan target Renstra tersimpan tanpa pembulatan tampilan. */
     private const PESAN_DEVIASI = 'Target PK %s target Renstra %d (%s). Revisi target Renstra dulu.';
-
-    private const PESAN_ALASAN_KOSONG = 'Isi alasan perubahan karena target PK yang tersimpan diubah.';
 
     public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit) {}
 
@@ -74,21 +71,13 @@ class SaveTargetTahunan
                             $arah === 'turun_baik' ? 'di atas' : 'di bawah', $tahun, str_replace('.', ',', $targetRenstra))]);
                     }
                 }
-                $reason = trim(AuditReason::sanitize($data['alasan'] ?? null));
-                // Q72 §72.2 butir 1–2 dan §72.4 butir 2: alasan wajib hanya bila target tersimpan berubah, termasuk dikosongkan
-                // dan setelah snapshot (snapshot tidak ikut berubah). Pembanding `''` agar alasan "0" tetap sah.
-                if ($targetBerubah && $before['target_tahunan'] !== null && $reason === '') {
-                    $penolakan = 'alasan_perubahan_kosong';
-                    throw ValidationException::withMessages(['alasan' => self::PESAN_ALASAN_KOSONG]);
-                }
-                $source = trim(AuditReason::sanitize($data['rujukan_sumber'] ?? null));
                 $target = $current ?? new TargetKinerja(['indikator_kinerja_id' => $state['indikator']->id, 'tahun' => $tahun]);
                 // Q72 §72.2 butir 4: `alasan_deviasi_renstra` tidak lagi diisi; nilai lama kolom tetap untuk histori.
                 $target->fill([...$next, 'updated_by' => $actor->id])->save();
+                // Q82: tanpa alasan pengguna; jejak perubahan target PK adalah nilai lama dan baru.
                 $this->audit->catat(actor: $actor, tindakan: 'target_tahunan.simpan', objekTipe: 'target_tahunan', objekId: $target->id,
                     nilaiLama: $current ? ['indikator_id' => $state['indikator']->id, 'tahun' => $tahun, ...$before] : null,
-                    nilaiBaru: ['indikator_id' => $state['indikator']->id, 'tahun' => $tahun, ...$next,
-                        'rujukan_sumber' => $source !== '' ? $source : null], alasan: $reason !== '' ? $reason : null, dasarIzin: $basis);
+                    nilaiBaru: ['indikator_id' => $state['indikator']->id, 'tahun' => $tahun, ...$next], dasarIzin: $basis);
 
                 return [...$outcome, 'target_id' => $target->id, 'changed' => true];
             });

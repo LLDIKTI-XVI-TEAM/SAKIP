@@ -13,56 +13,58 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\TargetTahunanFixtures;
 use Tests\TestCase;
 
-/** Q72 §72.2: alasan perubahan wajib bila nilai target PK yang sudah tersimpan berubah. */
+/** Q82: perubahan target PK tidak meminta alasan maupun rujukan sumber; jejaknya nilai lama dan baru di audit. */
 class TargetPkAlasanPerubahanTest extends TestCase
 {
     use RefreshDatabase, TargetTahunanFixtures;
 
-    private const PESAN = 'Isi alasan perubahan karena target PK yang tersimpan diubah.';
+    private const ALASAN_BAKU = 'Pencatatan audit untuk tindakan target_tahunan.simpan.';
 
-    /** @param array<string, string> $alasan */
-    #[DataProvider('alasanKosong')]
-    public function test_ubah_target_tersimpan_tanpa_alasan_ditolak_dan_diaudit(array $alasan): void
+    #[DataProvider('perubahanTersimpan')]
+    public function test_ubah_target_tersimpan_tanpa_alasan_tersimpan_dan_diaudit(?string $baru, ?string $tersimpanDb): void
+    {
+        // Renstra 90 membuat target tersimpan 80 menyimpang; mengosongkan target tidak dinilai deviasinya (Q72 §72.1 butir 3).
+        [$actor, $indikator] = $this->konteks(['target_tahunan' => '80'], renstra: $baru === null ? '90' : '80');
+
+        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => $baru])->assertOk()->assertJsonPath('changed', true);
+
+        $this->assertSame($tersimpanDb, DB::table('target_kinerjas')->value('target_tahunan'));
+        $audit = DB::table('audit_log')->where('tindakan', 'target_tahunan.simpan')->sole();
+        $this->assertSame(self::ALASAN_BAKU, $audit->alasan);
+        $this->assertEquals(['indikator_id' => $indikator->id, 'tahun' => 2026, 'baseline' => null, 'target_tahunan' => '80'], json_decode($audit->nilai_lama, true));
+        $this->assertEquals(['indikator_id' => $indikator->id, 'tahun' => 2026, 'baseline' => null, 'target_tahunan' => $baru], json_decode($audit->nilai_baru, true));
+        $this->assertSame(0, AuditLog::where('tindakan', 'target_tahunan.simpan_ditolak')->count());
+    }
+
+    /** @return array<string, array{?string, ?string}> */
+    public static function perubahanTersimpan(): array
+    {
+        return ['diubah' => ['85', '85.000000000000'], 'dikosongkan' => [null, null]];
+    }
+
+    /** @param array<string, string> $lama */
+    #[DataProvider('isianDihapus')]
+    public function test_request_dengan_alasan_atau_rujukan_ditolak_sebagai_field_tidak_didukung(array $lama): void
     {
         [$actor, $indikator] = $this->konteks(['target_tahunan' => '80']);
 
-        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => '85', ...$alasan])->assertUnprocessable()->assertJsonPath('errors.alasan.0', self::PESAN);
+        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => '85', ...$lama])->assertUnprocessable()
+            ->assertJsonPath('errors.target_tahunan.0', 'Permintaan memuat field yang tidak didukung.');
 
         $this->assertSame('80.000000000000', DB::table('target_kinerjas')->value('target_tahunan'));
         $this->assertSame(0, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
-        $ditolak = AuditLog::where('tindakan', 'target_tahunan.simpan_ditolak')->sole();
-        $this->assertSame(['tahun' => 2026, 'alasan_penolakan' => 'alasan_perubahan_kosong'], $ditolak->nilai_baru);
-        $this->assertSame(['diizinkan', 'diizinkan'], [$ditolak->dasar_izin['indikator:read']['keputusan'], $ditolak->dasar_izin['target:update']['keputusan']]);
+        $this->assertSame(['tahun' => 2026, 'alasan_penolakan' => 'input_tidak_valid'], AuditLog::where('tindakan', 'target_tahunan.simpan_ditolak')->sole()->nilai_baru);
     }
 
     /** @return array<string, array{array<string, string>}> */
-    public static function alasanKosong(): array
+    public static function isianDihapus(): array
     {
-        return ['tanpa alasan' => [[]], 'spasi saja' => [['alasan' => '   ']]];
-    }
-
-    public function test_ubah_target_dengan_alasan_tersimpan_dan_alasan_tercatat(): void
-    {
-        [$actor, $indikator] = $this->konteks(['target_tahunan' => '80']);
-
-        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => '85', 'alasan' => 'Koreksi PK triwulan QA-96'])->assertOk()->assertJsonPath('changed', true);
-
-        $this->assertSame('85.000000000000', DB::table('target_kinerjas')->value('target_tahunan'));
-        $audit = AuditLog::where('tindakan', 'target_tahunan.simpan')->sole();
-        $this->assertSame('Koreksi PK triwulan QA-96', $audit->alasan);
-        $this->assertSame(['80', '85'], [$audit->nilai_lama['target_tahunan'], $audit->nilai_baru['target_tahunan']]);
-    }
-
-    public function test_mengosongkan_target_wajib_alasan_tanpa_pemeriksaan_deviasi(): void
-    {
-        // Target tersimpan 80 sudah menyimpang terhadap Renstra 90; target kosong tidak dinilai deviasinya (Q72 §72.1 butir 3).
-        [$actor, $indikator] = $this->konteks(['target_tahunan' => '80'], renstra: '90');
-
-        $errors = $this->simpanTargetPk($actor, $indikator, [])->assertUnprocessable()->json('errors');
-        $this->assertSame(['alasan' => [self::PESAN]], $errors);
-
-        $this->simpanTargetPk($actor, $indikator, ['alasan' => 'Target PK ditarik untuk ditinjau QA-97'])->assertOk()->assertJsonPath('changed', true);
-        $this->assertNull(DB::table('target_kinerjas')->value('target_tahunan'));
+        // Editor lama selalu mengirim kedua isian, termasuk sebagai teks kosong.
+        return [
+            'alasan' => [['alasan' => 'Koreksi PK QA-96']],
+            'rujukan sumber' => [['rujukan_sumber' => 'SK QA-96']],
+            'keduanya kosong' => [['alasan' => '', 'rujukan_sumber' => '']],
+        ];
     }
 
     /** @param array<string, string>|null $tersimpan @param array<string, string> $nilai */
@@ -73,7 +75,7 @@ class TargetPkAlasanPerubahanTest extends TestCase
 
         $this->simpanTargetPk($actor, $indikator, $nilai)->assertOk()->assertJsonPath('changed', true);
 
-        $this->assertSame('Pencatatan audit untuk tindakan target_tahunan.simpan.', AuditLog::where('tindakan', 'target_tahunan.simpan')->sole()->alasan);
+        $this->assertSame(self::ALASAN_BAKU, AuditLog::where('tindakan', 'target_tahunan.simpan')->sole()->alasan);
     }
 
     /** @return array<string, array{?array<string, string>, array<string, string>}> */
@@ -104,7 +106,7 @@ class TargetPkAlasanPerubahanTest extends TestCase
     }
 
     /**
-     * Target Renstra 80 `naik_baik` membuat target 85 tidak menyimpang, sehingga yang diuji hanya kewajiban alasan.
+     * Target Renstra 80 `naik_baik` membuat target 85 tidak menyimpang, sehingga yang diuji hanya kontrak alasan.
      *
      * @param  array<string, string>|null  $tersimpan
      * @return array{User, IndikatorKinerja}
