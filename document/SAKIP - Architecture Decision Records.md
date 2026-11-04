@@ -26,6 +26,7 @@ ADR-0001 sampai ADR-0006 merekam keputusan yang **sudah berlaku pada source-of-t
 7. ADR-0007 — Target Manual Rencana Aksi Menggunakan `komponen_id = NULL`.
 8. ADR-0008 — Kolom Alasan Deviasi Target PK pada Rencana Aksi.
 9. ADR-0009 — PhpSpreadsheet untuk Ekspor Excel di Server.
+10. ADR-0010 — Outbox dan Queue Notifikasi Eksternal Atomik.
 
 ---
 
@@ -824,3 +825,26 @@ Gunakan `phpoffice/phpspreadsheet` secara langsung, tanpa paket pembungkus. Vers
 - `tests/Feature/Laporan/RekapIndikatorPeriodeTest.php`; `tests/Frontend/LaporanRekap.test.tsx`.
 
 ---
+
+# ADR-0010 — Outbox dan Queue Notifikasi Eksternal Atomik
+
+- **Status keputusan:** Accepted — keputusan PM 4 November 2026, refinement #227 Q1–Q10.
+- **Scope:** ISS-12.07; fondasi provider, antrean, status, retry, dan pemulihan.
+
+## Decision
+
+Outbox `notifikasi_pengiriman` dan job ditulis dalam satu transaksi pada objek koneksi PostgreSQL aplikasi yang sama. Queue khusus `notifikasi` memakai driver `database`, tabel `jobs`, dan `after_commit=false`. Worker baru melihat job setelah commit; side effect provider tidak dilakukan di dalam transaksi pencatatan. Pola `afterCommit` tidak dipilih untuk enqueue ini karena meninggalkan celah commit–dispatch. Integrasi producer sebelum pencatatan outbox tetap menjadi tanggung jawab issue event.
+
+Unique constraint pada identitas kejadian–objek–periode–penerima–kanal menegakkan idempotensi. `ShouldBeUnique` memakai cache database pada koneksi transaksi aplikasi, sehingga lock ikut rollback; status dan row lock tetap otoritatif, termasuk ketika `queue:retry` melewati unique dispatch. Metadata ID outbox pada payload queue menghubungkan delayed/reserved/failed job tanpa mengandalkan ID numerik job yang berubah saat retry.
+
+Sebelum provider dipanggil, status konservatif `perlu_rekonsiliasi` disimpan. Hasil pasti menutupnya. Timeout/exception bebas atau crash tidak memicu pengiriman ulang buta. Provider nyata harus mendukung lookup berdasarkan identitas atau pengiriman idempoten; pada `log`, hasil ambigu tetap menunggu. `diterima_provider` bukan delivery; driver dan simulasi tersimpan dan pembaca membedakan **Simulasi diterima**.
+
+Adapter `PenyediaKanalNotifikasi` terisolasi dari controller/UI. Tidak memakai `Notifiable` bawaan sebagai persistence karena kebutuhan identitas dan status per kanal dimiliki outbox. Tidak menambah Redis/Horizon atau dependency. Snapshot template/parameter/alamat tetap sepanjang retry. Worker memeriksa saklar, akun aktif, dan Policy view objek sebelum setiap upaya. Pembatalan terminal.
+
+Retry otomatis dibatasi empat upaya per siklus yang dipersist sebagai `percobaan_siklus`; recovery job tidak memberi kuota baru. Operator menggunakan `queue:retry` untuk kegagalan sementara exhausted yang dipastikan belum accepted, dengan jumlah upaya kumulatif `percobaan` tetap tersimpan. `notifikasi:antre-ulang` hanya memulihkan antrean yatim yang aman dicoba setelah jedanya, bukan kegagalan atau hasil ambigu. Detail command dan batasnya berada di `catatan-rilis-ISS-12.07.md`.
+
+## Consequences dan Verification
+
+Gate Q80 tetap berlaku; default provider `log` dan kedua kanal mati. Kesiapan infrastruktur/UAT/produksi tidak dibuktikan oleh test lokal. UI dan kontrak setelan milik ISS-13.04; fondasi menyediakan pembaca berizin `pengaturan:update`. Tidak ada audit per pengiriman; status operasional berada pada outbox.
+
+PostgreSQL disposable wajib membuktikan atomic commit/rollback (termasuk lock), constraint/race dua koneksi, worker/retry, perubahan akses/saklar, snapshot pesan, recovery tanpa job ganda, dan kerahasiaan log/payload/failed jobs. Tidak ada scheduler bisnis pada issue ini; jadwal EWS milik ISS-12.04.

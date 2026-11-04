@@ -2413,6 +2413,8 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-12.07 · Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
 
+> **Refinement PM — 4 November 2026:** Q1–Q10 pada ISS-12.07. Fondasi memakai outbox–job atomik, pemeriksaan saklar/akses sebelum setiap upaya, pembatalan terminal, snapshot pesan, retry manual terbatas, serta hasil ambigu yang menunggu rekonsiliasi. Driver `log` selalu ditandai simulasi; UI status milik ISS-13.04. Bukti test lokal tidak mengesahkan aktivasi provider, CI, UAT, atau deployment. Kontrak detail: Data Model §2.39 dan ADR-0010.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-12.07` |
@@ -2429,10 +2431,10 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given event yang sama diproses lebih dari sekali, Then idempotency key event-penerima-periode-channel mencegah duplikasi.
-- [ ] **AC-2:** Given provider timeout/error, Then retry mengikuti kebijakan terkontrol dan secret tidak masuk log.
-- [ ] **AC-3:** Given provider hanya mengembalikan accepted/queued, Then sistem tidak menyebut status tersebut sebagai delivered ke penerima.
-- [ ] **AC-4:** Given credential/provider belum ditetapkan, Then fitur integrasi nyata belum dianggap siap produksi walaupun unit test lulus.
+- [x] **AC-1:** Given event yang sama diproses lebih dari sekali, Then idempotency key event-penerima-periode-channel mencegah duplikasi.
+- [x] **AC-2:** Given provider timeout/error, Then retry mengikuti kebijakan terkontrol dan secret tidak masuk log.
+- [x] **AC-3:** Given provider hanya mengembalikan accepted/queued, Then sistem tidak menyebut status tersebut sebagai delivered ke penerima.
+- [x] **AC-4:** Given credential/provider belum ditetapkan, Then fitur integrasi nyata belum dianggap siap produksi walaupun unit test lulus.
 
 ---
 
@@ -2889,7 +2891,7 @@ Matriks memuat seluruh 89 User Story per 24 Oktober 2026, termasuk US-11.06 yang
 | **US-12.04** | Modul 14: 14.2 | §28.2 | §22.2 | EWS |
 | **US-12.05** | Modul 14: 14.2 | §28.2 | §22.2 | recap notification |
 | **US-12.06** | Modul 14: 14.2 | §28.2 | §22.2 | return notification |
-| **US-12.07** | Modul 14: 14.2 | §28.2 | §22.2 | delivery/idempotency |
+| **US-12.07** | Modul 14: 14.2 | §28, Q4/Q46/Q80 | — (fondasi operasional) | delivery/idempotency |
 | **US-13.01** | Modul 9: 9.1–9.6 | §26 | §18 | `pengaturan` |
 | **US-13.02** | Modul 9: 9.7–9.9 *(dihapus Q44 melalui 9.10)* | §18.9, §26 | §18 | storage policy (dihapus Q44, US-13.06) |
 | **US-13.03** | Modul 10: 10.1–10.6 | §25 | §19–20 | `audit_log` |

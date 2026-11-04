@@ -4,7 +4,7 @@
 > Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
 
 
-**Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 34 entitas (§2.1–§2.34) ditambah tiga entitas rancangan Q39/Q40 (§2.35–§2.37) dan revisi target Renstra Q71 (§2.38), skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
+**Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 34 entitas (§2.1–§2.34) ditambah tiga entitas rancangan Q39/Q40 (§2.35–§2.37), revisi target Renstra Q71 (§2.38), serta outbox notifikasi ISS-12.07 (§2.39), skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
 
 
 > **Q32 aktif:** role final berjumlah lima; `pic` bukan baris pada `roles`. Assignment PJ dan Grant Unit tetap entitas terpisah. Detail final berada pada §8.
@@ -28,6 +28,7 @@ erDiagram
     USERS ||--o{ PENGUKURAN : "membuat/mengubah"
     USERS ||--o{ STATUS_CAPAIAN : "menetapkan"
     USERS ||--o{ AUDIT_LOG : "melakukan tindakan"
+    USERS ||--o{ NOTIFIKASI_PENGIRIMAN : "menerima"
     USERS ||--o{ RENSTRA : "membuat"
     USERS ||--o{ REGULASI : "membuat"
     USERS ||--o{ UNIT : "membuat"
@@ -1897,6 +1898,46 @@ Revisi target Renstra pada Renstra `aktif` (Q71; ISS-02.13). Baris berstatus `dr
 
 ---
 
+### 2.39 `notifikasi_pengiriman`
+
+Outbox pengiriman eksternal per kejadian × objek × penerima × konteks periode × kanal (ISS-12.07, keputusan PM 4 November 2026). Tabel ini menyimpan status operasional pengiriman; tidak menggantikan `audit_log` dan tidak membuktikan pesan sampai ke penerima.
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | Identitas baris tetap pada retry |
+| `kunci_idempoten` | varchar | unique, not null | Identitas kanonis kejadian, objek, penerima, konteks periode, dan kanal |
+| `kejadian` | varchar | not null | Identitas satu kejadian/versi, bukan hanya jenis event; pengembalian sah berikutnya mempunyai identitas berbeda |
+| `objek_tipe`, `objek_id` | varchar, uuid | not null | Referensi objek domain untuk pemeriksaan akses saat pengiriman |
+| `konteks_periode` | varchar | not null | Konteks periode/slot pengingat yang stabil, ditentukan pemanggil server |
+| `kanal` | enum(`whatsapp`, `email`) | not null | Satu kanal per baris |
+| `penerima_user_id` | uuid | FK → users.id, not null | Penerima ditetapkan pada kejadian; tidak dialihkan saat retry |
+| `alamat` | varchar(255) | nullable | Salinan kontak saat antre; kontak kosong/tidak valid menjadi kegagalan permanen |
+| `template` | text | not null | Salinan template saat antre; perubahan konfigurasi tidak mengubah pesan yang sudah antre |
+| `parameter` | jsonb | not null | Salinan parameter pesan tanpa rahasia atau payload domain mentah |
+| `status` | enum(`antre`, `diterima_provider`, `gagal`, `dibatalkan`, `perlu_rekonsiliasi`) | not null | Semantik dijelaskan di bawah |
+| `driver`, `simulasi` | varchar, boolean | not null | Identitas provider dan penanda simulasi tersimpan; `log` adalah simulasi |
+| `kode_hasil` | enum(`kanal_nonaktif`, `penerima_tidak_berhak`, `kontak_tidak_tersedia`, `perlu_rekonsiliasi`, `provider_sementara`, `provider_ditolak`, `percobaan_habis`) | nullable | Kode aman tanpa respons provider, alamat, atau rincian akses |
+| `percobaan` | int | not null, default 0, nonnegatif | Jumlah upaya kirim yang dimulai secara kumulatif, termasuk siklus retry manual; dicatat sebelum panggilan agar crash tetap terlacak |
+| `percobaan_siklus` | int | not null, default 0, `0 <= percobaan_siklus <= percobaan` | Batas empat upaya otomatis per siklus; recovery job tidak meresetnya. Hanya retry manual kegagalan sementara exhausted membuka siklus baru |
+| `dicoba_terakhir_pada`, `coba_lagi_pada` | timestamp | nullable | Waktu percobaan terakhir dan waktu retry yang diketahui aman |
+| `rujukan_provider` | varchar | nullable | Rujukan aman untuk korelasi/rekonsiliasi, bukan bukti delivery |
+| `created_at`, `updated_at` | timestamp | not null | |
+
+**Constraint dan integritas:** unique(`kunci_idempoten`) menjadi penjaga duplikasi di database; index(`status`, `dicoba_terakhir_pada`) mendukung pemeriksaan antrean. Insert outbox dan job database memakai satu transaksi dan koneksi aplikasi yang sama, dengan `after_commit=false` (ADR-0010). Payload job hanya memuat identitas/metadata korelasi aman, bukan alamat, template, parameter, atau credential.
+
+**Semantik dan transisi:**
+
+- `antre`: menunggu percobaan pertama atau retry yang dipastikan belum diterima provider. Saklar kanal, akun aktif, dan Policy baca objek diperiksa kembali sebelum setiap percobaan. Kanal mati atau akses dicabut menghasilkan `dibatalkan`, tanpa mengganti penerima/alamat.
+- `diterima_provider`: provider mengakui accepted/queued; label tidak boleh menyatakan delivered. Baris `simulasi=true` tetap dinyatakan simulasi. Status ini tidak dikirim ulang.
+- `gagal`: penolakan permanen, kontak tidak valid, atau batas retry sementara habis. Hanya kegagalan sementara yang dipastikan belum accepted boleh membuka siklus baru melalui `queue:retry`; jumlah `percobaan` tidak direset dan batas tunggu `coba_lagi_pada` tetap dihormati. Kegagalan permanen tidak diulang.
+- `dibatalkan`: terminal. Mengaktifkan kembali kanal tidak memutar ulang pesan lama.
+- `perlu_rekonsiliasi`: dipersist sebelum memanggil provider sebagai penanda konservatif percobaan yang sedang berlangsung. Hasil definitif menutupnya menjadi accepted, retry aman, atau gagal. Hasil ambigu/crash in-flight tidak boleh diretry buta; provider `log` tidak mencoba ulang hasil ambigu.
+- `notifikasi:antre-ulang` hanya memulihkan `antre` yang lebih tua dari ambang konfigurasi dan tidak mempunyai job pending/delayed/reserved atau rekaman kegagalan terkait. Pemeriksaan dan enqueue dikunci per baris, memakai identitas yang sama, serta mengecualikan `dibatalkan`, `gagal`, dan `perlu_rekonsiliasi`.
+
+Status dibaca melalui query/presenter server dengan `pengaturan:update` dan proyeksi terbatas. UI pembaca/saklar berada pada ISS-13.04; job tidak menulis audit pengiriman. Provider nyata, sumber nomor WhatsApp, retensi baru, dan aktivasi UAT/produksi tetap mengikuti gate Q80 §80.1.
+
+---
+
 ## 3. Algoritma Resolusi Izin
 
 Bagian ini mendefinisikan secara eksplisit bagaimana sistem menjawab pertanyaan otorisasi **"boleh(kode_permission, unit_target?)"** untuk seorang aktor. Resolusi ini menggantikan model lama "salinan baris izin per pengguna" — permission tidak lagi disalin, melainkan dihitung dari kombinasi peran (§2.4–§2.6), grant (§2.7), dan deny (§2.8) **setiap kali permintaan dievaluasi**.
@@ -1992,6 +2033,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `target_renstra` | unique(`indikator_id`, `tahun`); `nilai` nullable, nonnegatif, finite; level aplikasi: `tahun` dalam rentang Renstra (§2.35) |
 | `revisi_target_renstra` | unique parsial (`renstra_id`) bila `status = draf`; unique(`renstra_id`, `nomor`); CHECK: kolom penyimpanan terisi jika dan hanya jika `disimpan`, `justifikasi` berisi teks bila `disimpan`, `versi >= 1` (§2.38) |
 | `revisi_target_renstra_nilai` | unique(`revisi_id`, `indikator_id`, `tahun`); `nilai_lama` dan `nilai_baru` nullable, nonnegatif, finite; level aplikasi: `tahun` dalam rentang Renstra (§2.38) |
+| `notifikasi_pengiriman` | unique(`kunci_idempoten`); kanal/status dibatasi nilai §2.39; `percobaan >= percobaan_siklus >= 0`; identitas dan snapshot pesan tetap pada retry |
 | `renstra_pk_versi` (rancangan Q40) | unique(`renstra_pk_id`, `nomor_versi`); level aplikasi: `nomor_surat`, `tanggal_surat`, `periode_mulai_id`, `alasan`, dan persetujuan wajib pada versi revisi; baris tidak diubah setelah terbentuk (§2.36) |
 | `renstra_pk_versi_target` (rancangan Q40) | unique(`renstra_pk_versi_id`, `indikator_id`); `nilai` nullable, nonnegatif, finite (§2.37) |
 | `penanggung_jawab` | index non-unique (`indikator_id`, `tanggal_mulai_berlaku`); unique per tanggal dilepas oleh Q34 butir 1 ([#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70)), penugasan pada tanggal sama diurutkan dengan `urutan`, lihat §2.19 |
