@@ -663,12 +663,14 @@ kegiatan:update
 - **Otorisasi:** `renstra:create`, `renstra:read`, `renstra:update`, `renstra:delete`.
 - **Dampak Data:** `renstra`, `berkas`, `audit_log`.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #35, issue #24:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `RenstraFeatureTest::Data Renstra valid tersimpan dengan status awal draft`; AC-2 `RenstraFeatureTest::Naskah Renstra dilampirkan via relasi polimorfik berkas dengan 3 mode`; AC-3 `RenstraFeatureTest::Rentang tahun validasi: tahun_selesai >= tahun_mulai, input tidak valid ditolak`, `RenstraLifecycleTest::aktivasi menolak rentang persisted yang di luar batas valid`; AC-4 `RenstraFeatureTest::Imutabilitas lampiran: percobaan menghapus lampiran pada Renstra aktif ditolak` dengan kontrol `Penghapusan lampiran pada Renstra draft diizinkan dan tercatat di audit log`.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given data Renstra valid, When dibuat, Then status awal `draft` dan data tersimpan.
-- [ ] **AC-2:** Given naskah Renstra dilampirkan dalam mode yang sah, When disimpan, Then lampiran terhubung ke Renstra.
-- [ ] **AC-3:** Given rentang tahun tidak valid, When submit, Then validasi menolak.
-- [ ] **AC-4:** Given Renstra aktif memiliki lampiran yang telah mencapai batas imutabilitas, When delete lampiran dicoba, Then ditolak.
+- [x] **AC-1:** Given data Renstra valid, When dibuat, Then status awal `draft` dan data tersimpan.
+- [x] **AC-2:** Given naskah Renstra dilampirkan dalam mode yang sah, When disimpan, Then lampiran terhubung ke Renstra.
+- [x] **AC-3:** Given rentang tahun tidak valid, When submit, Then validasi menolak.
+- [x] **AC-4:** Given Renstra aktif memiliki lampiran yang telah mencapai batas imutabilitas, When delete lampiran dicoba, Then ditolak.
 
 #### Implementation Tasks
 
@@ -692,10 +694,10 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given data Renstra valid, When dibuat, Then status awal `draft` dan data tersimpan.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given naskah Renstra dilampirkan dalam mode yang sah, When disimpan, Then lampiran terhubung ke Renstra.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given rentang tahun tidak valid, When submit, Then validasi menolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given Renstra aktif memiliki lampiran yang telah mencapai batas imutabilitas, When delete lampiran dicoba, Then ditolak.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given data Renstra valid, When dibuat, Then status awal `draft` dan data tersimpan.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given naskah Renstra dilampirkan dalam mode yang sah, When disimpan, Then lampiran terhubung ke Renstra.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given rentang tahun tidak valid, When submit, Then validasi menolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given Renstra aktif memiliki lampiran yang telah mencapai batas imutabilitas, When delete lampiran dicoba, Then ditolak.
 
 #### Definition of Done
 
@@ -730,12 +732,14 @@ kegiatan:update
 - **Otorisasi:** `renstra:update` dan permission terkait entitas turunannya.
 - **Dampak Data:** `renstra`, `sasaran`, `indikator`, `jadwal_snapshot`, `audit_log`.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #49, issue #25:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `RenstraLifecycleTest::aktivasi memakai rentang inklusif dan menerima rentang bersebelahan`; AC-2 `RenstraLifecycleTest::nonaktivasi menolak Jadwal aktif tanpa mengubah Jadwal atau master`; AC-3 `RenstraLifecycleTest::revisi master dan lifecycle tidak menulis graph Jadwal snapshot atau Pengukuran existing`, `IndikatorKomponenHttpTest::test_perubahan_master_tidak_memutasi_snapshot_historis`; AC-4 `TambahIndikatorJadwalTest::test_periode_sebelum_mulai_tidak_berlaku_di_dashboard_pengukuran_rencana_aksi_dan_rekap` (PR #197). AC-5/TEST-5 tetap terbuka karena `actor_id` pada audit `renstra.ubah` belum di-assert.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given tidak ada Renstra aktif dengan rentang tahun beririsan, When aktivasi dilakukan, Then Renstra menjadi aktif.
-- [ ] **AC-2:** Given Renstra memiliki jadwal aktif, When dinonaktifkan secara langsung, Then sistem menolak agar konteks tahun berjalan tidak rusak.
-- [ ] **AC-3:** Given Kepmen/aturan IKU baru mengubah struktur indikator, When revisi dilakukan, Then perubahan master dicatat dan histori snapshot lama tidak ditimpa.
-- [ ] **AC-4:** Given indikator baru hasil revisi berlaku mulai periode tertentu, Then efektivitasnya ditentukan melalui mekanisme snapshot/periode mulai, bukan dianggap wajib sejak periode sebelumnya.
+- [x] **AC-1:** Given tidak ada Renstra aktif dengan rentang tahun beririsan, When aktivasi dilakukan, Then Renstra menjadi aktif.
+- [x] **AC-2:** Given Renstra memiliki jadwal aktif, When dinonaktifkan secara langsung, Then sistem menolak agar konteks tahun berjalan tidak rusak.
+- [x] **AC-3:** Given Kepmen/aturan IKU baru mengubah struktur indikator, When revisi dilakukan, Then perubahan master dicatat dan histori snapshot lama tidak ditimpa.
+- [x] **AC-4:** Given indikator baru hasil revisi berlaku mulai periode tertentu, Then efektivitasnya ditentukan melalui mekanisme snapshot/periode mulai, bukan dianggap wajib sejak periode sebelumnya.
 - [ ] **AC-5:** Given perubahan substansial dilakukan, Then audit menyimpan alasan, aktor, nilai lama, dan nilai baru.
 
 #### Implementation Tasks
@@ -761,10 +765,10 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given tidak ada Renstra aktif dengan rentang tahun beririsan, When aktivasi dilakukan, Then Renstra menjadi aktif.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given Renstra memiliki jadwal aktif, When dinonaktifkan secara langsung, Then sistem menolak agar konteks tahun berjalan tidak rusak.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given Kepmen/aturan IKU baru mengubah struktur indikator, When revisi dilakukan, Then perubahan master dicatat dan histori snapshot lama tidak ditimpa.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru hasil revisi berlaku mulai periode tertentu, Then efektivitasnya ditentukan melalui mekanisme snapshot/periode mulai, bukan dianggap wajib sejak periode sebelumnya.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given tidak ada Renstra aktif dengan rentang tahun beririsan, When aktivasi dilakukan, Then Renstra menjadi aktif.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given Renstra memiliki jadwal aktif, When dinonaktifkan secara langsung, Then sistem menolak agar konteks tahun berjalan tidak rusak.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given Kepmen/aturan IKU baru mengubah struktur indikator, When revisi dilakukan, Then perubahan master dicatat dan histori snapshot lama tidak ditimpa.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru hasil revisi berlaku mulai periode tertentu, Then efektivitasnya ditentukan melalui mekanisme snapshot/periode mulai, bukan dianggap wajib sejak periode sebelumnya.
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given perubahan substansial dilakukan, Then audit menyimpan alasan, aktor, nilai lama, dan nilai baru.
 
 #### Definition of Done
@@ -809,10 +813,12 @@ kegiatan:update
 - **Otorisasi:** `sasaran:create`, `sasaran:update`, `sasaran:delete`, `indikator:create`, `indikator:read`, `indikator:update`, `indikator:delete`.
 - **Dampak Data:** `sasaran`, `indikator`, `audit_log`.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #42, issue #26:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `SasaranIndikatorTest::test_1_create_sasaran_valid_menghasilkan_data_dan_audit_log`; AC-2 `SasaranIndikatorTest::test_2_create_indikator_valid_dengan_seluruh_atribut_utama`, `SasaranIndikatorTest::test_4_enum_arah_dan_tipe_perhitungan_invalid_ditolak`, `SasaranIndikatorTest::test_r301_transisi_atomik_manual_ke_rasio_berhasil`. AC-3/TEST-3 tetap terbuka karena tidak ada status indikator "belum siap" (perlindungan hanya lewat snapshot dan periode mulai); AC-4/TEST-4 tetap terbuka karena kode Sasaran/Indikator tidak divalidasi unik.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
-- [ ] **AC-2:** Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
+- [x] **AC-1:** Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
+- [x] **AC-2:** Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
 - [ ] **AC-3:** Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
 - [ ] **AC-4:** Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
 
@@ -838,8 +844,8 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
 
@@ -1098,12 +1104,14 @@ kegiatan:update
 - **Otorisasi:** `pk:create`, `pk:update`, serta capability berkas melalui kewenangan induk.
 - **Dampak Data:** `renstra_pk`, `berkas`, `audit_log`.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #44, issue #29:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `PerjanjianKinerjaAcceptanceTest::test_1_pencatatan_pk_valid`, `PerjanjianKinerjaHttpTest::test_pk_tanpa_nomor_diterima_dan_tersimpan_null`; AC-2 `PerjanjianKinerjaAcceptanceTest::test_3_lampiran_generic_polimorfik_3_mode`; AC-3 `PerjanjianKinerjaAcceptanceTest::test_2_penolakan_duplikasi_tahun_pk`, `PerjanjianKinerjaHttpTest::test_pk_kedua_pada_renstra_tahun_sama_tetap_ditolak_tanpa_nomor`; AC-4 `PerjanjianKinerjaAcceptanceTest::test_5_guard_imutabilitas_lampiran_saat_jadwal_aktif` dengan kontrol `test_4_penghapusan_lampiran_sebelum_jadwal_aktif`.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given nomor/tanggal/tahun PK valid, When disimpan, Then `renstra_pk` terbentuk untuk Renstra tersebut.
-- [ ] **AC-2:** Given lampiran file/tautan/teks tersedia, When disimpan, Then `berkas` terhubung ke `renstra_pk`.
-- [ ] **AC-3:** Given PK untuk Renstra-tahun yang sama sudah ada, When dibuat ulang, Then duplikasi ditolak.
-- [ ] **AC-4:** Given jadwal tahun tersebut telah aktif, When lampiran PK dihapus, Then penghapusan ditolak sesuai batas imutabilitas.
+- [x] **AC-1:** Given nomor/tanggal/tahun PK valid, When disimpan, Then `renstra_pk` terbentuk untuk Renstra tersebut.
+- [x] **AC-2:** Given lampiran file/tautan/teks tersedia, When disimpan, Then `berkas` terhubung ke `renstra_pk`.
+- [x] **AC-3:** Given PK untuk Renstra-tahun yang sama sudah ada, When dibuat ulang, Then duplikasi ditolak.
+- [x] **AC-4:** Given jadwal tahun tersebut telah aktif, When lampiran PK dihapus, Then penghapusan ditolak sesuai batas imutabilitas.
 
 #### Implementation Tasks
 
@@ -1127,10 +1135,10 @@ kegiatan:update
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nomor/tanggal/tahun PK valid, When disimpan, Then `renstra_pk` terbentuk untuk Renstra tersebut.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given lampiran file/tautan/teks tersedia, When disimpan, Then `berkas` terhubung ke `renstra_pk`.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PK untuk Renstra-tahun yang sama sudah ada, When dibuat ulang, Then duplikasi ditolak.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahun tersebut telah aktif, When lampiran PK dihapus, Then penghapusan ditolak sesuai batas imutabilitas.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given nomor/tanggal/tahun PK valid, When disimpan, Then `renstra_pk` terbentuk untuk Renstra tersebut.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given lampiran file/tautan/teks tersedia, When disimpan, Then `berkas` terhubung ke `renstra_pk`.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PK untuk Renstra-tahun yang sama sudah ada, When dibuat ulang, Then duplikasi ditolak.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal tahun tersebut telah aktif, When lampiran PK dihapus, Then penghapusan ditolak sesuai batas imutabilitas.
 
 #### Definition of Done
 

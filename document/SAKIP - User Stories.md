@@ -277,6 +277,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-02.02 · Penyusunan Master Renstra & Rujukan Regulasi
 
+> **Status implementasi — issue #24 (PR #35):** AC-1–AC-4 memiliki bukti test; rincian test dan batas bukti tercatat pada [ISS-02.02](SAKIP%20-%20User%20Issues.md#iss-0202--feature-penyusunan-master-renstra--rujukan-regulasi). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-02.02` |
@@ -293,12 +295,14 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given data Renstra valid, When dibuat, Then status awal `draft` dan data tersimpan.
-- [ ] **AC-2:** Given naskah Renstra dilampirkan dalam mode yang sah, When disimpan, Then lampiran terhubung ke Renstra.
-- [ ] **AC-3:** Given rentang tahun tidak valid, When submit, Then validasi menolak.
-- [ ] **AC-4:** Given Renstra aktif memiliki lampiran yang telah mencapai batas imutabilitas, When delete lampiran dicoba, Then ditolak.
+- [x] **AC-1:** Given data Renstra valid, When dibuat, Then status awal `draft` dan data tersimpan.
+- [x] **AC-2:** Given naskah Renstra dilampirkan dalam mode yang sah, When disimpan, Then lampiran terhubung ke Renstra.
+- [x] **AC-3:** Given rentang tahun tidak valid, When submit, Then validasi menolak.
+- [x] **AC-4:** Given Renstra aktif memiliki lampiran yang telah mencapai batas imutabilitas, When delete lampiran dicoba, Then ditolak.
 
 ### US-02.03 · Aktivasi, Arsip, dan Revisi Renstra karena Perubahan Kebijakan
+
+> **Status implementasi — issue #25 (PR #49, #197):** AC-1–AC-4 memiliki bukti test; AC-5 belum; rincian test dan batas bukti tercatat pada [ISS-02.03](SAKIP%20-%20User%20Issues.md#iss-0203--feature-aktivasi-arsip-dan-revisi-renstra-karena-perubahan-kebijakan). Centang bukan persetujuan QA/UAT atau deployment.
 
 > **Q40 (13 Oktober 2026):** atribut Renstra tetap direvisi in place dengan audit. Lampiran revisi kini boleh ditambahkan setelah Renstra aktif (penghapusan tetap dilarang), dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi (Q60); keduanya sudah dikerjakan pada US-02.10. Versi penuh Renstra (sasaran dan indikator ikut berversi) tidak dibangun saat ini; penggantian Renstra karena kebijakan kementerian memakai Renstra baru (Q40 §40.2 butir 4; backlog tahap 3, Q46 §46.3).
 >
@@ -320,13 +324,15 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given tidak ada Renstra aktif dengan rentang tahun beririsan, When aktivasi dilakukan, Then Renstra menjadi aktif.
-- [ ] **AC-2:** Given Renstra memiliki jadwal aktif, When dinonaktifkan secara langsung, Then sistem menolak agar konteks tahun berjalan tidak rusak.
-- [ ] **AC-3:** Given Kepmen/aturan IKU baru mengubah struktur indikator, When revisi dilakukan, Then perubahan master dicatat dan histori snapshot lama tidak ditimpa.
-- [ ] **AC-4:** Given indikator baru hasil revisi berlaku mulai periode tertentu, Then efektivitasnya ditentukan melalui mekanisme snapshot/periode mulai, bukan dianggap wajib sejak periode sebelumnya.
+- [x] **AC-1:** Given tidak ada Renstra aktif dengan rentang tahun beririsan, When aktivasi dilakukan, Then Renstra menjadi aktif.
+- [x] **AC-2:** Given Renstra memiliki jadwal aktif, When dinonaktifkan secara langsung, Then sistem menolak agar konteks tahun berjalan tidak rusak.
+- [x] **AC-3:** Given Kepmen/aturan IKU baru mengubah struktur indikator, When revisi dilakukan, Then perubahan master dicatat dan histori snapshot lama tidak ditimpa.
+- [x] **AC-4:** Given indikator baru hasil revisi berlaku mulai periode tertentu, Then efektivitasnya ditentukan melalui mekanisme snapshot/periode mulai, bukan dianggap wajib sejak periode sebelumnya.
 - [ ] **AC-5:** Given perubahan substansial dilakukan, Then audit menyimpan alasan, aktor, nilai lama, dan nilai baru.
 
 ### US-02.04 · Penyusunan Sasaran Strategis & Indikator Kinerja
+
+> **Status implementasi — issue #26 (PR #42):** AC-1–AC-2 memiliki bukti test; AC-3–AC-4 belum; rincian test dan batas bukti tercatat pada [ISS-02.04](SAKIP%20-%20User%20Issues.md#iss-0204--feature-penyusunan-sasaran-strategis--indikator-kinerja). Centang bukan persetujuan QA/UAT atau deployment.
 
 > **Q39 (13 Oktober 2026):** halaman Sasaran & Indikator memuat target Renstra per tahun (US-02.10); target tahun berjalan (target PK) tidak lagi diisi di halaman ini dan dipindah ke halaman Perjanjian Kinerja (US-02.11).
 >
@@ -352,8 +358,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
-- [ ] **AC-2:** Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
+- [x] **AC-1:** Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
+- [x] **AC-2:** Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
 - [ ] **AC-3:** Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
 - [ ] **AC-4:** Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
 
@@ -447,6 +453,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 ### US-02.08 · Pencatatan Perjanjian Kinerja (PK) & Lampiran Legal
 
+> **Status implementasi — issue #29 (PR #44):** AC-1–AC-4 memiliki bukti test; rincian test dan batas bukti tercatat pada [ISS-02.08](SAKIP%20-%20User%20Issues.md#iss-0208--feature-pencatatan-perjanjian-kinerja-pk--lampiran-legal). Centang bukan persetujuan QA/UAT atau deployment.
+
 > **Q39–Q40, Q43 (13 Oktober 2026):** halaman PK kini juga memuat isian baseline dan target tahun berjalan per indikator, dikelompokkan per sasaran (US-02.11). Revisi PK membentuk versi PK baru dengan nomor dan tanggal surat Eselon I sebagai isian tersendiri; PK awal dan akhir dapat diunduh (US-02.12, tahap 3). Alasan perubahan PK wajib hanya bila PK sudah dipakai jadwal aktif (koreksi PK, Q43 §43.2 butir 3; US-02.09) dan opsional sebelumnya (Q43 §43.3 butir 3; US-13.05); perubahan target PK di halaman PK tidak termasuk dan alasannya opsional (Q65 §65.1).
 >
 > **Q48, Q50 (13 Oktober 2026):** `nomor_pk` opsional karena PK 2026 tidak bernomor, sedangkan PK tetap unik per Renstra-tahun (Q50 §50.1); AC-1 tidak lagi mewajibkan nomor dan perubahannya sudah dikerjakan pada US-02.11. Tanggal PK tidak divalidasi terhadap tanggal penetapan Renstra (Q50 §50.6). PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK beserta keterangan pada `berkas.keterangan`; target dan snapshot tidak berubah (Q50 §50.7, Q48 §48.2 butir 6). PDF PK bertanda tangan tetap diunggah sebagai lampiran PK dan, setelah revisi berversi tersedia, per versi PK (Q48 §48.2 butir 1; US-02.12); dokumen PK sendiri tidak dihasilkan SAKIP (Q48 §48.1 butir 4).
@@ -467,10 +475,10 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given nomor/tanggal/tahun PK valid, When disimpan, Then `renstra_pk` terbentuk untuk Renstra tersebut.
-- [ ] **AC-2:** Given lampiran file/tautan/teks tersedia, When disimpan, Then `berkas` terhubung ke `renstra_pk`.
-- [ ] **AC-3:** Given PK untuk Renstra-tahun yang sama sudah ada, When dibuat ulang, Then duplikasi ditolak.
-- [ ] **AC-4:** Given jadwal tahun tersebut telah aktif, When lampiran PK dihapus, Then penghapusan ditolak sesuai batas imutabilitas.
+- [x] **AC-1:** Given nomor/tanggal/tahun PK valid, When disimpan, Then `renstra_pk` terbentuk untuk Renstra tersebut.
+- [x] **AC-2:** Given lampiran file/tautan/teks tersedia, When disimpan, Then `berkas` terhubung ke `renstra_pk`.
+- [x] **AC-3:** Given PK untuk Renstra-tahun yang sama sudah ada, When dibuat ulang, Then duplikasi ditolak.
+- [x] **AC-4:** Given jadwal tahun tersebut telah aktif, When lampiran PK dihapus, Then penghapusan ditolak sesuai batas imutabilitas.
 
 ### US-02.09 · Koreksi Perjanjian Kinerja Secara Teraudit
 
