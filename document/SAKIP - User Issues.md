@@ -2073,23 +2073,25 @@ Nomor TEST/AC pada tabel berikut milik issue #220; penomoran AC issue #91 di baw
 
 Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai < activated_at`, tanpa flag/backfill mode khusus (Q46 §46.1 butir 2; semula Q32: TW I–II). Perencanaan mengisi periode lampau; PK 2026 tetap wajib; gerbang RA/komponen/bukti normal serta gerbang baru Q42–Q45 (RA minimal satu kegiatan, RAB, persyaratan tahap perencanaan kegiatan, narasi wajib, dan tindak lanjut rekomendasi) dikecualikan pada jalur ini (Q46 §46.1 butir 1). Kunci per triwulan tetap berlaku: periode lampau terkunci bagi PIC sejak aktivasi (Q41 §41.2 butir 4). Data awal 2026 diisi Perencanaan dari dokumen resmi 2026 (Q46 §46.1 butir 6; rincian pada ISS-15.01).
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #146 dan #210, issue #131:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: periode lampau dari jadwal tanpa `is_backfill` `RencanaAksiTanpaTargetTest::test_past_period_uses_activation_business_date`, `PengukuranTanpaBackfillTest::test_skema_pengukuran_tidak_memiliki_kolom_is_backfill`; jalur Perencanaan dan kunci PIC `RencanaAksiPeriodeLampauMatrixTest::test_periode_lampau_terkunci_bagi_pic_dan_terbuka_bagi_perencanaan`, `PengukuranPeriodeLampauMatrixTest::test_perencanaan_mengisi_setiap_periode_lampau_tanpa_gerbang`, `PengukuranPeriodeLampauMatrixTest::test_pic_ditolak_pada_setiap_periode_lampau`; pengecualian gerbang dengan PK tetap wajib `PengukuranPeriodeLampauTest::test_lampau_mengecualikan_gerbang_dan_membekukan_konteks_yang_tersedia`, `PengukuranPeriodeLampauTest::test_gerbang_tetap_berlaku_di_luar_pengecualian_2026`, `RencanaAksiPeriodeLampauMatrixTest::test_bukti_wajib_dikecualikan_pada_data_awal_2026_jalur_perencanaan`, `JadwalActivationReadinessTest::test_pk_year_and_attachment_gates`; audit `RencanaAksiPeriodeLampauMatrixTest::test_pengajuan_lampau_membekukan_versi_dan_mengaudit_aktor`, `PengukuranProvenanceLampauTest::test_audit_pengajuan_lampau_mencatat_aktor_dan_dasar_izin`. Tetap terbuka: gerbang Q42–Q45 dan RA data awal (RAB beranggaran di atas 0 belum diuji; jalur klaim tahap pengukuran untuk kegiatan TW IV baru tidak ada di kode), pembeda target 0 pada periode lampau, data awal dari dokumen resmi (UAT ISS-15.01), dan larangan 2025 sebagai Jadwal/Pengukuran (belum ada test).
+
 #### Acceptance Criteria
 
-- [ ] TW I–III 2026 teridentifikasi sebagai periode lampau dari jadwal (jendela pengisiannya sudah lewat saat aktivasi), bukan flag `is_backfill`. *(Q46 §46.1 butir 2; semula TW I–II)*
-- [ ] Perencanaan dapat mengisi periode lampau; user scoped mengikuti jendela dan tidak memperoleh bypass otomatis.
-- [ ] Gerbang RA/komponen/bukti normal dikecualikan untuk jalur periode lampau, sedangkan PK 2026 tetap wajib.
+- [x] TW I–III 2026 teridentifikasi sebagai periode lampau dari jadwal (jendela pengisiannya sudah lewat saat aktivasi), bukan flag `is_backfill`. *(Q46 §46.1 butir 2; semula TW I–II)*
+- [x] Perencanaan dapat mengisi periode lampau; user scoped mengikuti jendela dan tidak memperoleh bypass otomatis.
+- [x] Gerbang RA/komponen/bukti normal dikecualikan untuk jalur periode lampau, sedangkan PK 2026 tetap wajib.
 - [ ] Gerbang baru Q42–Q45 — RA minimal satu kegiatan, RAB, persyaratan tahap perencanaan kegiatan, narasi wajib, dan tindak lanjut rekomendasi — dikecualikan untuk periode lampau, dan story yang menambah gerbang tersebut menyertakan pengecualian ini beserta test-nya. Kunci per triwulan bukan bagian pengecualian ini: periode lampau tetap terkunci bagi PIC sejak aktivasi dan diisi Perencanaan, yang dikecualikan dari kunci tersebut. *(Q46 §46.1 butir 1 dan 4, Q41 §41.2 butir 3–4)*
 - [ ] RA 2026 yang dicatat Perencanaan sebagai data awal dikecualikan dari gerbang kegiatan minimal dan RAB; kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan; kegiatan data awal dan kegiatan pada periode lampau boleh tanpa anggaran (tercatat belum diisi). *(Q46 §46.1 butir 3)*
 - [ ] Target RA periode lampau boleh kosong dan dicatat sebagai tidak ditargetkan, berbeda dari `0`; target TW I–III yang tertulis 0 pada Rencana Aksi 2026 dicatat kosong. *(Q46 §46.1 butir 6, Q47 §47.2 butir 4)*
 - [ ] Data awal 2026 diisi Perencanaan dari dokumen resmi 2026: target PK, target periode dan kegiatan RA, serta realisasi, narasi, dan rekomendasi TW I–II; data yang belum dikonfirmasi mengikuti asumsi kerja dan tidak dipakai di produksi sebelum dikonfirmasi Perencanaan. *(Q46 §46.1 butir 6)*
 - [ ] 2025 tidak dibuat sebagai baris Jadwal/Pengukuran; hanya baseline.
-- [ ] Audit tetap mencatat aktor dan perubahan.
+- [x] Audit tetap mencatat aktor dan perubahan.
 
 #### Automated Tests
 
-- [ ] Uji tanggal untuk TW I–III vs TW IV dan tidak ada flag `is_backfill` (Q46 §46.1 butir 2).
-- [ ] Uji bypass hanya jalur Perencanaan yang memang diizinkan; user scoped tetap mengikuti jendela.
-- [ ] Uji PK 2026 tetap menjadi gerbang sementara gerbang RA/komponen/bukti normal dikecualikan pada jalur periode lampau.
+- [x] Uji tanggal untuk TW I–III vs TW IV dan tidak ada flag `is_backfill` (Q46 §46.1 butir 2).
+- [x] Uji bypass hanya jalur Perencanaan yang memang diizinkan; user scoped tetap mengikuti jendela.
+- [x] Uji PK 2026 tetap menjadi gerbang sementara gerbang RA/komponen/bukti normal dikecualikan pada jalur periode lampau.
 - [ ] Uji gerbang baru Q42–Q45 dikecualikan untuk periode lampau, sedangkan periode lampau tetap terkunci bagi PIC dan dapat diisi Perencanaan.
 - [ ] Uji RA data awal 2026 tanpa kegiatan minimal, RAB, maupun anggaran kegiatan tetap diterima.
 - [ ] Uji target periode lampau yang kosong tersimpan sebagai tidak ditargetkan dan dibedakan dari `0`.
@@ -2616,15 +2618,17 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - **Otorisasi:** `rencana_aksi:verifikasi`, `rencana_aksi:kembalikan`.
 - **Dampak Data:** `rencana_aksi`, versi terkait, `audit_log`, event pengembalian setelah commit.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #93, issue #58:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `ReviewRencanaAksiTest::test_f1_memakai_provenance_pic_meski_pengaju_sekarang_superadmin`, `ReviewRencanaAksiTest::test_promosi_role_dan_pergantian_pj_tidak_mengubah_f1_pengaju_pic`; AC-2 dan AC-7 `ReviewRencanaAksiTest::test_verifikasi_memakai_alasan_server_dan_tidak_mengubah_snapshot`, `RencanaAksiReview.test.tsx`; AC-3 `ReviewRencanaAksiTransactionTest::test_event_hanya_setelah_commit_memakai_pj_efektif_dan_mempertahankan_pengaju_historis`; AC-4 `ReviewRencanaAksiTest::test_alasan_pengembalian_divalidasi_juga_pada_action_langsung`; AC-5 `RencanaAksiProducerReviewTest::test_producer_koreksi_satu_periode_dapat_diverifikasi_dikembalikan_dan_diajukan_ulang`, `RencanaAksiVersiBekuTest::test_versi_beku_tidak_berubah_saat_draf_dan_bukti_berubah`. AC-6 tetap terbuka karena audit penolakan dan status/payload yang tidak berubah belum di-assert untuk indikator arsip dan unit nonaktif.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
-- [ ] **AC-2:** Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
-- [ ] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q37:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
-- [ ] **AC-4:** Given pengembalian tanpa alasan, When submit, Then ditolak.
-- [ ] **AC-5:** Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
+- [x] **AC-1:** Given versi diajukan melalui `jalur_pengajuan = pic`, When aktor sama dengan `rencana_aksi_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak walaupun aktor kemudian memperoleh role/grant lain.
+- [x] **AC-2:** Given aktor berbeda dan memiliki permission efektif, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah payload versi.
+- [x] **AC-3:** Given perbaikan dibutuhkan, When dikembalikan dengan alasan valid, Then status menjadi `dikembalikan`, audit mencatat alasan dan pengaju historis, PJ efektif saat pengembalian ditentukan melalui `PenugasanIndikator::effectiveOn()`, dan event pengembalian dipancarkan setelah commit. **Catatan Q37:** pengiriman in-app menunggu ISS-12.02; cakupan issue ini adalah penentuan penerima dan event setelah commit, dengan otorisasi tautan tetap diperiksa saat dibuka.
+- [x] **AC-4:** Given pengembalian tanpa alasan, When submit, Then ditolak.
+- [x] **AC-5:** Given data substansi perlu diubah saat review, Then data harus dikembalikan lalu diajukan sebagai versi baru; snapshot versi lama tidak ditambal.
 - [ ] **AC-6:** Given indikator `arsip` atau unit konteks RA `nonaktif`, When verifikasi/pengembalian dicoba termasuk melalui request langsung, Then `businessErrors` menolak, penolakan diaudit, dan status/payload versi tidak berubah; detail/histori tetap dapat dibaca sesuai otorisasi dan UI menampilkan alasan dari server.
-- [ ] **AC-7:** Given versi/status valid, aktor berwenang, dan seluruh business guard lolos, When verifikasi dikonfirmasi tanpa alasan pengguna, Then verifikasi berhasil dan audit memuat alasan baku server serta `dasar_izin`.
+- [x] **AC-7:** Given versi/status valid, aktor berwenang, dan seluruh business guard lolos, When verifikasi dikonfirmasi tanpa alasan pengguna, Then verifikasi berhasil dan audit memuat alasan baku server serta `dasar_izin`.
 
 #### Implementation Tasks
 
@@ -3596,6 +3600,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Dependensi lanjutan:** kegiatan lanjutan hasil "tunda" tidak ditautkan dari kartu penautan karena Q41 §41.4 butir 2 menetapkan klaim tahap pengukuran. Klaim tersebut dibentuk otomatis oleh ISS-06.05 (#221) saat ditunda atau saat baris pengukuran periode tujuan terbentuk, dan klaim tahap RA untuk lanjutan ditolak server; panel kegiatan RA menampilkan penanda "Ditunda → periode" dan "Lanjutan dari periode" dua arah.
 - **Di luar cakupan:** form realisasi (perubahan ISS-06.03).
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #194, issue #169:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. AC-7 dan TEST-5 `HalamanKegiatanRencanaAksiTest::test_kegiatan_dari_ra_a_dapat_diklaim_ra_b_dan_ditandai_kegiatan_bersama`, dengan AC-9 `HalamanKegiatanRencanaAksiTest::test_periode_terkunci_tampil_dan_pembuatan_pada_periode_itu_ditolak`. AC-8 tetap terbuka karena dashboard, verifikasi, dan laporan belum memiliki tautan ke kegiatan; TEST-6 adalah uji browser.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given pengguna mana pun, Then sidebar tidak memuat menu Kegiatan. *(Q74 §74.1 butir 1)*
@@ -3604,7 +3610,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-4:** Given kegiatan pada halaman itu, When diedit, termasuk berkas perencanaan dan klaim, Then perubahan dilakukan di halaman Rencana Aksi tanpa pindah ke `/kegiatan/{id}/edit`. *(Q74 §74.1 butir 3)*
 - [x] **AC-5:** Given tautan lama `/kegiatan` atau `/kegiatan/{id}/edit`, Then pengguna dialihkan ke halaman kegiatan Rencana Aksi terkait. *(Q74 §74.1 butir 5)*
 - [x] **AC-6:** Given grant `kegiatan:update` hanya pada unit A, When kegiatan unit B dimutasi lewat halaman baru, Then ditolak 403; pengguna tanpa `kegiatan:create` tidak melihat tombol dan request langsungnya ditolak. *(Q74 §74.1 butir 4)*
-- [ ] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
+- [x] **AC-7:** Given kegiatan dibuat dari Rencana Aksi IKU A, When Rencana Aksi IKU B mengklaimnya, Then klaim tetap diizinkan dengan penanda kegiatan bersama. *(Q74 §74.1 butir 6)*
 - [ ] **AC-8:** Given dashboard, verifikasi, atau laporan menaut ke kegiatan, Then tautan menuju halaman kegiatan Rencana Aksi.
 - [x] **AC-9:** Given periode yang terkunci bagi PIC (Q41), Then halaman kegiatan Rencana Aksi menegakkan kunci yang sama.
 - [x] **AC-10:** Given kegiatan pada unit dan tahun Rencana Aksi yang belum diklaim Rencana Aksi mana pun dan bukan kegiatan lanjutan, When pengguna dengan izin klaim membuka halaman kegiatan Rencana Aksi berstatus draf atau dikembalikan, Then kegiatan dapat ditautkan dengan arah dampak, komponen, dan catatan pilihan pengguna; Rencana Aksi berstatus lain tidak menawarkan penautan. *(U-22; keputusan PM 27 Oktober 2026, review PR #194)*
@@ -3633,7 +3639,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] TEST-2: Pest Feature test membuktikan AC-2 dan AC-3 — halaman dan pembuatan kegiatan dari Rencana Aksi; endpoint lama tidak tersedia.
 - [x] TEST-3: Pest Feature test membuktikan AC-4 dan AC-5 — edit di halaman Rencana Aksi dan pengalihan tautan lama.
 - [x] TEST-4: Pest Feature test membuktikan AC-6 — penolakan lintas unit dengan kontrol positif.
-- [ ] TEST-5: Pest Feature test membuktikan AC-7 dan AC-9.
+- [x] TEST-5: Pest Feature test membuktikan AC-7 dan AC-9.
 - [ ] TEST-6: uji browser desktop dan mobile untuk alur Rencana Aksi → Kegiatan.
 - [x] TEST-7: Pest Feature test membuktikan AC-10 — kandidat hanya kegiatan non-lanjutan pada periode dapat ditulis (termasuk regresi 50 kandidat terkunci), `can.tautkan` false pada RA yang tidak dapat diklaim, dan Vitest membuktikan payload penautan memakai arah dampak/komponen/catatan pilihan pengguna.
 
