@@ -21,7 +21,8 @@ Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang ex
 - Issue lama belum cukup menangkap kontrak kritis: F1/F2 berdasarkan `*_versi.diajukan_by`, immutable versioning, snapshot correction, backfill, revisi jendela PIC, evidence freeze, append-only correction, notification idempotency, serta readiness/UAT.
 - Dokumen ini **menggantikan** pola tersebut dengan 1 issue untuk 1 User Story serta test traceability per Acceptance Criteria.
 - Penyelarasan Q31 **tidak menambah issue baru di luar 74 issue 1:1**. Dampaknya diserap ke issue akses/PIC yang relevan (`ISS-01.03`, `ISS-01.04`, `ISS-01.06`, `ISS-01.07`, `ISS-04.01`, issue RA/Pengukuran/Notifikasi terkait PIC, `ISS-10.01`, dan `ISS-15.01`) serta ke aturan global. Requirement yang masih OPEN tidak diubah menjadi AC final.
-- **Hitungan terbaru (13 Oktober 2026):** dokumen memuat **83 issue 1:1** dengan 83 User Stories: 74 issue baseline, `ISS-01.08` (Q38), dan delapan issue baru `ISS-02.10`, `ISS-02.11`, `ISS-02.12` (Q39, Q40, Q50), `ISS-05.07` (Q41, Q47), `ISS-06.08` (Q42), `ISS-10.05` (Q48), `ISS-13.05` (Q43), serta `ISS-13.06` (Q44). `ISS-11.06` dibatalkan Q44 dan tetap dihitung sebagai histori.
+- **Hitungan 13 Oktober 2026:** dokumen memuat **83 issue 1:1** dengan 83 User Stories: 74 issue baseline, `ISS-01.08` (Q38), dan delapan issue baru `ISS-02.10`, `ISS-02.11`, `ISS-02.12` (Q39, Q40, Q50), `ISS-05.07` (Q41, Q47), `ISS-06.08` (Q42), `ISS-10.05` (Q48), `ISS-13.05` (Q43), serta `ISS-13.06` (Q44). `ISS-11.06` dibatalkan Q44 dan tetap dihitung sebagai histori.
+- **Hitungan terbaru (4 November 2026):** dokumen memuat **89 issue 1:1** dengan 89 User Stories: 83 issue per 13 Oktober 2026 ditambah enam issue Q70–Q74 (`ISS-02.13`, `ISS-02.14`, `ISS-02.15`, `ISS-03.07`, `ISS-06.09`, `ISS-09.03`).
 
 ## 3. Aturan Global untuk Seluruh Development Issue
 
@@ -88,17 +89,17 @@ Kontrak tambahan 23 Oktober 2026 (Q70–Q74):
 - baseline PK terisi otomatis dari realisasi periode nilai akhir tahun sebelumnya yang disahkan; tabel PK tanpa kolom Target Renstra (Q73);
 - menu Kegiatan dihapus; kegiatan dibuat, diedit, dan direalisasikan dari halaman kegiatan Rencana Aksi; biaya terpakai dicatat sebagai satu angka per kegiatan (Q74).
 
-Urutan pengerjaan (Q46 §46.3, diperbarui Q51):
+Urutan pengerjaan (Q46 §46.3, diperbarui Q51 dan Q84):
 
 | Tahap | Batas | Issue |
 |---|---|---|
 | 1 | Sebelum integrasi 9 November 2026 | ISS-01.08, ISS-02.10, ISS-02.11, ISS-05.06, ISS-05.07, ISS-06.01, ISS-06.02, ISS-06.08, ISS-13.05, ISS-13.06, pengecualian periode lampau 2026 (Q46 §46.1; termasuk ISS-03.05); di akhir tahap ISS-15.01 |
 | 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | ISS-06.03, ISS-06.04, ISS-06.05, ISS-07.01, ISS-07.03, ISS-07.06, ISS-08.01, ISS-08.02, ISS-09.01, ISS-10.01, ISS-10.02, ISS-10.05, ISS-14.01; tambahan Q70–Q74: ISS-02.13, ISS-02.14, ISS-02.15, ISS-03.07, ISS-06.09, ISS-09.03 |
-| 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12, simulasi target, tampilan daftar berkas terunggah, versi penuh Renstra, ISS-13.03 |
+| 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12, tampilan daftar berkas terunggah, ISS-13.03 |
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 
-Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111); issue Tahap 1 lainnya belum dimulai.
+Status per 4 November 2026 (`development` `c315290c`): PR implementasi sudah merged untuk seluruh issue tahap 1 dan tahap 2. Tahap 1 — ISS-01.08 (#101, #108, #114), ISS-02.10 (#143), ISS-02.11 (#149), ISS-05.06 (#100), ISS-05.07 (#154), ISS-06.01 (#97, #141), ISS-06.02 (#111), ISS-06.08 (#142, #148), ISS-13.05 (#156), ISS-13.06 (#150), pengecualian periode lampau ISS-03.05 (#146), dan ISS-15.01 (#172). Tahap 2 — ISS-02.13 (#189), ISS-02.14 (#206, #240), ISS-02.15 (#176), ISS-03.07 (#175, #190), ISS-06.03 (#195, #205), ISS-06.04 (#163), ISS-06.05 (#174, #236), ISS-06.09 (#194), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.01 (#144), ISS-08.02 (#107), ISS-09.01 (#115), ISS-09.03 (#191), ISS-10.01 (#147, #153), ISS-10.02 (#155), ISS-10.05 (#208), dan ISS-14.01 (#109, #117). Tahap 3 — ISS-03.03 (#213) dan ISS-13.03 (#119) merged; ISS-02.12 (#226) belum. Merged bukan bukti seluruh AC atau UAT terpenuhi: status per AC mengikuti centang User Issues (misalnya keluaran Excel ISS-10.05 AC-1–AC-5 belum dibangun), dan data awal 2026 menunggu UAT ISS-15.01.
 
 Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q74) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
 
@@ -1241,7 +1242,7 @@ kegiatan:update
 - **Rule:** bila target terlampaui sebelum akhir periode Renstra, target tahun berikutnya dinaikkan melalui perubahan pada AC-4 (Q40 §40.2 butir 3).
 - **Rule:** lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru (Q40 §40.2 butir 5).
 - **Rule:** indikator yang hanya ada di PK (mis. IKU 4.1 pada sasaran S4) dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5); kekosongan ini sah menurut AC-2.
-- **Di luar cakupan:** versi penuh Renstra (Q40 §40.2 butir 4; tahap 3, Q46 §46.3), pembanding target PK terhadap target Renstra (ISS-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
+- **Di luar cakupan:** versi penuh Renstra (tidak dibangun, Q40 §40.2 butir 4 dan Q84), pembanding target PK terhadap target Renstra (ISS-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -1325,7 +1326,7 @@ kegiatan:update
 - **Rule:** target PK diinput Tim Perencanaan setelah angka disepakati dengan tim kerja di luar aplikasi (Q39 §39.3 butir 1); capaian dinilai terhadap target PK melalui snapshot, bukan terhadap target Renstra, dan target periode RA dipecah dari target PK (Q39 §39.4).
 - **Rule:** perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (ISS-02.12); koreksi salah ketik memakai ISS-02.09 (Q40 §40.1 butir 8). Target PK tetap dapat diubah di halaman PK setelah snapshot terbentuk tanpa mengubah snapshot (Q65 §65.1) dan tanpa alasan (Q82).
 - **Rule:** PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan pada PK melalui fitur lampiran PK yang ada, beserta keterangan (mis. "PK perubahan anggaran") yang disimpan pada kolom baru `berkas.keterangan`; target dan snapshot tidak berubah (Q50 §50.7, Q48 §48.2 butir 6). `alasan_koreksi` tetap khusus untuk berkas pengganti.
-- **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (ISS-02.12), dan simulasi target (tahap 3, Q46 §46.3).
+- **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (ISS-02.12), dan simulasi target (tidak dibangun, Q84).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5447,8 +5448,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 8  
 **Labels:** `feature`, `notification`, `P1`, `frontend`  
 **Plan:** Modul 14: 14.1  
-**PRD:** §28.1  
-**Workflow:** §22.1  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** in-app notifications
 
 #### User Story
@@ -5463,7 +5464,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Seluruh pengguna autentikasi sesuai event yang berhak dilihat.
 - **Dampak Data:** Penyimpanan notifikasi/read-state sesuai implementasi.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
+- **Aturan penerima (Q32, Q37 §37.3):** penerima ditentukan dari PJ efektif dan konteks assignment/work item; jangan broadcast ke semua pengguna yang menjadi PIC operasional (PIC bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5515,8 +5516,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** WA/Email queue
 
 #### User Story
@@ -5531,7 +5532,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Event sistem setelah waktu `pengisian_mulai`/pembukaan resmi.
 - **Dampak Data:** Queue/job dan log status pengiriman tanpa secret.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
+- **Aturan penerima (Q32, Q37 §37.3):** penerima ditentukan dari PJ efektif dan konteks assignment/work item; jangan broadcast ke semua pengguna yang menjadi PIC operasional (PIC bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5579,8 +5580,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** EWS
 
 #### User Story
@@ -5595,7 +5596,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Scheduler sistem.
 - **Dampak Data:** Queue/log pengiriman.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
+- **Aturan penerima (Q32, Q37 §37.3):** penerima ditentukan dari PJ efektif dan konteks assignment/work item; jangan broadcast ke semua pengguna yang menjadi PIC operasional (PIC bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5645,8 +5646,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** recap notification
 
 #### User Story
@@ -5706,8 +5707,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** return notification
 
 #### User Story
@@ -5722,7 +5723,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Dipicu event bisnis setelah commit.
 - **Dampak Data:** Queue WA/Email dan log status.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
+- **Aturan penerima (Q32, Q37 §37.3):** penerima ditentukan dari PJ efektif dan konteks assignment/work item; jangan broadcast ke semua pengguna yang menjadi PIC operasional (PIC bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5772,8 +5773,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `infrastructure`, `notification`, `P2`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** delivery/idempotency
 
 #### User Story
@@ -6048,8 +6049,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `settings-audit`, `P2`, `frontend`, `ops`  
 **Plan:** Modul 14: 14.2; Modul 9  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** notification config
 
 #### User Story
@@ -6801,17 +6802,17 @@ Decision gate dianggap selesai bila:
 | `US-11.04` | `ISS-11.04` | Modul 13: 13.6 | §18.8 | §10 | ✅ 1:1 |
 | `US-11.05` | `ISS-11.05` | Modul 13: 13.4 | §18.11 | §10 | ✅ 1:1 |
 | `US-11.06` | `ISS-11.06` | Modul 13: 13.7 | §18.5–18.7 | §10 | ✅ 1:1 |
-| `US-12.01` | `ISS-12.01` | Modul 14: 14.1 | §28.1 | §22.1 | ✅ 1:1 |
-| `US-12.02` | `ISS-12.02` | Modul 14: 14.1 | §28.1 | §22.1 | ✅ 1:1 |
-| `US-12.03` | `ISS-12.03` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
-| `US-12.04` | `ISS-12.04` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
-| `US-12.05` | `ISS-12.05` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
-| `US-12.06` | `ISS-12.06` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
-| `US-12.07` | `ISS-12.07` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
+| `US-12.01` | `ISS-12.01` | Modul 14: 14.1 | §28 | §4, §11, §22.1 | ✅ 1:1 |
+| `US-12.02` | `ISS-12.02` | Modul 14: 14.1 | §28 | — | ✅ 1:1 |
+| `US-12.03` | `ISS-12.03` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.04` | `ISS-12.04` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.05` | `ISS-12.05` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.06` | `ISS-12.06` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.07` | `ISS-12.07` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
 | `US-13.01` | `ISS-13.01` | Modul 9: 9.1–9.6 | §26 | §18 | ✅ 1:1 |
 | `US-13.02` | `ISS-13.02` | Modul 9: 9.7–9.9 | §18.9, §26 | §18 | ✅ 1:1 |
 | `US-13.03` | `ISS-13.03` | Modul 10: 10.1–10.6 | §25 | §19–20 | ✅ 1:1 |
-| `US-13.04` | `ISS-13.04` | Modul 14: 14.2; Modul 9 | §28.2 | §22.2 | ✅ 1:1 |
+| `US-13.04` | `ISS-13.04` | Modul 14: 14.2; Modul 9 | §28 | — | ✅ 1:1 |
 | `US-14.01` | `ISS-14.01` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.02` | `ISS-14.02` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.03` | `ISS-14.03` | Modul 3: 3.12 | §12.3, §12.6 | §13 | ✅ 1:1 |

@@ -7,6 +7,8 @@
 
 **Pembaruan 13 Oktober 2026 (Q38–Q51):** onboarding SSO langsung aktif tanpa peran (Q38, US-01.08), keputusan rapat asistensi Q39–Q46, dan keputusan analisis dokumen resmi 2026 Q47–Q51 diselaraskan. Story baru: US-02.10, US-02.11, US-02.12, US-05.07, US-06.08, US-10.05, US-13.05, dan US-13.06; US-11.06 dibatalkan Q44 dan dipertahankan sebagai histori, sedangkan fitur US-13.02 dihapus melalui US-13.06. Dokumen kini memuat **83 User Story**: 75 story sebelum Q39 (termasuk US-01.08) ditambah delapan story baru tersebut, dengan US-11.06 tetap dihitung sebagai story yang dibatalkan. Prioritas story yang tercakup urutan pengerjaan ditulis per tahap (Q46 §46.3). Story yang sudah dikerjakan diberi catatan perubahan perilaku tanpa mengubah AC yang sudah selesai; story yang belum dikerjakan diperbarui langsung dengan rujukan Q. Q38–Q51 adalah keputusan requirement, bukan bukti implementasi; konfirmasi tertulis Tim Perencanaan atasnya masih menunggu (pengantar Q39–Q46 dan Q47–Q51 pada Keputusan Penyelarasan).
 
+**Pembaruan Q70–Q74 (rapat evaluasi 23 Oktober 2026):** enam story baru US-02.13, US-02.14, US-02.15, US-03.07, US-06.09, dan US-09.03, sehingga dokumen kini memuat **89 User Story**, dengan US-11.06 tetap dihitung sebagai story yang dibatalkan.
+
 ## 1. Tujuan Dokumen
 Dokumen ini mendefinisikan kebutuhan fungsional dan penerimaan (*acceptance*) SAKIP LLDIKTI Wilayah XVI dalam bentuk User Story yang dapat dipakai sebagai acuan UAT, refinement, pembuatan development issue, dan implementasi vertical slice.
 ### Hierarki sumber
@@ -536,7 +538,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - Target Renstra disimpan dengan permission `target:update` yang sudah ada; tidak ada permission baru (Q39 §39.3 butir 3).
 - Indikator yang hanya ada di PK (mis. IKU 4.1 pada sasaran S4) dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5); kekosongan ini sah menurut AC-2.
 - Lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru (Q40 §40.2 butir 5).
-- **Di luar cakupan:** versi penuh Renstra (Q40 §40.2 butir 4; tahap 3, Q46 §46.3), pembanding target PK terhadap target Renstra (US-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
+- **Di luar cakupan:** versi penuh Renstra (tidak dibangun, Q40 §40.2 butir 4 dan Q84), pembanding target PK terhadap target Renstra (US-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
 
 ### US-02.11 · Input Target PK di Halaman Perjanjian Kinerja dengan Pembanding Target Renstra
 
@@ -581,7 +583,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan pada PK (fitur lampiran PK yang ada; Q50 §50.7).
 - Keterangan lampiran tambahan tersebut (mis. "PK perubahan anggaran") disimpan pada kolom baru `berkas.keterangan` (Q48 §48.2 butir 6): opsional, paling banyak 1.000 karakter, diisi saat unggah, dan tercatat di audit (Q65 §65.3).
 - PK perubahan yang mengubah target memakai revisi berversi (US-02.12); bila revisi seperti itu terbit sebelum US-02.12 selesai, penanganannya ditetapkan PM sebagai keputusan baru (Q50 §50.7 butir 2).
-- **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (US-02.12), dan simulasi target (tahap 3, Q46 §46.3).
+- **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (US-02.12), dan simulasi target (tidak dibangun, Q84).
 
 ### US-02.12 · Revisi PK Berversi (PK Awal dan PK Akhir)
 
@@ -2883,17 +2885,17 @@ Matriks memuat seluruh 89 User Story per 24 Oktober 2026, termasuk US-11.06 yang
 | **US-11.04** | Modul 13: 13.6 | §18.8 | §10 | `berkas` |
 | **US-11.05** | Modul 13: 13.4 | §18.11 | §10 | versi + persyaratan |
 | **US-11.06** *(dibatalkan Q44)* | Modul 13: 13.7 | §18.5–18.7 | §10 | pengecualian file (histori) |
-| **US-12.01** | Modul 14: 14.1 | §28.1 | §22.1 | alert server-side |
-| **US-12.02** | Modul 14: 14.1 | §28.1 | §22.1 | in-app notifications |
-| **US-12.03** | Modul 14: 14.2 | §28.2 | §22.2 | WA/Email queue |
-| **US-12.04** | Modul 14: 14.2 | §28.2 | §22.2 | EWS |
-| **US-12.05** | Modul 14: 14.2 | §28.2 | §22.2 | recap notification |
-| **US-12.06** | Modul 14: 14.2 | §28.2 | §22.2 | return notification |
-| **US-12.07** | Modul 14: 14.2 | §28.2 | §22.2 | delivery/idempotency |
+| **US-12.01** | Modul 14: 14.1 | §28 | §4, §11, §22.1 | alert server-side |
+| **US-12.02** | Modul 14: 14.1 | §28 | — | in-app notifications |
+| **US-12.03** | Modul 14: 14.2 | §28 | — | WA/Email queue |
+| **US-12.04** | Modul 14: 14.2 | §28 | — | EWS |
+| **US-12.05** | Modul 14: 14.2 | §28 | — | recap notification |
+| **US-12.06** | Modul 14: 14.2 | §28 | — | return notification |
+| **US-12.07** | Modul 14: 14.2 | §28 | — | delivery/idempotency |
 | **US-13.01** | Modul 9: 9.1–9.6 | §26 | §18 | `pengaturan` |
 | **US-13.02** | Modul 9: 9.7–9.9 *(dihapus Q44 melalui 9.10)* | §18.9, §26 | §18 | storage policy (dihapus Q44, US-13.06) |
 | **US-13.03** | Modul 10: 10.1–10.6 | §25 | §19–20 | `audit_log` |
-| **US-13.04** | Modul 14: 14.2; Modul 9 | §28.2 | §22.2 | notification config |
+| **US-13.04** | Modul 14: 14.2; Modul 9 | §28 | — | notification config |
 | **US-13.05** | Modul 10: 10.7 | §4, §7.5, §13, §25 | §21–22 | `audit_log`, `user_permission_granted`, `penanggung_jawab` |
 | **US-13.06** | Modul 9: 9.10 | §18, §26 | §10, §18 | konfigurasi unggahan, `jenis_berkas` |
 | **US-14.01** | Modul 3: 3.9 | §12.6 | §13 | `jadwal_tahunan` |

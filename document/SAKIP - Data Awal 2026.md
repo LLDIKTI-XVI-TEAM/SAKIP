@@ -1,7 +1,7 @@
 # Data Awal 2026 — Checklist Verifikasi Sebelum Penggunaan Pertama
 
 > **Traceability:** Issue [#138](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/138) · `ISS-15.01` · `US-15.01`
-> **Basis dokumen:** `development` `322b59a` (termasuk Q70–Q74, 23 Oktober 2026)
+> **Basis dokumen:** `development` `322b59a` (termasuk Q70–Q74, 23 Oktober 2026); status implementasi Q70–Q74 diperbarui pada `c315290c` (4 November 2026)
 > **Sifat dokumen:** artefak penerimaan/checklist. Bukan data produksi, bukan bukti UAT selesai, dan bukan pengganti keputusan Perencanaan.
 
 ## Cara memakai dokumen ini
@@ -29,9 +29,9 @@
 | Nilai akhir | Triwulan IV (`is_nilai_akhir = true`) | PRD §12.1 | Dikonfirmasi dokumen | Halaman Master Periode → `SavePeriode` | — |
 | Periode lampau 2026 | TW I–III (dihitung dari `pengisian_selesai` < tanggal aktivasi) | Q46 §46.1 butir 2 | Dikonfirmasi dokumen | Jadwal tahunan (aktivasi) | — |
 | Periode normal 2026 | TW IV (workflow normal PIC operasional) | Q46 §46.1 butir 2 | Dikonfirmasi dokumen | Jadwal tahunan (aktivasi) | — |
-| Tanggal periode (hari/bulan) | — belum ada | Q70 §70.1; status implementasi ISS-03.07: belum | Menunggu Perencanaan | Belum tersedia (butuh ISS-03.07) | — |
+| Tanggal periode (hari/bulan) | Nilai standar kuartal kalender terisi migrasi `2026_10_25_000001` (Triwulan I 1 Januari–31 Maret, dan seterusnya) | Q70 §70.1 (contoh Triwulan I); ISS-03.07 (PR #190) | Menunggu Perencanaan (konfirmasi tanggal Triwulan I–IV) | Halaman Master Periode → `SavePeriode` | — |
 
-> **Gap Q70:** `periode` belum menyimpan tanggal mulai/selesai, dan `jadwal_periode` masih memuat `reviu_mulai`/`reviu_selesai`. Jangan mengisi tanggal periode di dokumen ini; implementasinya milik ISS-03.07.
+> **Q70:** `periode` menyimpan tanggal mulai/selesai tanpa tahun yang diubah lewat Master Periode, dan jendela reviu `jadwal_periode` sudah dihapus (ISS-03.07, PR #175 dan #190). Tanggal resmi Triwulan I–IV tetap menunggu konfirmasi Perencanaan.
 
 ### 1.2 Jadwal tahunan pertama
 
@@ -225,12 +225,12 @@ Izin yang dipakai: `rekomendasi:tetapkan` (dimiliki preset Perencanaan dan Pimpi
 
 | Item | Status | Dampak ke data awal | Tindak lanjut |
 |---|---|---|---|
-| Q70 §70.1 tanggal periode | Belum (ISS-03.07) | Tanggal periode tidak dapat diisi | Tunggu ISS-03.07 |
-| Q70 §70.2 hapus jendela reviu | Belum (ISS-03.07) | Form jadwal/revisi jendela PIC masih memakai jendela reviu | Tunggu ISS-03.07 |
+| Q70 §70.1 tanggal periode | Sudah (ISS-03.07, PR #190) | Tanggal standar kuartal kalender terisi migrasi dan dapat diubah di Master Periode | Perencanaan mengonfirmasi tanggal Triwulan I–IV |
+| Q70 §70.2 hapus jendela reviu | Sudah (ISS-03.07, PR #175) | Jadwal dan revisi jendela PIC tidak lagi memuat jendela reviu | — |
 | Q71 revisi target Renstra | Sudah (ISS-02.13) | Renstra 2025–2029 berstatus `aktif`, sehingga target Renstra data awal diisi lewat Mode revisi sebagai revisi ke-1 dengan justifikasi yang merujuk dokumen Renstra (Q71 §71.5 butir 1) | Isi lewat Mode revisi setelah ISS-02.13 merge |
 | Q72 target PK menyimpang ditolak | Sudah (ISS-02.14, PR #206) | Target PK 2026 yang menyimpang dari target Renstra 2026 ditolak; perubahan target PK yang sudah tersimpan tidak meminta alasan (Q82) | Revisi target Renstra lewat Mode revisi lebih dulu bila target PK 2026 menyimpang (Q72 §72.1) |
-| Q73 baseline otomatis | Belum (ISS-02.15) | Baseline 2026 diisi manual/menunggu LKj 2025 | Tunggu ISS-02.15 |
-| Q74 kegiatan dari RA + biaya terpakai | Belum (ISS-06.09, ISS-06.03) | Alur kegiatan masih memakai halaman Kegiatan | Tunggu ISS-06.09; ISS-06.03 (form realisasi) |
+| Q73 baseline otomatis | Sudah (ISS-02.15, PR #176) | Baseline 2026 tetap kosong dengan keterangan "Belum ada realisasi 2025 di SAKIP" karena realisasi 2025 tidak ada di SAKIP (Q73 §73.1 butir 2) | Isi manual lewat editor target PK setelah LKj 2025 tersedia |
+| Q74 kegiatan dari RA + biaya terpakai | Sudah (ISS-06.09, PR #194; ISS-06.03, PR #195 dan #205) | Kegiatan dibuat dan direalisasikan dari halaman kegiatan Rencana Aksi; biaya terpakai dicatat saat kegiatan ditandai `terlaksana` | Isi kegiatan data awal lewat halaman Rencana Aksi |
 | Konfirmasi tertulis Q38–Q52, Q70–Q74 | Menunggu | Nilai resmi belum final | Catat pada tindak lanjut |
 | Baseline 2026 dari LKj 2025 | Menunggu dokumen | Baseline kosong | Minta dokumen |
 | Nilai target PK resmi | Menunggu konfirmasi | Nilai penuh vs tercetak | Konfirmasi Perencanaan |
