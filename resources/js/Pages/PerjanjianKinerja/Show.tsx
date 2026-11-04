@@ -67,13 +67,13 @@ export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_akti
             <Head title={`Perjanjian Kinerja (PK) Tahun ${pk.tahun}`} />
 
             <div className="mx-auto max-w-5xl space-y-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Link href="/perjanjian-kinerja" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <Link href="/perjanjian-kinerja" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25 sm:h-9">
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                         Kembali ke daftar
                     </Link>
                     {can.update && (
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsEditModalOpen(true)}>
+                        <Button variant="outline" size="sm" className="h-11 gap-1.5 sm:h-9" onClick={() => setIsEditModalOpen(true)}>
                             <Pencil className="h-4 w-4" aria-hidden="true" />
                             Edit Perjanjian Kinerja
                         </Button>
