@@ -4,6 +4,7 @@ namespace App\Services\Kegiatan;
 
 use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
+use App\Models\KinerjaSnapshot;
 use App\Models\KlaimKegiatan;
 use App\Models\Periode;
 use App\Models\RencanaAksi;
@@ -26,7 +27,8 @@ use Illuminate\Validation\ValidationException;
  * (Q32.3). Penghapusan dan penggantian ditolak sejak RA pengklaim diajukan
  * (Q42 §42.4 butir 5, pola Q36) agar berkas yang dibekukan versi RA tetap
  * berlaku; koreksi lewat pengembalian RA lalu berkas pengganti. Kunci itu hanya
- * untuk tahap perencanaan; berkas tahap pelaksanaan dikunci status `terlaksana`.
+ * untuk tahap perencanaan. Kegiatan `terlaksana` dan berkas yang dibekukan versi
+ * pengukuran hanya menolak hapus; koreksinya berkas pengganti beralasan (Q25).
  * Izin dijawab 403, pelanggaran bisnis 422. `kunci()` wajib di dalam transaksi.
  */
 class GerbangBerkasKegiatan
@@ -64,9 +66,10 @@ class GerbangBerkasKegiatan
 
     /**
      * @param  Collection<int, RencanaAksi>  $pengklaim  Header RA dengan klaim tahap RA atas kegiatan ini.
+     * @param  'unggah'|'ganti'|'hapus'  $aksi
      * @return array{0: string, 1: string}|null
      */
-    public function pelanggaranBisnis(Kegiatan $kegiatan, Collection $pengklaim, bool $cabut, bool $tahunDitutup, string $tahap = PersyaratanPerencanaanKegiatan::TAHAP): ?array
+    public function pelanggaranBisnis(Kegiatan $kegiatan, Collection $pengklaim, string $aksi, bool $tahunDitutup, string $tahap = PersyaratanPerencanaanKegiatan::TAHAP): ?array
     {
         if (Unit::whereKey((string) $kegiatan->unit_id)->sharedLock()->value('status') !== 'aktif') {
             return ['unit_id', 'Unit pemilik kegiatan berstatus nonaktif.'];
@@ -74,11 +77,11 @@ class GerbangBerkasKegiatan
         if ($tahunDitutup) {
             return ['tahun', 'Tahun kegiatan sudah ditutup; perubahan hanya melalui pembukaan kembali jadwal.'];
         }
-        // `$cabut`: hapus atau ganti, yaitu aksi yang mengakhiri keberlakuan berkas lama.
-        if ($cabut && $kegiatan->status === 'terlaksana') {
-            return ['berkas', 'Berkas kegiatan yang sudah terlaksana tidak dapat dihapus atau diganti.'];
+        if ($aksi === 'hapus' && $kegiatan->status === 'terlaksana') {
+            return ['berkas', 'Berkas kegiatan yang sudah terlaksana tidak dapat dihapus; koreksi lewat berkas pengganti beralasan.'];
         }
-        if ($cabut && $tahap === PersyaratanPerencanaanKegiatan::TAHAP && $pengklaim->contains(fn (RencanaAksi $header): bool => ! in_array($header->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true))) {
+        // Ganti dan hapus sama-sama mengakhiri keberlakuan berkas yang dibekukan versi RA.
+        if ($aksi !== 'unggah' && $tahap === PersyaratanPerencanaanKegiatan::TAHAP && $pengklaim->contains(fn (RencanaAksi $header): bool => ! in_array($header->status_alur, RencanaAksi::STATUS_DAPAT_DISUNTING, true))) {
             return ['berkas', 'Berkas perencanaan kegiatan tidak dapat dihapus atau diganti sejak rencana aksi yang mengklaimnya diajukan; koreksi lewat pengembalian rencana aksi.'];
         }
 
@@ -96,13 +99,14 @@ class GerbangBerkasKegiatan
      * periode, header RA pengklaim, jadwal, kegiatan, lalu berkas oleh pemanggil.
      *
      * @param  array<string, mixed>|null  $dasarIzin
+     * @param  'unggah'|'ganti'|'hapus'  $aksi
      * @param  string  $tahap  Tahap persyaratan berkas yang disentuh; menentukan kunci hapus/ganti.
      * @return array{pengunci: User, kegiatan: Kegiatan, pengklaim: Collection<int, RencanaAksi>}
      *
      * @throws AuthorizationException
      * @throws ValidationException
      */
-    public function kunci(User $actor, string $kegiatanId, string $izinBerkas, bool $cabut, ?array &$dasarIzin, string $tahap = PersyaratanPerencanaanKegiatan::TAHAP): array
+    public function kunci(User $actor, string $kegiatanId, string $izinBerkas, string $aksi, ?array &$dasarIzin, string $tahap = PersyaratanPerencanaanKegiatan::TAHAP): array
     {
         $kunci = $this->lockedActor->handle($actor, PermissionCodes::KEGIATAN_UPDATE);
         $pengunci = $kunci['aktor'];
@@ -127,12 +131,21 @@ class GerbangBerkasKegiatan
         if (self::headerPengklaim($kegiatanId) !== $headerIds || (int) $kegiatan->tahun !== (int) $tahun) {
             throw ValidationException::withMessages(['berkas' => 'Klaim kegiatan telah berubah. Muat ulang sebelum mengubah berkas.']);
         }
-        $pelanggaran = $this->pelanggaranBisnis($kegiatan, $pengklaim, $cabut, $ditutup, $tahap);
+        $pelanggaran = $this->pelanggaranBisnis($kegiatan, $pengklaim, $aksi, $ditutup, $tahap);
         if ($pelanggaran !== null) {
             throw ValidationException::withMessages([$pelanggaran[0] => $pelanggaran[1]]);
         }
 
         return ['pengunci' => $pengunci, 'kegiatan' => $kegiatan, 'pengklaim' => $pengklaim];
+    }
+
+    /**
+     * Setiap versi pengukuran lahir dari pengajuan, jadi berkas yang tercatat di versi mana pun sudah menjadi dasar
+     * laporan dan tidak boleh dihapus. Dibaca setelah kegiatan dikunci: pengajuan mengunci kegiatan sebelum membekukan bukti.
+     */
+    public static function dibekukanPengukuran(string $berkasId): bool
+    {
+        return KinerjaSnapshot::whereJsonContains('snapshot->klaim', [['kegiatan' => ['bukti_dukungs' => [['id' => $berkasId]]]]])->exists();
     }
 
     /** Kegiatan tidak terikat Renstra: tahun terkunci bila jadwal tahun itu mana pun sudah ditutup. */

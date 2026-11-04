@@ -171,8 +171,8 @@ export function BerkasPerencanaanPanel({ kegiatanId, berkas, tahap = 'perencanaa
                                 <BerkasLampiranItem
                                     key={item.id}
                                     berkas={{ ...item, mime: null, download_url: item.mode === 'file' ? `/kegiatan/${kegiatanId}/${tahap === 'pelaksanaan' ? 'pelaksanaan/' : ''}berkas/${item.id}` : null }}
-                                    meta={item.created_at ? `${req.nama} · ${formatTanggal(item.created_at, { withTime: true })}` : req.nama}
-                                    action={(!alasan_tolak_ganti || !alasan_tolak_hapus) && <div className="flex gap-2">
+                                    meta={[req.nama, item.created_at && formatTanggal(item.created_at, { withTime: true }), item.dibekukan && 'Dibekukan pada versi pengukuran'].filter(Boolean).join(' · ')}
+                                    action={(!alasan_tolak_ganti || (!alasan_tolak_hapus && !item.dibekukan)) && <div className="flex gap-2">
                                         {!alasan_tolak_ganti && (
                                             <Tooltip content="Ganti berkas" align="right">
                                                 <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0" aria-label={`Ganti berkas ${namaBerkas(req, item)}`} onClick={() => buka(req, item)}>
@@ -180,7 +180,7 @@ export function BerkasPerencanaanPanel({ kegiatanId, berkas, tahap = 'perencanaa
                                                 </Button>
                                             </Tooltip>
                                         )}
-                                        {!alasan_tolak_hapus && (
+                                        {!alasan_tolak_hapus && !item.dibekukan && (
                                             <Tooltip content="Hapus berkas" align="right">
                                                 <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0 text-danger hover:bg-danger/10"
                                                     aria-label={`Hapus berkas ${namaBerkas(req, item)}`}

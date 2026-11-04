@@ -244,7 +244,7 @@ class PelaksanaanKegiatanTest extends TestCase
         $this->form()->assertInertia(fn ($page) => $page->where('pelaksanaan.perlu_koreksi', false));
     }
 
-    public function test_bukti_pelaksanaan_append_only_setelah_terlaksana_dan_tidak_terkunci_ra_diajukan_sebelumnya(): void
+    public function test_bukti_pelaksanaan_diganti_beralasan_setelah_terlaksana_dan_tidak_terkunci_ra_diajukan_sebelumnya(): void
     {
         $persyaratan = $this->persyaratan(['nama' => 'Dokumentasi', 'indikator_id' => null]);
         $this->bukti($persyaratan)->assertSessionHasNoErrors();
@@ -260,8 +260,13 @@ class PelaksanaanKegiatanTest extends TestCase
         $this->realisasi(['tandai_terlaksana' => true])->assertRedirect();
 
         $this->hapusBukti($berlaku)->assertSessionHasErrors('berkas');
-        $this->bukti($persyaratan, ['menggantikan_id' => $berlaku->id, 'alasan_koreksi' => 'Revisi'])->assertSessionHasErrors('berkas');
+        $this->bukti($persyaratan, ['menggantikan_id' => $berlaku->id])->assertSessionHasErrors('alasan_koreksi');
         $this->assertNull($berlaku->fresh()->dihapus_pada);
+        // Q25: setelah terlaksana bukti dasar diganti beralasan, bukan dihapus; status kegiatan tetap terlaksana.
+        $this->bukti($persyaratan, ['menggantikan_id' => $berlaku->id, 'alasan_koreksi' => 'Revisi'])->assertSessionHasNoErrors();
+        $this->assertSame('Revisi', BuktiDukung::where('menggantikan_id', $berlaku->id)->sole()->alasan_koreksi);
+        $this->assertNull($berlaku->fresh()->dihapus_pada);
+        $this->assertSame('terlaksana', $this->kegiatan->fresh()->status);
         $this->bukti($persyaratan)->assertSessionHasNoErrors();
     }
 
@@ -292,7 +297,7 @@ class PelaksanaanKegiatanTest extends TestCase
         $this->form()->assertInertia(fn ($page) => $page->where('can.catat_realisasi', false)->where('can.tandai_terlaksana', false));
     }
 
-    public function test_panel_pelaksanaan_memakai_klaim_pengukuran_dan_mengunci_hapus_ganti_setelah_terlaksana(): void
+    public function test_panel_pelaksanaan_memakai_klaim_pengukuran_dan_mengunci_hapus_setelah_terlaksana(): void
     {
         $syarat = $this->persyaratan(['nama' => 'Laporan pelaksanaan', 'indikator_id' => $this->fixture['indikator']->id]);
         $this->persyaratan(['nama' => 'RAB', 'tahap' => 'kegiatan_perencanaan']);
@@ -307,7 +312,7 @@ class PelaksanaanKegiatanTest extends TestCase
             ->where('berkasPelaksanaan.alasan_tolak_ganti', null));
         $this->realisasi(['tandai_terlaksana' => true])->assertRedirect();
         $this->form()->assertInertia(fn ($page) => $page->where('berkasPelaksanaan.alasan_tolak_unggah', null)
-            ->where('berkasPelaksanaan.alasan_tolak_ganti', fn ($alasan) => is_string($alasan))
+            ->where('berkasPelaksanaan.alasan_tolak_ganti', null)
             ->where('berkasPelaksanaan.alasan_tolak_hapus', fn ($alasan) => is_string($alasan)));
     }
 

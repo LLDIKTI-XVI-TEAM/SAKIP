@@ -31,7 +31,8 @@ use Throwable;
  * baris baru dengan `menggantikan_id`, berkas lama tetap utuh (Q25).
  * Unggahan baru tetap diterima setelah RA diajukan (kegiatan bersama dapat
  * butuh persyaratan indikator lain), tetapi penggantian ditolak seperti
- * penghapusan agar berkas yang dibekukan versi RA tetap berlaku (Q36).
+ * penghapusan agar berkas yang dibekukan versi RA tetap berlaku (Q36). Kegiatan
+ * `terlaksana` tetap menerima pengganti beralasan; berkas lama tidak dihapus.
  */
 class TambahBerkasKegiatan
 {
@@ -52,7 +53,7 @@ class TambahBerkasKegiatan
 
         try {
             return DB::transaction(function () use ($actor, $kegiatanId, $data, $tahap, $label, &$dasarIzin): BuktiDukung {
-                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan, 'pengklaim' => $pengklaim] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_UPLOAD, ! empty($data['menggantikan_id']), $dasarIzin, $tahap);
+                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan, 'pengklaim' => $pengklaim] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_UPLOAD, empty($data['menggantikan_id']) ? 'unggah' : 'ganti', $dasarIzin, $tahap);
                 $mode = (string) $data['mode'];
                 $indikatorIds = $tahap === PersyaratanPerencanaanKegiatan::TAHAP
                     ? $pengklaim->map(fn (RencanaAksi $header): string => (string) $header->indikator_id)->unique()->values()->all()

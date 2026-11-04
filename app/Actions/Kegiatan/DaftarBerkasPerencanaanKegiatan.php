@@ -37,20 +37,21 @@ class DaftarBerkasPerencanaanKegiatan
             ->orderBy('created_at')->get()->groupBy('berkasable_id');
         $ditutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
         $bacaTertutup = $this->gerbang->bacaTertutup($actor, $kegiatan);
-        $alasan = fn (string $izin, bool $cabut): ?string => $this->gerbang->periksaIzin($actor, $kegiatan, $izin)['tolak'] !== null
+        $alasan = fn (string $izin, string $aksi): ?string => $this->gerbang->periksaIzin($actor, $kegiatan, $izin)['tolak'] !== null
             ? 'Izin mengubah berkas kegiatan tidak tersedia.'
-            : $this->gerbang->pelanggaranBisnis($kegiatan, $pengklaim, $cabut, $ditutup, $tahap)[1] ?? null;
+            : $this->gerbang->pelanggaranBisnis($kegiatan, $pengklaim, $aksi, $ditutup, $tahap)[1] ?? null;
 
         return [
             'persyaratan' => array_map(fn (array $item): array => $item + [
                 'berkas' => $bacaTertutup ? [] : $bukti->where('jenis_berkas_id', $item['id'])->map(fn (BuktiDukung $b): array => [
                     ...$b->only(['id', 'mode', 'nama_asli', 'ukuran_bytes', 'tautan', 'isi_teks', 'menggantikan_id']), 'created_at' => $b->created_at?->toIso8601String(),
+                    'dibekukan' => GerbangBerkasKegiatan::dibekukanPengukuran((string) $b->id),
                 ])->values()->all(),
                 'contoh' => ($contoh[$item['id']] ?? collect())->map(fn (BuktiDukung $b): array => $b->only(['id', 'nama_asli']))->values()->all(),
             ], $evaluasi),
-            'alasan_tolak_unggah' => $alasan(PermissionCodes::BERKAS_UPLOAD, false),
-            'alasan_tolak_ganti' => $alasan(PermissionCodes::BERKAS_UPLOAD, true),
-            'alasan_tolak_hapus' => $alasan(PermissionCodes::BERKAS_DELETE, true),
+            'alasan_tolak_unggah' => $alasan(PermissionCodes::BERKAS_UPLOAD, 'unggah'),
+            'alasan_tolak_ganti' => $alasan(PermissionCodes::BERKAS_UPLOAD, 'ganti'),
+            'alasan_tolak_hapus' => $alasan(PermissionCodes::BERKAS_DELETE, 'hapus'),
         ];
     }
 }

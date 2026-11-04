@@ -21,7 +21,8 @@ use Throwable;
  * Hapus berkas persyaratan tahap perencanaan kegiatan sebelum RA pengklaim
  * diajukan (Q42 §42.4 butir 5): soft delete beralasan (Q43 §43.2 butir 2),
  * file fisik dipertahankan karena versi RA dapat merujuknya. Berkas tahap
- * pelaksanaan dapat dihapus sampai kegiatan terlaksana (PRD §18.8).
+ * pelaksanaan dapat dihapus sampai kegiatan terlaksana (PRD §18.8). Berkas yang
+ * sudah dibekukan versi pengukuran tidak dapat dihapus (Q25: koreksi lewat pengganti).
  */
 class HapusBerkasKegiatan
 {
@@ -41,11 +42,14 @@ class HapusBerkasKegiatan
 
         try {
             DB::transaction(function () use ($actor, $kegiatanId, $berkasId, $alasan, $tahap, $label, &$dasarIzin): void {
-                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_DELETE, true, $dasarIzin, $tahap);
+                ['pengunci' => $pengunci, 'kegiatan' => $kegiatan] = $this->gerbang->kunci($actor, $kegiatanId, PermissionCodes::BERKAS_DELETE, 'hapus', $dasarIzin, $tahap);
                 // Berkas induk lain atau lampiran di luar tahap ini dijawab 404 agar keberadaannya tidak bocor.
                 /** @var BuktiDukung $berkas */
                 $berkas = PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $kegiatan->id)->whereKey($berkasId)
                     ->whereHas('jenisBerkas', fn ($q) => $q->where('tahap', $tahap))->lockForUpdate()->firstOrFail();
+                if (GerbangBerkasKegiatan::dibekukanPengukuran((string) $berkas->id)) {
+                    throw ValidationException::withMessages(['berkas' => 'Berkas sudah dibekukan pada versi pengukuran sehingga tidak dapat dihapus; koreksi lewat berkas pengganti beralasan.']);
+                }
                 $berkas->update(['dihapus_pada' => now(), 'dihapus_oleh' => $pengunci->id]);
 
                 $this->audit->catat(
