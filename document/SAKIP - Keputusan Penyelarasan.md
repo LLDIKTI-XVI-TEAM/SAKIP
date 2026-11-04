@@ -2403,6 +2403,14 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
 5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.
 
+---
+
+# Keputusan Q75–Q76 — Dicadangkan untuk Sinkronisasi ISS-10.05
+
+Nomor Q75 dan Q76 dicadangkan untuk mencatat keputusan PM K3–K7 ISS-10.05 ([komentar issue #179](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179#issuecomment-6476048514)) pada PR dokumen sinkronisasi ISS-10.05. Sampai PR tersebut ada, keputusan K3–K7 hanya tercatat pada komentar issue itu dan kedua nomor ini tidak dipakai keputusan lain.
+
+---
+
 # Keputusan Q77 — Sesi Koreksi Jadwal Tahunan
 
 **Keputusan PM: 29 Oktober 2026 (WITA), [review PR #199](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6490862740).** PM menetapkan keenam butir refinement sesi koreksi ISS-14.02. Q77 menambahkan validasi akhir sesi pada butir 6, sebagaimana ditegaskan pada [re-review PM](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6495008769). Pencatatan keputusan bukan penerimaan QA/UAT, merge, atau deployment. Dasar keputusan: Q19, Q35 §35.2, Q41 §41.2, dan Q52 §52.3:
