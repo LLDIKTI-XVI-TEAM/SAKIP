@@ -2883,17 +2883,17 @@ Matriks memuat seluruh 89 User Story per 24 Oktober 2026, termasuk US-11.06 yang
 | **US-11.04** | Modul 13: 13.6 | §18.8 | §10 | `berkas` |
 | **US-11.05** | Modul 13: 13.4 | §18.11 | §10 | versi + persyaratan |
 | **US-11.06** *(dibatalkan Q44)* | Modul 13: 13.7 | §18.5–18.7 | §10 | pengecualian file (histori) |
-| **US-12.01** | Modul 14: 14.1 | §28.1 | §22.1 | alert server-side |
-| **US-12.02** | Modul 14: 14.1 | §28.1 | §22.1 | in-app notifications |
-| **US-12.03** | Modul 14: 14.2 | §28.2 | §22.2 | WA/Email queue |
-| **US-12.04** | Modul 14: 14.2 | §28.2 | §22.2 | EWS |
-| **US-12.05** | Modul 14: 14.2 | §28.2 | §22.2 | recap notification |
-| **US-12.06** | Modul 14: 14.2 | §28.2 | §22.2 | return notification |
-| **US-12.07** | Modul 14: 14.2 | §28.2 | §22.2 | delivery/idempotency |
+| **US-12.01** | Modul 14: 14.1 | §28 | §4, §11, §22.1 | alert server-side |
+| **US-12.02** | Modul 14: 14.1 | §28 | — | in-app notifications |
+| **US-12.03** | Modul 14: 14.2 | §28 | — | WA/Email queue |
+| **US-12.04** | Modul 14: 14.2 | §28 | — | EWS |
+| **US-12.05** | Modul 14: 14.2 | §28 | — | recap notification |
+| **US-12.06** | Modul 14: 14.2 | §28 | — | return notification |
+| **US-12.07** | Modul 14: 14.2 | §28 | — | delivery/idempotency |
 | **US-13.01** | Modul 9: 9.1–9.6 | §26 | §18 | `pengaturan` |
 | **US-13.02** | Modul 9: 9.7–9.9 *(dihapus Q44 melalui 9.10)* | §18.9, §26 | §18 | storage policy (dihapus Q44, US-13.06) |
 | **US-13.03** | Modul 10: 10.1–10.6 | §25 | §19–20 | `audit_log` |
-| **US-13.04** | Modul 14: 14.2; Modul 9 | §28.2 | §22.2 | notification config |
+| **US-13.04** | Modul 14: 14.2; Modul 9 | §28 | — | notification config |
 | **US-13.05** | Modul 10: 10.7 | §4, §7.5, §13, §25 | §21–22 | `audit_log`, `user_permission_granted`, `penanggung_jawab` |
 | **US-13.06** | Modul 9: 9.10 | §18, §26 | §10, §18 | konfigurasi unggahan, `jenis_berkas` |
 | **US-14.01** | Modul 3: 3.9 | §12.6 | §13 | `jadwal_tahunan` |

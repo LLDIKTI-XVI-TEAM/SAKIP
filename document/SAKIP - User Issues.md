@@ -5447,8 +5447,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 8  
 **Labels:** `feature`, `notification`, `P1`, `frontend`  
 **Plan:** Modul 14: 14.1  
-**PRD:** §28.1  
-**Workflow:** §22.1  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** in-app notifications
 
 #### User Story
@@ -5463,7 +5463,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Seluruh pengguna autentikasi sesuai event yang berhak dilihat.
 - **Dampak Data:** Penyimpanan notifikasi/read-state sesuai implementasi.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
+- **Aturan penerima (Q32, Q37 §37.3):** penerima ditentukan dari PJ efektif dan konteks assignment/work item; jangan broadcast ke semua pengguna yang menjadi PIC operasional (PIC bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5515,8 +5515,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** WA/Email queue
 
 #### User Story
@@ -5531,7 +5531,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Event sistem setelah waktu `pengisian_mulai`/pembukaan resmi.
 - **Dampak Data:** Queue/job dan log status pengiriman tanpa secret.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
+- **Aturan penerima (Q32, Q37 §37.3):** penerima ditentukan dari PJ efektif dan konteks assignment/work item; jangan broadcast ke semua pengguna yang menjadi PIC operasional (PIC bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5579,8 +5579,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** EWS
 
 #### User Story
@@ -5595,7 +5595,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Scheduler sistem.
 - **Dampak Data:** Queue/log pengiriman.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
+- **Aturan penerima (Q32, Q37 §37.3):** penerima ditentukan dari PJ efektif dan konteks assignment/work item; jangan broadcast ke semua pengguna yang menjadi PIC operasional (PIC bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5645,8 +5645,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** recap notification
 
 #### User Story
@@ -5706,8 +5706,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `notification`, `P1`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** return notification
 
 #### User Story
@@ -5722,7 +5722,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Dipicu event bisnis setelah commit.
 - **Dampak Data:** Queue WA/Email dan log status.
 
-- **Q31 recipient rule:** PIC penerima ditentukan dari konteks assignment/work item efektif; jangan broadcast ke semua user PIC operasional (bukan role).
+- **Aturan penerima (Q32, Q37 §37.3):** penerima ditentukan dari PJ efektif dan konteks assignment/work item; jangan broadcast ke semua pengguna yang menjadi PIC operasional (PIC bukan role).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -5772,8 +5772,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `infrastructure`, `notification`, `P2`, `backend`, `ops`  
 **Plan:** Modul 14: 14.2  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** delivery/idempotency
 
 #### User Story
@@ -6048,8 +6048,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Story Points:** 5  
 **Labels:** `feature`, `settings-audit`, `P2`, `frontend`, `ops`  
 **Plan:** Modul 14: 14.2; Modul 9  
-**PRD:** §28.2  
-**Workflow:** §22.2  
+**PRD:** §28  
+**Workflow:** —  
 **Data Model/Entitas:** notification config
 
 #### User Story
@@ -6801,17 +6801,17 @@ Decision gate dianggap selesai bila:
 | `US-11.04` | `ISS-11.04` | Modul 13: 13.6 | §18.8 | §10 | ✅ 1:1 |
 | `US-11.05` | `ISS-11.05` | Modul 13: 13.4 | §18.11 | §10 | ✅ 1:1 |
 | `US-11.06` | `ISS-11.06` | Modul 13: 13.7 | §18.5–18.7 | §10 | ✅ 1:1 |
-| `US-12.01` | `ISS-12.01` | Modul 14: 14.1 | §28.1 | §22.1 | ✅ 1:1 |
-| `US-12.02` | `ISS-12.02` | Modul 14: 14.1 | §28.1 | §22.1 | ✅ 1:1 |
-| `US-12.03` | `ISS-12.03` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
-| `US-12.04` | `ISS-12.04` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
-| `US-12.05` | `ISS-12.05` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
-| `US-12.06` | `ISS-12.06` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
-| `US-12.07` | `ISS-12.07` | Modul 14: 14.2 | §28.2 | §22.2 | ✅ 1:1 |
+| `US-12.01` | `ISS-12.01` | Modul 14: 14.1 | §28 | §4, §11, §22.1 | ✅ 1:1 |
+| `US-12.02` | `ISS-12.02` | Modul 14: 14.1 | §28 | — | ✅ 1:1 |
+| `US-12.03` | `ISS-12.03` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.04` | `ISS-12.04` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.05` | `ISS-12.05` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.06` | `ISS-12.06` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.07` | `ISS-12.07` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
 | `US-13.01` | `ISS-13.01` | Modul 9: 9.1–9.6 | §26 | §18 | ✅ 1:1 |
 | `US-13.02` | `ISS-13.02` | Modul 9: 9.7–9.9 | §18.9, §26 | §18 | ✅ 1:1 |
 | `US-13.03` | `ISS-13.03` | Modul 10: 10.1–10.6 | §25 | §19–20 | ✅ 1:1 |
-| `US-13.04` | `ISS-13.04` | Modul 14: 14.2; Modul 9 | §28.2 | §22.2 | ✅ 1:1 |
+| `US-13.04` | `ISS-13.04` | Modul 14: 14.2; Modul 9 | §28 | — | ✅ 1:1 |
 | `US-14.01` | `ISS-14.01` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.02` | `ISS-14.02` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.03` | `ISS-14.03` | Modul 3: 3.12 | §12.3, §12.6 | §13 | ✅ 1:1 |
