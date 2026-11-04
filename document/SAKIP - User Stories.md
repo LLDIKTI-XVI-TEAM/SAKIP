@@ -1581,6 +1581,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### US-07.01 · Pengisian Nilai Realisasi Komponen/Manual
 
+> **Status implementasi — issue #80 (PR #106, #115):** AC-1–AC-5, AC-7, dan AC-8 memiliki bukti test; AC-6 belum; rincian test dan batas bukti tercatat pada [ISS-07.01](SAKIP%20-%20User%20Issues.md#iss-0701--feature-pengisian-nilai-realisasi-komponenmanual). Centang bukan persetujuan QA/UAT atau deployment.
+
 > **Q45, Q47, Q51 (13 Oktober 2026):** form pengukuran memuat narasi pengukuran per indikator per periode (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`), isian `tindak_lanjut_rekomendasi` bila ada Rekomendasi Pimpinan disetujui pada periode sebelumnya, dan `catatan` sebagai keterangan opsional (Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2). Realisasi yang belum tersedia dicatat sebagai `status_perhitungan = belum_dapat_diukur` (Q47 §47.4). Gerbang pengajuan dan tampilan periode tanpa target berada pada US-07.03. AC-7 dan AC-8 ditambahkan karena story ini belum dikerjakan.
 
 | Field | Detail |
@@ -1599,14 +1601,14 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given indikator nonmanual, When semua komponen diisi, Then server menghitung `nilai` dari snapshot dan UI menampilkan nilai turunan read-only.
-- [ ] **AC-2:** Given indikator manual, When nilai diisi, Then nilai langsung tersimpan sebagai sumber `manual`.
-- [ ] **AC-3:** Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
-- [ ] **AC-4:** Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
-- [ ] **AC-5:** Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
+- [x] **AC-1:** Given indikator nonmanual, When semua komponen diisi, Then server menghitung `nilai` dari snapshot dan UI menampilkan nilai turunan read-only.
+- [x] **AC-2:** Given indikator manual, When nilai diisi, Then nilai langsung tersimpan sebagai sumber `manual`.
+- [x] **AC-3:** Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
+- [x] **AC-4:** Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
+- [x] **AC-5:** Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
 - [ ] **AC-6:** Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
-- [ ] **AC-7:** Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
-- [ ] **AC-8:** Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
+- [x] **AC-7:** Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
+- [x] **AC-8:** Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
 
 ### US-07.02 · Pemenuhan Bukti Dukung Pengukuran
 
@@ -1888,6 +1890,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### US-09.02 · Penetapan Status Capaian per Versi Pengukuran Disahkan
 
+> **Status implementasi — issue #180 (PR #203):** AC-1–AC-5 memiliki bukti test, antara lain `TetapkanStatusCapaianTest` dan `StatusCapaianAccessTest`; rincian test dan batas bukti tercatat pada [ISS-09.02](SAKIP%20-%20User%20Issues.md#iss-0902--feature-penetapan-status-capaian-per-versi-pengukuran-disahkan). Centang bukan persetujuan QA/UAT atau deployment.
+
 > **Q47, Q50 (13 Oktober 2026):** pada periode tanpa target, capaian persen dan status capaian tidak dihitung, dan realisasi `belum_dapat_diukur` tidak dihitung sebagai capaian 0 (Q47 §47.3 butir 1, §47.4 butir 3). Status capaian memakai target PK bernilai penuh yang tersimpan (Q50 §50.2). Penetapan status capaian manual tidak tersedia untuk pengukuran pada periode tanpa target maupun pengukuran berstatus `belum_dapat_diukur` (Q47 §47.3 butir 4). AC-5 ditambahkan karena story ini belum dikerjakan.
 
 | Field | Detail |
@@ -1906,11 +1910,11 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given versi pengukuran telah disahkan, When status dipilih, Then `status_capaian` merujuk `pengukuran_versi_id` yang sama.
-- [ ] **AC-2:** Given pengukuran belum disahkan, When status dicoba, Then ditolak.
-- [ ] **AC-3:** Given versi koreksi baru disahkan, Then versi baru mulai **Belum ditetapkan**; status versi lama tidak diwariskan otomatis.
-- [ ] **AC-4:** Given status direvisi, Then histori status lama tetap tersimpan dan baris terbaru menjadi yang berlaku.
-- [ ] **AC-5:** Given pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, When status capaian manual hendak ditetapkan, Then penetapan tidak tersedia, termasuk melalui request langsung. *(Q47 §47.3 butir 4)*
+- [x] **AC-1:** Given versi pengukuran telah disahkan, When status dipilih, Then `status_capaian` merujuk `pengukuran_versi_id` yang sama.
+- [x] **AC-2:** Given pengukuran belum disahkan, When status dicoba, Then ditolak.
+- [x] **AC-3:** Given versi koreksi baru disahkan, Then versi baru mulai **Belum ditetapkan**; status versi lama tidak diwariskan otomatis.
+- [x] **AC-4:** Given status direvisi, Then histori status lama tetap tersimpan dan baris terbaru menjadi yang berlaku.
+- [x] **AC-5:** Given pengukuran pada periode tanpa target atau berstatus `belum_dapat_diukur`, When status capaian manual hendak ditetapkan, Then penetapan tidak tersedia, termasuk melalui request langsung. *(Q47 §47.3 butir 4)*
 
 ### US-09.03 · Halaman Detail Rekomendasi Pimpinan
 
@@ -2584,6 +2588,8 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-13.06 · Penghapusan Kebijakan Storage, Batas Teknis Unggahan di Konfigurasi, dan Penataan Menu Referensi
 
+> **Status implementasi — issue #128 (PR #150):** AC-1, AC-2, dan AC-4–AC-8 memiliki bukti test; AC-3 belum; rincian test dan batas bukti tercatat pada [ISS-13.06](SAKIP%20-%20User%20Issues.md#iss-1306--feature-penghapusan-kebijakan-storage-batas-teknis-unggahan-di-konfigurasi-dan-penataan-menu-referensi). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-13.06` |
@@ -2601,14 +2607,14 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given pengguna mana pun, Then menu Kebijakan Storage dan halaman Batas Unggahan Berkas tidak tersedia, dan route lamanya tidak lagi melayani halaman tersebut. *(Q44 §44.1 butir 1)*
-- [ ] **AC-2:** Given unggahan file, Then selalu aktif tanpa saklar; penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak lagi dibuat, sedangkan penanda lama tetap tampil sebagai histori. *(Q44 §44.1 butir 2)*
+- [x] **AC-1:** Given pengguna mana pun, Then menu Kebijakan Storage dan halaman Batas Unggahan Berkas tidak tersedia, dan route lamanya tidak lagi melayani halaman tersebut. *(Q44 §44.1 butir 1)*
+- [x] **AC-2:** Given unggahan file, Then selalu aktif tanpa saklar; penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak lagi dibuat, sedangkan penanda lama tetap tampil sebagai histori. *(Q44 §44.1 butir 2)*
 - [ ] **AC-3:** Given lampiran tanpa persyaratan (Renstra, PK, Dasar Aturan, lampiran bebas kegiatan) atau persyaratan yang mengosongkan format atau ukuran, Then server menerapkan default konfigurasi 10 MB dan `pdf,docx,xlsx,jpg,jpeg,png`. *(Q44 §44.2 butir 1)*
-- [ ] **AC-4:** Given persyaratan disimpan dengan `ukuran_maks_kb` di atas 102400, Then ditolak; Given unggahan melebihi batas atas, Then ditolak. *(Q44 §44.2 butir 1)*
-- [ ] **AC-5:** Given halaman Persyaratan Berkas, Then mode "Ubah batas teknis" dan peringatan unggahan dimatikan dihapus; format dan ukuran diubah Perencanaan lewat form persyaratan. *(Q44 §44.1 butir 1–2)*
-- [ ] **AC-6:** Given panel penggunaan penyimpanan, Then panel dihapus. *(Q44 §44.1 butir 3)*
-- [ ] **AC-7:** Given sidebar, Then Dasar Aturan berada di grup Master Data & Referensi dan Persyaratan Berkas di grup Perencanaan Kinerja; permission tidak berubah. *(Q44 §44.3)*
-- [ ] **AC-8:** Given berkas tersimpan, Then penyimpanan tetap privat dan unduhan tetap melalui route berizin. *(Q44 §44.1 butir 4)*
+- [x] **AC-4:** Given persyaratan disimpan dengan `ukuran_maks_kb` di atas 102400, Then ditolak; Given unggahan melebihi batas atas, Then ditolak. *(Q44 §44.2 butir 1)*
+- [x] **AC-5:** Given halaman Persyaratan Berkas, Then mode "Ubah batas teknis" dan peringatan unggahan dimatikan dihapus; format dan ukuran diubah Perencanaan lewat form persyaratan. *(Q44 §44.1 butir 1–2)*
+- [x] **AC-6:** Given panel penggunaan penyimpanan, Then panel dihapus. *(Q44 §44.1 butir 3)*
+- [x] **AC-7:** Given sidebar, Then Dasar Aturan berada di grup Master Data & Referensi dan Persyaratan Berkas di grup Perencanaan Kinerja; permission tidak berubah. *(Q44 §44.3)*
+- [x] **AC-8:** Given berkas tersimpan, Then penyimpanan tetap privat dan unduhan tetap melalui route berizin. *(Q44 §44.1 butir 4)*
 
 **Business Rules / Catatan**
 

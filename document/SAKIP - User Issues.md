@@ -3675,16 +3675,18 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Otorisasi:** `pengukuran:create`, `pengukuran:update`.
 - **Dampak Data:** `pengukuran`, `pengukuran_komponen`, `audit_log`.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #106 dan #115, issue #80:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `CanonicalPengukuranTest::test_large_component_decimal_survives_calculation_and_submission_snapshot`, `PreviewPengukuranTest::test_preview_uses_snapshot_formula_without_mutating_measurement_or_audit`; AC-2 `CanonicalPengukuranTest::test_large_manual_decimal_survives_storage_snapshot_audit_and_page_props`; AC-3 `CalculatePengukuranTest::test_manual_preserves_null_and_zero_as_different_states`; AC-4 `EnsureDraftPengukuranTest::test_periode_belum_efektif_ditolak_tanpa_header`, `IndexPengukuranTest::test_sebelum_efektif_tidak_berlaku_memakai_versi_terendah`; AC-5 `EnsureDraftPengukuranTest::test_indikator_arsip_menolak_header_baru_tetapi_histori_tetap_dapat_dibuka`; AC-7 `PengukuranDraftStateTest::test_belum_dapat_diukur_mengosongkan_realisasi_manual_lalu_dapat_dibatalkan`, `PengukuranDraftStateTest::test_pengukuran_status_nilai_check_menegakkan_pasangan_status_dan_nilai`; AC-8 `PengukuranDraftStateTest::test_narasi_draft_boleh_parsial_dan_catatan_tetap_dikosongkan`, `RekomendasiBerlakuTest::test_draf_tidak_tampil_dan_hanya_rekomendasi_disetujui_terbaru_yang_berlaku_pada_periode_berikutnya`, dengan tampilan isian dibuktikan `PengukuranWorkflow.test.tsx`; SECURITY `AuthorizationHttpRegressionTest::test_matching_unit_deny_overrides_grant_only_allow_through_http`, `EnsureDraftPengukuranTest::test_deny_unit_menang_atas_allow_peran`. AC-6/TEST-6 tetap terbuka: `CanonicalPengukuranTest::test_rasio_antarperiode_tidak_menjumlah_persen` membuktikan persen tidak dijumlah, tetapi kesebandingan basis dengan target kumulatif (Q8) belum di-assert.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given indikator nonmanual, When semua komponen diisi, Then server menghitung `nilai` dari snapshot dan UI menampilkan nilai turunan read-only.
-- [ ] **AC-2:** Given indikator manual, When nilai diisi, Then nilai langsung tersimpan sebagai sumber `manual`.
-- [ ] **AC-3:** Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
-- [ ] **AC-4:** Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
-- [ ] **AC-5:** Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
+- [x] **AC-1:** Given indikator nonmanual, When semua komponen diisi, Then server menghitung `nilai` dari snapshot dan UI menampilkan nilai turunan read-only.
+- [x] **AC-2:** Given indikator manual, When nilai diisi, Then nilai langsung tersimpan sebagai sumber `manual`.
+- [x] **AC-3:** Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
+- [x] **AC-4:** Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
+- [x] **AC-5:** Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
 - [ ] **AC-6:** Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
-- [ ] **AC-7:** Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
-- [ ] **AC-8:** Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
+- [x] **AC-7:** Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
+- [x] **AC-8:** Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
 
 #### Implementation Tasks
 
@@ -3713,15 +3715,15 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator nonmanual, When semua komponen diisi, Then server menghitung `nilai` dari snapshot dan UI menampilkan nilai turunan read-only.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given indikator manual, When nilai diisi, Then nilai langsung tersimpan sebagai sumber `manual`.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator nonmanual, When semua komponen diisi, Then server menghitung `nilai` dari snapshot dan UI menampilkan nilai turunan read-only.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given indikator manual, When nilai diisi, Then nilai langsung tersimpan sebagai sumber `manual`.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
-- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
-- [ ] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
+- [x] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
 
 #### Definition of Done
 
@@ -6239,16 +6241,18 @@ Perubahan per request (tanpa nomor baris kode):
 - **Rule:** cabang anti-macet unggahan pada gerbang lampiran PK, pengajuan RA, pengajuan pengukuran, dan penambahan bukti dihapus; pembacaan nilai default yang tersebar di kode dialihkan ke konfigurasi, bukan dihapus. Tampilan daftar berkas terunggah masuk backlog tahap 3.
 - **Di luar cakupan:** perubahan permission.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #150, issue #128:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 dan AC-6 `UploadConfigurationTest::test_route_storage_dan_batas_teknis_lama_tidak_tersedia` (halaman kebijakan beserta panel penggunaan penyimpanan kini 404), `GroupedSidebarNavigation.test.tsx`; AC-2 `UploadConfigurationTest::test_setting_lama_diabaikan_tanpa_waiver_dan_unggahan_memakai_konfigurasi`, `UploadConfigurationTest::test_histori_marker_tetap_tampil_di_jejak_audit_tanpa_mengubah_baris`; AC-4 `UploadConfigurationTest::test_batas_persyaratan_ditegakkan_saat_simpan_dan_unggah`, `UploadLimitsTest::test_ceiling_di_atas_keputusan_dipotong_dan_konfigurasi_rusak_tidak_membuka_batas`; AC-5 `UploadConfigurationTest::test_perencanaan_menyimpan_format_ukuran_tanpa_izin_pengaturan_dan_tetap_teraudit`, `JenisBerkasIndex.test.tsx`; AC-7 `GroupedSidebarNavigation.test.tsx`, `InertiaCapabilitiesTest::test_capabilities_sama_dengan_keputusan_per_izin`; AC-8 `VerticalSlice1Test::test_private_evidence_requires_authorized_parent`, `BuktiDukungPengukuranTest::test_path_privat_tidak_dapat_diakses_sebagai_url_publik`. AC-3/TEST-3 tetap terbuka karena lampiran bebas kegiatan belum memiliki endpoint (Q44 §44.4).
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given pengguna mana pun, Then menu Kebijakan Storage dan halaman Batas Unggahan Berkas tidak tersedia, dan route lamanya tidak lagi melayani halaman tersebut. *(Q44 §44.1 butir 1)*
-- [ ] **AC-2:** Given unggahan file, Then selalu aktif tanpa saklar; penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak lagi dibuat, sedangkan penanda lama tetap tampil sebagai histori. *(Q44 §44.1 butir 2)*
+- [x] **AC-1:** Given pengguna mana pun, Then menu Kebijakan Storage dan halaman Batas Unggahan Berkas tidak tersedia, dan route lamanya tidak lagi melayani halaman tersebut. *(Q44 §44.1 butir 1)*
+- [x] **AC-2:** Given unggahan file, Then selalu aktif tanpa saklar; penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak lagi dibuat, sedangkan penanda lama tetap tampil sebagai histori. *(Q44 §44.1 butir 2)*
 - [ ] **AC-3:** Given lampiran tanpa persyaratan (Renstra, PK, Dasar Aturan, lampiran bebas kegiatan) atau persyaratan yang mengosongkan format atau ukuran, Then server menerapkan default konfigurasi 10 MB dan `pdf,docx,xlsx,jpg,jpeg,png`. *(Q44 §44.2 butir 1)*
-- [ ] **AC-4:** Given persyaratan disimpan dengan `ukuran_maks_kb` di atas 102400, Then ditolak; Given unggahan melebihi batas atas, Then ditolak. *(Q44 §44.2 butir 1)*
-- [ ] **AC-5:** Given halaman Persyaratan Berkas, Then mode "Ubah batas teknis" dan peringatan unggahan dimatikan dihapus; format dan ukuran diubah Perencanaan lewat form persyaratan. *(Q44 §44.1 butir 1–2)*
-- [ ] **AC-6:** Given panel penggunaan penyimpanan, Then panel dihapus. *(Q44 §44.1 butir 3)*
-- [ ] **AC-7:** Given sidebar, Then Dasar Aturan berada di grup Master Data & Referensi dan Persyaratan Berkas di grup Perencanaan Kinerja; permission tidak berubah. *(Q44 §44.3)*
-- [ ] **AC-8:** Given berkas tersimpan, Then penyimpanan tetap privat dan unduhan tetap melalui route berizin. *(Q44 §44.1 butir 4)*
+- [x] **AC-4:** Given persyaratan disimpan dengan `ukuran_maks_kb` di atas 102400, Then ditolak; Given unggahan melebihi batas atas, Then ditolak. *(Q44 §44.2 butir 1)*
+- [x] **AC-5:** Given halaman Persyaratan Berkas, Then mode "Ubah batas teknis" dan peringatan unggahan dimatikan dihapus; format dan ukuran diubah Perencanaan lewat form persyaratan. *(Q44 §44.1 butir 1–2)*
+- [x] **AC-6:** Given panel penggunaan penyimpanan, Then panel dihapus. *(Q44 §44.1 butir 3)*
+- [x] **AC-7:** Given sidebar, Then Dasar Aturan berada di grup Master Data & Referensi dan Persyaratan Berkas di grup Perencanaan Kinerja; permission tidak berubah. *(Q44 §44.3)*
+- [x] **AC-8:** Given berkas tersimpan, Then penyimpanan tetap privat dan unduhan tetap melalui route berizin. *(Q44 §44.1 butir 4)*
 
 #### Implementation Tasks
 
@@ -6275,14 +6279,14 @@ Perubahan per request (tanpa nomor baris kode):
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given pengguna mana pun, Then menu Kebijakan Storage dan halaman Batas Unggahan Berkas tidak tersedia, dan route lamanya tidak lagi melayani halaman tersebut. *(Q44 §44.1 butir 1)*
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given unggahan file, Then selalu aktif tanpa saklar; penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak lagi dibuat, sedangkan penanda lama tetap tampil sebagai histori. *(Q44 §44.1 butir 2)*
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given pengguna mana pun, Then menu Kebijakan Storage dan halaman Batas Unggahan Berkas tidak tersedia, dan route lamanya tidak lagi melayani halaman tersebut. *(Q44 §44.1 butir 1)*
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given unggahan file, Then selalu aktif tanpa saklar; penanda `tidak_dapat_dipenuhi` akibat unggahan dimatikan tidak lagi dibuat, sedangkan penanda lama tetap tampil sebagai histori. *(Q44 §44.1 butir 2)*
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given lampiran tanpa persyaratan (Renstra, PK, Dasar Aturan, lampiran bebas kegiatan) atau persyaratan yang mengosongkan format atau ukuran, Then server menerapkan default konfigurasi 10 MB dan `pdf,docx,xlsx,jpg,jpeg,png`. *(Q44 §44.2 butir 1)*
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given persyaratan disimpan dengan `ukuran_maks_kb` di atas 102400, Then ditolak; Given unggahan melebihi batas atas, Then ditolak. *(Q44 §44.2 butir 1)*
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given halaman Persyaratan Berkas, Then mode "Ubah batas teknis" dan peringatan unggahan dimatikan dihapus; format dan ukuran diubah Perencanaan lewat form persyaratan. *(Q44 §44.1 butir 1–2)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given panel penggunaan penyimpanan, Then panel dihapus. *(Q44 §44.1 butir 3)*
-- [ ] TEST-7: Buat Vitest frontend test dan Pest Feature test yang membuktikan — Given sidebar, Then Dasar Aturan berada di grup Master Data & Referensi dan Persyaratan Berkas di grup Perencanaan Kinerja; permission tidak berubah. *(Q44 §44.3)*
-- [ ] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given berkas tersimpan, Then penyimpanan tetap privat dan unduhan tetap melalui route berizin. *(Q44 §44.1 butir 4)*
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given persyaratan disimpan dengan `ukuran_maks_kb` di atas 102400, Then ditolak; Given unggahan melebihi batas atas, Then ditolak. *(Q44 §44.2 butir 1)*
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given halaman Persyaratan Berkas, Then mode "Ubah batas teknis" dan peringatan unggahan dimatikan dihapus; format dan ukuran diubah Perencanaan lewat form persyaratan. *(Q44 §44.1 butir 1–2)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given panel penggunaan penyimpanan, Then panel dihapus. *(Q44 §44.1 butir 3)*
+- [x] TEST-7: Buat Vitest frontend test dan Pest Feature test yang membuktikan — Given sidebar, Then Dasar Aturan berada di grup Master Data & Referensi dan Persyaratan Berkas di grup Perencanaan Kinerja; permission tidak berubah. *(Q44 §44.3)*
+- [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given berkas tersimpan, Then penyimpanan tetap privat dan unduhan tetap melalui route berizin. *(Q44 §44.1 butir 4)*
 
 #### Definition of Done
 
