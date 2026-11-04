@@ -616,6 +616,8 @@ Koreksi setelah penutupan tetap memakai mekanisme buka-kembali beraudit. Dalam s
 
 ### 12.7 Revisi PK Berversi dan Revisi Target (Q40)
 
+> **Refinement PM 3 November 2026 — koreksi metadata ISS-02.09:** nomor/tanggal yang benar-benar berubah pada PK yang sudah dipakai jadwal mengunci wajib alasan dan rujukan dokumen resmi (maksimal 255 karakter). Rujukan hanya disimpan per peristiwa dalam audit. Lampiran-saja dan submit tanpa perubahan tetap mengikuti alasan existing, rujukan opsional; sebelum mengunci alasan/rujukan opsional. Koreksi metadata tidak membentuk versi PK/snapshot atau mengubah hasil historis. Rincian UI dan mutation boundary tercatat pada refinement ISS-02.09 di Keputusan Penyelarasan; Q82 tetap berlaku khusus editor target.
+
 > **Diperbarui Q40 dan Q50 (13 Oktober 2026):** asumsi lama bahwa target tahunan PK tidak direvisi di tengah tahun (revisi hanya efektif di antara tahun) dan bahwa nomor/tanggal surat persetujuan Eselon I dicantumkan pada kolom `alasan` **digantikan** oleh revisi PK berversi di bawah. Revisi PK berversi (US/ISS-02.12) dikerjakan pada tahap 3 (Q46 §46.3); status implementasi: belum.
 
 - Revisi PK jarang terjadi — umumnya pada akhir tahun setelah persetujuan Eselon I di kementerian pusat. Di aplikasi, revisi disetujui **Perencanaan** (Q40 §40.1 butir 1).

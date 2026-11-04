@@ -3,6 +3,7 @@
 namespace App\Services\PerjanjianKinerja;
 
 use App\Models\Permission;
+use App\Models\RenstraPk;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Storage\UploadLimits;
@@ -18,6 +19,21 @@ use Throwable;
 
 class PerjanjianKinerjaSupport
 {
+    /** Bandingkan nilai yang akan disimpan, termasuk tanggal cast dan nomor kosong sebagai null. @param array<string, mixed> $data */
+    public static function metadataBerubah(RenstraPk $pk, array $data): bool
+    {
+        $calon = clone $pk;
+        if (array_key_exists('nomor_pk', $data)) {
+            $nomor = is_string($data['nomor_pk']) ? trim($data['nomor_pk']) : null;
+            $calon->nomor_pk = $nomor === '' ? null : $nomor;
+        }
+        if (array_key_exists('tanggal_pk', $data)) {
+            $calon->tanggal_pk = $data['tanggal_pk'];
+        }
+
+        return $calon->isDirty(['nomor_pk', 'tanggal_pk']);
+    }
+
     /**
      * Membersihkan string alasan audit dari byte NUL dan karakter kontrol ilegal.
      */

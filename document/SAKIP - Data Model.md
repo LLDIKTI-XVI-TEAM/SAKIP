@@ -822,6 +822,8 @@ Payung strategis multi-tahun.
 
 ### 2.10 `renstra_pk`
 
+**Refinement koreksi metadata (PM, 3 November 2026; ISS-02.09):** tidak ada kolom rujukan baru pada PK. Nomor/tanggal yang berubah setelah PK dipakai jadwal mengunci wajib alasan dan rujukan resmi maksimal 255 karakter; rujukan dicatat pada `audit_log.nilai_baru.rujukan` per peristiwa. Lampiran-saja dan submit tanpa perubahan tetap diterima dengan alasan wajib sesudah mengunci, rujukan opsional. Sebelum mengunci alasan/rujukan opsional. Perbandingan nilai dilakukan dalam transaksi setelah lock.
+
 Perjanjian Kinerja tahunan per Renstra, masuk penuh sejak Fase Awal.
 
 | Kolom | Tipe | Constraint | Keterangan |
@@ -1619,6 +1621,8 @@ Catatan rekomendasi/arahan atas capaian suatu indikator pada suatu periode. Seja
 ---
 
 ### 2.32 `audit_log`
+
+**Koreksi metadata PK (ISS-02.09, refinement PM 3 November 2026):** `renstra_pk.ubah` menyimpan metadata/lampiran lama dan baru, `alasan`, `dasar_izin`, serta `nilai_baru.rujukan` (teks atau null). Dua koreksi menghasilkan dua peristiwa dengan rujukan masing-masing; audit lama tidak ditimpa. Contoh `nilai_baru`: `{"nomor_pk":"PK/2026/02","tanggal_pk":"2026-04-21","rujukan":"Dokumen PK resmi tanggal 21 April 2026"}` bersama field snapshot audit existing. Penolakan alasan/rujukan dicatat sekali sebagai `renstra_pk.ubah_ditolak` dengan kategori `input_tidak_valid` dan nama kolom, tanpa payload mentah; rollback tidak menghapus audit penolakan. Riwayat dibaca pemegang `audit:read` lewat Jejak Audit, tidak ditampilkan kembali di halaman PK pada issue ini.
 
 Pencatatan append-only seluruh peristiwa penting sistem.
 

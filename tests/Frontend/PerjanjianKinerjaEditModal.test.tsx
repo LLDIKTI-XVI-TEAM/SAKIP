@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { router } from '@inertiajs/react';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PerjanjianKinerjaEditModal } from '@/Pages/PerjanjianKinerja/Partials/PerjanjianKinerjaEditModal';
 import type { RenstraPkSummary } from '@/types/perjanjian-kinerja';
@@ -7,6 +8,7 @@ const originalShowModal = HTMLDialogElement.prototype.showModal;
 const originalClose = HTMLDialogElement.prototype.close;
 
 beforeEach(() => {
+    vi.spyOn(router, 'post').mockImplementation(() => undefined);
     HTMLDialogElement.prototype.showModal = function () {
         this.open = true;
     };
@@ -84,7 +86,7 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
         expect(tanggalInput.value).toBe('2026-01-15');
     });
 
-    it('mewajibkan alasan hanya setelah PK dipakai jadwal aktif', () => {
+    it('menampilkan alasan dan rujukan opsional inline sebelum PK dipakai jadwal aktif, lalu meminta konfirmasi sesudahnya', () => {
         const { rerender } = render(
             <PerjanjianKinerjaEditModal
                 isOpen={true}
@@ -96,6 +98,7 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
 
         // Q43 §43.3 butir 3: sebelum jadwal aktif alasan opsional dan submit tidak terkunci.
         expect(screen.getByLabelText(/Alasan \(opsional\)/)).toBeTruthy();
+        expect(screen.getByLabelText<HTMLInputElement>(/Rujukan dokumen resmi/).required).toBe(false);
         expect(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }).hasAttribute('disabled')).toBe(false);
 
         rerender(
@@ -107,9 +110,121 @@ describe('PerjanjianKinerjaEditModal Lifecycle & Concurrency', () => {
             />
         );
 
-        // Q43 §43.2 butir 3: sesudahnya alasan wajib.
-        expect(screen.getByLabelText(/Alasan Perubahan Data Perjanjian Kinerja/)).toBeTruthy();
-        expect(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }).hasAttribute('disabled')).toBe(true);
+        // Alasan diisi setelah Simpan ditekan; tombol pembuka tidak terkunci oleh alasan kosong.
+        expect(screen.queryByLabelText(/^Alasan/)).toBeNull();
+        const lanjutkan = screen.getByRole<HTMLButtonElement>('button', { name: /Perbarui Perjanjian Kinerja/ });
+        expect(lanjutkan.disabled).toBe(false);
+        fireEvent.click(lanjutkan);
+        expect(router.post).not.toHaveBeenCalled();
+        expect(screen.queryByRole('dialog', { name: 'Edit Perjanjian Kinerja' })).toBeNull();
+        expect(screen.getByRole('dialog', { name: 'Konfirmasi perubahan Perjanjian Kinerja' })).toBeTruthy();
+        expect(screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/).getAttribute('aria-required')).toBe('true');
+    });
+
+    it('menyimpan sebelum jadwal mengunci tanpa modal konfirmasi melalui POST spoof dengan rujukan opsional', () => {
+        render(<PerjanjianKinerjaEditModal isOpen onClose={() => {}} pk={samplePk} />);
+        fireEvent.change(screen.getByLabelText(/Rujukan dokumen resmi/), { target: { value: 'Nota dinas 7/2026' } });
+        fireEvent.click(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }));
+
+        expect(router.post).toHaveBeenCalledTimes(1);
+        const [url, data, options] = vi.mocked(router.post).mock.calls[0];
+        expect(url).toBe(`/perjanjian-kinerja/${samplePk.id}`);
+        expect(data).toMatchObject({ _method: 'put', rujukan: 'Nota dinas 7/2026', alasan: '' });
+        expect(options?.forceFormData).toBe(true);
+        expect(screen.queryByRole('dialog', { name: 'Konfirmasi perubahan Perjanjian Kinerja' })).toBeNull();
+    });
+
+    it.each(['nomor', 'tanggal'])('meminta rujukan bila %s PK berubah dan mempertahankan isian saat konfirmasi dibatalkan', (field) => {
+        render(<PerjanjianKinerjaEditModal isOpen onClose={() => {}} pk={samplePk} alasanWajib />);
+        const input = screen.getByLabelText(field === 'nomor' ? /Nomor Dokumen/ : /Tanggal Penandatanganan/);
+        fireEvent.change(input, { target: { value: field === 'nomor' ? 'PK/KOREKSI' : '2026-01-20' } });
+        fireEvent.click(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }));
+
+        const source = screen.getByLabelText<HTMLInputElement>(/Rujukan dokumen resmi/);
+        expect(source.required).toBe(true);
+        expect(source.maxLength).toBe(255);
+        fireEvent.change(screen.getByLabelText(/Alasan perubahan/), { target: { value: 'Koreksi salah ketik.' } });
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' }).disabled).toBe(true);
+        fireEvent.change(source, { target: { value: 'Surat PK 8/2026' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+
+        expect(screen.getByLabelText<HTMLInputElement>(field === 'nomor' ? /Nomor Dokumen/ : /Tanggal Penandatanganan/).value)
+            .toBe(field === 'nomor' ? 'PK/KOREKSI' : '2026-01-20');
+        fireEvent.click(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }));
+        expect(screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/).value).toBe('Koreksi salah ketik.');
+        expect(screen.getByLabelText<HTMLInputElement>(/Rujukan dokumen resmi/).value).toBe('Surat PK 8/2026');
+        expect(router.post).not.toHaveBeenCalled();
+    });
+
+    it.each([samplePk, { ...samplePk, nomor_pk: null }])('metadata setara setelah normalisasi tetap membuat rujukan opsional', (pk) => {
+        render(<PerjanjianKinerjaEditModal isOpen onClose={() => {}} pk={pk} alasanWajib />);
+        fireEvent.change(screen.getByLabelText(/Nomor Dokumen/), { target: { value: ` ${pk.nomor_pk ?? ''} ` } });
+        fireEvent.click(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }));
+        expect(screen.getByLabelText<HTMLInputElement>(/Rujukan dokumen resmi/).required).toBe(false);
+        fireEvent.change(screen.getByLabelText(/Alasan perubahan/), { target: { value: 'Pemeriksaan dokumen.' } });
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' }).disabled).toBe(false);
+    });
+
+    it('lampiran-only tetap meminta alasan dan mempertahankan berkas saat kembali ke editor', () => {
+        render(<PerjanjianKinerjaEditModal isOpen onClose={() => {}} pk={samplePk} alasanWajib />);
+        fireEvent.click(screen.getByRole('button', { name: 'Tambah Lampiran' }));
+        const file = new File(['PK tambahan'], 'pk-tambahan.pdf', { type: 'application/pdf' });
+        fireEvent.change(screen.getByLabelText(/File lampiran 1/), { target: { files: [file] } });
+        fireEvent.click(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }));
+        expect(screen.getByLabelText<HTMLInputElement>(/Rujukan dokumen resmi/).required).toBe(false);
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' }).disabled).toBe(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+        expect(screen.getByText(/pk-tambahan.pdf/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }));
+        fireEvent.change(screen.getByLabelText(/Alasan perubahan/), { target: { value: 'Tambahan dokumen anggaran.' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+        expect(vi.mocked(router.post).mock.calls[0][1]).toMatchObject({ lampiran: [{ file }], rujukan: '' });
+    });
+
+    it('mempertahankan modal dan data setelah galat server, menahan kirim ganda, dan menutup hanya setelah sukses', async () => {
+        const onClose = vi.fn();
+        render(<PerjanjianKinerjaEditModal isOpen onClose={onClose} pk={samplePk} alasanWajib />);
+        fireEvent.change(screen.getByLabelText(/Nomor Dokumen/), { target: { value: 'PK/KOREKSI' } });
+        fireEvent.click(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }));
+        fireEvent.change(screen.getByLabelText(/Alasan perubahan/), { target: { value: 'Koreksi nomor PK.' } });
+        fireEvent.change(screen.getByLabelText(/Rujukan dokumen resmi/), { target: { value: 'Surat 9/2026' } });
+        const simpan = screen.getByRole('button', { name: 'Simpan perubahan' });
+        fireEvent.click(simpan);
+        fireEvent.click(simpan);
+        expect(router.post).toHaveBeenCalledTimes(1);
+        const options = vi.mocked(router.post).mock.calls[0][2]!;
+        await act(async () => { options.onError?.({ rujukan: 'Rujukan wajib diisi.', konflik: 'Data PK sudah berubah. Muat ulang.' }); options.onFinish?.({} as never); });
+
+        expect(onClose).not.toHaveBeenCalled();
+        const source = screen.getByLabelText<HTMLInputElement>(/Rujukan dokumen resmi/);
+        expect(source.value).toBe('Surat 9/2026');
+        expect(document.getElementById(source.getAttribute('aria-describedby') ?? '')?.textContent).toBe('Rujukan wajib diisi.');
+        expect(screen.getByText('Data PK sudah berubah. Muat ulang.')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
+        expect(screen.getByLabelText<HTMLInputElement>(/Nomor Dokumen/).value).toBe('PK/KOREKSI');
+        expect(screen.getByText('Data PK sudah berubah. Muat ulang.')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+        const nextOptions = vi.mocked(router.post).mock.calls[1][2]!;
+        await act(async () => { await nextOptions.onSuccess?.({} as never); });
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('submit formulir membuka konfirmasi dan menahan perubahan maupun penutupan selama request berjalan', async () => {
+        const onClose = vi.fn();
+        const { container } = render(<PerjanjianKinerjaEditModal isOpen onClose={onClose} pk={samplePk} alasanWajib />);
+        fireEvent.submit(container.querySelector('form')!);
+        fireEvent.change(screen.getByLabelText(/Alasan perubahan/), { target: { value: 'Menambahkan catatan dokumen.' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+        const options = vi.mocked(router.post).mock.calls[0][2]!;
+        await act(async () => { options.onStart?.({} as never); });
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Batal' }).disabled).toBe(true);
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' }).disabled).toBe(true);
+        expect(screen.getByLabelText<HTMLInputElement>(/Rujukan dokumen resmi/).disabled).toBe(true);
+        const dialog = screen.getByRole('dialog', { name: 'Konfirmasi perubahan Perjanjian Kinerja' });
+        fireEvent(dialog, new Event('cancel', { bubbles: true, cancelable: true }));
+        expect(screen.getByLabelText<HTMLTextAreaElement>(/Alasan perubahan/).value).toBe('Menambahkan catatan dokumen.');
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it('mempertahankan input koreksi pengguna saat props pk di-refresh dengan object reference baru selagi modal terbuka', () => {

@@ -263,6 +263,8 @@ Setiap task memiliki tiga bagian wajib:
 - **DoD:** PK baru untuk kombinasi Renstra+tahun yang sama ditolak sistem (unique constraint) kecuali melalui alur koreksi (2.12); PK tersimpan dan dapat dirujuk saat aktivasi Jadwal (Modul 3).
 
 ### 2.12 Fitur koreksi Perjanjian Kinerja (wajib alasan)
+
+> **Refinement PM, 3 November 2026 — ISS-02.09:** alasan opsional sebelum PK dipakai jadwal yang mengunci, dan tetap wajib sesudahnya. Rujukan dokumen resmi (teks maksimal 255 karakter) wajib hanya bila nomor/tanggal benar-benar berubah pada PK yang mengunci; lampiran-saja dan submit tanpa perubahan tetap mengikuti alasan existing dengan rujukan opsional. Rujukan disimpan per peristiwa pada `audit_log.nilai_baru.rujukan`, tanpa kolom PK atau tampilan riwayat baru. Sebelum mengunci kedua field inline opsional; sesudahnya Simpan membuka Modal Alasan Audit, rujukan melalui `notice`. Action memutuskan setelah lock. Q82 hanya menghapus alasan/rujukan editor target, bukan koreksi metadata ini.
 - **Scope:** Alur khusus untuk mengubah `nomor_pk`/`tanggal_pk` pada PK yang sudah tercatat, mewajibkan pengisian alasan koreksi (tetap wajib, Q43 §43.2 butir 3). Jalur ini hanya untuk koreksi salah ketik nomor atau tanggal PK; perubahan target resmi memakai revisi PK berversi (2.23, Q40 §40.1 butir 8). `nomor_pk` bersifat opsional (Q50 §50.1), sehingga koreksi tidak mewajibkan nomor terisi.
 - **Dependency:** 2.11.
 - **DoD:** Submit koreksi tanpa alasan ditolak validasi (pesan error jelas); koreksi berhasil menghasilkan baris audit_log dengan `alasan` terisi dan `nilai_lama`/`nilai_baru` mencerminkan field yang berubah.

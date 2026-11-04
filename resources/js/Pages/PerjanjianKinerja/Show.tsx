@@ -19,6 +19,7 @@ interface ShowProps {
     is_jadwal_aktif: boolean;
     is_jadwal_terkunci?: boolean;
     alasan_wajib?: boolean;
+    snapshot_url?: string | null;
     storageSettings?: StorageSettings;
     can: {
         update: boolean;
@@ -29,7 +30,7 @@ interface ShowProps {
     };
 }
 
-export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, alasan_wajib = false, storageSettings, can }: ShowProps) {
+export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, alasan_wajib = false, snapshot_url, storageSettings, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -80,6 +81,10 @@ export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_akti
                 </div>
 
                 {isTerkunci && <PkLockNotice status={jadwal_status} />}
+                {snapshot_url && <p className="text-sm text-muted">
+                    Koreksi nomor atau tanggal PK tidak mengubah target Rencana Aksi dan pengukuran. Untuk koreksi target yang sudah dibekukan, perbaiki target PK lalu{' '}
+                    <Link href={snapshot_url} className="font-semibold text-primary hover:underline">buka Snapshot Indikator</Link>.
+                </p>}
 
                 <Card>
                     <CardHeader className="items-start gap-4">
