@@ -8,11 +8,27 @@ use App\Services\Authorization\PermissionResolver;
 use App\Services\PerjanjianKinerja\PerjanjianKinerjaSupport;
 use App\Support\AuditReason;
 use App\Support\PermissionCodes;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 class UpdatePerjanjianKinerjaRequest extends FormRequest
 {
+    /** Penolakan pratinjau tidak mencapai Action, sehingga dicatat sebelum respons validasi dikirim. */
+    protected function failedValidation(ValidatorContract $validator): void
+    {
+        $pk = $this->route('perjanjian_kinerja');
+        $actor = $this->user();
+        if ($actor && $pk instanceof RenstraPk && array_intersect(['alasan', 'rujukan'], $validator->errors()->keys()) !== []) {
+            $decision = app(PermissionResolver::class)->resolve($actor, PermissionCodes::PK_UPDATE);
+            app(AuditLogger::class)->catat(actor: $actor, tindakan: 'renstra_pk.ubah_ditolak',
+                objekTipe: 'renstra_pk', objekId: $pk->id,
+                nilaiBaru: ['alasan_penolakan' => 'input_tidak_valid', 'kolom' => $validator->errors()->keys()],
+                alasan: $this->sanitizeAlasan($this->input('alasan')), dasarIzin: $decision->toAuditBasis());
+        }
+        parent::failedValidation($validator);
+    }
+
     public function authorize(): bool
     {
         $pk = $this->route('perjanjian_kinerja');
@@ -95,6 +111,7 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
             'tanggal_pk' => ['required', 'date'],
             // Opsional sebelum PK dipakai jadwal aktif; sesudahnya wajib (Q43 §43.2 butir 3, §43.3 butir 3).
             'alasan' => ['nullable', 'string', 'max:1000', AuditReason::validate(...)],
+            'rujukan' => ['nullable', 'string', 'max:255', AuditReason::validate(...)],
             'expected_updated_at' => ['required', 'date'],
             ...PerjanjianKinerjaSupport::lampiranRules(),
         ];
@@ -124,6 +141,11 @@ class UpdatePerjanjianKinerjaRequest extends FormRequest
                 // Pratinjau batas mutasi: Action memeriksa ulang di dalam transaksi setelah baris jadwal dikunci.
                 if ($pk instanceof RenstraPk && $alasan === '' && $pk->dipakaiJadwalAktif()) {
                     $validator->errors()->add('alasan', 'Alasan perubahan Perjanjian Kinerja wajib diisi karena PK sudah dipakai jadwal aktif.');
+                }
+                if ($pk instanceof RenstraPk && ! $validator->errors()->hasAny(['nomor_pk', 'tanggal_pk'])
+                    && $pk->dipakaiJadwalAktif() && PerjanjianKinerjaSupport::metadataBerubah($pk, $this->only(['nomor_pk', 'tanggal_pk']))
+                    && trim(AuditReason::sanitize($this->input('rujukan'))) === '') {
+                    $validator->errors()->add('rujukan', 'Rujukan dokumen resmi wajib diisi karena nomor atau tanggal PK yang sudah dipakai diubah.');
                 }
             },
             function (Validator $validator) {

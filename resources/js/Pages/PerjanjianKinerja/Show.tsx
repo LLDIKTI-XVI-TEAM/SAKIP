@@ -19,6 +19,7 @@ interface ShowProps {
     is_jadwal_aktif: boolean;
     is_jadwal_terkunci?: boolean;
     alasan_wajib?: boolean;
+    snapshot_url?: string | null;
     storageSettings?: StorageSettings;
     can: {
         update: boolean;
@@ -29,7 +30,7 @@ interface ShowProps {
     };
 }
 
-export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, alasan_wajib = false, storageSettings, can }: ShowProps) {
+export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, alasan_wajib = false, snapshot_url, storageSettings, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -66,13 +67,13 @@ export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_akti
             <Head title={`Perjanjian Kinerja (PK) Tahun ${pk.tahun}`} />
 
             <div className="mx-auto max-w-5xl space-y-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Link href="/perjanjian-kinerja" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <Link href="/perjanjian-kinerja" className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25 sm:h-9">
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                         Kembali ke daftar
                     </Link>
                     {can.update && (
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIsEditModalOpen(true)}>
+                        <Button variant="outline" size="sm" className="h-11 gap-1.5 sm:h-9" onClick={() => setIsEditModalOpen(true)}>
                             <Pencil className="h-4 w-4" aria-hidden="true" />
                             Edit Perjanjian Kinerja
                         </Button>
@@ -80,6 +81,10 @@ export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_akti
                 </div>
 
                 {isTerkunci && <PkLockNotice status={jadwal_status} />}
+                {snapshot_url && <p className="text-sm text-muted">
+                    Koreksi nomor atau tanggal PK tidak mengubah target Rencana Aksi dan pengukuran. Untuk koreksi target yang sudah dibekukan, perbaiki target PK lalu{' '}
+                    <Link href={snapshot_url} className="font-semibold text-primary hover:underline">buka Snapshot Indikator</Link>.
+                </p>}
 
                 <Card>
                     <CardHeader className="items-start gap-4">

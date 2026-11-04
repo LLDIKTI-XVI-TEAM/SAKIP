@@ -211,7 +211,7 @@ describe('PerjanjianKinerja Index Edit Modal Alasan', () => {
         );
     };
 
-    it('mewajibkan alasan pada modal edit saat PK sudah dipakai jadwal aktif', () => {
+    it('membuka konfirmasi alasan setelah Simpan saat PK sudah dipakai jadwal aktif', () => {
         const pk = createPkItem({
             id: 'pk-alasan-wajib',
             nomor_pk: 'PK-WAJIB-001',
@@ -227,9 +227,13 @@ describe('PerjanjianKinerja Index Edit Modal Alasan', () => {
         renderIndex(pk);
         fireEvent.click(screen.getByRole('button', { name: 'Edit PK PK-WAJIB-001' }));
 
-        expect(screen.getByLabelText(/Alasan Perubahan Data Perjanjian Kinerja/)).toBeTruthy();
         expect(screen.queryByLabelText('Alasan (opsional)')).toBeNull();
-        expect(screen.getByRole('button', { name: /Perbarui Perjanjian Kinerja/ }).hasAttribute('disabled')).toBe(true);
+        const lanjutkan = screen.getByRole<HTMLButtonElement>('button', { name: /Perbarui Perjanjian Kinerja/ });
+        expect(lanjutkan.disabled).toBe(false);
+        fireEvent.click(lanjutkan);
+        expect(screen.getByRole('dialog', { name: 'Konfirmasi perubahan Perjanjian Kinerja' })).toBeTruthy();
+        expect(screen.getByLabelText(/Alasan perubahan/).getAttribute('aria-required')).toBe('true');
+        expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' }).disabled).toBe(true);
     });
 
     it('menjaga alasan tetap opsional saat PK belum dipakai jadwal aktif', () => {

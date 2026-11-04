@@ -468,6 +468,10 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 ### US-02.09 · Koreksi Perjanjian Kinerja Secara Teraudit
 
+> **Status implementasi lokal, 4 November 2026:** AC-1–AC-5 dan test terkait dibuktikan oleh `tests/Feature/PerjanjianKinerja/KoreksiMetadataPkTest.php`, suite PK/snapshot existing, serta test komponen edit/Index/Show dan AuditReasonModal. Browser smoke desktop 1440×900 dan mobile 375×812 menggunakan fixture sintetis lulus. Test mencakup dua rujukan berurutan, alasan/rujukan kosong, lampiran-saja, no-op, nomor null, jadwal ditutup/pernah aktif, provenance setelah lock, dan keutuhan hasil tersahkan setelah koreksi metadata maupun snapshot. Checkbox merupakan bukti lokal otomatis, bukan CI remote, merge, UAT, atau deployment.
+
+> **Refinement PM 3 November 2026 (Q1–Q4):** rujukan resmi disimpan per peristiwa hanya di `audit_log.nilai_baru.rujukan` (maksimal 255 karakter), tanpa kolom PK/riwayat baru. Alasan wajib sesudah PK dipakai jadwal mengunci; rujukan wajib hanya untuk perubahan nyata nomor/tanggal, termasuk bila sekaligus menambah lampiran. Lampiran-saja dan submit tanpa perubahan tetap diterima dengan alasan existing, rujukan opsional. Sebelum mengunci kedua field opsional inline tanpa modal; sesudah mengunci Simpan membuka `AuditReasonModal` dengan rujukan di `notice`. AC-1 mengikuti pengecualian Q43 sebelum mengunci; AC-3–AC-5 dibuktikan lewat integrasi koreksi snapshot existing, tanpa jalur penerbitan snapshot dari halaman PK. Q82 mencabut isian editor target PK, bukan kontrak metadata ini.
+
 > **Q40 (13 Oktober 2026):** jalur ini tetap untuk koreksi salah ketik atau salah input terhadap dokumen PK resmi, termasuk nomor dan tanggal PK. Perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (US-02.12), bukan koreksi ini (Q40 §40.1 butir 8). Koreksi PK tetap wajib alasan (Q43 §43.2 butir 3). `nomor_pk` opsional (Q50 §50.1), sehingga validasi koreksi tidak mewajibkan nomor PK.
 
 | Field | Detail |
@@ -486,11 +490,11 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
-- [ ] **AC-2:** Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
-- [ ] **AC-3:** Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
-- [ ] **AC-4:** Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
-- [ ] **AC-5:** Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
+- [x] **AC-1:** Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
+- [x] **AC-2:** Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
+- [x] **AC-3:** Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
+- [x] **AC-4:** Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
+- [x] **AC-5:** Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
 
 **Business Rules / Catatan**
 

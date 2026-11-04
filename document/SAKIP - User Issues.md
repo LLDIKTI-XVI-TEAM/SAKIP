@@ -1136,7 +1136,11 @@ kegiatan:update
 
 ### ISS-02.09 · [Feature] Koreksi Perjanjian Kinerja Secara Teraudit
 
-> **Q40, Q43, Q50 (13 Oktober 2026):** jalur ini tetap untuk koreksi salah ketik atau salah input terhadap dokumen PK resmi; perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi ISS-02.12, bukan koreksi ini (Q40 §40.1 butir 8). Koreksi PK yang sudah dipakai jadwal aktif tetap wajib alasan (Q43 §43.2 butir 3); perubahan PK sebelum dipakai jadwal aktif beralasan opsional (Q43 §43.3 butir 3; ISS-13.05). `nomor_pk` opsional (Q50 §50.1). Issue ini belum dikerjakan sehingga kontrak dan test di bawah diperbarui langsung; AC tetap sama dengan US-02.09.
+> **Status implementasi lokal, 4 November 2026:** AC-1–AC-5 dan test terkait dibuktikan oleh `tests/Feature/PerjanjianKinerja/KoreksiMetadataPkTest.php`, suite PK/snapshot existing, serta test komponen edit/Index/Show dan AuditReasonModal. Browser smoke desktop 1440×900 dan mobile 375×812 menggunakan fixture sintetis lulus. Test mencakup dua rujukan berurutan, alasan/rujukan kosong, lampiran-saja, no-op, nomor null, jadwal ditutup/pernah aktif, provenance setelah lock, dan keutuhan hasil tersahkan setelah koreksi metadata maupun snapshot. Checkbox merupakan bukti lokal otomatis, bukan CI remote, merge, UAT, atau deployment.
+
+> **Refinement PM 3 November 2026 (Q1–Q4):** rujukan resmi disimpan per peristiwa pada `audit_log.nilai_baru.rujukan`, maksimal 255 karakter, tanpa migrasi/kolom PK atau riwayat pada halaman PK. Sesudah jadwal mengunci, alasan tetap wajib dan rujukan wajib hanya bila nomor/tanggal benar-benar berubah menurut nilai tersimpan setelah lock; FormRequest memberi pratinjau. Lampiran-saja dan submit tanpa perubahan tetap diterima/teraudit dengan rujukan opsional. Sebelum mengunci alasan dan rujukan opsional inline tanpa konfirmasi; sesudah mengunci gunakan `AuditReasonModal.notice`, Simpan tidak dinonaktifkan karena alasan kosong. AC-1 mengikuti pengecualian Q43 sebelum mengunci. Audit penolakan validasi wajib bertahan setelah rollback. Q82 menghapus isian editor target PK sehingga `SaveTargetTahunan.rujukan_sumber` bukan preseden kontrak terkini. AC-3–AC-5 memanfaatkan ISS-03.03/Q79/Q81; tidak menambah penerbitan snapshot dari halaman PK.
+
+> **Q40, Q43, Q50 (13 Oktober 2026):** jalur ini tetap untuk koreksi salah ketik atau salah input terhadap dokumen PK resmi; perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi ISS-02.12, bukan koreksi ini (Q40 §40.1 butir 8). Koreksi PK yang sudah dipakai jadwal aktif tetap wajib alasan (Q43 §43.2 butir 3); perubahan PK sebelum dipakai jadwal aktif beralasan opsional (Q43 §43.3 butir 3; ISS-13.05). `nomor_pk` opsional (Q50 §50.1). Kontrak dan test mengikuti refinement PM 3 November 2026; AC tetap sama dengan US-02.09 dengan batas penerapan yang dijelaskan di atas.
 
 **Terkait User Story:** `US-02.09`  
 **Prioritas:** 🟡 P1  
@@ -1163,41 +1167,41 @@ kegiatan:update
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
-- [ ] **AC-2:** Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
-- [ ] **AC-3:** Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
-- [ ] **AC-4:** Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
-- [ ] **AC-5:** Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
+- [x] **AC-1:** Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
+- [x] **AC-2:** Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
+- [x] **AC-3:** Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
+- [x] **AC-4:** Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
+- [x] **AC-5:** Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `renstra_pk`, snapshot terdampak bila ada, `audit_log`.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `renstra_pk`, snapshot terdampak bila ada, `audit_log`.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Koreksi Perjanjian Kinerja Secara Teraudit** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Koreksi Perjanjian Kinerja Secara Teraudit** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pk:update`.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
-- [ ] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pk:update`.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Catat `audit_log.dasar_izin` untuk aksi sensitif; jika alasan diwajibkan, validasi di server dan simpan alasan bersama before/after yang relevan.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Koreksi Perjanjian Kinerja Secara Teraudit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
-- [ ] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
+- [x] Buat/rapikan page dan reusable component React untuk **Koreksi Perjanjian Kinerja Secara Teraudit**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Untuk aksi yang memerlukan alasan, gunakan pola **Modal Alasan Audit** sebelum request dikirim; validasi server tetap menjadi sumber kebenaran.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
-- [ ] NOMOR PK: Uji koreksi metadata PK tanpa `nomor_pk` beserta alasan diterima karena `nomor_pk` opsional, dan PK tetap unik per Renstra-tahun (Q50 §50.1).
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given koreksi PK diajukan tanpa alasan, When submit, Then ditolak.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given nilai PK dikoreksi berdasarkan dokumen resmi, When disimpan, Then audit merekam nilai lama/baru, alasan, dan rujukan.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given snapshot terdampak sudah terbit, When koreksi PK memerlukan perubahan konteks snapshot, Then snapshot tidak diubah in-place; perubahan dibuat sebagai versi snapshot pengganti (ISS-03.03, Q35 §35.1).
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given snapshot sudah dirujuk versi RA/Pengukuran, When koreksi diperlukan, Then sistem membuat versi snapshot pengganti dan mempertahankan snapshot lama.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given hasil resmi lama sudah disahkan, Then hasil lama tidak berubah sampai versi koreksi diajukan dan disahkan ulang.
+- [x] NOMOR PK: Uji koreksi metadata PK tanpa `nomor_pk` beserta alasan diterima karena `nomor_pk` opsional, dan PK tetap unik per Renstra-tahun (Q50 §50.1).
 
 #### Definition of Done
 

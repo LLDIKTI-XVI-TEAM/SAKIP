@@ -2583,3 +2583,18 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 - Q72 §72.2 dan §72.4 butir 2, 4, 6, dan 8 (bagian alasan); Q65 §65.1 butir 2 dan §65.2 butir 11 (`rujukan_sumber`); Q43 §43.2 butir 5 dan §43.3 butir 2.
 - PRD §4 prinsip 6, §14.10, §25.1, §25.2, §31, dan §32; Workflow §1 dan §3.3; Data Model §2.10, §2.13, §2.32, dan §5; Plan Pengembangan 2.22 dan 10.7; design-system Modal Alasan Wajib dan checklist review; US/ISS-02.07, US/ISS-02.11, US/ISS-02.14 (AC-6 dan AC-8 diubah, AC-13 dan AC-14 baru), dan US/ISS-13.05; Data Awal 2026 §2.2 dan §8.
 - Status implementasi: ISS-02.14 (lanjutan issue #167). Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta. Q72 lahir dari rapat evaluasi 23 Oktober 2026, sehingga perubahan ini perlu disampaikan kepada Tim Perencanaan.
+
+## Refinement ISS-02.09 — Koreksi Metadata PK Teraudit
+
+**Keputusan PM: 3 November 2026 (Q1–Q4), dikonfirmasi dalam refinement issue #219.** Memperjelas penerapan Q40 §40.1 butir 8, Q43 §43.2 butir 3 dan §43.3 butir 3; tidak mengubah Q82 untuk editor target PK.
+
+1. Rujukan koreksi disimpan hanya pada `audit_log.nilai_baru.rujukan`, tanpa kolom baru pada `renstra_pk`. Audit menyimpan rujukan per peristiwa; riwayat tidak ditampilkan di halaman PK. Pemegang `audit:read` membacanya melalui Jejak Audit existing. Akses riwayat untuk Perencanaan merupakan keputusan terpisah.
+2. Rujukan wajib hanya jika nomor atau tanggal PK benar-benar berubah pada PK yang sudah dipakai jadwal mengunci (`aktif`, `ditutup`, atau pernah diaktifkan). FormRequest memberi pratinjau; Action membandingkan nilai tersimpan setelah lock. Sebelum kondisi tersebut, rujukan opsional.
+3. Submit lampiran-saja mempertahankan kontrak existing: alasan wajib sesudah jadwal mengunci, keterangan mengikuti Q50 §50.7, rujukan opsional. Metadata berubah sekaligus menambah lampiran mengikuti kewajiban rujukan. Submit tanpa perubahan tetap diterima dan diaudit, dengan alasan existing dan rujukan opsional.
+4. Sebelum mengunci, alasan dan rujukan opsional tampil inline tanpa konfirmasi tambahan. Sesudah mengunci, Simpan membuka `AuditReasonModal`; rujukan melalui `notice`, ditandai wajib hanya sesuai butir 2. Komponen bersama tidak berubah. Tombol pembuka tidak dinonaktifkan karena alasan kosong; validasi modal membantu pengguna dan keputusan akhir tetap di server.
+5. Rujukan berupa teks maksimal 255 karakter, divalidasi/disanitasi aman. Audit sukses tetap atomik dengan mutasi; penolakan validasi dicatat sekali dan bertahan setelah rollback. Dua koreksi berurutan mempertahankan dua rujukan masing-masing.
+6. Q82 menghapus `rujukan_sumber` editor target sehingga pola tersebut bukan preseden kontrak terkini. Koreksi metadata tidak membentuk versi PK atau snapshot; koreksi konteks tetap melalui ISS-03.03/Q79/Q81. Pengukuran tersahkan dan status capaiannya tetap utuh.
+
+Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; US/ISS-02.09. Status ini merupakan keputusan refinement, bukan bukti CI, UAT, merge, atau deployment.
+
+**Status implementasi lokal, 4 November 2026:** Q40 §40.1 butir 8 dan Q43 §43.2 butir 3 untuk koreksi metadata PK diterapkan melalui ISS-02.09, termasuk pengecualian sebelum mengunci pada Q43 §43.3 butir 3. Bukti otomatis berada pada `KoreksiMetadataPkTest`, test frontend editor/Index/Show, serta regresi PK dan koreksi snapshot existing. Revisi PK berversi ISS-02.12 tetap terpisah; status lokal ini bukan CI remote, UAT, merge, atau deployment.

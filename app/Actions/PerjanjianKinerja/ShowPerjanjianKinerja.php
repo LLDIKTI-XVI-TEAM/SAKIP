@@ -37,6 +37,7 @@ class ShowPerjanjianKinerja
 
         $jadwal = $perjanjianKinerja->resolveJadwalTahunan();
         $isJadwalTerkunci = $jadwal?->is_terkunci ?? false;
+        $alasanWajib = $perjanjianKinerja->dipakaiJadwalAktif();
         $canReadBerkas = $user->can('downloadBerkas', $perjanjianKinerja);
 
         $pk = [
@@ -98,7 +99,9 @@ class ShowPerjanjianKinerja
             'jadwal_status' => $jadwal?->status,
             'is_jadwal_aktif' => $jadwal?->status === 'aktif',
             'is_jadwal_terkunci' => $isJadwalTerkunci,
-            'alasan_wajib' => $perjanjianKinerja->dipakaiJadwalAktif(),
+            'alasan_wajib' => $alasanWajib,
+            'snapshot_url' => $jadwal && $alasanWajib && $user->can('viewAny', $jadwal)
+                ? '/jadwal/'.$jadwal->id.'/snapshot' : null,
             'storageSettings' => $this->evidence->settings(),
             'can' => [
                 'update' => $user->can('update', $perjanjianKinerja),

@@ -151,18 +151,27 @@ export function PerjanjianKinerjaFormFields({
                     </div>
                 </div>
 
-                {isEdit && (
-                    <div className="mt-5 border-t border-border pt-5">
+                {isEdit && !alasanWajib && (
+                    <div className="mt-5 space-y-4 border-t border-border pt-5">
                         <Textarea
                             name="alasan"
-                            label={alasanWajib ? 'Alasan Perubahan Data Perjanjian Kinerja' : 'Alasan (opsional)'}
+                            label="Alasan (opsional)"
                             value={data.alasan ?? ''}
                             onChange={(event) => setField('alasan', event.target.value)}
                             error={errors.alasan}
                             placeholder="Jelaskan alasan pembaruan data atau lampiran PK…"
                             rows={3}
+                            maxLength={1000}
                             disabled={disabled}
-                            required={alasanWajib}
+                        />
+                        <Input
+                            name="rujukan"
+                            label="Rujukan dokumen resmi (mis. nomor surat PK) (opsional)"
+                            value={data.rujukan ?? ''}
+                            onChange={(event) => setField('rujukan', event.target.value)}
+                            error={errors.rujukan}
+                            maxLength={255}
+                            disabled={disabled}
                         />
                     </div>
                 )}
@@ -186,15 +195,20 @@ export function PerjanjianKinerjaFormFields({
                 disabled={disabled}
                 blockedMessage={canUploadBerkas ? undefined : 'Anda tidak memiliki izin untuk mengunggah atau menambahkan lampiran berkas.'}
                 renderItemFields={(index) => (
-                    <Input
-                        label="Keterangan (opsional)"
-                        value={data.lampiran[index]?.keterangan ?? ''}
-                        onChange={(event) => setLampiranField(index, 'keterangan', event.target.value)}
-                        error={errors[`lampiran.${index}.keterangan`]}
-                        placeholder="Contoh: PK perubahan anggaran"
-                        maxLength={1000}
-                        disabled={disabled}
-                    />
+                    <>
+                        {isEdit && data.lampiran[index]?.file && (
+                            <p className="break-words text-xs text-muted">Berkas dipilih: {data.lampiran[index].file.name}</p>
+                        )}
+                        <Input
+                            label="Keterangan (opsional)"
+                            value={data.lampiran[index]?.keterangan ?? ''}
+                            onChange={(event) => setLampiranField(index, 'keterangan', event.target.value)}
+                            error={errors[`lampiran.${index}.keterangan`]}
+                            placeholder="Contoh: PK perubahan anggaran"
+                            maxLength={1000}
+                            disabled={disabled}
+                        />
+                    </>
                 )}
                 renderExtraFields={(index) => (
                     <Input
