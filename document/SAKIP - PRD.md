@@ -157,7 +157,7 @@ Sasaran S4 dan IKU 4.1 hanya ada di PK dan dicatat di bawah Renstra 2025–2029 
 ### 5.1 Termasuk (Fase Awal — MVP)
 
 - Autentikasi via Keycloak (SSO existing LLDIKTI) menggunakan client baru khusus SAKIP.
-- Katalog **lima role resmi** SAKIP: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`; satu pengguna tetap memegang tepat satu role pada Fase Awal. Preset permission final PIC operasional (bukan role) mengikuti keputusan Q31 dan tetap OPEN sampai dikonfirmasi.
+- Katalog **lima role resmi** SAKIP: `superadmin`, `admin`, `perencanaan`, `pimpinan`, dan `pegawai`; satu pengguna tetap memegang tepat satu role pada Fase Awal. PIC bukan role dan tidak memiliki preset permission (Q32 §32.1); PIC operasional adalah pengguna dengan role mana pun yang diberi penugasan PJ dan Grant Unit (Q32 §32.2).
 - Pengelolaan **Dasar Aturan** (`regulasi`): CRUD produk hukum (Kepmen/Permen/Perpres/keputusan lainnya) beserta lampiran dokumen sumbernya, dirujuk oleh Renstra dan/atau Indikator (§9).
 - Manajemen Renstra (CRUD, siklus status draft/aktif/nonaktif/diarsipkan) beserta Sasaran dan Indikator turunannya, termasuk target Renstra per indikator per tahun Renstra sebagai pembanding (Q39), revisi Renstra akibat terbitnya Kepmen IKU baru (edit in place, teraudit; revisi target Renstra saat Renstra aktif melalui mode revisi seluruh tabel dengan justifikasi wajib dan histori revisi bernomor, Q40; Q71), rujukan `regulasi_id`, dan lampiran dokumen Renstra (lampiran revisi tetap dapat ditambahkan setelah Renstra aktif, Q40).
 - Pengelolaan Perjanjian Kinerja (renstra_pk) per tahun per Renstra, termasuk isian target PK per indikator aktif dengan target Renstra sebagai pembanding (Q39) dan baseline sebagai data pendukung (Q50 §50.3), nomor PK opsional (Q50 §50.1), koreksi beralasan, lampiran dokumen PK — termasuk lampiran tambahan untuk PK perubahan yang hanya mengubah anggaran (Q50 §50.7) — dan revisi PK berversi (Q40; dijadwalkan pada tahap 3, Q46).
@@ -425,7 +425,7 @@ Halaman kerja tersendiri untuk CRUD `regulasi` beserta lampirannya: daftar produ
 
 ### 9.7 Hak Akses
 
-Permission **`regulasi:create`**, **`regulasi:read`**, **`regulasi:update`**, **`regulasi:delete`** (`update` dan `delete` bertanda `sensitif = true`, §7.2). Isi peran (§7.3): **Perencanaan** dan **Superadmin** memegang keempat aksi; **Admin**, **Pimpinan**, dan **Pegawai** memegang **`regulasi:read`** saja — dasar aturan tampil di halaman Renstra/indikator agar konteksnya terbaca oleh siapa pun yang berhak membuka halaman itu, tanpa memberi wewenang substantif kepada Admin atas isi dasar aturan. Hak bawaan role **PIC** atas `regulasi:read` tetap **OPEN** mengikuti penetapan preset permission Q31.
+Permission **`regulasi:create`**, **`regulasi:read`**, **`regulasi:update`**, **`regulasi:delete`** (`update` dan `delete` bertanda `sensitif = true`, §7.2). Isi peran (§7.3): **Perencanaan** dan **Superadmin** memegang keempat aksi; **Admin**, **Pimpinan**, dan **Pegawai** memegang **`regulasi:read`** saja — dasar aturan tampil di halaman Renstra/indikator agar konteksnya terbaca oleh siapa pun yang berhak membuka halaman itu, tanpa memberi wewenang substantif kepada Admin atas isi dasar aturan. PIC bukan role (Q32 §32.1); PIC operasional membaca dasar aturan sesuai role yang dipegangnya, karena Grant Unit hanya memuat tujuh izin tulis (Q32 §32.2).
 
 ### 9.8 Audit
 
@@ -466,8 +466,8 @@ Ketika Kepmendiktisaintek yang menjadi dasar Renstra direvisi (mis. daftar IKU b
 
 - **Edit in place** pada baris `renstra` yang sama — nama, dasar_hukum, `regulasi_id`, atau atribut lain diperbarui langsung. Perubahan tercatat di `audit_log` (`nilai_lama`/`nilai_baru`) dengan `alasan` memuat nomor dan tanggal Kepmen yang menjadi dasar revisi; bila produk hukum baru belum tercatat di `regulasi`, Perencanaan mencatatnya lebih dulu lewat halaman Dasar Aturan (§9.6) sebelum menautkannya.
 - **IKU yang dihapus dari Kepmen** → indikator terkait di-**arsipkan** (`indikator.status = arsip`), **bukan dihapus**. Data pengukuran lama tetap utuh dan tetap muncul di laporan historis, dengan penanda status arsip (lihat §11).
-- **IKU baru** → dibuatkan indikator baru beserta definisi komponen (bila bertipe rasio/penjumlahan), target PK (`target_tahunan`) tahun berjalan yang diisi di halaman PK — dengan keterangan "target Renstra belum ada" bila indikator belum memiliki target Renstra (Q39) — dan revisi PK yang relevan (revisi berversi, §12.7, Q40), lalu dimasukkan ke jadwal tahun berjalan melalui `jadwal:buka_kembali` (§12.6) — ini adalah mekanisme standar penambahan indikator di tengah tahun, termasuk untuk mengisi periode yang tersisa pada tahun tersebut. Indikator yang masuk lewat jalur ini tetap memerlukan penyusunan dan pengesahan Rencana Aksi tersendiri (§14) sebelum pengukuran periode-periode yang tersisa dapat diajukan.
-- Indikator baru yang dibuat setelah jadwal aktif namun **tanpa** melewati `jadwal:buka_kembali` baru terukur mulai jadwal tahun berikutnya — ini adalah konsekuensi desain yang disadari, bukan celah.
+- **IKU baru** → dibuatkan indikator baru beserta definisi komponen (bila bertipe rasio/penjumlahan), target PK (`target_tahunan`) tahun berjalan yang diisi di halaman PK — dengan keterangan "target Renstra belum ada" bila indikator belum memiliki target Renstra (Q39) — dan revisi PK yang relevan (revisi berversi, §12.7, Q40), lalu ditambahkan ke jadwal tahun berjalan yang masih aktif melalui ISS-03.04 dengan periode mulai eksplisit, selama jadwal belum melewati tanggal penutupan — ini adalah mekanisme standar penambahan indikator di tengah tahun; `jadwal:buka_kembali` (§12.6) hanya membuka sesi koreksi dan tidak membentuk snapshot (Q77 butir 5). Indikator yang masuk lewat jalur ini tetap memerlukan penyusunan dan pengesahan Rencana Aksi tersendiri (§14) sebelum pengukuran periode-periode yang tersisa dapat diajukan.
+- Indikator baru yang dibuat setelah jadwal aktif namun **tanpa** ditambahkan melalui ISS-03.04 baru terukur mulai jadwal tahun berikutnya — ini adalah konsekuensi desain yang disadari, bukan celah.
 - **Target Renstra** (§11, Q39) pada Renstra berstatus `aktif` hanya diubah melalui **mode revisi** (Q71): seluruh tabel indikator × tahun direvisi sekaligus, isian tersimpan otomatis sebagai draf yang dapat dilanjutkan pemegang izin lain, dan Simpan menerapkan semua perubahan dalam satu transaksi dengan satu justifikasi wajib serta nomor revisi urut per Renstra. Batal membuang draf tanpa mengubah target, dan revisi tanpa perubahan tidak dapat disimpan. Pengisian pertama pada Renstra `aktif` juga memakai mode revisi (Q71 §71.5 butir 1). Histori revisi menampilkan nomor, waktu, aktor, justifikasi, serta nilai lama dan baru per indikator × tahun; riwayat per indikator dari audit tetap dapat dibaca. Pada Renstra `draft`, target Renstra tetap diubah langsung per indikator tanpa alasan (Q60). Bila target terlampaui sebelum akhir periode Renstra, target tahun-tahun berikutnya dinaikkan melalui mode revisi (Q40).
 - **Versi penuh Renstra** (sasaran dan indikator ikut berversi) tidak dibangun; atribut Renstra tetap direvisi in place seperti di atas. Penggantian Renstra secara keseluruhan karena kebijakan kementerian ditangani dengan Renstra baru, dan Renstra lama dinonaktifkan sesuai aturan yang berlaku (§10.4) (Q40).
 
@@ -818,7 +818,7 @@ Narasi per kegiatan (`uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut`) t
 
 ### 15.4 Pembaruan & Batas Waktu
 
-Kegiatan dapat diperbarui (status, realisasi, narasi) oleh PIC unitnya atau Perencanaan selama tahun kegiatan belum terkunci, yaitu tidak ada jadwal tahun itu yang berstatus `ditutup` atau melewati tanggal `penutupan` (Q52 §52.2–§52.3); setelah terkunci hanya lewat `jadwal:buka_kembali`. Status kegiatan (terlaksana, tidak terlaksana, ditunda) dapat diperbarui sepanjang periode berjalan, misalnya setiap bulan; tidak ada entitas bulanan tersendiri (Q45 §45.1 butir 4). Pembaruan itu mengikuti matriks Q69 §69.1: hanya status `rencana` dan `tidak_terlaksana` yang masih dapat berubah, sedangkan `terlaksana`, `ditunda`, dan `batal` bersifat final; data rencana kegiatan baca-saja setelah status berubah (Q69 §69.3). Dashboard menampilkan status tersebut secara real-time dengan label "belum diverifikasi" (§23, Q45 §45.3).
+Kegiatan dapat diperbarui (status, realisasi, narasi) oleh PIC unitnya atau Perencanaan selama tahun kegiatan belum terkunci, yaitu tidak ada jadwal tahun itu yang berstatus `ditutup` atau melewati tanggal `penutupan` (Q52 §52.2–§52.3); setelah terkunci kegiatan tidak dapat diubah, termasuk di dalam sesi koreksi `jadwal:buka_kembali` (Q77 butir 2). Status kegiatan (terlaksana, tidak terlaksana, ditunda) dapat diperbarui sepanjang periode berjalan, misalnya setiap bulan; tidak ada entitas bulanan tersendiri (Q45 §45.1 butir 4). Pembaruan itu mengikuti matriks Q69 §69.1: hanya status `rencana` dan `tidak_terlaksana` yang masih dapat berubah, sedangkan `terlaksana`, `ditunda`, dan `batal` bersifat final; data rencana kegiatan baca-saja setelah status berubah (Q69 §69.3). Dashboard menampilkan status tersebut secara real-time dengan label "belum diverifikasi" (§23, Q45 §45.3).
 
 ### 15.5 Kegiatan Gagal Tetap Dapat Diklaim
 
@@ -925,7 +925,7 @@ Pengajuan Pengukuran **ditolak** bila ada komponen aktif yang nilainya (`penguku
 
 ### 17.8 Pengelolaan Definisi Komponen
 
-**Pengelolaan definisi komponen menggunakan permission `komponen:create`/`update`/`delete`** (Perencanaan dan Superadmin; `komponen:read` juga dimiliki Admin, Pimpinan, dan Pegawai agar label komponen tetap tampil di halaman yang berhak mereka buka; hak bawaan role PIC atas `komponen:read` tetap **OPEN** mengikuti preset permission Q31). Definisi komponen dapat diubah/ditambah lewat aplikasi — mis. saat Kepmen IKU dari kementerian berubah — **tanpa** penyesuaian hardcode kode aplikasi.
+**Pengelolaan definisi komponen menggunakan permission `komponen:create`/`update`/`delete`** (Perencanaan dan Superadmin; `komponen:read` juga dimiliki Admin, Pimpinan, dan Pegawai agar label komponen tetap tampil di halaman yang berhak mereka buka; PIC bukan role sehingga `komponen:read` bagi PIC operasional mengikuti role yang dipegangnya, Q32). Definisi komponen dapat diubah/ditambah lewat aplikasi — mis. saat Kepmen IKU dari kementerian berubah — **tanpa** penyesuaian hardcode kode aplikasi.
 
 ### 17.9 Pembekuan Cara Hitung di Snapshot
 
@@ -1076,7 +1076,7 @@ Aturan semula (histori): bila unggahan file dinonaktifkan pada setelan aplikasi 
 - arsip dokumen resmi pada **`jadwal_tahunan`**/**`jadwal_periode`** tidak pernah dihapus; salah unggah dikoreksi dengan mengunggah berkas pengganti beserta keterangan, mengikuti pola append-only (Q48 §48.2 butir 3, Q25). Satu induk boleh memiliki lebih dari satu berkas, mis. Rencana Aksi tahunan awal dan perubahannya;
 - contoh berkas pada **`jenis_berkas`** bukan bukti pemenuhan persyaratan dan tidak tunduk pada batas imutabilitas: Perencanaan dapat menambah, mengganti, atau menghapusnya kapan saja dengan alasan wajib saat menghapus, dan contoh berkas tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 4).
 
-Sebelum batas masing-masing tercapai, Perencanaan (dan pengunggah) dapat menghapus lampiran (untuk `rencana_aksi`/`pengukuran`: hanya selama induk `draft`/`dikembalikan`, Q36) dengan alasan wajib (Q43 §43.2 butir 2); setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`). Setelah `penutupan` jadwal, koreksi atas lampiran `rencana_aksi`/`pengukuran`/`kegiatan` hanya lewat `jadwal:buka_kembali`. Pengecualian: unggahan arsip dokumen resmi pada `jadwal_tahunan`/`jadwal_periode` tetap dapat dilakukan setelah jadwal ditutup karena tidak mengubah data, status, maupun snapshot (Q48 §48.2 butir 4–5).
+Sebelum batas masing-masing tercapai, Perencanaan (dan pengunggah) dapat menghapus lampiran (untuk `rencana_aksi`/`pengukuran`: hanya selama induk `draft`/`dikembalikan`, Q36) dengan alasan wajib (Q43 §43.2 butir 2); setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`). Setelah `penutupan` jadwal, koreksi atas lampiran `rencana_aksi`/`pengukuran` hanya lewat sesi koreksi `jadwal:buka_kembali`, sedangkan lampiran `kegiatan` tetap terkunci (Q77 butir 2). Pengecualian: unggahan arsip dokumen resmi pada `jadwal_tahunan`/`jadwal_periode` tetap dapat dilakukan setelah jadwal ditutup karena tidak mengubah data, status, maupun snapshot (Q48 §48.2 butir 4–5).
 
 ### 18.9 Batas Teknis Unggahan dan Penyimpanan Berkas (Q44)
 
@@ -1250,7 +1250,7 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari `pengu
 - **Q64 (19 Oktober 2026):** kewajiban hanya mencakup periode yang jendela pengisiannya sudah dibuka; pengukuran yang belum disahkan (Draft dalam jendela, Diajukan, Diverifikasi, Dikembalikan) tampil "Dalam proses"; "Tidak mengisi" tidak berlaku pada periode lampau 2026; selama status capaian belum dapat ditetapkan, pengukuran disahkan tampil "Belum ditetapkan" di luar kasus Q47 dan "Tidak dapat dihitung".
 - **Q66 (21 Oktober 2026):** status tampilan di atas tampil per baris pada tabel status per indikator, tanpa kartu ringkasan jumlah per status; ringkasan di bagian atas dashboard memakai status alur kewajiban periode terpilih, dan kartu Draft menyebut jumlah "Tidak mengisi" bila ada. Ringkasan status capaian (Tercapai/Belum Tercapai) ditambahkan setelah penetapan status capaian (§21) tersedia di aplikasi.
 - Dashboard dapat difilter berdasarkan Renstra, Tahun, Periode, Sasaran, dan Unit.
-- Akses dashboard: pada preset lama `dashboard:read` dimiliki Superadmin, Admin, Perencanaan, Pimpinan, dan Pegawai. Karena PIC operasional (bukan role) baru ditambahkan melalui Q31 sementara preset permission-nya belum dikonfirmasi, hak bawaan `dashboard:read` untuk PIC tetap **OPEN** dan tidak boleh diasumsikan.
+- Akses dashboard: pada preset lama `dashboard:read` dimiliki Superadmin, Admin, Perencanaan, Pimpinan, dan Pegawai. PIC bukan role (Q32): PIC operasional memperoleh `dashboard:read` dari role yang dipegangnya, bukan dari Grant Unit.
 
 ---
 
@@ -1323,7 +1323,7 @@ Tabel `audit_log` append-only — tidak ada endpoint untuk mengubah atau menghap
 ### 25.4 Visibilitas per Role
 
 - `audit:read` dimiliki Superadmin, Admin, Perencanaan, dan Pimpinan (Q56). Izin ini berlaku global: pemegangnya dapat membaca seluruh isi audit lintas modul dan unit, termasuk payload draf, tanpa izin baca modul objek; hanya kunci yang menyerupai rahasia yang disamarkan (Q56 §56.1 butir 3).
-- Pegawai tidak memiliki akses baca audit log secara umum pada Fase Awal (tidak termasuk dalam isi peran `pegawai`). Hak bawaan role PIC atas `audit:read` belum dikonfirmasi dan tetap **OPEN** pada Q31.
+- Pegawai tidak memiliki akses baca audit log secara umum pada Fase Awal (tidak termasuk dalam isi peran `pegawai`). PIC bukan role (Q32); `audit:read` tidak termasuk Grant Unit, sehingga PIC operasional hanya dapat membaca audit log bila role yang dipegangnya memiliki izin tersebut.
 
 ---
 
@@ -1547,13 +1547,13 @@ Urutan modul mengikuti §30, dengan alasan dependency teknis:
 13. Audit & Histori — dibangun paralel sejak modul pertama (audit log dicatat sejak Autentikasi & Akses), namun UI pencarian/tampilannya dituntaskan setelah modul inti berjalan.
 14. Setelan Aplikasi (halaman "Batas unggahan berkas" dihapus Q44) — tidak memiliki dependency berat ke modul lain; ditempatkan terakhir karena bersifat administratif dan tidak menghambat alur inti pengukuran.
 
-**Urutan pengerjaan setelah Q39–Q51 (Q46 §46.3, diperbarui Q51):** Tim Perencanaan meminta fondasi PK → Rencana Aksi → Kegiatan dimatangkan sebelum verifikasi/pengesahan pengukuran dan fitur tambahan (Q46 §46.2). Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
+**Urutan pengerjaan setelah Q39–Q51 (Q46 §46.3, diperbarui Q51 dan Q84):** Tim Perencanaan meminta fondasi PK → Rencana Aksi → Kegiatan dimatangkan sebelum verifikasi/pengesahan pengukuran dan fitur tambahan (Q46 §46.2). Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 
 | Tahap | Batas | Cakupan |
 |---|---|---|
 | 1 | Sebelum integrasi 9 November 2026 (Q2) | Q38 (ISS-01.08); Q39 dan Q50 (ISS-02.10, ISS-02.11); lampiran revisi dan riwayat target Renstra (Q40 §40.2, ISS-02.10); Q41 dan Q47 (ISS-05.07, serta ISS-05.06 yang sedang berjalan); Q42 dan Q49 (ISS-06.01, ISS-06.02, ISS-06.08); Q43 (ISS-13.05); Q44 (ISS-13.06); pengecualian periode lampau 2026 (Q46 §46.1); di akhir tahap, penyiapan data awal 2026 (ISS-15.01) |
-| 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | Pengukuran inti: ISS-07.01, ISS-07.03 (dengan narasi Q45 §45.1 dan tampilan Q47), ISS-07.06, ISS-08.01, ISS-08.02; pelaksanaan kegiatan: ISS-06.03, ISS-06.04, ISS-06.05; Rekomendasi Pimpinan: ISS-09.01 (Q45, Q51); dashboard dan rekap: ISS-10.01, ISS-10.02; keluaran dokumen resmi: ISS-10.05 (Q48); penutupan jadwal: ISS-14.01 |
-| 3 | Sesudah tahap 2; revisi PK harus siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12 (revisi PK berversi); simulasi target; tampilan daftar berkas; versi penuh Renstra; ISS-13.03 |
+| 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | Pengukuran inti: ISS-07.01, ISS-07.03 (dengan narasi Q45 §45.1 dan tampilan Q47), ISS-07.06, ISS-08.01, ISS-08.02; pelaksanaan kegiatan: ISS-06.03, ISS-06.04, ISS-06.05; Rekomendasi Pimpinan: ISS-09.01 (Q45, Q51); dashboard dan rekap: ISS-10.01, ISS-10.02; keluaran dokumen resmi: ISS-10.05 (Q48); penutupan jadwal: ISS-14.01; tambahan Q70–Q74: ISS-02.13, ISS-02.14, ISS-02.15, ISS-03.07, ISS-06.09, ISS-09.03 |
+| 3 | Sesudah tahap 2; revisi PK harus siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12 (revisi PK berversi); tampilan daftar berkas; ISS-13.03 |
 
 Detail pemecahan task granular per fitur ada di **SAKIP - Plan Pengembangan.md**.
 

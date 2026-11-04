@@ -787,6 +787,7 @@ ADR awal yang menyertai dokumen ini:
 6. ADR-0006 — Private File Storage dan Authorized Streaming.
 7. ADR-0007 — Target Manual Rencana Aksi `komponen_id = NULL`.
 8. ADR-0008 — Kolom Alasan Deviasi Target PK pada Rencana Aksi.
+9. ADR-0009 — PhpSpreadsheet untuk Ekspor Excel di Server.
 
 ADR tidak menggantikan PRD/Data Model/Workflow. ADR menjelaskan **mengapa** keputusan teknis tertentu dipilih dan konsekuensinya.
 

@@ -4,7 +4,7 @@
 > Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
 
 
-**Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 34 entitas (§2.1–§2.34) ditambah tiga entitas rancangan Q39/Q40 (§2.35–§2.37) dan revisi target Renstra Q71 (§2.38), skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
+**Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 35 entitas (§2.1–§2.34, termasuk §2.20a `pengukuran_versi`) ditambah target Renstra Q39 (§2.35), dua entitas rancangan Q40 (§2.36–§2.37), dan revisi target Renstra Q71 (§2.38), skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
 
 
 > **Q32 aktif:** role final berjumlah lima; `pic` bukan baris pada `roles`. Assignment PJ dan Grant Unit tetap entitas terpisah. Detail final berada pada §8.
@@ -13,7 +13,7 @@
 
 **Catatan cakupan:** Seluruh tabel dan kolom pada dokumen ini dibuat pada migrasi Laravel sejak Fase Awal, termasuk keenam tabel model hak akses (`permissions`, `roles`, `role_permissions`, `user_roles`, `user_permission_granted`, `user_permission_denials`). Yang ditunda ke Fase Lanjutan hanya jalur pemakaian/UI atas kolom-kolom tertentu; kolom itu sendiri tetap ada di skema agar tidak perlu migrasi besar/berisiko di kemudian hari, dan diberi anotasi eksplisit `-- (kolom tersedia, jalur pengisian/pemakaian menyusul fase lanjutan)`.
 
-**Pengecualian rancangan Q39–Q51 (13 Oktober 2026):** entitas, kolom, dan nilai bertanda **Rancangan Qxx — belum diimplementasikan** belum ada pada migrasi dan memerlukan migrasi tambahan: `renstra_pk_versi` (§2.36), `renstra_pk_versi_target` (§2.37), `indikator.dinilai_tahunan` dan `jadwal_snapshot.dinilai_tahunan` (§2.12, §2.17), kolom narasi `pengukuran` dan nilai `pengukuran.status_perhitungan = belum_dapat_diukur` (§2.20), induk `berkas` `renstra_pk_versi` (§2.30). Perubahan aturan pada kolom yang sudah ada juga belum diterapkan: `jenis_berkas.ukuran_maks_kb` paling besar 102400 (Q44, §2.29). Dokumen ini mencatat kontrak datanya, bukan bukti implementasi. Bagian Q39/Q50/Q65 yang diterapkan ISS-02.11 (migrasi `2026_10_19_000002`–`2026_10_19_000004`): `renstra_pk.nomor_pk` nullable (§2.10), kolom `berkas.keterangan` untuk lampiran PK (§2.30), dan kolom `target_tahunan.alasan_deviasi_renstra` (§2.13). Bagian Q42 yang diterapkan ISS-06.08 (migrasi `2026_10_19_000001`): `kegiatan.anggaran` wajib untuk data baru beserta CHECK `>= 0` (§2.25), nilai `jenis_berkas.tahap = kegiatan_perencanaan`, kolom `jenis_berkas.hanya_kegiatan_beranggaran` (§2.29), dan induk `berkas` `jenis_berkas` (§2.30); penjumlahan anggaran (§2.26, termasuk key snapshot `anggaran_kegiatan` §2.34) dan pembatasan anggaran per kegiatan menurut akses detail (Q42 §42.5) pada halaman rencana aksi dan review versi diterapkan ISS-06.08 tanpa migrasi, sedangkan tampilan total per IKU pada dashboard mengikuti ISS-10.01.
+**Pengecualian rancangan Q40 (diperbarui 4 November 2026):** entitas, kolom, dan nilai bertanda **Rancangan Q40 — belum diimplementasikan** belum ada pada migrasi dan memerlukan migrasi tambahan: `renstra_pk_versi` (§2.36), `renstra_pk_versi_target` (§2.37), dan induk `berkas` `renstra_pk_versi` (§2.30), seluruhnya bagian ISS-02.12 (tahap 3). Dokumen ini mencatat kontrak datanya, bukan bukti implementasi. Bagian Q39–Q51 lain yang semula bertanda rancangan sudah diterapkan: `indikator.dinilai_tahunan` dan `jadwal_snapshot.dinilai_tahunan` (Q47, migrasi `2026_10_15_000002`; §2.12, §2.17), kolom narasi `pengukuran` dan nilai `pengukuran.status_perhitungan = belum_dapat_diukur` (Q45/Q47, migrasi `2026_10_14_000001`; §2.20), `target_renstra` (Q39, migrasi `2026_10_17_000001`; §2.35), arsip dokumen resmi pada induk `berkas` `jadwal_tahunan`/`jadwal_periode` (Q48, migrasi `2026_10_29_000001`; §2.30), serta batas `jenis_berkas.ukuran_maks_kb` paling besar 102400 yang ditegakkan validasi aplikasi (Q44, §2.29). Bagian Q39/Q50/Q65 yang diterapkan ISS-02.11 (migrasi `2026_10_19_000002`–`2026_10_19_000004`): `renstra_pk.nomor_pk` nullable (§2.10), kolom `berkas.keterangan` untuk lampiran PK (§2.30), dan kolom `target_tahunan.alasan_deviasi_renstra` (§2.13). Bagian Q42 yang diterapkan ISS-06.08 (migrasi `2026_10_19_000001`): `kegiatan.anggaran` wajib untuk data baru beserta CHECK `>= 0` (§2.25), nilai `jenis_berkas.tahap = kegiatan_perencanaan`, kolom `jenis_berkas.hanya_kegiatan_beranggaran` (§2.29), dan induk `berkas` `jenis_berkas` (§2.30); penjumlahan anggaran (§2.26, termasuk key snapshot `anggaran_kegiatan` §2.34) dan pembatasan anggaran per kegiatan menurut akses detail (Q42 §42.5) pada halaman rencana aksi dan review versi diterapkan ISS-06.08 tanpa migrasi, sedangkan tampilan total per IKU pada dashboard mengikuti ISS-10.01.
 
 ---
 
@@ -41,6 +41,8 @@ erDiagram
     USERS ||--o{ REKOMENDASI_PIMPINAN : "menetapkan"
     USERS ||--o{ RENSTRA_PK_VERSI : "menyetujui revisi (rancangan Q40)"
     USERS ||--o{ REKOMENDASI_PIMPINAN : "menyetujui"
+    USERS ||--o{ RENCANA_AKSI_VERSI : "mengajukan/mengesahkan"
+    USERS ||--o{ PENGUKURAN_VERSI : "mengajukan/mengesahkan"
 
     ROLES ||--o{ USER_ROLES : "dipegang oleh"
     ROLES ||--o{ ROLE_PERMISSIONS : "berisi"
@@ -94,15 +96,19 @@ erDiagram
     JADWAL_TAHUNAN ||--o{ JADWAL_PERIODE : "menentukan periode diharapkan"
     JADWAL_TAHUNAN ||--o{ JADWAL_SNAPSHOT : "menghasilkan (saat aktivasi)"
     JADWAL_TAHUNAN ||--o{ RENCANA_AKSI : "menaungi"
-    JADWAL_TAHUNAN ||--o{ BERKAS : "berkasable (polimorfik, arsip Rencana Aksi tahunan, rancangan Q48)"
-    JADWAL_PERIODE ||--o{ BERKAS : "berkasable (polimorfik, arsip Laporan Kinerja Triwulan, rancangan Q48)"
+    JADWAL_TAHUNAN ||--o{ BERKAS : "berkasable (polimorfik, arsip Rencana Aksi tahunan, Q48)"
+    JADWAL_PERIODE ||--o{ BERKAS : "berkasable (polimorfik, arsip Laporan Kinerja Triwulan, Q48)"
 
     JADWAL_SNAPSHOT ||--o{ PENGUKURAN : "menjadi konteks beku"
     JADWAL_SNAPSHOT ||--o{ JADWAL_SNAPSHOT_KOMPONEN : "membekukan komponen"
+    JADWAL_SNAPSHOT ||--o{ RENCANA_AKSI_VERSI : "menjadi konteks beku versi"
+    JADWAL_SNAPSHOT ||--o{ PENGUKURAN_VERSI : "menjadi konteks beku versi"
 
     RENCANA_AKSI ||--o{ RENCANA_AKSI_TARGET : "memiliki target per periode per komponen"
     RENCANA_AKSI ||--o{ KLAIM_KEGIATAN : "menerima klaim"
     RENCANA_AKSI ||--o{ BERKAS : "berkasable (polimorfik)"
+    RENCANA_AKSI ||--o{ RENCANA_AKSI_VERSI : "membekukan versi pengajuan"
+    RENCANA_AKSI_VERSI ||--o{ PENGUKURAN_VERSI : "menjadi prasyarat (nullable)"
 
     INDIKATOR_KOMPONEN ||--o{ RENCANA_AKSI_TARGET : "menjadi target"
     INDIKATOR_KOMPONEN ||--o{ PENGUKURAN_KOMPONEN : "diukur pada"
@@ -116,6 +122,8 @@ erDiagram
     PENGUKURAN ||--o{ PENGUKURAN_KOMPONEN : "memiliki nilai komponen"
     PENGUKURAN ||--o{ KLAIM_KEGIATAN : "sumber klaim (nullable)"
     PENGUKURAN ||--o{ BERKAS : "berkasable (polimorfik)"
+    PENGUKURAN ||--o{ PENGUKURAN_VERSI : "membekukan versi pengajuan"
+    PENGUKURAN_VERSI ||--o{ STATUS_CAPAIAN : "dinilai per versi disahkan (Q78)"
 
     JENIS_BERKAS ||--o{ BERKAS : "menentukan jenis, tahap & mode yang diizinkan (nullable)"
     JENIS_BERKAS ||--o{ BERKAS : "berkasable (polimorfik, contoh berkas, Q42)"
@@ -351,6 +359,9 @@ erDiagram
         uuid renstra_pk_id FK
         timestamp activated_at "nullable"
         timestamp closed_at "nullable"
+        timestamp koreksi_mulai "nullable, Q77"
+        timestamp koreksi_sampai "nullable, Q77"
+        jsonb lingkup_koreksi "nullable, Q77"
     }
 
     JADWAL_PERIODE {
@@ -449,6 +460,7 @@ erDiagram
         date tanggal_rencana "nullable"
         date tanggal_realisasi "nullable"
         numeric anggaran "rupiah, nonnegatif, wajib sejak Q42; null hanya data lama, data awal 2026, periode lampau 2026"
+        numeric biaya_terpakai "nullable, nonnegatif, Q74"
         enum status
         int realisasi_peserta "nullable"
         text justifikasi "nullable"
@@ -497,13 +509,13 @@ erDiagram
         uuid jadwal_snapshot_id FK
         numeric nilai "nullable, turunan utk non-manual"
         enum sumber_nilai
-        enum status_perhitungan "nilai belum_dapat_diukur rancangan Q47"
+        enum status_perhitungan "termasuk belum_dapat_diukur, Q47"
         text alasan_tidak_dapat_dihitung "nullable"
         text catatan "nullable, opsional sejak Q45"
-        text progres_kegiatan "rancangan Q45, wajib saat diajukan"
-        text kendala_masalah "rancangan Q45, wajib saat diajukan"
-        text strategi_tindak_lanjut "rancangan Q45, wajib saat diajukan"
-        text tindak_lanjut_rekomendasi "rancangan Q45, nullable"
+        text progres_kegiatan "Q45, wajib saat diajukan"
+        text kendala_masalah "Q45, wajib saat diajukan"
+        text strategi_tindak_lanjut "Q45, wajib saat diajukan"
+        text tindak_lanjut_rekomendasi "Q45, nullable"
         enum status_alur
         int versi
         uuid created_by FK
@@ -534,6 +546,7 @@ erDiagram
         int urutan
         varchar format_diizinkan "nullable"
         int ukuran_maks_kb "nullable"
+        boolean hanya_kegiatan_beranggaran "Q42"
         boolean aktif
         uuid created_by FK
         timestamp created_at
@@ -543,7 +556,7 @@ erDiagram
     BERKAS {
         uuid id PK
         uuid jenis_berkas_id FK "nullable"
-        varchar berkasable_type "enum 7 nilai + 3 rancangan Q40/Q48"
+        varchar berkasable_type "9 nilai, ditambah renstra_pk_versi rancangan Q40"
         uuid berkasable_id
         uuid menggantikan_id FK "nullable"
         text alasan_koreksi "nullable"
@@ -580,10 +593,40 @@ erDiagram
     STATUS_CAPAIAN {
         uuid id PK
         uuid pengukuran_id FK
+        uuid pengukuran_versi_id FK "Q78"
         enum status
         enum sumber
         uuid ditetapkan_oleh FK "nullable"
         timestamp created_at
+    }
+
+    RENCANA_AKSI_VERSI {
+        uuid id PK
+        uuid rencana_aksi_id FK
+        uuid jadwal_snapshot_id FK
+        int nomor
+        uuid diajukan_by FK
+        timestamp diajukan_at
+        enum jalur_pengajuan
+        jsonb dasar_izin_pengajuan
+        jsonb snapshot
+        uuid disahkan_by FK "nullable"
+        timestamp disahkan_at "nullable"
+    }
+
+    PENGUKURAN_VERSI {
+        uuid id PK
+        uuid pengukuran_id FK
+        uuid rencana_aksi_versi_id FK "nullable"
+        uuid jadwal_snapshot_id FK
+        int nomor
+        uuid diajukan_by FK
+        timestamp diajukan_at
+        enum jalur_pengajuan
+        jsonb dasar_izin_pengajuan
+        jsonb snapshot
+        uuid disahkan_by FK "nullable"
+        timestamp disahkan_at "nullable"
     }
 
     AUDIT_LOG {
@@ -913,7 +956,7 @@ Unit ukur kinerja konkret.
 - Perpindahan `unit_id` (indikator dipindah ke unit lain) wajib dicatat di `audit_log` dengan `nilai_lama`/`nilai_baru` berisi unit sebelum/sesudah.
 - Indikator yang berhenti relevan (mis. IKU dihapus dari Kepmen acuan) diarsipkan (`status = arsip`), **tidak pernah dihapus** — data pengukuran lama tetap utuh dan tetap tampil pada laporan historis, dengan penanda status arsip.
 - Indikator berstatus `arsip` **tidak dapat** menjadi target `pengukuran:create` baru — permintaan pembuatan pengukuran untuk indikator arsip **ditolak sistem** di level service layer, terlepas dari permission/scope yang dimiliki pengguna yang mengajukan.
-- Indikator baru dibuat setelah jadwal tahun berjalan sudah aktif tidak otomatis ikut terukur pada tahun tersebut; jalur standar untuk mengikutsertakannya di tahun berjalan adalah `jadwal:buka_kembali` (lihat §2.15) — ini sekaligus jalur standar untuk mengisi periode yang tersisa pada tahun berjalan bagi IKU baru. Tanpa melalui jalur itu, indikator baru mulai terukur sejak jadwal tahun berikutnya diaktifkan — konsekuensi desain yang disadari, bukan celah.
+- Indikator baru dibuat setelah jadwal tahun berjalan sudah aktif tidak otomatis ikut terukur pada tahun tersebut; jalur standar untuk mengikutsertakannya di tahun berjalan adalah penambahan indikator ke jadwal aktif melalui ISS-03.04 dengan periode mulai eksplisit, selama jadwal belum melewati tanggal penutupan (lihat §2.17); `jadwal:buka_kembali` tidak membentuk snapshot (Q77 butir 5). Tanpa melalui jalur itu, indikator baru mulai terukur sejak jadwal tahun berikutnya diaktifkan — konsekuensi desain yang disadari, bukan celah.
 
 ---
 
@@ -1012,7 +1055,7 @@ Jika salah satu dari keempat syarat gagal, aktivasi ditolak dan pesan kesalahan 
 
 **Pembuatan snapshot:** aktivasi pertama membentuk snapshot dan komponen beku secara idempoten dalam transaksi aktivasi dengan audit pelaku. Buka-kembali hanya membuka sesi dan mempertahankan snapshot (Q77, ISS-14.02); indikator baru diterbitkan melalui ISS-03.04 dengan periode mulai eksplisit.
 
-**Koreksi setelah penutupan:** satu-satunya jalur koreksi pengukuran, rencana aksi, maupun kegiatan setelah `penutupan` tercapai adalah `jadwal:buka_kembali` (`ditutup → aktif`), lalu melakukan koreksi, lalu `jadwal:tutup` kembali — seluruh rangkaian ini tercatat di `audit_log` (lihat §2.20, §2.23, §2.25). Dalam sesi koreksi tersebut, PIC hanya dapat mengubah rencana aksi pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi rencana aksi dilakukan Perencanaan (Q41 §41.2 butir 6). Pengecualian: unggahan arsip dokumen resmi pada induk `jadwal_tahunan`/`jadwal_periode` (§2.30) tetap dapat dilakukan setelah jadwal `ditutup` tanpa `jadwal:buka_kembali`, karena tidak mengubah data; penutupan hanya menghentikan mutasi data kinerja (Q48 §48.2 butir 5).
+**Koreksi setelah penutupan:** satu-satunya jalur koreksi pengukuran dan rencana aksi setelah `penutupan` tercapai adalah `jadwal:buka_kembali` (`ditutup → aktif`), lalu melakukan koreksi di dalam sesi koreksi, lalu `jadwal:tutup` kembali — seluruh rangkaian ini tercatat di `audit_log` (lihat §2.20, §2.23). Kegiatan, klaim, dan berkas kegiatan tetap terkunci, termasuk di dalam sesi koreksi (Q77 butir 2, §2.25). Dalam sesi koreksi tersebut, PIC hanya dapat mengubah rencana aksi pada periode yang jendela pengisiannya dibuka kembali secara resmi (ISS-14.03, Q19); di luar itu koreksi rencana aksi dilakukan Perencanaan (Q41 §41.2 butir 6). Pengecualian: unggahan arsip dokumen resmi pada induk `jadwal_tahunan`/`jadwal_periode` (§2.30) tetap dapat dilakukan setelah jadwal `ditutup` tanpa `jadwal:buka_kembali`, karena tidak mengubah data; penutupan hanya menghentikan mutasi data kinerja (Q48 §48.2 butir 5).
 
 **Arsip Rencana Aksi tahunan (Q48 — slice arsip diimplementasikan melalui [PR #208](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/208)):** `jadwal_tahunan` menjadi induk polimorfik `berkas` (`berkasable_type = jadwal_tahunan`, §2.30) untuk PDF Rencana Aksi tahunan bertanda tangan; satu jadwal boleh memiliki lebih dari satu berkas, mis. Rencana Aksi awal dan perubahan (Q48 §48.2 butir 1). Unggahan tidak mengubah data, status, maupun snapshot (Q48 §48.2 butir 4).
 
@@ -1056,7 +1099,7 @@ Daftar periode yang diharapkan pada suatu `jadwal_tahunan`, beserta jendela wakt
 
 ### 2.17 `jadwal_snapshot`
 
-Salinan beku konteks indikator (termasuk konteks cara hitung) per jadwal, berversi. Versi 1 dibuat otomatis oleh logika aplikasi saat `jadwal_tahunan` bertransisi ke `aktif` — baik pada aktivasi awal maupun pada `jadwal:buka_kembali`; imutabilitasnya dijaga trigger database (lihat perilaku kunci). Masuk penuh sejak Fase Awal sebagai fondasi integritas historis.
+Salinan beku konteks indikator (termasuk konteks cara hitung) per jadwal, berversi. Versi 1 dibuat otomatis oleh logika aplikasi saat aktivasi pertama `jadwal_tahunan`, atau saat indikator baru ditambahkan ke jadwal aktif melalui ISS-03.04; `jadwal:buka_kembali` tidak membentuk maupun mengubah snapshot (Q77 butir 5); imutabilitasnya dijaga trigger database (lihat perilaku kunci). Masuk penuh sejak Fase Awal sebagai fondasi integritas historis.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
@@ -1151,15 +1194,15 @@ Nilai capaian aktual per indikator, per tahun, per periode. Baris tidak dapat di
 | `tahun` | int | not null | |
 | `periode_id` | uuid | FK → periode.id | |
 | `jadwal_snapshot_id` | uuid | FK → jadwal_snapshot.id | Konteks beku yang dirujuk untuk tampilan (nama, satuan, arah, tipe perhitungan, target/baseline pembanding). Berpindah hanya lewat aksi teraudit `pengukuran.pindah_snapshot` untuk pengukuran `draft`/`dikembalikan` ke versi yang berlaku pada periodenya (Q79 §79.3 butir 4) |
-| `nilai` | numeric | **nullable** | `0` sah; `null` bila `status_perhitungan` bukan `terhitung` (belum diisi, tidak dapat dihitung, atau belum dapat diukur — rancangan Q47). Untuk indikator bertipe `rasio_persen`/`penjumlahan`, kolom ini menjadi **nilai turunan** — dihitung sistem dari `pengukuran_komponen` (lihat §2.28) dan **tidak dapat diketik langsung oleh PIC** (read-only di UI). Untuk tipe `manual`, perilaku lama berlaku sepenuhnya: nilai diketik langsung |
+| `nilai` | numeric | **nullable** | `0` sah; `null` bila `status_perhitungan` bukan `terhitung` (belum diisi, tidak dapat dihitung, atau belum dapat diukur — Q47). Untuk indikator bertipe `rasio_persen`/`penjumlahan`, kolom ini menjadi **nilai turunan** — dihitung sistem dari `pengukuran_komponen` (lihat §2.28) dan **tidak dapat diketik langsung oleh PIC** (read-only di UI). Untuk tipe `manual`, perilaku lama berlaku sepenuhnya: nilai diketik langsung |
 | `sumber_nilai` | enum(`komponen`,`manual`) | not null | Mencatat asal nilai untuk kebutuhan audit: `komponen` bila diturunkan dari `pengukuran_komponen`, `manual` bila diketik langsung |
-| `status_perhitungan` | enum(`belum_diisi`,`terhitung`,`tidak_dapat_dihitung`; rancangan Q47: `belum_dapat_diukur`) | not null, default `belum_diisi`; CHECK `nilai_status_cocok` | Status hasil realisasi; kolom dan CHECK sudah ada di aplikasi (tabel `pengukuran_kinerjas`). CHECK `nilai_status_cocok`: `terhitung` ⇒ `nilai` terisi; `belum_diisi` dan `tidak_dapat_dihitung` (penyebut nol, Q9, §2.28) ⇒ `nilai` NULL. Pengajuan ditolak selama `belum_diisi`. **Nilai `belum_dapat_diukur` — Rancangan Q47 — belum diimplementasikan:** realisasi belum tersedia pada periode tersebut; ditetapkan eksplisit oleh pengisi, bukan disimpulkan dari `nilai` kosong; `nilai` NULL dan CHECK `nilai_status_cocok` diperluas untuk nilai ini; label UI "Belum dapat diukur"; berbeda dari realisasi `0` dan dari `tidak_dapat_dihitung` (Q47 §47.4) |
+| `status_perhitungan` | enum(`belum_diisi`,`terhitung`,`tidak_dapat_dihitung`,`belum_dapat_diukur` (Q47)) | not null, default `belum_diisi`; CHECK `nilai_status_cocok` | Status hasil realisasi; kolom dan CHECK sudah ada di aplikasi (tabel `pengukuran_kinerjas`). CHECK `nilai_status_cocok`: `terhitung` ⇒ `nilai` terisi; `belum_diisi` dan `tidak_dapat_dihitung` (penyebut nol, Q9, §2.28) ⇒ `nilai` NULL. Pengajuan ditolak selama `belum_diisi`. **Nilai `belum_dapat_diukur` (Q47, migrasi `2026_10_14_000001`):** realisasi belum tersedia pada periode tersebut; ditetapkan eksplisit oleh pengisi, bukan disimpulkan dari `nilai` kosong; `nilai` NULL dan CHECK `nilai_status_cocok` diperluas untuk nilai ini; label UI "Belum dapat diukur"; berbeda dari realisasi `0` dan dari `tidak_dapat_dihitung` (Q47 §47.4) |
 | `alasan_tidak_dapat_dihitung` | text | nullable | Alasan bila `status_perhitungan = tidak_dapat_dihitung`; wajib terisi saat pengajuan dengan status tersebut (Q9). Kolom sudah ada di aplikasi |
 | `catatan` | text | nullable | Keterangan tambahan **opsional** (Q45 §45.1). Kewajiban lama **digantikan Q45** oleh narasi wajib di bawah: semula wajib diisi saat pengajuan (transisi `draft → diajukan`) jika (a) nilai memburuk menurut `indikator.arah` dibandingkan pengukuran berstatus `disahkan` **terakhir secara kronologis** untuk indikator yang sama — nilai yang stagnan/sama tidak memicu kewajiban ini; atau (b) `indikator.wajib_catatan = true`; pengukuran pertama tanpa pembanding historis tidak wajib, dan perbandingan dilakukan atas nilai turunan untuk indikator bertipe komponen |
-| `progres_kegiatan` | text | nullable saat draf; wajib saat diajukan | **Rancangan Q45 — belum diimplementasikan.** Narasi progres kegiatan per indikator per periode |
-| `kendala_masalah` | text | nullable saat draf; wajib saat diajukan | **Rancangan Q45 — belum diimplementasikan.** Narasi kendala/masalah |
-| `strategi_tindak_lanjut` | text | nullable saat draf; wajib saat diajukan | **Rancangan Q45 — belum diimplementasikan.** Narasi tindak lanjut/strategi penyelesaian |
-| `tindak_lanjut_rekomendasi` | text | nullable; wajib saat diajukan bila ada rekomendasi disetujui pada periode sebelumnya | **Rancangan Q45 — belum diimplementasikan.** Tindak lanjut atas rekomendasi Pimpinan; wajib bila terdapat `rekomendasi_pimpinan` (§2.31) berstatus `disetujui` pada periode sebelumnya untuk indikator yang sama (Q45 §45.2 butir 3); draf rekomendasi tidak memicu kewajiban ini (Q51 §51.1 butir 2) |
+| `progres_kegiatan` | text | nullable saat draf; wajib saat diajukan | **Q45, migrasi `2026_10_14_000001`.** Narasi progres kegiatan per indikator per periode |
+| `kendala_masalah` | text | nullable saat draf; wajib saat diajukan | **Q45, migrasi `2026_10_14_000001`.** Narasi kendala/masalah |
+| `strategi_tindak_lanjut` | text | nullable saat draf; wajib saat diajukan | **Q45, migrasi `2026_10_14_000001`.** Narasi tindak lanjut/strategi penyelesaian |
+| `tindak_lanjut_rekomendasi` | text | nullable; wajib saat diajukan bila ada rekomendasi disetujui pada periode sebelumnya | **Q45, migrasi `2026_10_14_000001`.** Tindak lanjut atas rekomendasi Pimpinan; wajib bila terdapat `rekomendasi_pimpinan` (§2.31) berstatus `disetujui` pada periode sebelumnya untuk indikator yang sama (Q45 §45.2 butir 3); draf rekomendasi tidak memicu kewajiban ini (Q51 §51.1 butir 2) |
 | `status_alur` | enum(`draft`,`diajukan`,`diverifikasi`,`dikembalikan`,`disahkan`) | not null, default `draft` | |
 | `versi` | integer | not null, default 1 | **Optimistic locking** — dinaikkan setiap perubahan |
 | `created_by` | uuid | FK → users.id | |
@@ -1170,17 +1213,40 @@ Nilai capaian aktual per indikator, per tahun, per periode. Baris tidak dapat di
 
 **Larangan pembuatan untuk indikator arsip:** permintaan `pengukuran:create` **ditolak sistem** apabila `indikator.status = arsip` pada indikator terkait, terlepas dari permission/scope yang dimiliki pengguna (lihat §2.12). Sejak keputusan PM 15 Oktober 2026 (komentar review PR #107, melengkapi Q37 §37.1 butir 5): guard indikator arsip pada Pengukuran berlaku untuk kelima perintah — simpan draf, ajukan, verifikasi, kembalikan, dan sahkan — dengan pesan `Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.`; penolakan diaudit tanpa mengubah header; detail/histori tetap terbaca sesuai otorisasi.
 
-**Kelengkapan komponen:** untuk indikator bertipe `rasio_persen`/`penjumlahan`, pengajuan pengukuran **ditolak** bila ada `indikator_komponen` aktif yang nilainya pada `pengukuran_komponen` masih `null` — kecuali pengukuran berstatus `belum_dapat_diukur` (rancangan Q47, di bawah). Kelengkapan komponen adalah syarat tambahan di samping narasi wajib di bawah (semula: aturan catatan berbasis `arah`/`wajib_catatan`, digantikan Q45) (lihat §2.28).
+**Kelengkapan komponen:** untuk indikator bertipe `rasio_persen`/`penjumlahan`, pengajuan pengukuran **ditolak** bila ada `indikator_komponen` aktif yang nilainya pada `pengukuran_komponen` masih `null` — kecuali pengukuran berstatus `belum_dapat_diukur` (Q47, di bawah). Kelengkapan komponen adalah syarat tambahan di samping narasi wajib di bawah (semula: aturan catatan berbasis `arah`/`wajib_catatan`, digantikan Q45) (lihat §2.28).
 
-**Realisasi belum dapat diukur (rancangan Q47 — belum diimplementasikan):** pengukuran dapat diajukan dengan `status_perhitungan = belum_dapat_diukur` bila nilainya belum tersedia pada periode tersebut; gerbang kelengkapan komponen dikecualikan, sedangkan narasi wajib tetap berlaku dan menjelaskan mengapa nilai belum tersedia. Perencanaan menilai alasan itu saat verifikasi dan dapat mengembalikan pengukuran (Q47 §47.4 butir 1–2). Status ini tidak dihitung sebagai capaian 0 dan tidak diberi status capaian (§2.21). Pada periode nilai akhir (`periode.is_nilai_akhir`) status ini tidak dapat dipakai: realisasi wajib terisi, kecuali `tidak_dapat_dihitung` menurut Q9 (Q47 §47.4 butir 4).
+**Realisasi belum dapat diukur (Q47):** pengukuran dapat diajukan dengan `status_perhitungan = belum_dapat_diukur` bila nilainya belum tersedia pada periode tersebut; gerbang kelengkapan komponen dikecualikan, sedangkan narasi wajib tetap berlaku dan menjelaskan mengapa nilai belum tersedia. Perencanaan menilai alasan itu saat verifikasi dan dapat mengembalikan pengukuran (Q47 §47.4 butir 1–2). Status ini tidak dihitung sebagai capaian 0 dan tidak diberi status capaian (§2.21). Pada periode nilai akhir (`periode.is_nilai_akhir`) status ini tidak dapat dipakai: realisasi wajib terisi, kecuali `tidak_dapat_dihitung` menurut Q9 (Q47 §47.4 butir 4).
 
-**Narasi wajib (rancangan Q45 — belum diimplementasikan):** pengajuan (`draft → diajukan`) **ditolak** bila `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, serta bila `tindak_lanjut_rekomendasi` kosong padahal terdapat rekomendasi berstatus `disetujui` pada periode sebelumnya untuk indikator yang sama (Q51 §51.1 butir 2). Narasi per kegiatan (`kegiatan.uraian_pelaksanaan`/`kendala`/`strategi_tindaklanjut`, §2.25) tetap tersedia dan opsional; rekapitulasi menampilkan narasi pengukuran bersama daftar kegiatan yang diklaim. Gerbang narasi dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026 (Q46 §46.1).
+**Narasi wajib (Q45):** pengajuan (`draft → diajukan`) **ditolak** bila `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, serta bila `tindak_lanjut_rekomendasi` kosong padahal terdapat rekomendasi berstatus `disetujui` pada periode sebelumnya untuk indikator yang sama (Q51 §51.1 butir 2). Narasi per kegiatan (`kegiatan.uraian_pelaksanaan`/`kendala`/`strategi_tindaklanjut`, §2.25) tetap tersedia dan opsional; rekapitulasi menampilkan narasi pengukuran bersama daftar kegiatan yang diklaim. Gerbang narasi dan tindak lanjut rekomendasi dikecualikan untuk periode lampau 2026 (Q46 §46.1).
 
 **Pemisahan tugas pada jalur verifikasi/pengesahan (wajib dibaca sebelum menerapkan permission):** aktor yang memegang izin `pengukuran:verifikasi`/`pengukuran:sahkan` **tidak otomatis** boleh memverifikasi/mengesahkan setiap pengukuran — bila pengajuan dilakukan lewat jalur PIC ber-scope unit, aktor yang sama dengan `pengukuran_versi.diajukan_by` **dilarang keras** melanjutkan transisi `diajukan → diverifikasi` maupun `diverifikasi → disahkan` atas baris itu sendiri. Aturan lengkapnya, termasuk pengecualian untuk jalur Perencanaan, ada di §4 (Pemisahan Tugas) — bukan bagian dari resolusi izin (§3), melainkan validasi bisnis tambahan yang berjalan setelah izin dinyatakan boleh.
 
 **Jalur koreksi setelah disahkan:** transisi `disahkan → dikembalikan` hanya dapat dilakukan lewat permission khusus `pengukuran:buka_kembali` (dimiliki peran Perencanaan/Superadmin), mensyaratkan `alasan` wajib diisi, dan **hanya tersedia sebelum** `jadwal_tahunan.penutupan` tercapai. Setelah penutupan, satu-satunya jalur koreksi adalah membuka kembali jadwal itu sendiri (`jadwal_tahunan.status: ditutup → aktif` via `jadwal:buka_kembali`), melakukan koreksi, lalu menutup jadwal kembali — seluruh rangkaian ini tercatat di `audit_log` (lihat §2.15, §2.32).
 
 **Constraint:** `unique(indikator_id, tahun, periode_id)`.
+
+---
+
+### 2.20a `pengukuran_versi`
+
+Riwayat versi pengajuan `pengukuran`: satu baris per pengajuan (`draft/dikembalikan → diajukan`), menyimpan provenance beku dan `snapshot` isi pengajuan saat itu, mengikuti pola `rencana_aksi_versi` (§2.34). Versi yang disahkan adalah Versi Pengukuran pada glosarium `CONTEXT.md` dan menjadi rujukan `status_capaian` (§2.21, Q78). Diterapkan sejak migrasi `2026_09_18_030003`; alias implementasi `KinerjaSnapshot`.
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `pengukuran_id` | uuid | FK → pengukuran.id, not null | |
+| `rencana_aksi_versi_id` | uuid | FK → rencana_aksi_versi.id, nullable | Versi Rencana Aksi disahkan yang menjadi prasyarat pengajuan; `null` bila pengajuan tidak memerlukannya (mis. pengecualian periode lampau, Q46 §46.1) |
+| `jadwal_snapshot_id` | uuid | FK → jadwal_snapshot.id, not null | Konteks beku indikator saat pengajuan (§2.17) |
+| `nomor` | int | not null, CHECK `> 0` | Nomor urut pengajuan per pengukuran; `unique(pengukuran_id, nomor)` |
+| `diajukan_by` | uuid | FK → users.id, not null | Pengaju; dasar F1/F2 (§4) |
+| `diajukan_at` | timestamp | not null | |
+| `jalur_pengajuan` | enum(`pic`,`perencanaan`) | not null | Dibekukan saat pengajuan menurut sumber allow; perubahan peran/PJ belakangan tidak menulis ulang |
+| `dasar_izin_pengajuan` | jsonb | not null | Keputusan resolver saat pengajuan ditambah `unit_id`, `penugasan_id`, dan `pic_id` PJ efektif |
+| `snapshot` | jsonb | not null | Isi pengajuan beku: nilai, status perhitungan, narasi, konteks indikator/unit/PIC/periode, target, komponen beserta nilainya, klaim kegiatan, persyaratan dan bukti dukung, serta rekomendasi periode sebelumnya |
+| `disahkan_by` | uuid | FK → users.id, nullable | Diisi sekali saat pengesahan |
+| `disahkan_at` | timestamp | nullable | Diisi sekali saat pengesahan; CHECK `pengukuran_versi_metadata_sah` mewajibkan `disahkan_by` dan `disahkan_at` kosong atau terisi bersamaan |
+
+**Sifat beku:** `UPDATE`/`DELETE` ditolak trigger `pengukuran_versi_immutable` (fungsi `reject_submission_version_mutation`) dan `TRUNCATE` ditolak `pengukuran_versi_no_truncate`; satu-satunya pengecualian adalah pengisian sekali `disahkan_by`/`disahkan_at`. Koreksi setelah pengesahan tidak mengubah versi lama: buka-kembali (ISS-08.03) dan pengajuan ulang membentuk versi baru, dan status capaian tidak diwariskan ke versi baru (§2.21).
 
 ---
 
@@ -1342,7 +1408,7 @@ Aktivitas konkret yang dilaksanakan unit pada suatu periode, sebagai bukti pendu
 | `tanggal_realisasi` | date | nullable | Wajib saat kegiatan ditandai `terlaksana`; harus berada di dalam rentang tanggal periode kegiatan pada tahun kegiatan (Q74 §74.2 butir 3, Q70 §70.1 butir 3). Status implementasi: ISS-06.03 |
 | `biaya_terpakai` | numeric | nullable; nonnegatif (`>= 0`) | **Rupiah, Q74 §74.2:** satu angka per kegiatan, wajib saat kegiatan ditandai `terlaksana`; `0` sah dan nilai di atas `anggaran` tidak ditolak. `null` selama kegiatan belum dicatat terlaksana. Tidak dipakai dalam penjumlahan anggaran (§2.26; Q74 §74.2 butir 6). Status implementasi: kolom, CHECK `kegiatan_biaya_terpakai_nonnegatif`, dan validasi bilangan bulat 0 sampai 15 digit diterapkan ISS-06.03 |
 | `anggaran` | numeric | nullable hanya untuk data lama, data awal 2026, dan periode lampau 2026; nonnegatif (`>= 0`) | **Rupiah, wajib sejak Q42:** diisi saat kegiatan dibuat atau diubah; `0` sah dan kegiatan beranggaran nol tetap dapat diklaim; `null` hanya pada data sebelum Q42 dan diperlakukan sebagai belum diisi, tidak dihitung sebagai `0` (Q42 §42.2 butir 1–2). Kegiatan data awal 2026 dan kegiatan pada periode lampau juga boleh tanpa anggaran (tercatat belum diisi), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output (Q46 §46.1 butir 3). Status implementasi: input dan validasi (bilangan bulat 0 sampai 15 digit) serta CHECK `kegiatan_anggaran_nonnegatif` diterapkan ISS-06.08; penjumlahan diterapkan ISS-06.08 (§2.26). Semula: kolom tersedia tanpa jalur pengisian sampai fase lanjutan (digantikan Q42) |
-| `status` | enum(`rencana`,`terlaksana`,`tidak_terlaksana`,`ditunda`,`batal`) | not null, default `rencana` | |
+| `status` | enum(`rencana`,`terlaksana`,`tidak_terlaksana`,`ditunda`,`batal`) | not null, default `rencana` | **Finalitas Q69 §69.1:** hanya `rencana` dan `tidak_terlaksana` yang masih dapat berubah; `terlaksana`, `ditunda`, dan `batal` final. Ke `terlaksana` melalui aksi pelaksanaan dengan gerbang bukti tahap `kegiatan`; ke `tidak_terlaksana`/`ditunda`/`batal` wajib `justifikasi` (Q69 §69.2); `ditunda` membentuk kegiatan lanjutan (Q41 §41.4). Batas waktunya tahun kegiatan belum terkunci (Q52 §52.2–§52.3) |
 | `realisasi_peserta` | int | nullable | |
 | `justifikasi` | text | nullable | **Wajib** diisi bila `status` bernilai `tidak_terlaksana`, `ditunda`, atau `batal`; kosong pada status `rencana` dan `terlaksana` |
 | `kegiatan_asal_id` | uuid | FK → kegiatan.id, nullable | Menandai kegiatan lanjutan hasil geser periode |
@@ -1361,7 +1427,7 @@ Aktivitas konkret yang dilaksanakan unit pada suatu periode, sebagai bukti pendu
 
 **Narasi per kegiatan (diperbarui Q45 §45.1):** `uraian_pelaksanaan`, `kendala`, `strategi_tindaklanjut` tetap tersedia per kegiatan dan bersifat **opsional**. Narasi resmi per indikator × periode diisi pada pengukuran (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`, §2.20); rekapitulasi menampilkan narasi pengukuran bersama daftar kegiatan yang diklaim (lihat §2.26). Ketentuan lama — kolom "Progress Kegiatan / Kendala dan Masalah / Strategi tindaklanjut" pada rekapitulasi indikator × periode dihasilkan otomatis dari narasi kegiatan tanpa narasi di level indikator — digantikan Q45.
 
-**Hak ubah:** kegiatan dapat diperbarui (status, realisasi, narasi) oleh PIC unitnya (izin scope unit lewat grant, §2.7) atau Perencanaan (izin global lewat peran, §2.5) selama `jadwal_tahunan` belum `penutupan`; setelah penutupan hanya lewat `jadwal:buka_kembali` (§2.15).
+**Hak ubah:** kegiatan dapat diperbarui (status, realisasi, narasi) oleh PIC unitnya (izin scope unit lewat grant, §2.7) atau Perencanaan (izin global lewat peran, §2.5) selama `jadwal_tahunan` belum `penutupan`; setelah penutupan kegiatan tetap terkunci, termasuk di dalam sesi koreksi `jadwal:buka_kembali` (§2.15; Q52 §52.3, Q77 butir 2).
 
 **Gerbang kelengkapan bukti pelaksanaan (SPJ):** transisi status `rencana → terlaksana` **ditolak** bila ada `jenis_berkas` aktif bertanda `wajib` bertahap `kegiatan` (tahap pelaksanaan kegiatan, Q42 §42.4 butir 2) yang berlaku bagi kegiatan ini namun belum terpenuhi (lihat §2.29–§2.30). Persyaratan tahap `kegiatan_perencanaan` tidak diperiksa di sini, melainkan saat rencana aksi diajukan (§2.23). Transisi ke `tidak_terlaksana`/`ditunda`/`batal` tidak melalui gerbang ini — syaratnya tetap `justifikasi` wajib di atas. Setelah kegiatan berstatus `terlaksana`, `berkas` yang menempel padanya menjadi imutabel (§2.30).
 
@@ -1472,7 +1538,7 @@ Nilai realisasi per komponen pada suatu `pengukuran`. Untuk indikator bertipe `r
 - **`manual`:** nilai diketik langsung ke `pengukuran.nilai`, komponen tidak wajib ada.
 
 **Aturan integritas mesin perhitungan:**
-- **Pembagian nol:** bila `penyebut = 0` pada `rasio_persen`, nilai **tidak dapat dihitung** — disimpan sebagai `null` pada `pengukuran.nilai` dengan `status_perhitungan = tidak_dapat_dihitung` (§2.20) dan ditampilkan sebagai teks **"tidak dapat dihitung"**, bukan `0` dan bukan galat sistem. Status ini berbeda dari `belum_dapat_diukur` (rancangan Q47).
+- **Pembagian nol:** bila `penyebut = 0` pada `rasio_persen`, nilai **tidak dapat dihitung** — disimpan sebagai `null` pada `pengukuran.nilai` dengan `status_perhitungan = tidak_dapat_dihitung` (§2.20) dan ditampilkan sebagai teks **"tidak dapat dihitung"**, bukan `0` dan bukan galat sistem. Status ini berbeda dari `belum_dapat_diukur` (Q47).
 - **Pembulatan:** nilai hasil hitung disimpan sesuai `indikator.presisi` dan ditampilkan sesuai `indikator.desimal_tampilan` (kolom lama, tetap berlaku tanpa perubahan makna).
 - **Kelengkapan komponen sebagai syarat pengajuan:** lihat §2.20 — pengajuan pengukuran ditolak bila ada komponen aktif bernilai `null`.
 - **Satu tingkat perhitungan:** mesin ini hanya mendukung satu tingkat (rasio atau penjumlahan, dengan suku berjumlah banyak dan berbobot). Formula **bertingkat** (sub-skor → nilai komposit → digabung lagi) **tidak dibangun** — indikator seperti Predikat SAKIP dan Nilai Zona Integritas (yang secara konseptual tersusun dari sub-skor 30/30/15/25) memakai `tipe_perhitungan = manual`, nilainya diketik langsung sebagai angka akhir tanpa diturunkan dari sub-skornya. Kebutuhan formula bertingkat di masa depan adalah pengembangan lanjutan, bukan sesuatu yang dapat dikonfigurasi dari layar definisi komponen.
@@ -1579,11 +1645,11 @@ berkas di bawah serta §2.29 dan §2.36.
 - lampiran `regulasi` **tidak dapat dihapus** selama regulasi yang bersangkutan masih dirujuk oleh `renstra.regulasi_id` atau `indikator.regulasi_id` yang aktif;
 - lampiran `kegiatan` **tidak dapat dihapus** setelah kegiatan yang bersangkutan berstatus `terlaksana`; *(Q42, diterapkan ISS-06.08)* berkas yang memenuhi persyaratan tahap `kegiatan_perencanaan` (mis. RAB) **tidak dapat dihapus maupun diganti** sejak rencana aksi yang mengklaim kegiatan itu diajukan — koreksi lewat pengembalian rencana aksi, lalu berkas pengganti (Q25), mengikuti pola bukti rencana aksi Q36 (Q42 §42.4 butir 5); unggahan berkas baru tetap diterima;
 - lampiran `rencana_aksi`/`pengukuran` hanya dapat ditambah, diganti, atau dihapus selama induknya berstatus `draft`/`dikembalikan` (khusus pengukuran, tidak ada endpoint hapus; koreksi lewat pengembalian beralasan dan versi baru, Q36 §36.2); sejak `diajukan` **tidak dapat dihapus** (koreksi lewat pengembalian beralasan), dan imutabel setelah `disahkan` (Q36);
-- *(rancangan Q48)* arsip pada `jadwal_tahunan`/`jadwal_periode` **tidak dapat dihapus** sejak diunggah; salah unggah dikoreksi dengan berkas pengganti (`menggantikan_id`, `alasan_koreksi`) mengikuti pola append-only Q25 (Q48 §48.2 butir 3);
+- *(Q48, migrasi `2026_10_29_000001`)* arsip pada `jadwal_tahunan`/`jadwal_periode` **tidak dapat dihapus** sejak diunggah; salah unggah dikoreksi dengan berkas pengganti (`menggantikan_id`, `alasan_koreksi`) mengikuti pola append-only Q25 (Q48 §48.2 butir 3);
 - *(rancangan Q40)* lampiran `renstra_pk_versi` mengikuti versi PK yang tidak diubah setelah terbentuk (Q40 §40.1 butir 2); rinciannya ditetapkan bersama ISS-02.12;
 - *(Q42, diterapkan ISS-06.08)* contoh berkas pada induk `jenis_berkas` bukan bukti: dapat ditambah, diganti, atau dihapus Perencanaan kapan saja; penghapusannya wajib alasan (Q43 §43.2 butir 2), dan contoh berkas tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 4).
 
-Sebelum batas di atas tercapai, Perencanaan (izin global lewat peran) dan pengunggah/PIC unit terkait (untuk `rencana_aksi`/`pengukuran`/`kegiatan`; hak mutasi turun dari izin induk ber-scope unit, mis. `rencana_aksi:update` atau `pengukuran:update`; `berkas:*` bukan permission unit-scoped dan hanya berfungsi sebagai gerbang deny, Q32.3) dapat menghapus lampiran dengan alasan (Q43 §43.2 butir 2); setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`). Setelah `jadwal_tahunan.penutupan`, koreksi atas lampiran `rencana_aksi`/`pengukuran`/`kegiatan` hanya lewat `jadwal:buka_kembali` — aturan ini tidak berlaku bagi lampiran `renstra`/`renstra_pk`/`regulasi`, yang batas imutabilitasnya murni mengikuti status induknya masing-masing seperti tercantum di atas, dan tidak berlaku bagi arsip pada `jadwal_tahunan`/`jadwal_periode`, yang tetap dapat diunggah setelah jadwal `ditutup` (Q48 §48.2 butir 5).
+Sebelum batas di atas tercapai, Perencanaan (izin global lewat peran) dan pengunggah/PIC unit terkait (untuk `rencana_aksi`/`pengukuran`/`kegiatan`; hak mutasi turun dari izin induk ber-scope unit, mis. `rencana_aksi:update` atau `pengukuran:update`; `berkas:*` bukan permission unit-scoped dan hanya berfungsi sebagai gerbang deny, Q32.3) dapat menghapus lampiran dengan alasan (Q43 §43.2 butir 2); setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`). Setelah `jadwal_tahunan.penutupan`, koreksi atas lampiran `rencana_aksi`/`pengukuran` hanya lewat sesi koreksi `jadwal:buka_kembali`, sedangkan lampiran `kegiatan` tetap terkunci termasuk di dalam sesi koreksi (Q77 butir 2) — aturan ini tidak berlaku bagi lampiran `renstra`/`renstra_pk`/`regulasi`, yang batas imutabilitasnya murni mengikuti status induknya masing-masing seperti tercantum di atas, dan tidak berlaku bagi arsip pada `jadwal_tahunan`/`jadwal_periode`, yang tetap dapat diunggah setelah jadwal `ditutup` (Q48 §48.2 butir 5).
 
 **Penyimpanan mode `file`:** berkas mode file disimpan di disk VPS (`storage/app/private/berkas/...`) dan diakses lewat route ber-permission (streamed download) — **bukan** URL publik; penyimpanan tetap privat (Q44 §44.1 butir 4). Untuk induk `rencana_aksi`/`pengukuran`/`kegiatan`, jenis dan ukuran file divalidasi terhadap `jenis_berkas.format_diizinkan`/`ukuran_maks_kb`. Bila persyaratan mengosongkan format atau ukuran, dan untuk lampiran tanpa persyaratan (`renstra`/`renstra_pk`/`regulasi`, lampiran bebas kegiatan, serta induk rancangan), berlaku default batas teknis konfigurasi server: 10 MB dan `pdf,docx,xlsx,jpg,jpeg,png`; tidak ada berkas yang boleh melampaui batas atas 100 MB (Q44 §44.2 butir 1). Ketentuan lama yang mengambil default dari kunci grup `berkas` pada `pengaturan` digantikan Q44 (§2.22).
 
@@ -1658,7 +1724,7 @@ Pencatatan append-only seluruh peristiwa penting sistem.
 
 **Target PK (§2.13):** perubahan tercatat dengan `tindakan` `target_tahunan.simpan` (objek `target_tahunan`; `nilai_lama`/`nilai_baru` berisi `indikator_id`, `tahun`, `baseline`, dan `target_tahunan`, dengan `nilai_lama` kosong pada pengisian pertama; sejak Q72 tanpa `alasan_deviasi_renstra`, sedangkan baris audit lama yang memuatnya tetap utuh). Sejak Q82 perubahan target PK tidak membawa alasan pengguna maupun `rujukan_sumber`: kolom `alasan` berisi alasan baku server, sedangkan baris audit lama yang memuat alasan pengguna atau `rujukan_sumber` pada `nilai_baru` tetap utuh. Penolakan tercatat dengan `target_tahunan.simpan_ditolak` (objek `indikator`) tanpa nilai yang diajukan; kategori `alasan_penolakan` antara lain `target_menyimpang_renstra` dan `input_tidak_valid`, sedangkan `alasan_perubahan_kosong` hanya ada pada baris lama (Q72 §72.4 butir 8, Q82). Penyimpanan tanpa perubahan tidak diaudit (Q65 §65.2 butir 10).
 
-**Peristiwa rancangan Q39–Q51 (belum diimplementasikan):** pembentukan versi PK (Q40, §2.36) dan unggahan arsip dokumen resmi (Q48 §48.2, §2.30) tercatat di tabel ini dengan `nilai_lama`/`nilai_baru`; kode `tindakan`-nya ditetapkan saat implementasi.
+**Peristiwa Q40 dan Q48:** unggahan arsip dokumen resmi (Q48 §48.2, §2.30) tercatat di tabel ini dengan `tindakan` `berkas.unggah`, dan penolakannya `berkas.unggah_ditolak`. Pembentukan versi PK (Q40, §2.36) masih rancangan; kode `tindakan`-nya ditetapkan saat implementasi ISS-02.12.
 
 **Penanda dinilai tahunan (Q47 §47.1):** perubahan `indikator.dinilai_tahunan` diaudit sebagai `indikator.ubah`.
 
@@ -1765,7 +1831,7 @@ Riwayat versi pengajuan `rencana_aksi`: satu baris per pengajuan (submit) pada s
 | `uraian` | string\|null | `rencana_aksi.uraian` |
 | `alasan_deviasi_pk` | string\|null | `rencana_aksi.alasan_deviasi_pk` saat submit |
 | `deviasi_pk` | object | `{status, skor, target_pk, presisi}`: skor periode efektif terakhir dibandingkan target PK beku setelah keduanya dibulatkan HALF_UP pada presisi snapshot; `status` ∈ `setara`, `deviasi`, `tidak_dapat_dinilai` (target PK atau skor null); `skor`/`target_pk` adalah angka hasil pembulatan |
-| `target_periode` | array | Hanya periode efektif, urut `periode_urutan`: `{periode_id, periode_nama, periode_urutan, nilai, status_perhitungan, keterangan, komponen[]}`. `nilai` = keluaran mesin hitung sehingga pembaca yang menghitung ulang memperoleh angka sama; `status_perhitungan` = `terhitung` pada versi yang berhasil. Rancangan Q47: periode tanpa target (indikator dinilai tahunan sebelum periode nilai akhir, atau periode lampau 2026, §2.23) dibekukan dengan `nilai = null` dan `status_perhitungan = tidak_ditargetkan`, bukan `belum_diisi` (Q47 §47.2 butir 5). Manual: `komponen = []`, `keterangan` = keterangan sel manual. Nonmanual: `keterangan = null` di baris, `komponen[] = {komponen_id, kode, label, nilai, keterangan}` seluruh komponen snapshot |
+| `target_periode` | array | Hanya periode efektif, urut `periode_urutan`: `{periode_id, periode_nama, periode_urutan, nilai, status_perhitungan, keterangan, komponen[]}`. `nilai` = keluaran mesin hitung sehingga pembaca yang menghitung ulang memperoleh angka sama; `status_perhitungan` = `terhitung` pada versi yang berhasil. Q47: periode tanpa target (indikator dinilai tahunan sebelum periode nilai akhir, atau periode lampau 2026, §2.23) dibekukan dengan `nilai = null` dan `status_perhitungan = tidak_ditargetkan`, bukan `belum_diisi` (Q47 §47.2 butir 5). Manual: `komponen = []`, `keterangan` = keterangan sel manual. Nonmanual: `keterangan = null` di baris, `komponen[] = {komponen_id, kode, label, nilai, keterangan}` seluruh komponen snapshot |
 | `persyaratan_bukti` | array | Keluaran evaluator bukti bersama tahap `rencana_aksi` apa adanya (definisi persyaratan + `pemenuhan`), dibekukan saat submit (Q24) |
 | `bukti_dukungs` | array | Bukti berlaku saat submit: `{id, jenis_berkas_id, menggantikan_id, alasan_koreksi, mode, nama_asli, mime, ukuran_bytes, tautan, isi_teks, path}`; `path` privat hanya dipakai server untuk unduhan beku, tidak pernah dikirim ke props |
 | `persyaratan_kegiatan` | array | Diterapkan ISS-06.08 (Q42 §42.4): per kegiatan berklaim tahap RA, urut `kegiatan_id`: `{kegiatan_id, dikecualikan, persyaratan, berkas}`; `persyaratan` adalah keluaran evaluator tahap `kegiatan_perencanaan` (global + khusus indikator RA, penanda `hanya_kegiatan_beranggaran` diterapkan), `berkas` adalah metadata berkas berlaku tanpa path; contoh berkas tidak dibekukan. Versi sebelum ISS-06.08 tidak memiliki key ini |
@@ -2022,7 +2088,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `jadwal_tahunan` (level aplikasi) | aktivasi mensyaratkan EMPAT gerbang: `renstra_pk` tersedia; seluruh indikator aktif memiliki `target_tahunan`; `tahun` berada dalam rentang Renstra; minimal satu lampiran `berkas` pada `renstra_pk` terkait (gerbang keempat; penanda `tidak_dapat_dipenuhi` saat unggahan file dimatikan tidak lagi terjadi sejak Q44, histori) |
 | `jadwal_periode` | unique(`jadwal_id`, `periode_id`); CHECK `jadwal_periode_urutan_tanggal` (`pengisian_mulai <= pengisian_selesai`, Q70; §2.16); level aplikasi: `pengisian_mulai` paling cepat tanggal 1 bulan terakhir periode (Q70 §70.2 butir 2; §2.16) |
 | `jadwal_snapshot` | unique(`jadwal_id`, `indikator_id`, `nomor_versi`) — versi 1 tetap dibuat idempoten per (`jadwal_id`, `indikator_id`); koreksi (Q35) dan revisi PK berversi (rancangan Q40) menambah versi baru (§2.17) |
-| `pengukuran` | unique(`indikator_id`, `tahun`, `periode_id`); CHECK `nilai_status_cocok` antara `status_perhitungan` dan `nilai`, diperluas untuk `belum_dapat_diukur` (rancangan Q47, §2.20) |
+| `pengukuran` | unique(`indikator_id`, `tahun`, `periode_id`); CHECK `nilai_status_cocok` antara `status_perhitungan` dan `nilai`, diperluas untuk `belum_dapat_diukur` (Q47, §2.20) |
 | `pengaturan` | unique(`kunci`) |
 | `rencana_aksi` | unique(`indikator_id`, `tahun`) |
 | `rencana_aksi_target` | unique(`rencana_aksi_id`, `periode_id`, `komponen_id`) `NULLS NOT DISTINCT` — `komponen_id IS NULL` untuk manual tetap tepat satu baris per periode (§2.24, ADR-0007) |
@@ -2034,10 +2100,10 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `indikator` (level aplikasi) | `pengukuran:create` ditolak untuk indikator berstatus `arsip` |
 | `indikator` (level aplikasi) | `rasio_persen` wajib ≥1 komponen `pembilang` aktif & tepat 1 komponen `penyebut` aktif; `penjumlahan` wajib ≥1 komponen `penjumlah` aktif |
 | `periode` (level aplikasi) | tepat satu baris `is_nilai_akhir = true` |
-| `pengukuran` (level aplikasi) | pengajuan ditolak selama `rencana_aksi` (indikator × tahun) belum `disahkan`; ditolak bila ada komponen aktif bernilai `null`, kecuali `status_perhitungan = belum_dapat_diukur` (rancangan Q47), yang tidak boleh dipakai pada periode nilai akhir; ditolak bila narasi wajib kosong atau tindak lanjut atas rekomendasi `disetujui` periode sebelumnya kosong (rancangan Q45/Q51), kecuali periode lampau 2026 (Q46 §46.1) |
+| `pengukuran` (level aplikasi) | pengajuan ditolak selama `rencana_aksi` (indikator × tahun) belum `disahkan`; ditolak bila ada komponen aktif bernilai `null`, kecuali `status_perhitungan = belum_dapat_diukur` (Q47), yang tidak boleh dipakai pada periode nilai akhir; ditolak bila narasi wajib kosong atau tindak lanjut atas rekomendasi `disetujui` periode sebelumnya kosong (Q45/Q51), kecuali periode lampau 2026 (Q46 §46.1) |
 | `rencana_aksi` (level aplikasi) | pengajuan ditolak bila ada komponen aktif tanpa `rencana_aksi_target` pada salah satu periode yang diharapkan, kecuali periode yang boleh tanpa target (Q47; §2.23); ditolak bila tidak ada minimal satu kegiatan berklaim tahap RA atau persyaratan wajib tahap `kegiatan_perencanaan` belum terpenuhi atau anggaran kegiatan belum diisi (Q42, ISS-06.02/ISS-06.08), kecuali RA data awal 2026 lewat jalur Perencanaan (Q46 §46.1 butir 3, Q63); persyaratan wajib tahap `kegiatan_perencanaan` dan anggaran juga dikecualikan untuk kegiatan pada periode lampau 2026 (Q42, Q46 §46.1 butir 1 dan 3, Q63 §63.1 butir 4); PIC tidak dapat mengubah target maupun daftar kegiatan periode yang terkunci (Q41 §41.2) |
-| `klaim_kegiatan` (level aplikasi) | ditolak bila `kegiatan.unit_id` berbeda dari unit rencana aksi/indikator yang diklaim; PIC tidak dapat menambah atau menghapus klaim tahap RA pada periode yang terkunci (Q41 §41.2); salinan kegiatan hanya ke periode yang belum terkunci (rancangan Q49 §49.2) |
-| `berkas` (level aplikasi) | imutabilitas per induk (tujuh nilai `berkasable_type`): `renstra` tidak dapat dihapus setelah `renstra` berstatus `aktif`; `renstra_pk` tidak dapat dihapus setelah `jadwal_tahunan` tahun tersebut `aktif`; `regulasi` tidak dapat dihapus selama masih dirujuk `renstra`/`indikator` aktif; `kegiatan` tidak dapat dihapus setelah kegiatan `terlaksana`, dan seluruh berkas tahap `kegiatan_perencanaan` milik kegiatan tidak dapat dihapus maupun diganti sejak salah satu RA pengklaimnya diajukan, sejalan dengan snapshot `persyaratan_kegiatan` (Q42, ISS-06.08); `jenis_berkas` (contoh) dapat dihapus kapan saja dengan alasan; `rencana_aksi`/`pengukuran` hanya dapat ditambah/diganti/dihapus selama induk `draft`/`dikembalikan` (Q36); rancangan Q48: arsip `jadwal_tahunan`/`jadwal_periode` tidak dapat dihapus, dikoreksi dengan berkas pengganti, dan tetap dapat diunggah setelah jadwal `ditutup`; penghapusan berkas wajib alasan (Q43 §43.2) |
+| `klaim_kegiatan` (level aplikasi) | ditolak bila `kegiatan.unit_id` berbeda dari unit rencana aksi/indikator yang diklaim; PIC tidak dapat menambah atau menghapus klaim tahap RA pada periode yang terkunci (Q41 §41.2); salinan kegiatan hanya ke periode yang belum terkunci (Q49 §49.2) |
+| `berkas` (level aplikasi) | imutabilitas per induk (tujuh nilai `berkasable_type`): `renstra` tidak dapat dihapus setelah `renstra` berstatus `aktif`; `renstra_pk` tidak dapat dihapus setelah `jadwal_tahunan` tahun tersebut `aktif`; `regulasi` tidak dapat dihapus selama masih dirujuk `renstra`/`indikator` aktif; `kegiatan` tidak dapat dihapus setelah kegiatan `terlaksana`, dan seluruh berkas tahap `kegiatan_perencanaan` milik kegiatan tidak dapat dihapus maupun diganti sejak salah satu RA pengklaimnya diajukan, sejalan dengan snapshot `persyaratan_kegiatan` (Q42, ISS-06.08); `jenis_berkas` (contoh) dapat dihapus kapan saja dengan alasan; `rencana_aksi`/`pengukuran` hanya dapat ditambah/diganti/dihapus selama induk `draft`/`dikembalikan` (Q36); Q48: arsip `jadwal_tahunan`/`jadwal_periode` tidak dapat dihapus, dikoreksi dengan berkas pengganti, dan tetap dapat diunggah setelah jadwal `ditutup`; penghapusan berkas wajib alasan (Q43 §43.2) |
 | `jenis_berkas` (level aplikasi) | minimal satu dari `izinkan_file`/`izinkan_tautan`/`izinkan_teks` bernilai `true`; penyimpanan tanpa satu pun mode aktif ditolak; `ukuran_maks_kb` paling besar 102400 (Q44 §44.2) |
 | `berkas` (level aplikasi) | mode wajib termasuk mode yang diizinkan pada `jenis_berkas` terkait, kecuali lampiran bebas (`jenis_berkas_id = null`); `tautan` wajib berskema `http`/`https` bila `mode = tautan`; `isi_teks` wajib terisi bila `mode = teks`; `nama_asli`/`path`/`mime`/`ukuran_bytes` wajib terisi bila `mode = file` |
 | `kegiatan` (level aplikasi) | transisi status `rencana → terlaksana` ditolak bila ada `jenis_berkas` aktif bertanda `wajib` bertahap `kegiatan` yang belum terpenuhi |
