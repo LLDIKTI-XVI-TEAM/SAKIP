@@ -98,7 +98,7 @@ Urutan pengerjaan (Q46 §46.3, diperbarui Q51):
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 
-Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111); issue Tahap 1 lainnya belum dimulai.
+Status per 4 November 2026 (`development` `c315290c`): PR implementasi sudah merged untuk seluruh issue tahap 1 dan tahap 2. Tahap 1 — ISS-01.08 (#101, #108, #114), ISS-02.10 (#143), ISS-02.11 (#149), ISS-05.06 (#100), ISS-05.07 (#154), ISS-06.01 (#97, #141), ISS-06.02 (#111), ISS-06.08 (#142, #148), ISS-13.05 (#156), ISS-13.06 (#150), pengecualian periode lampau ISS-03.05 (#146), dan ISS-15.01 (#172). Tahap 2 — ISS-02.13 (#189), ISS-02.14 (#206, #240), ISS-02.15 (#176), ISS-03.07 (#175, #190), ISS-06.03 (#195, #205), ISS-06.04 (#163), ISS-06.05 (#174, #236), ISS-06.09 (#194), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.01 (#144), ISS-08.02 (#107), ISS-09.01 (#115), ISS-09.03 (#191), ISS-10.01 (#147, #153), ISS-10.02 (#155), ISS-10.05 (#208), dan ISS-14.01 (#109, #117). Tahap 3 — ISS-03.03 (#213) dan ISS-13.03 (#119) merged; ISS-02.12 (#226) belum. Merged bukan bukti seluruh AC atau UAT terpenuhi: status per AC mengikuti centang User Issues (misalnya keluaran Excel ISS-10.05 AC-1–AC-5 belum dibangun), dan data awal 2026 menunggu UAT ISS-15.01.
 
 Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanjutannya (Q38–Q74) mengalahkan teks lama** dan body issue harus diperbarui sebelum PR dinyatakan Ready for QA.
 
