@@ -21,7 +21,8 @@ Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang ex
 - Issue lama belum cukup menangkap kontrak kritis: F1/F2 berdasarkan `*_versi.diajukan_by`, immutable versioning, snapshot correction, backfill, revisi jendela PIC, evidence freeze, append-only correction, notification idempotency, serta readiness/UAT.
 - Dokumen ini **menggantikan** pola tersebut dengan 1 issue untuk 1 User Story serta test traceability per Acceptance Criteria.
 - Penyelarasan Q31 **tidak menambah issue baru di luar 74 issue 1:1**. Dampaknya diserap ke issue akses/PIC yang relevan (`ISS-01.03`, `ISS-01.04`, `ISS-01.06`, `ISS-01.07`, `ISS-04.01`, issue RA/Pengukuran/Notifikasi terkait PIC, `ISS-10.01`, dan `ISS-15.01`) serta ke aturan global. Requirement yang masih OPEN tidak diubah menjadi AC final.
-- **Hitungan terbaru (13 Oktober 2026):** dokumen memuat **83 issue 1:1** dengan 83 User Stories: 74 issue baseline, `ISS-01.08` (Q38), dan delapan issue baru `ISS-02.10`, `ISS-02.11`, `ISS-02.12` (Q39, Q40, Q50), `ISS-05.07` (Q41, Q47), `ISS-06.08` (Q42), `ISS-10.05` (Q48), `ISS-13.05` (Q43), serta `ISS-13.06` (Q44). `ISS-11.06` dibatalkan Q44 dan tetap dihitung sebagai histori.
+- **Hitungan 13 Oktober 2026:** dokumen memuat **83 issue 1:1** dengan 83 User Stories: 74 issue baseline, `ISS-01.08` (Q38), dan delapan issue baru `ISS-02.10`, `ISS-02.11`, `ISS-02.12` (Q39, Q40, Q50), `ISS-05.07` (Q41, Q47), `ISS-06.08` (Q42), `ISS-10.05` (Q48), `ISS-13.05` (Q43), serta `ISS-13.06` (Q44). `ISS-11.06` dibatalkan Q44 dan tetap dihitung sebagai histori.
+- **Hitungan terbaru (4 November 2026):** dokumen memuat **89 issue 1:1** dengan 89 User Stories: 83 issue per 13 Oktober 2026 ditambah enam issue Q70–Q74 (`ISS-02.13`, `ISS-02.14`, `ISS-02.15`, `ISS-03.07`, `ISS-06.09`, `ISS-09.03`).
 
 ## 3. Aturan Global untuk Seluruh Development Issue
 

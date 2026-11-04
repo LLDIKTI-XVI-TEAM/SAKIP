@@ -7,6 +7,8 @@
 
 **Pembaruan 13 Oktober 2026 (Q38–Q51):** onboarding SSO langsung aktif tanpa peran (Q38, US-01.08), keputusan rapat asistensi Q39–Q46, dan keputusan analisis dokumen resmi 2026 Q47–Q51 diselaraskan. Story baru: US-02.10, US-02.11, US-02.12, US-05.07, US-06.08, US-10.05, US-13.05, dan US-13.06; US-11.06 dibatalkan Q44 dan dipertahankan sebagai histori, sedangkan fitur US-13.02 dihapus melalui US-13.06. Dokumen kini memuat **83 User Story**: 75 story sebelum Q39 (termasuk US-01.08) ditambah delapan story baru tersebut, dengan US-11.06 tetap dihitung sebagai story yang dibatalkan. Prioritas story yang tercakup urutan pengerjaan ditulis per tahap (Q46 §46.3). Story yang sudah dikerjakan diberi catatan perubahan perilaku tanpa mengubah AC yang sudah selesai; story yang belum dikerjakan diperbarui langsung dengan rujukan Q. Q38–Q51 adalah keputusan requirement, bukan bukti implementasi; konfirmasi tertulis Tim Perencanaan atasnya masih menunggu (pengantar Q39–Q46 dan Q47–Q51 pada Keputusan Penyelarasan).
 
+**Pembaruan Q70–Q74 (rapat evaluasi 23 Oktober 2026):** enam story baru US-02.13, US-02.14, US-02.15, US-03.07, US-06.09, dan US-09.03, sehingga dokumen kini memuat **89 User Story**, dengan US-11.06 tetap dihitung sebagai story yang dibatalkan.
+
 ## 1. Tujuan Dokumen
 Dokumen ini mendefinisikan kebutuhan fungsional dan penerimaan (*acceptance*) SAKIP LLDIKTI Wilayah XVI dalam bentuk User Story yang dapat dipakai sebagai acuan UAT, refinement, pembuatan development issue, dan implementasi vertical slice.
 ### Hierarki sumber
