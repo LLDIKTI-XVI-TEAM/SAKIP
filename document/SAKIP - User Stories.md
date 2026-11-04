@@ -109,6 +109,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-01.03 · Penetapan Peran Utama Pengguna (Assign Peran)
 
+> **Status implementasi — issue #3 (PR #18, #51):** seluruh AC memiliki bukti test; user tanpa peran setelah onboarding dibuktikan `AuthHttpTest::test_first_sso_login_is_active_without_role_and_has_no_business_access`; rincian test dan batas bukti tercatat pada [ISS-01.03](SAKIP%20-%20User%20Issues.md#iss-0103--feature-penetapan-peran-utama-pengguna-assign-peran). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-01.03` |
@@ -121,12 +123,12 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] User dapat belum memiliki role setelah JIT onboarding.
-- [ ] Pilihan hanya `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`.
-- [ ] Assign/change role mewajibkan alasan dan audit before/after.
-- [ ] Role `pic` tidak tersedia dan tidak dapat disimpan.
-- [ ] Perubahan role tidak mengubah grant, deny, assignment PJ, atau provenance submission historis.
-- [ ] Bila user merupakan PJ aktif, assignment tetap aktif; UI dapat memberi warning/penanda untuk ditindaklanjuti Perencanaan.
+- [x] User dapat belum memiliki role setelah JIT onboarding.
+- [x] Pilihan hanya `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`.
+- [x] Assign/change role mewajibkan alasan dan audit before/after.
+- [x] Role `pic` tidak tersedia dan tidak dapat disimpan.
+- [x] Perubahan role tidak mengubah grant, deny, assignment PJ, atau provenance submission historis.
+- [x] Bila user merupakan PJ aktif, assignment tetap aktif; UI dapat memberi warning/penanda untuk ditindaklanjuti Perencanaan.
 
 ### US-01.04 · Pemberian Grant Izin Tambahan per Unit
 
@@ -177,6 +179,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-01.06 · Transparansi Izin Pengguna — Jelaskan Izin
 
+> **Status implementasi — issue #39 (PR #61):** AC-2–AC-4 memiliki bukti test; AC-1 dan AC-5 belum; rincian test dan batas bukti tercatat pada [ISS-01.06](SAKIP%20-%20User%20Issues.md#iss-0106--security-transparansi-izin-pengguna--jelaskan-izin). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-01.06` |
@@ -194,12 +198,14 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 **Acceptance Criteria**
 
 - [ ] **AC-1:** Given pengguna dipilih, When halaman dimuat, Then sistem menampilkan permission efektif, scope, asal peran/grant, dan deny yang berlaku.
-- [ ] **AC-2:** Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
-- [ ] **AC-3:** Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
-- [ ] **AC-4:** Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
+- [x] **AC-2:** Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
+- [x] **AC-3:** Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
+- [x] **AC-4:** Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
 - [ ] **AC-5:** Given target user memiliki PIC operasional (bukan role), When halaman dimuat, Then sistem menampilkan permission efektif aktual yang benar-benar berasal dari `role_permissions`/grant/deny; tidak ada permission sintetis hanya karena nama role PIC.
 
 ### US-01.07 · Peran & Izin Read-Only + Preset Permission via Seeder
+
+> **Status implementasi — issue #6 (PR #38, #200):** lima AC pertama memiliki bukti test, termasuk rerun tanpa delta `RolePermissionPresetTest::test_release_installs_presets_and_all_entrypoints_are_idempotent`. AC terakhir tetap terbuka: Perencanaan dan Superadmin memegang ketujuh izin unit secara global lewat preset, sehingga maknanya perlu dikonfirmasi PM. rincian test dan batas bukti tercatat pada [ISS-01.07](SAKIP%20-%20User%20Issues.md#iss-0107--security-peran--izin-read-only--preset-permission-via-seeder). Centang bukan persetujuan QA/UAT atau deployment.
 
 > **Q45, Q48, Q51 (13 Oktober 2026):** preset Pimpinan memperoleh `rekomendasi:tetapkan` melalui seeder (Q32.4), sedangkan Perencanaan tetap memegangnya sebagai cadangan; simpan draf dan persetujuan rekomendasi dibedakan oleh status rekomendasi, bukan oleh permission (Q45 §45.2 butir 1, Q51 §51.2 butir 1). Katalog memperoleh permission baru `laporan:unggah` dengan preset Perencanaan dan Superadmin (Q48 §48.2 butir 2). Perubahan preset dikerjakan pada US-09.01 (`rekomendasi:tetapkan`) dan US-10.05 (`laporan:unggah`) serta mengikuti audit delta preset di bawah.
 
@@ -215,11 +221,11 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] Halaman menampilkan tepat 5 role final dan preset permissionnya.
-- [ ] Tidak ada add/revoke/edit role-permission dari UI atau mutation endpoint aplikasi.
-- [ ] Preset role bersumber dari kode/seeder/release.
-- [ ] Perubahan preset menghasilkan audit before/after + alasan/sumber release.
-- [ ] Seeder rerun tanpa delta tidak menghasilkan audit palsu.
+- [x] Halaman menampilkan tepat 5 role final dan preset permissionnya.
+- [x] Tidak ada add/revoke/edit role-permission dari UI atau mutation endpoint aplikasi.
+- [x] Preset role bersumber dari kode/seeder/release.
+- [x] Perubahan preset menghasilkan audit before/after + alasan/sumber release.
+- [x] Seeder rerun tanpa delta tidak menghasilkan audit palsu.
 - [ ] 7 permission unit-scoped tidak diglobalisasi melalui preset role.
 
 ### US-01.08 · Onboarding SSO Langsung Aktif dan Status Akun

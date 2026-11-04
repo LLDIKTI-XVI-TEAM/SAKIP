@@ -265,14 +265,16 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanju
 - Satu user maksimal satu role pada MVP.
 - Role change tidak mengubah grant/deny/PJ/provenance historis.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #18 dan #51, issue #3:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: peran pertama, ganti peran, dan satu peran `AssignRoleTest::test_first_assignment_accepts_official_role_and_change_preserves_one_pivot_and_historical_audit`, `AccessFoundationTest::test_database_enforces_identity_role_and_nullable_scope_uniqueness`; `pic` dan input tidak valid `AssignRoleTest::test_invalid_domain_input_does_not_assign`, `AssignRoleTest::test_http_rejects_invalid_payload_without_mutation`, `RoleAssignment.test.tsx`; 403 `AssignRoleTest::test_http_gate_rejects_missing_permission_and_deny_without_audit`; tanpa efek samping pada grant/deny/PJ/provenance `VerticalSlice1Test::test_f1_keeps_blocking_pic_submitter_after_role_and_assignment_change`; PJ aktif dan peringatan `AssignRoleTest::test_active_pj_warning_uses_effective_assignment_not_history_or_future`, `AssignRoleTest::test_action_outcome_rechecks_pj_and_noop_does_not_append_success_audit`; konkurensi `AssignRoleTest::test_fresh_noop_preserves_provenance_but_stale_aba_token_is_rejected`, `MutationConcurrencyTest::test_two_first_assignments_have_one_winner_and_one_stale_conflict`.
+
 #### Acceptance Criteria
 
-- [ ] Assign role pertama berhasil dengan alasan.
-- [ ] Change role mempertahankan constraint satu role.
-- [ ] `pic` tidak muncul dan tidak dapat disimpan.
-- [ ] Direct request tanpa permission 403.
-- [ ] Grant/deny/PJ tidak berubah sebagai side effect.
-- [ ] PJ aktif tetap aktif setelah role change dan dapat diberi warning monitoring.
+- [x] Assign role pertama berhasil dengan alasan.
+- [x] Change role mempertahankan constraint satu role.
+- [x] `pic` tidak muncul dan tidak dapat disimpan.
+- [x] Direct request tanpa permission 403.
+- [x] Grant/deny/PJ tidak berubah sebagai side effect.
+- [x] PJ aktif tetap aktif setelah role change dan dapat diberi warning monitoring.
 
 #### Implementation Tasks
 
@@ -283,7 +285,7 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanju
 
 #### Automated Tests / Verification
 
-- [ ] Assign pertama, change role, invalid role, missing reason, unauthorized, concurrency, no-side-effect.
+- [x] Assign pertama, change role, invalid role, missing reason, unauthorized, concurrency, no-side-effect.
 
 #### Definition of Done
 
@@ -431,12 +433,14 @@ kegiatan:update
 - **Otorisasi:** `pengguna:read`.
 - **Dampak Data:** Read-only terhadap `roles`, `role_permissions`, grant, deny, permission.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #61, issue #39:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-2 `EffectivePermissionExplorerTest::test_global_permission_obeys_unit_deny_only_in_that_context`, `EffectivePermissionExplorerTest::test_scope_role_grant_and_deny_are_explained_without_changing_the_decision`; AC-3 `EffectivePermissionExplorerTest::test_get_does_not_mutate_access_or_audit_and_has_no_mutating_routes`, `EffectivePermissionExplorer.test.tsx`; AC-4 `EffectivePermissionExplorerTest::test_read_only_actor_can_open_but_live_deny_blocks_page_and_lookups`. AC-1/TEST-1 tetap terbuka karena scope per baris dan sumber peran belum di-assert di server; AC-5/TEST-Q31 tetap terbuka karena belum ada fixture pengguna PJ (PIC operasional).
+
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given pengguna dipilih, When halaman dimuat, Then sistem menampilkan permission efektif, scope, asal peran/grant, dan deny yang berlaku.
-- [ ] **AC-2:** Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
-- [ ] **AC-3:** Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
-- [ ] **AC-4:** Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
+- [x] **AC-2:** Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
+- [x] **AC-3:** Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
+- [x] **AC-4:** Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
 - [ ] **AC-5 (Q31):** Given target user ber-PIC operasional (bukan role), When halaman dimuat, Then sistem menampilkan izin efektif aktual berdasarkan `role_permissions`/grant/deny yang benar-benar ada; tidak ada permission sintetis hanya karena nama role PIC.
 
 #### Implementation Tasks
@@ -459,9 +463,9 @@ kegiatan:update
 #### Automated Tests / Verification
 
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given pengguna dipilih, When halaman dimuat, Then sistem menampilkan permission efektif, scope, asal peran/grant, dan deny yang berlaku.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given suatu permission berasal dari role dan kemudian di-deny, When ditampilkan, Then permission ditandai dicabut dan tidak ditampilkan sebagai izin efektif.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given halaman bersifat read-only, When pengguna berinteraksi, Then tidak ada mutasi role/grant/deny langsung dari halaman tersebut.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengguna tanpa `pengguna:read`, When membuka endpoint, Then 403.
 
 - [ ] TEST-Q31: Buat Pest Feature/Unit test untuk user PIC operasional (bukan role) dengan kombinasi role/grant/deny berbeda dan pastikan halaman menjelaskan permission efektif aktual tanpa hardcode role.
 
@@ -491,13 +495,15 @@ kegiatan:update
 - Seeder tanpa delta idempoten.
 - 7 permission unit-scoped tidak masuk role-global untuk mengganti grant.
 
+> **Status implementasi — sinkronisasi #225 (2026-11-04), PR #38 dan #200, issue #6:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: lima peran dan preset `RolePermissionManagementTest::test_read_gate_uses_live_pengguna_read_without_role_allowlist_or_akses_update`, `RolePermissionManagementTest::test_persisted_membership_is_bounded_searchable_and_honest_about_inactive_or_legacy_metadata`; 403 `RolePermissionManagementTest::test_missing_permission_inactive_actor_or_role_cannot_read`; tanpa kontrol dan endpoint mutasi `RolePermissionManagement.test.tsx`, `RolePermissionManagementTest::test_old_mutations_and_result_cannot_write_or_claim_success`; audit delta rilis `RolePermissionPresetTest::test_release_corrects_drift_and_metadata_preserving_existing_identity_and_inactive_permission`, `RolePermissionPresetTest::test_release_grants_pimpinan_rekomendasi_tetapkan_with_audited_before_after`. Butir role `pic` tetap terbuka: katalog dan seeder bersih (`AccessFoundationTest::test_pic_and_unknown_roles_are_invalid`), tetapi beberapa test sengaja memakai fixture `pic` legacy sebagai kasus negatif.
+
 #### Acceptance Criteria
 
-- [ ] User berizin dapat melihat 5 role dan presetnya.
-- [ ] User tanpa `pengguna:read` 403.
-- [ ] Tidak ada tombol/form add/revoke/edit permission role.
-- [ ] Mutation route/controller/service lama dihapus/nonaktif.
-- [ ] Perubahan preset via release menghasilkan audit delta.
+- [x] User berizin dapat melihat 5 role dan presetnya.
+- [x] User tanpa `pengguna:read` 403.
+- [x] Tidak ada tombol/form add/revoke/edit permission role.
+- [x] Mutation route/controller/service lama dihapus/nonaktif.
+- [x] Perubahan preset via release menghasilkan audit delta.
 - [ ] Tidak ada role `pic` di katalog/fixture/test.
 
 #### Implementation Tasks
