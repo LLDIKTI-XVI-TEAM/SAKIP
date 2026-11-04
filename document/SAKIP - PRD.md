@@ -157,7 +157,7 @@ Sasaran S4 dan IKU 4.1 hanya ada di PK dan dicatat di bawah Renstra 2025–2029 
 ### 5.1 Termasuk (Fase Awal — MVP)
 
 - Autentikasi via Keycloak (SSO existing LLDIKTI) menggunakan client baru khusus SAKIP.
-- Katalog **lima role resmi** SAKIP: `superadmin`, `admin`, `perencanaan`, `pic`, `pimpinan`, dan `pegawai`; satu pengguna tetap memegang tepat satu role pada Fase Awal. Preset permission final PIC operasional (bukan role) mengikuti keputusan Q31 dan tetap OPEN sampai dikonfirmasi.
+- Katalog **lima role resmi** SAKIP: `superadmin`, `admin`, `perencanaan`, `pimpinan`, dan `pegawai`; satu pengguna tetap memegang tepat satu role pada Fase Awal. PIC bukan role dan tidak memiliki preset permission (Q32 §32.1); PIC operasional adalah pengguna dengan role mana pun yang diberi penugasan PJ dan Grant Unit (Q32 §32.2).
 - Pengelolaan **Dasar Aturan** (`regulasi`): CRUD produk hukum (Kepmen/Permen/Perpres/keputusan lainnya) beserta lampiran dokumen sumbernya, dirujuk oleh Renstra dan/atau Indikator (§9).
 - Manajemen Renstra (CRUD, siklus status draft/aktif/nonaktif/diarsipkan) beserta Sasaran dan Indikator turunannya, termasuk target Renstra per indikator per tahun Renstra sebagai pembanding (Q39), revisi Renstra akibat terbitnya Kepmen IKU baru (edit in place, teraudit; revisi target Renstra saat Renstra aktif melalui mode revisi seluruh tabel dengan justifikasi wajib dan histori revisi bernomor, Q40; Q71), rujukan `regulasi_id`, dan lampiran dokumen Renstra (lampiran revisi tetap dapat ditambahkan setelah Renstra aktif, Q40).
 - Pengelolaan Perjanjian Kinerja (renstra_pk) per tahun per Renstra, termasuk isian target PK per indikator aktif dengan target Renstra sebagai pembanding (Q39) dan baseline sebagai data pendukung (Q50 §50.3), nomor PK opsional (Q50 §50.1), koreksi beralasan, lampiran dokumen PK — termasuk lampiran tambahan untuk PK perubahan yang hanya mengubah anggaran (Q50 §50.7) — dan revisi PK berversi (Q40; dijadwalkan pada tahap 3, Q46).
@@ -425,7 +425,7 @@ Halaman kerja tersendiri untuk CRUD `regulasi` beserta lampirannya: daftar produ
 
 ### 9.7 Hak Akses
 
-Permission **`regulasi:create`**, **`regulasi:read`**, **`regulasi:update`**, **`regulasi:delete`** (`update` dan `delete` bertanda `sensitif = true`, §7.2). Isi peran (§7.3): **Perencanaan** dan **Superadmin** memegang keempat aksi; **Admin**, **Pimpinan**, dan **Pegawai** memegang **`regulasi:read`** saja — dasar aturan tampil di halaman Renstra/indikator agar konteksnya terbaca oleh siapa pun yang berhak membuka halaman itu, tanpa memberi wewenang substantif kepada Admin atas isi dasar aturan. Hak bawaan role **PIC** atas `regulasi:read` tetap **OPEN** mengikuti penetapan preset permission Q31.
+Permission **`regulasi:create`**, **`regulasi:read`**, **`regulasi:update`**, **`regulasi:delete`** (`update` dan `delete` bertanda `sensitif = true`, §7.2). Isi peran (§7.3): **Perencanaan** dan **Superadmin** memegang keempat aksi; **Admin**, **Pimpinan**, dan **Pegawai** memegang **`regulasi:read`** saja — dasar aturan tampil di halaman Renstra/indikator agar konteksnya terbaca oleh siapa pun yang berhak membuka halaman itu, tanpa memberi wewenang substantif kepada Admin atas isi dasar aturan. PIC bukan role (Q32 §32.1); PIC operasional membaca dasar aturan sesuai role yang dipegangnya, karena Grant Unit hanya memuat tujuh izin tulis (Q32 §32.2).
 
 ### 9.8 Audit
 
@@ -925,7 +925,7 @@ Pengajuan Pengukuran **ditolak** bila ada komponen aktif yang nilainya (`penguku
 
 ### 17.8 Pengelolaan Definisi Komponen
 
-**Pengelolaan definisi komponen menggunakan permission `komponen:create`/`update`/`delete`** (Perencanaan dan Superadmin; `komponen:read` juga dimiliki Admin, Pimpinan, dan Pegawai agar label komponen tetap tampil di halaman yang berhak mereka buka; hak bawaan role PIC atas `komponen:read` tetap **OPEN** mengikuti preset permission Q31). Definisi komponen dapat diubah/ditambah lewat aplikasi — mis. saat Kepmen IKU dari kementerian berubah — **tanpa** penyesuaian hardcode kode aplikasi.
+**Pengelolaan definisi komponen menggunakan permission `komponen:create`/`update`/`delete`** (Perencanaan dan Superadmin; `komponen:read` juga dimiliki Admin, Pimpinan, dan Pegawai agar label komponen tetap tampil di halaman yang berhak mereka buka; PIC bukan role sehingga `komponen:read` bagi PIC operasional mengikuti role yang dipegangnya, Q32). Definisi komponen dapat diubah/ditambah lewat aplikasi — mis. saat Kepmen IKU dari kementerian berubah — **tanpa** penyesuaian hardcode kode aplikasi.
 
 ### 17.9 Pembekuan Cara Hitung di Snapshot
 
@@ -1250,7 +1250,7 @@ Rekomendasi Pimpinan melekat pada **indikator × periode**, terpisah dari `pengu
 - **Q64 (19 Oktober 2026):** kewajiban hanya mencakup periode yang jendela pengisiannya sudah dibuka; pengukuran yang belum disahkan (Draft dalam jendela, Diajukan, Diverifikasi, Dikembalikan) tampil "Dalam proses"; "Tidak mengisi" tidak berlaku pada periode lampau 2026; selama status capaian belum dapat ditetapkan, pengukuran disahkan tampil "Belum ditetapkan" di luar kasus Q47 dan "Tidak dapat dihitung".
 - **Q66 (21 Oktober 2026):** status tampilan di atas tampil per baris pada tabel status per indikator, tanpa kartu ringkasan jumlah per status; ringkasan di bagian atas dashboard memakai status alur kewajiban periode terpilih, dan kartu Draft menyebut jumlah "Tidak mengisi" bila ada. Ringkasan status capaian (Tercapai/Belum Tercapai) ditambahkan setelah penetapan status capaian (§21) tersedia di aplikasi.
 - Dashboard dapat difilter berdasarkan Renstra, Tahun, Periode, Sasaran, dan Unit.
-- Akses dashboard: pada preset lama `dashboard:read` dimiliki Superadmin, Admin, Perencanaan, Pimpinan, dan Pegawai. Karena PIC operasional (bukan role) baru ditambahkan melalui Q31 sementara preset permission-nya belum dikonfirmasi, hak bawaan `dashboard:read` untuk PIC tetap **OPEN** dan tidak boleh diasumsikan.
+- Akses dashboard: pada preset lama `dashboard:read` dimiliki Superadmin, Admin, Perencanaan, Pimpinan, dan Pegawai. PIC bukan role (Q32): PIC operasional memperoleh `dashboard:read` dari role yang dipegangnya, bukan dari Grant Unit.
 
 ---
 
@@ -1323,7 +1323,7 @@ Tabel `audit_log` append-only — tidak ada endpoint untuk mengubah atau menghap
 ### 25.4 Visibilitas per Role
 
 - `audit:read` dimiliki Superadmin, Admin, Perencanaan, dan Pimpinan (Q56). Izin ini berlaku global: pemegangnya dapat membaca seluruh isi audit lintas modul dan unit, termasuk payload draf, tanpa izin baca modul objek; hanya kunci yang menyerupai rahasia yang disamarkan (Q56 §56.1 butir 3).
-- Pegawai tidak memiliki akses baca audit log secara umum pada Fase Awal (tidak termasuk dalam isi peran `pegawai`). Hak bawaan role PIC atas `audit:read` belum dikonfirmasi dan tetap **OPEN** pada Q31.
+- Pegawai tidak memiliki akses baca audit log secara umum pada Fase Awal (tidak termasuk dalam isi peran `pegawai`). PIC bukan role (Q32); `audit:read` tidak termasuk Grant Unit, sehingga PIC operasional hanya dapat membaca audit log bila role yang dipegangnya memiliki izin tersebut.
 
 ---
 
