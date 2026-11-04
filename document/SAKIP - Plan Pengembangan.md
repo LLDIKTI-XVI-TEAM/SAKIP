@@ -1245,7 +1245,7 @@ Aturan berikut berlaku di seluruh Plan ini dan menjadi rujukan wajib bagi siapa 
 | 14 | Alert & Notifikasi | Butuh jadwal/periode (Modul 3), kewajiban dan status Pengukuran (Modul 5), serta Rencana Aksi (Modul 11); 14.1 mencakup banner ISS-12.01 dan lonceng/antrean tugas ISS-12.02 yang belum dikerjakan; 14.2 mencakup kanal eksternal ISS-12.03–ISS-12.07 dan ISS-13.04 dengan gate Q80 §80.1 |
 | — | Seed Data | Setelah seluruh migrasi Modul 1–6, 9, 11, 12, 13 tersedia, sebelum pengujian end-to-end menyeluruh |
 
-### Tahap pengerjaan Q46 §46.3 (diperbarui Q51)
+### Tahap pengerjaan Q46 §46.3 (diperbarui Q51 dan Q84)
 
 Urutan modul di atas tetap menjadi urutan dependensi teknis. Prioritas pengerjaan sejak 13 Oktober 2026 mengikuti tiga tahap berikut (Q46 §46.3; ISS-09.01 dipindah ke tahap 2 oleh Q51 §51.3).
 
@@ -1253,7 +1253,7 @@ Urutan modul di atas tetap menjadi urutan dependensi teknis. Prioritas pengerjaa
 |---|---|---|
 | 1 | Sebelum integrasi 9 November 2026 (Q2) | ISS-01.08 (1.3); ISS-02.10 (2.21); ISS-02.11 (2.22); ISS-05.06 (11.7); ISS-05.07 (11.9); ISS-06.01 (12.1–12.2); ISS-06.02 (12.6–12.9); ISS-06.08 (12.12); ISS-13.05 (10.7); ISS-13.06 (9.10); pengecualian periode lampau 2026 (3.11); di akhir tahap, penyiapan data awal 2026 (ISS-15.01) |
 | 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | ISS-06.03 (12.11); ISS-06.04 (12.3); ISS-06.05 (12.4); ISS-07.01 (5.2–5.4, 5.13–5.15); ISS-07.03 (5.5, 5.16); ISS-07.06 (5.13–5.16); ISS-08.01 (5.6–5.8, 6.1); ISS-08.02 (5.9, 6.2); ISS-09.01 (6.7); ISS-10.01 (7.1–7.8); ISS-10.02 (8.1, 8.3); ISS-10.05 (8.5); ISS-14.01 (3.9); tambahan Q70–Q74: ISS-02.13 (2.21), ISS-02.14 (2.22), ISS-02.15 (2.22), ISS-03.07 (3.1–3.3, 3.12), ISS-06.09 (12.2), ISS-09.03 (6.7) |
-| 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 (3.8) dan ISS-02.12 (2.23); simulasi target; tampilan daftar berkas terunggah; versi penuh Renstra; ISS-13.03 (10.1–10.5; 10.6 digantikan Q44) |
+| 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 (3.8) dan ISS-02.12 (2.23); tampilan daftar berkas terunggah; ISS-13.03 (10.1–10.5; 10.6 digantikan Q44) |
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 

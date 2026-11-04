@@ -88,13 +88,13 @@ Kontrak tambahan 23 Oktober 2026 (Q70–Q74):
 - baseline PK terisi otomatis dari realisasi periode nilai akhir tahun sebelumnya yang disahkan; tabel PK tanpa kolom Target Renstra (Q73);
 - menu Kegiatan dihapus; kegiatan dibuat, diedit, dan direalisasikan dari halaman kegiatan Rencana Aksi; biaya terpakai dicatat sebagai satu angka per kegiatan (Q74).
 
-Urutan pengerjaan (Q46 §46.3, diperbarui Q51):
+Urutan pengerjaan (Q46 §46.3, diperbarui Q51 dan Q84):
 
 | Tahap | Batas | Issue |
 |---|---|---|
 | 1 | Sebelum integrasi 9 November 2026 | ISS-01.08, ISS-02.10, ISS-02.11, ISS-05.06, ISS-05.07, ISS-06.01, ISS-06.02, ISS-06.08, ISS-13.05, ISS-13.06, pengecualian periode lampau 2026 (Q46 §46.1; termasuk ISS-03.05); di akhir tahap ISS-15.01 |
 | 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | ISS-06.03, ISS-06.04, ISS-06.05, ISS-07.01, ISS-07.03, ISS-07.06, ISS-08.01, ISS-08.02, ISS-09.01, ISS-10.01, ISS-10.02, ISS-10.05, ISS-14.01; tambahan Q70–Q74: ISS-02.13, ISS-02.14, ISS-02.15, ISS-03.07, ISS-06.09, ISS-09.03 |
-| 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12, simulasi target, tampilan daftar berkas terunggah, versi penuh Renstra, ISS-13.03 |
+| 3 | Sesudah tahap 2; revisi PK siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12, tampilan daftar berkas terunggah, ISS-13.03 |
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku.
 
@@ -1241,7 +1241,7 @@ kegiatan:update
 - **Rule:** bila target terlampaui sebelum akhir periode Renstra, target tahun berikutnya dinaikkan melalui perubahan pada AC-4 (Q40 §40.2 butir 3).
 - **Rule:** lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru (Q40 §40.2 butir 5).
 - **Rule:** indikator yang hanya ada di PK (mis. IKU 4.1 pada sasaran S4) dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5); kekosongan ini sah menurut AC-2.
-- **Di luar cakupan:** versi penuh Renstra (Q40 §40.2 butir 4; tahap 3, Q46 §46.3), pembanding target PK terhadap target Renstra (ISS-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
+- **Di luar cakupan:** versi penuh Renstra (tidak dibangun, Q40 §40.2 butir 4 dan Q84), pembanding target PK terhadap target Renstra (ISS-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -1325,7 +1325,7 @@ kegiatan:update
 - **Rule:** target PK diinput Tim Perencanaan setelah angka disepakati dengan tim kerja di luar aplikasi (Q39 §39.3 butir 1); capaian dinilai terhadap target PK melalui snapshot, bukan terhadap target Renstra, dan target periode RA dipecah dari target PK (Q39 §39.4).
 - **Rule:** perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (ISS-02.12); koreksi salah ketik memakai ISS-02.09 (Q40 §40.1 butir 8). Target PK tetap dapat diubah di halaman PK setelah snapshot terbentuk tanpa mengubah snapshot (Q65 §65.1) dan tanpa alasan (Q82).
 - **Rule:** PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan pada PK melalui fitur lampiran PK yang ada, beserta keterangan (mis. "PK perubahan anggaran") yang disimpan pada kolom baru `berkas.keterangan`; target dan snapshot tidak berubah (Q50 §50.7, Q48 §48.2 butir 6). `alasan_koreksi` tetap khusus untuk berkas pengganti.
-- **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (ISS-02.12), dan simulasi target (tahap 3, Q46 §46.3).
+- **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (ISS-02.12), dan simulasi target (tidak dibangun, Q84).
 
 #### Acceptance Criteria (QA/UAT)
 

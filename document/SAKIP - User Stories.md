@@ -536,7 +536,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - Target Renstra disimpan dengan permission `target:update` yang sudah ada; tidak ada permission baru (Q39 §39.3 butir 3).
 - Indikator yang hanya ada di PK (mis. IKU 4.1 pada sasaran S4) dicatat di bawah Renstra 2025–2029 tanpa target Renstra (Q50 §50.5); kekosongan ini sah menurut AC-2.
 - Lampiran revisi hanya dapat ditambahkan pada Renstra berstatus `draft` atau `aktif`; Renstra `nonaktif` atau diarsipkan tidak menerima lampiran baru (Q40 §40.2 butir 5).
-- **Di luar cakupan:** versi penuh Renstra (Q40 §40.2 butir 4; tahap 3, Q46 §46.3), pembanding target PK terhadap target Renstra (US-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
+- **Di luar cakupan:** versi penuh Renstra (tidak dibangun, Q40 §40.2 butir 4 dan Q84), pembanding target PK terhadap target Renstra (US-02.11), penghapusan lampiran, dan alur usulan target oleh PJ (Q39 §39.3 butir 2).
 
 ### US-02.11 · Input Target PK di Halaman Perjanjian Kinerja dengan Pembanding Target Renstra
 
@@ -581,7 +581,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan pada PK (fitur lampiran PK yang ada; Q50 §50.7).
 - Keterangan lampiran tambahan tersebut (mis. "PK perubahan anggaran") disimpan pada kolom baru `berkas.keterangan` (Q48 §48.2 butir 6): opsional, paling banyak 1.000 karakter, diisi saat unggah, dan tercatat di audit (Q65 §65.3).
 - PK perubahan yang mengubah target memakai revisi berversi (US-02.12); bila revisi seperti itu terbit sebelum US-02.12 selesai, penanganannya ditetapkan PM sebagai keputusan baru (Q50 §50.7 butir 2).
-- **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (US-02.12), dan simulasi target (tahap 3, Q46 §46.3).
+- **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (US-02.12), dan simulasi target (tidak dibangun, Q84).
 
 ### US-02.12 · Revisi PK Berversi (PK Awal dan PK Akhir)
 
