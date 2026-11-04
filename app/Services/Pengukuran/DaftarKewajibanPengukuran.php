@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Membangun query kewajiban yang dipakai IndexPengukuran, StatusIndikatorDashboard, PengingatKontekstual,
- * dan PenerimaNotifikasi. Pemilihan snapshot dan header dibagi agar semua pemakai membaca kewajiban yang sama.
+ * KandidatPengingatTenggat, dan PenerimaNotifikasi. Pemilihan snapshot dan header dibagi agar semua pemakai membaca kewajiban yang sama.
  * Service hanya membangun query; otorisasi, pagination, dan penyajian tetap milik pemanggil,
  * tanpa locking, transaksi, penyimpanan, atau audit.
  */
