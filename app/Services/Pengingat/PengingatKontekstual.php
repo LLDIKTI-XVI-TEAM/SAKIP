@@ -24,15 +24,18 @@ class PengingatKontekstual
     /**
      * Periode normal termasuk terlambat, atau jendela PIC resmi di dalam sesi koreksi.
      *
+     * @param  CarbonImmutable|null  $tanggal  Tanggal bisnis eksplisit; null berarti hari ini WITA.
      * @return Collection<int, PeriodeJadwal>
      */
-    public function periode(): Collection
+    public function periode(?CarbonImmutable $tanggal = null): Collection
     {
-        $today = today(config('app.business_timezone'));
+        // Tanggal eksplisit diteruskan apa adanya; tanpa tanggal, aturan sesi memakai waktu sekarang
+        // agar jendela/sesi yang mulai di tengah hari tidak dinilai belum terbuka.
+        $saat = $tanggal ?? CarbonImmutable::now(config('app.business_timezone'));
 
         return PeriodeJadwal::with(['jadwal', 'periode'])->whereHas('jadwal', fn ($q) => $q->where('status', 'aktif'))
-            ->where('pengisian_mulai', '<=', $today->toDateString())->get()
-            ->filter(fn ($p) => (! $p->jadwal->tahunDitutup() || SesiKoreksiJadwal::jendelaPicTerbuka($p->jadwal, $p))
+            ->where('pengisian_mulai', '<=', $saat->toDateString())->get()
+            ->filter(fn ($p) => (! $p->jadwal->tahunDitutup($saat) || SesiKoreksiJadwal::jendelaPicTerbuka($p->jadwal, $p, $saat))
                 && ! PeriodeTanpaTarget::isPeriodeLampau($p->jadwal, $p))->values();
     }
 
