@@ -73,12 +73,14 @@ class RollOverKegiatanTest extends TestCase
     public function test_perencanaan_tetap_ditawari_periode_tujuan_terkunci(): void
     {
         $this->travelTo(now()->setDate(2026, 4, 15)->setTime(9, 0));
-        $this->assertSame([true, [['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II']]], $this->pilihanTunda('perencanaan'));
+        $this->assertSame([true, [['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II',
+            'tanggal' => ['bulan_mulai' => 4, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30]]]], $this->pilihanTunda('perencanaan'));
     }
 
     public function test_periode_tujuan_terbuka_tetap_ditawarkan_dan_diterima_bagi_pic(): void
     {
-        $this->assertSame([true, [['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II']]], $this->pilihanTunda('pic'));
+        $this->assertSame([true, [['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II',
+            'tanggal' => ['bulan_mulai' => 4, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30]]]], $this->pilihanTunda('pic'));
         $this->tunda()->assertRedirect();
         $this->assertSame('ditunda', $this->asal->fresh()->status);
     }
