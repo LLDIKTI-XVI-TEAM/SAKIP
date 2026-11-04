@@ -190,7 +190,7 @@ export function PerjanjianKinerjaEditModal({
             <AuditReasonModal
                 open={isOpen && confirmationOpen}
                 title="Konfirmasi perubahan Perjanjian Kinerja"
-                description="Isi dasar perubahan sebelum menyimpan. Batal mengembalikan Anda ke formulir tanpa membuang isian."
+                showIcon={false}
                 reason={data.alasan ?? ''}
                 error={errors.alasan}
                 busy={processing}
