@@ -32,9 +32,8 @@ class TargetPkDeviasiRenstraTest extends TestCase
             TargetKinerja::create(['indikator_kinerja_id' => $indikator->id, 'tahun' => 2026, 'target_tahunan' => $tersimpan]);
         }
 
-        // Q72 §72.2 butir 1: alasan perubahan menggantikan alasan deviasi, jadi tidak meloloskan nilai menyimpang.
-        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => $pk, ...($tersimpan !== null ? ['alasan' => 'Koreksi PK QA-94'] : [])])
-            ->assertUnprocessable()->assertJsonPath('errors.deviasi_renstra.0', $pesan);
+        $errors = $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => $pk])->assertUnprocessable()->json('errors');
+        $this->assertSame(['deviasi_renstra' => [$pesan]], $errors);
 
         $this->assertSame($tersimpan === null ? [] : ['80.000000000000'], DB::table('target_kinerjas')->pluck('target_tahunan')->all());
         $this->assertSame(0, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
@@ -52,19 +51,8 @@ class TargetPkDeviasiRenstraTest extends TestCase
             'turun_baik terhadap Renstra nol' => ['turun_baik', '0', null, '0.01', 'Target PK di atas target Renstra 2026 (0). Revisi target Renstra dulu.'],
             // Angka pesan tanpa pembulatan tampilan, sama dengan nilai yang dibandingkan.
             'naik_baik terhadap Renstra tiga desimal' => ['naik_baik', '85.004', null, '85', 'Target PK di bawah target Renstra 2026 (85,004). Revisi target Renstra dulu.'],
-            'baris tersimpan diubah dengan alasan' => ['naik_baik', '80', '80', '79', 'Target PK di bawah target Renstra 2026 (80). Revisi target Renstra dulu.'],
+            'baris tersimpan diubah' => ['naik_baik', '80', '80', '79', 'Target PK di bawah target Renstra 2026 (80). Revisi target Renstra dulu.'],
         ];
-    }
-
-    public function test_menyimpang_sekaligus_tanpa_alasan_hanya_memunculkan_pesan_deviasi(): void
-    {
-        [$actor, $indikator] = $this->konteks('naik_baik', '80');
-        TargetKinerja::create(['indikator_kinerja_id' => $indikator->id, 'tahun' => 2026, 'target_tahunan' => '80']);
-
-        $errors = $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => '79'])->assertUnprocessable()->json('errors');
-
-        $this->assertSame(['deviasi_renstra'], array_keys($errors));
-        $this->assertSame('target_menyimpang_renstra', AuditLog::where('tindakan', 'target_tahunan.simpan_ditolak')->sole()->nilai_baru['alasan_penolakan']);
     }
 
     public function test_renstra_aktif_juga_menolak_target_menyimpang(): void
@@ -165,11 +153,11 @@ class TargetPkDeviasiRenstraTest extends TestCase
         $lama = app(AuditLogger::class)->catat(actor: $actor, tindakan: 'target_tahunan.simpan', objekTipe: 'target_tahunan', objekId: $target->id,
             nilaiBaru: ['indikator_id' => $indikator->id, 'tahun' => 2026, 'baseline' => null, 'target_tahunan' => '85', 'alasan_deviasi_renstra' => 'Tersimpan QA-93']);
 
-        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => '90', 'alasan' => 'Koreksi PK QA-93', 'alasan_deviasi_renstra' => 'Tidak dipakai lagi'])
+        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => '90', 'alasan_deviasi_renstra' => 'Tidak dipakai lagi'])
             ->assertUnprocessable()->assertJsonPath('errors.target_tahunan.0', 'Permintaan memuat field yang tidak didukung.');
         $this->assertSame('input_tidak_valid', AuditLog::where('tindakan', 'target_tahunan.simpan_ditolak')->sole()->nilai_baru['alasan_penolakan']);
 
-        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => '90', 'alasan' => 'Koreksi PK QA-93'])->assertOk()->assertJsonPath('changed', true);
+        $this->simpanTargetPk($actor, $indikator, ['target_tahunan' => '90'])->assertOk()->assertJsonPath('changed', true);
         // Q72 §72.2 butir 4: kolom lama hanya histori; tidak ditulis lagi dan tidak masuk audit baru.
         $this->assertSame('Tersimpan QA-93', DB::table('target_kinerjas')->value('alasan_deviasi_renstra'));
         $baru = AuditLog::where('tindakan', 'target_tahunan.simpan')->whereKeyNot($lama->id)->sole();

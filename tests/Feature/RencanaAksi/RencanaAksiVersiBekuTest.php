@@ -78,7 +78,8 @@ class RencanaAksiVersiBekuTest extends TestCase
         $this->assertSame($versi->id, $hasil['rencana_aksi_versi']->id);
         foreach ($hasil['alasan'] as $alasan) {
             $this->assertStringNotContainsString('Target pada versi RA', $alasan);
-            $this->assertStringNotContainsString('Versi rencana aksi sah', $alasan);
+            $this->assertStringNotContainsString('Belum ada versi rencana aksi sah', $alasan);
+            $this->assertStringNotContainsString('versi indikator lama', $alasan);
         }
     }
 

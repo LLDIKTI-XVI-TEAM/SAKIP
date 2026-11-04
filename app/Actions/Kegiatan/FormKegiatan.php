@@ -10,12 +10,15 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Kegiatan\GerbangBerkasKegiatan;
 use App\Services\Kegiatan\PersyaratanPerencanaanKegiatan;
+use App\Services\Kegiatan\RollOverKegiatan;
+use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
 use App\Support\PermissionDecision;
 
 class FormKegiatan
 {
     public function __construct(private readonly PermissionResolver $resolver, private readonly AuditLogger $audit,
-        private readonly PersyaratanPerencanaanKegiatan $persyaratan) {}
+        private readonly PersyaratanPerencanaanKegiatan $persyaratan, private readonly RollOverKegiatan $rollOver,
+        private readonly JendelaTulisRencanaAksi $jendela) {}
 
     /** Pilihan unit diturunkan dari izin kegiatan; tidak mensyaratkan hak pengelolaan master unit. @return array<string,mixed> */
     public function handle(User $actor, Kegiatan $kegiatan): array
@@ -37,7 +40,8 @@ class FormKegiatan
         $periodeAktif = Periode::where('aktif', true)->orderBy('urutan')->orderBy('id')->get(['id', 'nama', 'urutan', ...Periode::TANGGAL]);
         // Aturan sama dengan halaman kegiatan Rencana Aksi: aksi status tidak ditawarkan untuk tahun yang pasti ditolak.
         $tahunDitutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
-        $pilihan = $kegiatan->loadMissing('periode')->pilihanStatus($periodeAktif);
+        // Keputusan terakhir loop di atas adalah kegiatan:update, dasar jalur Perencanaan seperti di Action transisi.
+        $pilihan = $this->rollOver->saringTujuan($kegiatan, $kegiatan->loadMissing('periode')->pilihanStatus($periodeAktif), $this->jendela->jalurPerencanaan($decision));
         $ubahStatus = $tahunDitutup ? [] : $pilihan['status'];
         // Persyaratan pelaksanaan dinilai ulang dari klaim saat ini: klaim baru setelah terlaksana dapat menambah bukti wajib (Q22).
         $kurang = PersyaratanPerencanaanKegiatan::kurang($this->persyaratan->evaluasi($kegiatan,
@@ -52,6 +56,8 @@ class FormKegiatan
                 'periode_nama' => $kegiatan->periode->nama,
                 // Nama periode kegiatan lanjutan, bila kegiatan ini sudah ditunda.
                 'periode_tujuan' => Kegiatan::where('kegiatan_asal_id', $kegiatan->id)->with('periode:id,nama')->first()?->periode?->nama,
+                // Nama periode kegiatan asal, bila kegiatan ini lanjutan (jejak penundaan dua arah, Q41 §41.4 butir 2).
+                'periode_asal' => $kegiatan->kegiatan_asal_id ? Kegiatan::with('periode:id,nama')->find($kegiatan->kegiatan_asal_id)?->periode?->nama : null,
             ],
             'unitOptions' => $unitOptions->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
             'periodeOptions' => $periodeAktif->map(fn (Periode $periode) => [...$periode->only(['id', 'nama']), 'tanggal' => $periode->only(Periode::TANGGAL)])->all(),

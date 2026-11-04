@@ -5,6 +5,7 @@ namespace App\Services\Kegiatan;
 use App\Models\Kegiatan;
 use App\Models\RencanaAksi;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use stdClass;
@@ -17,10 +18,13 @@ use stdClass;
  *
  * Kegiatan asal `ditunda` tidak dihitung setelah salah satu kegiatan dalam
  * rantai lanjutannya (lanjutan, lanjutan dari lanjutan, dan seterusnya)
- * diklaim (klaim apa pun, ke RA mana pun), agar anggarannya hanya terhitung
- * pada lanjutan; sebelum itu asal tetap terhitung (Q69 §69.6). Karena semua
- * total hanya menghitung kegiatan berklaim, anggaran tidak terhitung ganda,
- * termasuk pada rantai yang lanjutan tengahnya tidak diklaim.
+ * diklaim di dalam lingkup total yang sama, agar anggarannya hanya terhitung
+ * pada lanjutan; sebelum itu asal tetap terhitung (Q69 §69.6 butir 1–4).
+ * Lingkupnya klaim yang dipakai memilih kegiatan total itu: RA yang sama
+ * (termasuk filter `tahapRaSaja`), RA berindikator sama, atau klaim mana pun
+ * untuk total unit/tahun. Karena semua total hanya menghitung kegiatan
+ * berklaim, anggaran tidak terhitung ganda, termasuk pada rantai yang
+ * lanjutan tengahnya tidak diklaim.
  *
  * Caller aktual: `DaftarKegiatanRencanaAksi` (total live halaman RA) dan
  * `AjukanRencanaAksi` (total yang dibekukan ke snapshot versi dengan
@@ -37,7 +41,7 @@ class TotalAnggaranKegiatan
     public function perRencanaAksi(RencanaAksi $header, bool $tahapRaSaja = false): array
     {
         $klaim = DB::table('klaim_kegiatan')->where('rencana_aksi_id', $header->id)->when($tahapRaSaja, fn ($query) => $query->where('sumber_klaim', 'rencana_aksi'));
-        $kegiatan = fn (): Builder => $this->terhitung()->whereIn('kegiatan.id', (clone $klaim)->select('kegiatan_id'));
+        $kegiatan = fn (): Builder => $this->terhitung((clone $klaim)->select('kegiatan_id'))->whereIn('kegiatan.id', (clone $klaim)->select('kegiatan_id'));
 
         return [
             ...$this->ringkas($kegiatan()),
@@ -49,15 +53,16 @@ class TotalAnggaranKegiatan
     /** @return array{total: string, belum_diisi: int} Kegiatan bersama dihitung penuh pada setiap IKU. */
     public function perIku(string $indikatorId, int $tahun): array
     {
-        return $this->ringkas($this->terhitung()->where('kegiatan.tahun', $tahun)
-            ->whereIn('kegiatan.id', DB::table('klaim_kegiatan')->join('rencana_aksi', 'rencana_aksi.id', '=', 'klaim_kegiatan.rencana_aksi_id')
-                ->where('rencana_aksi.indikator_id', $indikatorId)->select('klaim_kegiatan.kegiatan_id')));
+        $klaim = fn (): QueryBuilder => DB::table('klaim_kegiatan')->join('rencana_aksi', 'rencana_aksi.id', '=', 'klaim_kegiatan.rencana_aksi_id')
+            ->where('rencana_aksi.indikator_id', $indikatorId)->select('klaim_kegiatan.kegiatan_id');
+
+        return $this->ringkas($this->terhitung($klaim())->where('kegiatan.tahun', $tahun)->whereIn('kegiatan.id', $klaim()));
     }
 
     /** @return array{total: string, belum_diisi: int} Kegiatan unik, sehingga kegiatan bersama dihitung sekali. */
     public function perUnitTahun(string $unitId, int $tahun): array
     {
-        return $this->ringkas($this->terhitung()->where('kegiatan.unit_id', $unitId)->where('kegiatan.tahun', $tahun)
+        return $this->ringkas($this->terhitung(DB::table('klaim_kegiatan')->select('kegiatan_id'))->where('kegiatan.unit_id', $unitId)->where('kegiatan.tahun', $tahun)
             ->whereIn('kegiatan.id', DB::table('klaim_kegiatan')->select('kegiatan_id')));
     }
 
@@ -81,20 +86,23 @@ class TotalAnggaranKegiatan
             ->pluck('klaim_kegiatan.kegiatan_id')->map(fn ($id): string => (string) $id)->all();
     }
 
-    /** @return Builder<Kegiatan> */
-    private function terhitung(): Builder
+    /**
+     * @param  QueryBuilder  $klaimLingkup  `kegiatan_id` klaim dalam lingkup total (Q69 §69.6 butir 4).
+     * @return Builder<Kegiatan>
+     */
+    private function terhitung(QueryBuilder $klaimLingkup): Builder
     {
         // Rantai lanjutan ditelusuri lewat kegiatan_asal_id (A → B → C); UNION berhenti pada baris yang sudah dikunjungi bila data membentuk siklus.
-        return Kegiatan::query()->whereNot(fn (Builder $query) => $query->where('kegiatan.status', 'ditunda')->whereRaw(<<<'SQL'
+        return Kegiatan::query()->whereNot(fn (Builder $query) => $query->where('kegiatan.status', 'ditunda')->whereRaw(<<<SQL
             EXISTS (
                 WITH RECURSIVE rantai (id) AS (
                     SELECT lanjutan.id FROM kegiatan AS lanjutan WHERE lanjutan.kegiatan_asal_id = kegiatan.id
                     UNION
                     SELECT berikut.id FROM kegiatan AS berikut JOIN rantai ON berikut.kegiatan_asal_id = rantai.id
                 )
-                SELECT 1 FROM rantai JOIN klaim_kegiatan ON klaim_kegiatan.kegiatan_id = rantai.id
+                SELECT 1 FROM rantai WHERE rantai.id IN ({$klaimLingkup->toSql()})
             )
-            SQL));
+            SQL, $klaimLingkup->getBindings()));
     }
 
     /**

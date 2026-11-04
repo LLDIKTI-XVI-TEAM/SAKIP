@@ -48,8 +48,8 @@ Diagram berikut menggambarkan urutan penuh dari login hingga dashboard terupdate
      target_tahunan (Q39; lihat §3.3) — target PK bernilai penuh dan baseline tampil sebagai
      data pendukung, bukan isi dokumen PK (Q50 §50.2–§50.3)
      → Target PK di bawah target Renstra tahun yang sama (naik_baik; di atasnya untuk
-       turun_baik): penyimpanan DITOLAK sampai target Renstra direvisi lewat mode revisi;
-       alasan perubahan WAJIB bila target PK yang sudah tersimpan berubah (Q72)
+       turun_baik): penyimpanan DITOLAK sampai target Renstra direvisi lewat mode revisi
+       (Q72); perubahan target PK tidak meminta alasan (Q82)
   10. Melampirkan dokumen Perjanjian Kinerja (mode file/tautan/teks) pada renstra_pk tahun
       berjalan — lihat §3
   11. Mengaktifkan Renstra
@@ -412,7 +412,7 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
 
 ### 3.3 Lampiran dokumen Perjanjian Kinerja (gerbang keempat aktivasi jadwal)
 
-> **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot, dan alasan deviasi terhadap target Renstra ditegakkan menurut arah indikator (Q65). *(Digantikan Q72: target PK yang menyimpang ditolak; alasan perubahan target PK wajib.)* Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
+> **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot, dan alasan deviasi terhadap target Renstra ditegakkan menurut arah indikator (Q65). *(Digantikan Q72: target PK yang menyimpang ditolak; alasan perubahan target PK wajib.)* *(Diubah Q82: perubahan target PK tidak meminta alasan.)* Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
 
 ```
 📋 Perencanaan
@@ -442,9 +442,9 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
        Renstra belum ada atau target PK kosong tidak dinilai
      → Anjuran naik satu poin (`turun_baik`: turun satu poin) tampil sebagai panduan
        (Q72 §72.1 butir 7)
-     → Alasan perubahan target PK WAJIB bila target PK yang sudah tersimpan berubah, juga
-       setelah snapshot terbentuk; diisi pada isian di editor dan dicatat di audit (Q72 §72.2).
-       Pengisian pertama dan perubahan baseline saja tidak wajib alasan
+     → Perubahan target PK yang sudah tersimpan, juga setelah snapshot terbentuk, disimpan
+       tanpa alasan maupun rujukan sumber; audit mencatat nilai lama dan baru (Q82, mencabut
+       Q72 §72.2)
      → Setelah snapshot terbentuk, target PK tetap dapat diubah tetapi snapshot, rekonsiliasi
        Rencana Aksi, dan pengukuran tahun tsb tetap membaca target beku; halaman PK dan editor
        menampilkan pemberitahuannya (Q65 §65.1)
@@ -1548,6 +1548,8 @@ Koreksi data rencana aksi/pengukuran/jadwal disediakan lewat tiga permission ber
      → Rencana aksi yang kembali ke dikembalikan/draft TIDAK otomatis mencabut gerbang
        pengukuran yang sudah terlanjur diajukan sebelumnya pada periode lain; gerbang hanya
        dievaluasi ulang pada pengajuan BARU
+     → Saat koreksi snapshot, bila ada pengukuran belum disahkan pada periode sebelum periode mulai, form menampilkannya → Perencanaan mengonfirmasi secara eksplisit → versi koreksi terbit (Q81 §81.3)
+     → Sejak versi koreksi snapshot terbit, pengukuran draf/dikembalikan pada periode sejak periode mulai yang masih memakai versi lama dipindahkan Perencanaan lewat tombol Pindahkan (Q79 §79.3 butir 4); pengajuannya menunggu Rencana Aksi disahkan ulang dengan versi koreksi. Pengukuran periode sebelumnya tetap diajukan dengan versi lama (Q81 §81.2)
 
   Lapis 2 — Pengukuran, sebelum penutupan jadwal atau di dalam sesi koreksi yang mencakup baris:
   4. Menemukan pengukuran berstatus Disahkan yang perlu dikoreksi

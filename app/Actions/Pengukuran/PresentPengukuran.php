@@ -2,6 +2,7 @@
 
 namespace App\Actions\Pengukuran;
 
+use App\Models\JadwalSnapshot;
 use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
@@ -14,6 +15,7 @@ use App\Policies\PengukuranKinerjaPolicy;
 use App\Services\Rekomendasi\RekomendasiBerlaku;
 use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -61,7 +63,7 @@ class PresentPengukuran
     }
 
     /**
-     * Target periode dari versi terakhir RA sah yang dijepit ke snapshot dan unit yang sama; selain itu null, bukan nol
+     * Target periode dari versi RA sah bernomor terbesar dengan snapshot dan unit yang sama; selain itu null, bukan nol
      * atau target PK. Dibaca sekaligus untuk ringkasan header dan baris kewajiban yang belum memiliki header.
      *
      * @param  list<array{indikator_id: string, tahun: int, periode_id: string, jadwal_snapshot_id: string, unit_id: string}>  $contexts
@@ -75,13 +77,19 @@ class PresentPengukuran
         $plans = RencanaAksi::whereIn('indikator_id', array_column($contexts, 'indikator_id'))->whereIn('tahun', array_column($contexts, 'tahun'))
             ->where('status_alur', 'disahkan')->get()->keyBy(fn ($plan) => $plan->indikator_id.':'.$plan->tahun);
         $planVersions = RencanaAksiVersi::whereIn('rencana_aksi_id', $plans->modelKeys())
-            ->whereRaw('nomor = (select max(rv.nomor) from rencana_aksi_versi rv where rv.rencana_aksi_id = rencana_aksi_versi.rencana_aksi_id)')
-            ->whereNotNull('disahkan_at')->whereNotNull('disahkan_by')->get()->keyBy('rencana_aksi_id');
+            ->whereIn('jadwal_snapshot_id', array_column($contexts, 'jadwal_snapshot_id'))
+            ->whereNotNull('disahkan_at')->whereNotNull('disahkan_by')
+            ->whereNotExists(fn (Builder $query) => $query->selectRaw('1')->from('rencana_aksi_versi as baru')
+                ->whereColumn('baru.rencana_aksi_id', 'rencana_aksi_versi.rencana_aksi_id')
+                ->whereColumn('baru.jadwal_snapshot_id', 'rencana_aksi_versi.jadwal_snapshot_id')
+                ->whereNotNull('baru.disahkan_at')->whereNotNull('baru.disahkan_by')
+                ->whereColumn('baru.nomor', '>', 'rencana_aksi_versi.nomor'))
+            ->get()->keyBy(fn ($version) => $version->rencana_aksi_id.':'.$version->jadwal_snapshot_id);
 
         return array_map(function (array $context) use ($plans, $planVersions) {
             $plan = $plans->get($context['indikator_id'].':'.$context['tahun']);
-            $planVersion = $plan ? $planVersions->get($plan->id) : null;
-            $periodTarget = $planVersion && $planVersion->jadwal_snapshot_id === $context['jadwal_snapshot_id'] && $plan->unit_id === $context['unit_id']
+            $planVersion = $plan ? $planVersions->get($plan->id.':'.$context['jadwal_snapshot_id']) : null;
+            $periodTarget = $planVersion && $plan->unit_id === $context['unit_id']
                 ? collect($planVersion->snapshot['target_periode'] ?? [])->firstWhere('periode_id', $context['periode_id']) : null;
             $target = $periodTarget['nilai'] ?? null;
 
@@ -127,8 +135,8 @@ class PresentPengukuran
                 // Nama boleh beku, tetapi rentang selalu dari tanggal master yang berlaku saat ditampilkan.
                 'tanggal' => $p->periode->only(Periode::TANGGAL)],
             'bukti_count' => $frozen ? count($frozen['bukti_dukungs']) : (int) ($p->bukti_dukungs_count ?? 0), 'bukti_dukungs' => [], 'komponen' => [], 'persyaratan_bukti' => [],
-            'prasyarat' => ['siap' => false, 'alasan' => []],
-            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'reopen' => false, 'evidence' => false, 'uploadEvidence' => false],
+            'prasyarat' => ['siap' => false, 'alasan' => []], 'versi_berlaku' => null,
+            'can' => ['view' => true, 'update' => false, 'submit' => false, 'verify' => false, 'ratify' => false, 'return' => false, 'reopen' => false, 'evidence' => false, 'uploadEvidence' => false, 'pindahSnapshot' => false],
             'businessErrors' => ['verifikasi' => [], 'sahkan' => [], 'kembalikan' => [], 'buka_kembali' => []]];
         if (! $detail) {
             return $data;
@@ -139,6 +147,14 @@ class PresentPengukuran
         $can = [];
         foreach (['view' => 'view', 'update' => 'update', 'submit' => 'submit', 'verify' => 'verify', 'ratify' => 'ratify', 'return' => 'returnMeasurement', 'reopen' => 'reopen', 'evidence' => 'viewEvidence', 'uploadEvidence' => 'uploadEvidence', 'viewClaims' => 'viewClaims', 'claimEvidence' => 'viewClaimEvidence'] as $key => $ability) {
             $can[$key] = Gate::forUser($actor)->allows($ability, $p);
+        }
+        $can['pindahSnapshot'] = false;
+        if (in_array($p->status_alur, ['draft', 'dikembalikan'], true)) {
+            $berlaku = JadwalSnapshot::versiBerlaku($context->jadwal_id, $p->indikator_id, $p->periode->urutan);
+            if ($berlaku && $berlaku->id !== $p->jadwal_snapshot_id) {
+                $data['versi_berlaku'] = ['id' => $berlaku->id, 'nomor' => $berlaku->nomor_versi];
+                $can['pindahSnapshot'] = Gate::forUser($actor)->allows('pindahSnapshot', $p);
+            }
         }
         $data['can'] = $can;
         // Q37 §37.1 butir 3: UI menerima capability beserta alasan bisnis (statis, tanpa dasar_izin/token).

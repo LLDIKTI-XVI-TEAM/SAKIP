@@ -50,6 +50,7 @@ const selectedFilters = { renstra_id: null, periode_id: null, unit_id: null };
 const pagination: PengukuranPagination = { current_page: 1, last_page: 1, total: 1, prev_page_url: null, next_page_url: null };
 
 const dasar: BarisDisahkan = {
+    versi_berlaku: null,
     id: 'pengukuran-1', versi: 7, nomor_pengajuan: 2, jalur_pengajuan: 'pic', self_approval: false, reviu_terlambat: false,
     status: 'disahkan', target: '100', nilai: '88', status_perhitungan: 'terhitung', sumber_nilai: 'manual',
     catatan: null, alasan_tidak_dapat_dihitung: null, komponen: [], prasyarat: { siap: true, alasan: [] },

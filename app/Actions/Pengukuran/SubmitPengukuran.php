@@ -71,7 +71,10 @@ class SubmitPengukuran
             'persyaratan_bukti' => $prerequisite['persyaratan_bukti'], 'bukti_dukungs' => $p->buktiDukungs()->current()->get()->map(fn ($b) => $b->only(['id', 'jenis_berkas_id', 'menggantikan_id', 'alasan_koreksi', 'mode', 'nama_asli', 'path', 'mime', 'ukuran_bytes', 'tautan', 'isi_teks']))->all()];
     }
 
-    /** Klaim dan narasi berasal dari kegiatan nyata pada periode ini, bukan salinan RA hidup. */
+    /**
+     * Klaim dan narasi berasal dari kegiatan nyata pada periode ini, bukan salinan RA hidup.
+     * Komponen hanya diuji untuk kegiatan periode ini; klaim periode lain mengikuti versi yang berlaku di periodenya.
+     */
     private function activityClaims(PengukuranKinerja $p, ?string $planId): array
     {
         if ($planId === null) {
@@ -86,11 +89,14 @@ class SubmitPengukuran
         $result = [];
         foreach ($claims as $claim) {
             $activity = $activities->get($claim->kegiatan_id);
-            if (! $activity || $activity->unit_id !== $p->targetUnitId() || $activity->tahun !== $p->tahun || ($claim->komponen_id && ! in_array($claim->komponen_id, $components, true))) {
+            if (! $activity || $activity->unit_id !== $p->targetUnitId() || $activity->tahun !== $p->tahun) {
                 throw ValidationException::withMessages(['pengajuan' => 'Klaim kegiatan tidak cocok dengan konteks indikator/tahun/unit.']);
             }
             if ($activity->periode_id !== $p->periode_id) {
                 continue;
+            }
+            if ($claim->komponen_id && ! in_array($claim->komponen_id, $components, true)) {
+                throw ValidationException::withMessages(['pengajuan' => 'Klaim kegiatan tidak cocok dengan konteks indikator/tahun/unit.']);
             }
             $result[] = [...$claim->only(['id', 'kegiatan_id', 'komponen_id', 'arah_dampak', 'catatan', 'sumber_klaim']),
                 'kegiatan' => [...$activity->only(['id', 'periode_id', 'nama', 'tujuan', 'status', 'tanggal_rencana', 'tanggal_realisasi', 'sasaran_peserta', 'realisasi_peserta', 'justifikasi', 'uraian_pelaksanaan', 'kendala', 'strategi_tindaklanjut']),

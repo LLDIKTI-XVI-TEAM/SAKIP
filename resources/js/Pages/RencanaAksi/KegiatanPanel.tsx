@@ -51,6 +51,15 @@ const KOSONG: FormKegiatan = {
 const selResponsif = 'min-w-0 p-0 xl:px-4 xl:py-3.5';
 const labelResponsif = 'md:inline xl:hidden';
 
+/** Penanda penundaan; menjadi tautan ke baris pasangannya bila baris itu tampil di panel ini. */
+function PenandaPenundaan({ label, target }: { label: string; target: string | null }) {
+    const badge = <Badge variant="warning">{label}</Badge>;
+
+    return target
+        ? <a href={`#kegiatan-${target}`} className="rounded-md underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">{badge}</a>
+        : badge;
+}
+
 /** Galat validasi bisnis gerbang klaim (422) yang tidak terikat ke field form. */
 function galatBisnis(errs: Record<string, string | undefined>): string | undefined {
     return errs.status_alur ?? errs.jendela ?? errs.unit_id ?? errs.indikator_id;
@@ -126,6 +135,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
     const namaPeriode = (id: string): string => periode.find((item) => item.id === id)?.nama ?? 'Periode';
     // Tanggal Master Periode saat ini (Q70 §70.1 butir 3a), bukan bagian snapshot beku.
     const periodeTerpilih = periode.find((item) => item.id === data.periode_id);
+    const adaDiPanel = (id: string): boolean => kegiatan.daftar.some((row) => row.kegiatan_id === id);
     // Kolom komponen disembunyikan bila tidak ada komponen maupun klaim berkomponen (indikator manual); klaim yang merujuk
     // komponen di luar snapshot tetap menampilkan kolom agar penjelasannya tidak hilang. Kolom aksi hanya bila ada capability kelola.
     const adaKomponen = komponen.length > 0 || kegiatan.daftar.some((row) => row.komponen_id !== null);
@@ -187,8 +197,10 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                 <TableCell className={`col-span-2 ${selResponsif}`}>
                                                     <p className="break-words text-sm font-medium text-ink">{row.nama}</p>
                                                     {row.catatan && <p className="mt-0.5 break-words text-xs text-muted">{row.catatan}</p>}
-                                                    {(row.kegiatan_bersama || row.sumber_klaim === 'pengukuran') && (
+                                                    {(row.kegiatan_bersama || row.sumber_klaim === 'pengukuran' || row.lanjutan || row.asal) && (
                                                         <span className="mt-1.5 flex flex-wrap gap-1">
+                                                            {row.lanjutan && <PenandaPenundaan label={`Ditunda → ${namaPeriode(row.lanjutan.periode_id)}`} target={adaDiPanel(row.lanjutan.id) ? row.lanjutan.id : null} />}
+                                                            {row.asal && <PenandaPenundaan label={`Lanjutan dari ${namaPeriode(row.asal.periode_id)}`} target={adaDiPanel(row.asal.id) ? row.asal.id : null} />}
                                                             {row.kegiatan_bersama && <Badge variant="info">Kegiatan bersama</Badge>}
                                                             {row.sumber_klaim === 'pengukuran' && <Badge variant="muted">Klaim pengukuran</Badge>}
                                                         </span>

@@ -24,7 +24,7 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Langkah bersama lima Action mutasi pengukuran: persiapan state terkunci, penyimpanan input/bukti,
+ * Langkah bersama Action mutasi pengukuran: persiapan state terkunci, penyimpanan input/bukti,
  * dan penyusunan audit/provenance. Kelas ini tidak memilih tindakan dan tidak membuka transaksi;
  * transaksi serta kompensasi tetap dimiliki tiap Action pemanggil.
  */
@@ -34,13 +34,37 @@ class PengukuranMutationSteps
         private CalculatePengukuran $calculator) {}
 
     /**
-     * Urutan lock: aktor → role aktif (shared) → RA (khusus ajukan) → indikator (shared) → header → snapshot → jadwal → periode.
-     * Izin dan gate bisnis diputuskan sesudah lock; `$decision` diisi sebelum penolakan dilempar agar audit penolakan memakai keputusan aktual.
+     * Kunci konteks lalu putuskan izin, gate bisnis, dan token header.
+     * `$decision` diisi sebelum penolakan dilempar agar audit penolakan memakai keputusan aktual.
      * Pemanggil wajib sudah berada dalam transaksi.
      *
      * @return array{0: User, 1: PengukuranKinerja, 2: JadwalSnapshot, 3: ?PeriodeJadwal, 4: array, 5: ?RencanaAksi} aktor terkunci, header, snapshot, periode jadwal, state audit sebelum mutasi, RA pengajuan
      */
     public function lock(User $actor, string $id, string $permission, string $command, int $version, ?array &$decision): array
+    {
+        [$actor, $p, $snapshot, $period, $plan] = $this->kunciKonteks($actor, $id, $command);
+        $decision = $this->resolver->decide($actor, $permission, $p->targetUnitId());
+        if (! $decision['allowed']) {
+            throw new AuthorizationException('Izin tindakan tidak tersedia atau telah dicabut.');
+        }
+        $errors = $this->policy->businessErrors($actor, $p, $command);
+        if ($p->versi !== $version) {
+            $errors[] = 'Data telah berubah. Muat ulang sebelum mengulangi tindakan.';
+        }
+        if ($errors) {
+            throw ValidationException::withMessages(['versi' => $errors]);
+        }
+
+        return [$actor, $p, $snapshot, $period, $this->auditState($p), $plan];
+    }
+
+    /**
+     * Urutan lock: aktor → role aktif (shared) → RA (khusus ajukan) → indikator (shared) → header → snapshot → jadwal → periode.
+     * Pemanggil wajib sudah berada dalam transaksi; izin, token, dan guard tindakan diperiksa pemanggil sesudah konteks terkunci.
+     *
+     * @return array{0: User, 1: PengukuranKinerja, 2: JadwalSnapshot, 3: ?PeriodeJadwal, 4: ?RencanaAksi}
+     */
+    public function kunciKonteks(User $actor, string $id, string $command): array
     {
         $actor = User::lockForUpdate()->findOrFail($actor->id);
         // Role aktif dikunci bersama agar rilis preset yang mencabut izin menunggu, dan izin dibaca dari ACL yang sudah commit.
@@ -61,19 +85,8 @@ class PengukuranMutationSteps
         $snapshot->setRelation('jadwal', JadwalTahunan::lockForUpdate()->findOrFail($snapshot->jadwal_id));
         $period = PeriodeJadwal::where('jadwal_id', $snapshot->jadwal_id)->where('periode_id', $p->periode_id)->lockForUpdate()->first();
         $p->setRelation('jadwalSnapshot', $snapshot);
-        $decision = $this->resolver->decide($actor, $permission, $p->targetUnitId());
-        if (! $decision['allowed']) {
-            throw new AuthorizationException('Izin tindakan tidak tersedia atau telah dicabut.');
-        }
-        $errors = $this->policy->businessErrors($actor, $p, $command);
-        if ($p->versi !== $version) {
-            $errors[] = 'Data telah berubah. Muat ulang sebelum mengulangi tindakan.';
-        }
-        if ($errors) {
-            throw ValidationException::withMessages(['versi' => $errors]);
-        }
 
-        return [$actor, $p, $snapshot, $period, $this->auditState($p), $plan];
+        return [$actor, $p, $snapshot, $period, $plan];
     }
 
     /**
@@ -167,7 +180,7 @@ class PengukuranMutationSteps
             'alasan' => $reason, 'dasar_izin' => $decision, 'nilai_lama' => $before, 'nilai_baru' => $after]);
     }
 
-    private function auditState(PengukuranKinerja $p): array
+    public function auditState(PengukuranKinerja $p): array
     {
         return [...$p->only(['status_alur', 'versi', 'nilai', 'sumber_nilai', 'status_perhitungan', 'catatan', 'alasan_tidak_dapat_dihitung', ...PengukuranKinerja::NARASI]),
             'versi_pengajuan' => $p->latestVersion?->only(['id', 'nomor', 'diajukan_by', 'jalur_pengajuan', 'dasar_izin_pengajuan', 'disahkan_by', 'disahkan_at']),

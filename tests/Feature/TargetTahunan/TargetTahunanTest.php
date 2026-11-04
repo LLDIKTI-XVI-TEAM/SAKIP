@@ -136,8 +136,7 @@ class TargetTahunanTest extends TestCase
         $this->assertSame(0, TargetKinerja::count());
         $this->assertSame(0, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
         $saved = $this->save($actor, $indicator, ['target_tahunan' => '0']);
-        // Q72 §72.2 butir 2: mengosongkan target tersimpan adalah perubahan, jadi wajib alasan.
-        $clear = $this->save($actor, $indicator, ['alasan' => 'Target dikosongkan QA-97']);
+        $clear = $this->save($actor, $indicator);
         $this->assertTrue($clear['changed']);
         $this->assertSame($saved['target_id'], $clear['target_id']);
         $this->assertNull(TargetKinerja::sole()->target_tahunan);
@@ -147,7 +146,7 @@ class TargetTahunanTest extends TestCase
         $this->assertSame(2, AuditLog::where('tindakan', 'target_tahunan.simpan')->count());
     }
 
-    public function test_post_snapshot_change_requires_reason_and_keeps_optional_source_in_audit(): void
+    public function test_post_snapshot_change_needs_no_reason_and_keeps_snapshot(): void
     {
         $actor = $this->calendarActor(['indikator:read', 'target:update']);
         $indicator = $this->targetIndicator($actor);
@@ -155,17 +154,14 @@ class TargetTahunanTest extends TestCase
         $snapshot = $this->snapshot($indicator);
         $before = $snapshot->refresh()->getAttributes();
         $this->assertFalse($this->save($actor, $indicator, ['target_tahunan' => '76.2500'])['changed']);
-        // Q72 §72.2 butir 1: perubahan target PK setelah snapshot wajib alasan; rujukan tetap opsional dan snapshot tidak ikut berubah.
-        $this->assertTrue($this->save($actor, $indicator, ['alasan' => 'Koreksi setelah snapshot QA-98'])['changed']);
-        $perubahan = AuditLog::where('tindakan', 'target_tahunan.simpan')->whereNotNull('nilai_lama')->sole();
-        $this->assertSame('Koreksi setelah snapshot QA-98', $perubahan->alasan);
-        $this->assertSame('76.25', $perubahan->nilai_lama['target_tahunan']);
-        $this->assertNull($perubahan->nilai_baru['target_tahunan']);
-        $this->save($actor, $indicator, ['baseline' => '74.2345', 'alasan' => 'Koreksi input', 'rujukan_sumber' => 'Dokumen fixture hal. 2']);
+        // Q82: perubahan target PK setelah snapshot tidak meminta alasan; snapshot tidak ikut berubah.
+        $this->assertTrue($this->save($actor, $indicator, ['target_tahunan' => '77'])['changed']);
+        $this->assertTrue($this->save($actor, $indicator, ['baseline' => '74.2345', 'target_tahunan' => '77'])['changed']);
         $this->assertSame($before, $snapshot->fresh()->getAttributes());
-        $audit = AuditLog::where('tindakan', 'target_tahunan.simpan')->where('alasan', 'Koreksi input')->sole();
-        $this->assertSame('74.2345', $audit->nilai_baru['baseline']);
-        $this->assertSame('Dokumen fixture hal. 2', $audit->nilai_baru['rujukan_sumber']);
+        $perubahan = AuditLog::where('tindakan', 'target_tahunan.simpan')->where('nilai_baru->target_tahunan', '77')->whereNull('nilai_baru->baseline')->sole();
+        $this->assertSame(['76.25', '77'], [$perubahan->nilai_lama['target_tahunan'], $perubahan->nilai_baru['target_tahunan']]);
+        $this->assertSame('Pencatatan audit untuk tindakan target_tahunan.simpan.', $perubahan->alasan);
+        $this->assertArrayNotHasKey('rujukan_sumber', $perubahan->nilai_baru);
     }
 
     public function test_absent_snapshot_noop_is_allowed_and_initial_value_needs_no_metadata(): void
@@ -176,26 +172,6 @@ class TargetTahunanTest extends TestCase
         $this->assertNull($this->save($actor, $indicator)['target_id']);
         $this->assertTrue($this->save($actor, $indicator, ['target_tahunan' => '0'])['changed']);
         $this->assertSame('0.000000000000', TargetKinerja::sole()->target_tahunan);
-    }
-
-    public function test_post_snapshot_correction_preserves_literal_zero_reason_in_audit(): void
-    {
-        $actor = $this->calendarActor(['indikator:read', 'target:update']);
-        $indicator = $this->targetIndicator($actor);
-        $this->save($actor, $indicator, ['target_tahunan' => '76.25']);
-        $snapshot = $this->snapshot($indicator);
-        $before = $snapshot->refresh()->getAttributes();
-        $data = $this->payload($actor, $indicator, ['target_tahunan' => '77', 'alasan' => '0', 'rujukan_sumber' => 'Dokumen fixture hal. 3']);
-
-        $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), $data)
-            ->assertOk()->assertJsonPath('changed', true);
-
-        $audit = AuditLog::where('tindakan', 'target_tahunan.simpan')->where('nilai_baru->target_tahunan', '77')->sole();
-        $this->assertSame('0', $audit->alasan);
-        $this->assertSame('76.25', $audit->nilai_lama['target_tahunan']);
-        $this->assertSame('77', $audit->nilai_baru['target_tahunan']);
-        $this->assertSame('Dokumen fixture hal. 3', $audit->nilai_baru['rujukan_sumber']);
-        $this->assertSame($before, $snapshot->fresh()->getAttributes());
     }
 
     public function test_other_year_snapshot_does_not_require_correction_metadata(): void
@@ -222,13 +198,12 @@ class TargetTahunanTest extends TestCase
         $this->assertSame('90.25', $this->editor($actor, $indicator)['target_tahunan']);
         $this->save($actor, $indicator, ['baseline' => '74.2345', 'target_tahunan' => '90.2500']);
         try {
-            // Alasan diisi agar yang diuji hanya presisi; presisi dinilai sebelum kewajiban alasan.
-            $this->save($actor, $indicator, ['target_tahunan' => '90.26', 'alasan' => 'Koreksi presisi QA-99']);
+            $this->save($actor, $indicator, ['target_tahunan' => '90.26']);
             $this->fail('Presisi baru wajib diperiksa.');
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('target_tahunan', $e->errors());
         }
-        $this->assertTrue($this->save($actor, $indicator, ['target_tahunan' => '90.3', 'alasan' => 'Koreksi presisi QA-99'])['changed']);
+        $this->assertTrue($this->save($actor, $indicator, ['target_tahunan' => '90.3'])['changed']);
     }
 
     public function test_noop_does_not_bypass_status_year_state_or_malformed_metadata(): void
@@ -236,7 +211,7 @@ class TargetTahunanTest extends TestCase
         $actor = $this->calendarActor(['indikator:read', 'target:update']);
         $indicator = $this->targetIndicator($actor);
         $data = $this->payload($actor, $indicator);
-        foreach ([['expected_state' => str_repeat('a', 64)], ['alasan' => "bad\0text"], ['updated_by' => $actor->id], ['target_tahunan' => 0]] as $invalid) {
+        foreach ([['expected_state' => str_repeat('a', 64)], ['updated_by' => $actor->id], ['target_tahunan' => 0]] as $invalid) {
             $this->actingAs($actor)->putJson($this->targetPkUrl($indicator), [...$data, ...$invalid])->assertStatus(isset($invalid['expected_state']) ? 409 : 422);
         }
         // Route PK selalu memakai tahun PK; aturan rentang tahun tetap dijaga Action untuk pemanggil lain.
@@ -337,10 +312,6 @@ class TargetTahunanTest extends TestCase
             ['expected_state', 'invalid', 'Data form tidak valid. Muat ulang form.'],
             ['operation_id', null, 'Permintaan simpan tidak valid. Muat ulang form.'],
             ['operation_id', 'invalid', 'Permintaan simpan tidak valid. Muat ulang form.'],
-            ['alasan', [], 'Alasan harus berupa teks.'],
-            ['rujukan_sumber', [], 'Rujukan sumber harus berupa teks.'],
-            ['alasan', str_repeat('a', 1001), 'Alasan maksimal 1000 karakter.'],
-            ['rujukan_sumber', str_repeat('a', 1001), 'Rujukan sumber maksimal 1000 karakter.'],
         ];
         foreach ($cases as $case) {
             [$field, $value, $message] = $case;

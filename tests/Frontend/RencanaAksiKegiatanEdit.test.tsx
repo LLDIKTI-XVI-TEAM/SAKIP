@@ -31,7 +31,7 @@ const periodeOptions = [{ id: 'periode-4', nama: 'Triwulan IV', tanggal: { bulan
 const rencana: RencanaKegiatan = {
     id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: null,
     sasaran_peserta: null, keterangan_peserta: null, lokasi: null, tanggal_rencana: null, anggaran: null, status: 'rencana',
-    version_token: 'v1', justifikasi: null, periode_nama: 'Triwulan IV', periode_tujuan: null,
+    version_token: 'v1', justifikasi: null, periode_nama: 'Triwulan IV', periode_tujuan: null, periode_asal: null,
     tanggal_realisasi: null, biaya_terpakai: null, realisasi_peserta: null, uraian_pelaksanaan: null, kendala: null, strategi_tindaklanjut: null,
 };
 const tigaStatus: StatusTujuan[] = ['ditunda', 'tidak_terlaksana', 'batal'];
@@ -288,6 +288,29 @@ it('menawarkan aksi status dari capability server dan mengunci form setelah stat
     expect(screen.getByText('Data rencana terkunci karena status sudah berubah.')).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>(/Nama kegiatan/).closest('fieldset')!.disabled).toBe(true);
     expect(screen.queryByRole('button', { name: 'Simpan kegiatan' })).toBeNull();
+});
+
+it('tunda hanya menawarkan periode tujuan dari server dan hilang bila server tidak menawarkannya', () => {
+    // Server sudah membuang periode yang terkunci bagi PIC (Triwulan II); UI tidak menambah periode aktif lain sendiri.
+    render(<KegiatanEdit {...props} periodeOptions={[...periodeOptions, { id: 'periode-2', nama: 'Triwulan II', tanggal: { bulan_mulai: 4, hari_mulai: 1, bulan_selesai: 6, hari_selesai: 30 } }]}
+        opsiPeriodeTujuan={[{ id: 'periode-3', nama: 'Triwulan III', tanggal: { bulan_mulai: 7, hari_mulai: 1, bulan_selesai: 9, hari_selesai: 30 } }]} />);
+    fireEvent.click(within(screen.getByRole('region', { name: 'Status pelaksanaan' })).getByRole('button', { name: 'Tunda' }));
+    const pilihan = within(screen.getByRole('dialog')).getByLabelText(/Periode tujuan/);
+    expect([...pilihan.querySelectorAll('option')].map((opsi) => opsi.textContent)).toEqual(['Pilih periode tujuan', 'Triwulan III']);
+
+    cleanup();
+    render(<KegiatanEdit {...props} opsiPeriodeTujuan={[]} can={{ ...props.can, ubah_status: ['tidak_terlaksana', 'batal'] }} />);
+    const kartu = within(screen.getByRole('region', { name: 'Status pelaksanaan' }));
+    expect(kartu.queryByRole('button', { name: 'Tunda' })).toBeNull();
+});
+
+it('kartu status kegiatan lanjutan menunjuk periode kegiatan asal', () => {
+    const { rerender } = render(<KegiatanEdit {...props} />);
+    expect(screen.queryByText(/^Lanjutan dari/)).toBeNull();
+
+    rerender(<KegiatanEdit {...props} kegiatan={{ ...rencana, periode_asal: 'Triwulan I' }} />);
+    const kartu = within(screen.getByRole('region', { name: 'Status pelaksanaan' }));
+    expect(kartu.getByText('Lanjutan dari Triwulan I 2026')).toBeTruthy();
 });
 
 it('menerima nama hingga 500 karakter dan tujuan opsional', () => {

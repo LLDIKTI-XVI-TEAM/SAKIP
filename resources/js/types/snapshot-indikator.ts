@@ -63,6 +63,13 @@ export interface SnapshotIndikatorRow {
         komponen: { lama: KomponenSnapshot[]; baru: KomponenSnapshot[] } | null;
     };
     riwayat: RiwayatVersiSnapshot[];
+    pengukuran_belum_disahkan: PengukuranBelumDisahkan[];
+}
+
+export interface PengukuranBelumDisahkan {
+    periode_id: string;
+    status_alur: 'draft' | 'diajukan' | 'dikembalikan' | 'diverifikasi';
+    nomor_versi: number;
 }
 
 export interface SnapshotIndikatorProps {

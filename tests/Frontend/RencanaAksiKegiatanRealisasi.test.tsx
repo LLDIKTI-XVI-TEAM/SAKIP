@@ -44,7 +44,7 @@ afterEach(() => {
 const rencana: RencanaKegiatan = {
     id: 'kegiatan-1', unit_id: 'unit-a', tahun: 2026, periode_id: 'periode-4', nama: 'Fasilitasi unit', tujuan: null,
     sasaran_peserta: 30, keterangan_peserta: null, lokasi: null, tanggal_rencana: '2026-10-01', anggaran: '2500000', status: 'rencana',
-    version_token: 'v1', justifikasi: null, periode_nama: 'Triwulan IV', periode_tujuan: null,
+    version_token: 'v1', justifikasi: null, periode_nama: 'Triwulan IV', periode_tujuan: null, periode_asal: null,
     tanggal_realisasi: null, biaya_terpakai: null, realisasi_peserta: null, uraian_pelaksanaan: null, kendala: null, strategi_tindaklanjut: null,
 };
 const props: KegiatanEditProps = {

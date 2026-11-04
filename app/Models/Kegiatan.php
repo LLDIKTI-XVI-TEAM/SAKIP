@@ -71,9 +71,8 @@ class Kegiatan extends Model
     /**
      * Pilihan status dan periode tujuan untuk tampilan saja; Action memeriksa ulang di bawah lock.
      * Periode tujuan = periode aktif dengan `urutan` lebih besar, sehingga urutan sama bukan "lebih akhir"
-     * dan periode terakhir tidak menawarkan Tunda. Kunci periode tujuan bagi PIC (Q69 §69.5 butir 2) belum
-     * diterapkan dan tidak diterapkan di sini; bila diterapkan, penyaringannya di caller (`DaftarKegiatan`/`FormKegiatan`),
-     * sehingga signature tetap.
+     * dan periode terakhir tidak menawarkan Tunda. Kunci periode tujuan bagi PIC (Q69 §69.5 butir 2) disaring
+     * caller lewat `RollOverKegiatan::saringTujuan`.
      *
      * @param  Collection<int, Periode>  $periodeAktif  Periode aktif berkolom `id, nama, urutan, ...Periode::TANGGAL`, urut `urutan, id`; relasi `periode` wajib dimuat.
      * @return array{status: list<string>, periode_tujuan: list<array{id: string, nama: string, tanggal: array<string, mixed>}>}

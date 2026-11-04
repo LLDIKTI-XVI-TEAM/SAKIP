@@ -34,6 +34,8 @@ export interface RencanaKegiatan {
     periode_nama: string;
     /** Nama periode kegiatan lanjutan bila kegiatan ini sudah ditunda. */
     periode_tujuan: string | null;
+    /** Nama periode kegiatan asal bila kegiatan ini lanjutan dari kegiatan yang ditunda. */
+    periode_asal: string | null;
     tanggal_realisasi: string | null;
     biaya_terpakai: string | null;
     realisasi_peserta: number | null;
