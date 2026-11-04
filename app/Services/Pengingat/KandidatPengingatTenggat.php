@@ -3,6 +3,7 @@
 namespace App\Services\Pengingat;
 
 use App\Models\IndikatorKinerja;
+use App\Services\Jadwal\SesiKoreksiJadwal;
 use App\Services\Pengukuran\DaftarKewajibanPengukuran;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +70,18 @@ final class KandidatPengingatTenggat
             ->orderBy('i.kode')
             ->orderBy('k.indikator_id')
             ->get();
+
+        // Tahun yang dibuka kembali lewat sesi koreksi hanya membuka indikator di dalam
+        // `lingkup_koreksi`; baris di luar lingkup tetap terkunci bagi PIC sehingga bukan kandidat.
+        // Aturan sesi dinilai pada instan asli, sejalan dengan penyaringan periode di atas.
+        $baris = $baris->filter(function ($r) use ($periodeById, $tanggal) {
+            $p = $periodeById[$r->periode_jadwal_id];
+            if (! $p->jadwal->tahunDitutup($tanggal)) {
+                return true;
+            }
+
+            return SesiKoreksiJadwal::berlaku($p->jadwal, 'pengukuran', $r->indikator_id, [$p->periode_id], $tanggal);
+        })->values();
 
         // Satu entri per periode × PIC; indikator tetap mengikuti urutan query.
         foreach ($baris->groupBy(fn ($r) => $r->periode_jadwal_id.'|'.$r->user_id) as $kelompok) {

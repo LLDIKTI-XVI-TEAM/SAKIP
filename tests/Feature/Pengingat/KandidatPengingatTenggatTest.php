@@ -300,6 +300,57 @@ class KandidatPengingatTenggatTest extends TestCase
         }
     }
 
+    public function test_sesi_koreksi_hanya_memuat_indikator_dan_periode_di_dalam_lingkup(): void
+    {
+        // Regresi: sebelum fix, seluruh indikator pada periode jendela PIC ikut menjadi kandidat.
+        $indikatorA = $this->indikatorDenganPic('I-DALAM-LINGKUP', $this->actor);
+        $indikatorB = $this->indikatorDenganPic('I-DI-LUAR-LINGKUP', $this->actor);
+        $tw2 = $this->tambahPeriode(2, '2026-06-01', '2026-06-05');
+        $indikatorC = $this->indikatorDenganPic('I-PERIODE-LUAR-LINGKUP', $this->actor, [], ['periode_mulai_id' => $tw2->periode_id]);
+
+        // Jendela PIC resmi berada di dalam rentang sesi dan mengapit tanggal evaluasi.
+        $this->tw1->update(['pengisian_mulai' => '2026-06-01', 'pengisian_selesai' => '2026-06-05']);
+        $this->jadwal->update(['status' => 'aktif', 'koreksi_mulai' => '2026-06-01 08:00', 'koreksi_sampai' => '2026-06-05 17:00',
+            'lingkup_koreksi' => ['jenis_objek' => ['pengukuran'],
+                'indikator_ids' => [$indikatorA->indikator_id, $indikatorC->indikator_id],
+                'periode_ids' => [$this->tw1->periode_id],
+                'jendela_pic_ids' => [$this->tw1->periode_id, $tw2->periode_id]]]);
+
+        $hasil = $this->evaluasi('2026-06-03', [2]);
+
+        $this->assertSame(2, $hasil['diperiksa']);
+        $entri = collect($hasil['kandidat'])->where('periode_jadwal_id', $this->tw1->id)
+            ->where('user_id', $this->actor->id)->values();
+        $this->assertCount(1, $entri);
+        $this->assertSame(1, $entri[0]['jumlah']);
+        $this->assertSame([$indikatorA->indikator_id], array_column($entri[0]['indikator'], 'indikator_id'));
+
+        // B di luar lingkup indikator dan C di luar lingkup periode sama-sama tidak boleh muncul.
+        $kandidat = collect($hasil['kandidat']);
+        $indikatorMuncul = $kandidat->flatMap(fn (array $k): array => array_column($k['indikator'], 'indikator_id'))->all();
+        $this->assertNotContains($indikatorB->indikator_id, $indikatorMuncul);
+        $this->assertNotContains($indikatorC->indikator_id, $indikatorMuncul);
+        $this->assertSame([], $kandidat->where('periode_jadwal_id', $tw2->id)->values()->all());
+    }
+
+    public function test_instan_utc_dinormalkan_ke_zona_bisnis_sebelum_menyaring_periode(): void
+    {
+        // Regresi: sebelum fix, 2026-03-07 16:30 UTC masih 7 Maret sehingga jendela 8 Maret tersaring.
+        $tw2 = $this->tambahPeriode(2, '2026-03-08', '2026-03-15');
+        $indikator = $this->indikatorDenganPic('I-UTC-WITA', $this->actor, [], ['periode_mulai_id' => $tw2->periode_id]);
+
+        $hasil = app(KandidatPengingatTenggat::class)->untukTanggal(
+            CarbonImmutable::parse('2026-03-07 16:30', 'UTC'),
+            [7],
+        );
+
+        $this->assertSame('2026-03-08', $hasil['tanggal']);
+        $kandidat = collect($hasil['kandidat'])->firstWhere('periode_jadwal_id', $tw2->id);
+        $this->assertNotNull($kandidat);
+        $this->assertSame(7, $kandidat['h']);
+        $this->assertContains($indikator->indikator_id, array_column($kandidat['indikator'], 'indikator_id'));
+    }
+
     public function test_service_tidak_menulis_baris_apa_pun(): void
     {
         $tabel = ['pengukuran_kinerjas', 'jadwal_periode', 'penanggung_jawab', 'audit_log', 'jobs', 'failed_jobs'];
