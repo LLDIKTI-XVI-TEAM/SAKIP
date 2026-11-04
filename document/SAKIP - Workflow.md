@@ -1303,7 +1303,7 @@ flowchart TD
 |---|---|---|
 | `rencana_aksi` | induk berstatus `diajukan` (koreksi lewat pengembalian beralasan); imutabel setelah `disahkan` (Q36) | PIC unit terkait, Perencanaan |
 | `pengukuran` | induk berstatus `diajukan` (koreksi lewat pengembalian beralasan); imutabel setelah `disahkan` (Q36) | PIC unit terkait, Perencanaan |
-| `kegiatan` | induk berstatus `terlaksana`; berkas yang memenuhi persyaratan tahap `kegiatan_perencanaan` (mis. RAB) tidak dapat dihapus sejak RA yang mengklaim kegiatan itu diajukan — koreksi lewat pengembalian RA atau berkas pengganti (Q25), pola Q36 (Q42 §42.4 butir 5) | PIC unit terkait, Perencanaan |
+| `kegiatan` | induk berstatus `terlaksana`, atau berkas sudah tercatat di versi pengukuran — koreksi lewat berkas pengganti beralasan, bukti lama tetap utuh (Q25, ISS-06.07); berkas yang memenuhi persyaratan tahap `kegiatan_perencanaan` (mis. RAB) tidak dapat dihapus sejak RA yang mengklaim kegiatan itu diajukan — koreksi lewat pengembalian RA atau berkas pengganti (Q25), pola Q36 (Q42 §42.4 butir 5) | PIC unit terkait, Perencanaan |
 | `renstra` | Renstra berstatus `aktif` | Perencanaan |
 | `renstra_pk` | Jadwal Tahunan tahun tsb berstatus `aktif` | Perencanaan |
 | `regulasi` | masih dirujuk Renstra atau indikator aktif (bukan status waktu, melainkan status rujukan) | Perencanaan/Superadmin |
