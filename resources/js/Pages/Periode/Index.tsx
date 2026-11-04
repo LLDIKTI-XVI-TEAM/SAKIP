@@ -315,7 +315,7 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                                             </Tooltip>
                                             {can.update && (
                                                 <Tooltip
-                                                    content={item.metadata_locked ? 'Koreksi nama' : 'Edit'}
+                                                    content={item.metadata_locked ? 'Koreksi periode' : 'Edit'}
                                                     align="right"
                                                 >
                                                     <Button
@@ -324,7 +324,7 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                                                         variant="outline"
                                                         disabled={blocked || busy}
                                                         onClick={() => openForm(item)}
-                                                        aria-label={`${item.metadata_locked ? 'Koreksi nama' : 'Edit'} ${item.nama}`}
+                                                        aria-label={`${item.metadata_locked ? 'Koreksi periode' : 'Edit'} ${item.nama}`}
                                                         className="h-8 w-8 p-0"
                                                     >
                                                         <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -354,7 +354,7 @@ export default function PeriodeIndex({ periode, current_final, filters, can }: P
                     swap
                         ? 'Ganti periode nilai akhir'
                         : editing?.metadata_locked
-                          ? 'Koreksi nama periode'
+                          ? 'Koreksi periode'
                           : editing
                             ? 'Edit periode'
                             : 'Tambah periode'

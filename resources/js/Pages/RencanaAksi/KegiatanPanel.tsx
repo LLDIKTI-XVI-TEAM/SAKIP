@@ -7,6 +7,7 @@ import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Input } from '@/Components/Input';
 import { Modal } from '@/Components/Modal';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Select } from '@/Components/Select';
 import { Table, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { Textarea } from '@/Components/Textarea';
@@ -22,8 +23,8 @@ interface KegiatanPanelProps {
     /** Periode terkunci bagi aktor (Q41); kosong untuk Perencanaan. */
     terkunci: string[];
     kegiatan: RencanaAksiKegiatan;
-    /** Form target berubah belum disimpan; tambah kegiatan menaikkan versi header dan me-remount form target. */
-    kotor: boolean;
+    /** Tahun RA untuk keterangan rentang tanggal periode; opsional bila pemanggil tidak memilikinya. */
+    tahun?: number;
 }
 
 interface FormKegiatan {
@@ -69,7 +70,7 @@ function galatBisnis(errs: Record<string, string | undefined>): string | undefin
  * sekaligus klaimnya dan salin ke periode lain (Q49 §49.2). Periode terkunci
  * tampil baca-saja bagi PIC; server tetap menolak di bawah lock.
  */
-export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkunci, kegiatan, kotor }: KegiatanPanelProps) {
+export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkunci, kegiatan, tahun }: KegiatanPanelProps) {
     const [terbuka, setTerbuka] = useState(false);
     const [galatKirim, setGalatKirim] = useState('');
     const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm<FormKegiatan>(KOSONG);
@@ -132,6 +133,8 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
     // Galat per elemen (`salin_ke_periode_ids.0`) ditampilkan sebagai satu pesan grup.
     const galatSalin = fieldErrors.salin_ke_periode_ids ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('salin_ke_periode_ids.'))?.[1];
     const namaPeriode = (id: string): string => periode.find((item) => item.id === id)?.nama ?? 'Periode';
+    // Tanggal Master Periode saat ini (Q70 §70.1 butir 3a), bukan bagian snapshot beku.
+    const periodeTerpilih = periode.find((item) => item.id === data.periode_id);
     const adaDiPanel = (id: string): boolean => kegiatan.daftar.some((row) => row.kegiatan_id === id);
     // Kolom komponen disembunyikan bila tidak ada komponen maupun klaim berkomponen (indikator manual); klaim yang merujuk
     // komponen di luar snapshot tetap menampilkan kolom agar penjelasannya tidak hilang. Kolom aksi hanya bila ada capability kelola.
@@ -144,7 +147,6 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                 <CardTitle>Kegiatan per Periode</CardTitle>
             </CardHeader>
             <CardContent className="divide-y divide-border p-0">
-                {kotor && (kegiatan.can.tambah || kegiatan.can.kelola) && <p className="px-6 py-4 text-sm text-muted">Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.</p>}
                 {periode.length === 0 && <p className="px-6 py-4 text-sm text-muted">Tidak ada periode efektif untuk rencana aksi ini.</p>}
                 {periode.map((item) => {
                     const daftar = kegiatan.daftar.filter((row) => row.periode_id === item.id);
@@ -162,7 +164,7 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                 <div className="flex flex-wrap items-center gap-3">
                                     <p className="text-xs text-muted">Total {teksTotalAnggaran(totalPeriode)}</p>
                                     {kegiatan.can.tambah && !kunci && (
-                                        <Button type="button" size="sm" variant="outline" disabled={kotor} onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => buka(item.id)} aria-label={`Tambah kegiatan ${item.nama ?? ''}`}>
                                             <Plus className="h-4 w-4" aria-hidden="true" />
                                             Tambah kegiatan
                                         </Button>
@@ -234,7 +236,6 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                                                                 trigger={<MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
                                                                 triggerLabel={`Aksi kegiatan ${row.nama}`}
                                                                 triggerClassName="h-8 w-8 px-0"
-                                                                disabled={kotor}
                                                             />
                                                         )}
                                                     </TableCell>
@@ -249,7 +250,12 @@ export default function KegiatanPanel({ rencanaAksiId, periode, komponen, terkun
                 })}
             </CardContent>
 
-            <Modal isOpen={terbuka} onClose={tutup} title={`Tambah kegiatan — ${namaPeriode(data.periode_id)}`} size="lg">
+            <Modal isOpen={terbuka} onClose={tutup} title={(
+                <>
+                    {`Tambah kegiatan — ${namaPeriode(data.periode_id)}`}
+                    <RentangPeriode tanggal={periodeTerpilih?.tanggal ?? null} tahun={tahun} className="mt-1 block text-xs font-normal text-muted" />
+                </>
+            )} size="lg">
                 <form onSubmit={kirim} className="space-y-4" aria-busy={processing}>
                     {galatUmum && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger-dark">{galatUmum}</p>}
                     {fieldErrors.periode_id && <p role="alert" className="text-sm text-danger">{fieldErrors.periode_id}</p>}

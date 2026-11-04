@@ -17,7 +17,10 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 const kegiatan = { id: 'k1', nama: 'Monitoring kinerja', tahun: 2026, periode: 'Triwulan I', version_token: 'v1' };
-const opsiPeriodeTujuan = [{ id: 'tw2', nama: 'Triwulan II' }, { id: 'tw3', nama: 'Triwulan III' }];
+const opsiPeriodeTujuan = [
+    { id: 'tw2', nama: 'Triwulan II', tanggal: { bulan_mulai: 4, hari_mulai: 1, bulan_selesai: 6, hari_selesai: 30 } },
+    { id: 'tw3', nama: 'Triwulan III', tanggal: { bulan_mulai: 7, hari_mulai: 1, bulan_selesai: 9, hari_selesai: 30 } },
+];
 
 const buka = (status: StatusTujuan) => {
     const onClose = vi.fn();
@@ -34,6 +37,7 @@ it('meminta konfirmasi final sebelum menunda dan mengirim periode tujuan', () =>
     buka('ditunda');
     expect(screen.getByText('Monitoring kinerja · Triwulan I 2026')).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Periode tujuan/), { target: { value: 'tw2' } });
+    expect(screen.getByText('1 Apr–30 Jun 2026')).toBeTruthy();
     isi('Narasumber berhalangan.');
     klik('Lanjutkan');
     expect(router.post).not.toHaveBeenCalled();
@@ -41,12 +45,34 @@ it('meminta konfirmasi final sebelum menunda dan mengirim periode tujuan', () =>
     const dialog = screen.getByRole('dialog', { name: 'Tunda kegiatan?' });
     expect(dialog.textContent).toContain('Status Ditunda final dan tidak dapat diubah.');
     expect(dialog.textContent).toContain('Kegiatan lanjutan dibuat di Triwulan II.');
+    expect(dialog.textContent).toContain('1 Apr–30 Jun 2026');
     expect(document.activeElement).toBe(screen.getByText('Status Ditunda final dan tidak dapat diubah.'));
 
     klik('Ya, tunda');
     const [url, data] = vi.mocked(router.post).mock.calls[0];
     expect(url).toBe('/kegiatan/k1/status');
     expect(data).toEqual({ status: 'ditunda', justifikasi: 'Narasumber berhalangan.', periode_tujuan_id: 'tw2', expected_state: 'v1' });
+});
+
+it('tidak merender rentang tujuan atau aria-describedby rentang saat tanggal periode tujuan belum diatur', () => {
+    // Bentuk respons server: objek empat null (bukan null) untuk periode yang tanggalnya belum diatur.
+    const opsiTanpaTanggal = [{
+        id: 'tw2', nama: 'Triwulan II',
+        tanggal: { bulan_mulai: null, hari_mulai: null, bulan_selesai: null, hari_selesai: null },
+    }];
+    render(<StatusKegiatanModal kegiatan={kegiatan} status="ditunda" opsiPeriodeTujuan={opsiTanpaTanggal}
+        fokusCadangan={createRef<HTMLElement>()} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText(/Periode tujuan/), { target: { value: 'tw2' } });
+    expect(screen.queryByText(/Rentang periode tujuan/)).toBeNull();
+    expect(screen.getByLabelText(/Periode tujuan/).getAttribute('aria-describedby') ?? '').not.toContain('periode-rentang');
+
+    // Blok konfirmasi tetap menampilkan nama periode + tahun tanpa elemen rentang kosong.
+    isi('Narasumber berhalangan.');
+    klik('Lanjutkan');
+    const dialog = screen.getByRole('dialog', { name: 'Tunda kegiatan?' });
+    expect(dialog.textContent).toContain('Triwulan II');
+    expect(dialog.textContent).not.toContain('Rentang periode tujuan');
 });
 
 it('menandai tidak terlaksana langsung tanpa periode tujuan', () => {

@@ -34,10 +34,12 @@ describe('Badge status capaian per kode kontrak server', () => {
         expect(screen.queryByText('Belum ditetapkan')).toBeNull();
     });
 
-    it('ukuran kecil memakai tipografi badge sm', () => {
+    it('ukuran kecil memakai tipografi badge 12px', () => {
         render(<StatusCapaianBadge kode="belum_ditetapkan" size="sm" />);
 
-        expect(screen.getByText('Belum Ditetapkan').classList.contains('text-[11px]')).toBe(true);
+        const badge = screen.getByText('Belum Ditetapkan');
+        expect(badge.classList.contains('text-xs')).toBe(true);
+        expect(badge.classList.contains('text-[11px]')).toBe(false);
     });
 });
 

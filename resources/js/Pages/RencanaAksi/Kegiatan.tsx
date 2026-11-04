@@ -332,12 +332,11 @@ export default function KegiatanRencanaAksi({ rencanaAksi, kegiatan }: KegiatanR
                     <>
                         <KegiatanPanel
                             rencanaAksiId={rencanaAksi.id}
+                            tahun={rencanaAksi.tahun}
                             periode={periode}
                             komponen={rencanaAksi.komponen}
                             terkunci={terkunci}
                             kegiatan={kegiatan}
-                            // Halaman ini tidak memuat form target; tidak ada draf yang perlu disimpan sebelum mengelola kegiatan.
-                            kotor={false}
                         />
                         {kegiatan.can.tautkan === true && kandidatTautan.length > 0 && (
                             <KegiatanBelumTertaut

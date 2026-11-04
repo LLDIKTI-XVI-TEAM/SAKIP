@@ -51,7 +51,7 @@ const menuAksi = (nama: string): [string | null, string | null][] => {
 };
 
 it('panel RA menampilkan total presisi di atas batas Number dan total nol untuk periode tanpa kegiatan', () => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
         kegiatan={{ daftar: [{ id: 'k1', periode_id: 'tw1', kegiatan_id: 'keg-1', nama: 'Besar', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null,
             anggaran: '999999999999999', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
         total: { total: '9999999999999991', belum_diisi: 0, per_periode: { tw1: { total: '9999999999999991', belum_diisi: 0 } } }, can: { tambah: false, kelola: false } }} />);
@@ -64,7 +64,7 @@ it('panel RA menampilkan total presisi di atas batas Number dan total nol untuk 
 
 it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan klaim pengukuran, serta total yang menandai anggaran belum diisi', () => {
     const baris = { periode_id: 'tw1', status: 'rencana', komponen_id: null, arah_dampak: 'menambah' as const, catatan: null };
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
         kegiatan={{ daftar: [
             { ...baris, id: 'k1', kegiatan_id: 'keg-1', nama: 'Workshop', anggaran: '1500000', sumber_klaim: 'rencana_aksi', kegiatan_bersama: true },
             { ...baris, id: 'k2', kegiatan_id: 'keg-2', nama: 'Rapat', anggaran: null, sumber_klaim: 'pengukuran', kegiatan_bersama: false },
@@ -86,7 +86,7 @@ it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan kla
 
 it('panel RA menautkan kegiatan ditunda dan lanjutannya dua arah, tanpa tautan bila pasangannya tidak tampil', () => {
     const baris = { status: 'rencana', komponen_id: null, arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', kegiatan_bersama: false };
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
         kegiatan={{ daftar: [
             { ...baris, id: 'k1', kegiatan_id: 'asal', periode_id: 'tw1', nama: 'Bimtek', status: 'ditunda', sumber_klaim: 'rencana_aksi', lanjutan: { id: 'lanjut', periode_id: 'tw2' } },
             { ...baris, id: 'k2', kegiatan_id: 'lanjut', periode_id: 'tw2', nama: 'Bimtek', sumber_klaim: 'pengukuran', asal: { id: 'asal', periode_id: 'tw1' } },
@@ -148,7 +148,7 @@ it('tanpa rencana aksi yang dapat diklaim tidak menampilkan form dan menjelaskan
 });
 
 it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke periode terbuka lain', () => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II'), periode('tw3', 'Triwulan III')]}
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II'), periode('tw3', 'Triwulan III')]}
         komponen={[]} terkunci={['tw1']}
         kegiatan={{ daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Rapat lama', status: 'rencana', komponen_id: null, arah_dampak: 'menambah', catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false }],
             total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
@@ -176,7 +176,7 @@ it('panel RA menawarkan tambah hanya untuk periode terbuka dan salin hanya ke pe
 });
 
 it('pembaca RA melihat komponen snapshot, arah dampak, dan catatan tanpa akses kelola', () => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]}
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I')]}
         komponen={[{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }]}
         terkunci={['tw1']} kegiatan={{ daftar: [
             { id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana', komponen_id: 'komp-1', arah_dampak: 'mengurangi', catatan: 'Mengurangi kendala pelaksanaan', anggaran: '0', sumber_klaim: 'rencana_aksi', kegiatan_bersama: false },
@@ -198,7 +198,7 @@ it.each([
     [[{ komponen_id: 'komp-1', kode: 'P', label: 'Pembilang', peran: 'pembilang', bobot: '1', urutan: 1 }], null, 'Tanpa komponen tertentu'],
     [[], 'komponen-lama', 'Komponen tidak tersedia pada snapshot'],
 ])('menjelaskan komponen klaim (%#) tanpa menghilangkan klaim', (komponen, komponenId, label) => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={komponen} terkunci={[]} kegiatan={klaimKomponen(komponenId)} />);
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I')]} komponen={komponen} terkunci={[]} kegiatan={klaimKomponen(komponenId)} />);
 
     const row = within(barisTabel()[0]);
     expect(row.getByText(label)).toBeTruthy();
@@ -206,37 +206,10 @@ it.each([
 });
 
 it('indikator tanpa komponen tidak menampilkan kolom komponen, klaimnya tetap tampil', () => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]} kegiatan={klaimKomponen(null)} />);
+    render(<KegiatanPanel rencanaAksiId="ra-1" periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]} kegiatan={klaimKomponen(null)} />);
 
     expect(screen.queryByRole('columnheader', { name: 'Komponen' })).toBeNull();
     const row = within(barisTabel()[0]);
     expect(row.getByText('Bimtek')).toBeTruthy();
     expect(row.getByText('Menambah')).toBeTruthy();
-});
-
-it('menonaktifkan tambah kegiatan selama form target berubah belum disimpan', () => {
-    render(<KegiatanPanel rencanaAksiId="ra-1" kotor periode={[periode('tw1', 'Triwulan I')]} komponen={[]} terkunci={[]}
-        kegiatan={{ daftar: [], total: TOTAL_KOSONG, can: { tambah: true, kelola: true } }} />);
-
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: /Tambah kegiatan Triwulan I$/ }).disabled).toBe(true);
-    expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
-});
-
-it('menahan kelola kegiatan saat target kotor dan mengaktifkannya kembali sesudah bersih', () => {
-    const props = {
-        rencanaAksiId: 'ra-1', periode: [periode('tw1', 'Triwulan I')], komponen: [], terkunci: [],
-        kegiatan: { daftar: [{ id: 'k1', kegiatan_id: 'keg-1', periode_id: 'tw1', nama: 'Bimtek', status: 'rencana' as const,
-            komponen_id: null, arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', sumber_klaim: 'rencana_aksi' as const, kegiatan_bersama: false }], total: TOTAL_KOSONG, can: { tambah: false, kelola: true } },
-    };
-    const { rerender } = render(<KegiatanPanel {...props} kotor />);
-
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aksi kegiatan Bimtek' }).disabled).toBe(true);
-    expect(screen.getByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Aksi kegiatan Bimtek' }));
-    expect(screen.queryByRole('menu')).toBeNull();
-
-    rerender(<KegiatanPanel {...props} kotor={false} />);
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Aksi kegiatan Bimtek' }).disabled).toBe(false);
-    expect(screen.queryByText('Simpan atau buang perubahan target sebelum menambah atau mengelola kegiatan.')).toBeNull();
-    expect(menuAksi('Bimtek')[0]).toEqual(['Catat rencana', '/rencana-aksi/ra-1/kegiatan/keg-1']);
 });

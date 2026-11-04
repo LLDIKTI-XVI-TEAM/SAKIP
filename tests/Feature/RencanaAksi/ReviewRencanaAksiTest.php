@@ -6,6 +6,7 @@ use App\Actions\RencanaAksi\KembalikanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\JadwalSnapshot;
+use App\Models\Periode;
 use App\Models\RencanaAksiVersi;
 use App\Models\Role;
 use App\Models\Unit;
@@ -164,6 +165,18 @@ class ReviewRencanaAksiTest extends TestCase
         $this->assertSame(2, $baru->nomor);
     }
 
+    public function test_target_periode_membawa_tanggal_master_berjalan_bukan_snapshot(): void
+    {
+        Periode::whereKey($this->snapshot->periode_mulai_id)->update([
+            'bulan_mulai' => 2, 'hari_mulai' => 3, 'bulan_selesai' => 4, 'hari_selesai' => 5,
+        ]);
+
+        $this->actingAs($this->reviewer)->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertOk()->assertInertia(fn (Assert $p) => $p
+            ->where('rencanaAksi.target_periode.0.periode_nama', 'Triwulan beku')
+            ->where('rencanaAksi.target_periode.0.periode_tanggal',
+                ['bulan_mulai' => 2, 'hari_mulai' => 3, 'bulan_selesai' => 4, 'hari_selesai' => 5]));
+    }
+
     public function test_bukti_historis_tetap_privat_dan_terikat_versi(): void
     {
         Storage::fake('local');
@@ -215,7 +228,8 @@ class ReviewRencanaAksiTest extends TestCase
         $beku['bukti_dukungs'] = [['mode' => 'rusak']];
         $versi = $this->rencanaAksi->versions()->create(array_merge($this->versiPengajuan->only(['jadwal_snapshot_id', 'dasar_izin_pengajuan', 'diajukan_by', 'diajukan_at', 'jalur_pengajuan']), ['nomor' => 2, 'snapshot' => $beku]));
         $this->actingAs($this->reviewer)->get("/rencana-aksi/{$this->rencanaAksi->id}/review")->assertOk()->assertInertia(fn (Assert $p) => $p
-            ->where('rencanaAksi.can.verifikasi', false)->has('rencanaAksi.bukti_dukungs', 0)->where('rencanaAksi.target_periode.0.nilai', null));
+            ->where('rencanaAksi.can.verifikasi', false)->has('rencanaAksi.bukti_dukungs', 0)->where('rencanaAksi.target_periode.0.nilai', null)
+            ->where('rencanaAksi.target_periode.0.periode_tanggal', null));
         $this->postJson("/rencana-aksi/{$this->rencanaAksi->id}/verifikasi", ['expected_versi' => 1, 'versi_pengajuan_id' => $versi->id])->assertUnprocessable();
     }
 

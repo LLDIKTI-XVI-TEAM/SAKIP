@@ -3,6 +3,7 @@
 namespace App\Actions\RencanaAksi;
 
 use App\Models\AuditLog;
+use App\Models\Periode;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\User;
@@ -46,6 +47,11 @@ class BacaReviewRencanaAksi
             $buktiBerlaku = $buktiBoleh ? $header->buktiDukungs()->current()->whereIn('id', $buktiIds)->where('mode', 'file')->pluck('id')->all() : [];
             // Label komponen dan nama periode klaim diambil dari versi yang sama, bukan master berjalan.
             $targetBeku = $this->baris($beku['target_periode'] ?? []);
+            // Rentang tanggal periode mengikuti Master Periode saat ditampilkan, bukan snapshot beku (Q70 §70.4 butir 3).
+            $periodeIds = array_values(array_unique(array_filter(array_column($targetBeku, 'periode_id'),
+                fn ($id): bool => is_string($id) && Str::isUuid($id))));
+            $tanggalPeriode = Periode::whereIn('id', $periodeIds)->get(['id', ...Periode::TANGGAL])
+                ->mapWithKeys(fn (Periode $periode): array => [(string) $periode->id => $periode->only(Periode::TANGGAL)]);
             $namaPeriode = array_column($targetBeku, 'periode_nama', 'periode_id');
             $labelKomponen = [];
             foreach ($targetBeku as $baris) {
@@ -73,6 +79,7 @@ class BacaReviewRencanaAksi
                 'target_periode' => array_map(fn (array $baris): array => [
                     'periode_id' => $baris['periode_id'] ?? '', 'periode_nama' => $baris['periode_nama'] ?? 'Konteks versi belum lengkap',
                     'periode_urutan' => $baris['periode_urutan'] ?? 0, 'nilai' => $this->nilai($baris['nilai'] ?? null),
+                    'periode_tanggal' => is_string($baris['periode_id'] ?? null) ? $tanggalPeriode->get($baris['periode_id']) : null,
                     'status_perhitungan' => $baris['status_perhitungan'] ?? null,
                     'keterangan' => is_string($baris['keterangan'] ?? null) ? $baris['keterangan'] : null,
                     'komponen' => array_map(fn (array $k): array => ['komponen_id' => $k['komponen_id'] ?? '', 'kode' => $k['kode'] ?? '—',

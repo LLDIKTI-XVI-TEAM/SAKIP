@@ -42,7 +42,8 @@ const props: KegiatanEditProps = {
     periodeOptions,
     opsiPeriodeTujuan: [],
     can: { ubah_rencana: true, ubah_status: tigaStatus, catat_realisasi: true, tandai_terlaksana: true },
-    pelaksanaan: { perlu_koreksi: false, persyaratan_kurang: [], rentang: { mulai: '2026-10-01', selesai: '2026-12-31' } },
+    pelaksanaan: { perlu_koreksi: false, persyaratan_kurang: [], rentang: { mulai: '2026-10-01', selesai: '2026-12-31' },
+        periode_tanggal: { bulan_mulai: 10, hari_mulai: 1, bulan_selesai: 12, hari_selesai: 31 } },
 };
 
 const kirim = () => fireEvent.submit(screen.getByRole('button', { name: 'Simpan kegiatan' }).closest('form')!);
@@ -292,7 +293,7 @@ it('menawarkan aksi status dari capability server dan mengunci form setelah stat
 it('tunda hanya menawarkan periode tujuan dari server dan hilang bila server tidak menawarkannya', () => {
     // Server sudah membuang periode yang terkunci bagi PIC (Triwulan II); UI tidak menambah periode aktif lain sendiri.
     render(<KegiatanEdit {...props} periodeOptions={[...periodeOptions, { id: 'periode-2', nama: 'Triwulan II', tanggal: { bulan_mulai: 4, hari_mulai: 1, bulan_selesai: 6, hari_selesai: 30 } }]}
-        opsiPeriodeTujuan={[{ id: 'periode-3', nama: 'Triwulan III' }]} />);
+        opsiPeriodeTujuan={[{ id: 'periode-3', nama: 'Triwulan III', tanggal: { bulan_mulai: 7, hari_mulai: 1, bulan_selesai: 9, hari_selesai: 30 } }]} />);
     fireEvent.click(within(screen.getByRole('region', { name: 'Status pelaksanaan' })).getByRole('button', { name: 'Tunda' }));
     const pilihan = within(screen.getByRole('dialog')).getByLabelText(/Periode tujuan/);
     expect([...pilihan.querySelectorAll('option')].map((opsi) => opsi.textContent)).toEqual(['Pilih periode tujuan', 'Triwulan III']);

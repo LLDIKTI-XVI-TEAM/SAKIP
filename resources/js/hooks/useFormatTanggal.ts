@@ -7,6 +7,26 @@ export interface FormatTanggalOptions {
 }
 
 /**
+ * Pola tanggal murni `YYYY-MM-DD` tanpa komponen zona waktu. Nilai seperti ini tidak boleh
+ * diparse lewat `new Date(string)` karena akan dianggap instan UTC dan bergeser hari saat
+ * diformat pada zona tampilan pengguna.
+ */
+const POLA_TANGGAL_MURNI = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Mengubah tanggal murni menjadi instan UTC pukul 00:00; `null` bila tanggal tidak ada di kalender. */
+function tanggalMurniKeUtc(nilai: string): Date | null {
+    const [tahun, bulan, hari] = nilai.split('-').map(Number);
+    const anchor = new Date(Date.UTC(tahun, bulan - 1, hari));
+
+    // Date.UTC menormalkan tanggal mustahil (2026-02-31 menjadi 3 Maret); tolak hasil normalisasi.
+    if (anchor.getUTCFullYear() !== tahun || anchor.getUTCMonth() !== bulan - 1 || anchor.getUTCDate() !== hari) {
+        return null;
+    }
+
+    return anchor;
+}
+
+/**
  * Format tanggal sesuai zona waktu dan preferensi format tanggal yang aktif.
  */
 export function formatTanggal(
@@ -18,14 +38,20 @@ export function formatTanggal(
 ): string {
     if (!dateInput) return '—';
 
-    const date = typeof dateInput === 'string' || typeof dateInput === 'number'
-        ? new Date(dateInput)
-        : dateInput;
+    const tanggalMurni = typeof dateInput === 'string' && POLA_TANGGAL_MURNI.test(dateInput)
+        ? tanggalMurniKeUtc(dateInput)
+        : undefined;
+
+    if (tanggalMurni === null) return '—';
+
+    const date = tanggalMurni
+        ?? (typeof dateInput === 'string' || typeof dateInput === 'number' ? new Date(dateInput) : dateInput);
 
     if (isNaN(date.getTime())) return '—';
 
     const dateLocale = locale || 'id-ID';
-    const effectiveTimeZone = timeZone || 'Asia/Makassar';
+    // Tanggal murni diformat pada UTC agar hari kalender dari server tidak bergeser oleh zona tampilan.
+    const effectiveTimeZone = tanggalMurni ? 'UTC' : (timeZone || 'Asia/Makassar');
 
     // Gunakan formatToParts untuk merakit komponen tanggal sesuai zona waktu dan format
     const isFullMonth = formatTanggalKey === 'd F Y';

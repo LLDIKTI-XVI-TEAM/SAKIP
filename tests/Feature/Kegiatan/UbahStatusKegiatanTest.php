@@ -405,7 +405,8 @@ class UbahStatusKegiatanTest extends TestCase
     {
         $pendukung = $this->form($this->kegiatan);
         $this->assertSame([['ditunda', 'tidak_terlaksana', 'batal'], true], [$pendukung['can']['ubah_status'], $pendukung['can']['ubah_rencana']]);
-        $this->assertSame([['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II']], $pendukung['opsiPeriodeTujuan']);
+        $this->assertSame([['id' => $this->fixture['periode2']->id, 'nama' => 'Triwulan II',
+            'tanggal' => ['bulan_mulai' => 4, 'hari_mulai' => 1, 'bulan_selesai' => 6, 'hari_selesai' => 30]]], $pendukung['opsiPeriodeTujuan']);
         $this->assertSame('Triwulan I', $pendukung['kegiatan']['periode_nama']);
 
         // Periode aktif terakhir: tanpa Tunda dan tanpa opsi periode tujuan.

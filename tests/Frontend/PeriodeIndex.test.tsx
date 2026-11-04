@@ -104,7 +104,7 @@ it('pergantian tanpa kandidat menjelaskan kunci jadwal alih-alih menampilkan pil
     expect(within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan pergantian' }).disabled).toBe(true);
 });
 
-it('koreksi nama mengirim metadata terkunci tetap dan mempertahankan input pada penolakan', async () => {
+it('koreksi periode mengirim metadata terkunci tetap dan mempertahankan input pada penolakan', async () => {
     render(
         <Index
             {...props}
@@ -123,7 +123,7 @@ it('koreksi nama mengirim metadata terkunci tetap dan mempertahankan input pada 
             }}
         />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Koreksi nama Triwulan I' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Koreksi periode Triwulan I' }));
     expect(screen.getByLabelText<HTMLInputElement>(/^Urutan/).disabled).toBe(true);
     expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').disabled).toBe(true);
     fireEvent.change(screen.getByLabelText(/^Nama periode/), { target: { value: 'Triwulan Pertama' } });
@@ -361,12 +361,12 @@ it('aksi terkunci memakai ikon koreksi dengan tooltip dan tetap rata kanan', () 
             }}
         />,
     );
-    const koreksiButton = screen.getByRole('button', { name: 'Koreksi nama Triwulan I' });
+    const koreksiButton = screen.getByRole('button', { name: 'Koreksi periode Triwulan I' });
     expect(koreksiButton.querySelector('svg')).toBeTruthy();
     expect(koreksiButton.textContent?.trim()).toBe('');
     expect(koreksiButton.closest('td')?.className).toContain('md:text-right');
     expect(koreksiButton.closest('td')?.querySelector('div.flex')?.className).toContain('justify-end');
-    expect(screen.getAllByRole('tooltip').map((tip) => tip.textContent)).toContain('Koreksi nama');
+    expect(screen.getAllByRole('tooltip').map((tip) => tip.textContent)).toContain('Koreksi periode');
 });
 
 it('tabel periode tidak memicu scroll horizontal di semua lebar layar', () => {

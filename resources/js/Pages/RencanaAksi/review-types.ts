@@ -1,4 +1,5 @@
 import type { PengukuranPagination } from '@/Pages/Pengukuran/types';
+import type { TanggalPeriode } from '@/types/periode-jadwal';
 import type { TotalAnggaran } from './types';
 
 export type StatusReview = 'draft' | 'diajukan' | 'diverifikasi' | 'dikembalikan' | 'disahkan';
@@ -24,6 +25,8 @@ export interface ReviewRencanaAksi {
         periode_id: string;
         periode_nama: string;
         periode_urutan: number;
+        /** Tanggal Master Periode saat ditampilkan (bukan bagian versi beku, Q70 §70.4 butir 3); null bila belum diatur. */
+        periode_tanggal: TanggalPeriode | null;
         nilai: string | null;
         status_perhitungan: string | null;
         keterangan: string | null;

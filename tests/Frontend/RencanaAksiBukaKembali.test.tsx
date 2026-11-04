@@ -40,7 +40,7 @@ const disahkan: ReviewRencanaAksi = {
     indikator: { kode: 'IKU-1', nama: 'Label indikator dibekukan', satuan: '%', desimal_tampilan: 2 },
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: null,
-    target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: 'terhitung', keterangan: null, komponen: [] }],
+    target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, periode_tanggal: { bulan_mulai: 1, hari_mulai: 1, bulan_selesai: 3, hari_selesai: 31 }, nilai: '10.25', status_perhitungan: 'terhitung', keterangan: null, komponen: [] }],
     klaim: null, anggaran_kegiatan: null,
     bukti_dukungs: [],
     can: { verifikasi: false, kembalikan: false, sahkan: false, buka_kembali: true, evidence: true, kegiatan: true },
