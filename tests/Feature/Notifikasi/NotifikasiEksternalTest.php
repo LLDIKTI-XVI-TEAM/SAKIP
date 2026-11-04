@@ -302,11 +302,50 @@ class NotifikasiEksternalTest extends TestCase
         app(PembacaStatusPengiriman::class)->handle($pegawai, []);
     }
 
+    public function test_reservasi_menunggu_tidak_mengurangi_empat_upaya_kirim_siklus_manual(): void
+    {
+        $provider = $this->provider(array_fill(0, 5, HasilKirim::sementara(3600)));
+        $row = $this->antre();
+        $row->update(['percobaan' => 3, 'percobaan_siklus' => 3]);
+        DB::table('jobs')->update(['attempts' => 3]);
+        $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
+        $failed = DB::table('failed_jobs')->first();
+        $this->assertNotNull($failed);
+        $this->artisan('queue:retry', ['id' => [$failed->uuid]])->assertExitCode(0);
+        $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
+        $this->assertSame(0, $row->fresh()->percobaan_siklus);
+        for ($i = 1; $i <= 4; $i++) {
+            $this->travel(61)->minutes();
+            $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
+            $this->assertSame($i, $row->fresh()->percobaan_siklus);
+            $this->assertSame($i < 4 ? 'antre' : 'gagal', $row->fresh()->status);
+        }
+        $this->assertSame(5, $provider->calls);
+        $this->assertDatabaseCount('failed_jobs', 1);
+    }
+
+    public function test_redelivery_exhausted_mencatat_failed_job_setelah_crash_sebelum_fail(): void
+    {
+        $provider = $this->provider([HasilKirim::sementara()]);
+        $row = $this->antre();
+        $row->update(['percobaan' => 3, 'percobaan_siklus' => 3]);
+        $reserved = Queue::connection('notifikasi')->pop('notifikasi');
+        $this->assertNotNull($reserved);
+        app(PengirimNotifikasiEksternal::class)->kirim($row->id, 4);
+        $this->assertSame('gagal', $row->fresh()->status);
+        $this->travel(91)->seconds();
+        $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
+        $this->assertDatabaseCount('failed_jobs', 1);
+        $this->assertSame(1, $provider->calls);
+        $this->assertSame(4, $row->fresh()->percobaan);
+        $this->assertDatabaseCount('jobs', 0);
+    }
+
     public function test_worker_database_retry_manual_kumulatif_dan_exception_failed_jobs_aman(): void
     {
         $provider = $this->provider([HasilKirim::sementara(), HasilKirim::diterima('aman-akhir')]);
         $row = $this->antre();
-        DB::table('jobs')->update(['attempts' => 3]);
+        $row->update(['percobaan' => 3, 'percobaan_siklus' => 3]);
         $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
         $this->assertSame('gagal', $row->fresh()->status);
         $this->assertSame('percobaan_habis', $row->fresh()->kode_hasil);
@@ -318,8 +357,27 @@ class NotifikasiEksternalTest extends TestCase
         $this->travel(31)->minutes();
         $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
         $this->assertSame('diterima_provider', $row->fresh()->status);
-        $this->assertSame(2, $row->fresh()->percobaan);
+        $this->assertSame(5, $row->fresh()->percobaan);
         $this->assertSame(2, $provider->calls);
+    }
+
+    public function test_exception_penyimpanan_tetap_dibatasi_empat_tanpa_membocorkan_detail(): void
+    {
+        $row = $this->antre();
+        $this->mock(PengirimNotifikasiEksternal::class)->shouldReceive('kirim')->with($row->id, 4)->times(4)
+            ->andThrow(new RuntimeException('token=RAHASIA alamat=private@example.test'));
+        for ($i = 1; $i <= 4; $i++) {
+            $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
+            $this->assertSame($i < 4 ? 'antre' : 'gagal', $row->fresh()->status);
+            $this->travel(31)->minutes();
+        }
+        $this->assertSame(0, $row->fresh()->percobaan);
+        $this->assertDatabaseCount('failed_jobs', 1);
+        $this->assertDatabaseCount('jobs', 0);
+        $failed = DB::table('failed_jobs')->first();
+        $this->assertStringContainsString('notifikasi.gangguan_penyimpanan', $failed->exception);
+        $this->assertStringNotContainsString('RAHASIA', $failed->exception);
+        $this->assertStringNotContainsString('private@example.test', $failed->exception);
     }
 
     public function test_worker_menghormati_jeda_provider_dan_recovery_tidak_menggandakan_delayed_job(): void
@@ -340,7 +398,7 @@ class NotifikasiEksternalTest extends TestCase
         $row = $this->antre();
         $reserved = Queue::connection('notifikasi')->pop('notifikasi');
         $this->assertNotNull($reserved);
-        app(PengirimNotifikasiEksternal::class)->kirim($row->id, $reserved->attempts(), 4);
+        app(PengirimNotifikasiEksternal::class)->kirim($row->id, 4);
         $batas = $row->fresh()->coba_lagi_pada->timestamp;
 
         // Simulasikan crash sesudah hasil pasti tersimpan, sebelum job melakukan release.
@@ -361,7 +419,7 @@ class NotifikasiEksternalTest extends TestCase
     {
         $provider = $this->provider([HasilKirim::sementara(3600), HasilKirim::diterima('aman-manual-jeda')]);
         $row = $this->antre();
-        DB::table('jobs')->update(['attempts' => 3]);
+        $row->update(['percobaan' => 3, 'percobaan_siklus' => 3]);
         $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
         $batas = $row->fresh()->coba_lagi_pada->timestamp;
         $failed = DB::table('failed_jobs')->first();
@@ -371,12 +429,12 @@ class NotifikasiEksternalTest extends TestCase
         $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
         $this->assertSame($batas, (int) DB::table('jobs')->value('available_at'));
         $this->assertSame(1, $provider->calls);
-        $this->assertSame(1, $row->fresh()->percobaan);
+        $this->assertSame(4, $row->fresh()->percobaan);
         $this->travel(61)->minutes();
         $this->artisan('queue:work', ['connection' => 'notifikasi', '--queue' => 'notifikasi', '--once' => true, '--sleep' => 0])->assertExitCode(0);
         $this->assertSame('diterima_provider', $row->fresh()->status);
         $this->assertSame(2, $provider->calls);
-        $this->assertSame(2, $row->fresh()->percobaan);
+        $this->assertSame(5, $row->fresh()->percobaan);
     }
 
     public function test_recovery_setelah_tiga_upaya_tidak_memulai_siklus_retry_baru(): void

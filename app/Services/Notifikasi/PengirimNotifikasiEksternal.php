@@ -15,7 +15,7 @@ class PengirimNotifikasiEksternal
     /** Klaim persisten ditutup hanya oleh hasil pasti; crash tetap ambigu.
      * @return int|null Jeda untuk antrean belum jatuh tempo atau penolakan sementara yang pasti belum diterima.
      */
-    public function kirim(string $id, int $attempt, int $tries): ?int
+    public function kirim(string $id, int $tries): ?int
     {
         $row = DB::transaction(function () use ($id) {
             $p = NotifikasiPengiriman::lockForUpdate()->findOrFail($id);
@@ -57,7 +57,7 @@ class PengirimNotifikasiEksternal
             $hasil = HasilKirim::ambigu();
         }
 
-        return DB::transaction(function () use ($row, $hasil, $attempt, $tries) {
+        return DB::transaction(function () use ($row, $hasil, $tries) {
             $p = NotifikasiPengiriman::lockForUpdate()->findOrFail($row->id);
             if ($p->status !== 'perlu_rekonsiliasi' || $p->percobaan !== $row->percobaan) {
                 return null;
@@ -69,7 +69,7 @@ class PengirimNotifikasiEksternal
             } elseif ($hasil->jenis === 'permanen') {
                 $p->update(['status' => 'gagal', 'kode_hasil' => 'provider_ditolak']);
             } elseif ($hasil->jenis === 'sementara') {
-                $upaya = max($attempt, $p->percobaan_siklus);
+                $upaya = $p->percobaan_siklus;
                 $delay = max($hasil->jeda, [60, 300, 1800][min(max($upaya - 1, 0), 2)]);
                 $p->update(['status' => $upaya >= $tries ? 'gagal' : 'antre', 'kode_hasil' => $upaya >= $tries ? 'percobaan_habis' : 'provider_sementara', 'coba_lagi_pada' => now()->addSeconds($delay)]);
 

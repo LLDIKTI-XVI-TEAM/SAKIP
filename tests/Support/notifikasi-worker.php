@@ -27,7 +27,7 @@ try {
         $row = app(AntrekanNotifikasiEksternal::class)->antre('race:1', RencanaAksi::findOrFail($data['objek']), 'race-periode', [$data['user']], ['email'], 'Pesan sintetis', [])->first();
     } else {
         $row = NotifikasiPengiriman::findOrFail($data['id']);
-        app(PengirimNotifikasiEksternal::class)->kirim($row->id, 1, 4);
+        app(PengirimNotifikasiEksternal::class)->kirim($row->id, 4);
     }
     echo 'RESULT:'.$row->id.PHP_EOL;
 } catch (Throwable $exception) {
