@@ -2,6 +2,7 @@
 
 namespace App\Actions\Pengukuran;
 
+use App\Events\PengukuranDiajukan;
 use App\Models\BuktiDukung;
 use App\Models\Kegiatan;
 use App\Models\KinerjaSnapshot;
@@ -48,8 +49,11 @@ class SubmitPengukuran
                     'jalur_pengajuan' => $this->policy->usesPlanningPath($actor, $p) ? 'perencanaan' : 'pic', 'dasar_izin_pengajuan' => $provenance,
                     'snapshot' => $this->payload($p, $prerequisite, $rekomendasi)]);
                 $p->status_alur = 'diajukan';
+                $p = $this->steps->finish($actor, $p, 'pengukuran.ajukan', 'Mengajukan pengukuran untuk reviu.', $decision, $before, ['self_approval' => false]);
+                // Antrean Perencanaan diberi tahu setelah commit; penerimanya dihitung listener saat itu.
+                PengukuranDiajukan::dispatch($p->id, $actor->id);
 
-                return $this->steps->finish($actor, $p, 'pengukuran.ajukan', 'Mengajukan pengukuran untuk reviu.', $decision, $before, ['self_approval' => false]);
+                return $p;
             });
         } catch (Throwable $exception) {
             $this->steps->compensate($actor, $id, 'ajukan', $path, $decision, $exception);

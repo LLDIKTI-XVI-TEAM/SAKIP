@@ -2,6 +2,7 @@
 
 namespace App\Actions\Jadwal;
 
+use App\Events\JendelaPengisianDibuka;
 use App\Http\Requests\Jadwal\ActivateJadwalRequest;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKomponen;
@@ -115,6 +116,13 @@ class ActivateJadwal
                         'snapshot_ids' => $snapshotIds, 'snapshot_created_count' => count($snapshotIds),
                         'snapshot_finalized_existing_count' => $finalizedExisting],
                     alasan: $data['alasan'], dasarIzin: $basis);
+                // Jendela yang sudah berjalan pada tanggal bisnis aktivasi baru terbuka bagi PIC sekarang; PJ-nya diberi tahu setelah commit.
+                // Periode lampau 2026 tidak pernah berjalan pada hari aktivasi karena pengisian_selesai-nya sebelum hari itu.
+                $tanggalBisnis = $at->setTimezone(config('app.business_timezone'))->toDateString();
+                $terbuka = $context['jadwal']->periode->filter(fn (PeriodeJadwal $window): bool => $window->berjalanPada($tanggalBisnis))->pluck('id')->values()->all();
+                if ($terbuka !== []) {
+                    JendelaPengisianDibuka::dispatch($jadwal->id, $terbuka, null, $tanggalBisnis);
+                }
 
                 return $this->outcome($jadwal, $data['operation_id'], changed: true, created: count($snapshotIds));
             });
