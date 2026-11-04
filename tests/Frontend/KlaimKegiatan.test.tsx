@@ -84,6 +84,23 @@ it('panel RA menampilkan anggaran per kegiatan, penanda kegiatan bersama dan kla
     expect(screen.getByText(/^Total Rp\s?1\.500\.000 \(1 kegiatan belum diisi\)$/)).toBeTruthy();
 });
 
+it('panel RA menautkan kegiatan ditunda dan lanjutannya dua arah, tanpa tautan bila pasangannya tidak tampil', () => {
+    const baris = { status: 'rencana', komponen_id: null, arah_dampak: 'menambah' as const, catatan: null, anggaran: '0', kegiatan_bersama: false };
+    render(<KegiatanPanel rencanaAksiId="ra-1" kotor={false} periode={[periode('tw1', 'Triwulan I'), periode('tw2', 'Triwulan II')]} komponen={[]} terkunci={[]}
+        kegiatan={{ daftar: [
+            { ...baris, id: 'k1', kegiatan_id: 'asal', periode_id: 'tw1', nama: 'Bimtek', status: 'ditunda', sumber_klaim: 'rencana_aksi', lanjutan: { id: 'lanjut', periode_id: 'tw2' } },
+            { ...baris, id: 'k2', kegiatan_id: 'lanjut', periode_id: 'tw2', nama: 'Bimtek', sumber_klaim: 'pengukuran', asal: { id: 'asal', periode_id: 'tw1' } },
+            { ...baris, id: 'k3', kegiatan_id: 'lain', periode_id: 'tw2', nama: 'Rapat', sumber_klaim: 'pengukuran', asal: { id: 'tidak-tampil', periode_id: 'tw1' } },
+        ], total: TOTAL_KOSONG, can: { tambah: false, kelola: false } }} />);
+
+    expect(screen.getByRole('link', { name: 'Ditunda → Triwulan II' }).getAttribute('href')).toBe('#kegiatan-lanjut');
+    const tautanAsal = screen.getAllByText('Lanjutan dari Triwulan I');
+    expect(tautanAsal[0].closest('a')?.getAttribute('href')).toBe('#kegiatan-asal');
+    expect(document.getElementById('kegiatan-asal')).toBeTruthy();
+    // Asal milik RA lain tidak tampil di panel ini: penanda tetap ada sebagai teks, bukan tautan mati.
+    expect(tautanAsal[1].closest('a')).toBeNull();
+});
+
 it('mengirim klaim dengan komponen dari rencana aksi terpilih dan mengingatkan klaim tidak mengubah nilai', () => {
     render(<KlaimPanel kegiatanId="keg-1" klaim={panel} />);
     expect(screen.getByText(/tidak mengubah nilai komponen maupun pengukuran/i)).toBeTruthy();

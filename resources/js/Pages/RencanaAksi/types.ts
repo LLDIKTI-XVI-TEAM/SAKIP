@@ -284,6 +284,14 @@ export interface KegiatanRencanaAksiItem {
     sumber_klaim: 'rencana_aksi' | 'pengukuran';
     /** Diklaim lebih dari satu IKU (Q42 §42.2 butir 4). */
     kegiatan_bersama: boolean;
+    /** Jejak penundaan (Q41 §41.4 butir 2): kegiatan asal bila baris ini lanjutan, dan lanjutan bila kegiatan ini ditunda. */
+    asal?: TautanPenundaan | null;
+    lanjutan?: TautanPenundaan | null;
+}
+
+export interface TautanPenundaan {
+    id: string;
+    periode_id: string;
 }
 
 /** Total anggaran kegiatan unik; `belum_diisi` = jumlah kegiatan beranggaran kosong yang tidak ikut dihitung. */

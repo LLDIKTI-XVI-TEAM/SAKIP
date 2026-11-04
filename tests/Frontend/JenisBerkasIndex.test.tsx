@@ -76,20 +76,61 @@ it('menyaring persyaratan lewat pencarian dan tahap yang berlabel', async () => 
     expect(screen.getByText('Tidak ada persyaratan yang cocok')).toBeTruthy();
 });
 
+// Badge memakai bingkai; teks biasa tidak.
+const isBadge = (element: HTMLElement) => element.tagName === 'SPAN' && element.classList.contains('border');
+
 it('merangkum ketentuan bukti dalam satu kolom', () => {
     render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
 
     expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Persyaratan', 'Tahap', 'Lingkup', 'Ketentuan bukti', 'Status', 'Aksi']);
     const laporan = screen.getByRole('row', { name: /Laporan Capaian Triwulan/ });
-    expect(within(laporan).getByText('Wajib')).toBeTruthy();
+    expect(isBadge(within(laporan).getByText('Wajib'))).toBe(true);
     expect(within(laporan).getByText('File')).toBeTruthy();
     expect(within(laporan).getByText('pdf, docx · maks 10.240 KB')).toBeTruthy();
     // Baris tahap lama (Rencana Aksi) tanpa mode file tidak menampilkan batas teknis.
     const kak = screen.getByRole('row', { name: /Kerangka Acuan Kerja/ });
-    expect(within(kak).getByText('Rencana Aksi')).toBeTruthy();
+    expect(isBadge(within(kak).getByText('Rencana Aksi'))).toBe(true);
+    expect(isBadge(within(kak).getByText('Opsional'))).toBe(true);
     expect(within(kak).getByText('Teks')).toBeTruthy();
-    expect(within(kak).queryByText(/maks/)).toBeNull();
+    expect(within(kak).queryByText(/maks|bawaan/)).toBeNull();
     expect(within(kak).getByText('Nonaktif')).toBeTruthy();
+});
+
+it('menulis mode, batas bawaan, dan catatan ketentuan dengan gaya kalimat yang seragam', () => {
+    const semuaMode = jb({ id: 'j4', nama: 'Notulen Rapat', tahap: 'pengukuran', wajib: true, izinkan_tautan: true, semua_mode_wajib: true });
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={[semuaMode]} indikators={indikators} can={canAll} />);
+
+    const row = screen.getByRole('row', { name: /Notulen Rapat/ });
+    expect(within(row).getByText('File · Tautan')).toBeTruthy();
+    expect(within(row).getByText('Batas bawaan')).toBeTruthy();
+    expect(within(row).getByText('Semua mode wajib')).toBeTruthy();
+    expect(within(row).queryByText(/ukuran bawaan|Format bawaan/)).toBeNull();
+});
+
+it('mengurutkan baris dan pilihan filter menurut alur tahap', () => {
+    // Server mengirim urutan kode tahap secara abjad.
+    const acak = [
+        jb({ id: 'k1', nama: 'Kuitansi SPJ', tahap: 'kegiatan' }),
+        jb({ id: 'k2', nama: 'RAB Kegiatan', tahap: 'kegiatan_perencanaan' }),
+        jb({ id: 'k3', nama: 'Laporan Realisasi', tahap: 'pengukuran' }),
+        jb({ id: 'k4', nama: 'Dokumen RA', tahap: 'rencana_aksi' }),
+        jb({ id: 'k5', nama: 'Notulen RA', tahap: 'rencana_aksi' }),
+    ];
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={acak} indikators={indikators} can={canAll} />);
+
+    const nama = screen.getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell')[0].querySelector('p')?.textContent);
+    expect(nama).toEqual(['Dokumen RA', 'Notulen RA', 'RAB Kegiatan', 'Kuitansi SPJ', 'Laporan Realisasi']);
+    const filter = screen.getByLabelText('Tahap') as HTMLSelectElement;
+    expect(Array.from(filter.options).map((option) => option.value)).toEqual(['', 'rencana_aksi', 'kegiatan_perencanaan', 'kegiatan', 'pengukuran']);
+});
+
+it('tampilan kartu memberi label pada status dan aksi', () => {
+    render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={list} indikators={indikators} can={canAll} />);
+
+    const laporan = screen.getByRole('row', { name: /Laporan Capaian Triwulan/ });
+    for (const label of ['Status', 'Aksi']) {
+        expect(within(laporan).getByText(label, { selector: 'span' }).classList.contains('xl:hidden')).toBe(true);
+    }
 });
 
 it('kolom kosong mengikuti jumlah kolom bagi pengguna baca saja', () => {
@@ -242,7 +283,7 @@ it('persyaratan perencanaan kegiatan menampilkan penanda beranggaran serta mengu
     render(<JenisBerkasIndex batasUnggahan={batasUnggahan} jenisBerkasList={[...list, rab]} indikators={indikators} can={canAll} />);
 
     expect(screen.getAllByText('Perencanaan Kegiatan').length).toBeGreaterThan(0);
-    expect(screen.getByText(/hanya kegiatan beranggaran/)).toBeTruthy();
+    expect(screen.getByText('Hanya kegiatan beranggaran')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'contoh-rab.xlsx' }).getAttribute('href')).toBe('/jenis-berkas/j3/contoh/c1');
 
     await user.click(screen.getByRole('button', { name: 'Hapus contoh contoh-rab.xlsx' }));

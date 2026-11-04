@@ -7,6 +7,7 @@ use App\Actions\Access\RevokeDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\BootstrapSuperadmin;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\Kegiatan\UbahStatusKegiatan;
 use App\Actions\PenanggungJawab\AssignPenanggungJawab;
 use App\Actions\PenanggungJawab\ChangePenanggungJawab;
 use App\Actions\PenanggungJawab\ReadPenanggungJawab;
@@ -25,6 +26,7 @@ use App\Actions\Unit\CreateUnitAction;
 use App\Actions\Unit\DeleteUnitAction;
 use App\Actions\Unit\UpdateUnitAction;
 use App\Models\IndikatorKinerja;
+use App\Models\Kegiatan;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RoleAssignmentReceipt;
@@ -102,6 +104,7 @@ try {
             'pengukuran-pindah-snapshot' => app(PindahkanPengukuranKeVersiSnapshot::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->jadwal_snapshot_id,
             'pengukuran-sahkan' => app(ApprovePengukuran::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pengukuran_id'], $assignment['data'])->status_alur,
             'pengukuran-ensure-draft' => performPengukuranEnsureDraft($assignment),
+            'kegiatan-tunda' => app(UbahStatusKegiatan::class)->handle(User::findOrFail($assignment['actor_id']), Kegiatan::findOrFail($assignment['kegiatan_id']), $assignment['data'])['status'],
             'assign-role' => app(AssignRole::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['role_id'], $assignment['alasan'], $assignment['expected_assignment'])['status'],
             'change-status' => app(ChangeUserStatus::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['target_id'], $assignment['status'], $assignment['alasan'], $assignment['expected_status'])['status'],
             'receipt-consume' => app(RoleAssignmentReceipt::class)->consume($assignment['actor_id'], $assignment['session_id'], $assignment['reference']) === null ? 'unknown' : 'consumed',

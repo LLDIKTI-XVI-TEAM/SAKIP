@@ -44,6 +44,10 @@ class TambahKlaimKegiatan
                 $konteks = $this->gerbang->kunci($actor, $headerId, $kegiatanId, PermissionCodes::KEGIATAN_UPDATE, [], $dasarIzin);
                 /** @var Kegiatan $kegiatan */
                 $kegiatan = $konteks['kegiatan'];
+                // Lanjutan hanya diklaim otomatis pada tahap pengukuran (Q41 §41.4 butir 2); klaim tahap RA akan memicu ulang persyaratan perencanaan.
+                if ($kegiatan->kegiatan_asal_id !== null) {
+                    throw ValidationException::withMessages(['kegiatan_id' => 'Kegiatan lanjutan diklaim otomatis pada tahap pengukuran dan tidak dapat diklaim ke rencana aksi.']);
+                }
                 $komponenId = isset($data['komponen_id']) ? strtolower((string) $data['komponen_id']) : null;
                 $this->pastikanCocok($konteks['header'], $kegiatan, $komponenId);
 
