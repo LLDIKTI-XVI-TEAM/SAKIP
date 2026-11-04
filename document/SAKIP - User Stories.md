@@ -2303,7 +2303,7 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 | **Modul** | Alert Kontekstual & Notifikasi |
 | **Dependensi** | Pengguna autentikasi. |
 | **Otorisasi** | Seluruh pengguna autentikasi sesuai event yang berhak dilihat. |
-| **Dampak Data** | Penyimpanan notifikasi/read-state sesuai implementasi. |
+| **Dampak Data** | Penyimpanan notifikasi/read-state sesuai implementasi (Data Model §2.39 `notifications`). |
 
 > **Sebagai** PIC, Perencanaan, Admin,  
 > **Saya ingin** melihat unread counter dan daftar tugas yang memerlukan tindakan,  
@@ -2311,11 +2311,13 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given RA/Pengukuran dikembalikan, Then PIC menerima item berisi ringkasan alasan dan tautan aman.
-- [ ] **AC-2:** Given PIC mengajukan RA/Pengukuran, Then Perencanaan menerima item antrean review.
-- [ ] **AC-3:** Given jadwal pengisian dibuka, Then PIC terkait dapat menerima notifikasi in-app.
-- [ ] **AC-4:** Given Admin memiliki event akses/audit yang ditetapkan, Then hanya event yang sesuai haknya yang tampil.
-- [ ] **AC-5:** Given notifikasi dibuka, Then read-state berubah dan unread counter berkurang.
+> **Status implementasi — ISS-12.02 (4 November 2026):** seluruh AC terbukti lewat test backend/frontend dan smoke browser yang dicatat pada PR; AC-3 untuk pembukaan oleh aktivasi jadwal dan revisi jendela PIC (pembukaan karena tanggal tiba menunggu ISS-12.04); AC-4 untuk event akun SSO baru tanpa peran.
+
+- [x] **AC-1:** Given RA/Pengukuran dikembalikan, Then PIC menerima item berisi ringkasan alasan dan tautan aman.
+- [x] **AC-2:** Given PIC mengajukan RA/Pengukuran, Then Perencanaan menerima item antrean review.
+- [x] **AC-3:** Given jadwal pengisian dibuka, Then PIC terkait dapat menerima notifikasi in-app.
+- [x] **AC-4:** Given Admin memiliki event akses/audit yang ditetapkan, Then hanya event yang sesuai haknya yang tampil.
+- [x] **AC-5:** Given notifikasi dibuka, Then read-state berubah dan unread counter berkurang.
 
 ### US-12.03 · Broadcast Pembukaan Jadwal Pengisian via WhatsApp & Email
 

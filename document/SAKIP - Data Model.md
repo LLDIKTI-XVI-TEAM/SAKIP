@@ -1895,6 +1895,28 @@ Revisi target Renstra pada Renstra `aktif` (Q71; ISS-02.13). Baris berstatus `dr
 - Membatalkan draf menghapus baris draf beserta selnya dan tercatat di audit (§2.32; Q71 §71.5 butir 2). Aplikasi tidak mengubah baris berstatus `disimpan`.
 - Permission: `indikator:read` dan `target:update`, sama dengan simpan target Renstra (Q71 §71.1 butir 3); histori cukup `indikator:read` (§2.35).
 
+### 2.39 `notifications`
+
+Item notifikasi in-app (ISS-12.02) memakai tabel bawaan Laravel `notifications` dengan trait `Notifiable` pada `User`. Pemilik hanya pengguna (`notifiable_type` selalu `App\Models\User`). Item ditulis listener setelah transaksi bisnis commit untuk: RA/pengukuran dikembalikan atau dibuka kembali (ke PJ efektif saat pengembalian, Q37 §37.3), RA/pengukuran diajukan (ke Perencanaan peninjau unit), jendela pengisian dibuka oleh aktivasi jadwal atau revisi jendela PIC (ke PJ efektif indikator yang wajib diisi pada periode itu), dan akun SSO baru tanpa peran (ke pengelola akses).
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `type` | string | not null | Jenis kejadian: `rencana_aksi.dikembalikan`, `rencana_aksi.dibuka_kembali`, `rencana_aksi.diajukan`, `pengukuran.dikembalikan`, `pengukuran.dibuka_kembali`, `pengukuran.diajukan`, `jadwal.jendela_dibuka`, `pengguna.menunggu_peran` |
+| `notifiable_type` | string | not null | Selalu `App\Models\User` |
+| `notifiable_id` | uuid | FK → users.id, not null | Pemilik item |
+| `data` | jsonb | not null | `judul`, `ringkasan` (nullable; ringkasan alasan maksimal lebar 200 termasuk elipsis), `route_name`, `route_params` (objek) |
+| `read_at` | timestamp | nullable | Waktu baca pertama; diisi sekali lewat update bersyarat `read_at IS NULL` |
+| `created_at`, `updated_at` | timestamp | | |
+
+**Index:** (`notifiable_type`, `notifiable_id`, `read_at`) untuk hitungan belum dibaca per pemilik pada setiap request.
+
+**Aturan:**
+- Item tidak dihapus pengguna; read-state hanya milik penerima (daftar, hitungan, dan buka item dibatasi relasi milik aktor; item pengguna lain 404).
+- Ditulis setelah commit dan tidak pernah membatalkan transaksi bisnis; galat penulisan dicatat tanpa isi dan item yang gagal hilang tanpa retry (batasan in-app).
+- Judul dan ringkasan disimpan sebagai teks jadi; tautan disimpan sebagai nama route dan parameter, lalu diotorisasi ulang oleh route tujuan saat dibuka. Item tidak disaring ulang dengan izin saat request.
+- Penerima hanya akun aktif berperan aktif, ditentukan server lewat resolver izin dan Policy (deny menang); tanpa permission atau audit baru untuk menandai dibaca.
+
 ---
 
 ## 3. Algoritma Resolusi Izin
