@@ -210,19 +210,34 @@ class NotifikasiPengembalianTest extends TestCase
         $this->assertSame('dikembalikan', $p->fresh()->status_alur);
     }
 
-    public function test_pj_dengan_deny_eksplisit_baca_unit_tidak_menerima_item_dan_dicatat(): void
+    public function test_pj_dengan_deny_eksplisit_pengukuran_read_hanya_kehilangan_item_pengukuran(): void
     {
         $pic = $this->createPicPegawai();
         $this->denyPermission($pic, 'pengukuran:read', $this->unit->id);
+        Log::spy();
+
+        $this->kembalikanPengukuran($this->pengukuran(), 'Alasan rahasia.')->assertSessionHasNoErrors();
+        $this->kembalikanRencanaAksi($this->reviewer, 'Alasan rahasia.')->assertSuccessful();
+
+        $this->assertSame(['rencana_aksi.dikembalikan'], $this->items()->pluck('type')->all());
+        $this->assertSame($pic->id, $this->items()->sole()->notifiable_id);
+        Log::shouldHaveReceived('info')->withArgs(fn (string $pesan, array $konteks): bool => str_contains($pesan, 'ditolak eksplisit')
+            && $konteks === ['user_ids' => [$pic->id]])->once();
+    }
+
+    public function test_pj_dengan_deny_eksplisit_rencana_aksi_read_hanya_kehilangan_item_rencana_aksi(): void
+    {
+        $pic = $this->createPicPegawai();
         $this->denyPermission($pic, 'rencana_aksi:read', $this->unit->id);
         Log::spy();
 
         $this->kembalikanPengukuran($this->pengukuran(), 'Alasan rahasia.')->assertSessionHasNoErrors();
         $this->kembalikanRencanaAksi($this->reviewer, 'Alasan rahasia.')->assertSuccessful();
 
-        $this->assertCount(0, $this->items());
+        $this->assertSame(['pengukuran.dikembalikan'], $this->items()->pluck('type')->all());
+        $this->assertSame($pic->id, $this->items()->sole()->notifiable_id);
         Log::shouldHaveReceived('info')->withArgs(fn (string $pesan, array $konteks): bool => str_contains($pesan, 'ditolak eksplisit')
-            && $konteks === ['user_ids' => [$pic->id]])->twice();
+            && $konteks === ['user_ids' => [$pic->id]])->once();
     }
 
     public function test_pj_tanpa_grant_unit_tetap_menerima_item_pengembalian(): void
