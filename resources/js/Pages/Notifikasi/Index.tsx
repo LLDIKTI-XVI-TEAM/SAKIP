@@ -43,7 +43,7 @@ export default function NotifikasiIndex({ notifikasi }: NotifikasiIndexProps) {
     return (
         <AuthenticatedLayout title="Notifikasi" breadcrumbs={[{ label: 'Notifikasi' }]}>
             <Head title="Notifikasi" />
-            <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-4 sm:px-6 lg:px-8">
+            <div className="space-y-3">
                 {notifikasi.data.length === 0 ? (
                     <Card className="px-6 py-10 text-center text-sm text-muted">Belum ada notifikasi.</Card>
                 ) : (
