@@ -46,6 +46,25 @@ class PenerimaNotifikasi
     }
 
     /**
+     * PJ efektif penerima pengembalian/buka-kembali: akun aktif berperan aktif yang tidak ditolak eksplisit
+     * membaca objek pada unitnya (deny menang, keputusan PM atas R8). PJ yang hanya belum punya grant unit
+     * tetap menerima item dan ditolak 403 saat membukanya; deny yang ditetapkan sesudah item dibuat
+     * ditangani halaman tujuan.
+     *
+     * @return list<User>
+     */
+    public function pjPengembalian(?string $penerimaId, string $izinBaca, string $unitId): array
+    {
+        $users = $this->aktif([$penerimaId]);
+        $ditolak = array_filter($users, fn (User $u): bool => $this->resolver->decide($u, $izinBaca, $unitId)['reason'] === 'explicit_deny');
+        if ($ditolak !== []) {
+            Log::info('Penerima notifikasi dilewati: ditolak eksplisit membaca unit objek.', ['user_ids' => array_values(array_map(fn (User $u): string => $u->id, $ditolak))]);
+        }
+
+        return array_values(array_diff_key($users, $ditolak));
+    }
+
+    /**
      * Perencanaan aktif yang lolos gerbang halaman tujuan: baca objek dan izin verifikasi pada unit itu
      * (deny menang). Pengaju dikecualikan; Superadmin tidak termasuk karena bukan peran Perencanaan.
      *

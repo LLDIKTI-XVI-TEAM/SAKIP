@@ -143,7 +143,7 @@ class NotifikasiSetelahCommitTest extends TestCase
     {
         $this->createPicPegawai();
         $p = $this->pengukuran();
-        $this->mock(PenerimaNotifikasi::class)->shouldReceive('aktif')->andThrow(new RuntimeException('penerima gagal'));
+        $this->mock(PenerimaNotifikasi::class)->shouldReceive('pjPengembalian')->andThrow(new RuntimeException('penerima gagal'));
         Log::spy();
 
         $this->actingAs($this->reviewer)->post("/verifikasi/{$p->id}/kembalikan", ['versi' => $p->fresh()->versi, 'catatan' => 'Alasan rahasia.'])
@@ -162,7 +162,7 @@ class NotifikasiSetelahCommitTest extends TestCase
         $hantu = new User(['nama' => 'Hantu', 'email' => 'hantu@example.test', 'status' => 'aktif']);
         $hantu->id = (string) Str::uuid();
         $p = $this->pengukuran();
-        $this->partialMock(PenerimaNotifikasi::class)->shouldReceive('aktif')->andReturn([$hantu, $b]);
+        $this->mock(PenerimaNotifikasi::class)->shouldReceive('pjPengembalian')->andReturn([$hantu, $b]);
         Log::spy();
 
         $this->actingAs($this->reviewer)->post("/verifikasi/{$p->id}/kembalikan", ['versi' => $p->fresh()->versi, 'catatan' => 'Alasan rahasia.'])

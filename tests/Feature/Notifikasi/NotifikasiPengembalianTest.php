@@ -209,4 +209,30 @@ class NotifikasiPengembalianTest extends TestCase
 
         $this->assertSame('dikembalikan', $p->fresh()->status_alur);
     }
+
+    public function test_pj_dengan_deny_eksplisit_baca_unit_tidak_menerima_item_dan_dicatat(): void
+    {
+        $pic = $this->createPicPegawai();
+        $this->denyPermission($pic, 'pengukuran:read', $this->unit->id);
+        $this->denyPermission($pic, 'rencana_aksi:read', $this->unit->id);
+        Log::spy();
+
+        $this->kembalikanPengukuran($this->pengukuran(), 'Alasan rahasia.')->assertSessionHasNoErrors();
+        $this->kembalikanRencanaAksi($this->reviewer, 'Alasan rahasia.')->assertSuccessful();
+
+        $this->assertCount(0, $this->items());
+        Log::shouldHaveReceived('info')->withArgs(fn (string $pesan, array $konteks): bool => str_contains($pesan, 'ditolak eksplisit')
+            && $konteks === ['user_ids' => [$pic->id]])->twice();
+    }
+
+    public function test_pj_tanpa_grant_unit_tetap_menerima_item_pengembalian(): void
+    {
+        $pic = $this->createPicPegawai();
+        DB::table('user_permission_granted')->where('user_id', $pic->id)->delete();
+
+        $this->kembalikanPengukuran($this->pengukuran(), 'Perbaiki.')->assertSessionHasNoErrors();
+        $this->kembalikanRencanaAksi($this->reviewer, 'Perbaiki.')->assertSuccessful();
+
+        $this->assertSame([$pic->id, $pic->id], $this->items()->pluck('notifiable_id')->all());
+    }
 }

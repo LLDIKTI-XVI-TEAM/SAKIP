@@ -105,24 +105,24 @@ class KirimNotifikasiInApp
         return 'Diajukan oleh '.User::findOrFail($aktorId)->nama;
     }
 
-    /** Pengembalian dikirim ke PJ efektif saat pengembalian, termasuk bila PJ itu aktornya sendiri. */
+    /** Pengembalian dikirim ke PJ efektif saat pengembalian (termasuk bila PJ itu aktornya sendiri), kecuali yang ditolak eksplisit membaca unit objek. */
     private function kirimPengembalianRencanaAksi(string $jenis, string $kata, string $id, ?string $penerimaId, string $alasan): void
     {
         $this->kirim($jenis, $id, function () use ($jenis, $kata, $id, $penerimaId, $alasan): array {
             $header = RencanaAksi::with('indikator')->findOrFail($id);
 
-            return [$this->penerima->aktif([$penerimaId]), new ItemNotifikasi($jenis, "Rencana Aksi {$header->indikator->kode} {$header->tahun} {$kata}",
-                $this->ringkas($alasan), 'rencana-aksi.show', ['rencanaAksi' => $id])];
+            return [$this->penerima->pjPengembalian($penerimaId, 'rencana_aksi:read', (string) $header->unit_id),
+                new ItemNotifikasi($jenis, "Rencana Aksi {$header->indikator->kode} {$header->tahun} {$kata}", $this->ringkas($alasan), 'rencana-aksi.show', ['rencanaAksi' => $id])];
         });
     }
 
     private function kirimPengembalianPengukuran(string $jenis, string $kata, string $id, ?string $penerimaId, string $alasan): void
     {
         $this->kirim($jenis, $id, function () use ($jenis, $kata, $id, $penerimaId, $alasan): array {
-            $p = PengukuranKinerja::with(['indikator', 'periode'])->findOrFail($id);
+            $p = PengukuranKinerja::with(['indikator', 'periode', 'jadwalSnapshot'])->findOrFail($id);
 
-            return [$this->penerima->aktif([$penerimaId]), new ItemNotifikasi($jenis, "Pengukuran {$p->indikator->kode} {$p->periode->nama} {$p->tahun} {$kata}",
-                $this->ringkas($alasan), 'pengukuran.edit', ['id' => $id])];
+            return [$this->penerima->pjPengembalian($penerimaId, 'pengukuran:read', $p->targetUnitId()),
+                new ItemNotifikasi($jenis, "Pengukuran {$p->indikator->kode} {$p->periode->nama} {$p->tahun} {$kata}", $this->ringkas($alasan), 'pengukuran.edit', ['id' => $id])];
         });
     }
 
