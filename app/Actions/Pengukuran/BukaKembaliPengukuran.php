@@ -2,6 +2,7 @@
 
 namespace App\Actions\Pengukuran;
 
+use App\Events\PengukuranDibukaKembali;
 use App\Models\PengukuranKinerja;
 use App\Models\StatusCapaian;
 use App\Models\User;
@@ -38,8 +39,12 @@ class BukaKembaliPengukuran
                 // Nilai lama diperkaya hanya untuk audit tindakan ini agar bentuk audit mutasi lain tidak berubah.
                 $before += ['versi_resmi' => $versiResmi?->only(['id', 'nomor']), 'status_capaian_berlaku' => $this->statusRingkas($statusCapaian)];
 
-                return $this->steps->finish($actor, $p, 'pengukuran.buka_kembali', $alasan, $decision, $before,
+                $p = $this->steps->finish($actor, $p, 'pengukuran.buka_kembali', $alasan, $decision, $before,
                     ['versi_resmi_dibuka' => $versiResmi?->only(['id', 'nomor']), 'status_capaian_saat_dibuka' => $this->statusRingkas($statusCapaian), 'self_approval' => false]);
+                // PJ dibaca saat buka-kembali (indikator terkunci bersama); event diteruskan setelah commit.
+                PengukuranDibukaKembali::dispatch($p->id, $p->versi, $p->effectivePic()?->user_id, $actor->id, $alasan);
+
+                return $p;
             });
         } catch (Throwable $exception) {
             $this->steps->compensate($actor, $id, 'buka_kembali', null, $decision, $exception);

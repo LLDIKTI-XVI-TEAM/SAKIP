@@ -9,6 +9,7 @@ import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { Button } from '@/Components/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Modal } from '@/Components/Modal';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Table, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow, tableCellResponsive } from '@/Components/Table';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
@@ -219,7 +220,7 @@ function ReviewForm({ rencanaAksi }: ReviewProps) {
                             ) : rencanaAksi.target_periode.map((periode) => (
                                 <TableRow key={periode.periode_id} className="grid min-w-0 grid-cols-2 gap-3 px-6 py-4 md:table-row">
                                     <TableCell className={`col-span-2 ${tableCellResponsive}`}>
-                                        <p className="text-sm font-medium text-ink">{periode.periode_nama || konteksTidakLengkap}</p>
+                                        <p className="text-sm font-medium text-ink">{periode.periode_nama || konteksTidakLengkap}<RentangPeriode tanggal={periode.periode_tanggal} tahun={rencanaAksi.tahun} /></p>
                                         {periode.keterangan && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted">{periode.keterangan}</p>}
                                     </TableCell>
                                     {kolomKomponen.map((kolom) => {

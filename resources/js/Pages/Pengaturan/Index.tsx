@@ -652,7 +652,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                                         </div>
 
                                         {/* Footer */}
-                                        <div className="border-t border-border pt-3 text-[11px] text-muted italic">
+                                        <div className="border-t border-border pt-3 text-xs text-muted italic">
                                             {form.data['laporan.footer'] || 'Catatan kaki laporan dicetak di sini.'}
                                         </div>
                                     </div>

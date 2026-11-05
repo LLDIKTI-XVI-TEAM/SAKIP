@@ -18,6 +18,12 @@ class PeriodeJadwal extends Model
 
     protected $casts = ['pengisian_mulai' => 'date', 'pengisian_selesai' => 'date'];
 
+    /** Jendela pengisian PIC jalur normal berjalan pada tanggal bisnis (inklusif pengisian_mulai..pengisian_selesai). */
+    public function berjalanPada(string $tanggal): bool
+    {
+        return $tanggal >= $this->pengisian_mulai->toDateString() && $tanggal <= $this->pengisian_selesai->toDateString();
+    }
+
     /** @return BelongsTo<JadwalTahunan, $this> */
     public function jadwal(): BelongsTo
     {

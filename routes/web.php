@@ -33,6 +33,8 @@ use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
 use App\Http\Controllers\Laporan\DokumenResmiController;
 use App\Http\Controllers\Laporan\EksporRekapIndikatorPeriodeController;
 use App\Http\Controllers\Laporan\RekapIndikatorPeriodeController;
+use App\Http\Controllers\Notifikasi\BukaNotifikasi;
+use App\Http\Controllers\Notifikasi\IndexNotifikasi;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
 use App\Http\Controllers\Pengaturan\UpdatePengaturan;
@@ -239,6 +241,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'destroy'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.destroy');
     Route::get('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'download'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.download');
     Route::get('/kegiatan/{kegiatan}/pelaksanaan/berkas/{berkas}', [BerkasKegiatanController::class, 'downloadPelaksanaan'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.pelaksanaan.berkas.download');
+    // Notifikasi in-app: daftar milik aktor dan buka item (tandai dibaca lalu alihkan ke tujuan yang memeriksa izin sendiri)
+    Route::get('/notifikasi', IndexNotifikasi::class)->name('notifikasi.index');
+    Route::post('/notifikasi/{id}/buka', BukaNotifikasi::class)->whereUuid('id')->name('notifikasi.buka');
     // Pengukuran Kinerja
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
     Route::post('/pengukuran/ensure-draft', EnsureDraftPengukuran::class)->name('pengukuran.ensure-draft');

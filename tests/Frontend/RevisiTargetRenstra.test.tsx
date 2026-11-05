@@ -248,6 +248,161 @@ it('sesi atau token CSRF kedaluwarsa saat autosave memakai pemulihan sesi dan te
     expect(screen.queryByRole('button', { name: 'Muat ulang' })).toBeNull();
 });
 
+const kunjungan = (path: string, method = 'get', prefetch = false, tambahan: Record<string, unknown> = {}) => {
+    const event = new CustomEvent('inertia:before', {
+        cancelable: true,
+        detail: { visit: { method, url: new URL(path, window.location.href), prefetch, ...tambahan } },
+    });
+    document.dispatchEvent(event);
+    return event;
+};
+
+it('navigasi dengan perubahan yang belum tersimpan meminta konfirmasi dan tidak meninggalkan halaman', () => {
+    vi.useFakeTimers();
+    tampilkan();
+    const pemicu = screen.getByRole('button', { name: 'Batal revisi' });
+    pemicu.focus();
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+
+    let event!: CustomEvent;
+    act(() => { event = kunjungan('/dashboard'); });
+    expect(event.defaultPrevented).toBe(true);
+    const dialog = screen.getByRole('dialog', { name: 'Tinggalkan halaman?' });
+    expect(within(dialog).getByText('Perubahan yang belum tersimpan akan hilang.')).toBeTruthy();
+    expect(put).not.toHaveBeenCalled();
+
+    // Fokus pindah ke tombol pertama dialog, lalu kembali ke elemen pembuka saat ditutup.
+    act(() => { vi.advanceTimersByTime(50); });
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Tetap di halaman' }));
+
+    // Tetap di halaman tidak mengirim apa pun dan autosave tetap berjalan seperti biasa.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tetap di halaman' }));
+    expect(screen.queryByRole('dialog', { name: 'Tinggalkan halaman?' })).toBeNull();
+    expect(document.activeElement).toBe(pemicu);
+    expect(input(2026)!.value).toBe('12');
+    act(() => { vi.advanceTimersByTime(900); });
+    expect(put).toHaveBeenCalledTimes(1);
+});
+
+it('guard navigasi tetap aktif setelah autosave ditolak validasi', async () => {
+    vi.useFakeTimers();
+    tampilkan();
+    fireEvent.change(input(2026)!, { target: { value: 'abc' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    // Server menolak seluruh payload; belum ada satu pun perubahan dalam request ini yang tersimpan.
+    await act(async () => { opsi(put).onError({ 'nilai.ind-1.2026': 'Gunakan angka desimal nonnegatif tanpa pemisah ribuan atau eksponen.' }); });
+
+    let event!: CustomEvent;
+    await act(async () => { event = kunjungan('/dashboard'); });
+    expect(event.defaultPrevented).toBe(true);
+    expect(screen.getByRole('dialog', { name: 'Tinggalkan halaman?' })).toBeTruthy();
+});
+
+it('ketikan baru selama autosave berjalan tidak mengosongkan status belum tersimpan', async () => {
+    vi.useFakeTimers();
+    tampilkan();
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    // Ketikan ini terjadi setelah PUT dikirim, jadi hasil PUT tersebut belum memuatnya.
+    fireEvent.change(input(2028)!, { target: { value: '31' } });
+    await act(async () => { opsi(put).onSuccess(halaman({ versi: 3 })); });
+
+    let event!: CustomEvent;
+    await act(async () => { event = kunjungan('/dashboard'); });
+    expect(event.defaultPrevented).toBe(true);
+    expect(screen.getByRole('dialog', { name: 'Tinggalkan halaman?' })).toBeTruthy();
+});
+
+it('dialog konfirmasi keluar tetap berada di document.body saat tabel berada di tab tersembunyi', () => {
+    const view = render(
+        <div hidden>
+            <TargetRenstraTable renstra={renstra()} sasarans={sasarans()} canEdit onSaved={vi.fn()} revisi={draf()} />
+        </div>,
+    );
+    fireEvent.change(within(view.container).getByLabelText('Target 2026 IKU-1'), { target: { value: '12' } });
+
+    act(() => { kunjungan('/dashboard'); });
+
+    const dialog = screen.getByRole('dialog', { name: 'Tinggalkan halaman?' });
+    // Tanpa portal dialog ikut tersembunyi bersama induknya, padahal scroll body sudah dikunci.
+    expect(dialog.parentElement).toBe(document.body);
+    expect(dialog.closest('[hidden]')).toBeNull();
+    expect(view.container.contains(dialog)).toBe(false);
+    expect(within(dialog).getByText('Perubahan yang belum tersimpan akan hilang.')).toBeTruthy();
+});
+
+it('beforeunload hanya menahan refresh saat ada perubahan yang belum tersimpan', () => {
+    tampilkan();
+    const bersih = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(bersih);
+    expect(bersih.defaultPrevented).toBe(false);
+
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+    const kotor = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(kotor);
+    expect(kotor.defaultPrevented).toBe(true);
+});
+
+it('beforeunload tetap aktif selama autosave masih berjalan', () => {
+    vi.useFakeTimers();
+    tampilkan();
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+    act(() => { vi.advanceTimersByTime(900); });
+    act(() => { (put.mock.calls[0][2] as { onStart?: (visit: unknown) => void }).onStart?.({}); });
+
+    const berjalan = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(berjalan);
+    expect(berjalan.defaultPrevented).toBe(true);
+});
+
+it('navigasi tanpa perubahan tidak meminta konfirmasi', () => {
+    tampilkan();
+    const event = kunjungan('/dashboard');
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.queryByRole('dialog', { name: 'Tinggalkan halaman?' })).toBeNull();
+});
+
+it('mutasi draf, simpan revisi, dan batal revisi bukan navigasi yang perlu dikonfirmasi', () => {
+    vi.useFakeTimers();
+    tampilkan();
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+    const url = '/perencanaan/renstra/r-1/revisi-target';
+    for (const [method, path] of [['put', url], ['post', `${url}/simpan`], ['delete', url]] as const) {
+        expect(kunjungan(path, method).defaultPrevented).toBe(false);
+    }
+    // Prefetch juga bukan navigasi yang dipilih pengguna.
+    expect(kunjungan('/dashboard', 'get', true).defaultPrevented).toBe(false);
+    expect(screen.queryByRole('dialog', { name: 'Tinggalkan halaman?' })).toBeNull();
+});
+
+it('setelah "Tinggalkan halaman" visit yang sama diteruskan sekali tanpa ditahan lagi', () => {
+    vi.useFakeTimers();
+    let diteruskan: Event | null = null;
+    const onSuccess = vi.fn();
+    const visit = vi.spyOn(router, 'visit').mockImplementation((path, options) => {
+        diteruskan = kunjungan(String(path), options?.method ?? 'get');
+        return undefined;
+    });
+    tampilkan();
+    fireEvent.change(input(2026)!, { target: { value: '12' } });
+
+    act(() => { kunjungan('/dashboard', 'get', false, { onSuccess }); });
+    expect(screen.getByRole('button', { name: 'Tinggalkan halaman' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tinggalkan halaman' }));
+
+    expect(visit).toHaveBeenCalledTimes(1);
+    expect(String(visit.mock.calls[0][0])).toContain('/dashboard');
+    // Hanya opsi sah yang diteruskan; field internal PendingVisit tidak boleh ikut dikirim ulang.
+    const opsi = visit.mock.calls[0][1] as Record<string, unknown>;
+    expect(opsi.method).toBe('get');
+    expect(opsi.onSuccess).toBe(onSuccess);
+    for (const internal of ['id', 'url', 'completed', 'cancelled', 'interrupted', 'prefetch']) {
+        expect(opsi).not.toHaveProperty(internal);
+    }
+    expect(diteruskan).not.toBeNull();
+    expect((diteruskan as unknown as Event).defaultPrevented).toBe(false);
+});
+
 it('Batal revisi meminta konfirmasi lalu menghapus draf dengan versinya', () => {
     tampilkan();
     fireEvent.click(screen.getByRole('button', { name: 'Batal revisi' }));

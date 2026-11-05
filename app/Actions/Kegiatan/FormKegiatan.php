@@ -62,7 +62,8 @@ class FormKegiatan
             'unitOptions' => $unitOptions->map(fn (Unit $unit) => $unit->only(['id', 'nama']))->all(),
             'periodeOptions' => $periodeAktif->map(fn (Periode $periode) => [...$periode->only(['id', 'nama']), 'tanggal' => $periode->only(Periode::TANGGAL)])->all(),
             'pelaksanaan' => ['persyaratan_kurang' => $kurang, 'perlu_koreksi' => $kegiatan->status === 'terlaksana' && $kurang !== [],
-                'rentang' => $kegiatan->periode->rentangPadaTahun((int) $kegiatan->tahun)],
+                'rentang' => $kegiatan->periode->rentangPadaTahun((int) $kegiatan->tahun),
+                'periode_tanggal' => $kegiatan->periode?->only(Periode::TANGGAL)],
             'opsiPeriodeTujuan' => in_array('ditunda', $ubahStatus, true) ? $pilihan['periode_tujuan'] : [],
             // Data rencana baca-saja setelah status berubah (Q69 §69.3).
             'can' => ['ubah_rencana' => $kegiatan->status === 'rencana', 'ubah_status' => $ubahStatus,

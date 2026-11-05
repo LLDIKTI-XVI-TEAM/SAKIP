@@ -60,6 +60,8 @@ export interface SharedPageProps extends PageProps {
         [key: string]: unknown;
     };
     pengaturan?: Record<string, string | number | boolean | null>;
+    /** Jumlah notifikasi belum dibaca; null untuk tamu, akun nonaktif, dan akun tanpa peran aktif. */
+    notifikasi_belum_dibaca?: number | null;
 }
 
 declare module '@inertiajs/core' {

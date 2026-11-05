@@ -87,6 +87,7 @@ export interface PerjanjianKinerjaFormData {
     tanggal_pk: string;
     expected_updated_at?: string;
     alasan?: string;
+    rujukan?: string;
     lampiran: LampiranDraft[];
     konflik?: string;
     _method?: 'put';

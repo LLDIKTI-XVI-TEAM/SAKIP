@@ -887,7 +887,7 @@ Penomoran keputusan review menjadi Q37 mengikuti [review PR #93](https://github.
 1. Penerima pengembalian adalah PJ efektif pada saat pengembalian, menggunakan `PenugasanIndikator::effectiveOn()`; penerima tidak ditentukan dari pembuat draf, `penanggung_jawab_id` historis pada header, atau pengaju historis.
 2. Pengaju historis tetap tercatat pada `rencana_aksi_versi.diajukan_by` dan audit. Pergantian PJ tidak mengubah provenance versi yang direview.
 3. ISS-05.04 menetapkan penentuan penerima dan event pengembalian setelah commit; transaksi yang rollback tidak memancarkan event tersebut. Tautan ke Rencana Aksi tetap diperiksa otorisasinya ketika dibuka.
-4. Infrastruktur notifikasi belum tersedia pada baseline ini. Pengiriman in-app menunggu ISS-12.02; AC-3 ISS-05.04/US-05.04 diberi catatan pemisahan cakupan ini, tanpa mengklaim delivery sudah tersedia. Pemisahan yang sama berlaku untuk Pengukuran (ditetapkan PM 14 Oktober 2026): AC-7 ISS-07.03/US-07.03 dibuktikan lewat antrean verifikasi berbasis status, dan AC-3 ISS-08.01/US-08.01 tidak mencakup pengiriman notifikasi pengembalian. Pengiriman keduanya menjadi cakupan ISS-12.02 (AC-2 dan AC-1).
+4. Infrastruktur notifikasi belum tersedia pada baseline ini. Pengiriman in-app menunggu ISS-12.02; AC-3 ISS-05.04/US-05.04 diberi catatan pemisahan cakupan ini, tanpa mengklaim delivery sudah tersedia. Pemisahan yang sama berlaku untuk Pengukuran (ditetapkan PM 14 Oktober 2026): AC-7 ISS-07.03/US-07.03 dibuktikan lewat antrean verifikasi berbasis status, dan AC-3 ISS-08.01/US-08.01 tidak mencakup pengiriman notifikasi pengembalian. Pengiriman keduanya menjadi cakupan ISS-12.02 (AC-2 dan AC-1). **Status (ISS-12.02, PR #249, 4 November 2026):** pengiriman in-app diimplementasikan melalui ISS-12.02: item ditulis setelah commit untuk PJ efektif pada pengembalian/buka-kembali RA dan pengukuran, serta untuk Perencanaan peninjau unit pada pengajuan; tautannya tetap diotorisasi oleh halaman tujuan saat dibuka.
 
 ## 37.4 Dampak dan Traceability
 
@@ -1288,12 +1288,12 @@ Tim Perencanaan meminta fondasi PK → Rencana Aksi → Kegiatan dimatangkan seb
 | Tahap | Batas | Cakupan |
 |---|---|---|
 | 1 | Sebelum integrasi 9 November 2026 (Q2) | Q38 (ISS-01.08); Q39 dan Q50 (ISS-02.10, ISS-02.11); lampiran revisi dan riwayat target Renstra (Q40 §40.2, ISS-02.10); Q41 dan Q47 (ISS-05.07, ISS-05.06); Q42 dan Q49 (ISS-06.01, ISS-06.02, ISS-06.08); Q43 (ISS-13.05); Q44 (ISS-13.06); pengecualian periode lampau (§46.1); di akhir tahap, penyiapan data awal 2026 (ISS-15.01) |
-| 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | Pengukuran inti: ISS-07.01, ISS-07.03 (dengan narasi Q45 §45.1 dan tampilan Q47), ISS-07.06, ISS-08.01, ISS-08.02; pelaksanaan kegiatan: ISS-06.03, ISS-06.04, ISS-06.05; Rekomendasi Pimpinan: ISS-09.01 (Q45, Q51); dashboard dan rekap: ISS-10.01, ISS-10.02; keluaran dokumen resmi: ISS-10.05 (Q48); penutupan jadwal: ISS-14.01 |
-| 3 | Sesudah tahap 2; revisi PK harus siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12 (revisi PK berversi); simulasi target; tampilan daftar berkas; versi penuh Renstra; ISS-13.03. ISS-09.01 dipindah ke tahap 2 (Q51) |
+| 2 | Sebelum pelaporan TW IV 2026 (awal Januari 2027) | Pengukuran inti: ISS-07.01, ISS-07.03 (dengan narasi Q45 §45.1 dan tampilan Q47), ISS-07.06, ISS-08.01, ISS-08.02; pelaksanaan kegiatan: ISS-06.03, ISS-06.04, ISS-06.05; Rekomendasi Pimpinan: ISS-09.01 (Q45, Q51); dashboard dan rekap: ISS-10.01, ISS-10.02; keluaran dokumen resmi: ISS-10.05 (Q48); penutupan jadwal: ISS-14.01; tambahan Q70–Q74: ISS-02.13, ISS-02.14, ISS-02.15, ISS-03.07, ISS-06.09, ISS-09.03 |
+| 3 | Sesudah tahap 2; revisi PK harus siap sebelum revisi PK pertama yang mengubah target | ISS-03.03 dan ISS-02.12 (revisi PK berversi); tampilan daftar berkas; ISS-13.03. ISS-09.01 dipindah ke tahap 2 (Q51); cakupan diperbarui Q84 |
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku. Termasuk di dalamnya notifikasi ISS-12.01–ISS-12.07 dan ISS-13.04, sehingga tenggat WA/email "sebelum 9 November 2026" pada Q4 tidak lagi berlaku (ditetapkan PM 17 Oktober 2026); item notifikasi in-app yang dipindahkan Q37 tetap menunggu ISS-12.02.
 
-Status per 17 Oktober 2026 (`development` `f9fd9a7c`): selesai — ISS-01.08 (#101, #108, #114), ISS-05.06 (#100), ISS-06.01 (#97, termasuk Q49 §49.1), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.02 (#107), ISS-09.01 (#115), ISS-13.03 (#119), ISS-14.01 (#109, #117); dalam review — ISS-06.02 (PR #111); cakupan Tahap 1 lainnya belum dimulai.
+Status per 4 November 2026 (`development` `c315290c`): PR implementasi sudah merged untuk seluruh issue tahap 1 dan tahap 2. Tahap 1 — ISS-01.08 (#101, #108, #114), ISS-02.10 (#143), ISS-02.11 (#149), ISS-05.06 (#100), ISS-05.07 (#154), ISS-06.01 (#97, #141), ISS-06.02 (#111), ISS-06.08 (#142, #148), ISS-13.05 (#156), ISS-13.06 (#150), pengecualian periode lampau ISS-03.05 (#146), dan ISS-15.01 (#172). Tahap 2 — ISS-02.13 (#189), ISS-02.14 (#206, #240), ISS-02.15 (#176), ISS-03.07 (#175, #190), ISS-06.03 (#195, #205), ISS-06.04 (#163), ISS-06.05 (#174, #236), ISS-06.09 (#194), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.01 (#144), ISS-08.02 (#107), ISS-09.01 (#115), ISS-09.03 (#191), ISS-10.01 (#147, #153), ISS-10.02 (#155), ISS-10.05 (#208), dan ISS-14.01 (#109, #117). Tahap 3 — ISS-03.03 (#213) dan ISS-13.03 (#119) merged; ISS-02.12 (#226) belum. Merged bukan bukti seluruh AC atau UAT terpenuhi: status per AC mengikuti centang User Issues (misalnya keluaran Excel ISS-10.05 AC-1–AC-5 belum dibangun), dan data awal 2026 menunggu UAT ISS-15.01.
 
 ## 46.4 Dampak dan traceability
 
@@ -2403,6 +2403,14 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 4. Fallback bukti beku hanya untuk versi resmi (`disahkan_at` terisi) di unduhan maupun baca review.
 5. `rencana_aksi:buka_kembali` tersedia sebelum `penutupan` atau setelah `penutupan` di dalam sesi koreksi resmi yang mencakup `rencana_aksi` dan indikator tersebut (Q19, Q35, Q41 §41.2 butir 6). `pengukuran:buka_kembali` tidak berubah oleh keputusan ini.
 
+---
+
+# Keputusan Q75–Q76 — Dicadangkan untuk Sinkronisasi ISS-10.05
+
+Nomor Q75 dan Q76 dicadangkan untuk mencatat keputusan PM K3–K7 ISS-10.05 ([komentar issue #179](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/179#issuecomment-6476048514)) pada PR dokumen sinkronisasi ISS-10.05. Sampai PR tersebut ada, keputusan K3–K7 hanya tercatat pada komentar issue itu dan kedua nomor ini tidak dipakai keputusan lain.
+
+---
+
 # Keputusan Q77 — Sesi Koreksi Jadwal Tahunan
 
 **Keputusan PM: 29 Oktober 2026 (WITA), [review PR #199](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6490862740).** PM menetapkan keenam butir refinement sesi koreksi ISS-14.02. Q77 menambahkan validasi akhir sesi pada butir 6, sebagaimana ditegaskan pada [re-review PM](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/199#issuecomment-6495008769). Pencatatan keputusan bukan penerimaan QA/UAT, merge, atau deployment. Dasar keputusan: Q19, Q35 §35.2, Q41 §41.2, dan Q52 §52.3:
@@ -2583,3 +2591,41 @@ Master ini global, tanpa hardcode tahun atau pembuatan jadwal/pengukuran 2025/20
 - Q72 §72.2 dan §72.4 butir 2, 4, 6, dan 8 (bagian alasan); Q65 §65.1 butir 2 dan §65.2 butir 11 (`rujukan_sumber`); Q43 §43.2 butir 5 dan §43.3 butir 2.
 - PRD §4 prinsip 6, §14.10, §25.1, §25.2, §31, dan §32; Workflow §1 dan §3.3; Data Model §2.10, §2.13, §2.32, dan §5; Plan Pengembangan 2.22 dan 10.7; design-system Modal Alasan Wajib dan checklist review; US/ISS-02.07, US/ISS-02.11, US/ISS-02.14 (AC-6 dan AC-8 diubah, AC-13 dan AC-14 baru), dan US/ISS-13.05; Data Awal 2026 §2.2 dan §8.
 - Status implementasi: ISS-02.14 (lanjutan issue #167). Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta. Q72 lahir dari rapat evaluasi 23 Oktober 2026, sehingga perubahan ini perlu disampaikan kepada Tim Perencanaan.
+
+## Refinement ISS-02.09 — Koreksi Metadata PK Teraudit
+
+**Keputusan PM: 3 November 2026 (Q1–Q4), dikonfirmasi dalam refinement issue #219.** Memperjelas penerapan Q40 §40.1 butir 8, Q43 §43.2 butir 3 dan §43.3 butir 3; tidak mengubah Q82 untuk editor target PK.
+
+1. Rujukan koreksi disimpan hanya pada `audit_log.nilai_baru.rujukan`, tanpa kolom baru pada `renstra_pk`. Audit menyimpan rujukan per peristiwa; riwayat tidak ditampilkan di halaman PK. Pemegang `audit:read` membacanya melalui Jejak Audit existing. Akses riwayat untuk Perencanaan merupakan keputusan terpisah.
+2. Rujukan wajib hanya jika nomor atau tanggal PK benar-benar berubah pada PK yang sudah dipakai jadwal mengunci (`aktif`, `ditutup`, atau pernah diaktifkan). FormRequest memberi pratinjau; Action membandingkan nilai tersimpan setelah lock. Sebelum kondisi tersebut, rujukan opsional.
+3. Submit lampiran-saja mempertahankan kontrak existing: alasan wajib sesudah jadwal mengunci, keterangan mengikuti Q50 §50.7, rujukan opsional. Metadata berubah sekaligus menambah lampiran mengikuti kewajiban rujukan. Submit tanpa perubahan tetap diterima dan diaudit, dengan alasan existing dan rujukan opsional.
+4. Sebelum mengunci, alasan dan rujukan opsional tampil inline tanpa konfirmasi tambahan. Sesudah mengunci, Simpan membuka `AuditReasonModal`; rujukan melalui `notice`, ditandai wajib hanya sesuai butir 2. Komponen bersama tidak berubah. Tombol pembuka tidak dinonaktifkan karena alasan kosong; validasi modal membantu pengguna dan keputusan akhir tetap di server.
+5. Rujukan berupa teks maksimal 255 karakter, divalidasi/disanitasi aman. Audit sukses tetap atomik dengan mutasi; penolakan validasi dicatat sekali dan bertahan setelah rollback. Dua koreksi berurutan mempertahankan dua rujukan masing-masing.
+6. Q82 menghapus `rujukan_sumber` editor target sehingga pola tersebut bukan preseden kontrak terkini. Koreksi metadata tidak membentuk versi PK atau snapshot; koreksi konteks tetap melalui ISS-03.03/Q79/Q81. Pengukuran tersahkan dan status capaiannya tetap utuh.
+
+Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; US/ISS-02.09. Status ini merupakan keputusan refinement, bukan bukti CI, UAT, merge, atau deployment.
+
+**Status implementasi lokal, 4 November 2026:** Q40 §40.1 butir 8 dan Q43 §43.2 butir 3 untuk koreksi metadata PK diterapkan melalui ISS-02.09, termasuk pengecualian sebelum mengunci pada Q43 §43.3 butir 3. Bukti otomatis berada pada `KoreksiMetadataPkTest`, test frontend editor/Index/Show, serta regresi PK dan koreksi snapshot existing. Revisi PK berversi ISS-02.12 tetap terpisah; status lokal ini bukan CI remote, UAT, merge, atau deployment.
+
+---
+
+# Keputusan Q84 — Simulasi Target dan Versi Penuh Renstra di Luar Tahap 3
+
+**Keputusan PM: D5 pada [issue #225](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/225) (2 November 2026 WITA), ditegaskan PM 4 November 2026 saat rencana penyelarasan dokumen gelombang 2 disetujui.** Mengubah cakupan tahap 3 Q46 §46.3; tidak mengubah Q40 §40.2 butir 4. Pencatatan ini bukan persetujuan QA/UAT, merge, atau deployment. Nomor Q83 dipakai refinement ISS-02.09 ([K1 review PR #244](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/244#issuecomment-6624181734)), sehingga keputusan ini bernomor Q84.
+
+## 84.1 Keputusan
+
+1. Simulasi target tidak dibangun dan dikeluarkan dari tahap 3.
+2. Versi penuh Renstra (sasaran dan indikator ikut berversi) dikeluarkan dari tahap 3 dan tetap tidak dibangun sesuai Q40 §40.2 butir 4. Penggantian Renstra karena kebijakan kementerian tetap ditangani dengan Renstra baru.
+3. Cakupan tahap 3 menjadi ISS-03.03 dan ISS-02.12 (revisi PK berversi), tampilan daftar berkas terunggah, dan ISS-13.03.
+
+## 84.2 Pertimbangan
+
+1. Simulasi target hanya tercantum pada tabel tahap Q46 §46.3 tanpa requirement, Acceptance Criteria, atau entitas data pada PRD, Workflow, Data Model, maupun User Issues, sehingga tidak dapat diturunkan menjadi issue yang dapat diuji.
+2. Q40 §40.2 butir 4 sudah menetapkan versi penuh Renstra tidak dibangun; mencantumkannya pada tahap 3 menimbulkan kontradiksi.
+
+## 84.3 Dampak dan traceability
+
+- Q46 §46.3 tabel tahap 3; Q40 §40.2 butir 4 tetap berlaku.
+- PRD §33 tabel tahap; Plan Pengembangan "Tahap pengerjaan Q46 §46.3"; User Issues §4.1 tabel urutan pengerjaan; bagian "Di luar cakupan" US/ISS-02.10 dan US/ISS-02.11.
+- Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.

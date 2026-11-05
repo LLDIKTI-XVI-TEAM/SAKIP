@@ -2,6 +2,7 @@
 
 namespace App\Actions\Jadwal;
 
+use App\Events\JendelaPengisianDibuka;
 use App\Models\JadwalTahunan;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
@@ -13,8 +14,10 @@ use App\Services\Jadwal\SesiKoreksiJadwal;
 use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
+use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -46,8 +49,11 @@ class RevisiJendelaPic
                 }
                 Periode::lockConfiguration();
                 $jadwal = JadwalTahunan::whereKey($jadwalId)->lockForUpdate()->firstOrFail();
-                $dalamSesi = SesiKoreksiJadwal::berjalan($jadwal);
-                if (! $dalamSesi && ($jadwal->status !== 'aktif' || $jadwal->tahunDitutup())) {
+                // Satu instan waktu untuk pemeriksaan sesi dan jendela sebelum maupun sesudah revisi.
+                $pada = now();
+                $tanggalBisnis = $pada->copy()->setTimezone(config('app.business_timezone'))->toDateString();
+                $dalamSesi = SesiKoreksiJadwal::berjalan($jadwal, $pada);
+                if (! $dalamSesi && ($jadwal->status !== 'aktif' || $jadwal->tahunDitutup($pada))) {
                     throw ValidationException::withMessages(['jadwal' => 'Revisi jendela PIC hanya untuk jadwal aktif yang belum melewati penutupan atau di dalam sesi koreksi yang berjalan.']);
                 }
                 if ($jadwal->revisi !== (int) $data['expected_revisi']) {
@@ -61,6 +67,7 @@ class RevisiJendelaPic
                     throw ValidationException::withMessages(['periode' => 'Revisi hanya mengubah tanggal periode anggota jadwal; periode tidak dapat ditambah atau dihapus.']);
                 }
                 $jadwal->setRelation('periode', $windows->values());
+                $terbukaSebelum = $this->periodeTerbuka($jadwal, $windows, $dalamSesi, $pada, $tanggalBisnis);
                 $before = ['revisi' => $jadwal->revisi, 'periode' => $jadwal->draftAttributes()['periode']];
                 $lama = collect($before['periode'])->keyBy('periode_id');
                 // Batas awal hanya bila pengisian_mulai diubah: memperpanjang tanggal selesai tidak memaksa jendela yang sudah dibuka bergeser.
@@ -100,6 +107,12 @@ class RevisiJendelaPic
                     nilaiBaru: ['revisi' => $jadwal->revisi, 'periode' => $jadwal->draftAttributes()['periode'],
                         ...($dalamSesi ? ['jendela_pic_ids' => $lingkup['jendela_pic_ids']] : [])],
                     alasan: AuditReason::sanitize($data['alasan']), dasarIzin: $decision->toAuditBasis());
+                // Hanya jendela yang berubah tertutup → terbuka yang diumumkan ke PJ, setelah commit; di dalam sesi
+                // event membawa indikator lingkup agar penerima dibatasi saat PJ dihitung.
+                $terbukaBaru = array_values(array_diff($this->periodeTerbuka($jadwal, $windows, $dalamSesi, $pada, $tanggalBisnis), $terbukaSebelum));
+                if ($terbukaBaru !== []) {
+                    JendelaPengisianDibuka::dispatch($jadwal->id, $terbukaBaru, $dalamSesi ? $lingkup['indikator_ids'] : null, $tanggalBisnis);
+                }
 
                 return $jadwal;
             });
@@ -109,5 +122,22 @@ class RevisiJendelaPic
                 nilaiBaru: ['alasan_penolakan' => $exception instanceof AuthorizationException ? 'izin_ditolak' : 'aturan_jadwal'], dasarIzin: $decision?->toAuditBasis());
             throw $exception;
         }
+    }
+
+    /**
+     * Periode yang jendela PIC-nya terbuka pada `$pada`. Jalur normal: tanggal bisnis di dalam jendela.
+     * Jalur sesi koreksi: pembukaan resmi di dalam sesi (`jendela_pic_ids`) untuk periode lingkup yang mencakup pengukuran.
+     *
+     * @param  Collection<string, PeriodeJadwal>  $windows
+     * @return list<string>
+     */
+    private function periodeTerbuka(JadwalTahunan $jadwal, Collection $windows, bool $dalamSesi, CarbonInterface $pada, string $tanggalBisnis): array
+    {
+        $lingkup = $jadwal->lingkup_koreksi ?? [];
+
+        return $windows->filter(fn (PeriodeJadwal $window): bool => $dalamSesi
+            ? in_array('pengukuran', $lingkup['jenis_objek'], true) && in_array($window->periode_id, $lingkup['periode_ids'], true)
+                && SesiKoreksiJadwal::jendelaPicTerbuka($jadwal, $window, $pada)
+            : $window->berjalanPada($tanggalBisnis))->pluck('id')->values()->all();
     }
 }

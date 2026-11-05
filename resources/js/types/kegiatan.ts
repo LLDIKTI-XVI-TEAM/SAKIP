@@ -54,11 +54,14 @@ export interface KegiatanFormProps {
     pelaksanaan: {
         perlu_koreksi: boolean;
         persyaratan_kurang: string[];
+        /** Rentang `YYYY-MM-DD` untuk `min`/`max` input tanggal realisasi pada tahun kegiatan. */
         rentang: { mulai: string; selesai: string } | null;
+        /** Tanggal Master Periode saat ini (bukan snapshot); null bila tanggal periode belum diatur. */
+        periode_tanggal: TanggalPeriode | null;
     };
     unitOptions: KegiatanOption[];
     periodeOptions: PeriodeKegiatanOption[];
-    opsiPeriodeTujuan: KegiatanOption[];
+    opsiPeriodeTujuan: PeriodeKegiatanOption[];
     /** `ubah_rencana` false berarti data rencana baca-saja (Q69 §69.3); `ubah_status` kosong berarti tanpa aksi status. */
     can: { ubah_rencana: boolean; ubah_status: StatusTujuan[]; catat_realisasi: boolean; tandai_terlaksana: boolean };
 }

@@ -37,9 +37,9 @@ const rencanaAksi: ReviewRencanaAksi = {
     unit_kerja: { id: 'unit-1', nama: 'Unit versi pengajuan' }, pic: { id: 'user-1', nama: 'PJ saat pengajuan' },
     uraian: 'Substansi versi pengajuan', alasan_deviasi_pk: 'Alasan deviasi beku',
     target_periode: [
-        { periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '74.000000000000', status_perhitungan: 'terhitung', keterangan: null,
+        { periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, periode_tanggal: { bulan_mulai: 1, hari_mulai: 1, bulan_selesai: 3, hari_selesai: 31 }, nilai: '74.000000000000', status_perhitungan: 'terhitung', keterangan: null,
             komponen: [{ komponen_id: 'k-1', kode: 'n', label: 'Pembilang', nilai: '37.000000000000', keterangan: null }, { komponen_id: 'k-2', kode: 'd', label: 'Penyebut', nilai: '50', keterangan: null }] },
-        { periode_id: 'p-2', periode_nama: 'Triwulan II', periode_urutan: 2, nilai: null, status_perhitungan: 'belum_diisi', keterangan: null,
+        { periode_id: 'p-2', periode_nama: 'Triwulan II', periode_urutan: 2, periode_tanggal: { bulan_mulai: 4, hari_mulai: 1, bulan_selesai: 6, hari_selesai: 30 }, nilai: null, status_perhitungan: 'belum_diisi', keterangan: null,
             komponen: [{ komponen_id: 'k-1', kode: 'n', label: 'Pembilang', nilai: null, keterangan: null }, { komponen_id: 'k-2', kode: 'd', label: 'Penyebut', nilai: '50', keterangan: null }] },
     ],
     klaim: [
@@ -113,7 +113,7 @@ it('menampilkan target per periode dengan satu kolom per komponen', () => {
 });
 
 it('menampilkan target manual tanpa kolom komponen', () => {
-    renderReview({ target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, nilai: '10.25', status_perhitungan: null, keterangan: 'Penjelasan target manual.', komponen: [] }] });
+    renderReview({ target_periode: [{ periode_id: 'p-1', periode_nama: 'Triwulan I', periode_urutan: 1, periode_tanggal: { bulan_mulai: 1, hari_mulai: 1, bulan_selesai: 3, hari_selesai: 31 }, nilai: '10.25', status_perhitungan: null, keterangan: 'Penjelasan target manual.', komponen: [] }] });
 
     const target = screen.getByRole('region', { name: 'Target per periode' });
     expect(kepalaKolom(target)).toEqual(['Periode', 'Target tersimpan']);

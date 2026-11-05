@@ -54,7 +54,8 @@ const props: KegiatanEditProps = {
     periodeOptions: [],
     opsiPeriodeTujuan: [],
     can: { ubah_rencana: true, ubah_status: ['ditunda', 'tidak_terlaksana', 'batal'], catat_realisasi: true, tandai_terlaksana: true },
-    pelaksanaan: { perlu_koreksi: false, persyaratan_kurang: [], rentang: { mulai: '2026-10-01', selesai: '2026-12-31' } },
+    pelaksanaan: { perlu_koreksi: false, persyaratan_kurang: [], rentang: { mulai: '2026-10-01', selesai: '2026-12-31' },
+        periode_tanggal: { bulan_mulai: 10, hari_mulai: 1, bulan_selesai: 12, hari_selesai: 31 } },
     // Panel berkas tidak dirender tanpa persyaratan, jadi fixture memuat satu persyaratan.
     berkasPelaksanaan: { persyaratan: [{
         id: 'jb-dok', nama: 'Dokumentasi', keterangan: null, wajib: true, semua_mode_wajib: false, izinkan_file: true, izinkan_tautan: false, izinkan_teks: false,
@@ -76,9 +77,29 @@ it('memuat ringkasan rencana, status, form realisasi, dan berkas pelaksanaan tan
     expect(within(screen.getByRole('region', { name: 'Status pelaksanaan' })).getAllByRole('button').map((tombol) => tombol.textContent))
         .toEqual(['Tunda', 'Tidak terlaksana', 'Batalkan']);
     expect(formRealisasi()).toBeTruthy();
+    // Rentang ditampilkan dari Master Periode; batas ISO mentah tetap hanya dipakai min/max input.
+    expect(screen.getByText('Rentang periode Triwulan IV')).toBeTruthy();
+    expect(screen.getByText('1 Okt–31 Des 2026')).toBeTruthy();
+    expect(screen.queryByText(/2026-10-01 sampai/)).toBeNull();
+    expect(screen.getByLabelText<HTMLInputElement>(/Tanggal realisasi/).min).toBe('2026-10-01');
+    expect(screen.getByLabelText<HTMLInputElement>(/Tanggal realisasi/).max).toBe('2026-12-31');
     expect(screen.getByText('Berkas pelaksanaan kegiatan')).toBeTruthy();
     expect(screen.queryByRole('form', { name: 'Catat rencana kegiatan' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Simpan kegiatan' })).toBeNull();
+});
+
+it('mempertahankan pesan Master Periode saat tanggal periode belum diatur', () => {
+    // Bentuk respons server: objek empat null (bukan null), dengan `rentang` min/max null pada kondisi yang sama.
+    render(<KegiatanRealisasi {...props} pelaksanaan={{ ...props.pelaksanaan, rentang: null,
+        periode_tanggal: { bulan_mulai: null, hari_mulai: null, bulan_selesai: null, hari_selesai: null } }} />);
+
+    expect(screen.getByText('Tanggal periode belum diatur di Master Periode.')).toBeTruthy();
+    expect(screen.queryByText(/Rentang periode Triwulan IV/)).toBeNull();
+    expect(screen.queryByText('1 Okt–31 Des 2026')).toBeNull();
+    const tanggal = screen.getByLabelText<HTMLInputElement>(/Tanggal realisasi/);
+    expect(tanggal.getAttribute('min')).toBeNull();
+    expect(tanggal.getAttribute('max')).toBeNull();
+    expect(tanggal.getAttribute('aria-describedby') ?? '').not.toContain('tanggal-rentang');
 });
 
 it('menautkan kembali ke kegiatan rencana aksi dan memberi breadcrumb catat realisasi', () => {

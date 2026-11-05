@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -18,6 +19,8 @@ export interface ModalProps {
     scrollable?: boolean;
     ariaLabel?: string;
     autoFocus?: boolean;
+    /** Render dialog ke `document.body` agar tetap terlihat walau induknya tersembunyi (mis. tab `hidden`). */
+    portal?: boolean;
 }
 
 // Global modal stack to ensure only the topmost modal handles Escape
@@ -38,6 +41,7 @@ export const Modal: React.FC<ModalProps> = ({
     scrollable = true,
     ariaLabel,
     autoFocus = true,
+    portal = false,
 }) => {
     const modalId = useId();
     const titleId = title ? `${modalId}-title` : undefined;
@@ -155,9 +159,10 @@ export const Modal: React.FC<ModalProps> = ({
         '3xl': 'max-w-3xl',
     };
 
-    return (
-        // m-0: modal dirender di tempat (tanpa portal), jadi margin `space-y-*` induk
-        // tidak boleh memotong overlay dan menyisakan konten yang masih dapat diklik.
+    const dialog = (
+        // Konten default dirender di tempat (tanpa portal) agar perilaku pemanggil lama tidak berubah.
+        // `portal` memindahkannya ke document.body saat induk dapat tersembunyi (mis. tab `hidden`).
+        // m-0: margin `space-y-*` induk tidak boleh memotong overlay dan menyisakan konten yang masih dapat diklik.
         <div
             className="fixed inset-0 z-50 m-0 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-xs transition-opacity duration-200"
             role="dialog"
@@ -245,4 +250,6 @@ export const Modal: React.FC<ModalProps> = ({
             </div>
         </div>
     );
+
+    return portal ? createPortal(dialog, document.body) : dialog;
 };

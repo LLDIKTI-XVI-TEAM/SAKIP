@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
+import { Pencil } from 'lucide-react';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
+import { Tooltip } from '@/Components/Tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import { TargetModal } from '@/Pages/TargetTahunan/TargetModal';
@@ -68,7 +70,11 @@ export function TargetPkTable({ pkId, tahun, sasaran, canUpdate, jadwalStatus }:
                             </TableCell>
                             <TableCell className="col-span-2 p-0 md:px-4 md:py-3.5 md:text-right">
                                 {canUpdate && !indikator.read_only_reason
-                                    ? <Button type="button" size="sm" variant="outline" aria-label={`Ubah target PK ${indikator.kode}`} onClick={() => { setMessage(''); setEditing(indikator.id); }}>Ubah</Button>
+                                    ? <Tooltip content="Ubah target PK" align="right">
+                                        <Button type="button" size="sm" variant="outline" className="h-11 w-11 shrink-0 p-0 md:h-9 md:w-9" aria-label={`Ubah target PK ${indikator.kode}`} onClick={() => { setMessage(''); setEditing(indikator.id); }}>
+                                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                                        </Button>
+                                    </Tooltip>
                                     : indikator.read_only_reason && <span className="text-xs text-muted">{indikator.read_only_reason}</span>}
                             </TableCell>
                         </TableRow>)}

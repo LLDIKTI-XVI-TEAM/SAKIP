@@ -8,8 +8,8 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Membangun query kewajiban yang dipakai IndexPengukuran dan StatusIndikatorDashboard.
- * Pemilihan snapshot dan header dibagi agar kedua pemakai membaca kewajiban yang sama.
+ * Membangun query kewajiban yang dipakai IndexPengukuran, StatusIndikatorDashboard, PengingatKontekstual,
+ * KandidatPengingatTenggat, dan PenerimaNotifikasi. Pemilihan snapshot dan header dibagi agar semua pemakai membaca kewajiban yang sama.
  * Service hanya membangun query; otorisasi, pagination, dan penyajian tetap milik pemanggil,
  * tanpa locking, transaksi, penyimpanan, atau audit.
  */

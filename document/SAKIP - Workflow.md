@@ -412,6 +412,8 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
 
 ### 3.3 Lampiran dokumen Perjanjian Kinerja (gerbang keempat aktivasi jadwal)
 
+> **Refinement PM 3 November 2026 — ISS-02.09:** koreksi metadata sebelum PK dipakai jadwal yang mengunci memakai alasan/rujukan opsional langsung di form. Setelah mengunci, Simpan membuka Modal Alasan Audit; alasan wajib, rujukan wajib hanya bila nomor/tanggal benar-benar berubah. Lampiran-saja maupun submit tanpa perubahan tetap diterima dan teraudit, rujukan opsional. Action membandingkan dengan nilai tersimpan setelah lock. Rujukan per peristiwa hanya di audit; halaman PK tidak menulis snapshot dan mengarahkan koreksi konteks melalui halaman Snapshot Indikator sesuai izin baca. Q82 tidak mengubah kontrak koreksi metadata.
+
 > **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot, dan alasan deviasi terhadap target Renstra ditegakkan menurut arah indikator (Q65). *(Digantikan Q72: target PK yang menyimpang ditolak; alasan perubahan target PK wajib.)* *(Diubah Q82: perubahan target PK tidak meminta alasan.)* Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
 
 ```
@@ -947,9 +949,9 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
 
 🎯 Penanggung Jawab / 📋 Perencanaan
   5. Kegiatan dapat diperbarui (status, realisasi, narasi, bukti dukung) selama jadwal_tahunan
-     belum penutupan; setelah penutupan hanya lewat jadwal:buka_kembali; status terlaksana,
-     ditunda, dan batal bersifat final, dan data rencana baca-saja setelah status berubah
-     (Q69 §69.1, §69.3)
+     belum penutupan; setelah penutupan kegiatan tetap terkunci, termasuk di dalam sesi
+     koreksi jadwal:buka_kembali (Q77 butir 2); status terlaksana, ditunda, dan batal
+     bersifat final, dan data rencana baca-saja setelah status berubah (Q69 §69.1, §69.3)
   6. Kegiatan berstatus batal/tidak_terlaksana TETAP BOLEH DIKLAIM (§9) — bukti mengapa
      komponen tidak bergerak sesuai rencana; statusnya ikut tampil di rekapitulasi
 
@@ -1221,7 +1223,8 @@ Satu persyaratan (`jenis_berkas`) dapat mengizinkan lebih dari satu mode sekalig
      Renstra aktif; renstra_pk: setelah Jadwal Tahunan tahun itu aktif; regulasi: selama masih
      dirujuk Renstra/indikator aktif. Sebelum batas itu, PIC/Perencanaan (dan pengunggah) dapat
      menghapus; setiap penghapusan tercatat audit_log. Setelah jadwal_tahunan.penutupan, koreksi
-     lampiran rencana_aksi/pengukuran/kegiatan hanya lewat jadwal:buka_kembali. Arsip
+     lampiran rencana_aksi/pengukuran hanya lewat sesi koreksi jadwal:buka_kembali; lampiran
+     kegiatan tetap terkunci, termasuk di dalam sesi koreksi (Q77 butir 2). Arsip
      jadwal_tahunan/jadwal_periode tidak pernah dihapus (append-only) dan tetap dapat
      ditambah setelah jadwal ditutup (Q48 §48.2 butir 3 dan 5)
 ```
@@ -1257,7 +1260,7 @@ flowchart TD
     U -- Ya --> V[PIC unitnya / Perencanaan\ndapat menambah/menghapus - ter-audit]
     U -- Tidak --> W[Bukti dukung tidak dapat diubah -\nRA/pengukuran diajukan - koreksi lewat kembalikan\nsetelah sah - IMUTABEL seluruh mode]
     W --> X{Jadwal sudah penutupan?}
-    X -- Ya --> Y[Koreksi hanya lewat\njadwal:buka_kembali]
+    X -- Ya --> Y[RA/pengukuran: koreksi hanya lewat\nsesi koreksi jadwal:buka_kembali\nkegiatan tetap terkunci - Q77]
 ```
 
 ### 10.4 Gerbang kelengkapan per induk
@@ -1310,7 +1313,7 @@ flowchart TD
 | `jenis_berkas` (contoh berkas, Q42) | tidak ada batas — contoh berkas bukan bukti, dapat ditambah, diganti, atau dihapus kapan saja dan tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 4) | Perencanaan (`jenis_berkas:update`) |
 | `jadwal_tahunan`, `jadwal_periode` (arsip dokumen resmi, Q48) | sejak diunggah — tidak pernah dihapus (append-only); salah unggah dikoreksi dengan berkas pengganti (`menggantikan_id`, `alasan_koreksi`) (Q48 §48.2 butir 3) | — |
 
-Setiap penghapusan tercatat `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`) dengan alasan wajib (Q43 §43.2 butir 2). Setelah batas imutabilitas tercapai: bukti dukung TIDAK DAPAT dihapus maupun diganti isinya pada mode apa pun. Untuk `rencana_aksi`/`pengukuran`/`kegiatan`, koreksi pasca-`jadwal_tahunan.penutupan` hanya lewat `jadwal:buka_kembali`; untuk `renstra`/`renstra_pk`/`regulasi`, tidak ada jalur koreksi otomatis serupa — perubahan dokumen dasar setelah induknya beku memerlukan revisi in place pada induknya sendiri (§14) yang tercatat beralasan, bukan penghapusan lampiran lama.
+Setiap penghapusan tercatat `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`) dengan alasan wajib (Q43 §43.2 butir 2). Setelah batas imutabilitas tercapai: bukti dukung TIDAK DAPAT dihapus maupun diganti isinya pada mode apa pun. Untuk `rencana_aksi`/`pengukuran`, koreksi pasca-`jadwal_tahunan.penutupan` hanya lewat sesi koreksi `jadwal:buka_kembali`; bukti dukung `kegiatan` tetap terkunci, termasuk di dalam sesi koreksi (Q77 butir 2); untuk `renstra`/`renstra_pk`/`regulasi`, tidak ada jalur koreksi otomatis serupa — perubahan dokumen dasar setelah induknya beku memerlukan revisi in place pada induknya sendiri (§14) yang tercatat beralasan, bukan penghapusan lampiran lama.
 
 **Pengecualian Pengukuran (Q36 §36.2):** bukti dukung berinduk `pengukuran` tidak memiliki endpoint hapus; koreksi dilakukan dengan pengembalian beralasan dan pengajuan ulang sebagai versi baru. Ketentuan soft delete `dihapus_pada`/`dihapus_oleh` pada paragraf ini berlaku untuk induk lain yang memiliki jalur hapus.
 
@@ -1655,12 +1658,13 @@ Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yan
       revisi PK berversi (Q40 §40.1, §3.3; tahap 3); bila revisi yang mengubah target terbit
       sebelum ISS-02.12 selesai, penanganannya ditetapkan PM sebagai keputusan baru (Q50 §50.7
       butir 2)
-  5c. Menjalankan jadwal:buka_kembali (§13) pada Jadwal Tahunan tahun berjalan — ini
-      MEKANISME STANDAR untuk memasukkan indikator baru di tengah tahun, termasuk untuk
-      mengisi periode-periode yang tersisa pada tahun berjalan
-  6c. Trigger snapshot idempoten membuat baris jadwal_snapshot (+ jadwal_snapshot_komponen)
-      baru khusus indikator ini; indikator kini dapat diukur untuk periode-periode berikutnya
-      pada jadwal yang sama, setelah rencana aksinya disusun dan disahkan (§7)
+  5c. Menambahkan indikator ke Jadwal Tahunan tahun berjalan yang masih aktif melalui
+      ISS-03.04 dengan periode mulai eksplisit — ini MEKANISME STANDAR untuk memasukkan
+      indikator baru di tengah tahun; tidak tersedia setelah tanggal penutupan maupun di
+      dalam sesi koreksi jadwal:buka_kembali (Q77 butir 5)
+  6c. Penambahan itu menerbitkan snapshot versi 1 (+ jadwal_snapshot_komponen) khusus
+      indikator ini; indikator dapat diukur mulai periode mulai tersebut pada jadwal yang
+      sama, setelah rencana aksinya disusun dan disahkan (§7)
 
   Kasus D — Lampiran revisi Renstra (Q40 §40.2 butir 2 dan 5; ISS-02.10):
   2d. Menambahkan lampiran revisi pada Renstra yang sudah aktif; lampiran yang sudah ada tetap
@@ -1704,16 +1708,16 @@ flowchart TD
     B -- Indikator baru --> H[Buat indikator baru\n+ unit pemilik + arah + tipe_perhitungan\n+ indikator_komponen bila perlu]
     H --> I[Isi target Renstra bila ada +\nbaseline & target PK di halaman PK - Q39]
     I --> J[Revisi PK berversi - Q40, tahap 3]
-    J --> K[jadwal:buka_kembali pada\nJadwal Tahunan tahun berjalan - §13]
-    K --> L[Snapshot idempoten membuat baris baru\nkhusus indikator ini + snapshot komponen]
+    J --> K[Tambah indikator ke jadwal aktif - ISS-03.04\nperiode mulai eksplisit, sebelum tanggal penutupan\nbukan lewat jadwal:buka_kembali - Q77]
+    K --> L[Snapshot versi 1 khusus indikator ini\n+ snapshot komponen]
     L --> M[Susun & sahkan Rencana Aksi indikator baru - §7]
-    M --> N[Indikator terukur mulai periode berikutnya\npada jadwal yang sama]
+    M --> N[Indikator terukur mulai periode mulai\npada jadwal yang sama]
 
     B -- Lampiran revisi Renstra --> R1[Tambah lampiran revisi pada Renstra draft/aktif\nlampiran lama tidak dapat dihapus - Q40]
     B -- Revisi target Renstra --> R2[Mode revisi seluruh tabel\ndraf tersimpan otomatis, simpan dengan justifikasi\nhistori revisi bernomor - Q40, Q71]
 ```
 
-**Konsekuensi desain yang disadari:** indikator baru yang dibuat setelah jadwal aktif **tanpa** melewati `jadwal:buka_kembali` tidak otomatis terukur pada tahun berjalan — baru terukur mulai jadwal tahun berikutnya diaktifkan. `jadwal:buka_kembali` (Kasus C langkah 5c) adalah satu-satunya jalur agar indikator baru dapat diukur pada sisa tahun berjalan yang sama, dan rencana aksinya tetap wajib disusun-disahkan sebelum pengukuran pertamanya dapat diajukan.
+**Konsekuensi desain yang disadari:** indikator baru yang dibuat setelah jadwal aktif **tanpa** ditambahkan melalui ISS-03.04 tidak otomatis terukur pada tahun berjalan — baru terukur mulai jadwal tahun berikutnya diaktifkan. ISS-03.04 (Kasus C langkah 5c) adalah satu-satunya jalur agar indikator baru dapat diukur pada sisa tahun berjalan yang sama, dan hanya tersedia selama jadwal aktif belum melewati tanggal penutupan; `jadwal:buka_kembali` tidak membentuk snapshot (Q77 butir 5). Rencana aksinya tetap wajib disusun-disahkan sebelum pengukuran pertamanya dapat diajukan.
 
 ---
 

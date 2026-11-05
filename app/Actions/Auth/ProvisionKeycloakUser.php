@@ -3,6 +3,7 @@
 namespace App\Actions\Auth;
 
 use App\Actions\Audit\WriteAuditLog;
+use App\Events\PenggunaBaruTerdaftar;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +31,8 @@ class ProvisionKeycloakUser
                 'nilai_baru' => ['status' => 'aktif'],
                 'alasan' => 'Sistem — onboarding SSO',
             ]);
+            // Pengelola akses diberi tahu setelah commit agar segera menetapkan peran.
+            PenggunaBaruTerdaftar::dispatch($user->id);
 
             return $user;
         });

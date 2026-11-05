@@ -9,10 +9,12 @@ use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\PerjanjianKinerja\PerjanjianKinerjaAttachmentService;
 use App\Services\PerjanjianKinerja\PerjanjianKinerjaSupport;
+use App\Support\AuditReason;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -105,7 +107,7 @@ class UpdatePerjanjianKinerja
         $storedPaths = [];
 
         try {
-            $result = DB::transaction(function () use ($pk, $data, $alasan, $actor, $expectedIso, &$storedPaths): array {
+            $result = DB::transaction(function () use ($pk, $data, $alasan, $actor, $expectedIso, &$storedPaths, &$decision): array {
                 $requiredCodes = [PermissionCodes::PK_UPDATE];
                 if (! empty($data['lampiran']) && is_array($data['lampiran'])) {
                     $requiredCodes[] = PermissionCodes::BERKAS_UPLOAD;
@@ -157,9 +159,19 @@ class UpdatePerjanjianKinerja
 
                 $wajibAlasan = $jadwalTerkait->isNotEmpty();
 
+                // Caller selain HTTP tetap melewati validasi rujukan di batas mutasi terkunci.
+                Validator::make(['rujukan' => $data['rujukan'] ?? null], [
+                    'rujukan' => ['nullable', 'string', 'max:255', AuditReason::validate(...)],
+                ])->validate();
+                $rujukan = trim(AuditReason::sanitize($data['rujukan'] ?? null));
                 if ($wajibAlasan && $alasan === '') {
                     throw ValidationException::withMessages([
                         'alasan' => 'Alasan perubahan Perjanjian Kinerja wajib diisi karena PK sudah dipakai jadwal aktif.',
+                    ]);
+                }
+                if ($wajibAlasan && PerjanjianKinerjaSupport::metadataBerubah($pkLocked, $data) && $rujukan === '') {
+                    throw ValidationException::withMessages([
+                        'rujukan' => 'Rujukan dokumen resmi wajib diisi karena nomor atau tanggal PK yang sudah dipakai diubah.',
                     ]);
                 }
 
@@ -169,7 +181,8 @@ class UpdatePerjanjianKinerja
                 $nilaiLama = $this->attachmentService->snapshot($pkLocked);
 
                 if (array_key_exists('nomor_pk', $data)) {
-                    $pkLocked->nomor_pk = $data['nomor_pk'];
+                    $nomor = is_string($data['nomor_pk']) ? trim($data['nomor_pk']) : null;
+                    $pkLocked->nomor_pk = $nomor === '' ? null : $nomor;
                 }
                 if (array_key_exists('tanggal_pk', $data)) {
                     $pkLocked->tanggal_pk = $data['tanggal_pk'];
@@ -182,6 +195,7 @@ class UpdatePerjanjianKinerja
 
                 $pkLocked = $pkLocked->fresh(['renstra', 'creator', 'berkas']);
                 $nilaiBaru = $this->attachmentService->snapshot($pkLocked);
+                $nilaiBaru['rujukan'] = $rujukan !== '' ? $rujukan : null;
 
                 $this->auditLogger->catat(
                     actor: $lockedActor,
@@ -201,6 +215,14 @@ class UpdatePerjanjianKinerja
             });
         } catch (Throwable $exception) {
             $this->attachmentService->hapusFile($storedPaths);
+
+            // Audit penolakan di luar transaksi agar rollback tidak menghapus jejak kegagalan.
+            if ($exception instanceof ValidationException && array_intersect(['alasan', 'rujukan'], array_keys($exception->errors())) !== []) {
+                $this->auditLogger->catat(actor: $actor, tindakan: 'renstra_pk.ubah_ditolak',
+                    objekTipe: 'renstra_pk', objekId: $pk->id,
+                    nilaiBaru: ['alasan_penolakan' => 'input_tidak_valid', 'kolom' => array_keys($exception->errors())],
+                    alasan: $alasan, dasarIzin: $decision->toAuditBasis());
+            }
 
             throw $exception;
         }

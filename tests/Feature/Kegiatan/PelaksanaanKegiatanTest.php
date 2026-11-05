@@ -288,7 +288,8 @@ class PelaksanaanKegiatanTest extends TestCase
             ->where('kegiatan.realisasi_peserta', 25)->where('kegiatan.uraian_pelaksanaan', 'Sesi pertama')
             ->where('kegiatan.kendala', null)->where('kegiatan.strategi_tindaklanjut', null)
             ->where('can.catat_realisasi', true)->where('can.tandai_terlaksana', true)
-            ->where('pelaksanaan.rentang', ['mulai' => '2026-01-01', 'selesai' => '2026-03-31']));
+            ->where('pelaksanaan.rentang', ['mulai' => '2026-01-01', 'selesai' => '2026-03-31'])
+            ->where('pelaksanaan.periode_tanggal', ['bulan_mulai' => 1, 'hari_mulai' => 1, 'bulan_selesai' => 3, 'hari_selesai' => 31]));
 
         $this->realisasi(['tandai_terlaksana' => true])->assertRedirect();
         $this->form()->assertInertia(fn ($page) => $page->where('can.catat_realisasi', true)->where('can.tandai_terlaksana', false)
