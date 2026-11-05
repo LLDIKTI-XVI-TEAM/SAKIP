@@ -2441,7 +2441,7 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-12.07 · Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
 
-> **Refinement PM — 4 November 2026:** Q1–Q10 pada ISS-12.07. Fondasi memakai outbox–job atomik, pemeriksaan saklar/akses sebelum setiap upaya, pembatalan terminal, snapshot pesan, retry manual terbatas, serta hasil ambigu yang menunggu rekonsiliasi. Driver `log` selalu ditandai simulasi; UI status milik ISS-13.04. Bukti test lokal tidak mengesahkan aktivasi provider, CI, UAT, atau deployment. Kontrak detail: Data Model §2.39 dan ADR-0010.
+> **Refinement #227 — keputusan PM 4 November 2026 (Q1–Q8), dilengkapi [keputusan PM 5 November 2026 (Q9–Q10)](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/248#issuecomment-6637902148):** Fondasi memakai outbox–job atomik, pemeriksaan saklar/akses sebelum setiap upaya, pembatalan terminal, snapshot pesan, retry manual terbatas, serta hasil ambigu yang menunggu rekonsiliasi. Driver `log` selalu ditandai simulasi; UI status milik ISS-13.04. Bukti test lokal tidak mengesahkan aktivasi provider, CI, UAT, atau deployment. Kontrak detail: Data Model §2.39 dan ADR-0010.
 
 | Field | Detail |
 |---|---|

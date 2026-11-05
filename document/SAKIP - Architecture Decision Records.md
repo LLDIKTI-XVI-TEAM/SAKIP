@@ -828,7 +828,7 @@ Gunakan `phpoffice/phpspreadsheet` secara langsung, tanpa paket pembungkus. Vers
 
 # ADR-0010 — Outbox dan Queue Notifikasi Eksternal Atomik
 
-- **Status keputusan:** Accepted — keputusan PM 4 November 2026, refinement #227 Q1–Q10.
+- **Status keputusan:** Accepted — refinement #227 Q1–Q8, keputusan PM 4 November 2026; Q9–Q10 disahkan dalam [keputusan PM 5 November 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/248#issuecomment-6637902148).
 - **Scope:** ISS-12.07; fondasi provider, antrean, status, retry, dan pemulihan.
 
 ## Decision

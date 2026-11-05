@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
@@ -155,6 +156,41 @@ class NotifikasiEksternalTest extends TestCase
         $this->kirim($row);
         $this->assertSame('kanal_nonaktif', $row->fresh()->kode_hasil);
         $this->assertSame(0, $provider->calls);
+    }
+
+    public function test_saklar_dimatikan_sebelum_retry_membatalkan_tanpa_upaya_kirim_baru(): void
+    {
+        $provider = $this->provider([HasilKirim::sementara(60)]);
+        $saklar = Pengaturan::create(['kunci' => 'notifikasi.kanal_email_aktif', 'nilai' => '1', 'tipe' => 'boolean', 'grup' => 'notifikasi']);
+        $row = $this->antre();
+        $this->kirim($row);
+        $this->assertSame('antre', $row->fresh()->status);
+        $saklar->update(['nilai' => '0']);
+        $this->travel(61)->seconds();
+        $this->kirim($row);
+        $this->assertSame('dibatalkan', $row->fresh()->status);
+        $this->assertSame('kanal_nonaktif', $row->fresh()->kode_hasil);
+        $this->assertSame(1, $provider->calls);
+        $this->assertSame(1, $row->fresh()->percobaan);
+    }
+
+    #[DataProvider('zonaSesiDatabase')]
+    public function test_jeda_retry_tidak_bergantung_zona_waktu_sesi_database(string $zona): void
+    {
+        // Perubahan zona ikut rollback transaksi test.
+        DB::statement("SET TIME ZONE '$zona'");
+        $provider = $this->provider([HasilKirim::sementara(300), HasilKirim::diterima('zona')]);
+        $row = $this->antre();
+        $this->kirim($row);
+        $this->kirim($row);
+        $this->assertSame(1, $provider->calls);
+        $this->assertSame('antre', $row->fresh()->status);
+        $this->assertSame(now()->addSeconds(300)->timestamp, $row->fresh()->coba_lagi_pada->timestamp);
+    }
+
+    public static function zonaSesiDatabase(): array
+    {
+        return ['WITA' => ['Asia/Makassar'], 'Halifax' => ['America/Halifax']];
     }
 
     public function test_hak_baca_dicabut_atau_akun_nonaktif_membatalkan_tanpa_mengungkap_detail(): void

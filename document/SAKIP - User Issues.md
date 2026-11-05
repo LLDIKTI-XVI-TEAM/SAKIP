@@ -5790,7 +5790,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-12.07 · [Infrastructure] Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
 
-> **Refinement PM — 4 November 2026 (Q1–Q10):** outbox–job atomik pada koneksi aplikasi, queue database `after_commit=false`; side effect oleh worker setelah commit. Saklar dan akun aktif/Policy view dibaca ulang tiap upaya. Pembatalan terminal; kontak tidak valid gagal permanen per kanal. Hasil ambigu `perlu_rekonsiliasi`, tanpa retry buta. Retry manual bawaan hanya untuk kegagalan sementara exhausted yang dipastikan belum diterima, dengan percobaan kumulatif. Template/parameter/alamat dibekukan saat antre. Simulasi tersimpan dan tidak membuktikan delivery. UI milik #228; fondasi menyediakan query/presenter berizin `pengaturan:update` dan command pemulihan orphan. Detail: Data Model §2.39, Plan 14.2.1, ADR-0010, `catatan-rilis-ISS-12.07.md`.
+> **Refinement #227 — keputusan PM 4 November 2026 (Q1–Q8), dilengkapi [keputusan PM 5 November 2026 (Q9–Q10)](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/248#issuecomment-6637902148):** outbox–job atomik pada koneksi aplikasi, queue database `after_commit=false`; side effect oleh worker setelah commit. Saklar dan akun aktif/Policy view dibaca ulang tiap upaya. Pembatalan terminal; kontak tidak valid gagal permanen per kanal. Hasil ambigu `perlu_rekonsiliasi`, tanpa retry buta. Retry manual bawaan hanya untuk kegagalan sementara exhausted yang dipastikan belum diterima, dengan percobaan kumulatif. Template/parameter/alamat dibekukan saat antre. Simulasi tersimpan dan tidak membuktikan delivery. UI milik #228; fondasi menyediakan query/presenter berizin `pengaturan:update` dan command pemulihan orphan. Detail: Data Model §2.39, Plan 14.2.1, ADR-0010, `catatan-rilis-ISS-12.07.md`.
 >
 > **Bukti lokal:** test fitur `NotifikasiEksternalTest` dan race dua proses PostgreSQL `NotifikasiConcurrencyTest` melindungi kontrak tersebut. Hasil gate lengkap dicatat pada laporan kerja/PR; catatan ini bukan klaim exact-HEAD CI, UAT, atau aktivasi kanal.
 
@@ -5798,10 +5798,9 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Prioritas:** 🟠 P2  
 **Story Points:** 5  
 **Labels:** `infrastructure`, `notification`, `P2`, `backend`, `ops`  
-**Plan:** Modul 14: 14.2.1
-**PRD:** §28, Q4/Q46/Q80
-
-**Workflow:** — (fondasi background; bukan §22.2)
+**Plan:** Modul 14: 14.2.1  
+**PRD:** §28, Q4/Q46/Q80  
+**Workflow:** — (fondasi background; bukan §22.2)  
 **Data Model/Entitas:** §2.39 `notifikasi_pengiriman`
 
 #### User Story

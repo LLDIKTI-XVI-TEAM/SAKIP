@@ -27,11 +27,11 @@ return new class extends Migration
             $t->enum('kode_hasil', ['kanal_nonaktif', 'penerima_tidak_berhak', 'kontak_tidak_tersedia', 'perlu_rekonsiliasi', 'provider_sementara', 'provider_ditolak', 'percobaan_habis'])->nullable();
             $t->unsignedInteger('percobaan')->default(0);
             $t->unsignedInteger('percobaan_siklus')->default(0);
-            $t->timestampTz('dicoba_terakhir_pada')->nullable();
-            $t->timestampTz('coba_lagi_pada')->nullable();
+            $t->timestamp('dicoba_terakhir_pada')->nullable();
+            $t->timestamp('coba_lagi_pada')->nullable();
             $t->string('rujukan_provider')->nullable();
-            $t->timestampTz('created_at');
-            $t->timestampTz('updated_at');
+            $t->timestamp('created_at');
+            $t->timestamp('updated_at');
             $t->index(['status', 'dicoba_terakhir_pada']);
         });
         DB::statement('ALTER TABLE notifikasi_pengiriman ADD CONSTRAINT notifikasi_percobaan_nonnegatif CHECK (percobaan >= percobaan_siklus AND percobaan_siklus >= 0)');

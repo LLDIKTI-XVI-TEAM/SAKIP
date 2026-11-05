@@ -1973,7 +1973,7 @@ Outbox pengiriman eksternal per kejadian × objek × penerima × konteks periode
 | `id` | uuid | PK | Identitas baris tetap pada retry |
 | `kunci_idempoten` | varchar | unique, not null | Identitas kanonis kejadian, objek, penerima, konteks periode, dan kanal |
 | `kejadian` | varchar | not null | Identitas satu kejadian/versi, bukan hanya jenis event; pengembalian sah berikutnya mempunyai identitas berbeda |
-| `objek_tipe`, `objek_id` | varchar, uuid | not null | Referensi objek domain untuk pemeriksaan akses saat pengiriman |
+| `objek_tipe`, `objek_id` | enum(`rencana_aksi`, `pengukuran`), uuid | not null | Referensi objek domain untuk pemeriksaan akses saat pengiriman. Jenis tujuan baru ditambahkan producer pemiliknya lewat migrasi enum dan pemeriksaan kelayakan setara Q4 refinement #227 |
 | `konteks_periode` | varchar | not null | Konteks periode/slot pengingat yang stabil, ditentukan pemanggil server |
 | `kanal` | enum(`whatsapp`, `email`) | not null | Satu kanal per baris |
 | `penerima_user_id` | uuid | FK → users.id, not null | Penerima ditetapkan pada kejadian; tidak dialihkan saat retry |
@@ -1985,7 +1985,7 @@ Outbox pengiriman eksternal per kejadian × objek × penerima × konteks periode
 | `kode_hasil` | enum(`kanal_nonaktif`, `penerima_tidak_berhak`, `kontak_tidak_tersedia`, `perlu_rekonsiliasi`, `provider_sementara`, `provider_ditolak`, `percobaan_habis`) | nullable | Kode aman tanpa respons provider, alamat, atau rincian akses |
 | `percobaan` | int | not null, default 0, nonnegatif | Jumlah upaya kirim yang dimulai secara kumulatif, termasuk siklus retry manual; dicatat sebelum panggilan agar crash tetap terlacak |
 | `percobaan_siklus` | int | not null, default 0, `0 <= percobaan_siklus <= percobaan` | Batas empat upaya otomatis per siklus; recovery job tidak meresetnya. Hanya retry manual kegagalan sementara exhausted membuka siklus baru |
-| `dicoba_terakhir_pada`, `coba_lagi_pada` | timestamp | nullable | Waktu percobaan terakhir dan waktu retry yang diketahui aman |
+| `dicoba_terakhir_pada`, `coba_lagi_pada` | timestamp | nullable | Nilai UTC tanpa zona; waktu percobaan terakhir dan waktu retry yang diketahui aman, tidak bergantung zona sesi PostgreSQL |
 | `rujukan_provider` | varchar | nullable | Rujukan aman untuk korelasi/rekonsiliasi, bukan bukti delivery |
 | `created_at`, `updated_at` | timestamp | not null | |
 
@@ -2099,7 +2099,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `target_renstra` | unique(`indikator_id`, `tahun`); `nilai` nullable, nonnegatif, finite; level aplikasi: `tahun` dalam rentang Renstra (§2.35) |
 | `revisi_target_renstra` | unique parsial (`renstra_id`) bila `status = draf`; unique(`renstra_id`, `nomor`); CHECK: kolom penyimpanan terisi jika dan hanya jika `disimpan`, `justifikasi` berisi teks bila `disimpan`, `versi >= 1` (§2.38) |
 | `revisi_target_renstra_nilai` | unique(`revisi_id`, `indikator_id`, `tahun`); `nilai_lama` dan `nilai_baru` nullable, nonnegatif, finite; level aplikasi: `tahun` dalam rentang Renstra (§2.38) |
-| `notifikasi_pengiriman` | unique(`kunci_idempoten`); kanal/status dibatasi nilai §2.39; `percobaan >= percobaan_siklus >= 0`; identitas dan snapshot pesan tetap pada retry |
+| `notifikasi_pengiriman` | unique(`kunci_idempoten`); `objek_tipe`, kanal, status, dan `kode_hasil` dibatasi nilai §2.39; `percobaan >= percobaan_siklus >= 0`; identitas dan snapshot pesan tetap pada retry |
 | `renstra_pk_versi` (rancangan Q40) | unique(`renstra_pk_id`, `nomor_versi`); level aplikasi: `nomor_surat`, `tanggal_surat`, `periode_mulai_id`, `alasan`, dan persetujuan wajib pada versi revisi; baris tidak diubah setelah terbentuk (§2.36) |
 | `renstra_pk_versi_target` (rancangan Q40) | unique(`renstra_pk_versi_id`, `indikator_id`); `nilai` nullable, nonnegatif, finite (§2.37) |
 | `penanggung_jawab` | index non-unique (`indikator_id`, `tanggal_mulai_berlaku`); unique per tanggal dilepas oleh Q34 butir 1 ([#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70)), penugasan pada tanggal sama diurutkan dengan `urutan`, lihat §2.19 |

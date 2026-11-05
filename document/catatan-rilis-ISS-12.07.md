@@ -1,6 +1,6 @@
 # Fondasi notifikasi eksternal — ISS-12.07
 
-Keputusan PM 4 November 2026, refinement Q1–Q10. Kode lokal tidak mengaktifkan WhatsApp atau Email: kedua kanal mati dan provider hanya `log`. Seluruh Kesiapan Infrastruktur §3 tetap harus `Siap berbukti` sebelum provider nyata diaktifkan. Khusus WhatsApp, sumber nomor kontak belum tersedia.
+Refinement #227: keputusan PM 4 November 2026 untuk Q1–Q8, dilengkapi [keputusan PM 5 November 2026 untuk Q9–Q10](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/248#issuecomment-6637902148). Kode lokal tidak mengaktifkan WhatsApp atau Email: kedua kanal mati dan provider hanya `log`. Seluruh Kesiapan Infrastruktur §3 tetap harus `Siap berbukti` sebelum provider nyata diaktifkan. Khusus WhatsApp, sumber nomor kontak belum tersedia.
 
 ## Operasional
 
@@ -20,6 +20,8 @@ Fallback deployment memakai `SAKIP_NOTIFIKASI_EMAIL_AKTIF`, `SAKIP_NOTIFIKASI_WH
 `AntrekanNotifikasiEksternal::antre(kejadian, tujuan, periode, penerima, kanal, template, parameter)` menerima penerima tepercaya dari producer; tidak menduplikasi resolver PJ. Tujuan awal yang didukung adalah Rencana Aksi dan Pengukuran. Jenis tujuan lain dan aturan agregat EWS/rekap ditambahkan bersama producer pemiliknya, tanpa bypass Policy.
 
 Producer memakai identitas kejadian stabil; kejadian pengembalian berikutnya dan slot H-minus berikutnya berbeda. UUID objek dan penerima diambil kembali dari baris tersimpan sebelum membentuk kunci, sehingga variasi penulisan UUID tidak menggandakan pesan. Alamat, template, parameter, driver, dan simulasi tidak berubah pada replay. Parameter harus dipilih producer dan bebas rahasia, termasuk nilainya; pemeriksaan nama kunci bukan penyamaran nilai bebas.
+
+Waktu outbox disimpan sebagai `timestamp` tanpa zona dengan nilai UTC, sesuai Data Model §2.39 dan zona aplikasi. Penjadwalan retry tidak bergantung pada zona waktu sesi PostgreSQL. Penyajian rentang tanggal tetap memakai WITA.
 
 Atomisitas di sini adalah outbox–job. Kejadian yang hilang sebelum producer memanggil service tetap tanggung jawab integrasi ISS-12.06/12.04. Item in-app memerlukan ISS-12.02; tidak diklaim tersedia dari fondasi ini.
 
