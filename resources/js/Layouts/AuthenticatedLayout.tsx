@@ -15,6 +15,31 @@ import {
 import type { SharedPageProps } from '@/types/auth';
 import { SidebarNavigation } from '@/Components/Navigation/SidebarNavigation';
 
+/**
+ * Lonceng ke halaman notifikasi dengan badge angka belum dibaca dari props server (tanpa polling).
+ * Tidak dirender bila server mengirim null (tamu, akun nonaktif, akun tanpa peran) karena daftar notifikasi pasti ditolak.
+ * Angka dibatasi "99+"; nama aksesibel menyebut jumlah sebenarnya, badge visual disembunyikan dari pembaca layar.
+ */
+function LoncengNotifikasi({ jumlah, className }: { jumlah: number | null | undefined; className: string }) {
+    if (jumlah == null) return null;
+    const belumDibaca = jumlah;
+
+    return (
+        <Link
+            href="/notifikasi"
+            aria-label={belumDibaca > 0 ? `Notifikasi, ${belumDibaca} belum dibaca` : 'Notifikasi'}
+            className={`relative inline-flex items-center justify-center rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 ${className}`}
+        >
+            <Bell className="h-5 w-5" aria-hidden="true" />
+            {belumDibaca > 0 && (
+                <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-xs font-semibold leading-none text-white">
+                    {belumDibaca > 99 ? '99+' : belumDibaca}
+                </span>
+            )}
+        </Link>
+    );
+}
+
 interface AuthenticatedLayoutProps {
     children: ReactNode;
     title?: string;
@@ -33,7 +58,7 @@ export function AuthenticatedLayout({
     hasCustomHeading = false,
 }: AuthenticatedLayoutProps) {
     const shouldRenderH1 = renderTitleHeading && !hasCustomHeading;
-    const { props: { auth, flash: legacyFlash, pengaturan }, flash: transientFlash, url } = usePage<SharedPageProps>();
+    const { props: { auth, flash: legacyFlash, pengaturan, notifikasi_belum_dibaca: jumlahNotifikasi }, flash: transientFlash, url } = usePage<SharedPageProps>();
     // Flash native Inertia tidak diputar ulang ketika pengguna membuka history.
     const flash = { ...legacyFlash, ...transientFlash };
     const appName = (pengaturan?.['aplikasi.nama'] as string) || 'SAKIP';
@@ -166,6 +191,7 @@ export function AuthenticatedLayout({
                     </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                    <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-white hover:bg-surface/10 focus:ring-white/40" />
                     {/* Satu instance profil per viewport agar state logout tidak terduplikasi atau tertinggal tersembunyi. */}
                     {!isDesktopViewport && (
                         <UserProfileDropdown
@@ -278,15 +304,7 @@ export function AuthenticatedLayout({
                     {/* Right Functional Chips */}
                     <div className="ml-auto flex items-center gap-2 xl:gap-4">
 
-                        <button
-                            type="button"
-                            disabled
-                            title="Notifikasi akan segera tersedia"
-                            aria-label="Notifikasi akan segera tersedia"
-                            className="inline-flex items-center justify-center rounded-lg p-2 text-muted disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <Bell className="h-5 w-5" aria-hidden="true" />
-                        </button>
+                        <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-muted hover:bg-soft hover:text-ink focus:ring-primary/20" />
 
                         {isDesktopViewport && <UserProfileDropdown user={auth?.user ?? null} placement="header" />}
                     </div>

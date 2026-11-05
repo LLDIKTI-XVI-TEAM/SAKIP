@@ -21,6 +21,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                 auth: { user: state.user, can: { dashboard: true, regulasi: true, renstra: true } },
                 flash: {},
                 pengaturan: { 'aplikasi.nama': 'SAKIP LLDIKTI XVI' },
+                notifikasi_belum_dibaca: 0,
             },
             flash: {},
             url: state.url,
@@ -463,7 +464,7 @@ describe('UI-01-I — Tidak ada regresi layout', () => {
         renderLayout();
 
         expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeTruthy();
-        expect(screen.getByRole('button', { name: 'Notifikasi akan segera tersedia' })).toBeTruthy();
+        expect(screen.getAllByRole('link', { name: 'Notifikasi' })[0].getAttribute('href')).toBe('/notifikasi');
         expect(screen.getByRole('navigation', { name: 'Navigasi utama' })).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Dashboard' }).getAttribute('href')).toBe('/dashboard');
         expect(profileTrigger()).toBeTruthy();
