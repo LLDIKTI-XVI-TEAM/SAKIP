@@ -487,12 +487,23 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
      periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator —
      revisi disetujui Perencanaan di aplikasi dengan alasan wajib (Q43); versi sebelumnya tidak
      diubah
-  6. Revisi berlaku mulai periode pertama yang belum ditutup; periode yang sudah dilaporkan
-     tetap memakai target versi lama
-     → Revisi yang mengubah target: persetujuannya menerbitkan versi jadwal_snapshot baru
-       dengan periode_mulai_id = periode tsb dan rujukan_koreksi = surat Eselon I (Q35 §35.1)
+     → Izin pk:update, target:update, indikator:read, dan berkas:upload sekaligus, deny menang;
+       setiap revisi wajib minimal satu lampiran file yang tidak dapat dihapus atau diganti
+       (Q85 §85.4)
+     → Revisi pertama juga membentuk versi 1 (PK awal): nomor dan tanggal PK saat itu, target
+       dari snapshot versi 1, dan lampiran PK yang diunggah sebelum persetujuan (Q85 §85.2)
+  6. Revisi berlaku mulai periode pertama yang belum ditutup, yaitu periode berurutan terendah
+     yang belum dilaporkan (masih ada indikator PK yang pengukurannya belum disahkan); periode
+     ini ditentukan sistem, dan periode yang sudah dilaporkan tetap memakai target versi lama
+     (Q85 §85.3)
+     → Revisi yang mengubah target (hanya saat jadwal aktif dan tahun belum ditutup):
+       persetujuannya menerbitkan versi jadwal_snapshot baru yang menyalin versi terakhir dan
+       hanya mengganti target, dengan periode_mulai_id = periode tsb (per indikator dinaikkan
+       ke periode mulai versi pendahulu bila lebih awal) dan rujukan_koreksi = surat Eselon I
+       (Q35 §35.1, Q85 §85.1); target_tahunan ikut diperbarui dalam transaksi yang sama
+     → Seluruh periode sudah dilaporkan: revisi yang mengubah target ditolak
      → Revisi yang hanya mengganti dokumen (mis. karena perubahan anggaran): tidak menerbitkan
-       versi snapshot
+       versi snapshot dan boleh setelah tahun ditutup (Q85 §85.4 butir 1)
   7. PK awal dan PK akhir sama-sama disimpan dan dapat diunduh sebagai lampiran laporan
      kinerja; capaian akhir tahun dinilai terhadap target PK akhir, yaitu versi yang berlaku
      pada periode nilai akhir
