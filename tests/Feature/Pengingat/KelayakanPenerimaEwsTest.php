@@ -66,17 +66,17 @@ class KelayakanPenerimaEwsTest extends TestCase
     public function test_pic_aktif_berperan_dengan_hak_isi_dan_kewajiban_belum_selesai_layak(): void
     {
         $pic = $this->userWithRole('pegawai');
-        $this->grant($pic, 'pengukuran:update');
-        $this->picDenganIndikator('I-PIC-UPDATE', $pic);
+        $this->grant($pic, 'pengukuran:create');
+        $this->picDenganIndikator('I-PIC-CREATE', $pic);
 
         $this->assertTrue($this->layak($pic, 1));
 
-        // Gerbang yang sama terbuka lewat `pengukuran:create` (salah satu cukup).
-        $picBaru = $this->userWithRole('pegawai');
-        $this->grant($picBaru, 'pengukuran:create');
-        $this->picDenganIndikator('I-PIC-CREATE', $picBaru);
+        // Header draf hanya butuh `pengukuran:update`.
+        $picDraf = $this->userWithRole('pegawai');
+        $this->grant($picDraf, 'pengukuran:update');
+        $this->headerUntuk($this->picDenganIndikator('I-PIC-UPDATE-DRAF', $picDraf));
 
-        $this->assertTrue($this->layak($picBaru, 1));
+        $this->assertTrue($this->layak($picDraf, 1));
     }
 
     public function test_pic_tanpa_grant_hak_isi_tidak_layak(): void
@@ -215,11 +215,53 @@ class KelayakanPenerimaEwsTest extends TestCase
     public function test_satu_unit_berizin_di_antara_kewajiban_cukup_untuk_layak(): void
     {
         $pic = $this->userWithRole('pegawai');
-        $this->grant($pic, 'pengukuran:update');
+        $this->grant($pic, 'pengukuran:create');
         $this->picDenganIndikator('I-UNIT-BERIZIN', $pic);
         $this->picDenganIndikator('I-UNIT-TANPA-IZIN', $pic, ['unit_id' => $this->unitBaru('Unit Tanpa Izin')->id]);
 
         $this->assertTrue($this->layak($pic, 1));
+    }
+
+    public function test_hak_isi_harus_sesuai_status_header(): void
+    {
+        $picUpdate = $this->userWithRole('pegawai');
+        $this->grant($picUpdate, 'pengukuran:update');
+        $this->picDenganIndikator('I-UPDATE-TANPA-HEADER', $picUpdate);
+
+        $this->assertFalse($this->layak($picUpdate, 1), 'Header belum ada memerlukan pengukuran:create.');
+
+        $picCreate = $this->userWithRole('pegawai');
+        $this->grant($picCreate, 'pengukuran:create');
+        $this->headerUntuk($this->picDenganIndikator('I-CREATE-HEADER-DRAF', $picCreate))->forceFill(['status_alur' => 'draft'])->save();
+
+        $this->assertFalse($this->layak($picCreate, 1), 'Header draf memerlukan pengukuran:update.');
+    }
+
+    public function test_deny_eksplisit_pada_unit_menang(): void
+    {
+        $pic = $this->userWithRole('pegawai');
+        $this->grant($pic, 'pengukuran:create');
+        $this->grant($pic, 'pengukuran:update');
+        $this->picDenganIndikator('I-DENY', $pic);
+        $this->assertTrue($this->layak($pic, 1));
+
+        foreach (['pengukuran:create', 'pengukuran:update'] as $kode) {
+            DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $pic->id,
+                'permission_id' => Permission::where('kode', $kode)->value('id'), 'unit_id' => $this->unit->id,
+                'alasan' => 'Fixture pencabutan', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        }
+
+        $this->assertFalse($this->layak($pic, 1));
+    }
+
+    public function test_revisi_tenggat_membuat_permintaan_h_lama_gagal_tertutup(): void
+    {
+        $this->assertTrue($this->layak($this->actor, 1));
+
+        $this->tw1->update(['pengisian_selesai' => '2026-03-20']);
+
+        $this->assertFalse($this->layak($this->actor, 1));
+        $this->assertTrue($this->layak($this->actor, 6));
     }
 
     public function test_service_tidak_menulis_baris_apa_pun(): void
