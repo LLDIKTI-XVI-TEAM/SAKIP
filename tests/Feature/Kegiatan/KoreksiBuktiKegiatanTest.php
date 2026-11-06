@@ -88,6 +88,24 @@ class KoreksiBuktiKegiatanTest extends TestCase
                 ->where('berkasPelaksanaan.persyaratan.0.berkas.0.dibekukan', true));
     }
 
+    public function test_status_beku_seluruh_berkas_dibaca_dengan_satu_query_versi_pengukuran(): void
+    {
+        foreach (['Bukti satu', 'Bukti dua', 'Bukti tiga'] as $isi) {
+            $this->bukti(['isi_teks' => $isi])->assertSessionHasNoErrors();
+        }
+        $this->ajukan()->assertSessionHasNoErrors();
+        $this->bukti(['isi_teks' => 'Bukti susulan'])->assertSessionHasNoErrors();
+
+        $query = 0;
+        DB::listen(function ($event) use (&$query): void {
+            $query += str_contains($event->sql, 'pengukuran_versi') ? 1 : 0;
+        });
+        $this->actingAs($this->actor)->get('/rencana-aksi/'.$this->plan->id.'/kegiatan/'.$this->kegiatan->id.'/realisasi')->assertOk()
+            ->assertInertia(fn ($page) => $page->where('berkasPelaksanaan.persyaratan.0.berkas', fn ($berkas) => collect($berkas)
+                ->mapWithKeys(fn ($b) => [$b['isi_teks'] => $b['dibekukan']])->all() === ['Bukti satu' => true, 'Bukti dua' => true, 'Bukti tiga' => true, 'Bukti susulan' => false]));
+        $this->assertSame(1, $query);
+    }
+
     public function test_basis_data_menolak_pengganti_aktif_kedua_untuk_berkas_kegiatan_yang_sama(): void
     {
         $this->bukti(['isi_teks' => 'Bukti awal'])->assertSessionHasNoErrors();

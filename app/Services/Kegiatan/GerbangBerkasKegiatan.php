@@ -4,7 +4,6 @@ namespace App\Services\Kegiatan;
 
 use App\Models\JadwalTahunan;
 use App\Models\Kegiatan;
-use App\Models\KinerjaSnapshot;
 use App\Models\KlaimKegiatan;
 use App\Models\Periode;
 use App\Models\RencanaAksi;
@@ -18,6 +17,7 @@ use App\Support\PermissionCodes;
 use App\Support\PermissionDecision;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -142,10 +142,21 @@ class GerbangBerkasKegiatan
     /**
      * Setiap versi pengukuran lahir dari pengajuan, jadi berkas yang tercatat di versi mana pun sudah menjadi dasar
      * laporan dan tidak boleh dihapus. Dibaca setelah kegiatan dikunci: pengajuan mengunci kegiatan sebelum membekukan bukti.
+     * Satu query untuk seluruh berkas; pengajuan hanya membekukan kegiatan bertahun sama, jadi pemindaian dibatasi tahun itu.
+     *
+     * @param  list<string>  $berkasIds
+     * @return list<string> ID berkas yang sudah dibekukan.
      */
-    public static function dibekukanPengukuran(string $berkasId): bool
+    public static function dibekukanPengukuran(Kegiatan $kegiatan, array $berkasIds): array
     {
-        return KinerjaSnapshot::whereJsonContains('snapshot->klaim', [['kegiatan' => ['bukti_dukungs' => [['id' => $berkasId]]]]])->exists();
+        if ($berkasIds === []) {
+            return [];
+        }
+
+        return DB::table('pengukuran_versi as v')->join('pengukuran_kinerjas as p', 'p.id', '=', 'v.pengukuran_id')->where('p.tahun', $kegiatan->tahun)
+            ->crossJoin(DB::raw("jsonb_path_query(v.snapshot, '\$.klaim[*].kegiatan.bukti_dukungs[*].id') as beku(id)"))
+            ->whereRaw("beku.id #>> '{}' = any(?::text[])", ['{'.implode(',', $berkasIds).'}'])
+            ->selectRaw("distinct beku.id #>> '{}' as berkas_id")->pluck('berkas_id')->map(fn ($id): string => (string) $id)->values()->all();
     }
 
     /** Kegiatan tidak terikat Renstra: tahun terkunci bila jadwal tahun itu mana pun sudah ditutup. */

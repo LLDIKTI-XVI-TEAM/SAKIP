@@ -47,7 +47,7 @@ class HapusBerkasKegiatan
                 /** @var BuktiDukung $berkas */
                 $berkas = PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $kegiatan->id)->whereKey($berkasId)
                     ->whereHas('jenisBerkas', fn ($q) => $q->where('tahap', $tahap))->lockForUpdate()->firstOrFail();
-                if (GerbangBerkasKegiatan::dibekukanPengukuran((string) $berkas->id)) {
+                if (GerbangBerkasKegiatan::dibekukanPengukuran($kegiatan, [(string) $berkas->id]) !== []) {
                     throw ValidationException::withMessages(['berkas' => 'Berkas sudah dibekukan pada versi pengukuran sehingga tidak dapat dihapus; koreksi lewat berkas pengganti beralasan.']);
                 }
                 $berkas->update(['dihapus_pada' => now(), 'dihapus_oleh' => $pengunci->id]);

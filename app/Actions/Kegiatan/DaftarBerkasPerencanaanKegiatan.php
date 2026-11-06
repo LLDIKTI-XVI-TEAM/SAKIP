@@ -36,6 +36,7 @@ class DaftarBerkasPerencanaanKegiatan
         $contoh = BuktiDukung::where('berkasable_type', 'jenis_berkas')->whereIn('berkasable_id', array_column($evaluasi, 'id'))->current()
             ->orderBy('created_at')->get()->groupBy('berkasable_id');
         $ditutup = GerbangBerkasKegiatan::tahunDitutup((int) $kegiatan->tahun);
+        $beku = GerbangBerkasKegiatan::dibekukanPengukuran($kegiatan, $bukti->whereIn('jenis_berkas_id', array_column($evaluasi, 'id'))->pluck('id')->map(fn ($id): string => (string) $id)->values()->all());
         $bacaTertutup = $this->gerbang->bacaTertutup($actor, $kegiatan);
         $alasan = fn (string $izin, string $aksi): ?string => $this->gerbang->periksaIzin($actor, $kegiatan, $izin)['tolak'] !== null
             ? 'Izin mengubah berkas kegiatan tidak tersedia.'
@@ -45,7 +46,7 @@ class DaftarBerkasPerencanaanKegiatan
             'persyaratan' => array_map(fn (array $item): array => $item + [
                 'berkas' => $bacaTertutup ? [] : $bukti->where('jenis_berkas_id', $item['id'])->map(fn (BuktiDukung $b): array => [
                     ...$b->only(['id', 'mode', 'nama_asli', 'ukuran_bytes', 'tautan', 'isi_teks', 'menggantikan_id']), 'created_at' => $b->created_at?->toIso8601String(),
-                    'dibekukan' => GerbangBerkasKegiatan::dibekukanPengukuran((string) $b->id),
+                    'dibekukan' => in_array((string) $b->id, $beku, true),
                 ])->values()->all(),
                 'contoh' => ($contoh[$item['id']] ?? collect())->map(fn (BuktiDukung $b): array => $b->only(['id', 'nama_asli']))->values()->all(),
             ], $evaluasi),
