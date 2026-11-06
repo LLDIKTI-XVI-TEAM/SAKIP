@@ -1490,16 +1490,18 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 | **Otorisasi** | Capability bukti induk + aturan koreksi. |
 | **Dampak Data** | `berkas`, `audit_log`. |
 
+**Status implementasi (2026-11-04):** dikerjakan pada issue [#222](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/222). Checklist yang dicentang mencerminkan automated test lokal, bukan penerimaan UAT. Perubahan aturan yang menunggu persetujuan PM (usulan pemilik PR sesuai rekomendasi issue, mengubah Q69 §69.1 butir 2 dan §69.3 butir 4): (1) bukti kegiatan `terlaksana` tetap tidak dapat dihapus, tetapi dapat diganti beralasan oleh pemegang `kegiatan:update` beserta izin bacanya selama tahun belum ditutup; (2) berkas kegiatan yang sudah tercatat di versi pengukuran mana pun tidak dapat dihapus, koreksinya lewat pengganti. Unique parsial `berkas_kegiatan_satu_pengganti` menjaga satu pengganti berlaku. Kunci tahap `kegiatan_perencanaan` sejak RA pengklaim diajukan dan kunci tahun ditutup (Q77 butir 2) tidak berubah.
+
 > **Sebagai** PIC atau Tim Perencanaan yang berwenang,  
 > **Saya ingin** mengganti bukti kegiatan melalui bukti baru tanpa menghapus bukti lama,  
 > **Sehingga** auditor dapat melihat bukti awal dan bukti koreksi beserta alasannya.
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given bukti kegiatan perlu dikoreksi setelah mencapai batas imutabilitas, When koreksi sah dilakukan, Then bukti baru ditambahkan dengan alasan dan hubungan pengganti; bukti lama tetap utuh.
-- [ ] **AC-2:** Given bukti lama telah dirujuk versi resmi, Then tidak tersedia rollback status untuk menghapusnya.
-- [ ] **AC-3:** Given koreksi belum disahkan dalam versi baru, Then laporan resmi tetap membaca bukti versi lama.
-- [ ] **AC-4:** Given koreksi menjadi dasar pengajuan baru, Then metadata bukti baru dibekukan pada versi pengajuan baru.
+- [x] **AC-1:** Given bukti kegiatan perlu dikoreksi setelah mencapai batas imutabilitas, When koreksi sah dilakukan, Then bukti baru ditambahkan dengan alasan dan hubungan pengganti; bukti lama tetap utuh.
+- [x] **AC-2:** Given bukti lama telah dirujuk versi resmi, Then tidak tersedia rollback status untuk menghapusnya.
+- [x] **AC-3:** Given koreksi belum disahkan dalam versi baru, Then laporan resmi tetap membaca bukti versi lama.
+- [x] **AC-4:** Given koreksi menjadi dasar pengajuan baru, Then metadata bukti baru dibekukan pada versi pengajuan baru.
 
 ### US-06.08 · Anggaran Kegiatan, RAB, Persyaratan Tahap Perencanaan Kegiatan, dan Penjumlahan Anggaran
 

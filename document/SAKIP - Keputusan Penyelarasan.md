@@ -843,7 +843,7 @@ Q36 menutup ketidakselarasan antara PRD §18.8, Workflow §10.3/§10.6a, dan Dat
 3. Setelah induk `disahkan`, bukti dukung imutabel. Setelah `jadwal_tahunan.penutupan`, koreksi hanya lewat `jadwal:buka_kembali` (tidak berubah).
 4. Penghapusan tetap soft delete (`dihapus_pada`/`dihapus_oleh`), beralasan, dan teraudit; file fisik dipertahankan.
 5. Penolakan mutasi bukti di luar status pada butir 1 adalah validasi bisnis (422), bukan penolakan izin (Data Model §3.2 langkah 6).
-6. Aturan untuk induk `kegiatan`, `renstra`, `renstra_pk`, dan `regulasi` tidak berubah.
+6. Aturan untuk induk `kegiatan`, `renstra`, `renstra_pk`, dan `regulasi` tidak berubah. Status ISS-06.07: berkas `kegiatan` yang sudah tercatat di versi pengukuran mana pun tidak dapat dihapus; koreksinya lewat berkas pengganti beralasan (Q25), menunggu persetujuan PM.
 
 ## 36.2 Status implementasi
 
@@ -1981,7 +1981,7 @@ Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring 
    - `rencana` → `terlaksana`, `tidak_terlaksana`, `ditunda`, atau `batal`;
    - `tidak_terlaksana` → `terlaksana`, `ditunda`, atau `batal`.
 2. Status `terlaksana`, `ditunda`, dan `batal` bersifat final:
-   - `terlaksana`: bukti pelaksanaan yang menjadi dasarnya sudah tidak dapat dihapus atau diganti (PRD §15.6, §18.8);
+   - `terlaksana`: bukti pelaksanaan yang menjadi dasarnya sudah tidak dapat dihapus (PRD §15.6, §18.8); koreksinya hanya lewat berkas pengganti beralasan dengan bukti lama tetap utuh (Q25; diubah ISS-06.07 atas usulan pemilik PR sesuai rekomendasi issue #222, menunggu persetujuan PM);
    - `ditunda`: sistem sudah membentuk kegiatan lanjutan (Q41 §41.4 butir 2), dan anggaran kegiatan asal tidak lagi dihitung dalam total setelah lanjutannya diklaim (§69.6);
    - `batal`: kegiatan dinyatakan tidak akan dilaksanakan.
 3. Syarat setiap transisi tidak berubah:
@@ -2003,7 +2003,7 @@ Q67 dicadangkan untuk keputusan lain dan Q68 dipakai keputusan Tabel Monitoring 
 1. Data rencana kegiatan (unit, tahun, periode, nama, tujuan, sasaran dan keterangan peserta, lokasi, tanggal rencana, dan anggaran) hanya dapat diubah selama status kegiatan `rencana`. Setelah status berubah, data rencana menjadi baca-saja: penyimpanan ditolak 422 dan form ditampilkan terkunci.
 2. Pindah periode hanya melalui transisi `ditunda` dan baris kegiatan baru (Data Model §5).
 3. Klaim kegiatan tetap boleh pada setiap status mengikuti gerbang klaim yang berlaku (PRD §15.5).
-4. Data pelaksanaan (`tanggal_realisasi`, `realisasi_peserta`, dan narasi per kegiatan) bukan data rencana. Data ini diisi dan diperbarui melalui aksi pelaksanaan (ISS-06.03) sampai tahun terkunci (PRD §15.4); pada kegiatan `terlaksana`, pembaruan ini tidak mengubah status, dan bukti dasarnya tetap tidak dapat dihapus atau diganti.
+4. Data pelaksanaan (`tanggal_realisasi`, `realisasi_peserta`, dan narasi per kegiatan) bukan data rencana. Data ini diisi dan diperbarui melalui aksi pelaksanaan (ISS-06.03) sampai tahun terkunci (PRD §15.4); pada kegiatan `terlaksana`, pembaruan ini tidak mengubah status, dan bukti dasarnya tetap tidak dapat dihapus; koreksinya lewat berkas pengganti beralasan (Q25; diubah ISS-06.07 atas usulan pemilik PR sesuai rekomendasi issue #222, menunggu persetujuan PM).
 
 ## 69.4 Izin dan gerbang transisi
 
@@ -2422,7 +2422,7 @@ Nomor Q75 dan Q76 dicadangkan untuk mencatat keputusan PM K3–K7 ISS-10.05 ([ko
 5. Buka-kembali tidak membentuk snapshot otomatis. Indikator baru memakai ISS-03.04 dengan periode mulai eksplisit; ketentuan lama Workflow §5/§13 dan Plan 3.7/3.9 tentang pembentukan snapshot saat buka-kembali diselaraskan.
 6. Input waktu WITA disimpan UTC; awal harus sebelum akhir, kedua batas inklusif, sesi mendatang boleh dijadwalkan. Pada saat pembukaan, akhir sesi wajib setelah waktu sekarang (WITA); nilai yang sama atau sudah lewat ditolak. `closed_at` direset, nilai sebelumnya tetap di audit; `penutupan` dan `activated_at` dipertahankan.
 
-**Catatan butir 2:** butir 2 ditinjau ulang bila koreksi kegiatan dibutuhkan saat pelaporan TW IV 2026.
+**Catatan butir 2:** butir 2 ditinjau ulang bila koreksi kegiatan dibutuhkan saat pelaporan TW IV 2026. ISS-06.07 tidak mengubah butir 2: berkas pengganti setelah `terlaksana` tetap ditolak bila tahun kegiatan sudah ditutup, termasuk selama sesi koreksi.
 
 **Status implementasi:** sesi, lingkup, dan penguncian existing telah diterapkan oleh ISS-14.02 pada PR #199. Validasi akhir sesi pada butir 6 diterapkan saat pembukaan jadwal; pencatatan implementasi ini tidak menyatakan QA/UAT diterima.
 

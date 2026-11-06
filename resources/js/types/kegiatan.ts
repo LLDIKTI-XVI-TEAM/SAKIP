@@ -163,6 +163,8 @@ export interface BerkasKegiatanItem {
     isi_teks: string | null;
     menggantikan_id: string | null;
     created_at: string | null;
+    /** Sudah tercatat di versi pengukuran: tidak dapat dihapus, koreksi lewat pengganti. */
+    dibekukan: boolean;
 }
 
 export interface PersyaratanPerencanaanKegiatan {

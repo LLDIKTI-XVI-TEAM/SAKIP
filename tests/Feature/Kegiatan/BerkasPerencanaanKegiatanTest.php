@@ -194,11 +194,11 @@ class BerkasPerencanaanKegiatanTest extends TestCase
         Storage::disk('local')->assertExists($pengganti->path);
     }
 
-    public function test_berkas_kegiatan_terlaksana_tidak_dapat_dihapus_atau_diganti(): void
+    public function test_berkas_kegiatan_terlaksana_tidak_dapat_dihapus_tetapi_dapat_diganti_beralasan(): void
     {
         $this->unggah()->assertSessionHasNoErrors();
         $berkas = BuktiDukung::where('berkasable_type', 'kegiatan')->sole();
-        // RA pengklaim tetap draf: penolakan murni berasal dari status kegiatan yang sudah terlaksana.
+        // RA pengklaim tetap draf: kunci hapus murni berasal dari status kegiatan yang sudah terlaksana.
         $this->kegiatan->update(['status' => 'terlaksana']);
         $this->assertSame('terlaksana', $this->kegiatan->fresh()->status);
         $this->assertSame(RencanaAksi::STATUS_DRAFT, $this->header->fresh()->status_alur);
@@ -207,24 +207,29 @@ class BerkasPerencanaanKegiatanTest extends TestCase
             ->deleteJson("/kegiatan/{$this->kegiatan->id}/berkas/{$berkas->id}", ['alasan' => 'RAB keliru diunggah'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('berkas');
-        $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
-            'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-revisi.xlsx', 10),
-            'menggantikan_id' => $berkas->id, 'alasan_koreksi' => 'Nilai satuan diperbaiki',
-        ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('berkas');
-
         $this->assertNull($berkas->fresh()->dihapus_pada);
-        $this->assertFalse(BuktiDukung::where('menggantikan_id', $berkas->id)->exists());
-        $this->assertSame(1, BuktiDukung::where('berkasable_type', 'kegiatan')->count());
         $this->assertSame(1, AuditLog::where('tindakan', 'berkas.hapus_ditolak')->where('objek_id', $this->kegiatan->id)->count());
-        $this->assertSame(1, AuditLog::where('tindakan', 'berkas.unggah_ditolak')->where('objek_id', $this->kegiatan->id)->count());
+        $this->actingAs($this->fixture['pic'])->get($this->formUrl())->assertInertia(fn ($page) => $page
+            ->where('berkasPerencanaan.alasan_tolak_ganti', null)
+            ->where('berkasPerencanaan.alasan_tolak_hapus', fn ($alasan) => str_contains((string) $alasan, 'tidak dapat dihapus')));
 
-        // Koreksi append-only tetap terbuka: unggahan baru tanpa `menggantikan_id`
-        // tidak mengakhiri keberlakuan berkas lama (Q25, pola Q36).
-        $this->actingAs($this->fixture['pic'])->post("/kegiatan/{$this->kegiatan->id}/berkas", [
-            'mode' => 'file', 'jenis_berkas_id' => $this->rab->id, 'file' => UploadedFile::fake()->create('rab-tambahan.pdf', 10),
-        ])->assertSessionHasNoErrors();
-        $this->assertNull($berkas->fresh()->dihapus_pada);
-        $this->assertSame(2, PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $this->kegiatan->id)->count());
+        // Koreksi append-only (Q25): pengganti wajib beralasan, berkas lama tetap utuh di tabel.
+        $this->ganti($berkas, '  ')->assertSessionHasErrors('alasan_koreksi');
+        $this->assertFalse(BuktiDukung::where('menggantikan_id', $berkas->id)->exists());
+        $this->ganti($berkas, 'Nilai satuan diperbaiki')->assertSessionHasNoErrors();
+        $pengganti = BuktiDukung::where('menggantikan_id', $berkas->id)->sole();
+        $this->assertSame('Nilai satuan diperbaiki', $pengganti->alasan_koreksi);
+        $lama = $berkas->fresh();
+        $this->assertNull($lama->dihapus_pada);
+        $this->assertSame([$berkas->path, $berkas->nama_asli], [$lama->path, $lama->nama_asli]);
+        Storage::disk('local')->assertExists($berkas->path);
+        $this->assertSame([(string) $pengganti->id], PersyaratanPerencanaanKegiatan::buktiBerlaku((string) $this->kegiatan->id)->pluck('id')->all());
+        $audit = AuditLog::where('tindakan', 'berkas.unggah')->where('objek_id', $pengganti->id)->sole();
+        $this->assertSame([(string) $berkas->id, 'Nilai satuan diperbaiki'], [$audit->nilai_lama['id'], $audit->alasan]);
+
+        // Pengganti ikut terkunci hapus; status kegiatan tidak dapat dibalik.
+        $this->hapus($pengganti)->assertSessionHasErrors('berkas');
+        $this->assertSame('terlaksana', $this->kegiatan->fresh()->status);
     }
 
     public function test_tanpa_akses_detail_kegiatan_unit_mutasi_ditolak_dan_unduhan_tertutup(): void

@@ -37,7 +37,7 @@ const panel = (atribut: Partial<BerkasPerencanaanKegiatan> = {}): BerkasPerencan
     persyaratan: [rab()], alasan_tolak_unggah: null, alasan_tolak_ganti: null, alasan_tolak_hapus: null, ...atribut,
 });
 const berkas = (atribut: Partial<BerkasKegiatanItem> = {}): BerkasKegiatanItem => ({
-    id: 'b1', mode: 'file', nama_asli: 'rab.xlsx', ukuran_bytes: 1024, tautan: null, isi_teks: null, menggantikan_id: null, created_at: null, ...atribut,
+    id: 'b1', mode: 'file', nama_asli: 'rab.xlsx', ukuran_bytes: 1024, tautan: null, isi_teks: null, menggantikan_id: null, created_at: null, dibekukan: false, ...atribut,
 });
 
 it('menampilkan persyaratan sebagai tabel bersama berkolom tetap seperti bukti dukung rencana aksi', () => {
@@ -138,6 +138,16 @@ it('tanpa izin unggah menyembunyikan kolom aksi dan menampilkan alasannya', () =
 it('tidak tampil bila tidak ada persyaratan perencanaan kegiatan', () => {
     const { container } = render(<BerkasPerencanaanPanel kegiatanId="k1" berkas={panel({ persyaratan: [] })} />);
     expect(container.innerHTML).toBe('');
+});
+
+it('berkas yang dibekukan versi pengukuran hanya menawarkan ganti dan diberi penanda', () => {
+    render(<BerkasPerencanaanPanel kegiatanId="k1" tahap="pelaksanaan" berkas={panel({
+        persyaratan: [rab({ nama: 'Dokumentasi', berkas: [berkas({ nama_asli: 'foto.pdf', dibekukan: true }), berkas({ id: 'b2', nama_asli: 'notulen.pdf' })], contoh: [] })],
+    })} />);
+    expect(screen.getByRole('button', { name: 'Ganti berkas foto.pdf' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Hapus berkas foto.pdf' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Hapus berkas notulen.pdf' })).toBeTruthy();
+    expect(screen.getAllByText(/Dibekukan pada versi pengukuran/)).toHaveLength(1);
 });
 
 it('panel pelaksanaan memakai unduhan terpisah dan capability append-only dari server', () => {
