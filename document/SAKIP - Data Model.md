@@ -260,7 +260,6 @@ erDiagram
         uuid renstra_pk_versi_id FK "rancangan Q40"
         uuid indikator_id FK
         numeric nilai "nullable, finite, nonnegatif"
-        text alasan_deviasi_renstra "nullable"
     }
 
     SASARAN {
@@ -886,7 +885,7 @@ Perjanjian Kinerja tahunan per Renstra, masuk penuh sejak Fase Awal.
 
 **Isian target PK (Q39):** baseline dan target tahun PK untuk setiap indikator aktif Renstra, dikelompokkan per sasaran, diisi Tim Perencanaan di halaman PK dan disimpan pada `target_tahunan` (§2.13); `renstra_pk` sendiri tidak menyimpan kolom target. Target Renstra tahun yang sama (§2.35) ditampilkan sebagai pembanding sekaligus batas menurut arah indikator; target PK yang menyimpang ditolak (Q72 §72.1). Target PK disimpan bernilai penuh (Q50 §50.2), dan baseline tampil sebagai data pendukung, bukan isi dokumen PK (Q50 §50.3). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot (Q65 §65.1); perubahannya tidak meminta alasan (Q82). Status implementasi: sudah (ISS-02.11).
 
-**Revisi PK berversi (Q40, rancangan tahap 3):** revisi PK disimpan sebagai versi pada `renstra_pk_versi` (§2.36) beserta target per indikator pada `renstra_pk_versi_target` (§2.37); versi 1 = PK awal. `renstra_pk` tetap satu baris per (`renstra_id`, `tahun`) sebagai induk versi. Prasyarat: alur koreksi snapshot berversi (ISS-03.03). Status implementasi: belum (ISS-02.12).
+**Revisi PK berversi (Q40, rancangan tahap 3):** revisi PK disimpan sebagai versi pada `renstra_pk_versi` (§2.36) beserta target per indikator pada `renstra_pk_versi_target` (§2.37); versi 1 = PK awal dan dibentuk saat revisi pertama disetujui (Q85 §85.2). `renstra_pk` tetap satu baris per (`renstra_id`, `tahun`) sebagai induk versi. Prasyarat: alur koreksi snapshot berversi (ISS-03.03). Status implementasi: belum (ISS-02.12).
 
 **Lampiran dokumen PK:** `renstra_pk` menjadi salah satu induk polimorfik `berkas`
 (`berkasable_type = renstra_pk`, lihat §2.30) — dokumen Perjanjian Kinerja resmi dapat
@@ -900,7 +899,8 @@ tersebut berstatus `aktif` (lihat §2.30). Lampiran dokumen PK per versi memakai
 PK perubahan yang hanya mengubah anggaran diunggah sebagai **lampiran tambahan** pada
 `renstra_pk` tahun tersebut beserta keterangan; target dan snapshot tidak berubah. PK perubahan
 yang mengubah target memakai revisi berversi; bila terbit sebelum ISS-02.12 selesai,
-penanganannya ditetapkan PM sebagai keputusan baru.
+penanganannya ditetapkan PM sebagai keputusan baru. Ketentuan keputusan baru ini berlaku
+sampai ISS-02.12 tersedia (Q85 §85.4 butir 6).
 
 ---
 
@@ -1109,9 +1109,9 @@ Salinan beku konteks indikator (termasuk konteks cara hitung) per jadwal, berver
 | `indikator_id` | uuid | FK → indikator.id | Referensi ke master, untuk ketertelusuran — **bukan** untuk menarik data terkini |
 | `nomor_versi` | int | not null, default 1 | Versi konteks indikator pada jadwal ini; koreksi menambah versi baru (Q35 §35.1) |
 | `menggantikan_id` | uuid | FK → jadwal_snapshot.id, nullable | Versi sebelumnya yang digantikan; `NULL` pada versi 1 |
-| `alasan_koreksi` | text | nullable | Alasan koreksi; diisi pada versi koreksi (ISS-03.03) |
+| `alasan_koreksi` | text | nullable | Alasan koreksi; diisi pada versi koreksi (ISS-03.03). Pada versi yang diterbitkan revisi PK berisi alasan revisi (Q85 §85.1, rancangan) |
 | `rujukan_koreksi` | text | nullable | Rujukan resmi koreksi; diisi pada versi koreksi (ISS-03.03). Pada versi yang diterbitkan revisi PK yang mengubah target berisi surat persetujuan Eselon I (Q40 §40.1, rancangan) |
-| `periode_mulai_id` | uuid | FK → periode.id, not null | Periode pertama snapshot berlaku; versi aktivasi memakai periode jadwal dengan urutan terendah; versi akibat revisi PK memakai periode pertama yang belum ditutup (Q40 §40.1, rancangan); versi koreksi pengguna memakai periode jadwal yang dipilih, tidak lebih awal dari periode mulai versi yang digantikan (Q79 §79.2) |
+| `periode_mulai_id` | uuid | FK → periode.id, not null | Periode pertama snapshot berlaku; versi aktivasi memakai periode jadwal dengan urutan terendah; versi akibat revisi PK memakai periode berurutan terendah yang belum dilaporkan, tidak lebih awal dari periode mulai versi pendahulu (Q40 §40.1, Q85 §85.3, rancangan); versi koreksi pengguna memakai periode jadwal yang dipilih, tidak lebih awal dari periode mulai versi yang digantikan (Q79 §79.2) |
 | `unit_id` | uuid | (salinan, bukan FK aktif secara semantik) | Salinan nilai `indikator.unit_id` saat aktivasi |
 | `nama` | string | salinan | Salinan `indikator.nama` saat aktivasi |
 | `definisi` | text | salinan | Salinan `indikator.definisi` saat aktivasi |
@@ -1130,7 +1130,7 @@ Salinan beku konteks indikator (termasuk konteks cara hitung) per jadwal, berver
 **Perilaku kunci:**
 - **Idempoten:** pembuatan versi 1 dilakukan hanya untuk pasangan (`jadwal_id`, `indikator_id`) yang belum memiliki snapshot pada jadwal tersebut — saat aktivasi awal atau penerbitan indikator baru melalui ISS-03.04, bukan saat `jadwal:buka_kembali`. Baris yang sudah ada **tidak pernah ditimpa**.
 - **Beku sejak terbit (Q35 §35.1):** begitu jadwal bertransisi ke `aktif`, seluruh snapshot jadwal tersebut difinalkan (`komposisi_final = true`) — oleh aplikasi dan oleh trigger database `finalisasi_snapshot_saat_jadwal_aktif`. Guard `guard_referenced_schedule_snapshot` menolak UPDATE kolom konteks dan DELETE; UPDATE yang diterima hanya no-op atau transisi `komposisi_final` `false → true`.
-- **Koreksi selalu versi baru:** koreksi tidak pernah in-place, baik sebelum maupun sesudah snapshot dirujuk. Koreksi menyisipkan baris `nomor_versi` + 1 dengan `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi` (alur pengguna: ISS-03.03); versi lama tetap menjadi rujukan histori. Nilai versi koreksi pengguna disalin dari data master terkini setelah master diperbaiki, koreksi ditolak bila tidak ada selisih atau bila unit di data master berbeda dari unit header Rencana Aksi yang sudah ada, dan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada tidak dipindahkan otomatis (Q79 §79.1, §79.3); pemindahan pengukuran dilakukan eksplisit oleh Perencanaan. Form koreksi meminta konfirmasi bila ada pengukuran belum disahkan pada periode sebelum periode mulai yang dipilih (Q81 §81.3). Persetujuan revisi PK yang mengubah target (Q40, rancangan §2.36) juga menerbitkan versi baru dengan `periode_mulai_id` = periode pertama yang belum ditutup dan `rujukan_koreksi` = surat persetujuan Eselon I; periode yang sudah dilaporkan tetap memakai versi lama. Revisi yang hanya mengganti dokumen PK tidak menerbitkan versi.
+- **Koreksi selalu versi baru:** koreksi tidak pernah in-place, baik sebelum maupun sesudah snapshot dirujuk. Koreksi menyisipkan baris `nomor_versi` + 1 dengan `menggantikan_id`, `alasan_koreksi`, dan `rujukan_koreksi` (alur pengguna: ISS-03.03); versi lama tetap menjadi rujukan histori. Nilai versi koreksi pengguna disalin dari data master terkini setelah master diperbaiki, koreksi ditolak bila tidak ada selisih atau bila unit di data master berbeda dari unit header Rencana Aksi yang sudah ada, dan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada tidak dipindahkan otomatis (Q79 §79.1, §79.3); pemindahan pengukuran dilakukan eksplisit oleh Perencanaan. Form koreksi meminta konfirmasi bila ada pengukuran belum disahkan pada periode sebelum periode mulai yang dipilih (Q81 §81.3). Persetujuan revisi PK yang mengubah target (Q40, rancangan §2.36) juga menerbitkan versi baru dengan `periode_mulai_id` menurut Q85 §85.3 dan `rujukan_koreksi` = surat persetujuan Eselon I; berbeda dengan koreksi pengguna, versi ini menyalin versi terakhir indikator beserta komponennya dan hanya mengganti `target` (Q85 §85.1). Periode yang sudah dilaporkan tetap memakai versi lama. Revisi yang hanya mengganti dokumen PK tidak menerbitkan versi.
 - **Tidak ada restatement:** perubahan pada `indikator`/`target_tahunan`/`indikator_komponen` master setelah snapshot terbentuk tidak pernah mempropagasi ke baris snapshot yang sudah ada — tidak ada mekanisme restatement data historis pada Fase Awal maupun Fase Lanjutan. Baris baru untuk indikator yang sama hanya terbentuk lagi saat jadwal tahun berikutnya diaktifkan, dengan kondisi master terkini pada saat itu. Konsekuensinya, perubahan definisi komponen (§2.27) di tengah tahun **tidak** mengubah makna data historis yang sudah dibekukan.
 
 ---
@@ -1647,7 +1647,7 @@ berkas di bawah serta §2.29 dan §2.36.
 - lampiran `kegiatan` **tidak dapat dihapus** setelah kegiatan yang bersangkutan berstatus `terlaksana` atau setelah lampiran itu tercatat di versi pengukuran mana pun; koreksinya berkas pengganti beralasan, bukti lama tetap utuh (Q25, ISS-06.07); *(Q42, diterapkan ISS-06.08)* berkas yang memenuhi persyaratan tahap `kegiatan_perencanaan` (mis. RAB) **tidak dapat dihapus maupun diganti** sejak rencana aksi yang mengklaim kegiatan itu diajukan — koreksi lewat pengembalian rencana aksi, lalu berkas pengganti (Q25), mengikuti pola bukti rencana aksi Q36 (Q42 §42.4 butir 5); unggahan berkas baru tetap diterima;
 - lampiran `rencana_aksi`/`pengukuran` hanya dapat ditambah, diganti, atau dihapus selama induknya berstatus `draft`/`dikembalikan` (khusus pengukuran, tidak ada endpoint hapus; koreksi lewat pengembalian beralasan dan versi baru, Q36 §36.2); sejak `diajukan` **tidak dapat dihapus** (koreksi lewat pengembalian beralasan), dan imutabel setelah `disahkan` (Q36);
 - *(Q48, migrasi `2026_10_29_000001`)* arsip pada `jadwal_tahunan`/`jadwal_periode` **tidak dapat dihapus** sejak diunggah; salah unggah dikoreksi dengan berkas pengganti (`menggantikan_id`, `alasan_koreksi`) mengikuti pola append-only Q25 (Q48 §48.2 butir 3);
-- *(rancangan Q40)* lampiran `renstra_pk_versi` mengikuti versi PK yang tidak diubah setelah terbentuk (Q40 §40.1 butir 2); rinciannya ditetapkan bersama ISS-02.12;
+- *(rancangan Q40, Q85 §85.4 butir 4)* setiap versi revisi wajib minimal satu lampiran `renstra_pk_versi` bermode file; lampiran versi tidak dapat dihapus atau diganti, dan salah unggah dikoreksi dengan revisi dokumen baru. Lampiran PK awal dibaca dari lampiran `renstra_pk` yang diunggah sebelum persetujuan revisi pertama (Q85 §85.2);
 - *(Q42, diterapkan ISS-06.08)* contoh berkas pada induk `jenis_berkas` bukan bukti: dapat ditambah, diganti, atau dihapus Perencanaan kapan saja; penghapusannya wajib alasan (Q43 §43.2 butir 2), dan contoh berkas tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 4).
 
 Sebelum batas di atas tercapai, Perencanaan (izin global lewat peran) dan pengunggah/PIC unit terkait (untuk `rencana_aksi`/`pengukuran`/`kegiatan`; hak mutasi turun dari izin induk ber-scope unit, mis. `rencana_aksi:update` atau `pengukuran:update`; `berkas:*` bukan permission unit-scoped dan hanya berfungsi sebagai gerbang deny, Q32.3) dapat menghapus lampiran dengan alasan (Q43 §43.2 butir 2); setiap penghapusan tercatat di `audit_log` (soft delete lewat `dihapus_pada`/`dihapus_oleh`). Setelah `jadwal_tahunan.penutupan`, koreksi atas lampiran `rencana_aksi`/`pengukuran` hanya lewat sesi koreksi `jadwal:buka_kembali`, sedangkan lampiran `kegiatan` tetap terkunci termasuk di dalam sesi koreksi (Q77 butir 2) — aturan ini tidak berlaku bagi lampiran `renstra`/`renstra_pk`/`regulasi`, yang batas imutabilitasnya murni mengikuti status induknya masing-masing seperti tercantum di atas, dan tidak berlaku bagi arsip pada `jadwal_tahunan`/`jadwal_periode`, yang tetap dapat diunggah setelah jadwal `ditutup` (Q48 §48.2 butir 5).
@@ -1886,7 +1886,7 @@ Versi Perjanjian Kinerja. Setiap revisi PK yang disetujui **Perencanaan** di apl
 | `nomor_versi` | int | not null | `1` = PK awal; setiap revisi = nomor terbesar + 1 |
 | `nomor_surat` | varchar | nullable | Nomor surat persetujuan Eselon I sebagai isian tersendiri (Q40 §40.1 butir 2), menggantikan pencantuman pada kolom `alasan` (§2.10). Kosong pada versi 1; wajib pada versi revisi |
 | `tanggal_surat` | date | nullable | Tanggal surat persetujuan Eselon I; aturan wajibnya sama dengan `nomor_surat` |
-| `periode_mulai_id` | uuid | FK → periode.id, nullable | Periode mulai berlaku. Versi revisi: periode pertama yang belum ditutup saat persetujuan; periode yang sudah dilaporkan tetap memakai target versi lama (Q40 §40.1 butir 4). Kriteria "belum ditutup" ditetapkan saat refinement ISS-02.12 (Q79 §79.2 butir 4). Versi 1: kosong = berlaku sejak periode pertama tahun PK |
+| `periode_mulai_id` | uuid | FK → periode.id, nullable | Periode mulai berlaku. Versi revisi: periode pertama yang belum ditutup saat persetujuan; periode yang sudah dilaporkan tetap memakai target versi lama (Q40 §40.1 butir 4). Ditentukan sistem: periode berurutan terendah pada jadwal tahun PK yang belum dilaporkan, yaitu masih ada indikator PK yang pengukurannya pada periode itu belum `disahkan` (Q85 §85.3). Versi 1: kosong = berlaku sejak periode pertama tahun PK |
 | `alasan` | text | nullable | Alasan revisi; wajib pada versi revisi (Q43 §43.2 butir 3) dan tercatat di `audit_log` |
 | `disetujui_oleh` | uuid | FK → users.id, nullable | Pengguna Perencanaan yang menyetujui revisi (Q40 §40.1 butir 1); wajib pada versi revisi |
 | `disetujui_pada` | timestamp | nullable | Waktu persetujuan; wajib pada versi revisi |
@@ -1896,11 +1896,11 @@ Versi Perjanjian Kinerja. Setiap revisi PK yang disetujui **Perencanaan** di apl
 
 **Append-only:** baris versi tidak diubah atau dihapus setelah terbentuk. Koreksi salah ketik nomor atau tanggal PK tetap memakai jalur koreksi teraudit pada `renstra_pk` (ISS-02.09), bukan versi baru; perubahan target resmi memakai versi baru (Q40 §40.1 butir 8).
 
-**Lampiran per versi:** setiap versi revisi menyimpan lampiran dokumen PK bertanda tangan sebagai `berkas` induk `renstra_pk_versi` (§2.30), dengan permission PK (Q40 §40.1 butir 2, Q48 §48.2 butir 1–2).
+**Lampiran per versi:** setiap versi revisi menyimpan lampiran dokumen PK bertanda tangan sebagai `berkas` induk `renstra_pk_versi` (§2.30), dengan permission PK (Q40 §40.1 butir 2, Q48 §48.2 butir 1–2). Setiap revisi wajib minimal satu lampiran bermode file, dan lampiran versi tidak dapat dihapus atau diganti (Q85 §85.4 butir 4).
 
-**Dampak ke snapshot dan rencana aksi:** persetujuan versi yang mengubah target menerbitkan versi `jadwal_snapshot` baru bagi indikator terdampak, dengan `periode_mulai_id` = `renstra_pk_versi.periode_mulai_id` dan `rujukan_koreksi` = surat persetujuan Eselon I (§2.17; Q35 §35.1, Q40 §40.1 butir 4). Versi yang hanya mengganti dokumen tanpa mengubah target tidak menerbitkan versi snapshot (Q40 §40.1 butir 5). Rencana aksi tidak diubah otomatis; selisih dengan target PK baru tampil sebagai deviasi yang wajib dijelaskan, dan target periode yang belum terkunci disesuaikan lewat buka-kembali (§2.24; Q40 §40.1 butir 7).
+**Dampak ke snapshot dan rencana aksi:** persetujuan versi yang mengubah target menerbitkan versi `jadwal_snapshot` baru bagi indikator terdampak, dengan `periode_mulai_id` = `renstra_pk_versi.periode_mulai_id`, dinaikkan ke periode mulai versi pendahulu untuk indikator yang periode mulainya lebih akhir (Q85 §85.3 butir 3), dan `rujukan_koreksi` = surat persetujuan Eselon I (§2.17; Q35 §35.1, Q40 §40.1 butir 4). Versi yang hanya mengganti dokumen tanpa mengubah target tidak menerbitkan versi snapshot (Q40 §40.1 butir 5). Rencana aksi tidak diubah otomatis; selisih dengan target PK baru tampil sebagai deviasi yang wajib dijelaskan, dan target periode yang belum terkunci disesuaikan lewat buka-kembali (§2.24; Q40 §40.1 butir 7).
 
-**Ditetapkan saat refinement (ISS-02.12):** kapan versi 1 dibentuk (saat PK dicatat atau saat revisi pertama) beserta sumber datanya (`target_tahunan` dan lampiran `renstra_pk` yang sudah ada), serta apakah `target_tahunan` ikut diperbarui ke target versi terbaru. Sebelum ISS-02.12 tersedia, PK perubahan yang hanya mengubah anggaran dicatat sebagai lampiran tambahan `renstra_pk` (Q50 §50.7, §2.10).
+**Refinement ISS-02.12 (Q85):** versi 1 dibentuk otomatis saat revisi pertama disetujui, tanpa migrasi backfill: nomor dan tanggal dari PK saat itu, target per indikator dari `jadwal_snapshot` versi 1 jadwal tahun PK (bukan `target_tahunan` saat revisi), dan lampiran PK awal berupa lampiran `renstra_pk` yang diunggah sebelum persetujuan revisi pertama, dibaca langsung tanpa salinan (Q85 §85.2). Persetujuan revisi yang mengubah target memperbarui `target_tahunan.nilai` dalam transaksi yang sama, melewati validasi Q72; versi PK menjadi sumber histori, `target_tahunan` nilai berlaku (Q85 §85.1 butir 2). Revisi hanya untuk PK yang sudah dikunci jadwal; revisi yang mengubah target memerlukan jadwal `aktif` dan tahun belum ditutup, sedangkan revisi yang hanya mengganti dokumen boleh setelah tahun ditutup (Q85 §85.4 butir 1). Sebelum ISS-02.12 tersedia, PK perubahan yang hanya mengubah anggaran dicatat sebagai lampiran tambahan `renstra_pk` (Q50 §50.7, §2.10).
 
 ---
 
@@ -1908,7 +1908,7 @@ Versi Perjanjian Kinerja. Setiap revisi PK yang disetujui **Perencanaan** di apl
 
 > **Rancangan Q40 — belum diimplementasikan** (ISS-02.12, tahap 3).
 
-Target PK per indikator pada satu versi PK (Q40 §40.1 butir 2). Setiap versi memuat target seluruh indikator aktif Renstra pada tahun PK, termasuk yang tidak berubah, sehingga satu versi dapat dibaca utuh tanpa versi lain.
+Target PK per indikator pada satu versi PK (Q40 §40.1 butir 2). Setiap versi memuat target seluruh indikator aktif, yaitu indikator yang memiliki snapshot pada jadwal tahun PK termasuk yang ditambahkan di tengah tahun (ISS-03.04), juga yang tidak berubah, sehingga satu versi dapat dibaca utuh tanpa versi lain (Q85 §85.4 butir 5). Revisi yang menyimpang dari target Renstra ditolak (Q72 §72.1 butir 4) dan kolom alasan deviasi Renstra tidak dibuat; target indikator yang sudah dibekukan jadwal tidak boleh dikosongkan.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
@@ -1916,7 +1916,6 @@ Target PK per indikator pada satu versi PK (Q40 §40.1 butir 2). Setiap versi me
 | `renstra_pk_versi_id` | uuid | FK → renstra_pk_versi.id, not null | |
 | `indikator_id` | uuid | FK → indikator.id, not null | |
 | `nilai` | numeric | **nullable**, finite, nonnegatif (`>= 0`) | Target PK pada versi ini; domain nilai Q33 dan disimpan bernilai penuh (Q50 §50.2). Versi `jadwal_snapshot` yang diterbitkan revisi membawa nilai ini sebagai `target` (§2.17) |
-| `alasan_deviasi_renstra` | text | nullable | Rancangan; mengikuti Q72 §72.1 butir 4: PK revisi yang menurunkan target di bawah target Renstra tahun yang sama (`naik_baik`) atau menaikkannya di atas target Renstra (`turun_baik`) didahului revisi target Renstra. Keputusan rinci kolom ini ditetapkan ISS-02.12 |
 
 **Constraint:** `unique(renstra_pk_versi_id, indikator_id)`.
 
