@@ -104,6 +104,20 @@ class KelayakanPenerimaEwsTest extends TestCase
         $this->assertFalse($this->layak($pic, 1));
     }
 
+    public function test_status_akun_dibaca_ulang_bukan_dari_model_lama(): void
+    {
+        $pic = $this->userWithRole('pegawai');
+        $this->grant($pic, 'pengukuran:update');
+        $this->picDenganIndikator('I-PIC-MODEL-BASI', $pic);
+
+        // Instance terpisah sengaja tidak disegarkan setelah status diubah lewat query.
+        $basi = User::findOrFail($pic->id);
+        User::whereKey($pic->id)->update(['status' => 'nonaktif']);
+
+        $this->assertSame('aktif', $basi->status);
+        $this->assertFalse($this->layak($basi, 1));
+    }
+
     public function test_pic_tanpa_peran_aktif_tidak_layak(): void
     {
         $tanpaPeran = User::factory()->create(['status' => 'aktif']);

@@ -42,7 +42,10 @@ final class KelayakanPenerimaEws
      */
     public function layak(User $user, PeriodeJadwal $periodeJadwal, int $h, CarbonImmutable $saat): bool
     {
-        if ($user->status !== 'aktif' || $this->izin->penggunaBerperanAktif([$user->id]) === []) {
+        // Status akun dapat berubah setelah model pemanggil dibentuk; muat ulang agar
+        // penilaian pada instan kirim tidak memakai status/relasi yang sudah basi.
+        $user = User::query()->find($user->getKey());
+        if (! $user instanceof User || $user->status !== 'aktif' || $this->izin->penggunaBerperanAktif([$user->id]) === []) {
             return false;
         }
 
