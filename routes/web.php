@@ -37,6 +37,7 @@ use App\Http\Controllers\Notifikasi\BukaNotifikasi;
 use App\Http\Controllers\Notifikasi\IndexNotifikasi;
 use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
 use App\Http\Controllers\Pengaturan\IndexPengaturan;
+use App\Http\Controllers\Pengaturan\IndexPengirimanNotifikasi;
 use App\Http\Controllers\Pengaturan\UpdatePengaturan;
 use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
 use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
@@ -274,6 +275,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/rekomendasi', [RekomendasiController::class, 'index'])->name('rekomendasi.index');
     Route::get('/rekomendasi/{rekomendasi}', [RekomendasiController::class, 'show'])->whereUuid('rekomendasi')->name('rekomendasi.show');
     Route::post('/rekomendasi', [RekomendasiController::class, 'store'])->name('rekomendasi.store');
+    Route::get('/pengaturan/notifikasi/pengiriman', IndexPengirimanNotifikasi::class)->name('pengaturan.notifikasi.pengiriman');
     Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
     Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
 

@@ -2548,26 +2548,31 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-13.04 · Konfigurasi Operasional Notifikasi Eksternal
 
+> **Penyesuaian refinement PM Q1–Q6 — 7 November 2026:** konfigurasi/status lokal disesuaikan dari grilling 6 November: H-minus berasal dari konfigurasi aplikasi (PIC `[7,3,1]`, rekap `[3,1]`), bukan whitelist `pengaturan`; mode mengikuti driver; penerima ditampilkan sebagai nama. Pengelolaan template dikeluarkan dari scope/DoD issue dan menjadi pekerjaan producer serta UI terpisah. #228 dapat selesai dengan `log` dan kanal default mati setelah verifikasi kontrak terbaru; template/provider nyata bukan gate merge. Kontrak terbaru diverifikasi lokal: backend terkait 116 tes/996 assertion, frontend terdampak 14 tes, serta smoke browser desktop/mobile. Bukti: laporan QA penyesuaian PM di luar repository. Bukan CI remote, UAT, delivery atau deployment. Integrasi pengembalian→outbox tetap #229 (ISS-12.06). Rujukan: PRD §26.8, Workflow §18.3, Data Model §2.22/§2.40, Plan 9.4–9.6/14.2–14.2.1, Refinement PM ISS-13.04 pada Keputusan Penyelarasan, dan `catatan-rilis-ISS-13.04.md`.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-13.04` |
 | **Prioritas** | 🟠 P2 |
 | **Story Points** | 5 |
 | **Modul** | Setelan Aplikasi, Audit, dan Kebijakan Operasional |
-| **Dependensi** | Pemilik layanan/provider telah dipilih. |
+| **Dependensi** | ISS-12.07 merge; provider nyata hanya untuk aktivasi (Q80 §80.1). |
 | **Otorisasi** | `pengaturan:update` untuk saklar/parameter non-secret; secret melalui environment/secret management. |
 | **Dampak Data** | `pengaturan` grup notifikasi + konfigurasi environment. |
 
 > **Sebagai** Admin/Superadmin bersama pengelola infrastruktur,  
-> **Saya ingin** mengaktifkan kanal, template, daftar H-minus, dan parameter non-rahasia,  
+> **Saya ingin** mengelola saklar kanal dan jam kirim, melihat hari pengingat tetap serta status pengiriman,
 > **Sehingga** integrasi WA/Email dapat dikelola tanpa menaruh credential di database biasa atau UI.
+
+**Batas scope:** pengelolaan template UI di luar US-13.04; template bawaan menjadi tanggung jawab producer dan dibekukan saat antre. Status pengiriman baca-saja pada halaman terpisah, pagination 25, nama penerima tanpa alamat/template/parameter, label Simulasi diterima, dan tanpa retry UI.
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given daftar H-minus default, Then nilai awal adalah `7,3,1` dan dapat dibaca scheduler.
-- [ ] **AC-2:** Given credential API, Then credential tidak ditampilkan di UI/log/audit dan disimpan lewat mekanisme secret yang sesuai.
-- [ ] **AC-3:** Given provider belum siap, Then saklar kanal dapat dinonaktifkan tanpa mengganggu alur bisnis inti.
-- [ ] **AC-4:** Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
+- [x] **AC-1:** Given konfigurasi aplikasi, Then accessor menghasilkan `[7,3,1]` untuk PIC dan `[3,1]` untuk rekap Perencanaan; keduanya tampil baca-saja dan tidak dapat dimutasi melalui whitelist `pengaturan`.
+- [x] **AC-2:** Given konfigurasi notifikasi, Then tidak ada jalur credential pada whitelist, form, props, log, dan audit; credential hanya melalui deployment, dengan kunci env ditambahkan saat provider dipilih.
+- [x] **AC-3:** Given kanal dimatikan lewat Setelan, When antre dipanggil untuk RA atau Pengukuran, Then outbox `dibatalkan`/`kanal_nonaktif` tanpa job; regresi pengembalian domain tetap hijau secara terpisah.
+- [x] **AC-4:** Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
+
 
 ### US-13.05 · Penyederhanaan Kewajiban Alasan
 

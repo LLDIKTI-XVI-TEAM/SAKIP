@@ -11,6 +11,7 @@ use App\Services\Notifikasi\HasilKirim;
 use App\Services\Notifikasi\PembacaStatusPengiriman;
 use App\Services\Notifikasi\PengirimNotifikasiEksternal;
 use App\Services\Notifikasi\PenyediaKanalNotifikasi;
+use Database\Seeders\PengaturanSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Concerns\CreatesRencanaAksiFixture;
@@ -36,6 +38,64 @@ class NotifikasiEksternalTest extends TestCase
         $this->setUpRencanaAksiFixture();
         config(['notifikasi.kanal.email.aktif' => true]);
         Http::preventStrayRequests();
+    }
+
+    public function test_saklar_dari_http_membatalkan_enqueue_dan_worker_tanpa_mengubah_objek_domain(): void
+    {
+        $this->seed(PengaturanSeeder::class);
+        $statusAwal = $this->rencanaAksi->status_alur;
+        $cancelled = $this->antre('pengembalian:kanal-mati');
+        $this->assertSame('dibatalkan', $cancelled->status);
+        $this->assertDatabaseCount('jobs', 0);
+        $provider = $this->provider();
+        foreach ([true, false] as $aktif) {
+            $setting = Pengaturan::where('kunci', 'notifikasi.kanal_email_aktif')->firstOrFail();
+            $this->actingAs($this->actor)->put('/pengaturan', [
+                'notifikasi.kanal_email_aktif' => $aktif,
+                'expected_updated_at' => ['notifikasi.kanal_email_aktif' => $setting->updated_at->toISOString()],
+            ])->assertRedirect('/pengaturan');
+            if ($aktif) {
+                $row = $this->antre('pengembalian:simulasi-diizinkan');
+                $this->assertSame('antre', $row->status);
+            }
+        }
+        $jobsAwal = DB::table('jobs')->count();
+        $baru = $this->antre('pengembalian:setelah-dimatikan-http');
+        $this->assertSame('dibatalkan', $baru->status);
+        $this->assertSame('kanal_nonaktif', $baru->kode_hasil);
+        $this->assertDatabaseCount('jobs', $jobsAwal);
+        $this->kirim($row);
+        $this->assertSame('kanal_nonaktif', $row->fresh()->kode_hasil);
+        $this->assertSame(0, $provider->calls);
+        $this->assertSame($statusAwal, $this->rencanaAksi->fresh()->status_alur);
+    }
+
+    public function test_halaman_status_berizin_memfilter_dan_tidak_mengirim_snapshot_atau_secret(): void
+    {
+        config(['notifikasi.kanal.email.credential' => 'SECRET-SINTETIS-228', 'inertia.ssr.enabled' => false]);
+        $row = $this->antre();
+        $this->kirim($row);
+        $response = $this->actingAs($this->actor)->get('/pengaturan/notifikasi/pengiriman?status=diterima_provider&kanal=email');
+        $response->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Pengaturan/PengirimanNotifikasi')
+            ->where('pengiriman.total', 1)
+            ->where('pengiriman.data.0.label_status', 'Simulasi diterima')
+            ->where('pengiriman.data.0.penerima_nama', $this->actor->nama)
+            ->where('filters.kanal', 'email')
+            ->missing('pengiriman.data.0.alamat')
+            ->missing('pengiriman.data.0.template')
+            ->missing('pengiriman.data.0.parameter')
+            ->missing('pengaturan.notifikasi')
+        );
+        $props = json_encode($response->original->getData()['page']['props']);
+        $this->assertStringNotContainsString('SECRET-SINTETIS-228', $props);
+        $settings = $this->actingAs($this->actor)->get('/pengaturan')->assertOk();
+        $this->assertStringNotContainsString('SECRET-SINTETIS-228', json_encode($settings->original->getData()['page']['props']));
+        $this->actingAs($this->actor)->getJson('/pengaturan/notifikasi/pengiriman?penerima=invalid')
+            ->assertUnprocessable()->assertJsonPath('errors.penerima.0', 'Gunakan ID akun SAKIP berformat UUID yang valid.');
+        $this->actingAs($this->actor)->getJson('/pengaturan/notifikasi/pengiriman?mulai=2026-11-06&selesai=2026-11-05')
+            ->assertUnprocessable()->assertJsonPath('errors.selesai.0', 'Tanggal akhir WITA tidak boleh sebelum tanggal awal.');
+        $this->actingAs($this->createUserWithRole('pegawai'))->get('/pengaturan/notifikasi/pengiriman')->assertForbidden();
     }
 
     public function test_kejadian_sama_hanya_membuat_satu_outbox_job_dan_indeks_unik_menolak_duplikasi(): void
