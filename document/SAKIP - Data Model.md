@@ -1311,6 +1311,16 @@ Modul setelan aplikasi bergaya key-value, menampung nilai identitas dan preferen
 
 ---
 
+**Grup notifikasi — refinement PM ISS-13.04 Q1–Q6 (diteruskan 7 November 2026):** pengecualian operasional terbatas dari cakupan presentasional di atas, tanpa kolom baru:
+
+| Kunci | Tipe | Default | Kontrak |
+|---|---|---|---|
+| `notifikasi.kanal_whatsapp_aktif` | boolean | `false` (`0` tersimpan) | Saklar dibaca langsung tanpa cache; fallback deployment bila baris belum ada/nilai NULL |
+| `notifikasi.kanal_email_aktif` | boolean | `false` (`0` tersimpan) | Kontrak sama; nilai aktif tersimpan `1` |
+| `notifikasi.jam_kirim` | string | kosong | `HH:MM` WITA atau kosong/NULL; accessor mengembalikan NULL untuk jam belum ditetapkan |
+
+Mutasi memakai whitelist, `pengaturan:update`, token versi per kunci, transaksi dan audit existing. Nilai boolean diserialisasikan konsisten menjadi `1`/`0`. Grup ini hanya dikirim pada halaman berizin, tidak lewat shared props. Tidak ada tipe/kunci credential maupun driver. Hari pengingat tidak disimpan di tabel ini: `config/notifikasi.php` menyediakan `h_minus.pic = [7,3,1]` dan `h_minus.rekap = [3,1]`, dibaca `KonfigurasiNotifikasi::hMinusPic()`/`hMinusRekap()` dan ditampilkan baca-saja. Baris `notifikasi.h_minus` lama, bila ada, tidak dibaca atau dimutasi; tidak diperlukan penghapusan data. Template bawaan menjadi milik producer dan dibekukan sesuai §2.40; pengelolaan template UI di luar ISS-13.04. Gate Q80 dan status simulasi mengikuti §2.40.
+
 ### 2.23 `rencana_aksi`
 
 Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerbang wajib sebelum pengukuran periode manapun pada indikator tersebut dapat diajukan (lihat §2.20).

@@ -6074,6 +6074,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-13.04 · [Feature] Konfigurasi Operasional Notifikasi Eksternal
 
+> **Penyesuaian refinement PM Q1–Q6 — 7 November 2026:** konfigurasi/status lokal disesuaikan dari grilling 6 November: H-minus berasal dari konfigurasi aplikasi (PIC `[7,3,1]`, rekap `[3,1]`), bukan whitelist `pengaturan`; mode mengikuti driver; penerima ditampilkan sebagai nama. Pengelolaan template dikeluarkan dari scope/DoD issue dan menjadi pekerjaan producer serta UI terpisah. #228 dapat selesai dengan `log` dan kanal default mati setelah verifikasi kontrak terbaru; template/provider nyata bukan gate merge. Kontrak terbaru diverifikasi lokal: backend terkait 116 tes/996 assertion, frontend terdampak 14 tes, serta smoke browser desktop/mobile. Bukti: laporan QA penyesuaian PM di luar repository. Bukan CI remote, UAT, delivery atau deployment. Integrasi pengembalian→outbox tetap #229 (ISS-12.06). Rujukan: PRD §26.8, Workflow §18.3, Data Model §2.22/§2.40, Plan 9.4–9.6/14.2–14.2.1, Refinement PM ISS-13.04 pada Keputusan Penyelarasan, dan `catatan-rilis-ISS-13.04.md`.
+
 **Terkait User Story:** `US-13.04`  
 **Prioritas:** 🟠 P2  
 **Story Points:** 5  
@@ -6086,60 +6088,63 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 #### User Story
 
 > **Sebagai** Admin/Superadmin bersama pengelola infrastruktur,  
-> **Saya ingin** mengaktifkan kanal, template, daftar H-minus, dan parameter non-rahasia,  
+> **Saya ingin** mengelola saklar kanal dan jam kirim, melihat hari pengingat tetap serta status pengiriman,
 > **Sehingga** integrasi WA/Email dapat dikelola tanpa menaruh credential di database biasa atau UI.
 
 #### Kontrak Teknis
 
-- **Dependensi:** Pemilik layanan/provider telah dipilih.
+- **Dependensi:** ISS-12.07 merge; provider nyata hanya untuk aktivasi (Q80 §80.1).
 - **Otorisasi:** `pengaturan:update` untuk saklar/parameter non-secret; secret melalui environment/secret management.
 - **Dampak Data:** `pengaturan` grup notifikasi + konfigurasi environment.
 
+**Batas scope:** template bawaan di kode ditetapkan masing-masing producer dan dibekukan saat antre. Editor template UI merupakan pekerjaan terpisah setelah provider dipilih. Template bukan gate penyelesaian #228; butir Template pesan Kesiapan Infrastruktur §3 tetap terbuka. Status pengiriman terpisah dari form Setelan, pagination 25, filter status/kanal/tanggal, nama penerima, label Simulasi diterima, tanpa alamat/template/parameter/retry UI.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given daftar H-minus default, Then nilai awal adalah `7,3,1` dan dapat dibaca scheduler.
-- [ ] **AC-2:** Given credential API, Then credential tidak ditampilkan di UI/log/audit dan disimpan lewat mekanisme secret yang sesuai.
-- [ ] **AC-3:** Given provider belum siap, Then saklar kanal dapat dinonaktifkan tanpa mengganggu alur bisnis inti.
-- [ ] **AC-4:** Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
+- [x] **AC-1:** Given konfigurasi aplikasi, Then accessor menghasilkan `[7,3,1]` untuk PIC dan `[3,1]` untuk rekap Perencanaan; keduanya tampil baca-saja dan tidak dapat dimutasi melalui whitelist `pengaturan`.
+- [x] **AC-2:** Given konfigurasi notifikasi, Then tidak ada jalur credential pada whitelist, form, props, log, dan audit; credential hanya melalui deployment, dengan kunci env ditambahkan saat provider dipilih.
+- [x] **AC-3:** Given kanal dimatikan lewat Setelan, When antre dipanggil untuk RA atau Pengukuran, Then outbox `dibatalkan`/`kanal_nonaktif` tanpa job; regresi pengembalian domain tetap hijau secara terpisah.
+- [x] **AC-4:** Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengaturan` grup notifikasi + konfigurasi environment.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `pengaturan` grup notifikasi + konfigurasi environment.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Konfigurasi Operasional Notifikasi Eksternal** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Konfigurasi Operasional Notifikasi Eksternal** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengaturan:update` untuk saklar/parameter non-secret; secret melalui environment/secret management.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengaturan:update` untuk saklar/parameter non-secret; secret melalui environment/secret management.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Konfigurasi Operasional Notifikasi Eksternal**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Konfigurasi Operasional Notifikasi Eksternal**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 **E. Integration / Operations**
-- [ ] Gunakan Laravel queue/worker dan scheduler sesuai Plan; credential provider disimpan di environment/secret manager, bukan `pengaturan` biasa.
-- [ ] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
+- [x] Verifikasi keterhubungan Setelan dengan enqueue/worker existing; scheduler dan integrasi producer tetap pada issue masing-masing. Credential/driver hanya melalui deployment, bukan `pengaturan` biasa.
+- [x] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given daftar H-minus default, Then nilai awal adalah `7,3,1` dan dapat dibaca scheduler.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given credential API, Then credential tidak ditampilkan di UI/log/audit dan disimpan lewat mekanisme secret yang sesuai.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given provider belum siap, Then saklar kanal dapat dinonaktifkan tanpa mengganggu alur bisnis inti.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
+- [x] TEST-1: Accessor konfigurasi aplikasi menghasilkan `[7,3,1]` untuk PIC dan `[3,1]` untuk rekap; baris H-minus lama tidak dibaca dan kunci H-minus tidak diterima whitelist. Tidak ada validasi daftar bebas.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given konfigurasi notifikasi, Then tidak ada jalur credential pada whitelist, form, props, log, dan audit; credential hanya melalui deployment, dengan kunci env ditambahkan saat provider dipilih.
+- [x] TEST-3: Matikan saklar kanal melalui Setelan, lalu panggil `AntrekanNotifikasiEksternal::antre` untuk RA atau Pengukuran: outbox `dibatalkan`, `kode_hasil=kanal_nonaktif`, tanpa job. Jalankan regresi pengembalian RA/Pengukuran existing secara terpisah; integrasi alur lengkap milik #229 (ISS-12.06).
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [x] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+
 
 ### ISS-13.05 · [Feature] Penyederhanaan Kewajiban Alasan
 

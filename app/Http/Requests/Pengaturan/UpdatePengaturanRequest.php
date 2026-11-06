@@ -182,6 +182,9 @@ class UpdatePengaturanRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'notifikasi.jam_kirim.date_format' => 'Gunakan jam WITA dalam format HH:MM, atau kosongkan jika belum ditetapkan.',
+            'notifikasi.kanal_email_aktif.boolean' => 'Pilih status kanal Email yang valid.',
+            'notifikasi.kanal_whatsapp_aktif.boolean' => 'Pilih status kanal WhatsApp yang valid.',
             'alasan.max' => 'Alasan pembaruan pengaturan maksimal :max karakter.',
             'instansi.nama.required' => 'Nama instansi wajib diisi.',
             'instansi.nama.max' => 'Nama instansi maksimal 255 karakter.',

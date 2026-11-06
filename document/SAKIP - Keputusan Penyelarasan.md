@@ -2629,3 +2629,34 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 - Q46 §46.3 tabel tahap 3; Q40 §40.2 butir 4 tetap berlaku.
 - PRD §33 tabel tahap; Plan Pengembangan "Tahap pengerjaan Q46 §46.3"; User Issues §4.1 tabel urutan pengerjaan; bagian "Di luar cakupan" US/ISS-02.10 dan US/ISS-02.11.
 - Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+---
+
+# Refinement ISS-13.04 — Konfigurasi dan Status Notifikasi Eksternal
+
+**Histori grilling — disepakati pengguna 6 November 2026 (WITA). Bagian sumber H-minus, kepemilikan template, dan perumusan TEST-3 digantikan refinement PM Q1–Q6 di bawah.** Memperjelas cakupan non-rahasia Setelan, mempertahankan hari Q4 dan gate Q80; tidak menyatakan pemilihan provider, UAT atau aktivasi nyata.
+
+1. Parameter non-rahasia dikelola melalui tab Notifikasi dengan `pengaturan:update`; credential dan adapter melalui deployment. Parameter notifikasi tidak masuk shared props lintas halaman.
+2. UI status pengiriman baca-saja termasuk ISS-13.04, memakai pembaca/filter/pagination existing; tidak ada tombol retry. Simulasi dan accepted/queued bukan bukti delivery.
+3. Hari pengingat PIC tetap `7,3,1` baca-saja dan ditegakkan server, bukan daftar bebas. Rekap Perencanaan tetap mengikuti H-3/H-1. Ambang urgensi banner in-app tidak diubah menjadi dispatch harian.
+4. Konfigurasi boleh diverifikasi dengan provider `log` sebelum provider nyata dipilih. Dua saklar default mati dapat diaktifkan untuk simulasi yang diberi label jelas. Aktivasi nyata menunggu seluruh bukti Q80 §80.1.
+5. Jam kirim WITA boleh kosong, berarti belum ditetapkan dan tidak mengizinkan dispatch EWS. Tidak menetapkan 08.00 sebagai requirement.
+6. Kontrak template disusun pada refinement masing-masing producer; substansi ditetapkan pemilik layanan bersama Perencanaan. Tidak mengarang isi, placeholder, default atau kunci template sebelum kontrak tersedia.
+7. Template tetap termasuk scope ISS-13.04. Konfigurasi/status dapat dikerjakan dan diverifikasi terpisah; issue tetap parsial sampai pengelolaan template terpenuhi.
+8. TEST-3 ISS-13.04 membuktikan Setelan→saklar→enqueue/worker serta menjalankan regresi pengembalian domain secara terpisah. Integrasi event pengembalian→outbox tetap ISS-12.06 dan tidak diklaim selesai oleh slice ini.
+
+Traceability: PRD §26.8; Data Model §2.22/§2.40; Workflow §18.3; Plan 9.4–9.5/14.2.1; US/ISS-13.04. Status implementasi mengikuti bukti verifikasi slice, bukan penyelesaian seluruh issue.
+
+
+## Refinement PM Q1–Q6 — keputusan yang berlaku untuk ISS-13.04
+
+Jawaban PM diteruskan pengguna pada 7 November 2026, lalu pengguna meminta penyesuaian implementasi. Ketentuan ini menggantikan bagian terkait pada histori grilling di atas; bukan bukti merge, UAT, deployment, pemilihan provider atau aktivasi nyata.
+
+1. **Q1 A:** grup `notifikasi` di Setelan hanya memuat saklar Email/WhatsApp dan jam kirim melalui `pengaturan:update`. Credential dan driver/adapter tetap konfigurasi deployment, tidak masuk whitelist. Nilai grup tidak masuk shared props. Q44 §44.2 hanya mengatur batas teknis unggahan, bukan saklar operasional; Workflow §18, Data Model §2.22 dan PRD diselaraskan.
+2. **Q2 A:** halaman status terpisah dan baca-saja memakai `PembacaStatusPengiriman`, filter status/kanal/tanggal dan pagination 25. Label **Simulasi diterima** bukan delivery. Tanpa tombol retry; retry operator melalui `queue:retry` mengikuti catatan rilis ISS-12.07. Alamat, template dan parameter tidak ditampilkan; presenter menambah nama bila penerima ditampilkan.
+3. **Q3 A:** hari mengikuti Q4: PIC `[7,3,1]`, rekap Perencanaan `[3,1]`. Sumber konfigurasi aplikasi, bukan whitelist/tabel `pengaturan`; kedua daftar tampil baca-saja. TEST-1 membuktikan kedua accessor. Test validasi daftar bebas dihapus dan kunci H-minus ditolak sebagai kunci asing. Perubahan hari memerlukan revisi Q4 dan konfirmasi Perencanaan; Plan 9.6 tetap berlaku.
+4. **Q4 A:** #228 dapat selesai dengan provider `log`, dua kanal mati secara default. Mode simulasi mengikuti driver konfigurasi tanpa nilai credential. AC-2 dibuktikan dengan tidak adanya jalur credential di whitelist, form, props, log dan audit; kunci env credential ditambahkan saat provider dipilih. Dependensi: ISS-12.07 merge; provider nyata hanya untuk aktivasi Q80 §80.1, bukan gate merge #228.
+5. **Q5 C:** pengelolaan template dikeluarkan dari scope dan DoD #228/US-13.04/Plan 14.2. Isi pesan/placeholder ditetapkan masing-masing producer sebagai template bawaan di kode, dibekukan saat antre sesuai ISS-12.07. Pengelolaan template UI menjadi pekerjaan tersendiri setelah provider dipilih. Butir Template pesan pada Kesiapan Infrastruktur §3 tetap terbuka.
+6. **Q6 A:** TEST-3: Given saklar dimatikan lewat Setelan, When `AntrekanNotifikasiEksternal::antre` dipanggil untuk RA atau Pengukuran, Then outbox `dibatalkan` dengan `kanal_nonaktif` tanpa job; test pengembalian RA/Pengukuran existing tetap hijau secara terpisah. Integrasi pengembalian→outbox dengan status domain tetap `dikembalikan` dan outbox `dibatalkan` dibuktikan #229 (ISS-12.06); #228 tidak mengklaim pengujian alur lengkap.
+
+Jam WITA boleh kosong seperti keputusan sebelumnya; tidak menetapkan jam baru. Aktivasi nyata tetap menunggu seluruh gate Q80 §80.1. Traceability: PRD §26.8; Data Model §2.22/§2.40; Workflow §18.3; Plan 9.4–9.6/14.2–14.2.1; US/ISS-13.04.

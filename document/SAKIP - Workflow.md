@@ -2047,6 +2047,14 @@ flowchart TD
 
 ---
 
+### 18.3 Konfigurasi dan status notifikasi eksternal (ISS-13.04)
+
+Refinement PM Q1–Q6 (diteruskan pengguna 7 November 2026) memperjelas pengecualian operasional dari batas presentasional di atas: pemegang `pengaturan:update` mengubah hanya dua saklar kanal dan jam WITA melalui whitelist, token versi, otorisasi ulang, transaksi dan audit existing. Credential/adapter tetap deployment; grup notifikasi tidak masuk shared props. Hari PIC H-7/H-3/H-1 dan rekap Perencanaan H-3/H-1 berasal dari konfigurasi aplikasi melalui accessor, bukan dari `pengaturan`, dan tampil baca-saja. Jam kosong berarti belum ditetapkan sehingga pengingat terjadwal belum didispatch.
+
+ISS-13.04 dapat selesai dengan provider `log` dan kedua kanal default mati; mode simulasi diturunkan dari driver konfigurasi. Saklar efektif dibaca tanpa cache saat antre dan sebelum setiap upaya. Kanal mati menghasilkan pembatalan terminal `dibatalkan`/`kanal_nonaktif` tanpa job baru/panggilan provider; pengaktifan kanal tidak memutar ulang pesan lama. Halaman status terpisah, baca-saja melalui pembaca Data Model §2.40, filter status/kanal/tanggal dan pagination 25; nama penerima boleh tampil tanpa alamat, template atau parameter. Label **Simulasi diterima** bukan delivery. Tidak ada aksi retry UI; operator mengikuti `queue:retry` sesuai catatan rilis ISS-12.07. Aktivasi nyata menunggu Q80.
+
+Template di luar scope dan DoD ISS-13.04: masing-masing producer menetapkan isi/placeholder dan template bawaan di kode, dibekukan saat antre; pengelolaan UI adalah pekerjaan terpisah setelah provider dipilih. Butir Template pesan pada Kesiapan Infrastruktur §3 tetap terbuka. TEST-3 membuktikan kanal dimatikan lewat Setelan sebelum memanggil antre dan tidak menghasilkan job baru. Regresi pengembalian RA/Pengukuran tetap terpisah; integrasi pengembalian → outbox berstatus `dibatalkan` dengan status domain tetap `dikembalikan` dibuktikan ISS-12.06 (#229).
+
 ## 19. Alur Evaluasi Permission Saat Request
 
 Resolver authorization selalu bekerja server-side.

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pengaturan;
 
 use App\Http\Controllers\Controller;
 use App\Services\Authorization\PermissionResolver;
+use App\Services\Notifikasi\KonfigurasiNotifikasi;
 use App\Services\Pengaturan\PengaturanService;
 use App\Support\PermissionCodes;
 use Illuminate\Http\Request;
@@ -31,6 +32,14 @@ class IndexPengaturan extends Controller
         return Inertia::render('Pengaturan/Index', [
             'grouped' => $data['grouped'],
             'values' => $data['values'],
+            'notifikasi' => [
+                'h_minus_pic' => app(KonfigurasiNotifikasi::class)->hMinusPic(),
+                'h_minus_rekap' => app(KonfigurasiNotifikasi::class)->hMinusRekap(),
+                'simulasi' => [
+                    'email' => config('notifikasi.kanal.email.driver') === 'log',
+                    'whatsapp' => config('notifikasi.kanal.whatsapp.driver') === 'log',
+                ],
+            ],
         ]);
     }
 }

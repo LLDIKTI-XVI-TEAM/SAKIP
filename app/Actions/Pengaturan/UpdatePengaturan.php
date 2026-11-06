@@ -12,10 +12,12 @@ use App\Services\Pengaturan\PengaturanService;
 use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -52,6 +54,15 @@ class UpdatePengaturan
                 $invalidKey => "Kunci pengaturan '{$invalidKey}' tidak diizinkan untuk diubah.",
             ]);
         }
+
+        // Kontrak parameter operasional juga ditegakkan untuk pemanggil di luar HTTP.
+        $rules = [];
+        foreach ($data as $key => $value) {
+            if (PengaturanService::WHITELIST[$key]['grup'] === 'notifikasi') {
+                $rules[$key] = PengaturanService::WHITELIST[$key]['aturan'];
+            }
+        }
+        Validator::make(Arr::undot($data), $rules)->validate();
 
         $changedCount = 0;
         $changedKeys = [];
@@ -105,7 +116,9 @@ class UpdatePengaturan
                     DB::select('select pg_advisory_xact_lock(hashtextextended(?, 0))', ['sakip:pengaturan:'.$kunci]);
                 }
 
-                $nilaiBaruStr = $nilaiBaru !== null ? (string) $nilaiBaru : null;
+                $nilaiBaruStr = PengaturanService::WHITELIST[$kunci]['tipe'] === 'boolean'
+                    ? ($nilaiBaru ? '1' : '0')
+                    : ($nilaiBaru !== null ? (string) $nilaiBaru : null);
 
                 $setting = Pengaturan::query()->lockForUpdate()->firstOrNew(['kunci' => $kunci]);
 
