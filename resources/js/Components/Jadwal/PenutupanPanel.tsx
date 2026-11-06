@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Button } from '@/Components/Button';
-import { Card, CardContent, CardHeader } from '@/Components/Card';
+import { Card, CardContent } from '@/Components/Card';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 
 interface PenutupanPanelProps {
@@ -19,6 +19,7 @@ export function PenutupanPanel({ jadwalId, tahun, revisi }: PenutupanPanelProps)
     const [open, setOpen] = useState(false);
     const [unknown, setUnknown] = useState(false);
     const recovery = useAuthRecovery();
+    const judulId = useId();
     const form = useForm({ alasan: '' });
     const errors = form.errors as Record<string, string | undefined>;
     const serverErrors = Object.entries(errors).filter(([field]) => field !== 'alasan');
@@ -49,14 +50,28 @@ export function PenutupanPanel({ jadwalId, tahun, revisi }: PenutupanPanelProps)
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <h2 className="font-semibold">Penutupan jadwal</h2>
-            </CardHeader>
+        // Aksi berbahaya terakhir di halaman: satu baris ringkas, dampaknya terbaca sebelum tombol ditekan.
+        <Card role="region" aria-labelledby={judulId} className="border-danger/30">
             <CardContent className="space-y-3 p-4 sm:p-5">
-                <p className="text-sm">
-                    Setelah ditutup, Rencana Aksi, bukti, pengukuran, dan kegiatan tahun {tahun} tidak dapat diubah melalui pengisian biasa. Data tetap dapat dibaca.
-                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <h2 id={judulId} className="font-semibold">
+                            Tutup jadwal {tahun}
+                        </h2>
+                        <p className="mt-1 text-sm text-muted">
+                            Setelah ditutup, Rencana Aksi, bukti, pengukuran, dan kegiatan tahun {tahun} tidak dapat diubah melalui pengisian biasa. Data tetap dapat dibaca.
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="danger"
+                        className="w-full shrink-0 sm:w-auto"
+                        disabled={unknown || Boolean(recovery.recovery)}
+                        onClick={() => setOpen(true)}
+                    >
+                        Tutup jadwal
+                    </Button>
+                </div>
                 <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
                 {unknown && (
                     <div role="alert" className="space-y-1 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
@@ -66,11 +81,6 @@ export function PenutupanPanel({ jadwalId, tahun, revisi }: PenutupanPanelProps)
                         </Link>
                     </div>
                 )}
-                <div className="flex justify-end">
-                    <Button type="button" variant="danger" disabled={unknown || Boolean(recovery.recovery)} onClick={() => setOpen(true)}>
-                        Tutup Jadwal
-                    </Button>
-                </div>
             </CardContent>
             <AuditReasonModal
                 open={open}
@@ -87,7 +97,7 @@ export function PenutupanPanel({ jadwalId, tahun, revisi }: PenutupanPanelProps)
                         ))}
                     </div>
                 )}
-                confirmLabel="Tutup Jadwal"
+                confirmLabel="Tutup jadwal"
                 destructive
                 onReasonChange={(value) => form.setData('alasan', value)}
                 onClose={() => !form.processing && setOpen(false)}

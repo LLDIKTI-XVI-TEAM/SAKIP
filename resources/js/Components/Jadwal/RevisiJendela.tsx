@@ -3,7 +3,7 @@ import { Link, useForm } from '@inertiajs/react';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Button } from '@/Components/Button';
-import { Card, CardContent, CardHeader } from '@/Components/Card';
+import { Card, CardContent } from '@/Components/Card';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { waktu } from '@/Components/Jadwal/SesiKoreksiPanel';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
@@ -11,29 +11,6 @@ import type { JadwalPeriode, SesiKoreksi } from '@/types/periode-jadwal';
 
 const tanggal = ['pengisian_mulai', 'pengisian_selesai'] as const;
 const linkClass = 'text-sm font-medium text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/30 rounded';
-
-export function RevisiJendelaPanel({ tahun, dalamSesi = false, onStart }: { tahun: number; dalamSesi?: boolean; onStart: () => void }) {
-    return (
-        <Card>
-            <CardHeader>
-                <h2 className="font-semibold">Revisi jendela PIC</h2>
-            </CardHeader>
-            <CardContent className="space-y-3 p-4 sm:p-5">
-                <p className="text-sm">
-                    {dalamSesi
-                        ? `Buka jendela pengisian PIC tahun ${tahun} di dalam sesi koreksi yang berjalan.`
-                        : `Perpanjang atau buka ulang jendela pengisian periode tahun ${tahun} secara resmi.`}{' '}
-                    Revisi wajib beralasan dan tercatat di jejak audit.
-                </p>
-                <div className="flex justify-end">
-                    <Button id="revisi-jendela-mulai" type="button" onClick={onStart}>
-                        Revisi Jendela PIC
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
 
 interface RevisiJendelaProps {
     jadwalId: string;
@@ -126,6 +103,12 @@ export function RevisiJendela({ jadwalId, tahun, revisi, periode, koreksi = null
             />
             <Card>
                 <CardContent className="space-y-3 p-4 sm:p-5">
+                    <p className="text-sm font-semibold">
+                        {koreksi?.status === 'berjalan'
+                            ? `Buka jendela pengisian PIC tahun ${tahun} di dalam sesi koreksi yang berjalan.`
+                            : `Perpanjang atau buka ulang jendela pengisian periode tahun ${tahun} secara resmi.`}{' '}
+                        Revisi wajib beralasan dan tercatat di jejak audit.
+                    </p>
                     <p className="text-sm">
                         Ubah tanggal yang perlu direvisi. Batas baru langsung berlaku bagi PIC; penugasan, izin unit, dan
                         status data tetap diperiksa.

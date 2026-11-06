@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Info, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -30,6 +30,8 @@ interface JendelaPeriodeProps {
     onAdd: (periodeId: string) => void;
     onRemove: (periodeId: string) => void;
     onChange: (periodeId: string, field: (typeof windowFields)[number]['key'], value: string) => void;
+    /** Aksi di header kartu saat tabel tidak dapat disusun (mis. tombol revisi jendela PIC). */
+    aksi?: ReactNode;
 }
 
 export function JendelaPeriode({
@@ -44,8 +46,10 @@ export function JendelaPeriode({
     onAdd,
     onRemove,
     onChange,
+    aksi,
 }: JendelaPeriodeProps) {
     const [pilihan, setPilihan] = useState('');
+    const judulId = useId();
     const tambah = () => {
         const target = options.length > 1 ? 'tambah-periode' : `periode-${pilihan}-pengisian_mulai`;
         onAdd(pilihan);
@@ -55,9 +59,12 @@ export function JendelaPeriode({
     };
 
     return (
-        <Card>
+        <Card role="region" aria-labelledby={judulId}>
             <CardHeader>
-                <h2 className="font-semibold">Jendela periode</h2>
+                <h2 id={judulId} className="font-semibold">
+                    Jendela periode
+                </h2>
+                {!editable && aksi}
                 {editable && (
                     <div className="flex w-full items-start gap-2 sm:w-auto">
                         <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">

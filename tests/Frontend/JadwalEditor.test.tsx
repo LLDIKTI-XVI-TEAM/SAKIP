@@ -196,7 +196,7 @@ it('rentang periode tampil pada tahun jadwal, termasuk periode yang baru ditamba
 
     const izinRevisi = { create: false, update: false, activate: false, close: false, revise_windows: true, reopen: false, tambah_indikator: false };
     render(<Editor {...props} jadwal={{ ...jadwal, status: 'aktif' }} read_only_reason="Jadwal aktif." can={izinRevisi} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Revisi jendela PIC' }));
     expect(screen.getByRole('button', { name: 'Simpan revisi' })).toBeTruthy();
     expect(screen.getByText('1 Okt–31 Des 2026')).toBeTruthy();
 });
@@ -521,17 +521,61 @@ it('panel penutupan hanya untuk can.close dan mengirim revisi tampil serta alasa
     const aktif = { ...jadwal, status: 'aktif' as const };
     const readOnly = 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.';
     const { unmount } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ create: false, update: false, activate: false, close: false, revise_windows: false, reopen: false, tambah_indikator: false }} />);
-    expect(screen.queryByRole('button', { name: 'Tutup Jadwal' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tutup jadwal' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Tutup jadwal 2026' })).toBeNull();
     unmount();
 
     render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ create: false, update: false, activate: false, close: true, revise_windows: false, reopen: false, tambah_indikator: false }} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Tutup Jadwal' }));
+    // Satu baris ringkas: judul dan dampak penutupan terbaca sebelum tombol ditekan, tanpa kartu "Penutupan jadwal" lama.
+    expect(screen.queryByRole('heading', { name: 'Penutupan jadwal' })).toBeNull();
+    const baris = screen.getByRole('region', { name: 'Tutup jadwal 2026' });
+    expect(baris.textContent).toContain('Data tetap dapat dibaca.');
+    await userEvent.click(within(baris).getByRole('button', { name: 'Tutup jadwal' }));
     const dialog = screen.getByRole('dialog');
-    const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Tutup Jadwal' });
+    const confirm = within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Tutup jadwal' });
     expect(confirm.disabled).toBe(true);
     await userEvent.type(within(dialog).getByRole('textbox'), 'Tahun pelaporan 2026 selesai.');
     await userEvent.click(confirm);
     expect(router.post).toHaveBeenCalledWith('/jadwal/jadwal-1/tutup', { expected_revisi: 4, alasan: 'Tahun pelaporan 2026 selesai.' }, expect.anything());
+
+    // Hasil ambigu tetap diumumkan di baris yang sama dan tombol terkunci agar tidak dikirim ulang.
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => {
+        options?.onNetworkError?.(new Error('offline') as never);
+    });
+    expect(within(baris).getByRole('alert').textContent).toContain('Hasil penutupan belum terkonfirmasi');
+    expect(within(baris).getByRole<HTMLButtonElement>('button', { name: 'Tutup jadwal' }).disabled).toBe(true);
+});
+it('baris tutup jadwal tetap paling bawah saat sesi koreksi berjalan', () => {
+    const aktif = { ...jadwal, status: 'aktif' as const };
+    const koreksi = { status: 'berjalan' as const, mulai: '2027-01-25T00:00:00+00:00', sampai: '2027-02-10T09:00:00+00:00',
+        lingkup: { jenis_objek: ['pengukuran'], indikator_ids: ['indikator-1'], periode_ids: ['periode-1'] } };
+    const can = { create: false, update: false, activate: false, close: true, revise_windows: true, reopen: false, tambah_indikator: false };
+    render(<Editor {...props} jadwal={aktif} koreksi={koreksi} read_only_reason="Hanya baca." can={can} />);
+
+    const sesi = screen.getByRole('heading', { name: 'Sesi koreksi perencanaan' });
+    const tutup = screen.getByRole('region', { name: 'Tutup jadwal 2026' });
+    expect(sesi.compareDocumentPosition(tutup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+it('tombol revisi jendela PIC berada di kartu Jendela periode tanpa kartu terpisah', async () => {
+    const aktif = { ...jadwal, status: 'aktif' as const };
+    const can = { create: false, update: false, activate: false, close: false, revise_windows: true, reopen: false, tambah_indikator: false };
+    render(<Editor {...props} jadwal={aktif} read_only_reason="Hanya baca." can={can} />);
+
+    expect(screen.queryByRole('heading', { name: 'Revisi jendela PIC' })).toBeNull();
+    const kartu = screen.getByRole('region', { name: 'Jendela periode' });
+    await userEvent.click(within(kartu).getByRole('button', { name: 'Revisi jendela PIC' }));
+
+    // Penjelasan dampak pindah ke mode revisi agar tetap terbaca sebelum menyimpan.
+    expect(screen.getByText(/Perpanjang atau buka ulang jendela pengisian periode tahun 2026 secara resmi/).textContent).toContain(
+        'Revisi wajib beralasan dan tercatat di jejak audit.',
+    );
+    await waitFor(() => expect(document.activeElement?.id).toBe('periode-periode-1-pengisian_mulai'));
+    await userEvent.click(screen.getByRole('button', { name: 'Batal' }));
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('Revisi jendela PIC'));
+    expect(within(screen.getByRole('region', { name: 'Jendela periode' })).getByRole('button', { name: 'Revisi jendela PIC' })).toBe(
+        document.activeElement,
+    );
 });
 it('panel tambah indikator hanya untuk can.tambah_indikator yang memiliki kandidat', () => {
     const aktif = { ...jadwal, status: 'aktif' as const };
@@ -554,17 +598,17 @@ it('revisi jendela PIC hanya untuk can.revise_windows, mengubah tanggal saja, da
     const readOnly = 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.';
     const tanpaIzin = { create: false, update: false, activate: false, close: false, revise_windows: false, reopen: false, tambah_indikator: false };
     const { unmount } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={tanpaIzin} />);
-    expect(screen.queryByRole('button', { name: 'Revisi Jendela PIC' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Revisi jendela PIC' })).toBeNull();
     expect(screen.getByLabelText<HTMLInputElement>('Triwulan I: Selesai pengisian').disabled).toBe(true);
     unmount();
 
     render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={{ ...tanpaIzin, revise_windows: true, reopen: false, tambah_indikator: false }} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Revisi jendela PIC' }));
     const simpan = screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan revisi' });
     expect(simpan.disabled).toBe(true);
     expect(screen.queryByRole('button', { name: /dari draft/ })).toBeNull();
     expect(screen.queryByLabelText('Pilih periode')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Revisi Jendela PIC' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Revisi jendela PIC' })).toBeNull();
     const selesai = screen.getByLabelText<HTMLInputElement>('Triwulan I: Selesai pengisian');
     expect(selesai.disabled).toBe(false);
     expect(screen.queryAllByLabelText(/review/i)).toHaveLength(0);
@@ -600,7 +644,7 @@ it('revisi jendela PIC hanya untuk can.revise_windows, mengubah tanggal saja, da
     expect(typeof preserveState === 'function' && preserveState(page({ success: 'Jendela PIC berhasil direvisi.' }))).toBe(false);
 
     await userEvent.click(screen.getByRole('button', { name: 'Batal' }));
-    expect(screen.getByRole('button', { name: 'Revisi Jendela PIC' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Revisi jendela PIC' })).toBeTruthy();
 });
 it('revisi jendela PIC di dalam sesi koreksi menampilkan rentang sesi dan periode lingkup', async () => {
     const aktif = { ...jadwal, status: 'aktif' as const };
@@ -609,8 +653,8 @@ it('revisi jendela PIC di dalam sesi koreksi menampilkan rentang sesi dan period
     const can = { create: false, update: false, activate: false, close: false, revise_windows: true, reopen: false, tambah_indikator: false };
     render(<Editor {...props} jadwal={aktif} koreksi={koreksi} read_only_reason="Hanya baca." can={can} />);
 
-    expect(screen.getByText(/di dalam sesi koreksi yang berjalan/)).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Revisi jendela PIC' }));
+    expect(screen.getByText(/Buka jendela pengisian PIC tahun 2026 di dalam sesi koreksi yang berjalan/)).toBeTruthy();
     expect(screen.getByText(/Kedua tanggal jendela wajib berada di dalam sesi ini/).textContent).toContain('25 Jan 2027');
     expect(screen.getByText(/Periode yang dapat dibuka/).textContent).toBe('Periode yang dapat dibuka: Triwulan I.');
     // Aturan tahun berikutnya tidak berlaku di dalam sesi sehingga catatannya disembunyikan.
@@ -633,7 +677,7 @@ it('revisi jendela PIC tetap mengirim token baseline form setelah ditolak basi d
     const readOnly = 'Jadwal aktif, ditutup, atau pernah diaktifkan hanya dapat dibaca.';
     const can = { create: false, update: false, activate: false, close: false, revise_windows: true, reopen: false, tambah_indikator: false };
     const { rerender } = render(<Editor {...props} jadwal={aktif} read_only_reason={readOnly} can={can} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Revisi Jendela PIC' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Revisi jendela PIC' }));
     fireEvent.change(screen.getByLabelText('Triwulan I: Selesai pengisian'), { target: { value: '2026-04-12' } });
     const kirim = async () => {
         await userEvent.click(screen.getByRole('button', { name: 'Simpan revisi' }));
