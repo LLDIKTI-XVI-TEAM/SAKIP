@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Check, Layers } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Check, Layers } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
@@ -11,7 +11,7 @@ import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
 import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
 import { PenutupanPanel } from '@/Components/Jadwal/PenutupanPanel';
 import { SesiKoreksiPanel } from '@/Components/Jadwal/SesiKoreksiPanel';
-import { RevisiJendela, RevisiJendelaPanel } from '@/Components/Jadwal/RevisiJendela';
+import { RevisiJendela } from '@/Components/Jadwal/RevisiJendela';
 import { TambahIndikatorPanel } from '@/Components/Jadwal/TambahIndikatorPanel';
 import { Select } from '@/Components/Select';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
@@ -185,7 +185,10 @@ function JadwalEditor({
                     Kembali ke daftar
                 </Link>
                 {jadwal && jadwal.status !== 'draft' && (
-                    <Link href={`/jadwal/${jadwal.id}/snapshot`} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                    <Link
+                        href={`/jadwal/${jadwal.id}/snapshot`}
+                        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                    >
                         <Layers className="h-4 w-4" aria-hidden="true" />
                         Snapshot indikator
                     </Link>
@@ -339,6 +342,27 @@ function JadwalEditor({
                         }
                         onAdd={addPeriode}
                         onRemove={removePeriode}
+                        aksi={
+                            jadwal &&
+                            can.revise_windows && (
+                                <Button
+                                    id="revisi-jendela-mulai"
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setRevising(true);
+                                        const first = jadwal.periode[0]?.periode_id;
+                                        requestAnimationFrame(() =>
+                                            document.getElementById(`periode-${first}-pengisian_mulai`)?.focus(),
+                                        );
+                                    }}
+                                >
+                                    <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                                    Revisi jendela PIC
+                                </Button>
+                            )
+                        }
                         onChange={(periodeId, field, value) =>
                             form.setData((data) => ({
                                 ...data,
@@ -378,19 +402,6 @@ function JadwalEditor({
                     />
                 </div>
             )}
-            {jadwal && can.revise_windows && !revising && (
-                <div className="mt-5">
-                    <RevisiJendelaPanel
-                        tahun={jadwal.tahun}
-                        dalamSesi={koreksi?.status === 'berjalan'}
-                        onStart={() => {
-                            setRevising(true);
-                            const first = jadwal.periode[0]?.periode_id;
-                            requestAnimationFrame(() => document.getElementById(`periode-${first}-pengisian_mulai`)?.focus());
-                        }}
-                    />
-                </div>
-            )}
             {jadwal && can.tambah_indikator && indikator_belum_terjadwal.length > 0 && (
                 <div className="mt-5">
                     <TambahIndikatorPanel
@@ -403,15 +414,16 @@ function JadwalEditor({
                     />
                 </div>
             )}
+            {jadwal && (can.reopen || koreksi) && <div className="mt-5">
+                <SesiKoreksiPanel jadwalId={jadwal.id} revisi={jadwal.revisi} canReopen={can.reopen} koreksi={koreksi}
+                    indikator={koreksi_indikator_options} periode={jadwal.periode} />
+            </div>}
+            {/* Penutupan selalu aksi terakhir, termasuk saat sesi koreksi berjalan. */}
             {jadwal && can.close && (
                 <div className="mt-5">
                     <PenutupanPanel jadwalId={jadwal.id} tahun={jadwal.tahun} revisi={jadwal.revisi} />
                 </div>
             )}
-            {jadwal && (can.reopen || koreksi) && <div className="mt-5">
-                <SesiKoreksiPanel jadwalId={jadwal.id} revisi={jadwal.revisi} canReopen={can.reopen} koreksi={koreksi}
-                    indikator={koreksi_indikator_options} periode={jadwal.periode} />
-            </div>}
         </AuthenticatedLayout>
     );
 }
