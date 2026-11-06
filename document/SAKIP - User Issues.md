@@ -5794,14 +5794,18 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-12.07 · [Infrastructure] Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
 
+> **Refinement #227 — keputusan PM 4 November 2026 (Q1–Q8), dilengkapi [keputusan PM 5 November 2026 (Q9–Q10)](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/248#issuecomment-6637902148):** outbox–job atomik pada koneksi aplikasi, queue database `after_commit=false`; side effect oleh worker setelah commit. Saklar dan akun aktif/Policy view dibaca ulang tiap upaya. Pembatalan terminal; kontak tidak valid gagal permanen per kanal. Hasil ambigu `perlu_rekonsiliasi`, tanpa retry buta. Retry manual bawaan hanya untuk kegagalan sementara exhausted yang dipastikan belum diterima, dengan percobaan kumulatif. Template/parameter/alamat dibekukan saat antre. Simulasi tersimpan dan tidak membuktikan delivery. UI milik #228; fondasi menyediakan query/presenter berizin `pengaturan:update` dan command pemulihan orphan. Detail: Data Model §2.40, Plan 14.2.1, ADR-0010, `catatan-rilis-ISS-12.07.md`.
+>
+> **Bukti lokal:** test fitur `NotifikasiEksternalTest` dan race dua proses PostgreSQL `NotifikasiConcurrencyTest` melindungi kontrak tersebut. Hasil gate lengkap dicatat pada laporan kerja/PR; catatan ini bukan klaim exact-HEAD CI, UAT, atau aktivasi kanal.
+
 **Terkait User Story:** `US-12.07`  
 **Prioritas:** 🟠 P2  
 **Story Points:** 5  
 **Labels:** `infrastructure`, `notification`, `P2`, `backend`, `ops`  
-**Plan:** Modul 14: 14.2  
-**PRD:** §28  
-**Workflow:** —  
-**Data Model/Entitas:** delivery/idempotency
+**Plan:** Modul 14: 14.2.1  
+**PRD:** §28, Q4/Q46/Q80  
+**Workflow:** — (fondasi background; bukan §22.2)  
+**Data Model/Entitas:** §2.40 `notifikasi_pengiriman`
 
 #### User Story
 
@@ -5817,10 +5821,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given event yang sama diproses lebih dari sekali, Then idempotency key event-penerima-periode-channel mencegah duplikasi.
-- [ ] **AC-2:** Given provider timeout/error, Then retry mengikuti kebijakan terkontrol dan secret tidak masuk log.
-- [ ] **AC-3:** Given provider hanya mengembalikan accepted/queued, Then sistem tidak menyebut status tersebut sebagai delivered ke penerima.
-- [ ] **AC-4:** Given credential/provider belum ditetapkan, Then fitur integrasi nyata belum dianggap siap produksi walaupun unit test lulus.
+- [x] **AC-1:** Given event yang sama diproses lebih dari sekali, Then idempotency key event-penerima-periode-channel mencegah duplikasi.
+- [x] **AC-2:** Given provider timeout/error, Then retry mengikuti kebijakan terkontrol dan secret tidak masuk log.
+- [x] **AC-3:** Given provider hanya mengembalikan accepted/queued, Then sistem tidak menyebut status tersebut sebagai delivered ke penerima.
+- [x] **AC-4:** Given credential/provider belum ditetapkan, Then fitur integrasi nyata belum dianggap siap produksi walaupun unit test lulus.
 
 #### Implementation Tasks
 
@@ -5840,10 +5844,10 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given event yang sama diproses lebih dari sekali, Then idempotency key event-penerima-periode-channel mencegah duplikasi.
-- [ ] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider timeout/error, Then retry mengikuti kebijakan terkontrol dan secret tidak masuk log.
-- [ ] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider hanya mengembalikan accepted/queued, Then sistem tidak menyebut status tersebut sebagai delivered ke penerima.
-- [ ] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given credential/provider belum ditetapkan, Then fitur integrasi nyata belum dianggap siap produksi walaupun unit test lulus.
+- [x] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given event yang sama diproses lebih dari sekali, Then idempotency key event-penerima-periode-channel mencegah duplikasi.
+- [x] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider timeout/error, Then retry mengikuti kebijakan terkontrol dan secret tidak masuk log.
+- [x] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider hanya mengembalikan accepted/queued, Then sistem tidak menyebut status tersebut sebagai delivered ke penerima.
+- [x] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given credential/provider belum ditetapkan, Then fitur integrasi nyata belum dianggap siap produksi walaupun unit test lulus.
 
 #### Definition of Done
 
@@ -6836,7 +6840,7 @@ Decision gate dianggap selesai bila:
 | `US-12.04` | `ISS-12.04` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
 | `US-12.05` | `ISS-12.05` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
 | `US-12.06` | `ISS-12.06` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
-| `US-12.07` | `ISS-12.07` | Modul 14: 14.2 | §28 | — | ✅ 1:1 |
+| `US-12.07` | `ISS-12.07` | Modul 14: 14.2.1 | §28, Q4/Q46/Q80 | — (fondasi operasional) | ✅ 1:1 |
 | `US-13.01` | `ISS-13.01` | Modul 9: 9.1–9.6 | §26 | §18 | ✅ 1:1 |
 | `US-13.02` | `ISS-13.02` | Modul 9: 9.7–9.9 | §18.9, §26 | §18 | ✅ 1:1 |
 | `US-13.03` | `ISS-13.03` | Modul 10: 10.1–10.6 | §25 | §19–20 | ✅ 1:1 |
