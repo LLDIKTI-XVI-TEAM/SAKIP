@@ -2,6 +2,7 @@
 
 namespace App\Actions\Pengukuran;
 
+use App\Events\PengukuranDikembalikan;
 use App\Models\PengukuranKinerja;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -24,9 +25,12 @@ class ReturnPengukuran
                     throw ValidationException::withMessages(['catatan' => 'Alasan pengembalian wajib diisi.']);
                 }
                 $p->status_alur = 'dikembalikan';
-
-                return $this->steps->finish($actor, $p, 'pengukuran.kembalikan', $reason, $decision, $before,
+                $p = $this->steps->finish($actor, $p, 'pengukuran.kembalikan', $reason, $decision, $before,
                     ['self_approval' => false]);
+                // PJ dibaca saat pengembalian (indikator terkunci bersama); event diteruskan setelah commit.
+                PengukuranDikembalikan::dispatch($p->id, $p->versi, $p->effectivePic()?->user_id, $actor->id, $reason);
+
+                return $p;
             });
         } catch (Throwable $exception) {
             $this->steps->compensate($actor, $id, 'kembalikan', null, $decision, $exception);

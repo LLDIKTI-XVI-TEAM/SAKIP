@@ -65,7 +65,21 @@ class HandleInertiaRequests extends Middleware
                 'message' => fn () => $request->session()->get('message'),
             ],
             'pengaturan' => fn () => app(PengaturanService::class)->allValues(),
+            'notifikasi_belum_dibaca' => fn () => $this->notifikasiBelumDibaca($request->user()),
         ];
+    }
+
+    /**
+     * Angka lonceng: hanya untuk akun aktif berperan aktif (satu cek peran + satu COUNT berindeks per request);
+     * null untuk tamu, akun nonaktif, dan akun tanpa peran karena mereka tidak boleh membuka daftar notifikasi.
+     */
+    private function notifikasiBelumDibaca(?User $user): ?int
+    {
+        if ($user === null || $user->status !== 'aktif' || app(PermissionResolver::class)->penggunaBerperanAktif([$user->id]) === []) {
+            return null;
+        }
+
+        return $user->unreadNotifications()->count();
     }
 
     /** @return array<string, bool> */

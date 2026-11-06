@@ -8,6 +8,7 @@ let mockPengaturan: Record<string, unknown> = {
 let mockUrl = '/pengaturan';
 let mockCan: Record<string, boolean> = { dashboard: true, pengaturan: true };
 let mockRole = 'admin';
+let mockNotifikasi: number | null = 0;
 
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const original = await importOriginal<typeof import('@inertiajs/react')>();
@@ -26,6 +27,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                 },
                 flash: {},
                 pengaturan: mockPengaturan,
+                notifikasi_belum_dibaca: mockNotifikasi,
             },
             url: mockUrl,
         }),
@@ -67,6 +69,46 @@ afterEach(() => {
     mockUrl = '/pengaturan';
     mockCan = { dashboard: true, pengaturan: true };
     mockRole = 'admin';
+    mockNotifikasi = 0;
+    vi.useRealTimers();
+});
+
+describe('AuthenticatedLayout Lonceng Notifikasi', () => {
+    const lonceng = () => screen.getAllByRole('link', { name: /^Notifikasi/ });
+
+    it('menampilkan angka belum dibaca dari props di header desktop dan mobile tanpa timer', () => {
+        vi.useFakeTimers();
+        mockNotifikasi = 3;
+        render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+
+        const links = lonceng();
+        expect(links).toHaveLength(2);
+        for (const link of links) {
+            expect(link.getAttribute('href')).toBe('/notifikasi');
+            expect(link.getAttribute('aria-label')).toBe('Notifikasi, 3 belum dibaca');
+            expect(link.textContent).toContain('3');
+        }
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('membatasi badge pada 99+ dan menyembunyikan badge saat nol', () => {
+        mockNotifikasi = 120;
+        const { unmount } = render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+        expect(lonceng()[0].textContent).toContain('99+');
+        expect(lonceng()[0].getAttribute('aria-label')).toBe('Notifikasi, 120 belum dibaca');
+        unmount();
+
+        mockNotifikasi = 0;
+        render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+        expect(lonceng()[0].getAttribute('aria-label')).toBe('Notifikasi');
+        expect(lonceng()[0].textContent).toBe('');
+    });
+
+    it('tidak merender lonceng saat server mengirim null (akun tanpa peran aktif)', () => {
+        mockNotifikasi = null;
+        render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+        expect(screen.queryAllByRole('link', { name: /^Notifikasi/ })).toHaveLength(0);
+    });
 });
 
 describe('AuthenticatedLayout Breadcrumbs', () => {

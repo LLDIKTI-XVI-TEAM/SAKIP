@@ -3,6 +3,7 @@
 namespace App\Actions\RencanaAksi;
 
 use App\Actions\Pengukuran\EvaluateEvidence;
+use App\Events\RencanaAksiDiajukan;
 use App\Models\BuktiDukung;
 use App\Models\IndikatorKinerja;
 use App\Models\JadwalTahunan;
@@ -267,6 +268,8 @@ class AjukanRencanaAksi
                     alasan: 'Mengajukan rencana aksi untuk verifikasi.',
                     dasarIzin: $dasarIzin,
                 );
+                // Antrean Perencanaan diberi tahu setelah commit; penerimanya dihitung listener saat itu.
+                RencanaAksiDiajukan::dispatch((string) $header->id, (string) $versi->id, $pengunci->id);
 
                 return $versi;
             });

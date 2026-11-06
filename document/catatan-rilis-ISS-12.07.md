@@ -21,7 +21,7 @@ Fallback deployment memakai `SAKIP_NOTIFIKASI_EMAIL_AKTIF`, `SAKIP_NOTIFIKASI_WH
 
 Producer memakai identitas kejadian stabil; kejadian pengembalian berikutnya dan slot H-minus berikutnya berbeda. UUID objek dan penerima diambil kembali dari baris tersimpan sebelum membentuk kunci, sehingga variasi penulisan UUID tidak menggandakan pesan. Alamat, template, parameter, driver, dan simulasi tidak berubah pada replay. Parameter harus dipilih producer dan bebas rahasia, termasuk nilainya; pemeriksaan nama kunci bukan penyamaran nilai bebas.
 
-Waktu outbox disimpan sebagai `timestamp` tanpa zona dengan nilai UTC, sesuai Data Model §2.39 dan zona aplikasi. Penjadwalan retry tidak bergantung pada zona waktu sesi PostgreSQL. Penyajian rentang tanggal tetap memakai WITA.
+Waktu outbox disimpan sebagai `timestamp` tanpa zona dengan nilai UTC, sesuai Data Model §2.40 dan zona aplikasi. Penjadwalan retry tidak bergantung pada zona waktu sesi PostgreSQL. Penyajian rentang tanggal tetap memakai WITA.
 
 Atomisitas di sini adalah outbox–job. Kejadian yang hilang sebelum producer memanggil service tetap tanggung jawab integrasi ISS-12.06/12.04. Item in-app memerlukan ISS-12.02; tidak diklaim tersedia dari fondasi ini.
 

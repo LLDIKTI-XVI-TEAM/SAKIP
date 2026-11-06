@@ -4,7 +4,7 @@
 > Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
 
 
-**Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 35 entitas (§2.1–§2.34, termasuk §2.20a `pengukuran_versi`) ditambah target Renstra Q39 (§2.35), dua entitas rancangan Q40 (§2.36–§2.37), revisi target Renstra Q71 (§2.38), serta outbox notifikasi ISS-12.07 (§2.39), skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
+**Status dokumen:** Versi konsolidasi draf — menunggu pembahasan bersama Tim Perencanaan. 35 entitas (§2.1–§2.34, termasuk §2.20a `pengukuran_versi`) ditambah target Renstra Q39 (§2.35), dua entitas rancangan Q40 (§2.36–§2.37), revisi target Renstra Q71 (§2.38), serta notifikasi in-app ISS-12.02 (§2.39) dan outbox notifikasi ISS-12.07 (§2.40), skema lengkap dirancang sejak Fase Awal (MVP), mencakup alur penuh dasar aturan (regulasi) → Renstra → Perjanjian Kinerja → jadwal & periode → rencana aksi → kegiatan → pengukuran berbasis komponen → rekomendasi Pimpinan → status capaian, serta model hak akses **RBAC dengan pengecualian eksplisit** (peran, grant, deny) yang dievaluasi saat request.
 
 
 > **Q32 aktif:** role final berjumlah lima; `pic` bukan baris pada `roles`. Assignment PJ dan Grant Unit tetap entitas terpisah. Detail final berada pada §8.
@@ -1962,9 +1962,31 @@ Revisi target Renstra pada Renstra `aktif` (Q71; ISS-02.13). Baris berstatus `dr
 - Membatalkan draf menghapus baris draf beserta selnya dan tercatat di audit (§2.32; Q71 §71.5 butir 2). Aplikasi tidak mengubah baris berstatus `disimpan`.
 - Permission: `indikator:read` dan `target:update`, sama dengan simpan target Renstra (Q71 §71.1 butir 3); histori cukup `indikator:read` (§2.35).
 
+### 2.39 `notifications`
+
+Item notifikasi in-app (ISS-12.02) memakai tabel bawaan Laravel `notifications` dengan trait `Notifiable` pada `User`. Pemilik hanya pengguna (`notifiable_type` selalu `App\Models\User`). Item ditulis listener setelah transaksi bisnis commit untuk: RA/pengukuran dikembalikan atau dibuka kembali (ke PJ efektif saat pengembalian, Q37 §37.3), RA/pengukuran diajukan (ke Perencanaan peninjau unit), jendela pengisian dibuka oleh aktivasi jadwal atau revisi jendela PIC (ke PJ efektif indikator yang wajib diisi pada periode itu), dan akun SSO baru tanpa peran (ke pengelola akses).
+
+| Kolom | Tipe | Constraint | Keterangan |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `type` | string | not null | Jenis kejadian: `rencana_aksi.dikembalikan`, `rencana_aksi.dibuka_kembali`, `rencana_aksi.diajukan`, `pengukuran.dikembalikan`, `pengukuran.dibuka_kembali`, `pengukuran.diajukan`, `jadwal.jendela_dibuka`, `pengguna.menunggu_peran` |
+| `notifiable_type` | string | not null | Selalu `App\Models\User` |
+| `notifiable_id` | uuid | FK → users.id, not null | Pemilik item |
+| `data` | jsonb | not null | `judul`, `ringkasan` (nullable; ringkasan alasan maksimal lebar 200 termasuk elipsis), `route_name`, `route_params` (objek) |
+| `read_at` | timestamp | nullable | Waktu baca pertama; diisi sekali lewat update bersyarat `read_at IS NULL` |
+| `created_at`, `updated_at` | timestamp | | |
+
+**Index:** (`notifiable_type`, `notifiable_id`, `read_at`) untuk hitungan belum dibaca per pemilik pada setiap request.
+
+**Aturan:**
+- Item tidak dihapus pengguna; read-state hanya milik penerima (daftar, hitungan, dan buka item dibatasi relasi milik aktor; item pengguna lain 404).
+- Ditulis setelah commit dan tidak pernah membatalkan transaksi bisnis; galat penulisan dicatat tanpa isi dan item yang gagal hilang tanpa retry (batasan in-app).
+- Judul dan ringkasan disimpan sebagai teks jadi; tautan disimpan sebagai nama route dan parameter, lalu diotorisasi ulang oleh route tujuan saat dibuka. Item tidak disaring ulang dengan izin saat request.
+- Penerima hanya akun aktif berperan aktif, ditentukan server lewat resolver izin dan Policy (deny menang); tanpa permission atau audit baru untuk menandai dibaca.
+
 ---
 
-### 2.39 `notifikasi_pengiriman`
+### 2.40 `notifikasi_pengiriman`
 
 Outbox pengiriman eksternal per kejadian × objek × penerima × konteks periode × kanal (ISS-12.07, keputusan PM 4 November 2026). Tabel ini menyimpan status operasional pengiriman; tidak menggantikan `audit_log` dan tidak membuktikan pesan sampai ke penerima.
 
@@ -2099,7 +2121,7 @@ F1 dan F2 **tidak menggantikan** resolusi izin pada §3: aktor tetap harus lolos
 | `target_renstra` | unique(`indikator_id`, `tahun`); `nilai` nullable, nonnegatif, finite; level aplikasi: `tahun` dalam rentang Renstra (§2.35) |
 | `revisi_target_renstra` | unique parsial (`renstra_id`) bila `status = draf`; unique(`renstra_id`, `nomor`); CHECK: kolom penyimpanan terisi jika dan hanya jika `disimpan`, `justifikasi` berisi teks bila `disimpan`, `versi >= 1` (§2.38) |
 | `revisi_target_renstra_nilai` | unique(`revisi_id`, `indikator_id`, `tahun`); `nilai_lama` dan `nilai_baru` nullable, nonnegatif, finite; level aplikasi: `tahun` dalam rentang Renstra (§2.38) |
-| `notifikasi_pengiriman` | unique(`kunci_idempoten`); `objek_tipe`, kanal, status, dan `kode_hasil` dibatasi nilai §2.39; `percobaan >= percobaan_siklus >= 0`; identitas dan snapshot pesan tetap pada retry |
+| `notifikasi_pengiriman` | unique(`kunci_idempoten`); `objek_tipe`, kanal, status, dan `kode_hasil` dibatasi nilai §2.40; `percobaan >= percobaan_siklus >= 0`; identitas dan snapshot pesan tetap pada retry |
 | `renstra_pk_versi` (rancangan Q40) | unique(`renstra_pk_id`, `nomor_versi`); level aplikasi: `nomor_surat`, `tanggal_surat`, `periode_mulai_id`, `alasan`, dan persetujuan wajib pada versi revisi; baris tidak diubah setelah terbentuk (§2.36) |
 | `renstra_pk_versi_target` (rancangan Q40) | unique(`renstra_pk_versi_id`, `indikator_id`); `nilai` nullable, nonnegatif, finite (§2.37) |
 | `penanggung_jawab` | index non-unique (`indikator_id`, `tanggal_mulai_berlaku`); unique per tanggal dilepas oleh Q34 butir 1 ([#70](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/70)), penugasan pada tanggal sama diurutkan dengan `urutan`, lihat §2.19 |
