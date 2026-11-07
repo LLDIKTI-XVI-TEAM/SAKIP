@@ -17,6 +17,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Testing\TestResponse;
+use InvalidArgumentException;
 use RuntimeException;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
@@ -203,6 +204,21 @@ class NotifikasiPengembalianTest extends TestCase
         $this->actingAs($pic)->get($url)->assertForbidden();
     }
 
+    public function test_tautan_eksternal_pengukuran_memerlukan_login_dan_memeriksa_izin_yang_dicabut(): void
+    {
+        $pic = $this->createPicPegawai();
+        $p = $this->pengukuran();
+        $this->kembalikanPengukuran($p, 'Perbaiki.')->assertSessionHasNoErrors();
+        $row = DB::table('notifikasi_pengiriman')->where('penerima_user_id', $pic->id)->first();
+        $url = json_decode($row->parameter, true, flags: JSON_THROW_ON_ERROR)['url'];
+
+        auth()->logout();
+        $this->get($url)->assertRedirect(route('login'));
+        $this->actingAs($pic)->get($url)->assertOk();
+        $this->denyPermission($pic, 'pengukuran:read', $this->unit->id);
+        $this->actingAs($pic)->get($url)->assertForbidden();
+    }
+
     public function test_provider_gagal_sementara_tidak_mengubah_pengembalian(): void
     {
         config(['notifikasi.kanal.email.aktif' => true]);
@@ -285,6 +301,20 @@ class NotifikasiPengembalianTest extends TestCase
         Log::shouldHaveReceived('info')->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi eksternal tanpa penerima.'
             && $konteks === ['jenis' => 'pengukuran.dikembalikan', 'objek_id' => $p->id])->once();
         Log::shouldNotHaveReceived('error');
+    }
+
+    public function test_galat_saat_mengantre_notifikasi_eksternal_tidak_menggagalkan_pengembalian_yang_sudah_commit(): void
+    {
+        $this->createPicPegawai();
+        config(['notifikasi.kanal.email.driver' => 'driver-salah']);
+        Log::spy();
+
+        $this->kembalikanRencanaAksi($this->reviewer, 'Alasan rahasia.')->assertSuccessful();
+
+        $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
+        $this->assertSame(0, DB::table('notifikasi_pengiriman')->count());
+        Log::shouldHaveReceived('error')->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi eksternal gagal diantrekan.'
+            && $konteks === ['jenis' => 'rencana_aksi.dikembalikan', 'objek_id' => $this->rencanaAksi->id, 'galat' => InvalidArgumentException::class])->once();
     }
 
     public function test_logger_yang_gagal_di_listener_tidak_membatalkan_mutasi_yang_sudah_commit(): void
