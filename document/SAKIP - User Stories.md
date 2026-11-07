@@ -2423,6 +2423,8 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-12.06 · Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
 
+> **Status implementasi lokal:** integrasi pengembalian dan buka-kembali RA/pengukuran memakai outbox ISS-12.07. Validasi lengkap dan CI masih berlangsung; centang AC tetap terbuka sampai bukti tersedia. Aktivasi kanal nyata tetap mengikuti Q80.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-12.06` |

@@ -101,6 +101,24 @@ class NotifikasiSetelahCommitTest extends TestCase
         $this->assertSame(1, DB::table('notifications')->count());
     }
 
+    public function test_notifikasi_eksternal_pengembalian_pengukuran_hanya_dibuat_setelah_commit(): void
+    {
+        $pic = $this->createPicPegawai();
+        $p = $this->pengukuran();
+
+        DB::beginTransaction();
+        $this->kembalikan($p);
+        $this->assertSame(0, DB::table('notifikasi_pengiriman')->count());
+        DB::rollBack();
+        $this->assertSame(0, DB::table('notifikasi_pengiriman')->count());
+        $this->assertSame('diajukan', $p->fresh()->status_alur);
+
+        $this->kembalikan($p);
+        $rows = DB::table('notifikasi_pengiriman')->where('penerima_user_id', $pic->id)->get();
+        $this->assertCount(2, $rows);
+        $this->assertEqualsCanonicalizing(['email', 'whatsapp'], $rows->pluck('kanal')->all());
+    }
+
     public function test_item_pengajuan_rencana_aksi_ditulis_hanya_setelah_transaksi_luar_commit(): void
     {
         $fixture = $this->buatFixtureManual();
