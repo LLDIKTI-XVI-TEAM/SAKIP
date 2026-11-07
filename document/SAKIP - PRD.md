@@ -1365,6 +1365,16 @@ Yang boleh dikelola secara dinamis lewat modul ini **hanya teks dan preferensi p
 
 ---
 
+### 26.8 Konfigurasi dan status notifikasi eksternal (ISS-13.04)
+
+Menurut Q87, grup `notifikasi` di Setelan memuat dua saklar WhatsApp/Email (default mati) dan jam kirim WITA. Pemegang `pengaturan:update` mengelola ketiganya. Credential dan pilihan adapter tetap pada konfigurasi deployment, tidak masuk whitelist, form, props, log, atau audit. Nilai grup ini tidak dibagikan melalui shared props. [Keputusan PM Q87, 6 November 2026 (WITA)](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/228#issuecomment-6686106676).
+
+Hari pengiriman mengikuti Q4: PIC H-7/H-3/H-1 dan rekap Perencanaan H-3/H-1. Nilai berasal dari konfigurasi aplikasi melalui accessor, bukan whitelist atau tabel `pengaturan`, dan tampil baca-saja di tab Notifikasi. Perubahan hari memerlukan keputusan baru yang merevisi Q4 dan konfirmasi Perencanaan (Plan 9.6).
+
+ISS-13.04 dapat selesai dengan provider `log` dan kedua kanal mati secara default; provider nyata hanya menjadi prasyarat aktivasi Q80 §80.1. Mode simulasi ditampilkan berdasarkan driver konfigurasi tanpa mengungkap credential. Halaman status terpisah dari form Setelan, baca-saja melalui `PembacaStatusPengiriman`, dengan filter status/kanal/tanggal dan pagination 25. Status simulasi berlabel **Simulasi diterima**; accepted bukan delivery. Bila penerima ditampilkan, presenter menyediakan nama, bukan alamat. Alamat, template, dan parameter tidak ditampilkan. Retry tetap melalui `queue:retry` oleh operator sesuai catatan rilis ISS-12.07, tanpa tombol retry pada UI.
+
+Pengelolaan template dikeluarkan dari scope dan DoD ISS-13.04. Isi dan placeholder ditetapkan masing-masing producer sebagai template bawaan di kode, lalu dibekukan saat antre sesuai ISS-12.07. Pengelolaan melalui UI menjadi pekerjaan terpisah setelah provider dipilih. Butir Template pesan pada Kesiapan Infrastruktur §3 tetap terbuka. TEST-3 membuktikan saklar dimatikan lewat Setelan → `AntrekanNotifikasiEksternal::antre` → outbox `dibatalkan`/`kanal_nonaktif` tanpa job; regresi pengembalian RA/Pengukuran diperiksa terpisah. Integrasi pengembalian ke outbox tetap ISS-12.06 (#229), bukan klaim alur lengkap oleh #228.
+
 ## 27. Integritas Data
 
 - **Optimistic locking**: kolom `versi` pada `pengukuran` dan `rencana_aksi` dinaikkan setiap kali baris diubah. Permintaan update yang menyertakan versi usang ditolak (mencegah dua pengguna menimpa perubahan satu sama lain tanpa disadari) dan mengharuskan klien memuat ulang data terbaru sebelum mencoba lagi.

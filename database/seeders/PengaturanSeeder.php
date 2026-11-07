@@ -14,6 +14,9 @@ class PengaturanSeeder extends Seeder
      * @var list<array{kunci: string, nilai: string, tipe: string, grup: string}>
      */
     public const DEFAULTS = [
+        ['kunci' => 'notifikasi.kanal_whatsapp_aktif', 'nilai' => '0', 'tipe' => 'boolean', 'grup' => 'notifikasi'],
+        ['kunci' => 'notifikasi.kanal_email_aktif', 'nilai' => '0', 'tipe' => 'boolean', 'grup' => 'notifikasi'],
+        ['kunci' => 'notifikasi.jam_kirim', 'nilai' => '', 'tipe' => 'string', 'grup' => 'notifikasi'],
         [
             'kunci' => 'instansi.nama',
             'nilai' => 'Lembaga Layanan Pendidikan Tinggi Wilayah XVI',

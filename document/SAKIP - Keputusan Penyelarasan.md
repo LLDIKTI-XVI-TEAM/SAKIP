@@ -2670,3 +2670,21 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 - Q40 §40.1 butir 4 (definisi "belum ditutup"), Q50 §50.7 butir 2, Q79 §79.1 butir 7 dan §79.2 butir 4 diperjelas; Q81 §81.3 berlaku apa adanya; Q35 §35.1, Q43, Q65, Q72, Q82 tidak berubah.
 - Issue #226 (AC-3 dan gate refinement), US/ISS-02.12; Data Model §2.10, §2.17 (sumber versi hasil revisi), §2.30 (lampiran versi), §2.36–§2.37 (tetap rancangan sampai ISS-02.12 diimplementasikan); Workflow §3.3 alur revisi PK; PRD §12.7; Plan 2.23.
 - Status implementasi: belum; dikerjakan pada issue #226 (Sprint 8). Status keputusan: keputusan PM 6 November 2026; aturan bisnis Q40 yang disahkan Tim Perencanaan tidak berubah sehingga konfirmasi tertulis tidak diminta.
+
+---
+
+# Keputusan Q87: Konfigurasi Operasional Notifikasi Eksternal (ISS-13.04)
+
+**Keputusan PM: 6 November 2026 (WITA)** oleh `Diyoncrz18` atas enam pertanyaan refinement [issue #228](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/228#issuecomment-6686106676). Nomor [Q87 ditetapkan PM pada PR #254](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/254#issuecomment-6709559606).
+
+1. **Q1 (A).** Grup `notifikasi` di Setelan memuat saklar Email dan WhatsApp serta jam kirim. Pemegang `pengaturan:update` mengelola ketiganya. Credential dan driver/adapter disediakan lewat konfigurasi deployment dan berada di luar whitelist `pengaturan`. Shared prop `pengaturan` mengecualikan grup notifikasi. Q44 §44.2 mengatur batas teknis unggahan. Saklar kanal mengikuti Plan 14.2 dan 14.2.1.
+2. **Q2 (A).** Halaman status baca-saja dipisahkan dari form Setelan dan memakai `PembacaStatusPengiriman` dengan filter status, kanal, tanggal, serta pagination 25. Simulasi memakai label **Simulasi diterima**. Presenter dapat menampilkan nama penerima. Alamat, template, dan parameter dikecualikan dari proyeksi. Retry dijalankan operator lewat `queue:retry` sesuai catatan rilis ISS-12.07.
+3. **Q3 (A).** Hari pengiriman mengikuti Q4. Accessor konfigurasi aplikasi menyediakan `[7,3,1]` untuk pengingat PIC dan `[3,1]` untuk rekap Perencanaan. Keduanya tampil baca-saja di tab Notifikasi dan berada di luar whitelist `pengaturan` sesuai Plan 9.6. TEST-1 memeriksa kedua keluaran accessor. Perubahan hari memerlukan revisi Q4 dan konfirmasi Perencanaan.
+4. **Q4 (A).** #228 dapat selesai dengan provider `log` dan kedua kanal mati secara default. Mode simulasi pada UI mengikuti driver konfigurasi. AC-2 memeriksa bahwa whitelist, form, props, log, dan audit tidak memuat credential. Kunci environment untuk credential ditambahkan saat provider dipilih. Dependensi implementasi adalah ISS-12.07 merge. Provider nyata diperlukan untuk aktivasi sesuai Q80 §80.1.
+5. **Q5 (C).** Pengelolaan template dikeluarkan dari scope dan DoD #228. Masing-masing producer menetapkan isi pesan dan placeholder sebagai template bawaan di kode. ISS-12.07 membekukan template dan parameter saat antre. Pengelolaan template melalui UI menjadi pekerjaan terpisah setelah provider dipilih. Butir Template pesan pada Kesiapan Infrastruktur §3 tetap terbuka.
+6. **Q6 (A).** TEST-3 mematikan kanal lewat Setelan lalu memanggil `AntrekanNotifikasiEksternal::antre` untuk Rencana Aksi atau Pengukuran. Outbox berstatus `dibatalkan` dengan `kanal_nonaktif` tanpa job. Test regresi pengembalian Rencana Aksi dan Pengukuran dijalankan terpisah. Integrasi pengembalian ke outbox dengan status domain tetap `dikembalikan` dan outbox `dibatalkan` menjadi cakupan #229 (ISS-12.06).
+
+## 87.1 Dampak dan traceability
+
+- PRD §26.8 dan §28, Workflow §18.3, Data Model §2.22 dan §2.40, Plan 9.4–9.6 dan 14.2–14.2.1, US/ISS-13.04, serta catatan rilis ISS-13.04.
+- Aktivasi layanan eksternal mengikuti Q80 §80.1 dan Kesiapan Infrastruktur §3.

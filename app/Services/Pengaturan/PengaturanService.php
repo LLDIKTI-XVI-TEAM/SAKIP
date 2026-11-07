@@ -4,6 +4,7 @@ namespace App\Services\Pengaturan;
 
 use App\Models\Pengaturan;
 use App\Models\User;
+use App\Services\Notifikasi\KonfigurasiNotifikasi;
 use Database\Seeders\PengaturanSeeder as SeederPengaturan;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -24,6 +25,18 @@ class PengaturanService
      * @var array<string, array{tipe: string, grup: string, label: string, aturan: array<int, string>}>
      */
     public const WHITELIST = [
+        'notifikasi.kanal_whatsapp_aktif' => [
+            'tipe' => 'boolean', 'grup' => 'notifikasi', 'label' => 'Kanal WhatsApp',
+            'aturan' => ['required', 'boolean'],
+        ],
+        'notifikasi.kanal_email_aktif' => [
+            'tipe' => 'boolean', 'grup' => 'notifikasi', 'label' => 'Kanal Email',
+            'aturan' => ['required', 'boolean'],
+        ],
+        'notifikasi.jam_kirim' => [
+            'tipe' => 'string', 'grup' => 'notifikasi', 'label' => 'Jam kirim (WITA)',
+            'aturan' => ['nullable', 'string', 'date_format:H:i'],
+        ],
         'instansi.nama' => [
             'tipe' => 'string',
             'grup' => 'instansi',
@@ -109,6 +122,10 @@ class PengaturanService
      */
     public function get(string $kunci, mixed $default = null): mixed
     {
+        // Worker dan halaman setelan memakai saklar efektif yang sama, tanpa cache.
+        if (in_array($kunci, ['notifikasi.kanal_email_aktif', 'notifikasi.kanal_whatsapp_aktif'], true)) {
+            return app(KonfigurasiNotifikasi::class)->aktif($kunci === 'notifikasi.kanal_email_aktif' ? 'email' : 'whatsapp');
+        }
         $revision = $this->getCacheRevision();
         $loader = function () use ($kunci, $default, $revision) {
             $setting = Pengaturan::query()->where('kunci', $kunci)->first();
@@ -153,6 +170,7 @@ class PengaturanService
             'aplikasi' => [],
             'tampilan' => [],
             'laporan' => [],
+            'notifikasi' => [],
         ];
 
         $values = [];
@@ -160,7 +178,9 @@ class PengaturanService
         foreach (self::WHITELIST as $kunci => $meta) {
             $record = $records->get($kunci);
             // Pertahankan nilai null yang disengaja jika record sudah tersimpan di database
-            $nilai = $record !== null ? $this->castValue($record->nilai, $meta['tipe']) : $this->getDefault($kunci);
+            $nilai = $meta['tipe'] === 'boolean'
+                ? $this->get($kunci)
+                : ($record !== null ? $this->castValue($record->nilai, $meta['tipe']) : $this->getDefault($kunci));
             $values[$kunci] = $nilai;
 
             $item = [
@@ -193,22 +213,25 @@ class PengaturanService
     public function allValues(): array
     {
         $revision = $this->getCacheRevision();
-        $loader = function () use ($revision) {
+        // Parameter operasional hanya diberikan pada halaman Setelan yang berizin.
+        $sharedKeys = array_keys(array_filter(self::WHITELIST, fn ($meta) => $meta['grup'] !== 'notifikasi'));
+        $loader = function () use ($revision, $sharedKeys) {
             $records = Pengaturan::query()
-                ->whereIn('kunci', array_keys(self::WHITELIST))
+                ->whereIn('kunci', $sharedKeys)
                 ->get()
                 ->keyBy('kunci');
 
             // Jika revisi telah berubah selama pembacaan database, muat ulang snapshot terkini
             if ($this->getCacheRevision() !== $revision) {
                 $records = Pengaturan::query()
-                    ->whereIn('kunci', array_keys(self::WHITELIST))
+                    ->whereIn('kunci', $sharedKeys)
                     ->get()
                     ->keyBy('kunci');
             }
 
             $values = [];
-            foreach (self::WHITELIST as $kunci => $meta) {
+            foreach ($sharedKeys as $kunci) {
+                $meta = self::WHITELIST[$kunci];
                 $record = $records->get($kunci);
                 $values[$kunci] = $record !== null
                     ? $this->castValue($record->nilai, $meta['tipe'])
@@ -260,7 +283,7 @@ class PengaturanService
     /**
      * Ambil default value dari seeder untuk kunci tertentu.
      */
-    private function getDefault(string $kunci): ?string
+    private function getDefault(string $kunci): mixed
     {
         static $defaults = null;
 
@@ -271,7 +294,7 @@ class PengaturanService
             }
         }
 
-        return $defaults[$kunci] ?? null;
+        return $this->castValue($defaults[$kunci] ?? null, self::WHITELIST[$kunci]['tipe'] ?? 'string');
     }
 
     /**
