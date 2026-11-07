@@ -9,6 +9,7 @@ use App\Events\RencanaAksiDikembalikan;
 use App\Models\PengukuranKinerja;
 use App\Models\RencanaAksi;
 use App\Services\Notifikasi\AntrekanNotifikasiEksternal;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -40,7 +41,7 @@ class AntrekanNotifikasiPengembalian
     {
         try {
             if ($event->penerimaId === null) {
-                error_log('Notifikasi eksternal tanpa penerima: rencana_aksi '.$event->rencanaAksiId);
+                $this->catat('rencana_aksi.'.$jenis, $event->rencanaAksiId);
 
                 return;
             }
@@ -50,7 +51,7 @@ class AntrekanNotifikasiPengembalian
                 ['judul' => 'Rencana Aksi '.$ra->indikator->kode.' '.$ra->tahun, 'alasan' => Str::limit(Str::squish($event->alasan), 199, '…'),
                     'url' => route('rencana-aksi.show', ['rencanaAksi' => $ra->id])]);
         } catch (Throwable $e) {
-            error_log('Notifikasi eksternal gagal diantrekan: '.$e::class);
+            $this->catat('rencana_aksi.'.$jenis, $event->rencanaAksiId, $e);
         }
     }
 
@@ -58,7 +59,7 @@ class AntrekanNotifikasiPengembalian
     {
         try {
             if ($event->penerimaId === null) {
-                error_log('Notifikasi eksternal tanpa penerima: pengukuran '.$event->pengukuranId);
+                $this->catat('pengukuran.'.$jenis, $event->pengukuranId);
 
                 return;
             }
@@ -68,7 +69,25 @@ class AntrekanNotifikasiPengembalian
                 ['judul' => 'Pengukuran '.$p->indikator->kode.' '.$p->periode->nama.' '.$p->tahun,
                     'alasan' => Str::limit(Str::squish($event->alasan), 199, '…'), 'url' => route('pengukuran.edit', ['id' => $p->id])]);
         } catch (Throwable $e) {
-            error_log('Notifikasi eksternal gagal diantrekan: '.$e::class);
+            $this->catat('pengukuran.'.$jenis, $event->pengukuranId, $e);
+        }
+    }
+
+    /**
+     * Logger juga bisa melempar (channel `stack` tanpa ignore_exceptions). Listener berjalan setelah commit tetapi masih
+     * di dalam pemanggilan `DB::transaction()` Action, jadi tidak ada Throwable yang boleh lolos; cadangannya `error_log`.
+     * Log hanya memuat jenis, id objek, dan kelas galat; tanpa alasan, alamat, judul, atau isi pesan.
+     */
+    private function catat(string $jenis, string $objekId, ?Throwable $galat = null): void
+    {
+        try {
+            if ($galat === null) {
+                Log::info('Notifikasi eksternal tanpa penerima.', ['jenis' => $jenis, 'objek_id' => $objekId]);
+            } else {
+                Log::error('Notifikasi eksternal gagal diantrekan.', ['jenis' => $jenis, 'objek_id' => $objekId, 'galat' => $galat::class]);
+            }
+        } catch (Throwable $e) {
+            error_log(sprintf('Notifikasi eksternal gagal dicatat: jenis=%s objek_id=%s galat=%s', $jenis, $objekId, ($galat ?? $e)::class));
         }
     }
 }

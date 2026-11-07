@@ -278,8 +278,12 @@ class NotifikasiPengembalianTest extends TestCase
 
         $this->assertSame('dikembalikan', $p->fresh()->status_alur);
         $this->assertCount(0, $this->items());
-        Log::shouldHaveReceived('info')->once()->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi in-app tanpa penerima.'
-            && $konteks === ['jenis' => 'pengukuran.dikembalikan', 'objek_id' => $p->id]);
+        $this->assertSame(0, DB::table('notifikasi_pengiriman')->count());
+        Log::shouldHaveReceived('info')->twice();
+        Log::shouldHaveReceived('info')->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi in-app tanpa penerima.'
+            && $konteks === ['jenis' => 'pengukuran.dikembalikan', 'objek_id' => $p->id])->once();
+        Log::shouldHaveReceived('info')->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi eksternal tanpa penerima.'
+            && $konteks === ['jenis' => 'pengukuran.dikembalikan', 'objek_id' => $p->id])->once();
         Log::shouldNotHaveReceived('error');
     }
 
@@ -290,7 +294,8 @@ class NotifikasiPengembalianTest extends TestCase
         // Channel log melempar (ignore_exceptions=false); galat ini terjadi setelah commit dan tidak boleh lolos ke Action,
         // karena kompensasinya menganggap transaksi batal dan menghapus berkas unggahan yang sudah dirujuk DB.
         Log::spy();
-        Log::shouldReceive('info')->once()->andThrow(new RuntimeException('log mati'));
+        // Listener in-app dan eksternal masing-masing mencatat "tanpa penerima" sekali; keduanya harus menelan galat logger.
+        Log::shouldReceive('info')->twice()->andThrow(new RuntimeException('log mati'));
         Log::shouldReceive('error')->andThrow(new RuntimeException('log mati'));
 
         $this->kembalikanPengukuran($p, 'Alasan.')->assertSessionHasNoErrors()->assertRedirect();
