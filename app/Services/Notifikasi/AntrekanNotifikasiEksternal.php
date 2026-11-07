@@ -54,14 +54,15 @@ class AntrekanNotifikasiEksternal
                         }
                         $key = hash('sha256', json_encode([$kejadian, $tipe, (string) $tujuan->getKey(), $periode, $userId, $channel], JSON_THROW_ON_ERROR));
                         $adresse = $channel === 'email' ? $user->email : $user->nomor_telepon;
-                        $code = ! app(KonfigurasiNotifikasi::class)->aktif($channel) ? 'kanal_nonaktif'
-                            : (! self::kontakValid($channel, $adresse) ? 'kontak_tidak_tersedia' : null);
+                        $code = $user->status !== 'aktif' ? 'penerima_tidak_berhak'
+                            : (! app(KonfigurasiNotifikasi::class)->aktif($channel) ? 'kanal_nonaktif'
+                            : (! self::kontakValid($channel, $adresse) ? 'kontak_tidak_tersedia' : null));
                         $row = new NotifikasiPengiriman([
                             'id' => (string) Str::uuid(), 'kunci_idempoten' => $key, 'kejadian' => $kejadian,
                             'objek_tipe' => $tipe, 'objek_id' => $tujuan->getKey(), 'konteks_periode' => $periode,
                             'kanal' => $channel, 'penerima_user_id' => $userId, 'alamat' => $adresse,
                             'template' => $template, 'parameter' => $parameter, 'driver' => $driver,
-                            'simulasi' => true, 'status' => $code === null ? 'antre' : ($code === 'kanal_nonaktif' ? 'dibatalkan' : 'gagal'),
+                            'simulasi' => true, 'status' => $code === null ? 'antre' : ($code === 'kontak_tidak_tersedia' ? 'gagal' : 'dibatalkan'),
                             'kode_hasil' => $code, 'created_at' => now(), 'updated_at' => now(),
                         ]);
                         $inserted = DB::table('notifikasi_pengiriman')->insertOrIgnore($row->getAttributes());

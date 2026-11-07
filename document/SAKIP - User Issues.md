@@ -5732,6 +5732,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-12.06 · [Feature] Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
 
+> **Status implementasi lokal:** integrasi empat event pengembalian dan buka-kembali RA/pengukuran memakai outbox ISS-12.07 dan penerima yang dibawa event. Pengujian lokal dan CI masih berlangsung; centang AC dan DoD dipertahankan sampai seluruh bukti tersedia. Kanal nyata tetap mengikuti gate Q80.
+
 **Terkait User Story:** `US-12.06`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
