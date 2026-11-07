@@ -608,9 +608,9 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 | **Story Points** | Belum diestimasi |
 | **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
 | **Dependensi** | Alur koreksi snapshot berversi US-03.03 sebagai prasyarat (Q40 §40.1 butir 9); PK dan target PK tercatat (US-02.08, US-02.11). |
-| **Otorisasi** | Revisi disetujui Perencanaan (Q40 §40.1 butir 1); permission ditetapkan saat refinement (katalog existing memuat `pk:update`); capability berkas melalui kewenangan induk; unduhan mengikuti hak baca PK. |
-| **Dampak Data** | `renstra_pk_versi` dan `renstra_pk_versi_target` (rancangan Data Model §2.36–§2.37; `nomor_surat`, `tanggal_surat`), `berkas` (lampiran per versi PK), `jadwal_snapshot` (versi baru bila target berubah), `audit_log`. |
-| **Keputusan terkait** | Q40 §40.1, Q35 §35.1, Q43 §43.2 butir 3, Q48 §48.2 butir 1–2, Q50 §50.7, Q46 §46.3. |
+| **Otorisasi** | Revisi disetujui Perencanaan (Q40 §40.1 butir 1); izin `pk:update`, `target:update`, `indikator:read`, dan `berkas:upload` sekaligus, deny menang, tanpa izin baru, untuk revisi target maupun dokumen (Q85 §85.4 butir 2); unduhan PK awal dan PK akhir mengikuti hak baca berkas PK. |
+| **Dampak Data** | `renstra_pk_versi` dan `renstra_pk_versi_target` (rancangan Data Model §2.36–§2.37; `nomor_surat`, `tanggal_surat`), `berkas` (lampiran per versi PK), `jadwal_snapshot` (versi baru bila target berubah), `target_tahunan` (nilai berlaku diperbarui bila target berubah, Q85 §85.1 butir 2), `audit_log`. |
+| **Keputusan terkait** | Q40 §40.1, Q35 §35.1, Q43 §43.2 butir 3, Q48 §48.2 butir 1–2, Q50 §50.7, Q46 §46.3, Q72 §72.1 butir 4, Q79, Q81 §81.3, Q85. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** mencatat revisi PK yang disetujui Eselon I sebagai versi PK baru,  
@@ -620,7 +620,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 - [ ] **AC-1:** Given PK sudah tercatat, When Perencanaan menyetujui revisi, Then terbentuk versi PK baru yang menyimpan nomor versi, nomor dan tanggal surat persetujuan Eselon I sebagai isian tersendiri, periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator; versi sebelumnya tidak berubah. *(Q40 §40.1 butir 1–2)*
 - [ ] **AC-2:** Given revisi PK disimpan tanpa alasan, Then ditolak. *(Q43 §43.2 butir 3)*
-- [ ] **AC-3:** Given revisi mengubah target, When disetujui, Then revisi berlaku mulai periode pertama yang belum ditutup: sistem menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I, sedangkan periode yang sudah dilaporkan tetap memakai target versi lama. *(Q40 §40.1 butir 4)*
+- [ ] **AC-3:** Given revisi mengubah target, When disetujui, Then revisi berlaku mulai periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3): sistem menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I, sedangkan periode yang sudah dilaporkan tetap memakai target versi lama. *(Q40 §40.1 butir 4)*
 - [ ] **AC-4:** Given revisi hanya mengganti dokumen tanpa mengubah target, When disetujui, Then versi PK baru terbentuk tanpa menerbitkan versi snapshot. *(Q40 §40.1 butir 5)*
 - [ ] **AC-5:** Given PK memiliki lebih dari satu versi, When halaman PK dibuka, Then PK awal dan PK akhir dapat diunduh sesuai hak baca. *(Q40 §40.1 butir 3)*
 - [ ] **AC-6:** Given capaian akhir tahun dinilai, Then acuannya target PK akhir, yaitu versi yang berlaku pada periode nilai akhir. *(Q40 §40.1 butir 6)*
@@ -630,7 +630,9 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 - Koreksi salah ketik nomor atau tanggal PK tetap memakai koreksi teraudit US-02.09; perubahan target resmi memakai revisi berversi (Q40 §40.1 butir 8).
 - Aturan lama yang mencantumkan nomor dan tanggal surat Eselon I pada kolom `alasan` digantikan isian tersendiri (Q40 §40.3).
-- Q40 tidak merinci kapan suatu periode dianggap "sudah ditutup"; definisinya ditetapkan saat refinement US-02.12 sebelum implementasi (Q79 §79.2 butir 4).
+- Periode mulai ditentukan sistem: periode berurutan terendah pada jadwal tahun PK yang belum dilaporkan, yaitu masih ada indikator PK yang pengukurannya pada periode itu belum `disahkan`; per indikator dinaikkan ke periode mulai versi pendahulu bila lebih awal. Bila seluruh periode sudah dilaporkan, revisi yang mengubah target ditolak (Q85 §85.3).
+- Revisi hanya untuk PK yang sudah dikunci jadwal; revisi yang mengubah target hanya saat jadwal `aktif` dan tahun belum ditutup, termasuk ditolak selama sesi koreksi; revisi yang hanya mengganti dokumen boleh setelah tahun ditutup. Setiap revisi wajib alasan dan minimal satu lampiran file; lampiran versi tidak dapat dihapus atau diganti (Q85 §85.4).
+- Versi snapshot hasil revisi menyalin versi terakhir indikator dan hanya mengganti `target`; target PK master ikut diperbarui dalam transaksi yang sama. Versi 1 dibentuk saat revisi pertama disetujui dengan target dari snapshot versi 1 jadwal tahun PK (Q85 §85.1–§85.2).
 - PDF PK bertanda tangan diunggah per versi PK dan mengikuti permission PK (Q48 §48.2 butir 1–2).
 - Sebelum story ini tersedia, PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK (US-02.11); PK perubahan yang mengubah target dan terbit sebelum story ini selesai ditangani dengan keputusan baru PM (Q50 §50.7).
 - **Di luar cakupan:** revisi dan riwayat target Renstra (US-02.10), versi penuh Renstra (Q40 §40.2 butir 4), dan koreksi salah ketik (US-02.09).
@@ -2548,7 +2550,7 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-13.04 · Konfigurasi Operasional Notifikasi Eksternal
 
-> **Penyesuaian refinement PM Q1–Q6 — 7 November 2026:** konfigurasi/status lokal disesuaikan dari grilling 6 November: H-minus berasal dari konfigurasi aplikasi (PIC `[7,3,1]`, rekap `[3,1]`), bukan whitelist `pengaturan`; mode mengikuti driver; penerima ditampilkan sebagai nama. Pengelolaan template dikeluarkan dari scope/DoD issue dan menjadi pekerjaan producer serta UI terpisah. #228 dapat selesai dengan `log` dan kanal default mati setelah verifikasi kontrak terbaru; template/provider nyata bukan gate merge. Kontrak terbaru diverifikasi lokal: backend terkait 116 tes/996 assertion, frontend terdampak 14 tes, serta smoke browser desktop/mobile. Bukti: laporan QA penyesuaian PM di luar repository. Bukan CI remote, UAT, delivery atau deployment. Integrasi pengembalian→outbox tetap #229 (ISS-12.06). Rujukan: PRD §26.8, Workflow §18.3, Data Model §2.22/§2.40, Plan 9.4–9.6/14.2–14.2.1, Refinement PM ISS-13.04 pada Keputusan Penyelarasan, dan `catatan-rilis-ISS-13.04.md`.
+> Cakupan, dependensi, dan verifikasi mengikuti [keputusan PM Q87, 6 November 2026 (WITA)](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/228#issuecomment-6686106676).
 
 | Field | Detail |
 |---|---|
@@ -2564,7 +2566,7 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 > **Saya ingin** mengelola saklar kanal dan jam kirim, melihat hari pengingat tetap serta status pengiriman,
 > **Sehingga** integrasi WA/Email dapat dikelola tanpa menaruh credential di database biasa atau UI.
 
-**Batas scope:** pengelolaan template UI di luar US-13.04; template bawaan menjadi tanggung jawab producer dan dibekukan saat antre. Status pengiriman baca-saja pada halaman terpisah, pagination 25, nama penerima tanpa alamat/template/parameter, label Simulasi diterima, dan tanpa retry UI.
+**Batas scope:** pengelolaan template UI di luar US-13.04; template bawaan menjadi tanggung jawab producer dan dibekukan saat antre. Status pengiriman baca-saja pada halaman terpisah, filter status/kanal/tanggal, pagination 25, nama penerima tanpa alamat/template/parameter, label Simulasi diterima, dan tanpa retry UI.
 
 **Acceptance Criteria**
 

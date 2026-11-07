@@ -17,8 +17,8 @@ class IndexPengirimanNotifikasi extends Controller
         /** @var User $actor */
         $actor = $request->user();
         $filters = array_replace(
-            ['status' => '', 'kanal' => '', 'penerima' => '', 'mulai' => '', 'selesai' => ''],
-            $request->only(['status', 'kanal', 'penerima', 'mulai', 'selesai']),
+            ['status' => '', 'kanal' => '', 'mulai' => '', 'selesai' => ''],
+            $request->only(['status', 'kanal', 'mulai', 'selesai']),
         );
         $pengiriman = $pembaca->handle($actor, [...$filters, 'page' => $request->input('page')])
             ->appends($filters);

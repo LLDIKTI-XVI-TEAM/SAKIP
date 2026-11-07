@@ -75,24 +75,23 @@ class NotifikasiEksternalTest extends TestCase
         config(['notifikasi.kanal.email.credential' => 'SECRET-SINTETIS-228', 'inertia.ssr.enabled' => false]);
         $row = $this->antre();
         $this->kirim($row);
-        $response = $this->actingAs($this->actor)->get('/pengaturan/notifikasi/pengiriman?status=diterima_provider&kanal=email');
+        $response = $this->actingAs($this->actor)->get('/pengaturan/notifikasi/pengiriman?status=diterima_provider&kanal=email&penerima=diabaikan');
         $response->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Pengaturan/PengirimanNotifikasi')
             ->where('pengiriman.total', 1)
             ->where('pengiriman.data.0.label_status', 'Simulasi diterima')
             ->where('pengiriman.data.0.penerima_nama', $this->actor->nama)
             ->where('filters.kanal', 'email')
+            ->missing('filters.penerima')
             ->missing('pengiriman.data.0.alamat')
             ->missing('pengiriman.data.0.template')
             ->missing('pengiriman.data.0.parameter')
-            ->missing('pengaturan.notifikasi')
+            ->where('pengaturan', fn ($props) => collect($props)->keys()->every(fn (string $key) => ! str_starts_with($key, 'notifikasi.')))
         );
         $props = json_encode($response->original->getData()['page']['props']);
         $this->assertStringNotContainsString('SECRET-SINTETIS-228', $props);
         $settings = $this->actingAs($this->actor)->get('/pengaturan')->assertOk();
         $this->assertStringNotContainsString('SECRET-SINTETIS-228', json_encode($settings->original->getData()['page']['props']));
-        $this->actingAs($this->actor)->getJson('/pengaturan/notifikasi/pengiriman?penerima=invalid')
-            ->assertUnprocessable()->assertJsonPath('errors.penerima.0', 'Gunakan ID akun SAKIP berformat UUID yang valid.');
         $this->actingAs($this->actor)->getJson('/pengaturan/notifikasi/pengiriman?mulai=2026-11-06&selesai=2026-11-05')
             ->assertUnprocessable()->assertJsonPath('errors.selesai.0', 'Tanggal akhir WITA tidak boleh sebelum tanggal awal.');
         $this->actingAs($this->createUserWithRole('pegawai'))->get('/pengaturan/notifikasi/pengiriman')->assertForbidden();

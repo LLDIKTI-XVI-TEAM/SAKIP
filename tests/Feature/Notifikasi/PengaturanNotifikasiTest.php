@@ -69,11 +69,8 @@ class PengaturanNotifikasiTest extends TestCase
             ->where('notifikasi.h_minus_pic', [7, 3, 1])
             ->where('notifikasi.h_minus_rekap', [3, 1])
             ->where('notifikasi.simulasi.email', true)
-            ->missing('pengaturan.notifikasi')
+            ->where('pengaturan', fn ($props) => collect($props)->keys()->every(fn (string $key) => ! str_starts_with($key, 'notifikasi.')))
         );
-        foreach (array_keys(app(PengaturanService::class)->allValues()) as $key) {
-            $this->assertFalse(str_starts_with($key, 'notifikasi.'));
-        }
     }
 
     #[DataProvider('parameterInvalid')]

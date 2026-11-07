@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Inbox } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { Badge, type BadgeVariant } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
 import { Input } from '@/Components/Input';
@@ -14,7 +15,6 @@ type KodeHasil = 'kanal_nonaktif' | 'penerima_tidak_berhak' | 'kontak_tidak_ters
 interface FilterPengiriman {
     status: string;
     kanal: string;
-    penerima: string;
     mulai: string;
     selesai: string;
 }
@@ -27,7 +27,6 @@ export interface PengirimanNotifikasiProps {
             status: Status;
             label_status: string;
             kanal: 'email' | 'whatsapp';
-            penerima_user_id: string;
             penerima_nama: string | null;
             simulasi: boolean;
             kode_hasil: KodeHasil | null;
@@ -51,6 +50,14 @@ const statusOptions = [
     { value: 'perlu_rekonsiliasi', label: 'Perlu rekonsiliasi' },
 ];
 
+const statusBadge: Record<Status, BadgeVariant> = {
+    antre: 'info',
+    gagal: 'danger',
+    dibatalkan: 'muted',
+    diterima_provider: 'success',
+    perlu_rekonsiliasi: 'warning',
+};
+
 const keteranganHasil: Record<KodeHasil, string> = {
     kanal_nonaktif: 'Kanal nonaktif',
     penerima_tidak_berhak: 'Penerima tidak memenuhi syarat',
@@ -67,7 +74,7 @@ function waktuWita(value: string): string {
 }
 
 export default function PengirimanNotifikasi({ filters, pengiriman }: PengirimanNotifikasiProps) {
-    const form = useForm<FilterPengiriman>({ status: filters.status ?? '', kanal: filters.kanal ?? '', penerima: filters.penerima ?? '', mulai: filters.mulai ?? '', selesai: filters.selesai ?? '' });
+    const form = useForm<FilterPengiriman>({ status: filters.status ?? '', kanal: filters.kanal ?? '', mulai: filters.mulai ?? '', selesai: filters.selesai ?? '' });
 
     return (
         <AuthenticatedLayout title="Status Pengiriman Notifikasi" breadcrumbs={[{ label: 'Pengaturan', href: '/pengaturan' }, { label: 'Status Pengiriman' }]}>
@@ -77,11 +84,10 @@ export default function PengirimanNotifikasi({ filters, pengiriman }: Pengiriman
                 <p className="max-w-prose text-sm text-muted">Status diterima provider berarti pesan diterima layanan pengiriman, belum membuktikan pesan sampai. Data simulasi ditandai terpisah dan tidak menjadi bukti pengiriman nyata.</p>
                 <Card className="p-5 sm:p-6">
                     <form onSubmit={(event) => { event.preventDefault(); form.get('/pengaturan/notifikasi/pengiriman', { preserveScroll: true, preserveState: 'errors' }); }} className="space-y-4">
-                        <fieldset disabled={form.processing} className="grid gap-4 border-0 p-0 sm:grid-cols-2 xl:grid-cols-3">
+                        <fieldset disabled={form.processing} className="grid gap-4 border-0 p-0 sm:grid-cols-2 xl:grid-cols-4">
                             <legend className="sr-only">Filter status pengiriman</legend>
                             <Select label="Status" value={form.data.status} onChange={(e) => form.setData('status', e.target.value)} options={statusOptions} error={form.errors.status} />
                             <Select label="Kanal" value={form.data.kanal} onChange={(e) => form.setData('kanal', e.target.value)} error={form.errors.kanal} options={[{ value: '', label: 'Semua kanal' }, { value: 'email', label: 'Email' }, { value: 'whatsapp', label: 'WhatsApp' }]} />
-                            <Input label="ID penerima" value={form.data.penerima} onChange={(e) => form.setData('penerima', e.target.value)} error={form.errors.penerima} helperText="Opsional. Gunakan ID akun SAKIP lengkap." />
                             <Input label="Mulai tanggal (WITA)" type="date" value={form.data.mulai} onChange={(e) => form.setData('mulai', e.target.value)} error={form.errors.mulai} />
                             <Input label="Sampai tanggal (WITA)" type="date" value={form.data.selesai} onChange={(e) => form.setData('selesai', e.target.value)} error={form.errors.selesai} />
                         </fieldset>
@@ -103,9 +109,9 @@ export default function PengirimanNotifikasi({ filters, pengiriman }: Pengiriman
                             {pengiriman.data.map((item) => (
                                 <TableRow key={item.id} className="grid gap-3 px-4 py-5 md:table-row md:p-0">
                                     <TableCell className={tableCellResponsive}><TableCellLabel>Dibuat:</TableCellLabel><time dateTime={item.created_at}>{waktuWita(item.created_at)}</time></TableCell>
-                                    <TableCell className={tableCellResponsive}><TableCellLabel>Kanal:</TableCellLabel>{item.kanal === 'email' ? 'Email' : 'WhatsApp'}{item.simulasi && <span className="ml-2 rounded-sm bg-soft px-2 py-1 text-xs text-ink">Simulasi</span>}</TableCell>
+                                    <TableCell className={tableCellResponsive}><TableCellLabel>Kanal:</TableCellLabel>{item.kanal === 'email' ? 'Email' : 'WhatsApp'}{item.simulasi && <Badge variant="muted" size="sm" className="ml-2">Simulasi</Badge>}</TableCell>
                                     <TableCell className={`${tableCellResponsive} max-w-64 break-words`}><TableCellLabel>Penerima:</TableCellLabel>{item.penerima_nama ?? 'Nama penerima tidak tersedia'}</TableCell>
-                                    <TableCell className={tableCellResponsive}><TableCellLabel>Status:</TableCellLabel><span className="font-semibold">{item.label_status}</span>{item.kode_hasil && <p className="mt-1 text-muted">{keteranganHasil[item.kode_hasil]}</p>}</TableCell>
+                                    <TableCell className={tableCellResponsive}><TableCellLabel>Status:</TableCellLabel><Badge variant={statusBadge[item.status]}>{item.label_status}</Badge>{item.kode_hasil && <p className="mt-1 text-muted">{keteranganHasil[item.kode_hasil]}</p>}</TableCell>
                                     <TableCell className={tableCellResponsive}><TableCellLabel>Upaya:</TableCellLabel>{item.percobaan}{item.dicoba_terakhir_pada && <p className="mt-1 text-muted">Terakhir {waktuWita(item.dicoba_terakhir_pada)}</p>}</TableCell>
                                 </TableRow>
                             ))}
