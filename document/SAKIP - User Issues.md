@@ -1420,6 +1420,8 @@ kegiatan:update
 **Workflow:** §3.3, §13–14  
 **Data Model/Entitas:** `renstra_pk_versi` (Data Model §2.36, rancangan), `renstra_pk_versi_target` (Data Model §2.37, rancangan), `berkas`, `jadwal_snapshot`
 
+> **Q85 (6 November 2026):** refinement ISS-02.12 menetapkan sumber versi snapshot hasil revisi (versi terakhir indikator, hanya `target` yang diganti), pembaruan target PK master, pembentukan versi 1 saat revisi pertama, periode mulai = periode terendah yang belum dilaporkan, serta syarat, izin, alasan, dan lampiran file revisi. Kolom alasan deviasi Renstra tidak dibuat; revisi yang menyimpang dari target Renstra ditolak (Q72 §72.1 butir 4).
+
 #### User Story
 
 > **Sebagai** Tim Perencanaan,  
@@ -1429,11 +1431,13 @@ kegiatan:update
 #### Kontrak Teknis
 
 - **Dependensi:** alur koreksi snapshot berversi ISS-03.03 sebagai prasyarat (Q40 §40.1 butir 9); PK dan target PK tercatat (ISS-02.08, ISS-02.11).
-- **Otorisasi:** revisi disetujui Perencanaan (Q40 §40.1 butir 1); permission ditetapkan saat refinement (katalog existing memuat `pk:update`); capability berkas melalui kewenangan induk; unduhan mengikuti hak baca PK.
-- **Dampak Data:** `renstra_pk_versi` (nomor versi, `nomor_surat`, `tanggal_surat`, periode mulai berlaku), `renstra_pk_versi_target`, `berkas` (lampiran PK per versi), `jadwal_snapshot` (versi baru bila target berubah), `audit_log`.
-- **Keputusan terkait:** Q40 §40.1, Q35 §35.1, Q43 §43.2 butir 3, Q48 §48.2 butir 1, Q50 §50.7, Q46 §46.3.
+- **Otorisasi:** revisi disetujui Perencanaan (Q40 §40.1 butir 1); izin `pk:update`, `target:update`, `indikator:read`, dan `berkas:upload` sekaligus, deny menang, tanpa izin baru, untuk revisi target maupun dokumen (Q85 §85.4 butir 2); unduhan PK awal dan PK akhir mengikuti hak baca berkas PK.
+- **Dampak Data:** `renstra_pk_versi` (nomor versi, `nomor_surat`, `tanggal_surat`, periode mulai berlaku), `renstra_pk_versi_target`, `berkas` (lampiran PK per versi), `jadwal_snapshot` (versi baru bila target berubah), `target_tahunan` (nilai berlaku diperbarui bila target berubah, Q85 §85.1 butir 2), `audit_log`.
+- **Keputusan terkait:** Q40 §40.1, Q35 §35.1, Q43 §43.2 butir 3, Q48 §48.2 butir 1, Q50 §50.7, Q46 §46.3, Q72 §72.1 butir 4, Q79, Q81 §81.3, Q85.
 - **Rule:** koreksi salah ketik nomor atau tanggal PK tetap memakai koreksi teraudit ISS-02.09; perubahan target resmi memakai revisi berversi (Q40 §40.1 butir 8). Nomor dan tanggal surat Eselon I disimpan sebagai isian tersendiri, menggantikan aturan lama yang mencantumkannya pada kolom `alasan` (Q40 §40.3).
-- **Rule:** Q40 tidak merinci kapan suatu periode dianggap "sudah ditutup"; definisinya ditetapkan saat refinement ISS-02.12 sebelum implementasi (Q79 §79.2 butir 4).
+- **Rule:** periode mulai ditentukan sistem: periode berurutan terendah pada jadwal tahun PK yang belum dilaporkan, yaitu masih ada indikator PK yang pengukurannya pada periode itu belum `disahkan`; per indikator dinaikkan ke periode mulai versi pendahulu bila lebih awal. Bila seluruh periode sudah dilaporkan, revisi yang mengubah target ditolak (Q85 §85.3).
+- **Rule:** revisi hanya untuk PK yang sudah dikunci jadwal; revisi yang mengubah target hanya saat jadwal `aktif` dan tahun belum ditutup, termasuk ditolak selama sesi koreksi; revisi yang hanya mengganti dokumen boleh setelah tahun ditutup. Setiap revisi wajib alasan dan minimal satu lampiran file; lampiran versi tidak dapat dihapus atau diganti (Q85 §85.4).
+- **Rule:** versi snapshot hasil revisi menyalin versi terakhir indikator dan hanya mengganti `target`; target PK master ikut diperbarui dalam transaksi yang sama. Versi 1 dibentuk saat revisi pertama disetujui dengan target dari snapshot versi 1 jadwal tahun PK (Q85 §85.1–§85.2).
 - **Rule:** sebelum issue ini selesai, PK perubahan yang hanya mengubah anggaran memakai lampiran tambahan PK (Q50 §50.7 butir 1); PK perubahan yang mengubah target sebelum issue ini selesai ditangani melalui keputusan PM baru (Q50 §50.7 butir 2).
 - **Di luar cakupan:** revisi dan riwayat target Renstra (ISS-02.10), versi penuh Renstra (Q40 §40.2 butir 4), dan koreksi salah ketik (ISS-02.09).
 
@@ -1441,7 +1445,7 @@ kegiatan:update
 
 - [ ] **AC-1:** Given PK sudah tercatat, When Perencanaan menyetujui revisi, Then terbentuk versi PK baru yang menyimpan nomor versi, nomor dan tanggal surat persetujuan Eselon I sebagai isian tersendiri, periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator; versi sebelumnya tidak berubah. *(Q40 §40.1 butir 1–2)*
 - [ ] **AC-2:** Given revisi PK disimpan tanpa alasan, Then ditolak. *(Q43 §43.2 butir 3)*
-- [ ] **AC-3:** Given revisi mengubah target, When disetujui, Then revisi berlaku mulai periode pertama yang belum ditutup: sistem menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I, sedangkan periode yang sudah dilaporkan tetap memakai target versi lama. *(Q40 §40.1 butir 4)*
+- [ ] **AC-3:** Given revisi mengubah target, When disetujui, Then revisi berlaku mulai periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3): sistem menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I, sedangkan periode yang sudah dilaporkan tetap memakai target versi lama. *(Q40 §40.1 butir 4)*
 - [ ] **AC-4:** Given revisi hanya mengganti dokumen tanpa mengubah target, When disetujui, Then versi PK baru terbentuk tanpa menerbitkan versi snapshot. *(Q40 §40.1 butir 5)*
 - [ ] **AC-5:** Given PK memiliki lebih dari satu versi, When halaman PK dibuka, Then PK awal dan PK akhir dapat diunduh sesuai hak baca. *(Q40 §40.1 butir 3)*
 - [ ] **AC-6:** Given capaian akhir tahun dinilai, Then acuannya target PK akhir, yaitu versi yang berlaku pada periode nilai akhir. *(Q40 §40.1 butir 6)*
@@ -1450,31 +1454,31 @@ kegiatan:update
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Buat migrasi dan model `renstra_pk_versi` serta `renstra_pk_versi_target` sesuai rancangan Data Model §2.36–§2.37; baris versi immutable setelah dibuat. Representasi PK yang sudah tercatat sebagai versi awal ditetapkan saat refinement.
+- [ ] Buat migrasi dan model `renstra_pk_versi` serta `renstra_pk_versi_target` sesuai rancangan Data Model §2.36–§2.37; baris versi immutable setelah dibuat. Versi 1 (PK awal) dibentuk saat revisi pertama disetujui: nomor dan tanggal dari PK, target dari snapshot versi 1 jadwal tahun PK, dan lampiran PK yang diunggah sebelum waktu persetujuan (Q85 §85.2); tanpa kolom alasan deviasi Renstra (Q85 §85.4 butir 5).
 - [ ] Daftarkan versi PK sebagai induk `berkas` untuk lampiran dokumen PK bertanda tangan per versi (Q48 §48.2 butir 1).
 - [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
 - [ ] Persetujuan revisi membentuk versi PK baru beserta target per indikator dan lampirannya dalam satu transaksi; versi sebelumnya tidak berubah.
-- [ ] Bila target berubah, terbitkan versi `jadwal_snapshot` baru melalui mekanisme ISS-03.03 dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I; revisi yang hanya mengganti dokumen tidak menerbitkan versi snapshot.
+- [ ] Bila target berubah, terbitkan versi `jadwal_snapshot` baru yang menyalin versi terakhir indikator dan hanya mengganti `target` (Q85 §85.1), dengan `periode_mulai_id` sesuai Q85 §85.3 dan `rujukan_koreksi` surat Eselon I, serta perbarui `target_tahunan` dalam transaksi yang sama melewati validasi Q72; revisi yang hanya mengganti dokumen tidak menerbitkan versi snapshot.
 - [ ] Tetapkan target PK akhir sebagai versi yang berlaku pada periode nilai akhir (`periode.is_nilai_akhir`) untuk penilaian capaian akhir tahun.
 - [ ] Jangan mengubah Rencana Aksi otomatis; tampilkan selisih target periode terakhir terhadap target PK baru sebagai deviasi yang wajib dijelaskan (ADR-0008, `DeviasiTargetPk`); target periode yang belum terkunci disesuaikan lewat buka-kembali ISS-05.06.
 
 **C. Authorization & Audit**
-- [ ] Terapkan permission revisi yang ditetapkan saat refinement melalui Policy/Gate/resolver server-side; alasan revisi wajib dan divalidasi server (Q43 §43.2 butir 3).
+- [ ] Terapkan izin Q85 §85.4 butir 2 melalui Policy/Gate/resolver server-side; alasan revisi wajib dan divalidasi server (Q43 §43.2 butir 3).
 - [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 - [ ] Catat audit persetujuan revisi dengan aktor, nilai lama/baru, nomor dan tanggal surat, alasan, dan `dasar_izin`.
 
 **D. Frontend / UX**
 - [ ] Tampilkan daftar versi PK pada halaman PK (`resources/js/Pages/PerjanjianKinerja/Show.tsx`) beserta unduhan PK awal dan PK akhir sesuai hak baca.
-- [ ] Sediakan form revisi dengan isian nomor dan tanggal surat Eselon I, periode mulai berlaku, lampiran, dan target per indikator, memakai pola **Modal Alasan Audit**.
+- [ ] Sediakan form revisi dengan isian nomor dan tanggal surat Eselon I, periode mulai berlaku yang ditentukan sistem dan tidak dapat diubah (Q85 §85.3), lampiran file, dan target per indikator, beserta peringatan dampak (Q85 §85.4 butir 7), memakai pola **Modal Alasan Audit**.
 - [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
 
 #### Automated Tests / Verification
 
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given PK sudah tercatat, When Perencanaan menyetujui revisi, Then terbentuk versi PK baru yang menyimpan nomor versi, nomor dan tanggal surat persetujuan Eselon I sebagai isian tersendiri, periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator; versi sebelumnya tidak berubah. *(Q40 §40.1 butir 1–2)*
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given revisi PK disimpan tanpa alasan, Then ditolak. *(Q43 §43.2 butir 3)*
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given revisi mengubah target, When disetujui, Then revisi berlaku mulai periode pertama yang belum ditutup: sistem menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I, sedangkan periode yang sudah dilaporkan tetap memakai target versi lama. *(Q40 §40.1 butir 4)*
+- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given revisi mengubah target, When disetujui, Then revisi berlaku mulai periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3): sistem menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I, sedangkan periode yang sudah dilaporkan tetap memakai target versi lama. *(Q40 §40.1 butir 4)*
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given revisi hanya mengganti dokumen tanpa mengubah target, When disetujui, Then versi PK baru terbentuk tanpa menerbitkan versi snapshot. *(Q40 §40.1 butir 5)*
 - [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given PK memiliki lebih dari satu versi, When halaman PK dibuka, Then PK awal dan PK akhir dapat diunduh sesuai hak baca. *(Q40 §40.1 butir 3)*
 - [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given capaian akhir tahun dinilai, Then acuannya target PK akhir, yaitu versi yang berlaku pada periode nilai akhir. *(Q40 §40.1 butir 6)*
