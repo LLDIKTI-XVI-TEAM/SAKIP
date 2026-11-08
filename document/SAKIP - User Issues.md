@@ -4132,7 +4132,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 - [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
 - [x] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
-- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app dibuat oleh ISS-12.02 AC-1 (ISS-12.02, PR #249). *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
+- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app dibuat oleh ISS-12.02 AC-1 (ISS-12.02, PR #249); kanal eksternal WhatsApp dan Email diantre oleh ISS-12.06. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
 - [x] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
 - [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat. *(Berlaku untuk PR #144; digantikan Q70 §70.2 butir 4: penanda tidak lagi dibuat, penanda lama tetap ditampilkan — ISS-03.07.)*
 - [x] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
@@ -5732,6 +5732,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-12.06 · [Feature] Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
 
+> **Status implementasi lokal:** integrasi empat event pengembalian dan buka-kembali RA/pengukuran memakai outbox ISS-12.07 dan penerima yang dibawa event. Bukti test: `NotifikasiPengembalianTest` (Feature) dan `NotifikasiSetelahCommitTest` (Integration), dengan nama test per AC di bawah. Penerima: tanpa PJ efektif tidak ada baris dan dicatat di log tanpa gagal (`test_tanpa_pj_mutasi_sukses_dan_penerima_kosong_dicatat_tanpa_isi_alasan`); PJ nonaktif menjadi `dibatalkan` (`test_penerima_nonaktif_dibatalkan_sebelum_job_dikirim`); galat saat mengantre tidak menggagalkan mutasi yang sudah commit (`test_galat_saat_mengantre_notifikasi_eksternal_tidak_menggagalkan_pengembalian_yang_sudah_commit`). Centang menandai bukti test otomatis, bukan QA/UAT atau aktivasi kanal; kanal nyata tetap mengikuti gate Q80 §80.1.
+
 **Terkait User Story:** `US-12.06`  
 **Prioritas:** 🟡 P1  
 **Story Points:** 5  
@@ -5757,11 +5759,11 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given transaksi pengembalian sukses, Then job WA **dan Email** didispatch setelah commit.
-- [ ] **AC-2:** Given transaksi database gagal/rollback, Then notifikasi eksternal tidak dikirim.
-- [ ] **AC-3:** Given pesan dibuat, Then memuat ringkasan alasan dan tautan aman yang tetap memerlukan autentikasi.
-- [ ] **AC-4:** Given provider gagal, Then status bisnis tetap `dikembalikan` dan pengiriman dapat diretry terkontrol.
-- [ ] **AC-5:** Given hak baca berubah setelah pesan dikirim, Then tautan tidak boleh melewati pemeriksaan otorisasi saat dibuka.
+- [x] **AC-1:** Given transaksi pengembalian sukses, Then job WA **dan Email** didispatch setelah commit. *(`NotifikasiPengembalianTest::test_pengembalian_mengantre_dua_job_jika_kanal_dan_kontak_tersedia`; `NotifikasiSetelahCommitTest::test_notifikasi_eksternal_pengembalian_pengukuran_hanya_dibuat_setelah_commit`)*
+- [x] **AC-2:** Given transaksi database gagal/rollback, Then notifikasi eksternal tidak dikirim. *(Pengukuran: `NotifikasiSetelahCommitTest::test_notifikasi_eksternal_pengembalian_pengukuran_hanya_dibuat_setelah_commit`; RA pada tingkat event: `ReviewRencanaAksiTransactionTest::test_event_hanya_setelah_commit_memakai_pj_efektif_dan_mempertahankan_pengaju_historis`)*
+- [x] **AC-3:** Given pesan dibuat, Then memuat ringkasan alasan dan tautan aman yang tetap memerlukan autentikasi. *(Empat test event `NotifikasiPengembalianTest` memeriksa `parameter.alasan` dan `parameter.url`; `test_tautan_eksternal_memerlukan_login_dan_memeriksa_izin_yang_dicabut`, `test_tautan_eksternal_pengukuran_memerlukan_login_dan_memeriksa_izin_yang_dicabut`)*
+- [x] **AC-4:** Given provider gagal, Then status bisnis tetap `dikembalikan` dan pengiriman dapat diretry terkontrol. *(`NotifikasiPengembalianTest::test_provider_gagal_sementara_tidak_mengubah_pengembalian`; kebijakan retry ISS-12.07)*
+- [x] **AC-5:** Given hak baca berubah setelah pesan dikirim, Then tautan tidak boleh melewati pemeriksaan otorisasi saat dibuka. *(`NotifikasiPengembalianTest::test_tautan_eksternal_memerlukan_login_dan_memeriksa_izin_yang_dicabut`, `test_tautan_eksternal_pengukuran_memerlukan_login_dan_memeriksa_izin_yang_dicabut`)*
 
 #### Implementation Tasks
 
@@ -5782,11 +5784,11 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given transaksi pengembalian sukses, Then job WA **dan Email** didispatch setelah commit.
-- [ ] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given transaksi database gagal/rollback, Then notifikasi eksternal tidak dikirim.
-- [ ] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given pesan dibuat, Then memuat ringkasan alasan dan tautan aman yang tetap memerlukan autentikasi.
-- [ ] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider gagal, Then status bisnis tetap `dikembalikan` dan pengiriman dapat diretry terkontrol.
-- [ ] TEST-5: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given hak baca berubah setelah pesan dikirim, Then tautan tidak boleh melewati pemeriksaan otorisasi saat dibuka.
+- [x] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given transaksi pengembalian sukses, Then job WA **dan Email** didispatch setelah commit. *(`test_pengembalian_mengantre_dua_job_jika_kanal_dan_kontak_tersedia`, `test_notifikasi_eksternal_pengembalian_pengukuran_hanya_dibuat_setelah_commit`)*
+- [x] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given transaksi database gagal/rollback, Then notifikasi eksternal tidak dikirim. *(`test_notifikasi_eksternal_pengembalian_pengukuran_hanya_dibuat_setelah_commit`)*
+- [x] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given pesan dibuat, Then memuat ringkasan alasan dan tautan aman yang tetap memerlukan autentikasi. *(empat test event `NotifikasiPengembalianTest`; `test_tautan_eksternal_memerlukan_login_dan_memeriksa_izin_yang_dicabut`, `test_tautan_eksternal_pengukuran_memerlukan_login_dan_memeriksa_izin_yang_dicabut`)*
+- [x] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider gagal, Then status bisnis tetap `dikembalikan` dan pengiriman dapat diretry terkontrol. *(`test_provider_gagal_sementara_tidak_mengubah_pengembalian`)*
+- [x] TEST-5: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given hak baca berubah setelah pesan dikirim, Then tautan tidak boleh melewati pemeriksaan otorisasi saat dibuka. *(`test_tautan_eksternal_memerlukan_login_dan_memeriksa_izin_yang_dicabut`, `test_tautan_eksternal_pengukuran_memerlukan_login_dan_memeriksa_izin_yang_dicabut`)*
 
 #### Definition of Done
 

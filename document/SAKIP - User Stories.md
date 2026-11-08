@@ -1801,7 +1801,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 - [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
 - [x] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
-- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
+- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1, sedangkan kanal eksternal WhatsApp dan Email mengikuti ISS-12.06. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
 - [x] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
 - [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat. *(Berlaku untuk PR #144; digantikan Q70 §70.2 butir 4: penanda tidak lagi dibuat, penanda lama tetap ditampilkan — US-03.07.)*
 - [x] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
@@ -2423,6 +2423,8 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-12.06 · Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
 
+> **Status implementasi lokal:** integrasi pengembalian dan buka-kembali RA/pengukuran memakai outbox ISS-12.07. Bukti test: `NotifikasiPengembalianTest` (Feature) dan `NotifikasiSetelahCommitTest` (Integration); nama test per AC tercantum di bawah dan pada ISS-12.06. Centang menandai bukti test otomatis, bukan QA/UAT; aktivasi kanal nyata tetap mengikuti Q80 §80.1.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-12.06` |
@@ -2439,11 +2441,11 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given transaksi pengembalian sukses, Then job WA **dan Email** didispatch setelah commit.
-- [ ] **AC-2:** Given transaksi database gagal/rollback, Then notifikasi eksternal tidak dikirim.
-- [ ] **AC-3:** Given pesan dibuat, Then memuat ringkasan alasan dan tautan aman yang tetap memerlukan autentikasi.
-- [ ] **AC-4:** Given provider gagal, Then status bisnis tetap `dikembalikan` dan pengiriman dapat diretry terkontrol.
-- [ ] **AC-5:** Given hak baca berubah setelah pesan dikirim, Then tautan tidak boleh melewati pemeriksaan otorisasi saat dibuka.
+- [x] **AC-1:** Given transaksi pengembalian sukses, Then job WA **dan Email** didispatch setelah commit. *(`test_pengembalian_mengantre_dua_job_jika_kanal_dan_kontak_tersedia`, `test_notifikasi_eksternal_pengembalian_pengukuran_hanya_dibuat_setelah_commit`)*
+- [x] **AC-2:** Given transaksi database gagal/rollback, Then notifikasi eksternal tidak dikirim. *(`test_notifikasi_eksternal_pengembalian_pengukuran_hanya_dibuat_setelah_commit`; RA pada tingkat event: `ReviewRencanaAksiTransactionTest::test_event_hanya_setelah_commit_memakai_pj_efektif_dan_mempertahankan_pengaju_historis`)*
+- [x] **AC-3:** Given pesan dibuat, Then memuat ringkasan alasan dan tautan aman yang tetap memerlukan autentikasi. *(empat test event `NotifikasiPengembalianTest`; `test_tautan_eksternal_memerlukan_login_dan_memeriksa_izin_yang_dicabut`, `test_tautan_eksternal_pengukuran_memerlukan_login_dan_memeriksa_izin_yang_dicabut`)*
+- [x] **AC-4:** Given provider gagal, Then status bisnis tetap `dikembalikan` dan pengiriman dapat diretry terkontrol. *(`test_provider_gagal_sementara_tidak_mengubah_pengembalian`)*
+- [x] **AC-5:** Given hak baca berubah setelah pesan dikirim, Then tautan tidak boleh melewati pemeriksaan otorisasi saat dibuka. *(`test_tautan_eksternal_memerlukan_login_dan_memeriksa_izin_yang_dicabut`, `test_tautan_eksternal_pengukuran_memerlukan_login_dan_memeriksa_izin_yang_dicabut`)*
 
 ### US-12.07 · Idempotensi, Retry, dan Status Pengiriman Notifikasi Eksternal
 

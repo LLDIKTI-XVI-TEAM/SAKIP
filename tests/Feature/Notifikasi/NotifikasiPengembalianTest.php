@@ -4,15 +4,20 @@ namespace Tests\Feature\Notifikasi;
 
 use App\Actions\RencanaAksi\SahkanRencanaAksi;
 use App\Actions\RencanaAksi\VerifikasiRencanaAksi;
+use App\Events\PengukuranDikembalikan;
 use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
 use App\Models\PenugasanIndikator;
 use App\Models\User;
+use App\Services\Notifikasi\HasilKirim;
+use App\Services\Notifikasi\PengirimNotifikasiEksternal;
+use App\Services\Notifikasi\PenyediaKanalNotifikasi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Testing\TestResponse;
+use InvalidArgumentException;
 use RuntimeException;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
@@ -75,6 +80,8 @@ class NotifikasiPengembalianTest extends TestCase
 
         $this->kembalikanRencanaAksi($this->reviewer, 'Perbaiki target TW I.')->assertSuccessful();
 
+        $this->assertNotifikasiEksternal($pic, 'rencana_aksi', 'Perbaiki target TW I.', route('rencana-aksi.show', ['rencanaAksi' => $this->rencanaAksi->id]));
+
         $items = $this->items();
         $this->assertCount(1, $items);
         $item = $items->first();
@@ -96,6 +103,8 @@ class NotifikasiPengembalianTest extends TestCase
 
         $this->actingAs($this->reviewer)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/buka-kembali", $tokens() + ['alasan' => 'Koreksi resmi.'])->assertOk();
 
+        $this->assertNotifikasiEksternal($pic, 'rencana_aksi', 'Koreksi resmi.', route('rencana-aksi.show', ['rencanaAksi' => $this->rencanaAksi->id]));
+
         $item = $this->items()->sole();
         $this->assertSame([$pic->id, 'rencana_aksi.dibuka_kembali'], [$item->notifiable_id, $item->type]);
         $this->assertSame(['judul' => 'Rencana Aksi IKU-RA-01 2026 dibuka kembali', 'ringkasan' => 'Koreksi resmi.',
@@ -108,6 +117,8 @@ class NotifikasiPengembalianTest extends TestCase
         $p = $this->pengukuran();
 
         $this->kembalikanPengukuran($p, 'Lampiran SPJ belum ada.')->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertNotifikasiEksternal($pic, 'pengukuran', 'Lampiran SPJ belum ada.', route('pengukuran.edit', ['id' => $p->id]));
 
         $item = $this->items()->sole();
         $this->assertSame([$pic->id, 'pengukuran.dikembalikan'], [$item->notifiable_id, $item->type]);
@@ -122,10 +133,103 @@ class NotifikasiPengembalianTest extends TestCase
 
         $this->actingAs($this->reviewer)->post("/verifikasi/{$p->id}/buka-kembali", ['versi' => $p->fresh()->versi, 'alasan' => 'Koreksi nilai.'])->assertSessionHasNoErrors();
 
+        $this->assertNotifikasiEksternal($pic, 'pengukuran', 'Koreksi nilai.', route('pengukuran.edit', ['id' => $p->id]));
+
         $item = $this->items()->sole();
         $this->assertSame([$pic->id, 'pengukuran.dibuka_kembali'], [$item->notifiable_id, $item->type]);
         $this->assertSame('Pengukuran IKU-RA-01 Triwulan I 2026 dibuka kembali', $item->data['judul']);
         $this->assertSame(['id' => $p->id], $item->data['route_params']);
+    }
+
+    private function assertNotifikasiEksternal(User $pic, string $tipe, string $alasan, string $url): void
+    {
+        $rows = DB::table('notifikasi_pengiriman')->where('penerima_user_id', $pic->id)->where('objek_tipe', $tipe)->get();
+        $this->assertCount(2, $rows);
+        $this->assertEqualsCanonicalizing(['email', 'whatsapp'], $rows->pluck('kanal')->all());
+        foreach ($rows as $row) {
+            $parameter = json_decode($row->parameter, true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame($alasan, $parameter['alasan']);
+            $this->assertSame($url, $parameter['url']);
+        }
+    }
+
+    public function test_penerima_nonaktif_dibatalkan_sebelum_job_dikirim(): void
+    {
+        config(['notifikasi.kanal.email.aktif' => true, 'notifikasi.kanal.whatsapp.aktif' => true]);
+        $pic = $this->createPicPegawai();
+        $pic->update(['status' => 'nonaktif', 'nomor_telepon' => '081234567890']);
+        $this->kembalikanPengukuran($this->pengukuran(), 'Perbaiki.')->assertSessionHasNoErrors();
+
+        $rows = DB::table('notifikasi_pengiriman')->where('penerima_user_id', $pic->id)->get();
+        $this->assertCount(2, $rows);
+        $this->assertSame(['dibatalkan', 'dibatalkan'], $rows->pluck('status')->all());
+        $this->assertSame(['penerima_tidak_berhak', 'penerima_tidak_berhak'], $rows->pluck('kode_hasil')->all());
+    }
+
+    public function test_replay_pengembalian_idempoten_dan_versi_baru_membuat_dua_baris_baru(): void
+    {
+        $pic = $this->createPicPegawai();
+        $p = $this->pengukuran();
+        $this->kembalikanPengukuran($p, 'Perbaiki.')->assertSessionHasNoErrors();
+        $versi = $p->fresh()->versi;
+        PengukuranDikembalikan::dispatch($p->id, $versi, $pic->id, $this->reviewer->id, 'Perbaiki.');
+        $this->assertSame(2, DB::table('notifikasi_pengiriman')->count());
+
+        PengukuranDikembalikan::dispatch($p->id, $versi + 1, $pic->id, $this->reviewer->id, 'Perbaiki lagi.');
+        $this->assertSame(4, DB::table('notifikasi_pengiriman')->count());
+    }
+
+    public function test_pengembalian_mengantre_dua_job_jika_kanal_dan_kontak_tersedia(): void
+    {
+        config(['notifikasi.kanal.email.aktif' => true, 'notifikasi.kanal.whatsapp.aktif' => true]);
+        $this->actor->update(['nomor_telepon' => '081234567890']);
+        $this->kembalikanRencanaAksi($this->actor, 'Perbaiki.')->assertSuccessful();
+
+        $rows = DB::table('notifikasi_pengiriman')->where('penerima_user_id', $this->actor->id)->get();
+        $this->assertCount(2, $rows);
+        $this->assertSame(['antre', 'antre'], $rows->pluck('status')->all());
+        $this->assertSame(2, DB::table('jobs')->where('queue', 'notifikasi')->count());
+    }
+
+    public function test_tautan_eksternal_memerlukan_login_dan_memeriksa_izin_yang_dicabut(): void
+    {
+        $pic = $this->createPicPegawai();
+        $this->kembalikanRencanaAksi($this->reviewer, 'Perbaiki.')->assertSuccessful();
+        $row = DB::table('notifikasi_pengiriman')->where('penerima_user_id', $pic->id)->first();
+        $url = json_decode($row->parameter, true, flags: JSON_THROW_ON_ERROR)['url'];
+
+        auth()->logout();
+        $this->get($url)->assertRedirect(route('login'));
+        $this->denyPermission($pic, 'rencana_aksi:read', $this->unit->id);
+        $this->actingAs($pic)->get($url)->assertForbidden();
+    }
+
+    public function test_tautan_eksternal_pengukuran_memerlukan_login_dan_memeriksa_izin_yang_dicabut(): void
+    {
+        $pic = $this->createPicPegawai();
+        $p = $this->pengukuran();
+        $this->kembalikanPengukuran($p, 'Perbaiki.')->assertSessionHasNoErrors();
+        $row = DB::table('notifikasi_pengiriman')->where('penerima_user_id', $pic->id)->first();
+        $url = json_decode($row->parameter, true, flags: JSON_THROW_ON_ERROR)['url'];
+
+        auth()->logout();
+        $this->get($url)->assertRedirect(route('login'));
+        $this->actingAs($pic)->get($url)->assertOk();
+        $this->denyPermission($pic, 'pengukuran:read', $this->unit->id);
+        $this->actingAs($pic)->get($url)->assertForbidden();
+    }
+
+    public function test_provider_gagal_sementara_tidak_mengubah_pengembalian(): void
+    {
+        config(['notifikasi.kanal.email.aktif' => true]);
+        $this->mock(PenyediaKanalNotifikasi::class)->shouldReceive('kirim')->once()->andReturn(HasilKirim::sementara(60));
+        $this->kembalikanRencanaAksi($this->actor, 'Perbaiki.')->assertSuccessful();
+        $row = DB::table('notifikasi_pengiriman')->where('kanal', 'email')->first();
+
+        app(PengirimNotifikasiEksternal::class)->kirim($row->id, 4);
+
+        $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
+        $this->assertDatabaseHas('notifikasi_pengiriman', ['id' => $row->id, 'status' => 'antre', 'kode_hasil' => 'provider_sementara']);
     }
 
     /** Header unik per indikator × tahun × periode; pengembalian berikutnya memakai header yang sama setelah diajukan ulang. */
@@ -190,9 +294,27 @@ class NotifikasiPengembalianTest extends TestCase
 
         $this->assertSame('dikembalikan', $p->fresh()->status_alur);
         $this->assertCount(0, $this->items());
-        Log::shouldHaveReceived('info')->once()->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi in-app tanpa penerima.'
-            && $konteks === ['jenis' => 'pengukuran.dikembalikan', 'objek_id' => $p->id]);
+        $this->assertSame(0, DB::table('notifikasi_pengiriman')->count());
+        Log::shouldHaveReceived('info')->twice();
+        Log::shouldHaveReceived('info')->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi in-app tanpa penerima.'
+            && $konteks === ['jenis' => 'pengukuran.dikembalikan', 'objek_id' => $p->id])->once();
+        Log::shouldHaveReceived('info')->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi eksternal tanpa penerima.'
+            && $konteks === ['jenis' => 'pengukuran.dikembalikan', 'objek_id' => $p->id])->once();
         Log::shouldNotHaveReceived('error');
+    }
+
+    public function test_galat_saat_mengantre_notifikasi_eksternal_tidak_menggagalkan_pengembalian_yang_sudah_commit(): void
+    {
+        $this->createPicPegawai();
+        config(['notifikasi.kanal.email.driver' => 'driver-salah']);
+        Log::spy();
+
+        $this->kembalikanRencanaAksi($this->reviewer, 'Alasan rahasia.')->assertSuccessful();
+
+        $this->assertSame('dikembalikan', $this->rencanaAksi->fresh()->status_alur);
+        $this->assertSame(0, DB::table('notifikasi_pengiriman')->count());
+        Log::shouldHaveReceived('error')->withArgs(fn (string $pesan, array $konteks): bool => $pesan === 'Notifikasi eksternal gagal diantrekan.'
+            && $konteks === ['jenis' => 'rencana_aksi.dikembalikan', 'objek_id' => $this->rencanaAksi->id, 'galat' => InvalidArgumentException::class])->once();
     }
 
     public function test_logger_yang_gagal_di_listener_tidak_membatalkan_mutasi_yang_sudah_commit(): void
@@ -202,7 +324,8 @@ class NotifikasiPengembalianTest extends TestCase
         // Channel log melempar (ignore_exceptions=false); galat ini terjadi setelah commit dan tidak boleh lolos ke Action,
         // karena kompensasinya menganggap transaksi batal dan menghapus berkas unggahan yang sudah dirujuk DB.
         Log::spy();
-        Log::shouldReceive('info')->once()->andThrow(new RuntimeException('log mati'));
+        // Listener in-app dan eksternal masing-masing mencatat "tanpa penerima" sekali; keduanya harus menelan galat logger.
+        Log::shouldReceive('info')->twice()->andThrow(new RuntimeException('log mati'));
         Log::shouldReceive('error')->andThrow(new RuntimeException('log mati'));
 
         $this->kembalikanPengukuran($p, 'Alasan.')->assertSessionHasNoErrors()->assertRedirect();

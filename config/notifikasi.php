@@ -8,4 +8,5 @@ return [
         'whatsapp' => ['aktif' => env('SAKIP_NOTIFIKASI_WHATSAPP_AKTIF', false) === true, 'driver' => env('SAKIP_NOTIFIKASI_WHATSAPP_DRIVER', 'log')],
     ],
     'pemulihan_menit' => 10,
+    'template_pengembalian' => 'Perbaikan diperlukan: {{judul}}. {{alasan}} {{url}}',
 ];

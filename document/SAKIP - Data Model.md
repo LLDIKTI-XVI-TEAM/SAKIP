@@ -1357,7 +1357,7 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 
 **Alasan review (Q37 §37.2):** verifikasi cukup konfirmasi, tanpa alasan pengguna; audit memakai alasan baku server dan `dasar_izin`. Pengembalian wajib alasan pengguna yang divalidasi dan disanitasi di backend. Permission sensitif tidak otomatis mewajibkan alasan pengguna (§2.32, §3.5).
 
-**Penerima pengembalian (Q37 §37.3):** penerima ditentukan dari PJ efektif saat pengembalian melalui `PenugasanIndikator::effectiveOn()`, bukan `penanggung_jawab_id` historis pada header atau pengaju historis. `rencana_aksi_versi.diajukan_by` dan audit tetap mencatat pengaju historis. ISS-05.04 menetapkan penerima dan event setelah commit (tidak pada rollback); pengiriman in-app menunggu ISS-12.02 dan tautan tetap diotorisasi saat dibuka.
+**Penerima pengembalian (Q37 §37.3):** penerima ditentukan dari PJ efektif saat pengembalian melalui `PenugasanIndikator::effectiveOn()`, bukan `penanggung_jawab_id` historis pada header atau pengaju historis. `rencana_aksi_versi.diajukan_by` dan audit tetap mencatat pengaju historis. ISS-05.04 menetapkan penerima dan event setelah commit (tidak pada rollback); pengiriman in-app menunggu ISS-12.02 dan tautan tetap diotorisasi saat dibuka. Pengembalian dan buka-kembali juga mengantre kanal eksternal WhatsApp dan Email lewat outbox `notifikasi_pengiriman` (§2.40, ISS-12.06) untuk PJ efektif yang dibawa event; tanpa PJ efektif tidak ada baris yang dibuat, dan aktivasi kanal mengikuti Q80 §80.1.
 
 **Versi pengajuan beku:** setiap pengajuan tersimpan sebagai baris `rencana_aksi_versi` (§2.34) berisi provenance beku dan snapshot isi pengajuan; yang disahkan pada transisi akhir adalah snapshot versi tersebut, bukan header.
 
