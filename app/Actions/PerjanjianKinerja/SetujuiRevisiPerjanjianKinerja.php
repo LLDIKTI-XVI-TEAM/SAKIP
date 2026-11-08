@@ -204,7 +204,7 @@ class SetujuiRevisiPerjanjianKinerja
                 $arah = $indikator[$id]->arah;
                 $renstraNilai = self::nilai($targetRenstra->get($id));
                 if (DeviasiTargetRenstra::status($arah, $nilai, $renstraNilai) === DeviasiTargetRenstra::MENYIMPANG) {
-                    throw ValidationException::withMessages(['target' => sprintf(SaveTargetTahunan::PESAN_DEVIASI,
+                    throw ValidationException::withMessages(["target.{$i}.nilai" => sprintf(SaveTargetTahunan::PESAN_DEVIASI,
                         $arah === 'turun_baik' ? 'di atas' : 'di bawah', $jadwal->tahun, str_replace('.', ',', (string) $renstraNilai))]);
                 }
             }

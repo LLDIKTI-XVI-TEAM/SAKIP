@@ -359,14 +359,15 @@ class RevisiPkTest extends TestCase
     public function test_deviasi_renstra_diperiksa_untuk_setiap_pengubah_target_termasuk_yang_sama_dengan_master(): void
     {
         TargetRenstra::create(['indikator_id' => $this->iku1->indikator_id, 'tahun' => 2026, 'nilai' => '90', 'updated_by' => $this->actor->id]);
-        $galat = $this->ditolak('target', [$this->entri($this->iku1, '85')]);
-        $this->assertSame([sprintf(SaveTargetTahunan::PESAN_DEVIASI, 'di bawah', 2026, '90')], $galat->errors()['target']);
+        // Entri ke-0 sama dengan nilai dasar dan dibuang; galat deviasi tetap menunjuk baris payload asli.
+        $galat = $this->ditolak('target.1.nilai', [$this->entri($this->iku2, '60'), $this->entri($this->iku1, '85')]);
+        $this->assertSame([sprintf(SaveTargetTahunan::PESAN_DEVIASI, 'di bawah', 2026, '90')], $galat->errors()['target.1.nilai']);
 
         // Snapshot 100, master 85: revisi ke 85 tetap pengubah target, sehingga deviasi Renstra 90 diperiksa walau sama dengan master.
         $this->koreksiSnapshot($this->iku2, '100', $this->tw1);
         $this->master($this->iku2)->update(['target_tahunan' => '85']);
         TargetRenstra::create(['indikator_id' => $this->iku2->indikator_id, 'tahun' => 2026, 'nilai' => '90', 'updated_by' => $this->actor->id]);
-        $this->ditolak('target', [$this->entri($this->iku2, '85')]);
+        $this->ditolak('target.0.nilai', [$this->entri($this->iku2, '85')]);
         $this->assertSame(0, RenstraPkVersi::count());
     }
 

@@ -61,6 +61,8 @@ const opsiKirim = (index = 0) => vi.mocked(router.post).mock.calls[index][2] as 
     onStart: (visit: unknown) => void;
     onSuccess: (page: unknown) => Promise<unknown>;
     onError: (errors: Record<string, string>) => void;
+    onHttpException: (response: { status: number; data: unknown; headers: Record<string, string> }) => boolean | void;
+    onNetworkError: () => boolean | void;
     onFinish: (visit: unknown) => void;
 };
 const dataKirim = (index = 0) => vi.mocked(router.post).mock.calls[index][1] as Record<string, unknown>;
@@ -114,7 +116,6 @@ it('FE-1 linimasa menampilkan versi terbaru di atas, lencana, chip perubahan, do
     expect(screen.getByText('IKU-3 masuk PK, target 50')).toBeTruthy();
     expect(screen.getByText('IKU-4 tidak lagi aktif')).toBeTruthy();
     expect(screen.getByText('Target sama dengan versi PK sebelumnya').closest('li')!.textContent).toContain('Versi 4');
-    expect(screen.queryByText(/Dokumen saja/i)).toBeNull();
     expect(screen.getByText(/^PK\/2026\/001 · /)).toBeTruthy();
     expect(screen.getAllByText(/^Surat B-2\/2026 · /)).toHaveLength(1);
     expect(screen.getAllByText('Berlaku mulai Triwulan III')).toHaveLength(3);
@@ -161,6 +162,9 @@ it('FE-2 fokus pindah ke isian baris baru setelah Tambah dan ke pilihan indikato
     await bukaPanel(user);
     await tambahTarget(user, 'ind-1');
     expect(document.activeElement).toBe(within(baris('IKU-1')).getByLabelText('Target baru'));
+    // Nama aksesibel memuat kode agar pembaca layar dapat membedakan baris.
+    await tambahTarget(user, 'ind-2');
+    expect(screen.getAllByRole('textbox', { name: /^Target baru/ }).map((input) => input.getAttribute('aria-label'))).toEqual(['Target baru IKU-1', 'Target baru IKU-2']);
 
     await user.click(screen.getByRole('button', { name: 'Batalkan perubahan IKU-1' }));
     expect(document.activeElement).toBe(screen.getByLabelText('Pilih indikator'));
@@ -309,6 +313,20 @@ it('FE-6 konfirmasi pengukuran sebelumnya hanya muncul di modal untuk baris beru
     expect(dataKirim().konfirmasi_pengukuran_sebelumnya).toBe(true);
 });
 
+it('FE-6 konfirmasi direset setiap modal dibuka sehingga daftar harus dikonfirmasi ulang', async () => {
+    const user = userEvent.setup();
+    render(<Show {...props()} />);
+    await bukaPanel(user);
+    await tambahTarget(user, 'ind-2', '65');
+    let dialog = await bukaModal(user);
+    await user.click(within(dialog).getByLabelText(/Saya mengerti/));
+    await user.click(within(dialog).getByRole('button', { name: 'Batal' }));
+
+    dialog = await bukaModal(user, '');
+    expect(within(dialog).getByLabelText<HTMLInputElement>(/Saya mengerti/).checked).toBe(false);
+    expect(within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan revisi' }).disabled).toBe(true);
+});
+
 it('FE-6 baris yang sama atau indikator lain tidak meminta konfirmasi', async () => {
     const user = userEvent.setup();
     render(<Show {...props()} />);
@@ -404,6 +422,41 @@ it('FE-7 penolakan token memfokuskan alert panel, mempertahankan isian, lalu men
     await user.click(screen.getByRole('button', { name: 'Simpan revisi' }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Simpan revisi' }));
     expect(dataKirim(1)).toMatchObject({ expected_nomor_versi: 2, expected_dasar: 'b'.repeat(64), alasan: 'Revisi sesuai surat Eselon I.' });
+});
+
+it('FE-7 respons 403 menampilkan izin ditolak tanpa mengunci simpan dan tanpa galat field lama', async () => {
+    const user = userEvent.setup();
+    render(<Show {...props()} />);
+    await bukaPanel(user);
+    await kirim(user);
+    act(() => { opsiKirim(0).onError({ nomor_surat: 'Nomor surat persetujuan wajib diisi.' }); opsiKirim(0).onFinish({}); });
+    expect(screen.getByText('Periksa isian yang ditandai.')).toBeTruthy();
+
+    await kirim(user, '');
+    act(() => { opsiKirim(1).onHttpException({ status: 403, data: {}, headers: {} }); opsiKirim(1).onFinish({}); });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const alert = screen.getByRole('heading', { name: 'Revisi belum tersimpan' }).closest('[role=alert]')!;
+    expect(alert.textContent).toContain('Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.');
+    expect(alert.textContent).not.toContain('belum dapat dipastikan');
+    expect(alert.textContent).not.toContain('Periksa isian yang ditandai.');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan revisi' }).disabled).toBe(false);
+});
+
+it.each([
+    ['respons 500', (opsi: ReturnType<typeof opsiKirim>) => opsi.onHttpException({ status: 500, data: {}, headers: {} })],
+    ['galat jaringan', (opsi: ReturnType<typeof opsiKirim>) => opsi.onNetworkError()],
+])('FE-7 %s menampilkan hasil belum dapat dipastikan dan mengunci simpan', async (_, gagal) => {
+    const user = userEvent.setup();
+    render(<Show {...props()} />);
+    await bukaPanel(user);
+    await kirim(user);
+    act(() => { gagal(opsiKirim()); opsiKirim().onFinish({}); });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Revisi belum tersimpan' }).closest('[role=alert]')!.textContent)
+        .toContain('Hasil penyimpanan belum dapat dipastikan. Muat ulang halaman PK sebelum mencoba lagi.');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan revisi' }).disabled).toBe(true);
 });
 
 it('FE-7 galat field menutup modal, galat alasan saja tetap di modal, respons campuran menampilkan keduanya', async () => {

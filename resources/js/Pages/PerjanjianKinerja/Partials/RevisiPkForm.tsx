@@ -51,6 +51,7 @@ export function RevisiPkForm({ pkId, nomorVersi, revisi, storageSettings, onClos
     const [pilihan, setPilihan] = useState('');
     const [modalTerbuka, setModalTerbuka] = useState(false);
     const [tidakPasti, setTidakPasti] = useState(false);
+    const [izinDitolak, setIzinDitolak] = useState(false);
     const kirimBerjalan = useRef(false);
     const fokusAlert = useRef(false);
     const fokusBaris = useRef<string | null>(null);
@@ -112,6 +113,9 @@ export function RevisiPkForm({ pkId, nomorVersi, revisi, storageSettings, onClos
     const simpan = () => {
         if (form.processing || kirimBerjalan.current) return;
         kirimBerjalan.current = true;
+        // Galat percobaan sebelumnya tidak berlaku untuk percobaan ini, termasuk bila respons berikutnya bukan validasi.
+        form.clearErrors();
+        setIzinDitolak(false);
         form.transform(({ target, konfirmasi_pengukuran_sebelumnya, lampiran, ...isian }) => ({
             ...isian,
             expected_nomor_versi: revisi.expected_nomor_versi,
@@ -131,7 +135,9 @@ export function RevisiPkForm({ pkId, nomorVersi, revisi, storageSettings, onClos
             // Hasil ambigu tidak diulang otomatis; token versi akan menolak simpan ganda setelah halaman dimuat ulang.
             onHttpException: (response) => {
                 if (!recovery.handleHttpException(response, { effectiveMethod: 'post', path, mutation: true })) {
-                    setTidakPasti(true);
+                    // 403 adalah penolakan pasti tanpa data tersimpan, jadi simpan tidak dikunci seperti hasil ambigu.
+                    if (response.status === 403) setIzinDitolak(true);
+                    else setTidakPasti(true);
                     tutupModalKePanel();
                 }
                 return false;
@@ -147,10 +153,11 @@ export function RevisiPkForm({ pkId, nomorVersi, revisi, storageSettings, onClos
 
     return (
         <div className="space-y-5 rounded-xl border border-primary/30 p-4 sm:p-5">
-            {(galatUmum.length > 0 || adaGalatField || tidakPasti) && (
+            {(galatUmum.length > 0 || adaGalatField || tidakPasti || izinDitolak) && (
                 <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-ink">
                     <h4 ref={judulAlert} tabIndex={-1} className="mb-1 font-semibold">Revisi belum tersimpan</h4>
                     {tidakPasti && <p>Hasil penyimpanan belum dapat dipastikan. Muat ulang halaman PK sebelum mencoba lagi.</p>}
+                    {izinDitolak && <p>Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.</p>}
                     {galatUmum.map(([key, pesan]) => <p key={key} className="break-words">{pesan}</p>)}
                     {adaGalatField && <p>Periksa isian yang ditandai.</p>}
                 </div>
@@ -193,7 +200,7 @@ export function RevisiPkForm({ pkId, nomorVersi, revisi, storageSettings, onClos
                                         <p className="break-words text-ink"><span className="font-mono font-semibold">{kode}</span> {item?.nama}</p>
                                         {item && <p className="mt-0.5 text-xs text-muted">Target berlaku {formatNilai(item.nilai, item.desimal_tampilan)} {item.satuan}</p>}
                                     </div>
-                                    <Input id={`revisi-pk-target-${baris.indikator_id}`} label="Target baru" inputMode="decimal" disabled={form.processing} value={baris.nilai}
+                                    <Input id={`revisi-pk-target-${baris.indikator_id}`} label="Target baru" aria-label={`Target baru ${kode}`} inputMode="decimal" disabled={form.processing} value={baris.nilai}
                                         error={errors[`target.${index}.nilai`] ?? errors[`target.${index}.indikator_id`]}
                                         onChange={(event) => form.setData('target', form.data.target.map((lain, posisi) => posisi === index ? { ...lain, nilai: event.target.value } : lain))} />
                                     <Button type="button" variant="outline" className="h-11 w-11 p-0 sm:mt-7 sm:h-9 sm:w-9" aria-label={`Batalkan perubahan ${kode}`}
@@ -239,7 +246,11 @@ export function RevisiPkForm({ pkId, nomorVersi, revisi, storageSettings, onClos
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <Button type="button" variant="outline" size="sm" className="h-11 sm:h-9" disabled={form.processing} onClick={onClose}>Batal</Button>
-                <Button type="button" size="sm" className="h-11 sm:h-9" disabled={form.processing || tidakPasti} onClick={() => setModalTerbuka(true)}>Simpan revisi</Button>
+                <Button type="button" size="sm" className="h-11 sm:h-9" disabled={form.processing || tidakPasti} onClick={() => {
+                    // Daftar pengukuran terdampak dapat berubah selama modal tertutup, jadi konfirmasi Q81 selalu diulang.
+                    form.setData('konfirmasi_pengukuran_sebelumnya', false);
+                    setModalTerbuka(true);
+                }}>Simpan revisi</Button>
             </div>
 
             <AuditReasonModal
