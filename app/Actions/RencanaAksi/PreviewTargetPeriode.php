@@ -60,8 +60,10 @@ class PreviewTargetPeriode
         Gate::forUser($actor)->authorize('update', $pra);
 
         /** @var array<string, mixed> $hasil */
-        $hasil = DB::transaction(function () use ($pra, $data): array {
+        $hasil = DB::transaction(function () use ($actor, $pra, $data): array {
             $segel = RencanaAksi::whereKey($pra->getKey())->sharedLock()->firstOrFail();
+            Gate::forUser($actor)->authorize('view', $segel);
+            Gate::forUser($actor)->authorize('update', $segel);
             $segel->loadMissing(['indikator', 'jadwalTahunan']);
 
             // Pratinjau terikat versi header — cermin guard

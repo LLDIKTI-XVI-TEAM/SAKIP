@@ -367,6 +367,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 ### US-02.05 · Perpindahan Unit dan Pengarsipan Indikator
 
+> **Lanjutan issue #231, Q79 §79.7:** pemindahan unit indikator tidak otomatis memindahkan Rencana Aksi. Pemindahan RA draf yang belum pernah diajukan dan kegiatan terkait dilakukan secara eksplisit berdasarkan syarat serta izin pada keputusan tersebut; koreksi snapshot tetap tindakan terpisah. Status penerimaan dan merge belum ditetapkan.
+
 > **Q43 (13 Oktober 2026):** alasan pindah unit indikator menjadi opsional, sedangkan audit tetap merekam unit lama/baru (Q43 §43.1, §43.3 butir 3). Perubahan request dikerjakan pada US-13.05.
 
 | Field | Detail |
@@ -829,6 +831,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - [x] **AC-6:** Given permission sensitif digunakan, Then audit menyimpan `dasar_izin` dan aktor sebenarnya.
 
 ### US-03.03 · Koreksi Snapshot Terkendali dan Versioning Konteks
+
+> **Lanjutan issue #231, Q79 §79.7:** pemindahan unit indikator tidak otomatis memindahkan Rencana Aksi. Pemindahan RA draf yang belum pernah diajukan dan kegiatan terkait dilakukan secara eksplisit berdasarkan syarat serta izin pada keputusan tersebut; koreksi snapshot tetap tindakan terpisah. Status penerimaan dan merge belum ditetapkan.
 
 > **Q40/Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (US-02.12): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-8). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3).
 >

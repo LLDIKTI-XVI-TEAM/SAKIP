@@ -2467,7 +2467,7 @@ Nomor Q75 dan Q76 dicadangkan untuk mencatat keputusan PM K3–K7 ISS-10.05 ([ko
 5. Izin dinilai per kelompok kolom yang berbeda, dibaca ulang di dalam transaksi, dan deny menang: `target` dan `baseline` memerlukan `target:update`; `nama`, `definisi`, `satuan`, `unit_id`, `arah`, `presisi`, `desimal_tampilan`, dan `dinilai_tahunan` memerlukan `indikator:update`; `tipe_perhitungan` dan komponen memerlukan `komponen:update`.
 6. `alasan_koreksi` dan `rujukan_koreksi` wajib (Q43 §43.2 butir 3).
 7. Butir 1–4 berlaku untuk koreksi oleh pengguna (ISS-03.03). Sumber target versi yang diterbitkan revisi PK (Q40 §40.1 butir 4) ditetapkan pada ISS-02.12. *(Ditetapkan Q85 §85.1: versi hasil revisi PK menyalin versi snapshot terakhir indikator dan hanya mengganti `target`.)*
-8. *(Tambahan 30 Oktober 2026, keputusan PM atas review PR #213.)* Koreksi ditolak bila unit penanggung jawab di data master berbeda dari unit header Rencana Aksi yang sudah ada untuk indikator dan tahun jadwal. Unit header tidak pernah berubah, sehingga versi dengan unit lain akan menolak penyimpanan target dan pengajuan Rencana Aksi serta pengajuan pengukuran pada versi itu. Indikator tanpa Rencana Aksi tetap dapat dikoreksi ke unit baru. Pemindahan unit Rencana Aksi yang sudah ada menjadi issue lanjutan.
+8. *(Tambahan 30 Oktober 2026, keputusan PM atas review PR #213.)* Koreksi ditolak bila unit penanggung jawab di data master berbeda dari unit header Rencana Aksi yang sudah ada untuk indikator dan tahun jadwal. Unit header semula tidak pernah berubah; pengecualian pemindahan eksplisit untuk draf yang belum pernah diajukan dijelaskan pada §79.7. Versi dengan unit lain menolak penyimpanan target dan pengajuan Rencana Aksi serta pengajuan pengukuran pada versi itu. Indikator tanpa Rencana Aksi tetap dapat dikoreksi ke unit baru.
 
 ## 79.2 Periode mulai berlaku versi koreksi
 
@@ -2502,7 +2502,16 @@ Nomor Q75 dan Q76 dicadangkan untuk mencatat keputusan PM K3–K7 ISS-10.05 ([ko
 - Q35 §35.1 dan Q65 §65.1 butir 3 diperjelas; Q40 §40.1 tidak berubah.
 - Data Model §2.17 (`periode_mulai_id` dan perilaku koreksi) dan §2.36 (kriteria "belum ditutup"); US/ISS-03.03.
 - Pembaca versi efektif per periode dan rekonsiliasi draf Rencana Aksi tidak berubah oleh keputusan ini. Gerbang pengajuan pengukuran diubah Q81 §81.2.
-- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. §79.3 butir 4 diimplementasikan untuk issue #220 (PR #238) sebagai pemindahan manual oleh Perencanaan dengan alasan opsional; issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) tetap belum dikerjakan. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. §79.3 butir 4 diimplementasikan untuk issue #220 (PR #238) sebagai pemindahan manual oleh Perencanaan dengan alasan opsional; issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) mengikuti ketentuan §79.7; status implementasi menunggu bukti pengujian dan PR. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+
+## 79.7 Pemindahan unit Rencana Aksi (issue #231)
+
+Konfirmasi pengguna pada 8 November 2026 untuk pengecualian §79.1 butir 8; ini bukan bukti UAT, merge, atau deployment.
+
+1. Perencanaan memindahkan unit header secara eksplisit ke unit indikator terkini dengan alasan wajib dan token versi. Izin `rencana_aksi:update` melalui peran diperlukan pada unit asal dan tujuan; deny menang.
+2. Hanya draf yang belum pernah diajukan dapat dipindah. RA yang memiliki riwayat diajukan atau disahkan, termasuk setelah buka-kembali, ditolak. Versi beku dan pengukuran tidak dipindahkan.
+3. Kegiatan yang terkait ikut dipindahkan bila berstatus `rencana`. Operasi ditolak seluruhnya jika kegiatan memiliki status lain, klaim RA lain, atau riwayat beku. Audit sukses dan perubahan atomik; penolakan diaudit terpisah.
+4. Pemindahan RA dan koreksi snapshot adalah dua tindakan. Setelah pemindahan, simpan dan pengajuan yang mensyaratkan unit snapshot selaras menunggu koreksi snapshot. Pemindahan indikator tidak memindahkan RA otomatis.
 
 ---
 

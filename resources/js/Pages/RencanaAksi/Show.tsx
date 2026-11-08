@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, ClipboardList, Info, Save } from 'lucide-reac
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
+import PindahUnit from './PindahUnit';
 import { Button } from '@/Components/Button';
 import { Textarea } from '@/Components/Textarea';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
@@ -282,6 +283,8 @@ function RencanaAksiForm({ rencanaAksi, bukti, kegiatan }: ShowProps) {
                         </div>
                     )}
                 </div>
+
+                {rencanaAksi.can.pindah_unit && <PindahUnit id={rencanaAksi.id} versi={rencanaAksi.expected_versi} tujuan={rencanaAksi.unit_tujuan_pindah ?? 'unit indikator'} />}
 
                 <Card>
                     <CardHeader>

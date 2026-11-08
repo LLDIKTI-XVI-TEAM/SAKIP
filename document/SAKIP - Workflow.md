@@ -1635,7 +1635,13 @@ stateDiagram-v2
 
 ---
 
+
 ## 14. Alur Perubahan Kepmen IKU & Revisi Renstra
+
+### Pemindahan unit Rencana Aksi setelah indikator berpindah (Q79 §79.7)
+
+Perencanaan memindahkan unit indikator lebih dahulu. Jika Rencana Aksi lama memenuhi syarat, Perencanaan menjalankan pemindahan unit RA secara eksplisit dengan alasan; kegiatan terkait yang memenuhi syarat ikut berpindah. Setelah itu koreksi snapshot dijalankan secara terpisah. Hingga snapshot selaras, simpan dan pengajuan RA tertahan. RA yang pernah diajukan, kegiatan dengan status selain rencana, klaim RA lain, atau riwayat beku menolak pemindahan; histori tidak diubah.
+
 
 > **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; Q60; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 dan ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
 
@@ -2430,4 +2436,3 @@ flowchart TD
     L --> M
     M --> N[Unggahan tetap dapat dilakukan\nwalau jadwal sudah ditutup - Q48]
 ```
-

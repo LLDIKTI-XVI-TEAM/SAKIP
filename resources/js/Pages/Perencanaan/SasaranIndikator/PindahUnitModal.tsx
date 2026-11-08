@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { Modal } from '@/Components/Modal';
 import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
@@ -106,6 +106,7 @@ export const PindahUnitModal: React.FC<PindahUnitModalProps> = ({
             }
         >
             <form onSubmit={handleSubmit} className="space-y-4">
+                <p className="text-sm text-warning-dark">Rencana Aksi yang sudah ada tidak berpindah otomatis. Setelah indikator dipindahkan, periksa Rencana Aksi pada unit lama sebelum melakukan koreksi snapshot. <Link className="font-semibold underline" href="/rencana-aksi">Buka daftar Rencana Aksi</Link>.</p>
                 <div>
                     <Select
                         id="pindah_unit_tujuan"
