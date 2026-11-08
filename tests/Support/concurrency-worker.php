@@ -16,6 +16,7 @@ use App\Actions\Pengukuran\PindahkanPengukuranKeVersiSnapshot;
 use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\ReadIndicatorEditor;
+use App\Actions\PerjanjianKinerja\SetujuiRevisiPerjanjianKinerja;
 use App\Actions\Rekomendasi\TetapkanRekomendasi;
 use App\Actions\RencanaAksi\KembalikanRencanaAksi;
 use App\Actions\RencanaAksi\SahkanRencanaAksi;
@@ -34,9 +35,11 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -116,6 +119,7 @@ try {
             'rekomendasi-tetapkan' => app(TetapkanRekomendasi::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['data'])->status,
             'revisi-target-draf' => app(SimpanDrafRevisiTargetRenstra::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['renstra_id'], $assignment['data'])->versi,
             'revisi-target-simpan' => app(SimpanRevisiTargetRenstra::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['renstra_id'], $assignment['data'])->nomor,
+            'pk-revisi' => performPkRevisi($assignment),
             default => throw new InvalidArgumentException('Operasi worker tidak dikenal.'),
         };
         $result = match ($argv[1]) {
@@ -159,6 +163,8 @@ try {
             'rekomendasi-tetapkan' => 'konflik',
             // Draf revisi diserialkan; yang kalah membaca draf segar dan ditolak pada token versi.
             'revisi-target-draf', 'revisi-target-simpan' => 'versi',
+            // Token versi (409) atau himpunan indikator yang berubah saat menunggu jadwal (422 `jadwal`).
+            'pk-revisi' => $assignment['expected_error_field'],
             default => null,
         };
         if ($expectedField === null || ! isset($exception->errors()[$expectedField])) {
@@ -182,6 +188,27 @@ try {
         fwrite(STDERR, 'SQLSTATE:'.$exception->getCode()."\n");
     }
     exit(1);
+}
+
+/**
+ * Revisi PK dengan lampiran PDF dari file sementara. Disk `local` diarahkan ke root khusus run sebelum Action,
+ * karena FilesystemManager menyimpan instance disk dan storage asli tidak boleh tersentuh worker.
+ */
+function performPkRevisi(array $assignment): int
+{
+    config(['filesystems.disks.local.root' => $assignment['storage_root']]);
+    Storage::forgetDisk('local');
+    $path = tempnam(sys_get_temp_dir(), 'pk-revisi');
+    file_put_contents($path, "%PDF-1.4\n%fixture konkurensi\n");
+    try {
+        $data = [...$assignment['data'], 'lampiran' => [['file' => new UploadedFile($path, 'pk.pdf', 'application/pdf', null, true), 'keterangan' => 'PK akhir']]];
+
+        return app(SetujuiRevisiPerjanjianKinerja::class)->handle(User::findOrFail($assignment['actor_id']), $assignment['pk_id'], $data)->nomor_versi;
+    } finally {
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
 }
 
 /** Request Renstra tetap melewati middleware, FormRequest, controller dan transaksi domain. */

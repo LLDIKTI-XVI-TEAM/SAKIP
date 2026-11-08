@@ -334,6 +334,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::put('/perjanjian-kinerja/{perjanjian_kinerja}/target/{indikator}', [PerjanjianKinerjaController::class, 'updateTarget'])->whereUuid('perjanjian_kinerja')->whereUuid('indikator')->name('perjanjian-kinerja.target.update');
     Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/edit', [PerjanjianKinerjaController::class, 'edit'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.edit');
     Route::put('/perjanjian-kinerja/{perjanjian_kinerja}', [PerjanjianKinerjaController::class, 'update'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.update');
+    Route::post('/perjanjian-kinerja/{perjanjian_kinerja}/versi', [PerjanjianKinerjaController::class, 'storeVersi'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.versi.store');
     Route::delete('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}', [PerjanjianKinerjaController::class, 'destroyBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.destroy');
     Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}/unduh', [PerjanjianKinerjaController::class, 'downloadBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.download');
 

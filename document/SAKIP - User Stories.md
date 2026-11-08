@@ -461,7 +461,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 > **Q39–Q40, Q43 (13 Oktober 2026):** halaman PK kini juga memuat isian baseline dan target tahun berjalan per indikator, dikelompokkan per sasaran (US-02.11). Revisi PK membentuk versi PK baru dengan nomor dan tanggal surat Eselon I sebagai isian tersendiri; PK awal dan akhir dapat diunduh (US-02.12, tahap 3). Alasan perubahan PK wajib hanya bila PK sudah dipakai jadwal aktif (koreksi PK, Q43 §43.2 butir 3; US-02.09) dan opsional sebelumnya (Q43 §43.3 butir 3; US-13.05); perubahan target PK di halaman PK tidak termasuk dan alasannya opsional (Q65 §65.1).
 >
-> **Q48, Q50 (13 Oktober 2026):** `nomor_pk` opsional karena PK 2026 tidak bernomor, sedangkan PK tetap unik per Renstra-tahun (Q50 §50.1); AC-1 tidak lagi mewajibkan nomor dan perubahannya sudah dikerjakan pada US-02.11. Tanggal PK tidak divalidasi terhadap tanggal penetapan Renstra (Q50 §50.6). PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK beserta keterangan pada `berkas.keterangan`; target dan snapshot tidak berubah (Q50 §50.7, Q48 §48.2 butir 6). PDF PK bertanda tangan tetap diunggah sebagai lampiran PK dan, setelah revisi berversi tersedia, per versi PK (Q48 §48.2 butir 1; US-02.12); dokumen PK sendiri tidak dihasilkan SAKIP (Q48 §48.1 butir 4).
+> **Q48, Q50 (13 Oktober 2026):** `nomor_pk` opsional karena PK 2026 tidak bernomor, sedangkan PK tetap unik per Renstra-tahun (Q50 §50.1); AC-1 tidak lagi mewajibkan nomor dan perubahannya sudah dikerjakan pada US-02.11. Tanggal PK tidak divalidasi terhadap tanggal penetapan Renstra (Q50 §50.6). PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK beserta keterangan pada `berkas.keterangan`; target dan snapshot tidak berubah (Q50 §50.7, Q48 §48.2 butir 6). Sejak US-02.12 tersedia, PK perubahan anggaran dicatat sebagai revisi PK yang hanya mengganti dokumen, dan lampiran tambahan tetap ada tanpa perubahan (Q85 §85.4 butir 6). PDF PK bertanda tangan tetap diunggah sebagai lampiran PK dan, setelah revisi berversi tersedia, per versi PK (Q48 §48.2 butir 1; US-02.12); dokumen PK sendiri tidak dihasilkan SAKIP (Q48 §48.1 butir 4).
 
 | Field | Detail |
 |---|---|
@@ -596,12 +596,14 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - Target PK diinput Tim Perencanaan setelah angka disepakati dengan tim kerja di luar aplikasi (Q39 §39.3 butir 1).
 - Capaian dinilai terhadap target PK melalui snapshot, bukan terhadap target Renstra; target periode RA dipecah dari target PK (Q39 §39.4).
 - Perubahan target resmi setelah persetujuan Eselon I memakai revisi PK berversi (US-02.12); koreksi salah ketik memakai US-02.09 (Q40 §40.1 butir 8). Target PK tetap dapat diubah di halaman PK setelah snapshot terbentuk tanpa mengubah snapshot (Q65 §65.1) dan tanpa alasan (Q82).
-- PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan pada PK (fitur lampiran PK yang ada; Q50 §50.7).
+- PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan pada PK (fitur lampiran PK yang ada; Q50 §50.7). Sejak US-02.12 tersedia, PK perubahan anggaran dicatat sebagai revisi PK yang hanya mengganti dokumen, dan lampiran tambahan tetap ada tanpa perubahan (Q85 §85.4 butir 6).
 - Keterangan lampiran tambahan tersebut (mis. "PK perubahan anggaran") disimpan pada kolom baru `berkas.keterangan` (Q48 §48.2 butir 6): opsional, paling banyak 1.000 karakter, diisi saat unggah, dan tercatat di audit (Q65 §65.3).
 - PK perubahan yang mengubah target memakai revisi berversi (US-02.12); bila revisi seperti itu terbit sebelum US-02.12 selesai, penanganannya ditetapkan PM sebagai keputusan baru (Q50 §50.7 butir 2).
 - **Di luar cakupan:** alur usulan target oleh PJ (Q39 §39.3 butir 2), revisi PK berversi (US-02.12), dan simulasi target (tidak dibangun, Q84).
 
 ### US-02.12 · Revisi PK Berversi (PK Awal dan PK Akhir)
+
+> **Status implementasi lokal, 7 November 2026:** AC-1–AC-7 dibuktikan oleh test revisi PK di `tests/Feature/PerjanjianKinerja/` (`RevisiPkTest.php`, `RevisiPkUnduhTest.php`, `RevisiPkRencanaAksiTest.php`, `RevisiPkPropsTest.php`, `RevisiPkImutabilitasTest.php`, `RevisiPkSnapshotWriterTest.php`, `MigrasiRenstraPkVersiTest.php`), test concurrency di `tests/Integration/Concurrency/MutationConcurrencyTest.php`, dan `tests/Frontend/PerjanjianKinerjaRevisi.test.tsx`, serta browser smoke desktop 1280 px dan HP 375 px dengan fixture sintetis. Rincian test per AC tercatat pada [ISS-02.12](SAKIP%20-%20User%20Issues.md#iss-0212--feature-revisi-pk-berversi-pk-awal-dan-pk-akhir). Checkbox merupakan bukti lokal otomatis, bukan CI remote, merge, UAT, atau deployment.
 
 | Field | Detail |
 |---|---|
@@ -611,22 +613,22 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 | **Modul** | Dokumen Dasar Hukum, Renstra, Sasaran, Indikator, Target, dan PK |
 | **Dependensi** | Alur koreksi snapshot berversi US-03.03 sebagai prasyarat (Q40 §40.1 butir 9); PK dan target PK tercatat (US-02.08, US-02.11). |
 | **Otorisasi** | Revisi disetujui Perencanaan (Q40 §40.1 butir 1); izin `pk:update`, `target:update`, `indikator:read`, dan `berkas:upload` sekaligus, deny menang, tanpa izin baru, untuk revisi target maupun dokumen (Q85 §85.4 butir 2); unduhan PK awal dan PK akhir mengikuti hak baca berkas PK. |
-| **Dampak Data** | `renstra_pk_versi` dan `renstra_pk_versi_target` (rancangan Data Model §2.36–§2.37; `nomor_surat`, `tanggal_surat`), `berkas` (lampiran per versi PK), `jadwal_snapshot` (versi baru bila target berubah), `target_tahunan` (nilai berlaku diperbarui bila target berubah, Q85 §85.1 butir 2), `audit_log`. |
+| **Dampak Data** | `renstra_pk_versi` dan `renstra_pk_versi_target` (Data Model §2.36–§2.37; `nomor_surat`, `tanggal_surat`), `berkas` (lampiran per versi PK), `jadwal_snapshot` (versi baru bila target berubah), `target_tahunan` (nilai berlaku diperbarui bila target berubah, Q85 §85.1 butir 2), `audit_log`. |
 | **Keputusan terkait** | Q40 §40.1, Q35 §35.1, Q43 §43.2 butir 3, Q48 §48.2 butir 1–2, Q50 §50.7, Q46 §46.3, Q72 §72.1 butir 4, Q79, Q81 §81.3, Q85. |
 
 > **Sebagai** Tim Perencanaan,  
 > **Saya ingin** mencatat revisi PK yang disetujui Eselon I sebagai versi PK baru,  
-> **Sehingga** PK awal dan PK akhir tersimpan serta dapat diunduh, sementara target baru berlaku mulai periode yang belum ditutup tanpa mengubah laporan periode sebelumnya.
+> **Sehingga** PK awal dan PK akhir tersimpan serta dapat diunduh, sementara target baru berlaku mulai periode yang belum ditutup (belum dilaporkan, Q85 §85.3) tanpa mengubah laporan periode sebelumnya.
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given PK sudah tercatat, When Perencanaan menyetujui revisi, Then terbentuk versi PK baru yang menyimpan nomor versi, nomor dan tanggal surat persetujuan Eselon I sebagai isian tersendiri, periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator; versi sebelumnya tidak berubah. *(Q40 §40.1 butir 1–2)*
-- [ ] **AC-2:** Given revisi PK disimpan tanpa alasan, Then ditolak. *(Q43 §43.2 butir 3)*
-- [ ] **AC-3:** Given revisi mengubah target, When disetujui, Then revisi berlaku mulai periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3): sistem menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I, sedangkan periode yang sudah dilaporkan tetap memakai target versi lama. *(Q40 §40.1 butir 4)*
-- [ ] **AC-4:** Given revisi hanya mengganti dokumen tanpa mengubah target, When disetujui, Then versi PK baru terbentuk tanpa menerbitkan versi snapshot. *(Q40 §40.1 butir 5)*
-- [ ] **AC-5:** Given PK memiliki lebih dari satu versi, When halaman PK dibuka, Then PK awal dan PK akhir dapat diunduh sesuai hak baca. *(Q40 §40.1 butir 3)*
-- [ ] **AC-6:** Given capaian akhir tahun dinilai, Then acuannya target PK akhir, yaitu versi yang berlaku pada periode nilai akhir. *(Q40 §40.1 butir 6)*
-- [ ] **AC-7:** Given Rencana Aksi sudah disusun, When revisi PK mengubah target, Then RA tidak diubah otomatis; selisih target periode terakhir dengan target PK baru tampil sebagai deviasi yang wajib dijelaskan (ADR-0008), dan target periode yang belum terkunci disesuaikan lewat buka-kembali (US-05.06). *(Q40 §40.1 butir 7)*
+- [x] **AC-1:** Given PK sudah tercatat, When Perencanaan menyetujui revisi, Then terbentuk versi PK baru yang menyimpan nomor versi, nomor dan tanggal surat persetujuan Eselon I sebagai isian tersendiri, periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator; versi sebelumnya tidak berubah. *(Q40 §40.1 butir 1–2)*
+- [x] **AC-2:** Given revisi PK disimpan tanpa alasan, Then ditolak. *(Q43 §43.2 butir 3)*
+- [x] **AC-3:** Given revisi mengubah target, When disetujui, Then revisi berlaku mulai periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3): sistem menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I, sedangkan periode yang sudah dilaporkan tetap memakai target versi lama. *(Q40 §40.1 butir 4)*
+- [x] **AC-4:** Given revisi hanya mengganti dokumen tanpa mengubah target, When disetujui, Then versi PK baru terbentuk tanpa menerbitkan versi snapshot. *(Q40 §40.1 butir 5)*
+- [x] **AC-5:** Given PK memiliki lebih dari satu versi, When halaman PK dibuka, Then PK awal dan PK akhir dapat diunduh sesuai hak baca. *(Q40 §40.1 butir 3)*
+- [x] **AC-6:** Given capaian akhir tahun dinilai, Then acuannya target PK akhir, yaitu versi yang berlaku pada periode nilai akhir. *(Q40 §40.1 butir 6)*
+- [x] **AC-7:** Given Rencana Aksi sudah disusun, When revisi PK mengubah target, Then RA tidak diubah otomatis; selisih target periode terakhir dengan target PK baru tampil sebagai deviasi yang wajib dijelaskan (ADR-0008), dan target periode yang belum terkunci disesuaikan lewat buka-kembali (US-05.06). *(Q40 §40.1 butir 7)*
 
 **Business Rules / Catatan**
 
@@ -636,7 +638,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - Revisi hanya untuk PK yang sudah dikunci jadwal; revisi yang mengubah target hanya saat jadwal `aktif` dan tahun belum ditutup, termasuk ditolak selama sesi koreksi; revisi yang hanya mengganti dokumen boleh setelah tahun ditutup. Setiap revisi wajib alasan dan minimal satu lampiran file; lampiran versi tidak dapat dihapus atau diganti (Q85 §85.4).
 - Versi snapshot hasil revisi menyalin versi terakhir indikator dan hanya mengganti `target`; target PK master ikut diperbarui dalam transaksi yang sama. Versi 1 dibentuk saat revisi pertama disetujui dengan target dari snapshot versi 1 jadwal tahun PK (Q85 §85.1–§85.2).
 - PDF PK bertanda tangan diunggah per versi PK dan mengikuti permission PK (Q48 §48.2 butir 1–2).
-- Sebelum story ini tersedia, PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK (US-02.11); PK perubahan yang mengubah target dan terbit sebelum story ini selesai ditangani dengan keputusan baru PM (Q50 §50.7).
+- Sebelum story ini tersedia, PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK (US-02.11); PK perubahan yang mengubah target dan terbit sebelum story ini selesai ditangani dengan keputusan baru PM (Q50 §50.7). Sejak story ini tersedia, PK perubahan memakai revisi berversi (revisi yang hanya mengganti dokumen bila target tidak berubah), dan lampiran tambahan tetap ada tanpa perubahan (Q85 §85.4 butir 6).
 - **Di luar cakupan:** revisi dan riwayat target Renstra (US-02.10), versi penuh Renstra (Q40 §40.2 butir 4), dan koreksi salah ketik (US-02.09).
 
 ### US-02.13 · Mode Revisi Target Renstra dengan Draf, Justifikasi, dan Histori
@@ -724,7 +726,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 - Penilaian menyimpang tetap `DeviasiTargetRenstra` (nilai tersimpan, tanpa pembulatan); yang berubah hanya akibatnya: ditolak, bukan alasan wajib.
 - Daftar alasan wajib Q43 yang ditegakkan US-13.05 (PR #156) diperbarui: perubahan target PK pindah dari alasan opsional ke alasan wajib (Q72 §72.3). *(Dicabut Q82: perubahan target PK tidak meminta alasan.)*
-- **Di luar cakupan:** revisi PK berversi (US-02.12), yang mengikuti Q72 §72.1 butir 4 saat dikerjakan.
+- **Di luar cakupan:** revisi PK berversi (US-02.12), yang mengikuti Q72 §72.1 butir 4 (Q85 §85.4 butir 5).
 
 ### US-02.15 · Baseline Otomatis dan Tabel Target PK Ringkas
 
@@ -834,15 +836,15 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 > **Lanjutan issue #231, Q79 §79.7:** pemindahan unit indikator tidak otomatis memindahkan Rencana Aksi. Pemindahan RA draf yang belum pernah diajukan dan kegiatan terkait dilakukan secara eksplisit berdasarkan syarat serta izin pada keputusan tersebut; koreksi snapshot tetap tindakan terpisah. Status penerimaan dan merge belum ditetapkan.
 
-> **Q40/Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (US-02.12): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I (AC-8). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3).
+> **Q40/Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (US-02.12): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3) dan `rujukan_koreksi` surat Eselon I (AC-8). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3).
 >
 > **Q47 (13 Oktober 2026):** koreksi snapshot juga menjadi jalur perubahan penanda dinilai tahunan setelah jadwal aktif (Q47 §47.1 butir 2).
 >
 > **Q79 (30 Oktober 2026):** versi koreksi disalin dari data master terkini setelah master diperbaiki, periode mulainya tidak lebih awal dari versi yang digantikan, dan rujukan pengukuran maupun versi Rencana Aksi yang sudah ada tidak dipindahkan. Acceptance Criteria diselaraskan dengan issue #91.
 >
-> **Status implementasi — issue #91:** AC-1–AC-7 memiliki bukti test pada PR implementasi issue #91; AC-8 menunggu penerbitan versi oleh revisi PK berversi (US-02.12). Rincian test dan batas bukti tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks). Centang bukan persetujuan QA/UAT atau deployment.
+> **Status implementasi — issue #91:** AC-1–AC-7 memiliki bukti test pada PR implementasi issue #91; AC-8 menunggu penerbitan versi oleh revisi PK berversi (US-02.12). Pembaruan 7 November 2026: AC-8 dicentang dengan bukti revisi PK US-02.12 (TEST-3 ISS-02.12). Rincian test dan batas bukti tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks). Centang bukan persetujuan QA/UAT atau deployment.
 
-> **Status implementasi — issue #220 (2026-11-02, PR #238):** pemindahan eksplisit dan teraudit oleh Perencanaan dengan alasan opsional (Q79 §79.3 butir 4), gerbang pengajuan dan target per snapshot serta konfirmasi koreksi (Q81) telah diimplementasikan dan diuji lokal. Penerbitan koreksi tetap tidak memindahkan rujukan otomatis. Bukti test tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks); AC-8 tetap menunggu US-02.12. Ini bukan persetujuan QA/UAT, merge, atau deployment.
+> **Status implementasi — issue #220 (2026-11-02, PR #238):** pemindahan eksplisit dan teraudit oleh Perencanaan dengan alasan opsional (Q79 §79.3 butir 4), gerbang pengajuan dan target per snapshot serta konfirmasi koreksi (Q81) telah diimplementasikan dan diuji lokal. Penerbitan koreksi tetap tidak memindahkan rujukan otomatis. Bukti test tercatat pada [ISS-03.03](SAKIP%20-%20User%20Issues.md#iss-0303--feature-koreksi-snapshot-terkendali-dan-versioning-konteks); AC-8 tetap menunggu US-02.12. Pembaruan 7 November 2026: AC-8 dicentang dengan bukti TEST-3 ISS-02.12. Ini bukan persetujuan QA/UAT, merge, atau deployment.
 
 | Field | Detail |
 |---|---|
@@ -867,7 +869,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - [x] **AC-5:** Given snapshot tidak cocok dengan jadwal/indikator di URL, bukan versi terbaru, tidak berselisih dengan data master, `periode_mulai_id` bukan periode jadwal atau lebih awal dari periode mulai versi yang digantikan, atau unit indikator di data master berbeda dari unit Rencana Aksi yang sudah ada untuk tahun jadwal, When koreksi dibuat, Then ditolak. *(Q79 §79.1 butir 3 dan 8, §79.2 butir 1)*
 - [x] **AC-6:** Given dua koreksi bersamaan pada snapshot yang sama, Then tepat satu berhasil (lock dan unique index), yang lain ditolak karena usang.
 - [x] **AC-7:** Given aktor tidak memiliki izin untuk kelompok kolom yang berubah, atau deny cocok, Then ditolak 403 dan teraudit; alasan atau rujukan kosong ditolak 422. *(Q43 §43.2 butir 3, Q79 §79.1 butir 5–6)*
-- [ ] **AC-8:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9; pada US-03.03 dibuktikan dengan periode mulai eksplisit, Q79 §79.2 butir 4)*
+- [x] **AC-8:** Given revisi PK berversi yang mengubah target disetujui (US-02.12), When versi snapshot baru diterbitkan, Then versi tersebut memuat `periode_mulai_id` periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3) dan `rujukan_koreksi` surat persetujuan Eselon I, sedangkan periode sebelumnya tetap memakai versi lama. *(Q40 §40.1 butir 4 dan 9; pada US-03.03 dibuktikan dengan periode mulai eksplisit, Q79 §79.2 butir 4)*
 
 ### US-03.04 · Penambahan Indikator Baru di Tengah Tahun & Periode Mulai Berlaku
 

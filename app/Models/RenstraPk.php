@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property-read Renstra $renstra
  * @property-read User $creator
  * @property-read Collection<int, Berkas> $berkas
+ * @property-read Collection<int, RenstraPkVersi> $versi
  * @property-read JadwalTahunan|null $jadwalTahunan
  */
 class RenstraPk extends Model
@@ -67,6 +69,12 @@ class RenstraPk extends Model
     {
         return $this->morphMany(Berkas::class, 'berkasable')
             ->whereNull('dihapus_pada');
+    }
+
+    /** @return HasMany<RenstraPkVersi, $this> */
+    public function versi(): HasMany
+    {
+        return $this->hasMany(RenstraPkVersi::class, 'renstra_pk_id')->orderBy('nomor_versi');
     }
 
     /** @return HasOne<JadwalTahunan, $this> */
