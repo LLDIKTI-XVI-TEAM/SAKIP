@@ -11,6 +11,7 @@ use App\Models\Regulasi;
 use App\Models\RencanaAksi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
+use App\Models\RenstraPkVersi;
 use App\Models\Unit;
 use App\Models\User;
 use App\Policies\KegiatanPolicy;
@@ -64,6 +65,7 @@ class AppServiceProvider extends ServiceProvider
             'renstra_pk' => RenstraPk::class,
             'jadwal_tahunan' => JadwalTahunan::class,
             'jadwal_periode' => PeriodeJadwal::class,
+            'renstra_pk_versi' => RenstraPkVersi::class,
         ]);
 
         Gate::policy(Kegiatan::class, KegiatanPolicy::class);
