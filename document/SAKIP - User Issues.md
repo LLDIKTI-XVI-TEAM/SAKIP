@@ -6080,72 +6080,77 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 ### ISS-13.04 · [Feature] Konfigurasi Operasional Notifikasi Eksternal
 
+> Cakupan, dependensi, dan verifikasi mengikuti [keputusan PM Q87, 6 November 2026 (WITA)](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/228#issuecomment-6686106676).
+
 **Terkait User Story:** `US-13.04`  
 **Prioritas:** 🟠 P2  
 **Story Points:** 5  
 **Labels:** `feature`, `settings-audit`, `P2`, `frontend`, `ops`  
 **Plan:** Modul 14: 14.2; Modul 9  
-**PRD:** §28  
-**Workflow:** —  
-**Data Model/Entitas:** notification config
+**PRD:** §26.8 dan §28\
+**Workflow:** §18.3\
+**Data Model/Entitas:** §2.22 dan §2.40
 
 #### User Story
 
 > **Sebagai** Admin/Superadmin bersama pengelola infrastruktur,  
-> **Saya ingin** mengaktifkan kanal, template, daftar H-minus, dan parameter non-rahasia,  
+> **Saya ingin** mengelola saklar kanal dan jam kirim, melihat hari pengingat tetap serta status pengiriman,
 > **Sehingga** integrasi WA/Email dapat dikelola tanpa menaruh credential di database biasa atau UI.
 
 #### Kontrak Teknis
 
-- **Dependensi:** Pemilik layanan/provider telah dipilih.
+- **Dependensi:** ISS-12.07 merge; provider nyata hanya untuk aktivasi (Q80 §80.1).
 - **Otorisasi:** `pengaturan:update` untuk saklar/parameter non-secret; secret melalui environment/secret management.
 - **Dampak Data:** `pengaturan` grup notifikasi + konfigurasi environment.
 
+**Batas scope:** template bawaan di kode ditetapkan masing-masing producer dan dibekukan saat antre. Editor template UI merupakan pekerjaan terpisah setelah provider dipilih. Template bukan gate penyelesaian #228; butir Template pesan Kesiapan Infrastruktur §3 tetap terbuka. Status pengiriman terpisah dari form Setelan, pagination 25, filter status/kanal/tanggal, nama penerima, label Simulasi diterima, tanpa alamat/template/parameter/retry UI.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given daftar H-minus default, Then nilai awal adalah `7,3,1` dan dapat dibaca scheduler.
-- [ ] **AC-2:** Given credential API, Then credential tidak ditampilkan di UI/log/audit dan disimpan lewat mekanisme secret yang sesuai.
-- [ ] **AC-3:** Given provider belum siap, Then saklar kanal dapat dinonaktifkan tanpa mengganggu alur bisnis inti.
-- [ ] **AC-4:** Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
+- [x] **AC-1:** Given konfigurasi aplikasi, Then accessor menghasilkan `[7,3,1]` untuk PIC dan `[3,1]` untuk rekap Perencanaan; keduanya tampil baca-saja dan tidak dapat dimutasi melalui whitelist `pengaturan`.
+- [x] **AC-2:** Given konfigurasi notifikasi, Then tidak ada jalur credential pada whitelist, form, props, log, dan audit; credential hanya melalui deployment, dengan kunci env ditambahkan saat provider dipilih.
+- [x] **AC-3:** Given kanal dimatikan lewat Setelan, When antre dipanggil untuk RA atau Pengukuran, Then outbox `dibatalkan`/`kanal_nonaktif` tanpa job; regresi pengembalian domain tetap hijau secara terpisah.
+- [x] **AC-4:** Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: `pengaturan` grup notifikasi + konfigurasi environment.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: `pengaturan` grup notifikasi + konfigurasi environment.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Implementasikan use-case **Konfigurasi Operasional Notifikasi Eksternal** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
-- [ ] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
+- [x] Implementasikan use-case **Konfigurasi Operasional Notifikasi Eksternal** pada service/domain layer sesuai Acceptance Criteria; keputusan bisnis tidak boleh ditempatkan hanya di React.
+- [x] Gunakan transaction boundary pada mutasi multi-entitas dan kembalikan validation error/403/conflict secara eksplisit.
 
 **C. Authorization & Audit**
-- [ ] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengaturan:update` untuk saklar/parameter non-secret; secret melalui environment/secret management.
-- [ ] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
+- [x] Terapkan Policy/Gate/resolver server-side sesuai kontrak otorisasi: `pengaturan:update` untuk saklar/parameter non-secret; secret melalui environment/secret management.
+- [x] React hanya menerima props `can.*`; request langsung tetap harus ditolak bila permission/scope/deny tidak memenuhi.
 
 **D. Frontend / UX**
-- [ ] Buat/rapikan page dan reusable component React untuk **Konfigurasi Operasional Notifikasi Eksternal**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
-- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
-- [ ] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
+- [x] Buat/rapikan page dan reusable component React untuk **Konfigurasi Operasional Notifikasi Eksternal**; gunakan `useForm` untuk mutasi form dan tampilkan validation/flash error yang spesifik.
+- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit.
+- [x] Pastikan state loading/disabled/error, responsive mobile tanpa horizontal overflow, dan kontras teks minimum sesuai checklist `design-system.md`.
 
 **E. Integration / Operations**
-- [ ] Gunakan Laravel queue/worker dan scheduler sesuai Plan; credential provider disimpan di environment/secret manager, bukan `pengaturan` biasa.
-- [ ] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
+- [x] Verifikasi keterhubungan Setelan dengan enqueue/worker existing; scheduler dan integrasi producer tetap pada issue masing-masing. Credential/driver hanya melalui deployment, bukan `pengaturan` biasa.
+- [x] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given daftar H-minus default, Then nilai awal adalah `7,3,1` dan dapat dibaca scheduler.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given credential API, Then credential tidak ditampilkan di UI/log/audit dan disimpan lewat mekanisme secret yang sesuai.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given provider belum siap, Then saklar kanal dapat dinonaktifkan tanpa mengganggu alur bisnis inti.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
+- [x] TEST-1: Accessor konfigurasi aplikasi menghasilkan `[7,3,1]` untuk PIC dan `[3,1]` untuk rekap; baris H-minus lama tidak dibaca dan kunci H-minus tidak diterima whitelist. Tidak ada validasi daftar bebas.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given konfigurasi notifikasi, Then tidak ada jalur credential pada whitelist, form, props, log, dan audit; credential hanya melalui deployment, dengan kunci env ditambahkan saat provider dipilih.
+- [x] TEST-3: Matikan saklar kanal melalui Setelan, lalu panggil `AntrekanNotifikasiEksternal::antre` untuk RA atau Pengukuran: outbox `dibatalkan`, `kode_hasil=kanal_nonaktif`, tanpa job. Jalankan regresi pengembalian RA/Pengukuran existing secara terpisah; integrasi alur lengkap milik #229 (ISS-12.06).
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given perubahan parameter non-secret, Then audit menyimpan perubahan tanpa menyalin secret.
 
 #### Definition of Done
 
-- [ ] Semua Acceptance Criteria dan test pada issue ini lulus.
-- [ ] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
-- [ ] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
-- [ ] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
+- [x] Semua Acceptance Criteria dan test pada issue ini lulus.
+- [x] Tidak ada keputusan permission atau aturan bisnis substantif yang hanya hidup di sisi React.
+- [x] Tidak ada raw secret/token pada git, props, log, audit, atau error message.
+- [x] Dokumentasi/traceability tidak bertentangan dengan PRD, Workflow, Data Model, Plan, Keputusan Penyelarasan, dan User Stories baseline.
 - [ ] Sebelum notifikasi eksternal diaktifkan di lingkungan UAT atau produksi, seluruh butir `SAKIP - Kesiapan Infrastruktur.md` §3 berstatus `Siap berbukti` (Q80 §80.1).
-- [ ] UI lulus checklist `design-system.md` (token, Poppins, Inertia Link/useForm, TypeScript, responsivitas, aksesibilitas).
+- [ ] UI lulus checklist `design-system.md` dan QA SSO pada desktop/mobile. QA mencakup penyimpanan saklar dan jam beserta audit, halaman status, serta penolakan akses langsung bagi akun tanpa `pengaturan:update`. [Tindak lanjut review PM PR #254](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/254#issuecomment-6707942411).
+
 
 ### ISS-13.05 · [Feature] Penyederhanaan Kewajiban Alasan
 
@@ -6850,7 +6855,7 @@ Decision gate dianggap selesai bila:
 | `US-13.01` | `ISS-13.01` | Modul 9: 9.1–9.6 | §26 | §18 | ✅ 1:1 |
 | `US-13.02` | `ISS-13.02` | Modul 9: 9.7–9.9 | §18.9, §26 | §18 | ✅ 1:1 |
 | `US-13.03` | `ISS-13.03` | Modul 10: 10.1–10.6 | §25 | §19–20 | ✅ 1:1 |
-| `US-13.04` | `ISS-13.04` | Modul 14: 14.2; Modul 9 | §28 | — | ✅ 1:1 |
+| `US-13.04` | `ISS-13.04` | Modul 14: 14.2; Modul 9 | §26.8, §28 | §18.3 | ✅ 1:1 |
 | `US-14.01` | `ISS-14.01` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.02` | `ISS-14.02` | Modul 3: 3.9 | §12.6 | §13 | ✅ 1:1 |
 | `US-14.03` | `ISS-14.03` | Modul 3: 3.12 | §12.3, §12.6 | §13 | ✅ 1:1 |

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     Building2,
     AppWindow,
@@ -14,6 +14,7 @@ import {
     Phone,
     MapPin,
     AlertCircle,
+    Bell,
 } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Card } from '@/Components/Card';
@@ -23,29 +24,14 @@ import { Textarea } from '@/Components/Textarea';
 import { Select } from '@/Components/Select';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import type { PengaturanIndexProps } from '@/types/pengaturan';
+import type { PengaturanIndexProps, PengaturanValues } from '@/types/pengaturan';
 import type { SharedPageProps } from '@/types/auth';
 
-type TabKey = 'instansi' | 'aplikasi' | 'tampilan' | 'laporan';
+type TabKey = 'instansi' | 'aplikasi' | 'tampilan' | 'laporan' | 'notifikasi';
 
-interface PengaturanFormData {
-    'instansi.nama': string;
-    'instansi.alamat': string;
-    'instansi.telepon': string;
-    'instansi.surel': string;
-    'instansi.laman': string;
-    'instansi.logo': string;
-    'aplikasi.nama': string;
-    'aplikasi.label_unit': string;
-    'tampilan.zona_waktu': string;
-    'tampilan.format_tanggal': string;
-    'tampilan.format_angka': string;
-    'laporan.header': string;
-    'laporan.footer': string;
-    alasan: string;
-}
+type PengaturanFormData = { [K in keyof PengaturanValues]: NonNullable<PengaturanValues[K]> } & { alasan: string };
 
-export default function PengaturanIndex({ grouped, values }: PengaturanIndexProps) {
+export default function PengaturanIndex({ grouped, values, notifikasi }: PengaturanIndexProps) {
     const { flash } = usePage<SharedPageProps>().props;
     const [activeTab, setActiveTab] = useState<TabKey>('instansi');
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -53,7 +39,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
     const [auditError, setAuditError] = useState<string | undefined>();
     const [logoError, setLogoError] = useState(false);
 
-    const buildBaseline = (vals: Record<string, string | null>): Omit<PengaturanFormData, 'alasan'> => ({
+    const buildBaseline = (vals: PengaturanValues): Omit<PengaturanFormData, 'alasan'> => ({
         'instansi.nama': vals['instansi.nama'] || '',
         'instansi.alamat': vals['instansi.alamat'] || '',
         'instansi.telepon': vals['instansi.telepon'] || '',
@@ -67,6 +53,9 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         'tampilan.format_angka': vals['tampilan.format_angka'] || 'id_ID',
         'laporan.header': vals['laporan.header'] || '',
         'laporan.footer': vals['laporan.footer'] || '',
+        'notifikasi.kanal_email_aktif': vals['notifikasi.kanal_email_aktif'],
+        'notifikasi.kanal_whatsapp_aktif': vals['notifikasi.kanal_whatsapp_aktif'],
+        'notifikasi.jam_kirim': vals['notifikasi.jam_kirim'] ?? '',
     });
 
     const extractTimestamps = (groups: Record<string, { kunci: string; updated_at?: string | null }[]>): Record<string, string | null> => {
@@ -110,14 +99,14 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         // Sinkronkan form.data: hanya perbarui field yang tidak sedang diedit lokal ke nilai server terbaru.
         // Field dirty mempertahankan baseline awal dan token versi awal agar deteksi konflik tetap berfungsi.
         setData((prev) => {
-            const nextData = { ...prev };
+            let nextData = { ...prev };
             const keys = Object.keys(prevBaseline) as (keyof typeof prevBaseline)[];
-            keys.forEach((key) => {
+            keys.forEach(<K extends keyof typeof prevBaseline>(key: K) => {
                 const isFieldDirty = prev[key] !== prevBaseline[key];
                 if (!isFieldDirty) {
                     updatedBaseline[key] = nextValues[key];
                     updatedTimestamps[key] = nextTimestamps[key];
-                    nextData[key] = nextValues[key];
+                    nextData = { ...nextData, [key]: nextValues[key] };
                 }
             });
             return nextData;
@@ -134,7 +123,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         });
     }, [values, grouped, setData, setDefaults]);
 
-    const updateField = (field: keyof PengaturanFormData, value: string) => {
+    const updateField = <K extends keyof PengaturanFormData>(field: K, value: PengaturanFormData[K]) => {
         form.setData((prev) => ({
             ...prev,
             [field]: value,
@@ -200,8 +189,8 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
                 // Preservasi in-flight edits: majukan token dan baseline untuk field yang berhasil dikirim
                 form.setData((prev) => {
-                    const nextData = { ...prev, alasan: '' };
-                    formKeys.forEach((key) => {
+                    let nextData = { ...prev, alasan: '' };
+                    formKeys.forEach(<K extends keyof typeof savedBaseline>(key: K) => {
                         const wasSubmitted = submittedKeys.has(key);
 
                         if (wasSubmitted) {
@@ -211,7 +200,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
 
                             // Jika pengguna tidak mengubahnya lagi saat in-flight, perbarui tampilan ke data server
                             if (!snapshot || prev[key] === snapshot[key]) {
-                                nextData[key] = nextServerBaseline[key];
+                                nextData = { ...nextData, [key]: nextServerBaseline[key] };
                             }
                             // Jika pengguna mengubahnya saat in-flight, nilai form tetap mempertahankan ketikan pengguna (prev[key])
                         } else {
@@ -220,7 +209,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                             if (isNotDirty) {
                                 updatedBaseline[key] = nextServerBaseline[key];
                                 updatedTimestamps[key] = nextServerTimestamps[key];
-                                nextData[key] = nextServerBaseline[key];
+                                nextData = { ...nextData, [key]: nextServerBaseline[key] };
                             }
                         }
                     });
@@ -283,6 +272,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
         { key: 'aplikasi', label: 'Identitas Aplikasi', icon: AppWindow },
         { key: 'tampilan', label: 'Preferensi Tampilan', icon: Sliders },
         { key: 'laporan', label: 'Format Laporan', icon: FileText },
+        { key: 'notifikasi', label: 'Notifikasi', icon: Bell },
     ];
 
     return (
@@ -309,7 +299,7 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                 )}
 
                 {/* Tab Navigation & Status Info */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border gap-2 pb-px">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between border-b border-border gap-2 pb-px">
                     <div className="flex overflow-x-auto no-scrollbar gap-1 sm:gap-2">
                         {tabs.map((tab) => {
                             const Icon = tab.icon;
@@ -659,6 +649,42 @@ export default function PengaturanIndex({ grouped, values }: PengaturanIndexProp
                                 </Card>
                             </div>
                         </div>
+                    )}
+                    {activeTab === 'notifikasi' && (
+                        <Card className="p-5 sm:p-6">
+                            <div className="space-y-6">
+                                <div className="flex flex-wrap items-start justify-between gap-4">
+                                    <div className="max-w-prose space-y-2">
+                                        <h2 className="text-lg font-semibold text-ink">Notifikasi eksternal</h2>
+                                        <p className="text-sm text-muted">Atur kanal dan waktu pengingat. Perubahan berlaku setelah disimpan.</p>
+                                    </div>
+                                    <Link href="/pengaturan/notifikasi/pengiriman" className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/30">
+                                        Lihat status pengiriman
+                                    </Link>
+                                </div>
+                                <div role="status" className="rounded-lg border border-info/30 bg-info/5 p-4 text-sm text-info-dark">
+                                    <p className="font-semibold">Mode kanal mengikuti konfigurasi deployment.</p>
+                                    <p>Email: {notifikasi.simulasi.email ? 'mode simulasi — tidak mengirim pesan nyata.' : 'mode non-simulasi — aktivasi mengikuti kesiapan operasional.'}</p>
+                                    <p>WhatsApp: {notifikasi.simulasi.whatsapp ? 'mode simulasi — tidak mengirim pesan nyata.' : 'mode non-simulasi — aktivasi mengikuti kesiapan operasional.'}</p>
+                                    <p className="mt-1">Pengiriman nyata menunggu kesiapan layanan, kontak, template, dan persetujuan operasional. Credential dikelola oleh pengelola infrastruktur.</p>
+                                </div>
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    <Select label="Kanal WhatsApp" value={form.data['notifikasi.kanal_whatsapp_aktif'] ? '1' : '0'} onChange={(e) => updateField('notifikasi.kanal_whatsapp_aktif', e.target.value === '1')} error={form.errors['notifikasi.kanal_whatsapp_aktif']} helperText="Sumber nomor dan kesiapan layanan mengikuti keputusan operasional.">
+                                        <option value="0">Nonaktif</option><option value="1">{notifikasi.simulasi.whatsapp ? 'Aktif untuk simulasi' : 'Aktif'}</option>
+                                    </Select>
+                                    <Select label="Kanal Email" value={form.data['notifikasi.kanal_email_aktif'] ? '1' : '0'} onChange={(e) => updateField('notifikasi.kanal_email_aktif', e.target.value === '1')} error={form.errors['notifikasi.kanal_email_aktif']} helperText="Mode simulasi tidak mengirim pesan ke alamat penerima.">
+                                        <option value="0">Nonaktif</option><option value="1">{notifikasi.simulasi.email ? 'Aktif untuk simulasi' : 'Aktif'}</option>
+                                    </Select>
+                                    <Input label="Hari pengingat PIC" value={notifikasi.h_minus_pic.join(',')} readOnly helperText="Tetap H-7, H-3, dan H-1 sebelum tenggat pengisian." />
+                                    <Input label="Hari rekap Perencanaan" value={notifikasi.h_minus_rekap.join(',')} readOnly helperText="Tetap H-3 dan H-1 sebelum tenggat pengisian." />
+                                    <Input label="Jam kirim (WITA)" type="time" value={form.data['notifikasi.jam_kirim']} onChange={(e) => updateField('notifikasi.jam_kirim', e.target.value)} error={form.errors['notifikasi.jam_kirim']} helperText="Kosong berarti jam belum ditetapkan dan pengingat terjadwal belum boleh dikirim." />
+                                </div>
+                                <div className="border-t border-border pt-5">
+                                    <h3 className="text-sm font-semibold text-ink">Template dikelola oleh pengirim</h3>
+                                    <p className="mt-2 max-w-prose text-sm text-muted">Isi pesan dan placeholder ditetapkan pada masing-masing fitur pengirim sebagai template bawaan. Pengelolaan template melalui UI merupakan pekerjaan terpisah setelah provider dipilih.</p>
+                                </div>
+                            </div>
+                        </Card>
                     )}
                     </fieldset>
 

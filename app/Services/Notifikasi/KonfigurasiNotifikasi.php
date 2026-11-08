@@ -13,4 +13,26 @@ class KonfigurasiNotifikasi
 
         return $nilai === null ? config('notifikasi.kanal.'.$kanal.'.aktif', false) === true : in_array($nilai, ['1', 'true'], true);
     }
+
+    /** Hari pengingat adalah kebijakan aplikasi, bukan setelan operasional.
+     * @return list<int>
+     */
+    public function hMinusPic(): array
+    {
+        return config('notifikasi.h_minus.pic');
+    }
+
+    /** @return list<int> */
+    public function hMinusRekap(): array
+    {
+        return config('notifikasi.h_minus.rekap');
+    }
+
+    /** Jam operasional WITA; kosong berarti scheduler belum boleh mendispatch. */
+    public function jamKirim(): ?string
+    {
+        $nilai = DB::table('pengaturan')->where('kunci', 'notifikasi.jam_kirim')->value('nilai');
+
+        return $nilai === '' ? null : $nilai;
+    }
 }

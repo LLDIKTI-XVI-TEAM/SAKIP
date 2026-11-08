@@ -30,6 +30,7 @@ vi.mock('@/Layouts/AuthenticatedLayout', () => ({
 }));
 
 const mockProps: PengaturanIndexProps = {
+    notifikasi: { h_minus_pic: [7, 3, 1], h_minus_rekap: [3, 1], simulasi: { email: true, whatsapp: true } },
     grouped: {
         instansi: [
             {
@@ -84,6 +85,7 @@ const mockProps: PengaturanIndexProps = {
                 updated_by: { id: 'admin-1', nama: 'Superadmin' },
             },
         ],
+        notifikasi: [],
     },
     values: {
         'instansi.nama': 'Lembaga Layanan Pendidikan Tinggi Wilayah XVI',
@@ -99,6 +101,9 @@ const mockProps: PengaturanIndexProps = {
         'tampilan.format_angka': 'id_ID',
         'laporan.header': 'KEMENTERIAN PENDIDIKAN TINGGI',
         'laporan.footer': 'Dicetak dari SAKIP LLDIKTI XVI',
+        'notifikasi.kanal_email_aktif': false,
+        'notifikasi.kanal_whatsapp_aktif': false,
+        'notifikasi.jam_kirim': null,
     },
 };
 
@@ -124,6 +129,30 @@ afterEach(() => {
 });
 
 describe('PengaturanIndex Frontend', () => {
+    it('menampilkan konfigurasi simulasi tanpa credential dan menyimpan boolean false', async () => {
+        const user = userEvent.setup();
+        render(<PengaturanIndex {...mockProps} values={{ ...mockProps.values, 'notifikasi.kanal_email_aktif': true }} />);
+        await user.click(screen.getByRole('button', { name: 'Notifikasi' }));
+        expect(screen.getByText(/Email: mode simulasi/)).toBeTruthy();
+        expect(screen.getByLabelText('Hari pengingat PIC').getAttribute('readonly')).not.toBeNull();
+        expect(screen.queryByLabelText(/credential|token|password/i)).toBeNull();
+        expect(screen.getByLabelText('Hari rekap Perencanaan').getAttribute('readonly')).not.toBeNull();
+        expect(screen.queryByText('Template belum ditetapkan')).toBeNull();
+        await user.selectOptions(screen.getByLabelText('Kanal Email'), '0');
+        await user.click(screen.getByRole('button', { name: 'Simpan Pengaturan' }));
+        const visit = vi.spyOn(router, 'put').mockImplementation(() => {});
+        await user.click(screen.getByRole('button', { name: /Konfirmasi & Simpan/ }));
+        expect(visit).toHaveBeenCalledWith('/pengaturan', expect.objectContaining({ 'notifikasi.kanal_email_aktif': false }), expect.any(Object));
+    });
+
+    it('menampilkan mode tiap kanal berdasarkan props server', async () => {
+        const user = userEvent.setup();
+        render(<PengaturanIndex {...mockProps} notifikasi={{ ...mockProps.notifikasi, simulasi: { email: false, whatsapp: true } }} />);
+        await user.click(screen.getByRole('button', { name: 'Notifikasi' }));
+        expect(screen.getByText(/Email: mode non-simulasi/)).toBeTruthy();
+        expect(screen.getByText(/WhatsApp: mode simulasi/)).toBeTruthy();
+    });
+
     it('merender judul halaman dan 4 tab pengaturan', () => {
         render(<PengaturanIndex {...mockProps} />);
 
