@@ -1474,7 +1474,7 @@ kegiatan:update
 **D. Frontend / UX**
 - [x] Tampilkan daftar versi PK pada halaman PK (`resources/js/Pages/PerjanjianKinerja/Show.tsx`) beserta unduhan PK awal dan PK akhir sesuai hak baca.
 - [x] Sediakan form revisi dengan isian nomor dan tanggal surat Eselon I, periode mulai berlaku yang ditentukan sistem dan tidak dapat diubah (Q85 §85.3), lampiran file, dan target per indikator, beserta peringatan dampak (Q85 §85.4 butir 7), memakai pola **Modal Alasan Audit**.
-- [x] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`.
+- [ ] Gunakan token Design System, `font-sans` (Poppins), komponen reusable/shadcn yang telah ditokenisasi, `<Link>` Inertia untuk navigasi internal, dan TypeScript props/interface eksplisit; pastikan state loading/disabled/error, responsif mobile, dan kontras sesuai checklist `design-system.md`. Belum dicentang: di HP beberapa kontrol masih di bawah 44 px, dan footer modal menampilkan tombol simpan di atas Batal sementara urutan Tab Batal lalu simpan (pola komponen bersama).
 
 #### Automated Tests / Verification
 

@@ -504,6 +504,8 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
        (Q35 §35.1, Q85 §85.1); target_tahunan ikut diperbarui dalam transaksi yang sama
        melalui validasi Q72, sehingga target yang menyimpang dari target Renstra ditolak
      → Seluruh periode sudah dilaporkan: revisi yang mengubah target ditolak
+     → Renstra induk nonaktif atau diarsipkan: revisi yang mengubah target ditolak; revisi yang
+       hanya mengganti dokumen tetap boleh
      → Form menampilkan peringatan dampak (pemindahan draf pengukuran, buka-kembali RA);
        konfirmasi Q81 §81.3 hanya tampil bila periode mulai suatu indikator dinaikkan dan
        masih ada pengukuran belum disahkan sebelum periode itu (Q85 §85.4 butir 7)
@@ -1670,17 +1672,17 @@ Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yan
   3c. Mengisi target Renstra indikator baru bila ada (Sasaran & Indikator), serta baseline dan
       target PK tahun berjalan di halaman PK (Q39) — tanpa target Renstra, target PK tetap
       dapat diisi dengan keterangan "target Renstra belum ada" (Q39 §39.2 butir 4)
-  4c. Merevisi Perjanjian Kinerja tahun berjalan agar mencakup target indikator baru — memakai
-      revisi PK berversi (Q40 §40.1, §3.3), dicatat setelah langkah 6c karena revisi hanya
-      memuat indikator aktif yang sudah memiliki snapshot; versi PK baru otomatis memuat target
-      indikator itu (Q85 §85.4 butir 5)
-  5c. Menambahkan indikator ke Jadwal Tahunan tahun berjalan yang masih aktif melalui
+  4c. Menambahkan indikator ke Jadwal Tahunan tahun berjalan yang masih aktif melalui
       ISS-03.04 dengan periode mulai eksplisit — ini MEKANISME STANDAR untuk memasukkan
       indikator baru di tengah tahun; tidak tersedia setelah tanggal penutupan maupun di
       dalam sesi koreksi jadwal:buka_kembali (Q77 butir 5)
-  6c. Penambahan itu menerbitkan snapshot versi 1 (+ jadwal_snapshot_komponen) khusus
+  5c. Penambahan itu menerbitkan snapshot versi 1 (+ jadwal_snapshot_komponen) khusus
       indikator ini; indikator dapat diukur mulai periode mulai tersebut pada jadwal yang
       sama, setelah rencana aksinya disusun dan disahkan (§7)
+  6c. Merevisi Perjanjian Kinerja tahun berjalan agar mencakup target indikator baru melalui
+      revisi PK berversi (Q40 §40.1, §3.3); revisi hanya memuat indikator aktif yang sudah
+      memiliki snapshot, sehingga versi PK baru otomatis memuat target indikator itu setelah
+      langkah 5c (Q85 §85.4 butir 5)
 
   Kasus D — Lampiran revisi Renstra (Q40 §40.2 butir 2 dan 5; ISS-02.10):
   2d. Menambahkan lampiran revisi pada Renstra yang sudah aktif; lampiran yang sudah ada tetap
@@ -1733,7 +1735,7 @@ flowchart TD
     B -- Revisi target Renstra --> R2[Mode revisi seluruh tabel\ndraf tersimpan otomatis, simpan dengan justifikasi\nhistori revisi bernomor - Q40, Q71]
 ```
 
-**Konsekuensi desain yang disadari:** indikator baru yang dibuat setelah jadwal aktif **tanpa** ditambahkan melalui ISS-03.04 tidak otomatis terukur pada tahun berjalan — baru terukur mulai jadwal tahun berikutnya diaktifkan. ISS-03.04 (Kasus C langkah 5c) adalah satu-satunya jalur agar indikator baru dapat diukur pada sisa tahun berjalan yang sama, dan hanya tersedia selama jadwal aktif belum melewati tanggal penutupan; `jadwal:buka_kembali` tidak membentuk snapshot (Q77 butir 5). Rencana aksinya tetap wajib disusun-disahkan sebelum pengukuran pertamanya dapat diajukan.
+**Konsekuensi desain yang disadari:** indikator baru yang dibuat setelah jadwal aktif **tanpa** ditambahkan melalui ISS-03.04 tidak otomatis terukur pada tahun berjalan — baru terukur mulai jadwal tahun berikutnya diaktifkan. ISS-03.04 (Kasus C langkah 4c) adalah satu-satunya jalur agar indikator baru dapat diukur pada sisa tahun berjalan yang sama, dan hanya tersedia selama jadwal aktif belum melewati tanggal penutupan; `jadwal:buka_kembali` tidak membentuk snapshot (Q77 butir 5). Rencana aksinya tetap wajib disusun-disahkan sebelum pengukuran pertamanya dapat diajukan.
 
 ---
 

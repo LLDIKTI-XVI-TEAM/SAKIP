@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **7 November 2026**
+Pembaruan terakhir: **8 November 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -2654,6 +2654,7 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 2. Bila seluruh periode sudah dilaporkan untuk semua indikator, revisi yang mengubah target ditolak; revisi yang hanya mengganti dokumen tetap boleh.
 3. Per indikator, periode mulai versi yang diterbitkan tidak lebih awal dari periode mulai versi pendahulunya (Q79 §79.2 butir 1); bila lebih awal, dinaikkan ke periode mulai pendahulu untuk indikator itu saja.
 4. Surat Eselon I yang terbit setelah jendela pengisian periode terakhir berakhir tidak memerlukan perpanjangan jendela: selama ada indikator yang pengukuran periode itu belum disahkan dan tahun belum ditutup, periode mulai adalah periode tersebut dan Perencanaan mengisinya lewat jalur Perencanaan (ISS-07.04). Indikator yang pengukurannya sudah disahkan tetap memakai target lama (Q79 §79.3); penilaian ulang dengan PK akhir memakai buka-kembali pengukuran (ISS-08.03) lalu pemindahan ke versi baru (Q79 §79.3 butir 4).
+5. Revisi yang hanya mengganti dokumen menyimpan periode mulai kosong (`periode_mulai_id` null) bila tidak ada lagi periode yang belum dilaporkan pada jadwal tahun PK, yaitu seluruh periode sudah `disahkan` untuk semua indikator aktif, termasuk setelah tahun ditutup. Bila masih ada periode yang belum dilaporkan, periode mulai diisi periode tersebut menurut butir 1. Keputusan PM 8 November 2026 dalam [review PR #258](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/258#issuecomment-6718740895), menetapkan butir terbuka PR #253 atas Q40 §40.1 butir 2.
 
 ## 85.4 Syarat, izin, alasan, dan lampiran
 
@@ -2667,9 +2668,9 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 
 ## 85.5 Dampak dan traceability
 
-- Q40 §40.1 butir 4 (definisi "belum ditutup"), Q50 §50.7 butir 2, Q79 §79.1 butir 7 dan §79.2 butir 4 diperjelas; Q81 §81.3 berlaku apa adanya; Q35 §35.1, Q43, Q65, Q72, Q82 tidak berubah.
-- Issue #226 (AC-3 dan gate refinement), US/ISS-02.12; Data Model §2.10, §2.17 (sumber versi hasil revisi), §2.30 (lampiran versi), §2.36–§2.37 (tetap rancangan sampai ISS-02.12 diimplementasikan); Workflow §3.3 alur revisi PK; PRD §12.7; Plan 2.23.
-- Status implementasi: sudah (ISS-02.12, issue #226). Status keputusan: keputusan PM 6 November 2026; aturan bisnis Q40 yang disahkan Tim Perencanaan tidak berubah sehingga konfirmasi tertulis tidak diminta.
+- Q40 §40.1 butir 2 (periode mulai versi revisi dokumen, §85.3 butir 5) dan butir 4 (definisi "belum ditutup"), Q50 §50.7 butir 2, Q79 §79.1 butir 7 dan §79.2 butir 4 diperjelas; Q81 §81.3 berlaku apa adanya; Q35 §35.1, Q43, Q65, Q72, Q82 tidak berubah.
+- Issue #226 (AC-3 dan gate refinement), US/ISS-02.12; Data Model §2.10, §2.17 (sumber versi hasil revisi), §2.30 (lampiran versi), §2.36–§2.37; Workflow §3.3 alur revisi PK dan §14 (Kasus C); PRD §10.5 dan §12.7; Plan 2.23.
+- Status implementasi: sudah (ISS-02.12, issue #226). Status keputusan: keputusan PM 6 November 2026; §85.3 butir 5: keputusan PM 8 November 2026; aturan bisnis Q40 yang disahkan Tim Perencanaan tidak berubah sehingga konfirmasi tertulis tidak diminta.
 
 ---
 
