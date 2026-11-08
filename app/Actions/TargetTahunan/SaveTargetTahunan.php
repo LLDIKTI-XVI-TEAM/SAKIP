@@ -20,7 +20,7 @@ use Illuminate\Validation\ValidationException;
 class SaveTargetTahunan
 {
     /** Q72 §72.4 butir 6: arah, tahun, dan target Renstra tersimpan tanpa pembulatan tampilan. */
-    private const PESAN_DEVIASI = 'Target PK %s target Renstra %d (%s). Revisi target Renstra dulu.';
+    public const PESAN_DEVIASI = 'Target PK %s target Renstra %d (%s). Revisi target Renstra dulu.';
 
     public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit) {}
 

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Actions\PerjanjianKinerja\SetujuiRevisiPerjanjianKinerja;
 use App\Models\RenstraPk;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
@@ -45,6 +46,13 @@ class RenstraPkPolicy
     public function uploadBerkas(User $user, ?RenstraPk $pk = null): bool
     {
         return $this->permissionResolver->allows($user, PermissionCodes::BERKAS_UPLOAD);
+    }
+
+    /** Revisi PK berversi: keempat izin revisi sekaligus dan PK sudah dikunci jadwal; status Renstra hanya menggerbang pengubah target. */
+    public function revisi(User $user, RenstraPk $pk): bool
+    {
+        return collect(SetujuiRevisiPerjanjianKinerja::IZIN)->every(fn (string $kode): bool => $this->permissionResolver->allows($user, $kode))
+            && $pk->dipakaiJadwalAktif();
     }
 
     public function downloadBerkas(User $user, RenstraPk $pk): bool
