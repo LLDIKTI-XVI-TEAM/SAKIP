@@ -13,17 +13,19 @@ use App\Services\AuditLogger;
 use Illuminate\Support\Str;
 
 /**
- * Membekukan satu pasangan jadwal × indikator menjadi snapshot versi 1, atau menerbitkan versi koreksinya,
+ * Membekukan satu pasangan jadwal × indikator menjadi snapshot versi 1, atau menerbitkan versi penggantinya,
  * beserta komponen dan audit.
  *
  * Dipisah karena dipakai bersama oleh ActivateJadwal (seluruh indikator baru saat aktivasi),
- * TambahIndikatorJadwal (satu indikator pada jadwal aktif), dan KoreksiSnapshot (versi pengganti),
- * agar isi beku dan bentuk audit tidak bercabang.
+ * TambahIndikatorJadwal (satu indikator pada jadwal aktif), KoreksiSnapshot (versi pengganti dari master),
+ * dan SetujuiRevisiPerjanjianKinerja (versi pengganti hasil revisi PK), agar isi beku dan bentuk audit tidak bercabang.
+ * Ada dua sumber salinan: data master untuk aktivasi, tambah indikator, dan koreksi; versi pendahulu untuk
+ * revisi PK, yang hanya mengganti target.
  * Service mendukung use case yang tetap dimiliki Action: tidak memeriksa izin, membuka transaksi, mengunci, atau menilai kelayakan.
- * Action pemanggil memegang transaksi serta lock indikator, target, dan komponen aktif, dan sudah memastikan
+ * Action pemanggil memegang transaksi serta lock indikator, target, komponen aktif, dan snapshot pendahulu, dan sudah memastikan
  * indikator dapat dibekukan serta target tidak null. `$indikator->komponen` harus berisi komponen
  * aktif yang sudah dimuat dan terurut. Nilai decimal disalin sebagai string mentah numeric(30,12).
- * Daftar pengukuran yang dikonfirmasi dihitung KoreksiSnapshot di bawah lock indikator; Service hanya mencatatnya ke audit.
+ * Daftar pengukuran yang dikonfirmasi dihitung Action di bawah lock indikator; Service hanya mencatatnya ke audit.
  */
 class JadwalSnapshotWriter
 {
@@ -57,14 +59,40 @@ class JadwalSnapshotWriter
     {
         [$snapshot, $komponen] = $this->sisipkan(['jadwal_id' => $pendahulu->jadwal_id, 'nomor_versi' => $pendahulu->nomor_versi + 1,
             'menggantikan_id' => $pendahulu->id, 'alasan_koreksi' => $alasan, 'rujukan_koreksi' => $rujukan], $indikator, $target, $periodeMulaiId);
-        $komponenLama = $pendahulu->komponen->map(fn (JadwalSnapshotKomponen $row): array => [
-            'komponen_id' => $row->komponen_id, 'kode' => $row->kode, 'label' => $row->label, 'peran' => $row->peran, 'bobot' => $row->getRawOriginal('bobot'), 'urutan' => $row->urutan,
-        ])->all();
+        $komponenLama = $this->komponenSnapshot($pendahulu);
         // Definisi dan label komponen ikut dicatat karena keduanya termasuk selisih yang dapat dikoreksi.
         $this->audit->catat(actor: $actor, tindakan: 'jadwal_snapshot.koreksi', objekTipe: 'jadwal_snapshot', objekId: $snapshot->id,
             nilaiLama: [...$this->konteksAudit($pendahulu, $komponenLama, (bool) $pendahulu->komposisi_final, denganLabel: true), 'definisi' => $pendahulu->definisi],
             nilaiBaru: [...$this->konteksAudit($snapshot, $komponen, denganLabel: true), 'definisi' => $snapshot->definisi,
                 'menggantikan_id' => $pendahulu->id, 'rujukan_koreksi' => $rujukan,
+                'pengukuran_sebelum_periode_mulai' => $pengukuranSebelumPeriodeMulai],
+            alasan: $alasan, dasarIzin: $dasarIzin);
+
+        return $snapshot->id;
+    }
+
+    /**
+     * Versi pengganti `nomor_versi + 1` hasil revisi PK: seluruh kolom konteks dan komponen disalin dari versi
+     * pendahulu, bukan dari master, dan hanya `target` yang diganti. Audit `jadwal_snapshot.koreksi` mencatat
+     * versi PK sumbernya. Caller sudah mengunci `$pendahulu` sebagai versi terbaru dan menormalkan `$target`.
+     *
+     * @param  array<string, mixed>  $dasarIzin
+     * @param  list<string>  $pengukuranSebelumPeriodeMulai  ID hasil pemeriksaan server yang sudah dikonfirmasi
+     */
+    public function terbitkanRevisiTarget(User $actor, JadwalSnapshot $pendahulu, string $target, string $periodeMulaiId,
+        string $alasan, string $rujukan, array $dasarIzin, string $renstraPkVersiId, array $pengukuranSebelumPeriodeMulai): string
+    {
+        $snapshot = JadwalSnapshot::create([
+            ...$pendahulu->only(['jadwal_id', 'indikator_id', 'unit_id', 'nama', 'definisi', 'satuan', 'presisi', 'desimal_tampilan', 'arah', 'tipe_perhitungan', 'dinilai_tahunan']),
+            'nomor_versi' => $pendahulu->nomor_versi + 1, 'menggantikan_id' => $pendahulu->id, 'alasan_koreksi' => $alasan, 'rujukan_koreksi' => $rujukan,
+            'periode_mulai_id' => $periodeMulaiId, 'target' => $target, 'baseline' => $pendahulu->getRawOriginal('baseline'),
+        ]);
+        $komponen = $this->komponenSnapshot($pendahulu);
+        $this->finalisasiKomposisi($snapshot, $komponen);
+        $this->audit->catat(actor: $actor, tindakan: 'jadwal_snapshot.koreksi', objekTipe: 'jadwal_snapshot', objekId: $snapshot->id,
+            nilaiLama: [...$this->konteksAudit($pendahulu, $komponen, (bool) $pendahulu->komposisi_final, denganLabel: true), 'definisi' => $pendahulu->definisi],
+            nilaiBaru: [...$this->konteksAudit($snapshot, $komponen, denganLabel: true), 'definisi' => $snapshot->definisi,
+                'menggantikan_id' => $pendahulu->id, 'rujukan_koreksi' => $rujukan, 'renstra_pk_versi_id' => $renstraPkVersiId,
                 'pengukuran_sebelum_periode_mulai' => $pengukuranSebelumPeriodeMulai],
             alasan: $alasan, dasarIzin: $dasarIzin);
 
@@ -87,6 +115,14 @@ class JadwalSnapshotWriter
         $komponen = $indikator->komponen->map(fn (IndikatorKomponen $row): array => [
             'komponen_id' => $row->id, 'kode' => $row->kode, 'label' => $row->label, 'peran' => $row->peran, 'bobot' => $row->getRawOriginal('bobot'), 'urutan' => $row->urutan,
         ])->values()->all();
+        $this->finalisasiKomposisi($snapshot, $komponen);
+
+        return [$snapshot, $komponen];
+    }
+
+    /** @param  list<array<string, mixed>>  $komponen */
+    private function finalisasiKomposisi(JadwalSnapshot $snapshot, array $komponen): void
+    {
         // Satu INSERT per snapshot agar lock yang dipegang caller tidak tertahan oleh round-trip per komponen.
         JadwalSnapshotKomponen::insert(array_map(fn (array $row): array => ['id' => (string) Str::uuid(), 'jadwal_snapshot_id' => $snapshot->id, ...$row], $komponen));
         // Finalisasi komposisi: komposisi beku sejak terbit. Setelah flag ini true,
@@ -94,8 +130,14 @@ class JadwalSnapshotWriter
         // berubah tanpa versi baru. Hanya kolom flag yang berubah, jadi guard UPDATE (yang
         // membandingkan seluruh kolom beku lain) meloloskannya.
         JadwalSnapshot::whereKey($snapshot->id)->update(['komposisi_final' => true]);
+    }
 
-        return [$snapshot, $komponen];
+    /** @return list<array<string, mixed>> */
+    private function komponenSnapshot(JadwalSnapshot $snapshot): array
+    {
+        return $snapshot->komponen->map(fn (JadwalSnapshotKomponen $row): array => [
+            'komponen_id' => $row->komponen_id, 'kode' => $row->kode, 'label' => $row->label, 'peran' => $row->peran, 'bobot' => $row->getRawOriginal('bobot'), 'urutan' => $row->urutan,
+        ])->values()->all();
     }
 
     /**
