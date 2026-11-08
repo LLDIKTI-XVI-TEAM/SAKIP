@@ -193,7 +193,7 @@ export function Editor({ editor, path, loading = false, loadError, retryYear, lo
                 </> : <p className="text-sm text-muted">Target Renstra belum ada</p>}
             </section>
             {editor.has_snapshot && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">
-                Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun {editor.tahun}. Perubahan resmi yang mengubah target menunggu revisi PK berversi atau, sebelum itu tersedia, keputusan PM.
+                Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun {editor.tahun}. Perubahan resmi dari surat Eselon I dicatat lewat Revisi PK.
             </p>}
             <div className="flex justify-end gap-3 border-t border-border pt-4">
                 <Button type="button" variant="outline" disabled={busy} onClick={close}>{editable ? 'Batal' : 'Tutup'}</Button>

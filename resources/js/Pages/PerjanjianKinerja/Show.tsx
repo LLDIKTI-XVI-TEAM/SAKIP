@@ -7,10 +7,12 @@ import { Button } from '@/Components/Button';
 import { BerkasLampiranItem } from '@/Components/BerkasLampiranItem';
 import { AuditReasonModal } from '@/Components/AuditReasonModal';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import type { BerkasPk, RenstraPkSummary, StorageSettings, TargetPkSasaran } from '@/types/perjanjian-kinerja';
+import type { BerkasPk, RenstraPkSummary, RevisiPk, StorageSettings, TargetPkSasaran, VersiPk } from '@/types/perjanjian-kinerja';
 import { PerjanjianKinerjaEditModal } from './Partials/PerjanjianKinerjaEditModal';
+import { ID_NOMOR_SURAT } from './Partials/RevisiPkForm';
 import { PkLockNotice, StatusJadwalBadge } from './Partials/StatusJadwal';
 import { TargetPkTable } from './Partials/TargetPkTable';
+import { ID_KARTU_VERSI, VersiPkPanel } from './Partials/VersiPkPanel';
 
 interface ShowProps {
     pk: RenstraPkSummary;
@@ -21,21 +23,32 @@ interface ShowProps {
     alasan_wajib?: boolean;
     snapshot_url?: string | null;
     storageSettings?: StorageSettings;
+    versi?: VersiPk[];
+    revisi?: RevisiPk | null;
     can: {
         update: boolean;
         delete_berkas: boolean;
         read_berkas?: boolean;
         upload_berkas?: boolean;
         update_target?: boolean;
+        revisi?: boolean;
     };
 }
 
-export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, alasan_wajib = false, snapshot_url, storageSettings, can }: ShowProps) {
+export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_aktif, is_jadwal_terkunci, alasan_wajib = false, snapshot_url, storageSettings, versi = [], revisi = null, can }: ShowProps) {
     const formatTanggal = useFormatTanggal();
     const [selectedBerkas, setSelectedBerkas] = useState<BerkasPk | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [revisiTerbuka, setRevisiTerbuka] = useState(false);
     const isTerkunci = is_jadwal_terkunci ?? is_jadwal_aktif;
+
+    const bukaRevisiDariTabel = () => {
+        setRevisiTerbuka(true);
+        document.getElementById(ID_KARTU_VERSI)?.scrollIntoView?.({ block: 'start' });
+        // Panel yang sudah terbuka tidak dipasang ulang, jadi fokus dipindah di sini; panel baru memfokuskan dirinya.
+        document.getElementById(ID_NOMOR_SURAT)?.focus();
+    };
 
     const deleteForm = useForm<{
         alasan: string;
@@ -116,7 +129,20 @@ export default function Show({ pk, target_pk = [], jadwal_status, is_jadwal_akti
                     </CardContent>
                 </Card>
 
-                <TargetPkTable pkId={pk.id} tahun={pk.tahun} sasaran={target_pk} canUpdate={can.update_target === true} jadwalStatus={jadwal_status} />
+                <VersiPkPanel
+                    pk={pk}
+                    versi={versi}
+                    revisi={revisi}
+                    canRevisi={can.revisi === true}
+                    canReadBerkas={can.read_berkas !== false}
+                    storageSettings={storageSettings}
+                    terbuka={revisiTerbuka}
+                    onBuka={() => setRevisiTerbuka(true)}
+                    onTutup={() => setRevisiTerbuka(false)}
+                />
+
+                <TargetPkTable pkId={pk.id} tahun={pk.tahun} sasaran={target_pk} canUpdate={can.update_target === true} jadwalStatus={jadwal_status}
+                    onRevisi={can.revisi === true ? bukaRevisiDariTabel : undefined} />
 
                 <Card>
                     <CardHeader>
