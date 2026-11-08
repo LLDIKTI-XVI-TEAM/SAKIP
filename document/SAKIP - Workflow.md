@@ -414,7 +414,7 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
 
 > **Refinement PM 3 November 2026 — ISS-02.09:** koreksi metadata sebelum PK dipakai jadwal yang mengunci memakai alasan/rujukan opsional langsung di form. Setelah mengunci, Simpan membuka Modal Alasan Audit; alasan wajib, rujukan wajib hanya bila nomor/tanggal benar-benar berubah. Lampiran-saja maupun submit tanpa perubahan tetap diterima dan teraudit, rujukan opsional. Action membandingkan dengan nilai tersimpan setelah lock. Rujukan per peristiwa hanya di audit; halaman PK tidak menulis snapshot dan mengarahkan koreksi konteks melalui halaman Snapshot Indikator sesuai izin baca. Q82 tidak mengubah kontrak koreksi metadata.
 
-> **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot, dan alasan deviasi terhadap target Renstra ditegakkan menurut arah indikator (Q65). *(Digantikan Q72: target PK yang menyimpang ditolak; alasan perubahan target PK wajib.)* *(Diubah Q82: perubahan target PK tidak meminta alasan.)* Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
+> **Q39, Q40, Q44, Q48, Q50 (13 Oktober 2026):** halaman Perjanjian Kinerja kini juga memuat isian baseline dan target PK per indikator; target PK menjadi acuan target periode Rencana Aksi dan pengukuran melalui snapshot (Q39). PK dapat direvisi sebagai versi baru yang membawa lampirannya sendiri (Q40; tahap 3, ISS-02.12 dengan prasyarat ISS-03.03). Penanda `tidak_dapat_dipenuhi` pada gerbang 4 akibat unggahan dimatikan tidak lagi terjadi karena saklar unggahan dihapus (Q44). Nomor PK opsional, target PK disimpan bernilai penuh, baseline tampil sebagai data pendukung, dan PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan (Q50; ISS-02.11). Target PK tetap dapat diubah setelah snapshot terbentuk tanpa mengubah snapshot, dan alasan deviasi terhadap target Renstra ditegakkan menurut arah indikator (Q65). *(Digantikan Q72: target PK yang menyimpang ditolak; alasan perubahan target PK wajib.)* *(Diubah Q82: perubahan target PK tidak meminta alasan.)* Dokumen PK tidak dihasilkan SAKIP; PDF bertanda tangannya tetap menjadi lampiran PK (Q48). Status implementasi: ISS-02.11 sudah; revisi PK berversi (ISS-02.12) sudah. Sejak ISS-02.12 tersedia, PK perubahan anggaran dicatat sebagai revisi yang hanya mengganti dokumen, dan lampiran tambahan tetap ada tanpa perubahan (Q85 §85.4 butir 6).
 
 ```
 📋 Perencanaan
@@ -457,12 +457,12 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
      → PDF PK bertanda tangan tetap diarsipkan sebagai lampiran PK dengan permission PK, dan
        per versi setelah revisi berversi tersedia; PK tidak dihasilkan SAKIP (Q48 §48.1 butir 4,
        §48.2 butir 1–2)
-  2a. PK perubahan yang hanya mengubah anggaran (sebelum revisi berversi tersedia) diunggah
-      sebagai lampiran tambahan pada renstra_pk tahun tsb dengan keterangan pada
-      berkas.keterangan (mis. "PK perubahan anggaran", Q48 §48.2 butir 6) — target dan
-      snapshot tidak berubah (Q50 §50.7 butir 1). PK perubahan yang mengubah target memakai
-      revisi berversi (langkah 5–9); bila terbit sebelum ISS-02.12 selesai, penanganannya
-      ditetapkan PM sebagai keputusan baru (Q50 §50.7 butir 2)
+  2a. PK perubahan yang hanya mengubah anggaran dicatat sebagai revisi berversi yang hanya
+      mengganti dokumen (langkah 5–9); lampiran tambahan pada renstra_pk tahun tsb dengan
+      keterangan pada berkas.keterangan (mis. "PK perubahan anggaran", Q48 §48.2 butir 6)
+      tetap ada tanpa perubahan; target dan snapshot tidak berubah (Q50 §50.7 butir 1,
+      Q85 §85.4 butir 6). PK perubahan yang mengubah target memakai revisi berversi
+      (langkah 5–9)
 
 ⚙️ Sistem (gerbang keempat aktivasi Jadwal Tahunan — lihat §5)
   3. Aktivasi jadwal:aktivasi kini mensyaratkan EMPAT gerbang, bukan tiga:
@@ -487,6 +487,7 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
      periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator —
      revisi disetujui Perencanaan di aplikasi dengan alasan wajib (Q43); versi sebelumnya tidak
      diubah
+     → Hanya untuk PK yang sudah dikunci jadwal (Q85 §85.4 butir 1)
      → Izin pk:update, target:update, indikator:read, dan berkas:upload sekaligus, deny menang;
        setiap revisi wajib minimal satu lampiran file yang tidak dapat dihapus atau diganti
        (Q85 §85.4)
@@ -501,7 +502,11 @@ Substansi dasar aturan (jenis produk hukum, nomor, tahun, tentang, tanggal, taut
        hanya mengganti target, dengan periode_mulai_id = periode tsb (per indikator dinaikkan
        ke periode mulai versi pendahulu bila lebih awal) dan rujukan_koreksi = surat Eselon I
        (Q35 §35.1, Q85 §85.1); target_tahunan ikut diperbarui dalam transaksi yang sama
+       melalui validasi Q72, sehingga target yang menyimpang dari target Renstra ditolak
      → Seluruh periode sudah dilaporkan: revisi yang mengubah target ditolak
+     → Form menampilkan peringatan dampak (pemindahan draf pengukuran, buka-kembali RA);
+       konfirmasi Q81 §81.3 hanya tampil bila periode mulai suatu indikator dinaikkan dan
+       masih ada pengukuran belum disahkan sebelum periode itu (Q85 §85.4 butir 7)
      → Revisi yang hanya mengganti dokumen (mis. karena perubahan anggaran): tidak menerbitkan
        versi snapshot dan boleh setelah tahun ditutup (Q85 §85.4 butir 1)
   7. PK awal dan PK akhir sama-sama disimpan dan dapat diunduh sebagai lampiran laporan
@@ -688,7 +693,7 @@ sequenceDiagram
 
 **Gerbang keempat tidak memacetkan alur:** karena lampiran dokumen PK boleh dipenuhi lewat mode file/tautan/teks (§3.3, §10) dan unggahan file selalu aktif (Q44), gerbang 4 tidak pernah menjadi penghalang keras yang tidak dapat diatasi. Ketentuan semula — bila unggahan file dimatikan pada setelan aplikasi dan belum ada lampiran mode lain, sistem menandai persyaratan `tidak_dapat_dipenuhi` dan tetap meloloskan gerbang secara administratif (§10.5) — digantikan Q44 karena saklar unggahan dihapus; penanda yang sudah tercatat tetap menjadi histori.
 
-**Sifat idempoten dan imutabilitas snapshot:** logika langkah 7–8 digunakan saat aktivasi pertama, dengan replay aktivasi idempoten. Q77 (keputusan PM 29 Oktober 2026, ISS-14.02) menetapkan buka-kembali tanpa pembentukan snapshot otomatis; indikator baru memakai ISS-03.04 dengan periode mulai eksplisit (§13). Baris snapshot yang **sudah terbit** bersifat beku dan tidak dapat diubah lagi, termasuk baris `jadwal_snapshot_komponen` anaknya, baik sudah maupun belum dirujuk (Q35 §35.1). Koreksi konteks selalu dibuat sebagai versi snapshot baru yang teraudit; versi lama tetap utuh. Persetujuan revisi PK yang mengubah target juga menerbitkan versi snapshot baru dengan `periode_mulai_id` periode pertama yang belum ditutup dan `rujukan_koreksi` surat Eselon I; revisi yang hanya mengganti dokumen tidak menerbitkan versi snapshot (Q40, §3.3). Tidak ada restatement data historis — perubahan definisi komponen di tengah tahun (§6) tidak pernah mengubah makna data historis yang sudah dibekukan.
+**Sifat idempoten dan imutabilitas snapshot:** logika langkah 7–8 digunakan saat aktivasi pertama, dengan replay aktivasi idempoten. Q77 (keputusan PM 29 Oktober 2026, ISS-14.02) menetapkan buka-kembali tanpa pembentukan snapshot otomatis; indikator baru memakai ISS-03.04 dengan periode mulai eksplisit (§13). Baris snapshot yang **sudah terbit** bersifat beku dan tidak dapat diubah lagi, termasuk baris `jadwal_snapshot_komponen` anaknya, baik sudah maupun belum dirujuk (Q35 §35.1). Koreksi konteks selalu dibuat sebagai versi snapshot baru yang teraudit; versi lama tetap utuh. Persetujuan revisi PK yang mengubah target juga menerbitkan versi snapshot baru dengan `periode_mulai_id` periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3) dan `rujukan_koreksi` surat Eselon I; revisi yang hanya mengganti dokumen tidak menerbitkan versi snapshot (Q40, §3.3). Tidak ada restatement data historis — perubahan definisi komponen di tengah tahun (§6) tidak pernah mengubah makna data historis yang sudah dibekukan.
 
 ---
 
@@ -1103,7 +1108,7 @@ flowchart TD
 
 ## 10. Alur Bukti Dukung: Persyaratan, Tiga Mode & Enam Induk Lampiran
 
-> **Q42, Q43, Q44, Q48 (13 Oktober 2026):** persyaratan kegiatan dibagi dua tahap — tahap baru `kegiatan_perencanaan` (mis. RAB) diperiksa per kegiatan saat Rencana Aksi diajukan, dan tahap `kegiatan` (pelaksanaan) diperiksa saat kegiatan ditandai `terlaksana` (Q42 §42.4). Persyaratan tahap perencanaan kegiatan dapat ditandai `jenis_berkas.hanya_kegiatan_beranggaran` sehingga hanya diperiksa untuk kegiatan beranggaran lebih dari 0 — dipakai persyaratan RAB (Q42 §42.3 butir 3). Persyaratan dapat dilampiri **contoh berkas** melalui induk `berkas` baru `jenis_berkas`; contoh berkas bukan bukti dan tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 2 dan 4). Kebijakan Storage, halaman Batas Unggahan Berkas, dan saklar unggahan dihapus: unggahan file selalu aktif, format dan ukuran per persyaratan ditetapkan Perencanaan, dan server menegakkan batas teknis dari konfigurasi aplikasi — default 10 MB (10240 KB) serta `pdf,docx,xlsx,jpg,jpeg,png` untuk lampiran tanpa persyaratan atau persyaratan yang mengosongkan format/ukuran, dan batas atas 100 MB (`ukuran_maks_kb` ≤ 102400) (Q44). Arsip PDF dokumen resmi memakai induk `berkas` baru `jadwal_tahunan` dan `jadwal_periode` (Q48, §25); lampiran per versi PK menyusul bersama revisi PK berversi (Q40, tahap 3). Induk baru tersebut tidak bergerbang persyaratan. Alasan perubahan persyaratan opsional, sedangkan penghapusan berkas tetap wajib alasan (Q43). Status implementasi: belum (US/ISS-06.08, 13.05, 13.06, 10.05).
+> **Q42, Q43, Q44, Q48 (13 Oktober 2026):** persyaratan kegiatan dibagi dua tahap — tahap baru `kegiatan_perencanaan` (mis. RAB) diperiksa per kegiatan saat Rencana Aksi diajukan, dan tahap `kegiatan` (pelaksanaan) diperiksa saat kegiatan ditandai `terlaksana` (Q42 §42.4). Persyaratan tahap perencanaan kegiatan dapat ditandai `jenis_berkas.hanya_kegiatan_beranggaran` sehingga hanya diperiksa untuk kegiatan beranggaran lebih dari 0 — dipakai persyaratan RAB (Q42 §42.3 butir 3). Persyaratan dapat dilampiri **contoh berkas** melalui induk `berkas` baru `jenis_berkas`; contoh berkas bukan bukti dan tidak dibekukan ke versi pengajuan (Q42 §42.3 butir 2 dan 4). Kebijakan Storage, halaman Batas Unggahan Berkas, dan saklar unggahan dihapus: unggahan file selalu aktif, format dan ukuran per persyaratan ditetapkan Perencanaan, dan server menegakkan batas teknis dari konfigurasi aplikasi — default 10 MB (10240 KB) serta `pdf,docx,xlsx,jpg,jpeg,png` untuk lampiran tanpa persyaratan atau persyaratan yang mengosongkan format/ukuran, dan batas atas 100 MB (`ukuran_maks_kb` ≤ 102400) (Q44). Arsip PDF dokumen resmi memakai induk `berkas` baru `jadwal_tahunan` dan `jadwal_periode` (Q48, §25); lampiran per versi PK memakai induk `renstra_pk_versi` yang diterapkan bersama revisi PK berversi (Q40, Q85; ISS-02.12). Induk baru tersebut tidak bergerbang persyaratan. Alasan perubahan persyaratan opsional, sedangkan penghapusan berkas tetap wajib alasan (Q43). Status implementasi: belum (US/ISS-06.08, 13.05, 13.06, 10.05).
 
 Bukti dukung dikaitkan ke **enam induk** lewat kolom `berkas.berkasable_type`: tiga induk bergerbang persyaratan (`rencana_aksi`, `pengukuran`, `kegiatan` — dengan gerbang kelengkapan berbasis `jenis_berkas`) dan tiga induk dokumen dasar (`renstra`, `renstra_pk`, `regulasi` — lampiran bebas tanpa persyaratan `jenis_berkas`, kecuali gerbang keempat aktivasi jadwal khusus `renstra_pk`, §3.3/§5). Mode bukti (file/tautan/teks) dan seluruh aturan mode berlaku sama untuk keenam induk. Persyaratan bukti dukung bergerbang ditentukan Tim Perencanaan lewat tabel `jenis_berkas` (nama tabel dipertahankan meski kini mencakup lebih dari sekadar berkas fisik — UI memakai label "Bukti Dukung"), bukan hardcode. Substansi persyaratan (nama, tahap, mode yang diizinkan, wajib/opsional, `semua_mode_wajib`) beserta format dan ukuran maksimum per persyaratan adalah wewenang **Perencanaan** (`jenis_berkas:create/update/delete`; Q44 §44.1 butir 1). Semula kebijakan teknis unggahan tingkat aplikasi (saklar unggahan, ukuran/format default) menjadi wewenang Admin dan Superadmin (`pengaturan:update`, grup `berkas` — §18); digantikan Q44: saklar dihapus dan batas teknis ditegakkan server dari konfigurasi aplikasi (Q44 §44.2).
 
@@ -1637,7 +1642,7 @@ stateDiagram-v2
 
 ## 14. Alur Perubahan Kepmen IKU & Revisi Renstra
 
-> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; Q60; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 dan ISS-02.11 sudah; revisi PK berversi (ISS-02.12) belum.
+> **Q39, Q40, Q50 (13 Oktober 2026):** target Renstra diisi di Sasaran & Indikator dan target PK di halaman PK (Q39). Lampiran revisi Renstra boleh ditambahkan setelah Renstra aktif, dan perubahan target Renstra saat Renstra aktif tercatat di audit dengan nilai lama dan baru serta tampil sebagai riwayat revisi target Renstra (Q40 §40.2; Q60; US/ISS-02.10, tahap 1). Perubahan target resmi PK memakai revisi PK berversi (Q40 §40.1, §3.3; US/ISS-02.12, tahap 3); PK perubahan yang hanya mengubah anggaran cukup menjadi lampiran tambahan PK (Q50 §50.7). Versi penuh Renstra tidak dibangun (Q40 §40.2 butir 4). Status implementasi: bagian ISS-02.10 dan ISS-02.11 sudah; revisi PK berversi (ISS-02.12) sudah. Sejak ISS-02.12 tersedia, PK perubahan anggaran dicatat sebagai revisi yang hanya mengganti dokumen, dan lampiran tambahan tetap ada tanpa perubahan (Q85 §85.4 butir 6).
 
 > **Q71 (23 Oktober 2026):** pada Renstra aktif, target Renstra hanya diubah melalui mode revisi seluruh tabel dengan draf tersimpan otomatis, satu justifikasi wajib per revisi, dan histori revisi bernomor (Kasus E). Q60 tetap berlaku untuk Renstra draft. Status implementasi: sudah (ISS-02.13).
 
@@ -1666,9 +1671,9 @@ Terbitnya Kepmen IKU baru dapat mengubah, menghapus, atau menambah indikator yan
       target PK tahun berjalan di halaman PK (Q39) — tanpa target Renstra, target PK tetap
       dapat diisi dengan keterangan "target Renstra belum ada" (Q39 §39.2 butir 4)
   4c. Merevisi Perjanjian Kinerja tahun berjalan agar mencakup target indikator baru — memakai
-      revisi PK berversi (Q40 §40.1, §3.3; tahap 3); bila revisi yang mengubah target terbit
-      sebelum ISS-02.12 selesai, penanganannya ditetapkan PM sebagai keputusan baru (Q50 §50.7
-      butir 2)
+      revisi PK berversi (Q40 §40.1, §3.3), dicatat setelah langkah 6c karena revisi hanya
+      memuat indikator aktif yang sudah memiliki snapshot; versi PK baru otomatis memuat target
+      indikator itu (Q85 §85.4 butir 5)
   5c. Menambahkan indikator ke Jadwal Tahunan tahun berjalan yang masih aktif melalui
       ISS-03.04 dengan periode mulai eksplisit — ini MEKANISME STANDAR untuk memasukkan
       indikator baru di tengah tahun; tidak tersedia setelah tanggal penutupan maupun di
@@ -1718,10 +1723,10 @@ flowchart TD
 
     B -- Indikator baru --> H[Buat indikator baru\n+ unit pemilik + arah + tipe_perhitungan\n+ indikator_komponen bila perlu]
     H --> I[Isi target Renstra bila ada +\nbaseline & target PK di halaman PK - Q39]
-    I --> J[Revisi PK berversi - Q40, tahap 3]
-    J --> K[Tambah indikator ke jadwal aktif - ISS-03.04\nperiode mulai eksplisit, sebelum tanggal penutupan\nbukan lewat jadwal:buka_kembali - Q77]
+    I --> K[Tambah indikator ke jadwal aktif - ISS-03.04\nperiode mulai eksplisit, sebelum tanggal penutupan\nbukan lewat jadwal:buka_kembali - Q77]
     K --> L[Snapshot versi 1 khusus indikator ini\n+ snapshot komponen]
-    L --> M[Susun & sahkan Rencana Aksi indikator baru - §7]
+    L --> J[Revisi PK berversi - Q40, tahap 3]
+    J --> M[Susun & sahkan Rencana Aksi indikator baru - §7]
     M --> N[Indikator terukur mulai periode mulai\npada jadwal yang sama]
 
     B -- Lampiran revisi Renstra --> R1[Tambah lampiran revisi pada Renstra draft/aktif\nlampiran lama tidak dapat dihapus - Q40]
