@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **6 November 2026**
+Pembaruan terakhir: **8 November 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -1041,11 +1041,11 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 2. Setiap revisi membentuk **versi PK baru** yang menyimpan nomor versi, nomor dan tanggal surat persetujuan Eselon I sebagai isian tersendiri, periode mulai berlaku, lampiran dokumen PK bertanda tangan, dan target per indikator. Versi sebelumnya tidak diubah. (PM)
 3. PK awal dan PK akhir sama-sama disimpan dan dapat diunduh karena keduanya menjadi lampiran laporan kinerja. (menit 1:49:53)
 4. Revisi berlaku mulai **periode pertama yang belum ditutup**; periode yang sudah dilaporkan tetap memakai target versi lama. Persetujuan revisi yang mengubah target menerbitkan versi `jadwal_snapshot` baru (Q35 §35.1) dengan `periode_mulai_id` periode tersebut dan `rujukan_koreksi` surat Eselon I. (PM) *(Diperjelas Q85 §85.3: "belum ditutup" berarti belum dilaporkan, yaitu masih ada indikator PK yang pengukurannya pada periode itu belum `disahkan`; periode mulai ditentukan sistem.)*
-5. Revisi boleh hanya mengganti dokumen (mis. karena perubahan anggaran) tanpa mengubah target; revisi seperti itu tidak menerbitkan versi snapshot. (menit 1:50:24) Sebelum revisi berversi tersedia, PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK (Q50 §50.7).
+5. Revisi boleh hanya mengganti dokumen (mis. karena perubahan anggaran) tanpa mengubah target; revisi seperti itu tidak menerbitkan versi snapshot. (menit 1:50:24) Sebelum revisi berversi tersedia, PK perubahan yang hanya mengubah anggaran diunggah sebagai lampiran tambahan PK (Q50 §50.7). *(Catatan 7 November 2026: revisi berversi tersedia lewat ISS-02.12; PK perubahan anggaran dicatat sebagai revisi yang hanya mengganti dokumen, sedangkan lampiran tambahan tetap ada tanpa perubahan (Q85 §85.4 butir 6).)*
 6. Capaian akhir tahun dinilai terhadap target **PK akhir**, yaitu versi yang berlaku pada periode nilai akhir. (PM)
 7. Rencana Aksi tidak diubah otomatis. Selisih target periode terakhir dengan target PK baru tampil sebagai deviasi yang wajib dijelaskan (ADR-0008); target periode yang belum terkunci disesuaikan lewat buka-kembali (ISS-05.06). (PM)
 8. Koreksi salah ketik nomor atau tanggal PK tetap memakai jalur koreksi teraudit (ISS-02.09); perubahan target resmi memakai revisi berversi.
-9. Prasyarat implementasi: alur koreksi snapshot berversi (ISS-03.03), yang belum dikerjakan. Revisi PK dijadwalkan pada tahap 3 (§46.3). *(Catatan 30 Oktober 2026: alur koreksi snapshot berversi diimplementasikan untuk ISS-03.03 (Q79); revisi PK berversi tetap belum.)*
+9. Prasyarat implementasi: alur koreksi snapshot berversi (ISS-03.03), yang belum dikerjakan. Revisi PK dijadwalkan pada tahap 3 (§46.3). *(Catatan 30 Oktober 2026: alur koreksi snapshot berversi diimplementasikan untuk ISS-03.03 (Q79); revisi PK berversi tetap belum.)* *(Catatan 7 November 2026: revisi PK berversi diimplementasikan ISS-02.12 sesuai refinement Q85.)*
 
 ## 40.2 Revisi Renstra
 
@@ -1060,7 +1060,7 @@ Sumber: rapat 13 Oktober 2026, menit 27:24, 35:46, 1:28:16–1:28:48, dan 1:47:5
 - Menggantikan PRD §5.2 butir "Revisi target tahunan PK di tengah tahun", PRD §12.7, serta aturan Data Model §2.10 bahwa nomor dan tanggal surat Eselon I dicantumkan pada kolom `alasan`.
 - PRD §5.2, §10.5, §10.6, §12.7, §14.5, §14.10, §18.8; Data Model §2.9, §2.10 (rancangan versi PK), §2.13, §2.17, §2.30; Workflow §2, §3.3, §13, §14; Plan modul 2 dan 3.
 - User Stories/Issues: US/ISS-02.03, 02.08, dan 02.09 diberi catatan; ISS-03.03 menjadi prasyarat; issue baru **US/ISS-02.12** (revisi PK berversi); lampiran revisi dan riwayat target Renstra masuk **US/ISS-02.10**.
-- Status implementasi: lampiran revisi dan riwayat target Renstra sudah (ISS-02.10); versi PK belum (ISS-02.12).
+- Status implementasi: lampiran revisi dan riwayat target Renstra sudah (ISS-02.10); versi PK sudah (ISS-02.12, Q85).
 
 ---
 
@@ -1295,7 +1295,7 @@ Tim Perencanaan meminta fondasi PK → Rencana Aksi → Kegiatan dimatangkan seb
 
 Issue yang tidak disebut pada tabel mengikuti rencana sprint yang berlaku. Termasuk di dalamnya notifikasi ISS-12.01–ISS-12.07 dan ISS-13.04, sehingga tenggat WA/email "sebelum 9 November 2026" pada Q4 tidak lagi berlaku (ditetapkan PM 17 Oktober 2026); item notifikasi in-app yang dipindahkan Q37 tetap menunggu ISS-12.02.
 
-Status per 4 November 2026 (`development` `c315290c`): PR implementasi sudah merged untuk seluruh issue tahap 1 dan tahap 2. Tahap 1 — ISS-01.08 (#101, #108, #114), ISS-02.10 (#143), ISS-02.11 (#149), ISS-05.06 (#100), ISS-05.07 (#154), ISS-06.01 (#97, #141), ISS-06.02 (#111), ISS-06.08 (#142, #148), ISS-13.05 (#156), ISS-13.06 (#150), pengecualian periode lampau ISS-03.05 (#146), dan ISS-15.01 (#172). Tahap 2 — ISS-02.13 (#189), ISS-02.14 (#206, #240), ISS-02.15 (#176), ISS-03.07 (#175, #190), ISS-06.03 (#195, #205), ISS-06.04 (#163), ISS-06.05 (#174, #236), ISS-06.09 (#194), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.01 (#144), ISS-08.02 (#107), ISS-09.01 (#115), ISS-09.03 (#191), ISS-10.01 (#147, #153), ISS-10.02 (#155), ISS-10.05 (#208), dan ISS-14.01 (#109, #117). Tahap 3 — ISS-03.03 (#213) dan ISS-13.03 (#119) merged; ISS-02.12 (#226) belum. Merged bukan bukti seluruh AC atau UAT terpenuhi: status per AC mengikuti centang User Issues (misalnya keluaran Excel ISS-10.05 AC-1–AC-5 belum dibangun), dan data awal 2026 menunggu UAT ISS-15.01.
+Status per 4 November 2026 (`development` `c315290c`): PR implementasi sudah merged untuk seluruh issue tahap 1 dan tahap 2. Tahap 1 — ISS-01.08 (#101, #108, #114), ISS-02.10 (#143), ISS-02.11 (#149), ISS-05.06 (#100), ISS-05.07 (#154), ISS-06.01 (#97, #141), ISS-06.02 (#111), ISS-06.08 (#142, #148), ISS-13.05 (#156), ISS-13.06 (#150), pengecualian periode lampau ISS-03.05 (#146), dan ISS-15.01 (#172). Tahap 2 — ISS-02.13 (#189), ISS-02.14 (#206, #240), ISS-02.15 (#176), ISS-03.07 (#175, #190), ISS-06.03 (#195, #205), ISS-06.04 (#163), ISS-06.05 (#174, #236), ISS-06.09 (#194), ISS-07.01 (#106), ISS-07.03 (#105), ISS-07.06 (#118), ISS-08.01 (#144), ISS-08.02 (#107), ISS-09.01 (#115), ISS-09.03 (#191), ISS-10.01 (#147, #153), ISS-10.02 (#155), ISS-10.05 (#208), dan ISS-14.01 (#109, #117). Tahap 3 — ISS-03.03 (#213) dan ISS-13.03 (#119) merged; ISS-02.12 (#226) belum. Merged bukan bukti seluruh AC atau UAT terpenuhi: status per AC mengikuti centang User Issues (misalnya keluaran Excel ISS-10.05 AC-1–AC-5 belum dibangun), dan data awal 2026 menunggu UAT ISS-15.01. *(Catatan 7 November 2026: ISS-02.12 (#226) diimplementasikan sesuai refinement Q85.)*
 
 ## 46.4 Dampak dan traceability
 
@@ -1496,7 +1496,7 @@ Tidak ada validasi bahwa tanggal PK harus setelah tanggal penetapan Renstra.
 
 ## 50.7 PK perubahan karena anggaran
 
-1. Sebelum revisi PK berversi tersedia (Q40, ISS-02.12), PK perubahan yang hanya mengubah anggaran diunggah sebagai **lampiran tambahan** pada PK tahun tersebut beserta keterangan; target dan snapshot tidak berubah.
+1. Sebelum revisi PK berversi tersedia (Q40, ISS-02.12), PK perubahan yang hanya mengubah anggaran diunggah sebagai **lampiran tambahan** pada PK tahun tersebut beserta keterangan; target dan snapshot tidak berubah. *(Catatan 7 November 2026: revisi PK berversi tersedia lewat ISS-02.12; lampiran tambahan tetap ada tanpa perubahan (Q85 §85.4 butir 6).)*
 2. PK perubahan yang mengubah target memakai revisi berversi (Q40). Bila revisi seperti itu terbit sebelum ISS-02.12 selesai, penanganannya ditetapkan PM sebagai keputusan baru. *(Diperjelas Q85 §85.4 butir 6: kalimat kedua berlaku sampai ISS-02.12 tersedia; sesudahnya PK perubahan memakai revisi berversi, termasuk revisi yang hanya mengganti dokumen.)*
 
 ## 50.8 Dampak dan traceability
@@ -1847,10 +1847,10 @@ Q32.7 dan Workflow §15 butir 4 mengecualikan berkas wajib pada jalur pengisian 
 
 1. Snapshot yang sudah terbentuk tidak menghalangi perubahan target PK di halaman Perjanjian Kinerja. Izin simpan (`indikator:read` dan `target:update`, Q39 §39.3 butir 3) serta aturan baca-saja yang sudah ada tetap berlaku.
 2. Alasan perubahan target PK opsional, termasuk setelah snapshot terbentuk (Q43 §43.3 butir 2). *(Digantikan Q72 §72.2: alasan perubahan target PK wajib.)* Isian `rujukan_sumber` dipertahankan sebagai isian opsional; nilainya tidak disimpan pada target PK dan hanya tercatat di audit. *(Diubah Q82: alasan dan `rujukan_sumber` dihapus dari editor dan kontrak simpan target PK.)*
-3. Perubahan tersebut bukan koreksi PK (Q43 §43.2 butir 3) dan bukan revisi PK (Q40). Koreksi salah ketik nomor atau tanggal PK memakai ISS-02.09, perubahan target resmi memakai revisi PK berversi (Q40 §40.1 butir 8, ISS-02.12), dan salah ketik target yang sudah beku memakai versi snapshot pengganti (Q35 §35.1). Ketiga jalur itu belum tersedia (ISS-02.09, ISS-02.12, ISS-03.03). *(Catatan 30 Oktober 2026: versi snapshot pengganti tersedia melalui ISS-03.03, disalin dari data master setelah target PK diperbaiki (Q79 §79.1).)*
+3. Perubahan tersebut bukan koreksi PK (Q43 §43.2 butir 3) dan bukan revisi PK (Q40). Koreksi salah ketik nomor atau tanggal PK memakai ISS-02.09, perubahan target resmi memakai revisi PK berversi (Q40 §40.1 butir 8, ISS-02.12), dan salah ketik target yang sudah beku memakai versi snapshot pengganti (Q35 §35.1). Ketiga jalur itu belum tersedia (ISS-02.09, ISS-02.12, ISS-03.03). *(Catatan 30 Oktober 2026: versi snapshot pengganti tersedia melalui ISS-03.03, disalin dari data master setelah target PK diperbaiki (Q79 §79.1).)* *(Catatan 7 November 2026: revisi PK berversi tersedia melalui ISS-02.12 (Q85).)*
 4. Perubahan tersebut tidak mengubah `jadwal_snapshot`, rekonsiliasi Rencana Aksi (ADR-0008), maupun pengukuran tahun tersebut, yang tetap membaca target PK dari snapshot (Q39 §39.1 butir 3).
 5. Halaman PK menampilkan target PK yang tersimpan. Bila jadwal tahun PK berstatus `aktif` atau `ditutup`, halaman PK menampilkan pemberitahuan bahwa perubahan tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun tersebut.
-6. Editor menampilkan pemberitahuan yang sama bila indikator tersebut sudah memiliki snapshot tahun itu, dan menyebut bahwa perubahan resmi yang mengubah target menunggu revisi PK berversi (ISS-02.12) atau, sebelum itu tersedia, keputusan PM (Q50 §50.7 butir 2). Tidak ada guard baru.
+6. Editor menampilkan pemberitahuan yang sama bila indikator tersebut sudah memiliki snapshot tahun itu, dan menyebut bahwa perubahan resmi yang mengubah target menunggu revisi PK berversi (ISS-02.12) atau, sebelum itu tersedia, keputusan PM (Q50 §50.7 butir 2). Tidak ada guard baru. *(Catatan 7 November 2026: sejak ISS-02.12, pemberitahuan menyebut bahwa perubahan resmi dari surat Eselon I dicatat lewat Revisi PK.)*
 7. Tahun terkunci Q52 tidak menambah kunci pada target PK.
 
 ## 65.2 Alasan deviasi terhadap target Renstra
@@ -2654,6 +2654,7 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 2. Bila seluruh periode sudah dilaporkan untuk semua indikator, revisi yang mengubah target ditolak; revisi yang hanya mengganti dokumen tetap boleh.
 3. Per indikator, periode mulai versi yang diterbitkan tidak lebih awal dari periode mulai versi pendahulunya (Q79 §79.2 butir 1); bila lebih awal, dinaikkan ke periode mulai pendahulu untuk indikator itu saja.
 4. Surat Eselon I yang terbit setelah jendela pengisian periode terakhir berakhir tidak memerlukan perpanjangan jendela: selama ada indikator yang pengukuran periode itu belum disahkan dan tahun belum ditutup, periode mulai adalah periode tersebut dan Perencanaan mengisinya lewat jalur Perencanaan (ISS-07.04). Indikator yang pengukurannya sudah disahkan tetap memakai target lama (Q79 §79.3); penilaian ulang dengan PK akhir memakai buka-kembali pengukuran (ISS-08.03) lalu pemindahan ke versi baru (Q79 §79.3 butir 4).
+5. Revisi yang hanya mengganti dokumen menyimpan periode mulai kosong (`periode_mulai_id` null) bila tidak ada lagi periode yang belum dilaporkan pada jadwal tahun PK, yaitu seluruh periode sudah `disahkan` untuk semua indikator aktif, termasuk setelah tahun ditutup. Bila masih ada periode yang belum dilaporkan, periode mulai diisi periode tersebut menurut butir 1. Keputusan PM 8 November 2026 dalam [review PR #258](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/258#issuecomment-6718740895), menetapkan butir terbuka PR #253 atas Q40 §40.1 butir 2.
 
 ## 85.4 Syarat, izin, alasan, dan lampiran
 
@@ -2667,9 +2668,9 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 
 ## 85.5 Dampak dan traceability
 
-- Q40 §40.1 butir 4 (definisi "belum ditutup"), Q50 §50.7 butir 2, Q79 §79.1 butir 7 dan §79.2 butir 4 diperjelas; Q81 §81.3 berlaku apa adanya; Q35 §35.1, Q43, Q65, Q72, Q82 tidak berubah.
-- Issue #226 (AC-3 dan gate refinement), US/ISS-02.12; Data Model §2.10, §2.17 (sumber versi hasil revisi), §2.30 (lampiran versi), §2.36–§2.37 (tetap rancangan sampai ISS-02.12 diimplementasikan); Workflow §3.3 alur revisi PK; PRD §12.7; Plan 2.23.
-- Status implementasi: belum; dikerjakan pada issue #226 (Sprint 8). Status keputusan: keputusan PM 6 November 2026; aturan bisnis Q40 yang disahkan Tim Perencanaan tidak berubah sehingga konfirmasi tertulis tidak diminta.
+- Q40 §40.1 butir 2 (periode mulai versi revisi dokumen, §85.3 butir 5) dan butir 4 (definisi "belum ditutup"), Q50 §50.7 butir 2, Q79 §79.1 butir 7 dan §79.2 butir 4 diperjelas; Q81 §81.3 berlaku apa adanya; Q35 §35.1, Q43, Q65, Q72, Q82 tidak berubah.
+- Issue #226 (AC-3 dan gate refinement), US/ISS-02.12; Data Model §2.10, §2.17 (sumber versi hasil revisi), §2.30 (lampiran versi), §2.36–§2.37; Workflow §3.3 alur revisi PK dan §14 (Kasus C); PRD §10.5 dan §12.7; Plan 2.23.
+- Status implementasi: sudah (ISS-02.12, issue #226). Status keputusan: keputusan PM 6 November 2026; §85.3 butir 5: keputusan PM 8 November 2026; aturan bisnis Q40 yang disahkan Tim Perencanaan tidak berubah sehingga konfirmasi tertulis tidak diminta.
 
 ---
 

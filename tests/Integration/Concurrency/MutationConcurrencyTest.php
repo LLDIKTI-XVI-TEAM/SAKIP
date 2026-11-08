@@ -7,6 +7,7 @@ use App\Actions\Access\ChangeUserStatus;
 use App\Actions\Access\CreateDeny;
 use App\Actions\Access\SyncRolePermissionPresets;
 use App\Actions\Auth\ProvisionKeycloakUser;
+use App\Actions\Jadwal\ActivateJadwal;
 use App\Actions\PenanggungJawab\AssignPenanggungJawab;
 use App\Actions\PenanggungJawab\ChangePenanggungJawab;
 use App\Actions\Pengukuran\SaveDraftPengukuran;
@@ -14,6 +15,7 @@ use App\Actions\Pengukuran\SubmitPengukuran;
 use App\Actions\Pengukuran\VerifyPengukuran;
 use App\Actions\Perencanaan\ChangeIndicatorFormula;
 use App\Actions\Perencanaan\DestroyIndikator;
+use App\Actions\PerjanjianKinerja\SetujuiRevisiPerjanjianKinerja;
 use App\Actions\Regulasi\DeleteRegulasiAction;
 use App\Actions\Regulasi\UpdateRegulasiAction;
 use App\Actions\Rekomendasi\TetapkanRekomendasi;
@@ -46,9 +48,11 @@ use App\Models\RencanaAksi;
 use App\Models\RencanaAksiVersi;
 use App\Models\Renstra;
 use App\Models\RenstraPk;
+use App\Models\RenstraPkVersi;
 use App\Models\RevisiTargetRenstra;
 use App\Models\Role;
 use App\Models\SasaranStrategis;
+use App\Models\TargetKinerja;
 use App\Models\TargetRenstra;
 use App\Models\Unit;
 use App\Models\User;
@@ -57,25 +61,31 @@ use App\Models\UserPermissionGrant;
 use App\Services\Authorization\PermissionCatalog;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Authorization\RoleAssignmentReceipt;
+use App\Services\Jadwal\JadwalSnapshotWriter;
 use Database\Seeders\AccessCatalogSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
+use Tests\Support\JadwalActivationFixtures;
 use Tests\Support\RencanaAksiFixtures;
 use Tests\TestCase;
 
 class MutationConcurrencyTest extends TestCase
 {
-    use DatabaseMigrations, RencanaAksiFixtures;
+    use DatabaseMigrations, JadwalActivationFixtures, RencanaAksiFixtures;
 
     private bool $workersStopped = true;
+
+    private string $storageRoot;
 
     /** Audit rilis menolak rollback; rebuild hanya untuk fixture disposable setelah worker berhenti. */
     public function runDatabaseMigrations(): void
@@ -1992,6 +2002,73 @@ class MutationConcurrencyTest extends TestCase
         app(SimpanDrafRevisiTargetRenstra::class)->handle($parent, $renstra->id, ['revisi_id' => $revisi->id, 'versi' => 1, 'nilai' => [$indikator->id => [2026 => '12']]]);
 
         return [$parent, $worker, $renstra, $indikator, $revisi->id];
+    }
+
+    /** Aktor berbeda agar yang diuji adalah lock baris PK; yang kalah membaca nomor versi pemenang lalu ditolak 409. */
+    public function test_dua_revisi_pk_bersamaan_hanya_satu_berhasil_dan_satu_konflik(): void
+    {
+        [$pk, , $indikator, $pemohon] = $this->revisiPkFixture();
+        $payloads = array_map(fn (User $actor): array => $this->revisiPkAssignment($actor, $pk, 'expected_nomor_versi', 409,
+            ['target' => [['indikator_id' => $indikator->id, 'nilai' => '80']]]), $pemohon);
+
+        $hasil = $this->race('pk-revisi', $pk->id, '', $payloads, prepare: fn () => RenstraPk::whereKey($pk->id)->lockForUpdate()->firstOrFail());
+
+        $this->assertEqualsCanonicalizing([2, 'conflict'], $hasil);
+        $this->assertSame([1, 2], RenstraPkVersi::where('renstra_pk_id', $pk->id)->orderBy('nomor_versi')->pluck('nomor_versi')->all());
+        $this->assertSame([1, 2], JadwalSnapshot::where('indikator_id', $indikator->id)->orderBy('nomor_versi')->pluck('nomor_versi')->all());
+        $this->assertSame(1, AuditLog::where('tindakan', 'renstra_pk_versi.setujui')->count());
+        $ditolak = AuditLog::where('tindakan', 'renstra_pk_versi.setujui_ditolak')->sole();
+        $this->assertSame(['konflik', ['expected_nomor_versi']], [$ditolak->nilai_baru['alasan_penolakan'], $ditolak->nilai_baru['field']]);
+        // File pihak yang kalah dibersihkan; hanya lampiran versi pemenang yang tersisa di root khusus run.
+        $this->assertCount(1, File::allFiles($this->storageRoot));
+    }
+
+    /** Indikator baru terbit selagi revisi menunggu lock jadwal: himpunan yang dibaca ulang berbeda sehingga revisi ditolak. */
+    public function test_revisi_pk_ditolak_bila_indikator_aktif_bertambah_saat_menunggu_jadwal(): void
+    {
+        [$pk, $jadwal, , [$pemohon]] = $this->revisiPkFixture();
+        // fresh(): writer menyalin kolom master, termasuk default database yang belum ada di model hasil create.
+        $baru = $this->eligibleIndicator(target: '50', nama: 'Indikator tengah tahun')->fresh();
+        // Aktor parent berbeda dari worker: insert audit menunggu baris user yang dikunci worker bila aktornya sama.
+        $penambah = $this->activator();
+
+        $hasil = $this->race('pk-revisi', $pk->id, '', [$this->revisiPkAssignment($pemohon, $pk, 'jadwal', 422)],
+            prepare: fn () => JadwalTahunan::whereKey($jadwal->id)->lockForUpdate()->firstOrFail(),
+            assertBlocked: fn () => app(JadwalSnapshotWriter::class)->bekukan($penambah, $jadwal, $baru,
+                TargetKinerja::where('indikator_kinerja_id', $baru->id)->sole(), $this->ready['periode']->id, 'Indikator baru masuk jadwal.', []));
+
+        $this->assertSame(['conflict'], $hasil);
+        $this->assertSame(0, RenstraPkVersi::where('renstra_pk_id', $pk->id)->count());
+        $this->assertSame(['jadwal'], AuditLog::where('tindakan', 'renstra_pk_versi.setujui_ditolak')->sole()->nilai_baru['field']);
+        $this->assertSame([], File::allFiles($this->storageRoot));
+    }
+
+    /** @return array{RenstraPk, JadwalTahunan, IndikatorKinerja, list<User>} */
+    private function revisiPkFixture(): array
+    {
+        $this->seed(AccessCatalogSeeder::class);
+        $this->travelTo(now()->setDate(2026, 10, 7)->setTime(10, 0));
+        $this->readyJadwal(withIndicator: false);
+        $indikator = $this->eligibleIndicator(target: '76.25');
+        app(ActivateJadwal::class)->handle($this->activator(), $this->ready['jadwal']->id, $this->activationPayload());
+        // Root disk sementara khusus run untuk parent dan worker; teardown hanya menghapus direktori ini.
+        $root = $this->storageRoot = sys_get_temp_dir().DIRECTORY_SEPARATOR.'sakip-pk-revisi-'.Str::uuid();
+        File::ensureDirectoryExists($root);
+        $this->beforeApplicationDestroyed(fn () => File::deleteDirectory($root));
+        config(['filesystems.disks.local.root' => $root]);
+        Storage::forgetDisk('local');
+
+        return [$this->ready['pk'], $this->ready['jadwal']->fresh(), $indikator,
+            [$this->activator(SetujuiRevisiPerjanjianKinerja::IZIN), $this->activator(SetujuiRevisiPerjanjianKinerja::IZIN)]];
+    }
+
+    /** @return array<string, mixed> */
+    private function revisiPkAssignment(User $actor, RenstraPk $pk, string $field, int $status, array $data = []): array
+    {
+        return ['actor_id' => $actor->id, 'pk_id' => $pk->id, 'storage_root' => $this->storageRoot, 'test_now' => now()->toIso8601String(),
+            'expected_error_field' => $field, 'expected_error_status' => $status,
+            'data' => ['expected_nomor_versi' => 0, 'expected_dasar' => JadwalTahunan::tokenDasar($pk->resolveJadwalTahunan()->snapshotDasar()),
+                'nomor_surat' => 'B-7/2026', 'tanggal_surat' => '2026-10-01', 'alasan' => 'Revisi sesuai surat persetujuan pimpinan.', ...$data]];
     }
 
     /**

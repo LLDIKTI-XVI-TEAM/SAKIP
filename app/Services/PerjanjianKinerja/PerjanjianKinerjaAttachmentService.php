@@ -5,6 +5,7 @@ namespace App\Services\PerjanjianKinerja;
 use App\Jobs\CleanupStorageFileJob;
 use App\Models\Berkas;
 use App\Models\RenstraPk;
+use App\Models\RenstraPkVersi;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Authorization\PermissionResolver;
@@ -20,6 +21,15 @@ use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Menyimpan, menghapus fisik, dan memetakan lampiran Perjanjian Kinerja untuk audit.
+ *
+ * Dipisah dari Action karena tiga Action memakai aturan lampiran yang sama: CreatePerjanjianKinerja dan
+ * UpdatePerjanjianKinerja (lampiran induk PK, yaitu PK awal) serta SetujuiRevisiPerjanjianKinerja (lampiran versi
+ * revisi, yaitu PK akhir). Transaksi, lock PK, dan pembersihan file saat gagal milik Action pemanggil; service hanya
+ * menulis file ke disk privat `local` di `berkas/{morph induk}/{id}`, mencatat path ke `$storedPaths`, membuat baris
+ * `berkas`, dan mengaudit `berkas.unggah` dengan dasar izin unggah (dan izin ubah PK bila diberikan).
+ */
 class PerjanjianKinerjaAttachmentService
 {
     public function __construct(
@@ -28,13 +38,13 @@ class PerjanjianKinerjaAttachmentService
     ) {}
 
     /**
-     * Menyimpan daftar lampiran ke Perjanjian Kinerja (mode file, tautan, atau teks).
+     * Menyimpan daftar lampiran ke PK atau versi revisinya (mode file, tautan, atau teks; versi hanya dikirimi file).
      *
      * @param  array<int, array<string, mixed>>  $lampiran
      * @param  list<string>  $storedPaths
      */
     public function simpanLampiran(
-        RenstraPk $pk,
+        RenstraPk|RenstraPkVersi $induk,
         array $lampiran,
         User $actor,
         array &$storedPaths,
@@ -71,7 +81,7 @@ class PerjanjianKinerjaAttachmentService
                     'lampiran.extensions' => 'Ekstensi file lampiran tidak diizinkan.',
                 ])->validate();
 
-                $path = $file->store("berkas/renstra_pk/{$pk->id}", 'local');
+                $path = $file->store("berkas/{$induk->getMorphClass()}/{$induk->id}", 'local');
                 if (! is_string($path)) {
                     throw new RuntimeException('Lampiran gagal disimpan ke private storage.');
                 }
@@ -132,7 +142,7 @@ class PerjanjianKinerjaAttachmentService
             }
 
             /** @var Berkas $berkas */
-            $berkas = $pk->berkas()->create($attributes);
+            $berkas = $induk->berkas()->create($attributes);
 
             $dasarIzin = $uploadDecision->toAuditBasis();
             if ($pkUpdateDecision !== null) {

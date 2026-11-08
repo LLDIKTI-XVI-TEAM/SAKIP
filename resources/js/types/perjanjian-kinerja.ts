@@ -1,4 +1,5 @@
 import type { LampiranDraft, LampiranMode } from './lampiran';
+import type { PengukuranBelumDisahkan } from './snapshot-indikator';
 
 export type { LampiranDraft, LampiranMode };
 
@@ -73,6 +74,59 @@ export interface RenstraPkSummary {
         is_terkunci?: boolean;
         activated_at?: string | null;
     } | null;
+}
+
+/** Selisih target antara versi PK dan versi sebelumnya; `null` berarti indikator tidak ada di salah satu versi. */
+export interface PerubahanTargetVersi {
+    indikator_id: string;
+    kode: string;
+    lama: string | null;
+    baru: string | null;
+    desimal_tampilan: number;
+}
+
+/** Satu baris linimasa versi PK; versi 1 (PK awal) tidak membawa surat dan alasan. */
+export interface VersiPk {
+    id: string;
+    nomor_versi: number;
+    nomor_surat: string | null;
+    tanggal_surat: string | null;
+    periode_mulai: { id: string; nama: string } | null;
+    alasan: string | null;
+    disetujui_oleh: string | null;
+    disetujui_pada: string | null;
+    berkas: BerkasPk[];
+    perubahan_target: PerubahanTargetVersi[];
+}
+
+/** Indikator aktif PK dengan nilai dasar revisi (target snapshot terbaru). */
+export interface RevisiTargetIndikator {
+    indikator_id: string;
+    kode: string;
+    nama: string;
+    satuan: string;
+    nilai: string;
+    desimal_tampilan: number;
+}
+
+/** Data form revisi dari server; periode mulai hanya pratinjau, nilai final ditetapkan saat simpan. */
+export interface RevisiPk {
+    expected_nomor_versi: number;
+    expected_dasar: string;
+    periode_mulai: { id: string; nama: string } | null;
+    dapat_ubah_target: boolean;
+    alasan_tidak_dapat_ubah_target: string | null;
+    target: RevisiTargetIndikator[];
+    pengukuran_belum_disahkan: Record<string, (PengukuranBelumDisahkan & { periode_nama: string })[]>;
+}
+
+export interface RevisiPkFormData {
+    nomor_surat: string;
+    tanggal_surat: string;
+    alasan: string;
+    target: { indikator_id: string; nilai: string }[];
+    lampiran: LampiranDraft[];
+    konfirmasi_pengukuran_sebelumnya: boolean;
 }
 
 export interface StorageSettings {

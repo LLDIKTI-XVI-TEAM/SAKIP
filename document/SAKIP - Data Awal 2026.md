@@ -113,7 +113,7 @@ Sumber: `SAKIP - Keputusan Penyelarasan.md` bagian **"Asumsi kerja data awal 202
 | IKU 3.3 | Komponen tidak disetel sampai definisinya jelas; target PK 2026 59,5 | Q32.9 | Asumsi kerja |
 | Unit dan PJ | IKU 1.1, 1.3, 4.1 → Bagian Umum; IKU 1.2 → Tim Kerja Penguatan Kualitas Kelembagaan dan Kerja Sama PT; IKU 2.1 dan 3.1 → Tim Kerja Penguatan Mutu Pembelajaran dan Kemahasiswaan; IKU 3.2 → Tim Kerja Penguatan Kualitas Sumber Daya; IKU 3.3 → Tim Kerja Penguatan Mutu Penelitian dan PkM; IKU 2.2 → sementara Tim Kerja Penguatan Mutu Pembelajaran dan Kemahasiswaan | Pembagian tim kerja pada Renstra 2025–2029 | Asumsi kerja |
 | Target TW I–III 2026 | Kosong (tidak ditargetkan) | Q47 §47.2 butir 4 | Asumsi kerja |
-| PK 2026 perubahan | Belum dipastikan apakah PK direvisi dan apakah target ikut berubah; bila hanya anggaran, cukup lampiran tambahan | Tindak lanjut "Rencana PK perubahan 2026"; Q50 §50.7 | Menunggu Perencanaan |
+| PK 2026 perubahan | Belum dipastikan apakah PK direvisi dan apakah target ikut berubah. Sejak ISS-02.12 tersedia, PK perubahan anggaran dicatat sebagai revisi PK yang hanya mengganti dokumen, dan lampiran tambahan tetap ada tanpa perubahan (Q85 §85.4 butir 6) | Tindak lanjut "Rencana PK perubahan 2026"; Q50 §50.7; Q85 §85.4 butir 6 | Menunggu Perencanaan |
 
 **Larangan:** asumsi di atas tidak boleh dipakai sebagai nilai produksi, tidak boleh disetel sebagai komponen/formula produksi, dan tidak boleh dianggap "Dikonfirmasi dokumen".
 

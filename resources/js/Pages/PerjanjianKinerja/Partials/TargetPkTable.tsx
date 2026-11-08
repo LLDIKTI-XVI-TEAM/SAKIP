@@ -11,7 +11,11 @@ import { ANJURAN_TARGET_RENSTRA, labelDeviasi } from '@/Pages/TargetTahunan/devi
 import type { TargetPkIndikator, TargetPkSasaran } from '@/types/perjanjian-kinerja';
 
 /** Baseline (data pendukung) dan target PK per sasaran. Nilai, izin, dan status baca-saja berasal dari server. */
-export function TargetPkTable({ pkId, tahun, sasaran, canUpdate, jadwalStatus }: { pkId: string; tahun: number; sasaran: TargetPkSasaran[]; canUpdate: boolean; jadwalStatus?: string | null }) {
+export function TargetPkTable({ pkId, tahun, sasaran, canUpdate, jadwalStatus, onRevisi }: {
+    pkId: string; tahun: number; sasaran: TargetPkSasaran[]; canUpdate: boolean; jadwalStatus?: string | null;
+    /** Diisi halaman bila pengguna boleh merevisi PK; menautkan peringatan ke panel revisi. */
+    onRevisi?: () => void;
+}) {
     const formatNilai = useFormatNilai();
     const [editing, setEditing] = useState<string | null>(null);
     const [message, setMessage] = useState('');
@@ -27,6 +31,9 @@ export function TargetPkTable({ pkId, tahun, sasaran, canUpdate, jadwalStatus }:
         </div>
         {(jadwalStatus === 'aktif' || jadwalStatus === 'ditutup') && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-ink">
             Perubahan target PK tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun {tahun}.
+            {onRevisi && <> Perubahan resmi dari surat Eselon I:{' '}
+                <button type="button" onClick={onRevisi} className="rounded font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/25">Revisi PK</button>
+            </>}
         </p>}
         {message && <p role="status" className="rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-ink">{message}</p>}
         {sasaran.length === 0

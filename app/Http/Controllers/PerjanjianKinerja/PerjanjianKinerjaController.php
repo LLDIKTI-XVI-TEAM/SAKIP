@@ -6,6 +6,7 @@ use App\Actions\PerjanjianKinerja\CreatePerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\DeleteBerkasPerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\DownloadBerkasPerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\IndexPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\SetujuiRevisiPerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\ShowPerjanjianKinerja;
 use App\Actions\PerjanjianKinerja\UpdatePerjanjianKinerja;
 use App\Actions\TargetTahunan\SaveTargetTahunan;
@@ -13,6 +14,7 @@ use App\Actions\TargetTahunan\ShowTargetTahunan;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PerjanjianKinerja\DestroyBerkasPerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\StorePerjanjianKinerjaRequest;
+use App\Http\Requests\PerjanjianKinerja\StoreVersiPerjanjianKinerjaRequest;
 use App\Http\Requests\PerjanjianKinerja\UpdatePerjanjianKinerjaRequest;
 use App\Http\Requests\TargetTahunan\SaveTargetTahunanRequest;
 use App\Models\Berkas;
@@ -126,6 +128,17 @@ class PerjanjianKinerjaController extends Controller
         return redirect()
             ->route('perjanjian-kinerja.show', $perjanjianKinerja)
             ->with('success', 'Perjanjian Kinerja berhasil diperbarui.');
+    }
+
+    /**
+     * Menyimpan revisi PK berversi yang sudah disetujui Eselon I beserta lampirannya.
+     */
+    public function storeVersi(StoreVersiPerjanjianKinerjaRequest $request, RenstraPk $perjanjianKinerja, SetujuiRevisiPerjanjianKinerja $action): RedirectResponse
+    {
+        $versi = $action->handle($request->user(), $perjanjianKinerja->id, $request->validated());
+        Inertia::flash('success', 'Revisi PK versi '.$versi->nomor_versi.' berhasil disimpan.');
+
+        return redirect()->route('perjanjian-kinerja.show', $perjanjianKinerja);
     }
 
     /**

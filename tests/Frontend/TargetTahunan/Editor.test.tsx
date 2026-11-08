@@ -76,7 +76,7 @@ const tanpaDasarPerubahan = () => {
 it('setelah snapshot editor menjelaskan target beku tetap dipakai tanpa bagian dasar perubahan (Q82)', () => {
     show();
     expect(screen.getByText(/Perubahan ini tidak mengubah target yang dipakai Rencana Aksi dan pengukuran tahun 2026/)).toBeTruthy();
-    expect(screen.getByText(/menunggu revisi PK berversi atau, sebelum itu tersedia, keputusan PM/)).toBeTruthy();
+    expect(screen.getByText(/Perubahan resmi dari surat Eselon I dicatat lewat Revisi PK\./)).toBeTruthy();
     tanpaDasarPerubahan();
 });
 
