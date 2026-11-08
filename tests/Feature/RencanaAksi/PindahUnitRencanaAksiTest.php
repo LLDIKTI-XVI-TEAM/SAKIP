@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\RencanaAksi;
 
+use App\Actions\Kegiatan\DaftarKegiatanRencanaAksi;
 use App\Models\AuditLog;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
+use App\Models\RencanaAksi;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
 
@@ -153,5 +156,24 @@ class PindahUnitRencanaAksiTest extends TestCase
         $this->actingAs($perencanaan)->get($url)->assertOk()->assertInertia(fn ($page) => $page->where('rencanaAksi.can.pindah_unit', true));
         $this->denyPermission($perencanaan, 'rencana_aksi:update', $tujuan->id);
         $this->get($url)->assertOk()->assertInertia(fn ($page) => $page->where('rencanaAksi.can.pindah_unit', false));
+    }
+
+    public function test_daftar_kegiatan_menolak_unit_yang_berubah_saat_baca(): void
+    {
+        $this->setUpRencanaAksiFixture();
+        $tujuan = Unit::create(['nama' => 'Tujuan', 'status' => 'aktif', 'created_by' => $this->actor->id]);
+        $jumlah = 0;
+        $dipindah = false;
+        $id = $this->rencanaAksi->id;
+        DB::connection()->beforeExecuting(function (string $sql) use (&$jumlah, &$dipindah, $id, $tujuan): void {
+            if (str_contains($sql, 'from "rencana_aksi"') && str_contains($sql, 'limit 1') && ++$jumlah === 2) {
+                $dipindah = true;
+                RencanaAksi::whereKey($id)->update(['unit_id' => $tujuan->id]);
+            }
+        });
+
+        $result = app(DaftarKegiatanRencanaAksi::class)->handle($this->actor, $id, []);
+        $this->assertTrue($dipindah);
+        $this->assertNull($result);
     }
 }

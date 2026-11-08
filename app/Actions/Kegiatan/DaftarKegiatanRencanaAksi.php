@@ -71,13 +71,20 @@ class DaftarKegiatanRencanaAksi
                 && $this->gerbang->boleh($actor, $header, $unitId, PermissionCodes::KEGIATAN_UPDATE, $periodeDapatDitulis),
         ];
 
-        return DB::transaction(function () use ($header, $can, $periodeDapatDitulis): array {
+        return DB::transaction(function () use ($actor, $header, $can, $periodeDapatDitulis): ?array {
             // Daftar, penanda, dan total dibaca dari satu snapshot; bila dipanggil di dalam transaksi lain, isolasi milik caller.
             if (DB::transactionLevel() === 1) {
                 DB::statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
             }
 
-            return [...$this->baca($header, $periodeDapatDitulis), 'can' => $can];
+            // Unit dapat berpindah setelah capability dibaca; gunakan snapshot yang sama untuk izin dan data.
+            $aktual = RencanaAksi::findOrFail($header->id);
+            if ((string) $aktual->unit_id !== (string) $header->unit_id
+                || ! $this->resolver->allows($actor, PermissionCodes::KEGIATAN_READ, (string) $aktual->unit_id)) {
+                return null;
+            }
+
+            return [...$this->baca($aktual, $periodeDapatDitulis), 'can' => $can];
         });
     }
 

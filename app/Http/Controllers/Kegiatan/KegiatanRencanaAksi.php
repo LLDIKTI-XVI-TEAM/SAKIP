@@ -7,7 +7,6 @@ use App\Actions\RencanaAksi\IndexRencanaAksi;
 use App\Http\Controllers\Controller;
 use App\Models\RencanaAksi;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,19 +20,16 @@ class KegiatanRencanaAksi extends Controller
      */
     public function __invoke(Request $request, RencanaAksi $rencanaAksi, IndexRencanaAksi $index, DaftarKegiatanRencanaAksi $kegiatan): Response
     {
-        return DB::transaction(function () use ($request, $rencanaAksi, $index, $kegiatan): Response {
-            RencanaAksi::whereKey($rencanaAksi->id)->sharedLock()->firstOrFail();
-            // Payload utama dimuat lebih dulu sehingga penolakan header tidak didahului query kegiatan.
-            $payload = $index->handle($request->user(), (string) $rencanaAksi->id);
-            // Batas capability tambah berasal dari payload Rencana Aksi (aturan yang
-            // sama dengan gerbang tulis); tanpa kunci tetap fail-closed.
-            /** @var list<string> $periodeDapatDitulis */
-            $periodeDapatDitulis = $payload['periode_dapat_ditulis'] ?? [];
+        // Payload utama dimuat lebih dulu sehingga penolakan header tidak didahului query kegiatan.
+        $payload = $index->handle($request->user(), (string) $rencanaAksi->id);
+        // Batas capability tambah berasal dari payload Rencana Aksi (aturan yang
+        // sama dengan gerbang tulis); tanpa kunci tetap fail-closed.
+        /** @var list<string> $periodeDapatDitulis */
+        $periodeDapatDitulis = $payload['periode_dapat_ditulis'] ?? [];
 
-            return Inertia::render('RencanaAksi/Kegiatan', [
-                'rencanaAksi' => $payload,
-                'kegiatan' => $kegiatan->handle($request->user(), (string) $rencanaAksi->id, $periodeDapatDitulis),
-            ]);
-        });
+        return Inertia::render('RencanaAksi/Kegiatan', [
+            'rencanaAksi' => $payload,
+            'kegiatan' => $kegiatan->handle($request->user(), (string) $rencanaAksi->id, $periodeDapatDitulis),
+        ]);
     }
 }
