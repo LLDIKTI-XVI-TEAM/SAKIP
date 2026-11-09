@@ -12,7 +12,7 @@ import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
 import type { IndikatorArah, IndikatorTipePerhitungan } from '@/types/sasaran-indikator';
 import AjukanPanel from './AjukanPanel';
 import BuktiPanel from './BuktiPanel';
-import JudulLangkah from './JudulLangkah';
+import JudulLangkah from '@/Components/JudulLangkah';
 import MatriksTarget from './MatriksTarget';
 import TargetPreview from './TargetPreview';
 import type { RencanaAksiBukti, RencanaAksiKegiatan, RencanaAksiShow } from './types';
