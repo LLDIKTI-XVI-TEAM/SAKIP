@@ -5,6 +5,7 @@ import { http } from '@inertiajs/core';
 import { definition } from './indikatorFixtures';
 import { router } from '@inertiajs/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PindahUnitModal } from '@/Pages/Perencanaan/SasaranIndikator/PindahUnitModal';
 import Index from '@/Pages/Perencanaan/SasaranIndikator/Index';
 import Show from '@/Pages/Perencanaan/Indikator/Show';
 import type {
@@ -235,4 +236,13 @@ describe('Pindah Unit Indikator (R2-03)', () => {
         // Tidak ada field alasan pindah unit di modal edit
         expect(screen.queryByLabelText(/alasan pindah/i)).toBeNull();
     });
+});
+
+it.each([[], ['ra-1']])('peringatan hanya untuk RA terdampak dan menautkan detail: %j', (...ids: string[]) => {
+    render(<PindahUnitModal isOpen onClose={() => {}} indikator={{ ...indikator, rencana_aksi_terdampak: ids }} units={[]} />);
+    if (ids.length) {
+        expect(screen.getByRole('link', { name: 'Buka Rencana Aksi 1' }).getAttribute('href')).toBe('/rencana-aksi/ra-1');
+    } else {
+        expect(screen.queryByText(/Rencana Aksi yang sudah ada/)).toBeNull();
+    }
 });

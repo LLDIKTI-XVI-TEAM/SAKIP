@@ -2502,11 +2502,11 @@ Nomor Q75 dan Q76 dicadangkan untuk mencatat keputusan PM K3–K7 ISS-10.05 ([ko
 - Q35 §35.1 dan Q65 §65.1 butir 3 diperjelas; Q40 §40.1 tidak berubah.
 - Data Model §2.17 (`periode_mulai_id` dan perilaku koreksi) dan §2.36 (kriteria "belum ditutup"); US/ISS-03.03.
 - Pembaca versi efektif per periode dan rekonsiliasi draf Rencana Aksi tidak berubah oleh keputusan ini. Gerbang pengajuan pengukuran diubah Q81 §81.2.
-- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. §79.3 butir 4 diimplementasikan untuk issue #220 (PR #238) sebagai pemindahan manual oleh Perencanaan dengan alasan opsional; issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) mengikuti ketentuan §79.7; status implementasi menunggu bukti pengujian dan PR. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
+- Status implementasi: §79.1–§79.3 dan §79.5 diimplementasikan untuk ISS-03.03 (issue #91); bukti test tercatat pada ISS-03.03. Ini bukan persetujuan QA/UAT, merge, atau deployment. §79.3 butir 4 diimplementasikan untuk issue #220 (PR #238) sebagai pemindahan manual oleh Perencanaan dengan alasan opsional; issue lanjutan §79.1 butir 8 (pemindahan unit Rencana Aksi) mengikuti ketentuan §79.7; diimplementasikan pada [PR #259](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/259) dengan pengujian pemindahan, audit, dan izin kedua unit; PR belum merge. Status keputusan: baseline kerja PM; konfirmasi tertulis Tim Perencanaan belum diminta.
 
 ## 79.7 Pemindahan unit Rencana Aksi (issue #231)
 
-Konfirmasi pengguna pada 8 November 2026 untuk pengecualian §79.1 butir 8; ini bukan bukti UAT, merge, atau deployment.
+Keputusan PM pada [9 November 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/259#issuecomment-6733295492) untuk pengecualian §79.1 butir 8; ini bukan bukti UAT, merge, atau deployment.
 
 1. Perencanaan memindahkan unit header secara eksplisit ke unit indikator terkini dengan alasan wajib dan token versi. Izin `rencana_aksi:update` melalui peran diperlukan pada unit asal dan tujuan; deny menang.
 2. Hanya draf yang belum pernah diajukan dapat dipindah. RA yang memiliki riwayat diajukan atau disahkan, termasuk setelah buka-kembali, ditolak. Versi beku dan pengukuran tidak dipindahkan.

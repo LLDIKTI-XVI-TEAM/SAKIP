@@ -3,13 +3,18 @@
 namespace Tests\Feature\RencanaAksi;
 
 use App\Actions\Kegiatan\DaftarKegiatanRencanaAksi;
+use App\Actions\Perencanaan\IndexSasaranIndikator;
+use App\Actions\RencanaAksi\IndexRencanaAksi;
+use App\Actions\RencanaAksi\PreviewTargetPeriode;
 use App\Models\AuditLog;
 use App\Models\Kegiatan;
 use App\Models\KlaimKegiatan;
 use App\Models\RencanaAksi;
 use App\Models\Unit;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesRencanaAksiFixture;
 use Tests\TestCase;
 
@@ -175,5 +180,124 @@ class PindahUnitRencanaAksiTest extends TestCase
         $result = app(DaftarKegiatanRencanaAksi::class)->handle($this->actor, $id, []);
         $this->assertTrue($dipindah);
         $this->assertNull($result);
+    }
+
+    public function test_audit_sukses_memuat_unit_kegiatan_alasan_dan_izin(): void
+    {
+        $this->setUpRencanaAksiFixture();
+        $actor = $this->createUserWithRole('perencanaan');
+        $tujuan = Unit::create(['nama' => 'Tujuan', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $kegiatan = Kegiatan::create(['unit_id' => $this->unit->id, 'tahun' => 2026, 'periode_id' => $this->snapshot->periode_mulai_id, 'nama' => 'Kegiatan', 'created_by' => $actor->id]);
+        KlaimKegiatan::create(['rencana_aksi_id' => $this->rencanaAksi->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah', 'sumber_klaim' => 'rencana_aksi', 'created_by' => $actor->id, 'created_at' => now()]);
+        $this->indikator->update(['unit_id' => $tujuan->id]);
+        $this->actingAs($actor)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/pindah-unit", ['expected_versi' => 1, 'alasan' => 'Perubahan unit'])->assertRedirect();
+        $audit = DB::table('audit_log')->where('tindakan', 'rencana_aksi.pindah_unit')->sole();
+        $this->assertSame(['unit_id' => $this->unit->id], json_decode($audit->nilai_lama, true));
+        $this->assertSame(['unit_id' => $tujuan->id, 'kegiatan_ids' => [$kegiatan->id]], json_decode($audit->nilai_baru, true));
+        $this->assertSame('Perubahan unit', $audit->alasan);
+        $basis = json_decode($audit->dasar_izin, true);
+        foreach (['unit_asal', 'unit_tujuan'] as $key) {
+            $this->assertSame('rencana_aksi:update', $basis[$key]['permission']);
+            $this->assertSame('diizinkan', $basis[$key]['keputusan']);
+        }
+    }
+
+    #[DataProvider('izinDitolak')]
+    public function test_izin_kedua_unit_wajib_dan_penolakan_diaudit(string $skenario): void
+    {
+        $this->setUpRencanaAksiFixture();
+        $actor = $this->createUserWithRole($skenario === 'tanpa_izin' ? 'pegawai' : 'perencanaan');
+        $tujuan = Unit::create(['nama' => 'Tujuan', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $this->indikator->update(['unit_id' => $tujuan->id]);
+        if ($skenario !== 'tanpa_izin') {
+            $this->denyPermission($actor, 'rencana_aksi:update', $skenario === 'asal' ? $this->unit->id : $tujuan->id);
+        }
+        $this->actingAs($actor)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/pindah-unit", ['expected_versi' => 1, 'alasan' => 'Perubahan unit'])->assertForbidden();
+        $this->assertSame($this->unit->id, $this->rencanaAksi->fresh()->unit_id);
+        $this->assertSame(1, AuditLog::where('tindakan', 'rencana_aksi.pindah_unit_ditolak')->count());
+        $this->assertSame(0, AuditLog::where('tindakan', 'rencana_aksi.pindah_unit')->count());
+    }
+
+    public static function izinDitolak(): array
+    {
+        return [['asal'], ['tujuan'], ['tanpa_izin']];
+    }
+
+    #[DataProvider('gerbangDitolak')]
+    public function test_gerbang_pemindahan_menolak_tanpa_mutasi(string $skenario): void
+    {
+        $this->setUpRencanaAksiFixture();
+        $actor = $this->createUserWithRole('perencanaan');
+        $tujuan = Unit::create(['nama' => 'Tujuan', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $this->indikator->update(['unit_id' => $tujuan->id]);
+        if ($skenario === 'unit') {
+            $tujuan->update(['status' => 'nonaktif']);
+        }
+        if ($skenario === 'arsip') {
+            $this->indikator->update(['status' => 'arsip']);
+        }
+        if ($skenario === 'jadwal') {
+            $this->jadwal->update(['status' => 'ditutup']);
+        }
+        if ($skenario === 'tahun') {
+            $this->jadwal->update(['penutupan' => '2026-01-01']);
+        }
+        if ($skenario === 'kegiatan') {
+            $kegiatan = Kegiatan::create(['unit_id' => $tujuan->id, 'tahun' => 2026, 'periode_id' => $this->snapshot->periode_mulai_id, 'nama' => 'Kegiatan', 'created_by' => $actor->id]);
+            KlaimKegiatan::create(['rencana_aksi_id' => $this->rencanaAksi->id, 'kegiatan_id' => $kegiatan->id, 'arah_dampak' => 'menambah', 'sumber_klaim' => 'rencana_aksi', 'created_by' => $actor->id, 'created_at' => now()]);
+        }
+        $this->actingAs($actor)->postJson("/rencana-aksi/{$this->rencanaAksi->id}/pindah-unit", ['expected_versi' => 1, 'alasan' => 'Perubahan unit'])->assertUnprocessable();
+        $this->assertSame($this->unit->id, $this->rencanaAksi->fresh()->unit_id);
+        $this->assertSame(1, $this->rencanaAksi->fresh()->versi);
+    }
+
+    public static function gerbangDitolak(): array
+    {
+        return [['unit'], ['arsip'], ['jadwal'], ['tahun'], ['kegiatan']];
+    }
+
+    #[DataProvider('pembacaHeader')]
+    public function test_pembaca_menolak_unit_yang_berubah_setelah_otorisasi(string $action): void
+    {
+        $this->setUpRencanaAksiFixture();
+        $pembaca = $this->createPicPegawai();
+        $tujuan = Unit::create(['nama' => 'Tujuan', 'status' => 'aktif', 'created_by' => $this->actor->id]);
+        $jumlah = 0;
+        $dipindah = false;
+        $id = $this->rencanaAksi->id;
+        DB::connection()->beforeExecuting(function (string $sql) use (&$jumlah, &$dipindah, $id, $tujuan): void {
+            if (str_contains($sql, 'from "rencana_aksi"') && str_contains($sql, 'limit 1') && ++$jumlah === 2) {
+                $dipindah = true;
+                RencanaAksi::whereKey($id)->update(['unit_id' => $tujuan->id]);
+            }
+        });
+        $this->expectException(AuthorizationException::class);
+        try {
+            app($action)->handle($pembaca, $id, []);
+        } finally {
+            $this->assertTrue($dipindah);
+        }
+    }
+
+    public static function pembacaHeader(): array
+    {
+        return [[IndexRencanaAksi::class], [PreviewTargetPeriode::class]];
+    }
+
+    public function test_modal_indikator_menerima_hanya_ra_aktif_pada_unit_lama(): void
+    {
+        $this->setUpRencanaAksiFixture();
+        $actor = $this->createUserWithRole('perencanaan');
+        $action = app(IndexSasaranIndikator::class);
+        $read = fn () => collect($action->handle($actor, null, false)['sasarans'])->flatMap(fn ($s) => $s['indikator_kinerjas'])->firstWhere('id', $this->indikator->id)['rencana_aksi_terdampak'];
+        $this->assertSame([$this->rencanaAksi->id], $read());
+        $this->jadwal->update(['status' => 'ditutup']);
+        $this->assertSame([], $read());
+        $this->jadwal->update(['status' => 'aktif']);
+        $tujuan = Unit::create(['nama' => 'Tujuan', 'status' => 'aktif', 'created_by' => $actor->id]);
+        $this->rencanaAksi->update(['unit_id' => $tujuan->id]);
+        $this->assertSame([], $read());
+        $this->rencanaAksi->delete();
+        $this->assertSame([], $read());
     }
 }

@@ -66,6 +66,7 @@ export interface IndikatorKinerjaItem {
     /** Target Renstra per tahun yang sudah punya baris (nilai null = dikosongkan); hanya di halaman daftar. */
     target_renstra?: { tahun: number; nilai: string | null }[];
     target_renstra_state?: string;
+    rencana_aksi_terdampak?: string[];
 }
 
 /** Draf revisi target Renstra aktif; hanya dikirim kepada pemegang izin revisi. Sel tanpa entri memakai nilai berlaku. */

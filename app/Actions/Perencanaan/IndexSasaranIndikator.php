@@ -3,6 +3,7 @@
 namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
+use App\Models\RencanaAksi;
 use App\Models\Renstra;
 use App\Models\RevisiTargetRenstra;
 use App\Models\SasaranStrategis;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Services\Perencanaan\IndikatorPresenter;
 use App\Support\TargetRenstraState;
 use App\Support\TargetTahunanDecimal;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class IndexSasaranIndikator
@@ -65,6 +67,14 @@ class IndexSasaranIndikator
                 $can['penanggung_jawab_update'],
                 $sasarans->flatMap(fn (SasaranStrategis $sasaran) => $sasaran->indikatorKinerjas->pluck('id'))->all(),
             );
+            // Tautan RA hanya untuk tahun jadwal aktif, unit indikator saat ini, dan pembaca berizin.
+            $raTerdampak = $can['indikator_update'] ? RencanaAksi::query()
+                ->whereIn('indikator_id', $sasarans->flatMap(fn (SasaranStrategis $sasaran) => $sasaran->indikatorKinerjas->pluck('id')))
+                ->whereHas('jadwalTahunan', fn ($q) => $q->where('status', 'aktif'))
+                ->whereHas('indikator', fn ($q) => $q->whereColumn('indikator_kinerjas.unit_id', 'rencana_aksi.unit_id'))
+                ->orderBy('tahun')->orderBy('id')->get()
+                ->filter(fn (RencanaAksi $ra) => Gate::forUser($user)->allows('view', $ra))
+                ->groupBy('indikator_id') : collect();
             $sasarans = $sasarans->map(fn (SasaranStrategis $sasaran) => [
                 'id' => $sasaran->id,
                 'renstra_id' => $sasaran->renstra_id,
@@ -76,6 +86,7 @@ class IndexSasaranIndikator
                     fn (IndikatorKinerja $indikator) => [
                         ...$this->presenter->presentIndikator($indikator, $can['regulasi_read'], $pjEfektif->get($indikator->id)?->pic),
                         ...$this->targetRenstra($indikator, $selectedRenstra),
+                        'rencana_aksi_terdampak' => $raTerdampak->get($indikator->id, collect())->pluck('id')->values()->all(),
                     ],
                 ),
             ]);
