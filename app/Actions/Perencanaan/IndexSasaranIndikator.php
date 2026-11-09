@@ -8,15 +8,21 @@ use App\Models\Renstra;
 use App\Models\RevisiTargetRenstra;
 use App\Models\SasaranStrategis;
 use App\Models\User;
+use App\Policies\RencanaAksiPolicy;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Perencanaan\IndikatorPresenter;
+use App\Support\PermissionCodes;
 use App\Support\TargetRenstraState;
 use App\Support\TargetTahunanDecimal;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class IndexSasaranIndikator
 {
-    public function __construct(private readonly IndikatorPresenter $presenter) {}
+    public function __construct(
+        private readonly IndikatorPresenter $presenter,
+        private readonly PermissionResolver $resolver,
+        private readonly RencanaAksiPolicy $policy,
+    ) {}
 
     /**
      * Menyusun payload halaman Sasaran & Indikator untuk satu Renstra.
@@ -72,9 +78,13 @@ class IndexSasaranIndikator
                 ->whereIn('indikator_id', $sasarans->flatMap(fn (SasaranStrategis $sasaran) => $sasaran->indikatorKinerjas->pluck('id')))
                 ->whereHas('jadwalTahunan', fn ($q) => $q->where('status', 'aktif'))
                 ->whereHas('indikator', fn ($q) => $q->whereColumn('indikator_kinerjas.unit_id', 'rencana_aksi.unit_id'))
-                ->orderBy('tahun')->orderBy('id')->get()
-                ->filter(fn (RencanaAksi $ra) => Gate::forUser($user)->allows('view', $ra))
-                ->groupBy('indikator_id') : collect();
+                ->with('latestVersion.jadwalSnapshot')
+                ->orderBy('tahun')->orderBy('id')->get() : collect();
+            $unitIds = $raTerdampak->pluck('unit_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
+            $keputusanBaca = $unitIds === [] ? [] : $this->resolver->decideManyForUnits($user, [PermissionCodes::RENCANA_AKSI_READ], $unitIds);
+            $raTerdampak = $raTerdampak->filter(fn (RencanaAksi $ra) => $this->policy->dapatDilihat(
+                $ra, (bool) ($keputusanBaca[(string) $ra->unit_id][PermissionCodes::RENCANA_AKSI_READ]['allowed'] ?? false),
+            ))->groupBy('indikator_id');
             $sasarans = $sasarans->map(fn (SasaranStrategis $sasaran) => [
                 'id' => $sasaran->id,
                 'renstra_id' => $sasaran->renstra_id,

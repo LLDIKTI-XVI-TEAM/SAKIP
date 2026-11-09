@@ -300,4 +300,41 @@ class PindahUnitRencanaAksiTest extends TestCase
         $this->rencanaAksi->delete();
         $this->assertSame([], $read());
     }
+
+    public function test_payload_peringatan_menghormati_deny_baca_unit(): void
+    {
+        $this->setUpRencanaAksiFixture();
+        $actor = $this->createUserWithRole('perencanaan');
+        $this->denyPermission($actor, 'rencana_aksi:read', $this->unit->id);
+        $hasil = app(IndexSasaranIndikator::class)->handle($actor, null, false);
+        $indikator = collect($hasil['sasarans'])->flatMap(fn ($s) => $s['indikator_kinerjas'])->firstWhere('id', $this->indikator->id);
+        $this->assertSame([], $indikator['rencana_aksi_terdampak']);
+    }
+
+    public function test_kueri_payload_peringatan_tidak_bertambah_per_ra(): void
+    {
+        $this->setUpRencanaAksiFixture();
+        $actor = $this->createUserWithRole('perencanaan');
+        $this->createRencanaAksiSubmission();
+        $hitung = function () use ($actor): int {
+            DB::enableQueryLog();
+            DB::flushQueryLog();
+            app(IndexSasaranIndikator::class)->handle($actor->fresh(), null, false);
+            $jumlah = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $jumlah;
+        };
+        $satu = $hitung();
+        $indikator = $this->indikator->replicate();
+        $indikator->kode = 'IKU-KEDUA';
+        $indikator->save();
+        $ra = $this->rencanaAksi->replicate();
+        $ra->indikator_id = $indikator->id;
+        $ra->save();
+        $versi = $this->rencanaAksi->versions()->sole()->replicate();
+        $versi->rencana_aksi_id = $ra->id;
+        $versi->save();
+        $this->assertSame($satu, $hitung(), 'Jumlah kueri harus tetap saat RA dengan versi bertambah pada unit yang sama.');
+    }
 }

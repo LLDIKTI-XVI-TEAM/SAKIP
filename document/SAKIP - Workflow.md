@@ -1738,12 +1738,11 @@ flowchart TD
 
 **Konsekuensi desain yang disadari:** indikator baru yang dibuat setelah jadwal aktif **tanpa** ditambahkan melalui ISS-03.04 tidak otomatis terukur pada tahun berjalan — baru terukur mulai jadwal tahun berikutnya diaktifkan. ISS-03.04 (Kasus C langkah 4c) adalah satu-satunya jalur agar indikator baru dapat diukur pada sisa tahun berjalan yang sama, dan hanya tersedia selama jadwal aktif belum melewati tanggal penutupan; `jadwal:buka_kembali` tidak membentuk snapshot (Q77 butir 5). Rencana aksinya tetap wajib disusun-disahkan sebelum pengukuran pertamanya dapat diajukan.
 
----
-
 ### Kasus G — Pemindahan unit Rencana Aksi setelah indikator berpindah (Q79 §79.7)
 
 Perencanaan memindahkan unit indikator lebih dahulu. Jika Rencana Aksi lama memenuhi syarat, Perencanaan menjalankan pemindahan unit RA secara eksplisit dengan alasan; kegiatan terkait yang memenuhi syarat ikut berpindah. Setelah itu koreksi snapshot dijalankan secara terpisah. Hingga snapshot selaras, simpan dan pengajuan RA tertahan. RA yang pernah diajukan, kegiatan dengan status selain rencana, klaim RA lain, atau riwayat beku menolak pemindahan; histori tidak diubah.
 
+---
 
 ## 15. Alur Periode Lampau 2026 dan Data Awal
 
