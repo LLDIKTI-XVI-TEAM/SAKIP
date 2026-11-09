@@ -13,6 +13,7 @@ use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\RencanaAksiTarget;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\RencanaAksi\JendelaTulisRencanaAksi;
@@ -44,9 +45,8 @@ class IndexRencanaAksi
     /**
      * Menyusun satu payload baca untuk matriks target per periode per komponen.
      *
-     * Header dimuat di luar transaksi hanya untuk 404 dan otorisasi baca
-     * (`unit_id` imutabel pasca-create sehingga aman); lookup mendahului
-     * Gate agar UUID asing selalu 404.
+     * Header dimuat di luar transaksi untuk 404 dan otorisasi awal; izin
+     * diperiksa ulang pada header yang terkunci agar pemindahan unit aman.
      *
      * Transaksi baca konsisten: header dimuat ulang di dalam transaksi
      * dengan `sharedLock` (akuisisi header-dahulu, sama dengan jalur tulis
@@ -82,6 +82,7 @@ class IndexRencanaAksi
 
         return DB::transaction(function () use ($actor, $header): array {
             $segel = RencanaAksi::whereKey($header->getKey())->sharedLock()->firstOrFail();
+            Gate::forUser($actor)->authorize('view', $segel);
             $segel->loadMissing(['indikator', 'unit', 'jadwalTahunan', 'penanggungJawab']);
             /** @var IndikatorKinerja $indikator */
             $indikator = $segel->indikator;
@@ -185,6 +186,12 @@ class IndexRencanaAksi
 
             $unitId = (string) $segel->unit_id;
             $keputusanUbah = $this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, $unitId);
+            $unitTujuan = Unit::whereKey($indikator->unit_id)->where('status', 'aktif')->first(['id', 'nama']);
+            $dapatPindah = $unitId !== (string) $indikator->unit_id && $unitTujuan !== null
+                && $jadwal->status === 'aktif' && ! $jadwal->tahunDitutup() && ! $indikator->isArsip()
+                && $segel->status_alur === RencanaAksi::STATUS_DRAFT && ! $segel->versions()->exists()
+                && $this->jendela->jalurPerencanaan($keputusanUbah)
+                && $this->jendela->jalurPerencanaan($this->resolver->resolve($actor, PermissionCodes::RENCANA_AKSI_UPDATE, (string) $indikator->unit_id));
             // Daftar periode terkunci bagi aktor untuk UI hanya-baca per
             // periode; Perencanaan dikecualikan sehingga daftarnya kosong.
             $terkunciIds = $this->jendela->jalurPerencanaan($keputusanUbah) ? [] : array_keys($rincianKunci);
@@ -221,6 +228,7 @@ class IndexRencanaAksi
                 'alasan_deviasi_pk' => $segel->alasan_deviasi_pk,
                 'indikator' => $indikatorPayload,
                 'unit' => $segel->unit?->only(['id', 'nama']),
+                'unit_tujuan_pindah' => $dapatPindah ? $unitTujuan?->nama : null,
                 'jadwal' => [
                     ...$jadwal->only(['id', 'tahun', 'status']),
                     'penutupan' => $jadwal->penutupan?->toDateString(),
@@ -255,6 +263,7 @@ class IndexRencanaAksi
                 // untuk penyimpanan yang pasti ditolak.
                 'can' => [
                     'view' => $this->resolver->allows($actor, PermissionCodes::RENCANA_AKSI_READ, $unitId),
+                    'pindah_unit' => $dapatPindah,
                     'update' => $this->bolehUbah($actor, $keputusanUbah, $segel, $indikator, $jadwal, $efektifIds, $koreksi, $terkunciIds),
                     'submit' => $this->bolehAjukan($actor, $segel, $snapshot, $indikator, $jadwal, $efektifIds, $barisBeku,
                         $this->kesiapan->klaimBeku($klaim->filter(fn (KlaimKegiatan $k): bool => $kegiatanKlaim->has($k->kegiatan_id)), $kegiatanKlaim)),

@@ -100,6 +100,7 @@ export interface RencanaAksiShow {
     tahun: number;
     status_alur: string;
     versi: number;
+    unit_tujuan_pindah?: string | null;
     expected_versi: number;
     /** Token konkurensi snapshot beku terbaru. Dikembalikan apa adanya saat simpan. */
     expected_snapshot_id: string;
@@ -147,6 +148,7 @@ export interface RencanaAksiShow {
     versi_pengajuan: RencanaAksiVersiPengajuan | null;
     can: {
         view: boolean;
+        pindah_unit?: boolean;
         update: boolean;
         /** Eligibility pengajuan dari server (izin, jendela, status, jepit snapshot); kelengkapan isi ada di `pengajuan`. */
         submit: boolean;

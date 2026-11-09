@@ -37,7 +37,7 @@ class KoreksiSnapshot
 
     private const PESAN_USANG = 'Snapshot sudah dikoreksi atau berubah. Muat ulang halaman snapshot sebelum mengoreksi.';
 
-    private const PESAN_UNIT_RA = 'Indikator sudah memiliki Rencana Aksi tahun ini pada unit penanggung jawab sebelumnya. Koreksi yang memindahkan unit belum didukung; kembalikan unit indikator pada modul indikator.';
+    private const PESAN_UNIT_RA = 'Indikator sudah memiliki Rencana Aksi tahun ini pada unit sebelumnya. Pindahkan unit Rencana Aksi yang memenuhi syarat atau kembalikan unit indikator sebelum koreksi.';
 
     public function __construct(private readonly ResolveLockedActor $lockedActor, private readonly AuditLogger $audit,
         private readonly JadwalActivationReadiness $readiness, private readonly KonteksBekuRencanaAksi $konteks,
@@ -129,7 +129,7 @@ class KoreksiSnapshot
                 if (collect($selisih['izin'])->contains(fn (string $kode): bool => ! $keputusan[$kode]->allowed)) {
                     throw new AuthorizationException('Anda tidak memiliki izin untuk seluruh kolom yang dikoreksi.');
                 }
-                // Unit header Rencana Aksi tidak pernah berubah, sehingga versi dengan unit lain mengunci simpan dan pengajuan RA (Q79 §79.1 butir 8).
+                // Unit snapshot harus tetap selaras dengan unit header Rencana Aksi.
                 // Header hanya dibuat selagi indikator terkunci FOR UPDATE, jadi kunci indikator di atas cukup tanpa mengunci header.
                 $unitRencanaAksi = RencanaAksi::where('indikator_id', $indikator->id)->where('tahun', $jadwal->tahun)->value('unit_id');
                 if ($unitRencanaAksi !== null && (string) $unitRencanaAksi !== (string) $indikator->unit_id) {

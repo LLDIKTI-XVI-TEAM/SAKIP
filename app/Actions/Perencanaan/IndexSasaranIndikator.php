@@ -3,18 +3,26 @@
 namespace App\Actions\Perencanaan;
 
 use App\Models\IndikatorKinerja;
+use App\Models\RencanaAksi;
 use App\Models\Renstra;
 use App\Models\RevisiTargetRenstra;
 use App\Models\SasaranStrategis;
 use App\Models\User;
+use App\Policies\RencanaAksiPolicy;
+use App\Services\Authorization\PermissionResolver;
 use App\Services\Perencanaan\IndikatorPresenter;
+use App\Support\PermissionCodes;
 use App\Support\TargetRenstraState;
 use App\Support\TargetTahunanDecimal;
 use Illuminate\Support\Str;
 
 class IndexSasaranIndikator
 {
-    public function __construct(private readonly IndikatorPresenter $presenter) {}
+    public function __construct(
+        private readonly IndikatorPresenter $presenter,
+        private readonly PermissionResolver $resolver,
+        private readonly RencanaAksiPolicy $policy,
+    ) {}
 
     /**
      * Menyusun payload halaman Sasaran & Indikator untuk satu Renstra.
@@ -65,6 +73,18 @@ class IndexSasaranIndikator
                 $can['penanggung_jawab_update'],
                 $sasarans->flatMap(fn (SasaranStrategis $sasaran) => $sasaran->indikatorKinerjas->pluck('id'))->all(),
             );
+            // Tautan RA hanya untuk tahun jadwal aktif, unit indikator saat ini, dan pembaca berizin.
+            $raTerdampak = $can['indikator_update'] ? RencanaAksi::query()
+                ->whereIn('indikator_id', $sasarans->flatMap(fn (SasaranStrategis $sasaran) => $sasaran->indikatorKinerjas->pluck('id')))
+                ->whereHas('jadwalTahunan', fn ($q) => $q->where('status', 'aktif'))
+                ->whereHas('indikator', fn ($q) => $q->whereColumn('indikator_kinerjas.unit_id', 'rencana_aksi.unit_id'))
+                ->with('latestVersion.jadwalSnapshot')
+                ->orderBy('tahun')->orderBy('id')->get() : collect();
+            $unitIds = $raTerdampak->pluck('unit_id')->map(fn ($id): string => (string) $id)->unique()->values()->all();
+            $keputusanBaca = $unitIds === [] ? [] : $this->resolver->decideManyForUnits($user, [PermissionCodes::RENCANA_AKSI_READ], $unitIds);
+            $raTerdampak = $raTerdampak->filter(fn (RencanaAksi $ra) => $this->policy->dapatDilihat(
+                $ra, (bool) ($keputusanBaca[(string) $ra->unit_id][PermissionCodes::RENCANA_AKSI_READ]['allowed'] ?? false),
+            ))->groupBy('indikator_id');
             $sasarans = $sasarans->map(fn (SasaranStrategis $sasaran) => [
                 'id' => $sasaran->id,
                 'renstra_id' => $sasaran->renstra_id,
@@ -76,6 +96,7 @@ class IndexSasaranIndikator
                     fn (IndikatorKinerja $indikator) => [
                         ...$this->presenter->presentIndikator($indikator, $can['regulasi_read'], $pjEfektif->get($indikator->id)?->pic),
                         ...$this->targetRenstra($indikator, $selectedRenstra),
+                        'rencana_aksi_terdampak' => $raTerdampak->get($indikator->id, collect())->pluck('id')->values()->all(),
                     ],
                 ),
             ]);

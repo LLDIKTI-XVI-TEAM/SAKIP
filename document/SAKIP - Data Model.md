@@ -1333,7 +1333,7 @@ Header rencana aksi, satu baris per kombinasi indikator × tahun. Menjadi gerban
 | `id` | uuid | PK | |
 | `indikator_id` | uuid | FK → indikator.id, not null | |
 | `tahun` | int | not null | |
-| `unit_id` | uuid | FK → unit.id, not null | Salinan unit pemilik indikator pada saat rencana aksi disusun |
+| `unit_id` | uuid | FK → unit.id, not null | Salinan unit indikator saat disusun; perubahan hanya melalui pemindahan eksplisit yang memenuhi Q79 §79.7 |
 | `jadwal_tahunan_id` | uuid | FK → jadwal_tahunan.id, not null | |
 | `snapshot_draf_id` | uuid | nullable, rujukan non-FK | Jepit versi `jadwal_snapshot` yang menjadi konteks draf: diisi versi terbaru saat draf dibuat dan dimajukan ke versi terbaru setiap simpan; `NULL` bila jadwal belum pernah aktif. Snapshot yang dirujuk kolom ini diperlakukan sebagai dirujuk oleh guard snapshot |
 | `penanggung_jawab_id` | uuid | FK → users.id, not null | PIC efektif pada saat penyusunan — hasil resolusi `penanggung_jawab` (§2.19) pada tanggal penyusunan |

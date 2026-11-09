@@ -860,6 +860,8 @@ kegiatan:update
 
 ### ISS-02.05 · [Feature] Perpindahan Unit dan Pengarsipan Indikator
 
+> **Lanjutan issue #231, Q79 §79.7:** pemindahan unit indikator tidak otomatis memindahkan Rencana Aksi. Pemindahan RA draf yang belum pernah diajukan dan kegiatan terkait dilakukan secara eksplisit berdasarkan syarat serta izin pada keputusan tersebut; koreksi snapshot tetap tindakan terpisah. Status penerimaan dan merge belum ditetapkan.
+
 > **Q43 (13 Oktober 2026):** alasan pemindahan unit indikator menjadi opsional, sedangkan audit unit lama/baru tetap wajib (Q43 §43.1, §43.3 butir 3). `PindahUnitIndikatorRequest` saat ini masih mewajibkan alasan; perubahannya dikerjakan pada ISS-13.05. Penghapusan indikator tetap wajib alasan (Q43 §43.2 butir 2).
 
 > **Status implementasi - issue #132 (2026-10-20):** centang menunjukkan bukti implementasi dan test pada PR #151, bukan penerimaan UAT/deployment. Test: `SasaranIndikatorTest::test_pindah_unit_via_endpoint_sukses_mencatat_audit_tunggal_tepat`, `test_8_destroy_indikator_selalu_mengarsipkan_tanpa_hapus_fisik`, `test_destroy_indikator_dengan_histori_pengukuran_dan_rencana_aksi_tetap_diarsipkan`; `IndexPengukuranTest::test_unit_master_berubah_tidak_mengganti_unit_baris_dan_deny_mengikuti_unit_baris`; `JadwalActivationReadinessTest::test_target_gate_requires_nonnull_value_for_every_eligible_indicator`. AC-4 dibaca sebagai arsip/never-delete, bukan penolakan HTTP 4xx. Perubahan alasan pindah unit menjadi opsional tetap di ISS-13.05. Keputusan PM atas pembacaan AC-4: [review PM #151](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/151#issuecomment-6292560535).
@@ -1900,6 +1902,8 @@ kegiatan:update
 - [x] Aksi sensitif menghasilkan audit yang memuat `dasar_izin` dan alasan/old-new value bila diwajibkan.
 
 ### ISS-03.03 · [Feature] Koreksi Snapshot Terkendali dan Versioning Konteks
+
+> **Lanjutan issue #231, Q79 §79.7:** pemindahan unit indikator tidak otomatis memindahkan Rencana Aksi. Pemindahan RA draf yang belum pernah diajukan dan kegiatan terkait dilakukan secara eksplisit berdasarkan syarat serta izin pada keputusan tersebut; koreksi snapshot tetap tindakan terpisah. Status penerimaan dan merge belum ditetapkan.
 
 > **Q40, Q46 (13 Oktober 2026):** alur koreksi snapshot berversi ini menjadi prasyarat revisi PK berversi (ISS-02.12, Q40 §40.1 butir 9): persetujuan revisi PK yang mengubah target menerbitkan versi `jadwal_snapshot` baru dengan `periode_mulai_id` periode pertama yang belum ditutup (belum dilaporkan, Q85 §85.3) dan `rujukan_koreksi` surat Eselon I (AC-8). Keduanya dijadwalkan pada tahap 3 (Q46 §46.3). Koreksi snapshot tetap wajib alasan (Q43 §43.2 butir 3). Penanda `dinilai_tahunan` yang dibekukan pada snapshot (Q47 §47.1 butir 2) diubah melalui koreksi ini setelah jadwal aktif.
 

@@ -14,6 +14,7 @@ use App\Models\PengukuranKinerja;
 use App\Models\Periode;
 use App\Models\PeriodeJadwal;
 use App\Models\Permission;
+use App\Models\RencanaAksi;
 use App\Models\TargetKinerja;
 use App\Models\Unit;
 use App\Models\User;
@@ -55,7 +56,7 @@ class KoreksiSnapshotTest extends TestCase
 
     private const PESAN_PERIODE_MUNDUR = 'Periode mulai berlaku tidak boleh lebih awal dari periode mulai versi sebelumnya.';
 
-    private const PESAN_UNIT_RA = 'Indikator sudah memiliki Rencana Aksi tahun ini pada unit penanggung jawab sebelumnya. Koreksi yang memindahkan unit belum didukung; kembalikan unit indikator pada modul indikator.';
+    private const PESAN_UNIT_RA = 'Indikator sudah memiliki Rencana Aksi tahun ini pada unit sebelumnya. Pindahkan unit Rencana Aksi yang memenuhi syarat atau kembalikan unit indikator sebelum koreksi.';
 
     private PeriodeJadwal $tw1;
 
@@ -432,6 +433,21 @@ class KoreksiSnapshotTest extends TestCase
         IndikatorKinerja::whereKey($tanpaRa->indikator_id)->update(['unit_id' => $unitBaru->id]);
         $this->koreksi($perencana, $tanpaRa)->assertSessionHasNoErrors();
         $this->assertSame($unitBaru->id, JadwalSnapshot::where('indikator_id', $tanpaRa->indikator_id)->where('nomor_versi', 2)->value('unit_id'));
+    }
+
+    public function test_koreksi_unit_berhasil_setelah_ra_draf_dipindahkan(): void
+    {
+        $perencana = $this->userWithRole('perencanaan');
+        $snapshot = $this->terjadwal();
+        $header = RencanaAksi::create(['indikator_id' => $snapshot->indikator_id, 'tahun' => 2026, 'unit_id' => $this->unit->id,
+            'jadwal_tahunan_id' => $this->jadwal->id, 'penanggung_jawab_id' => $this->actor->id, 'status_alur' => 'draft', 'created_by' => $this->actor->id]);
+        $tujuan = Unit::create(['nama' => 'Unit Tujuan', 'status' => 'aktif', 'created_by' => $this->actor->id]);
+        IndikatorKinerja::whereKey($snapshot->indikator_id)->update(['unit_id' => $tujuan->id]);
+        $this->koreksi($perencana, $snapshot)->assertSessionHasErrors('snapshot');
+        $this->actingAs($perencana)->post("/rencana-aksi/{$header->id}/pindah-unit", ['expected_versi' => 1, 'alasan' => 'Penyesuaian penanggung jawab'])->assertSessionHasNoErrors();
+        $this->koreksi($perencana, $snapshot)->assertSessionHasNoErrors();
+        $this->assertSame($tujuan->id, JadwalSnapshot::where('indikator_id', $snapshot->indikator_id)->where('nomor_versi', 2)->value('unit_id'));
+        $this->assertSame($this->unit->id, $snapshot->fresh()->unit_id);
     }
 
     public function test_konflik_lock_menjadi_penolakan_muat_ulang_dengan_audit(): void
