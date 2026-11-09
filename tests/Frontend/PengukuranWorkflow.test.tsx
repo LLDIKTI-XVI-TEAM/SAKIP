@@ -122,7 +122,7 @@ describe('Alur pengukuran', () => {
         render(<PengukuranEdit pengukuran={{ ...measurement, prasyarat: { siap: false, alasan: ['Nilai belum lengkap.'] } }} />);
         await user.clear(screen.getByRole('spinbutton', { name: /Nilai realisasi/ }));
         await user.type(screen.getByRole('spinbutton', { name: /Nilai realisasi/ }), '90');
-        expect(screen.getByText('Draft tersimpan')).toBeTruthy();
+        expect(screen.getByRole('heading', { name: 'Kesiapan pengajuan' })).toBeTruthy();
         expect(screen.getByText(/Ada perubahan yang belum disimpan/)).toBeTruthy();
         const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Ajukan ke Tim Perencanaan' });
         expect(submit.disabled).toBe(false);
@@ -382,7 +382,7 @@ describe('Identitas editor pengukuran', () => {
         const isi = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent;
         expect(isi('PIC')).toBe('PIC Uji');
         expect(isi('Periode')).toBe('Semester I 2026 1 Jan–30 Jun 2026');
-        expect(isi('Target')).toBe('100,00 %');
+        expect(isi('Target periode')).toBe('100,00 %');
         expect(isi('Cara hitung')).toBe('Rasio Persen');
         expect(isi('Arah kinerja')).toBe('Makin rendah makin baik');
 

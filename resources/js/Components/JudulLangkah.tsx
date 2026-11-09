@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { CardTitle } from '@/Components/Card';
 
-/** Judul kartu halaman detail RA; nomor langkah hanya penanda visual sehingga nama heading tetap judulnya. */
+/** Judul kartu langkah pada halaman detail; nomor hanya penanda visual sehingga nama heading tetap judulnya. */
 export default function JudulLangkah({ id, nomor, children }: { id?: string; nomor?: number; children: ReactNode }) {
     return (
         <CardTitle id={id} className="flex items-center gap-2.5">
