@@ -2698,3 +2698,23 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 
 - PRD §26.8 dan §28, Workflow §18.3, Data Model §2.22 dan §2.40, Plan 9.4–9.6 dan 14.2–14.2.1, US/ISS-13.04, serta catatan rilis ISS-13.04.
 - Aktivasi layanan eksternal mengikuti Q80 §80.1 dan Kesiapan Infrastruktur §3.
+
+---
+
+## Refinement ISS-12.03: Broadcast Pembukaan Jendela Pengisian
+
+**Keputusan PM: 7 November 2026 (K1-K7) pada [issue #232](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/232#issuecomment-6706196813), dilengkapi 10 November 2026 (penegasan butir 6 serta butir 8 dan 9).** Memperjelas penerapan Q4 (pembukaan jadwal dinotifikasi), Q46 §46.1, Q70 §70.2, dan Q80 §80.1 butir 2. Refinement ini tidak mengaktifkan kanal eksternal.
+
+1. **Pemicu (K1).** Ada dua pemicu. Perintah harian `notifikasi:pembukaan` mengantrekan jendela yang `pengisian_mulai`-nya sama dengan tanggal bisnis WITA hari itu. Listener pada `JendelaPengisianDibuka` mengantrekan jendela yang dibuka oleh aksi resmi (aktivasi jadwal saat jendela sudah berjalan, atau revisi jendela PIC dari tertutup menjadi terbuka). Aktivasi sebelum `pengisian_mulai` tidak mengantrekan apa pun. Di dalam sesi koreksi kedua jalur hanya berlaku bila lingkup sesi memuat pengukuran.
+2. **Versi pembukaan (K2).** `kejadian` berisi `jendela_dibuka:{tanggal bisnis WITA}`. Jalur tanggal dan jalur aksi pada hari yang sama menghasilkan satu set pesan per penerima dan kanal. Pembukaan ulang pada tanggal lain adalah kejadian baru dan terkirim sekali lagi.
+3. **Jam kirim (K3).** Jalur aksi langsung antre. `notifikasi.jam_kirim` (Q87) hanya mengatur jalur terjadwal: jam kosong atau tidak valid berarti perintah tidak mengantrekan dan mencatat alasannya sekali per hari bisnis.
+4. **Kelayakan saat kirim (K4).** Sebelum setiap upaya kirim, penerima harus aktif, berperan aktif, masih PJ efektif indikator wajib pada jendela yang masih berjalan, dan mempunyai hak isi `pengukuran:create` (header belum ada) atau `pengukuran:update` (draf atau dikembalikan) pada minimal satu unit. Di dalam sesi koreksi hanya indikator lingkup yang dinilai. Bila tidak terpenuhi, baris menjadi `dibatalkan`/`penerima_tidak_berhak` tanpa pengalihan ke PJ lain. Penilaian memakai `KelayakanPenerimaEws` dengan H sama dengan sisa hari sampai `pengisian_selesai`.
+5. **Template sementara (K5).** Template bawaan sementara disusun dari teks in-app: "Jendela pengisian {{periode}} {{tahun}} di SAKIP dibuka sampai {{selesai}}. Masuk ke SAKIP untuk mengisi: {{tautan}}". Butir Template pesan pada Kesiapan Infrastruktur §3 tetap `Belum diaktifkan` sampai isinya disahkan pemilik layanan bersama Perencanaan.
+6. **Fondasi outbox (K6).** Tujuan `objek_tipe = jadwal_periode` dan pemilihan gerbang kelayakan per prefiks `kejadian` disediakan ISS-12.04 fase 2 (PR #261). ISS-12.03 memakai ulang fondasi itu dan hanya menambah cabang `jendela_dibuka:`; tidak ada migrasi baru.
+7. **Item in-app karena tanggal (K7).** Item lonceng untuk pembukaan karena tanggal berada di luar scope dan dikerjakan pada [issue #257](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/257). Item in-app untuk pembukaan oleh aksi resmi tidak berubah.
+8. **Kewajiban yang sudah diajukan.** PJ yang seluruh kewajibannya pada jendela itu sudah diajukan saat pesan hendak dikirim tidak menerima pesan pembukaan; barisnya menjadi `dibatalkan`/`penerima_tidak_berhak`, sama dengan pengingat EWS.
+9. **Batasan yang diterima.** Bila scheduler tidak berjalan pada hari `pengisian_mulai`, pembukaan itu tidak disusulkan pada hari berikutnya. Bila `pengisian_mulai` direvisi menjadi hari ini pada jendela yang sudah berjalan dan perintah harian belum memproses hari itu, perintah mengirim satu set pesan baru bertanggal hari itu. Kegagalan mengantre pada jalur aksi hanya dicatat di log dan tidak diulang.
+
+Traceability: Plan 14.2; PRD §28; Data Model §2.16 dan §2.40; US/ISS-12.03; Kesiapan Infrastruktur §3. Status ini merupakan keputusan refinement, bukan bukti CI, UAT, merge, atau deployment.
+
+**Status implementasi lokal, 10 November 2026:** butir 1 sampai 6, 8, dan 9 diterapkan melalui ISS-12.03 dengan kedua kanal tetap mati secara bawaan. Bukti otomatis berada pada `NotifikasiPembukaanJendelaTest` dan `NotifikasiPembukaanGerbangTest`.
