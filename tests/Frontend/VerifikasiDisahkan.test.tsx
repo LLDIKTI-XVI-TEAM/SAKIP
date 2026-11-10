@@ -196,4 +196,23 @@ describe('Antrean pengukuran disahkan', () => {
         expect(fetchMock.mock.calls[0][0]).toBe('/verifikasi/disahkan/pilihan?jenis=unit&q=Unit&page=1');
         expect(fetchMock.mock.calls.every(([url]) => !String(url).startsWith('/verifikasi/pilihan'))).toBe(true);
     });
+
+    it('melipat filter di layar kecil seperti antrean verifikasi, kecuali ada filter aktif', async () => {
+        const user = userEvent.setup();
+        const { unmount } = render(tampilan());
+        const tombol = screen.getByRole('button', { name: 'Filter' });
+        const panel = document.getElementById(tombol.getAttribute('aria-controls') ?? '');
+
+        expect(tombol.getAttribute('aria-expanded')).toBe('false');
+        expect(panel?.className).toContain('hidden');
+        // Kolom isian berada di dalam panel yang dilipat, bukan di luar.
+        expect(panel?.contains(screen.getByRole('textbox', { name: 'Cari Unit' }))).toBe(true);
+        await user.click(tombol);
+        expect(tombol.getAttribute('aria-expanded')).toBe('true');
+        expect(panel?.className).not.toContain('hidden');
+        unmount();
+
+        render(<PengukuranDisahkan pengukurans={[dasar]} pagination={pagination} filters={{ ...filters, tahun: '2026' }} selected_filters={selectedFilters} />);
+        expect(screen.getByRole('button', { name: 'Filter' }).getAttribute('aria-expanded')).toBe('true');
+    });
 });
