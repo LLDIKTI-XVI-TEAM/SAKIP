@@ -15,3 +15,10 @@ Schedule::command('notifikasi:ews')
     ->timezone(config('app.business_timezone'))
     ->withoutOverlapping()
     ->onOneServer();
+
+// Pembukaan jendela karena tanggal memakai pola yang sama: tiap menit, gerbang jam kirim di dalam command.
+Schedule::command('notifikasi:pembukaan')
+    ->everyMinute()
+    ->timezone(config('app.business_timezone'))
+    ->withoutOverlapping()
+    ->onOneServer();
