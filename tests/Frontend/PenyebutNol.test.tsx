@@ -89,7 +89,7 @@ describe('Badge status perhitungan di halaman verifikasi', () => {
         expect(screen.queryByText('Tidak Dapat Dihitung')).toBeNull();
     });
 
-    it('Verifikasi Index memberi badge pada TDD dan BDD; terhitung tetap teks', () => {
+    it('Verifikasi Index memberi badge pada TDD dan BDD; terhitung tanpa penanda', () => {
         render(<VerifikasiIndex pagination={pagination} pengukurans={[
             frozenTdd,
             { ...frozenTdd, id: 'bdd', status_perhitungan: 'belum_dapat_diukur', alasan_tidak_dapat_dihitung: null },
@@ -97,8 +97,8 @@ describe('Badge status perhitungan di halaman verifikasi', () => {
         ]} />);
         expect(screen.getByText('Tidak Dapat Dihitung')).toBeTruthy();
         expect(screen.getByText('Belum Dapat Diukur')).toBeTruthy();
-        expect(screen.getByText('Terhitung')).toBeTruthy();
-        expect(screen.getAllByText('—')).toHaveLength(2);
+        expect(screen.queryByText('Terhitung')).toBeNull();
+        expect(screen.getAllByText('-')).toHaveLength(2);
     });
 
     it('hasil tersimpan TDD di Edit tampil sebagai badge', () => {

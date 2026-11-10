@@ -1,8 +1,10 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { Link, useForm } from '@inertiajs/react';
+import { clsx } from 'clsx';
+import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/Components/Button';
 import { Input } from '@/Components/Input';
-import { Select } from '@/Components/Select';
+import { Tooltip } from '@/Components/Tooltip';
 
 export interface PilihanFilter { id: string; label: string }
 export interface FilterVerifikasi {
@@ -67,11 +69,17 @@ function FilterLookup({ jenis, label, initialId, initialOption, disabled, error,
         if (!option) requestAnimationFrame(() => document.getElementById(id)?.focus());
     };
     return <div className="min-w-0 space-y-2">
-        <Input id={id} label={`Cari ${label}`} value={selected?.label ?? query} disabled={disabled || Boolean(selected)}
-            error={error} helperText={selected ? undefined : 'Ketik nama, lalu pilih hasil.'}
-            onChange={(event) => { setQuery(event.target.value); setPage(1); setResult(null); setFailure(''); setLoading(false); }}
-            onKeyDown={(event) => { if (event.key === 'Enter' && !selected) event.preventDefault(); }} />
-        {selected && <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => choose(null)} aria-label={`Hapus filter ${label}`}>Hapus pilihan</Button>}
+        <div className="flex items-end gap-2">
+            <Input id={id} label={`Cari ${label}`} value={selected?.label ?? query} disabled={disabled || Boolean(selected)}
+                error={error} placeholder="Ketik nama" title={selected?.label}
+                onChange={(event) => { setQuery(event.target.value); setPage(1); setResult(null); setFailure(''); setLoading(false); }}
+                onKeyDown={(event) => { if (event.key === 'Enter' && !selected) event.preventDefault(); }} />
+            {selected && <Tooltip content="Hapus pilihan" align="right">
+                <Button type="button" variant="outline" disabled={disabled} onClick={() => choose(null)} aria-label={`Hapus filter ${label}`} className="h-[42px] w-[42px] shrink-0 px-0">
+                    <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
+            </Tooltip>}
+        </div>
         {searching && <div className="space-y-2" aria-live="polite" aria-busy={loading}>
             {loading && <p className="text-xs text-muted">Memuat pilihan {label}…</p>}
             {failure && <><p role="alert" className="text-xs text-danger">{failure}</p><Button type="button" size="sm" variant="outline" disabled={disabled} aria-label={`Coba lagi ${label}`} onClick={() => setRetry(retry + 1)}>Coba lagi</Button></>}
@@ -100,6 +108,9 @@ export default function Filters({ filters, selected, lookupUrl = '/verifikasi/pi
         : { renstra_id: filters.renstra_id, tahun: filters.tahun, periode_id: filters.periode_id, unit_id: filters.unit_id };
     const { data, setData, get, errors, processing } = useForm(initial);
     const [failure, setFailure] = useState('');
+    const panelId = useId();
+    // Di layar kecil filter dilipat, kecuali ada filter aktif yang perlu terlihat.
+    const [terbuka, setTerbuka] = useState([filters.renstra_id, filters.tahun, filters.periode_id, filters.unit_id].some((value) => value !== ''));
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (processing) return;
@@ -110,20 +121,28 @@ export default function Filters({ filters, selected, lookupUrl = '/verifikasi/pi
             onHttpException: (response) => { setFailure(response.status === 401 ? 'Sesi berakhir. Muat ulang halaman untuk masuk kembali.' : 'Filter belum dapat diterapkan. Muat ulang halaman dan periksa akses Anda.'); return false; },
         });
     };
-    return <form onSubmit={submit} aria-label={showStatus ? 'Filter antrean verifikasi' : 'Filter antrean pengukuran disahkan'} aria-busy={processing} className="space-y-4 border-b border-border p-4 sm:p-6">
-        <div className={`grid items-start gap-4 sm:grid-cols-2 ${showStatus ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
-            {showStatus && <Select label="Status antrean" value={data.status ?? 'diajukan'} disabled={processing} error={errors.status} onChange={(event) => setData('status', event.target.value === 'diverifikasi' ? 'diverifikasi' : 'diajukan')}
-                options={[{ value: 'diajukan', label: 'Diajukan' }, { value: 'diverifikasi', label: 'Diverifikasi' }]}
-                helperText={data.status === 'diverifikasi' ? 'Siap disahkan.' : 'Menunggu verifikasi.'} />}
-            <FilterLookup jenis="renstra" label="Renstra" initialId={filters.renstra_id} initialOption={selected.renstra_id} disabled={processing} error={errors.renstra_id} lookupUrl={lookupUrl} onChange={(id) => setData('renstra_id', id)} />
-            <Input label="Tahun" type="number" min={1} max={9999} value={data.tahun} disabled={processing} error={errors.tahun} placeholder="Semua tahun" onChange={(event) => setData('tahun', event.target.value)} />
-            <FilterLookup jenis="periode" label="Periode" initialId={filters.periode_id} initialOption={selected.periode_id} disabled={processing} error={errors.periode_id} lookupUrl={lookupUrl} onChange={(id) => setData('periode_id', id)} />
-            <FilterLookup jenis="unit" label="Unit" initialId={filters.unit_id} initialOption={selected.unit_id} disabled={processing} error={errors.unit_id} lookupUrl={lookupUrl} onChange={(id) => setData('unit_id', id)} />
-        </div>
-        {failure && <p role="alert" className="text-sm text-danger">{failure}</p>}
-        <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" isLoading={processing}>Terapkan filter</Button>
-            <Link href={actionUrl} className="rounded px-2 py-2 text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">Reset filter</Link>
+    return <form onSubmit={submit} aria-label={showStatus ? 'Filter antrean verifikasi' : 'Filter antrean pengukuran disahkan'} aria-busy={processing} className="border-b border-border">
+        <button type="button" aria-expanded={terbuka} aria-controls={panelId} onClick={() => setTerbuka(!terbuka)}
+            className="flex min-h-11 w-full items-center justify-between gap-2 px-4 text-sm font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 md:hidden">
+            <span className="inline-flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" aria-hidden="true" />Filter</span>
+            <ChevronDown className={clsx('h-4 w-4 transition-transform', terbuka && 'rotate-180')} aria-hidden="true" />
+        </button>
+        <div id={panelId} className={clsx('space-y-4 p-4 sm:p-6 md:block', !terbuka && 'hidden')}>
+            <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)_minmax(0,3fr)_minmax(0,3fr)_auto]">
+                <FilterLookup jenis="renstra" label="Renstra" initialId={filters.renstra_id} initialOption={selected.renstra_id} disabled={processing} error={errors.renstra_id} lookupUrl={lookupUrl} onChange={(id) => setData('renstra_id', id)} />
+                <Input label="Tahun" type="number" min={1} max={9999} value={data.tahun} disabled={processing} error={errors.tahun} placeholder="Semua tahun" onChange={(event) => setData('tahun', event.target.value)} />
+                <FilterLookup jenis="periode" label="Periode" initialId={filters.periode_id} initialOption={selected.periode_id} disabled={processing} error={errors.periode_id} lookupUrl={lookupUrl} onChange={(id) => setData('periode_id', id)} />
+                <FilterLookup jenis="unit" label="Unit" initialId={filters.unit_id} initialOption={selected.unit_id} disabled={processing} error={errors.unit_id} lookupUrl={lookupUrl} onChange={(id) => setData('unit_id', id)} />
+                <div className="sm:col-span-2 xl:col-span-1">
+                    {/* Penyeimbang tinggi label agar tombol sejajar kolom isian pada tata letak satu baris. */}
+                    <span aria-hidden="true" className="mb-1.5 hidden text-sm xl:block">&nbsp;</span>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button type="submit" isLoading={processing} className="h-[42px]">Terapkan filter</Button>
+                        <Link href={actionUrl} className="rounded px-2 py-2 text-sm text-primary underline focus:outline-none focus:ring-2 focus:ring-primary/25">Reset filter</Link>
+                    </div>
+                </div>
+            </div>
+            {failure && <p role="alert" className="text-sm text-danger">{failure}</p>}
         </div>
     </form>;
 }
