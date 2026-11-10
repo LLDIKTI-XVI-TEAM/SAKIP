@@ -490,6 +490,7 @@ export default function ModalAlasan({
 | `TableEmptyRow`, `TableCellLabel`, `tableCellResponsive` | `Components/Table.tsx` | Tabel dengan pola mobile `block md:table` (setiap baris menjadi kartu): baris kosong selebar tabel (ikon, judul, keterangan dan aksi opsional), label kolom yang hanya tampil di mobile, dan kelas sel tanpa padding mobile |
 | `TableActionLink` | `Components/Table.tsx` | Tautan ikon di kolom aksi tabel; `label` menjadi `aria-label` dan `tooltip` wajib diisi |
 | `Pagination` | `Components/Pagination.tsx` | Paginator Laravel (`links`, `from`, `to`, `total`); label sebelumnya/berikutnya diterjemahkan tanpa `dangerouslySetInnerHTML` |
+| `TabTautan` | `Components/TabTautan.tsx` | Tab berupa tautan untuk memilah satu daftar menjadi beberapa antrean (antrean Verifikasi, Status Capaian); jumlah tiap tab tampil sebagai lencana dan ikut dibacakan, tab aktif ditandai `aria-current` |
 | `ActionMenu` | `Components/ActionMenu.tsx` | Dropdown aksi (kolom aksi tabel, tombol "Tambah" bercabang); item dari pemanggil, aksi berbahaya diberi `danger` |
 | `Tooltip` | `Components/Tooltip.tsx` | Tombol ikon; wajib disertai `aria-label` pada tombolnya |
 | `LampiranDraftFields` | `Components/LampiranDraftFields.tsx` | Editor draf lampiran file/tautan/teks pada form master; field khusus modul lewat `renderExtraFields` (mode tautan/teks) atau `renderItemFields` (setiap item, mis. keterangan lampiran PK) |

@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ClipboardCheck, PenLine, Search } from 'lucide-react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { ClipboardCheck, Eye, PenLine, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
@@ -8,12 +8,17 @@ import { Button } from '@/Components/Button';
 import { Card } from '@/Components/Card';
 import { Modal } from '@/Components/Modal';
 import { StatusCapaianBadge } from '@/Components/Pengukuran/StatusCapaianBadge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/Table';
+import { TabTautan } from '@/Components/TabTautan';
+import {
+    Table, TableBody, TableCell, TableCellLabel, TableEmptyRow, TableHead, TableHeader, TableRow, tableCellResponsive,
+} from '@/Components/Table';
 import { Textarea } from '@/Components/Textarea';
+import { Tooltip } from '@/Components/Tooltip';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import Pagination from '@/Pages/Pengukuran/Pagination';
 import type {
     BarisStatusCapaian,
     FormStatusCapaian,
@@ -21,7 +26,9 @@ import type {
     StatusCapaianProps,
 } from '@/types/statusCapaian';
 
-const tautanPaginasi = 'inline-flex items-center rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25';
+const sel = `${tableCellResponsive} block align-top md:table-cell`;
+const selKanan = `${sel} md:text-right`;
+const barisKartu = 'block min-w-0 space-y-2 p-4 md:table-row md:space-y-0 md:p-0';
 const labelStatus: Record<'tercapai' | 'belum_tercapai', string> = {
     tercapai: 'Tercapai',
     belum_tercapai: 'Belum tercapai',
@@ -39,7 +46,7 @@ function Data({ label, children }: { label: string; children: ReactNode }) {
 /** Selisih realisasi terhadap target PK; tanda mengikuti nilai server, warna tidak dipakai sebagai satu-satunya makna. */
 function NilaiSelisihPk({ selisih, desimal, satuan }: { selisih: string | null; desimal: number; satuan: string | null }) {
     const formatNilai = useFormatNilai();
-    if (selisih === null) return <span className="text-muted">—</span>;
+    if (selisih === null) return <span className="text-muted">-</span>;
 
     const negatif = selisih.startsWith('-');
     const mutlak = formatNilai(negatif ? selisih.slice(1) : selisih, desimal);
@@ -51,6 +58,31 @@ function NilaiSelisihPk({ selisih, desimal, satuan }: { selisih: string | null; 
             <span className="font-semibold tabular-nums text-ink">{`${tanda}${mutlak}${satuan ? ` ${satuan}` : ''}`}</span>
             <span className="block text-xs font-normal text-muted">{nol ? 'sama dengan target PK' : negatif ? 'di bawah target PK' : 'di atas target PK'}</span>
         </span>
+    );
+}
+
+/** Angka versi pengukuran; dipakai bersama dialog penetapan dan jendela rincian baca-saja agar isinya selalu sama. */
+function RincianAngka({ baris, children }: { baris: BarisStatusCapaian; children?: ReactNode }) {
+    const formatNilai = useFormatNilai();
+    const formatTanggal = useFormatTanggal();
+    const desimal = baris.indikator.desimal_tampilan ?? 0;
+    const satuan = baris.indikator.satuan;
+    const angka = (nilai: string | null) => nilai === null ? '-' : `${formatNilai(nilai, desimal)}${satuan ? ` ${satuan}` : ''}`;
+
+    return (
+        <dl className="grid grid-cols-2 gap-3 rounded-lg bg-soft p-3">
+            <Data label="Realisasi">{angka(baris.nilai)}</Data>
+            <Data label="Target periode">{angka(baris.target)}</Data>
+            <Data label="Capaian terhadap target">{baris.capaian_persen === null ? '-' : `${formatNilai(baris.capaian_persen, 2)}%`}</Data>
+            <Data label="Target PK">{angka(baris.target_pk)}</Data>
+            <Data label="Selisih terhadap target PK"><NilaiSelisihPk selisih={baris.selisih_target_pk} desimal={desimal} satuan={satuan} /></Data>
+            <Data label="Versi pengukuran">
+                {baris.versi_pengukuran === null
+                    ? 'Belum tersedia'
+                    : `Versi ${baris.versi_pengukuran.nomor} · disahkan ${formatTanggal(baris.versi_pengukuran.disahkan_pada)}`}
+            </Data>
+            {children}
+        </dl>
     );
 }
 
@@ -75,9 +107,6 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
     const galat = form.errors as Record<string, string | string[] | undefined>;
     const teksGalat = (nilai: string | string[] | undefined): string | undefined =>
         Array.isArray(nilai) ? nilai.join(' ') : nilai;
-    const desimal = baris.indikator.desimal_tampilan ?? 0;
-    const satuan = baris.indikator.satuan;
-    const angka = (nilai: string | null) => nilai === null ? '—' : `${formatNilai(nilai, desimal)}${satuan ? ` ${satuan}` : ''}`;
     const konflik = teksGalat(galat.versi);
     const galatPengukuranVersi = teksGalat(galat.pengukuran_versi_id);
     const galatStatus = teksGalat(galat.status);
@@ -151,17 +180,7 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
                 {galatPengukuranVersi && <p role="alert" className="text-sm text-danger">{galatPengukuranVersi}</p>}
                 {statusError && !konflik && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{statusError}</p>}
 
-                <dl className="grid grid-cols-2 gap-3 rounded-lg bg-soft p-3">
-                    <Data label="Realisasi">{angka(baris.nilai)}</Data>
-                    <Data label="Target periode">{angka(baris.target)}</Data>
-                    <Data label="Capaian terhadap target">{baris.capaian_persen === null ? '—' : `${formatNilai(baris.capaian_persen, 2)}%`}</Data>
-                    <Data label="Target PK">{angka(baris.target_pk)}</Data>
-                    <Data label="Selisih terhadap target PK"><NilaiSelisihPk selisih={baris.selisih_target_pk} desimal={desimal} satuan={satuan} /></Data>
-                    <Data label="Versi pengukuran">
-                        {baris.versi_pengukuran === null
-                            ? 'Belum tersedia'
-                            : `Versi ${baris.versi_pengukuran.nomor} · disahkan ${formatTanggal(baris.versi_pengukuran.disahkan_pada)}`}
-                    </Data>
+                <RincianAngka baris={baris}>
                     {mode === 'revisi' && baris.status_berlaku && (
                         <div className="col-span-2 min-w-0 border-t border-border pt-2">
                             <dt className="text-xs font-medium text-muted">Status berlaku</dt>
@@ -173,7 +192,7 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
                             </dd>
                         </div>
                     )}
-                </dl>
+                </RincianAngka>
 
                 {versiTidakTersedia && (
                     <p role="alert" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-ink">
@@ -237,18 +256,65 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
     const formatNilai = useFormatNilai();
     const formatTanggal = useFormatTanggal();
     const labelUnit = useLabelUnit();
+    const { url } = usePage();
     const [dialog, setDialog] = useState<{ baris: BarisStatusCapaian; mode: ModeStatusCapaian } | null>(null);
+    const [rincian, setRincian] = useState<BarisStatusCapaian | null>(null);
+
+    // Tab aktif dibaca dari URL agar bertahan saat pindah halaman dan setelah penetapan disimpan.
+    const query = new URLSearchParams(url.split('?')[1] ?? '');
+    const tabDitetapkan = query.get('tab') === 'ditetapkan';
+    const tautanTab = (ditetapkan: boolean): string => {
+        const params = new URLSearchParams(query);
+        if (ditetapkan) params.set('tab', 'ditetapkan');
+        else params.delete('tab');
+        const teks = params.toString();
+
+        return `/verifikasi/status-capaian${teks ? `?${teks}` : ''}`;
+    };
 
     const angka = (baris: BarisStatusCapaian, nilai: string | null) => {
-        if (nilai === null) return '—';
+        if (nilai === null) return '-';
         const desimal = baris.indikator.desimal_tampilan ?? 0;
         return `${formatNilai(nilai, desimal)}${baris.indikator.satuan ? ` ${baris.indikator.satuan}` : ''}`;
     };
-    const capaian = (baris: BarisStatusCapaian) => baris.capaian_persen === null ? '—' : `${formatNilai(baris.capaian_persen, 2)}%`;
-    const periode = (baris: BarisStatusCapaian) => `${baris.periode.nama ?? '—'} ${baris.tahun}`;
-    const versi = (baris: BarisStatusCapaian) => baris.versi_pengukuran === null
-        ? 'Belum ada versi sah'
-        : <>Versi {baris.versi_pengukuran.nomor}<span className="block text-xs text-muted">disahkan {formatTanggal(baris.versi_pengukuran.disahkan_pada)}</span></>;
+    const capaian = (baris: BarisStatusCapaian) => baris.capaian_persen === null ? '-' : `${formatNilai(baris.capaian_persen, 2)}%`;
+    const periode = (baris: BarisStatusCapaian) => `${baris.periode.nama ?? '-'} ${baris.tahun}`;
+    const versi = (baris: BarisStatusCapaian) => baris.versi_pengukuran === null ? 'Belum ada versi sah' : `Versi ${baris.versi_pengukuran.nomor}`;
+    const sebutan = (baris: BarisStatusCapaian) => baris.indikator.kode ?? baris.indikator.nama ?? '';
+
+    // Tiga kolom pertama sama di kedua daftar; rincian lain dibaca di jendela rincian yang tersedia di setiap baris.
+    const selIdentitas = (baris: BarisStatusCapaian) => (
+        <>
+            <TableCell className={sel}>
+                <p className="text-xs font-bold text-ink">{baris.indikator.kode ?? '-'}</p>
+                <p title={baris.indikator.nama ?? undefined} className="mt-0.5 line-clamp-2 whitespace-normal break-words text-xs leading-relaxed text-muted">{baris.indikator.nama ?? '-'}</p>
+            </TableCell>
+            <TableCell className={sel}>
+                <TableCellLabel>{labelUnit}</TableCellLabel>
+                <span className="break-words text-xs text-ink">{baris.unit.nama ?? '-'}</span>
+            </TableCell>
+            <TableCell className={sel}>
+                <TableCellLabel>Periode</TableCellLabel>
+                <span className="text-xs text-ink md:whitespace-nowrap">{periode(baris)}</span>
+                <span className="block text-xs text-muted">{versi(baris)}</span>
+            </TableCell>
+        </>
+    );
+    const selCapaian = (baris: BarisStatusCapaian) => (
+        <TableCell className={selKanan}>
+            <TableCellLabel>Capaian</TableCellLabel>
+            <span className="font-semibold tabular-nums text-ink">{capaian(baris)}</span>
+        </TableCell>
+    );
+
+    // Tersedia di setiap baris, termasuk yang tidak dapat ditetapkan atau direvisi, agar angkanya tetap terbaca.
+    const tombolRincian = (baris: BarisStatusCapaian) => (
+        <Tooltip content="Lihat rincian" align="right">
+            <Button type="button" size="sm" variant="outline" className="h-9 w-9 px-0" onClick={() => setRincian(baris)} aria-label={`Lihat rincian status capaian ${sebutan(baris)}`}>
+                <Eye className="h-4 w-4" aria-hidden="true" />
+            </Button>
+        </Tooltip>
+    );
 
     return (
         <AuthenticatedLayout
@@ -258,11 +324,6 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
             <Head title="Status Capaian" />
 
             <div className="min-w-0 space-y-5">
-                <p className="text-sm text-muted">
-                    Reviu &amp; Pengesahan: tetapkan status capaian pada versi pengukuran yang telah disahkan. Penetapan melekat pada versi
-                    tersebut; perubahan berikutnya dicatat sebagai revisi dan seluruh riwayat tetap tersimpan.
-                </p>
-
                 {!can.tetapkan && (
                     <div role="status" className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-ink">
                         Anda tidak memiliki izin menetapkan status capaian. Halaman ini hanya dapat dibaca.
@@ -270,240 +331,111 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                 )}
 
                 <Card>
-                    <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-4 sm:px-5">
-                        <div className="min-w-0">
-                            <h2 className="text-base font-semibold text-ink">Belum ditetapkan</h2>
-                            <p className="mt-0.5 text-xs text-muted">Versi pengukuran yang telah disahkan dan belum memiliki status capaian berlaku.</p>
-                        </div>
-                        <Badge variant="muted" size="sm">{pagination.total} pengukuran</Badge>
-                    </div>
+                    <TabTautan
+                        label="Daftar status capaian"
+                        satuan="pengukuran"
+                        items={[
+                            { href: tautanTab(false), label: 'Belum ditetapkan', jumlah: pagination.total, aktif: !tabDitetapkan },
+                            { href: tautanTab(true), label: 'Sudah ditetapkan', jumlah: pagination_status.total, aktif: tabDitetapkan },
+                        ]}
+                    />
 
-                    {kandidat.length === 0 ? (
-                        <div role="status" className="px-5 py-10 text-center">
-                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border bg-soft text-muted">
-                                <Search className="h-6 w-6" aria-hidden="true" />
-                            </div>
-                            {pagination.total === 0 ? (
-                                <>
-                                    <p className="mt-3 text-sm font-semibold text-ink">Tidak ada pengukuran yang menunggu penetapan</p>
-                                    <p className="mx-auto mt-1 max-w-md text-xs text-muted">
-                                        Semua versi pengukuran yang disahkan sudah memiliki status capaian, atau belum ada versi yang memenuhi syarat penetapan.
-                                    </p>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="mt-3 text-sm font-semibold text-ink">Tidak ada kandidat di halaman ini</p>
-                                    <p className="mx-auto mt-1 max-w-md text-xs text-muted">
-                                        Halaman ini tidak memuat kandidat, tetapi masih ada {pagination.total} pengukuran yang menunggu penetapan pada
-                                        halaman lain. Gunakan tautan Sebelumnya di bawah untuk kembali ke halaman berisi kandidat.
-                                    </p>
-                                </>
-                            )}
-                        </div>
-                    ) : (
-                        <>
-                            <Table wrapperClassName="hidden md:block" aria-label="Kandidat penetapan status capaian">
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="px-3 py-3">INDIKATOR</TableHead>
-                                        <TableHead className="px-3 py-3">{labelUnit.toUpperCase()}</TableHead>
-                                        <TableHead className="px-3 py-3">PERIODE</TableHead>
-                                        <TableHead className="px-3 py-3">VERSI</TableHead>
-                                        <TableHead className="px-3 py-3 text-right">
-                                            <span className="block">REALISASI</span>
-                                            <span className="block font-normal">CAPAIAN</span>
-                                        </TableHead>
-                                        <TableHead className="px-3 py-3 text-right">
-                                            <span className="block">TARGET</span>
-                                            <span className="block font-normal">TARGET PK</span>
-                                        </TableHead>
-                                        <TableHead className="px-3 py-3 text-right">SELISIH PK</TableHead>
-                                        <TableHead className="sticky right-0 z-10 border-l border-border bg-soft px-3 py-3 text-right">AKSI</TableHead>
+                    {tabDitetapkan ? (
+                        <Table wrapperClassName="overflow-x-visible" className="block md:table" aria-label="Status capaian yang sudah ditetapkan">
+                            <TableHeader className="max-md:sr-only">
+                                <TableRow>
+                                    <TableHead className="whitespace-normal">KODE &amp; INDIKATOR</TableHead>
+                                    <TableHead>{labelUnit.toUpperCase()}</TableHead>
+                                    <TableHead>PERIODE</TableHead>
+                                    <TableHead className="text-right">CAPAIAN</TableHead>
+                                    <TableHead>STATUS</TableHead>
+                                    <TableHead className="text-right">AKSI</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody className="block md:table-row-group">
+                                {sudah_ditetapkan.length === 0 ? (
+                                    <TableEmptyRow
+                                        colSpan={6}
+                                        icon={Search}
+                                        title="Belum ada status capaian yang ditetapkan"
+                                        description="Status yang ditetapkan pada versi pengukuran yang disahkan tampil di sini, beserta riwayat revisinya."
+                                    />
+                                ) : sudah_ditetapkan.map((baris) => (
+                                    <TableRow key={baris.id} className={barisKartu}>
+                                        {selIdentitas(baris)}
+                                        {selCapaian(baris)}
+                                        <TableCell className={sel}>
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 md:flex-col md:items-start md:whitespace-nowrap">
+                                                {baris.status_berlaku && <StatusCapaianBadge kode={baris.status_berlaku.status} size="sm" />}
+                                                <span className="text-xs text-muted">{formatTanggal(baris.status_berlaku?.ditetapkan_pada)}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className={selKanan}>
+                                            <div className="inline-flex items-center gap-2">
+                                                {tombolRincian(baris)}
+                                                {can.tetapkan && baris.can.revisi && (
+                                                    <Button type="button" size="sm" variant="outline" onClick={() => setDialog({ baris, mode: 'revisi' })} aria-label={`Revisi status capaian ${sebutan(baris)}`}>
+                                                        <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
+                                                        Revisi
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {kandidat.map((baris) => (
-                                        <TableRow key={baris.id} className="group hover:bg-soft transition-colors">
-                                            <TableCell className="max-w-xs px-3 py-3 align-top">
-                                                <p className="text-xs font-bold text-ink">{baris.indikator.kode ?? '—'}</p>
-                                                <p className="mt-0.5 whitespace-normal break-words text-xs leading-relaxed text-muted">{baris.indikator.nama ?? '—'}</p>
-                                            </TableCell>
-                                            <TableCell className="px-3 py-3 align-top text-xs text-ink">{baris.unit.nama ?? '—'}</TableCell>
-                                            <TableCell className="px-3 py-3 align-top text-xs text-ink">{periode(baris)}</TableCell>
-                                            <TableCell className="px-3 py-3 align-top text-xs text-ink">{versi(baris)}</TableCell>
-                                            <TableCell className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums text-ink">
-                                                <span className="block font-semibold">{angka(baris, baris.nilai)}</span>
-                                                <span className="block text-xs font-normal">{capaian(baris)}</span>
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums text-ink">
-                                                <span className="block">{angka(baris, baris.target)}</span>
-                                                <span className="block text-xs font-normal">{angka(baris, baris.target_pk)}</span>
-                                            </TableCell>
-                                            <TableCell className="px-3 py-3 text-right align-top tabular-nums text-ink">
-                                                <NilaiSelisihPk selisih={baris.selisih_target_pk} desimal={baris.indikator.desimal_tampilan ?? 0} satuan={baris.indikator.satuan} />
-                                            </TableCell>
-                                            <TableCell className="sticky right-0 z-10 whitespace-nowrap border-l border-border bg-surface px-3 py-3 text-right align-top group-hover:bg-soft">
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <Table wrapperClassName="overflow-x-visible" className="block md:table" aria-label="Kandidat penetapan status capaian">
+                            <TableHeader className="max-md:sr-only">
+                                <TableRow>
+                                    <TableHead className="whitespace-normal">KODE &amp; INDIKATOR</TableHead>
+                                    <TableHead>{labelUnit.toUpperCase()}</TableHead>
+                                    <TableHead>PERIODE</TableHead>
+                                    <TableHead className="text-right">REALISASI</TableHead>
+                                    <TableHead className="text-right">CAPAIAN</TableHead>
+                                    <TableHead className="text-right">AKSI</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody className="block md:table-row-group">
+                                {kandidat.length === 0 ? (
+                                    <TableEmptyRow
+                                        colSpan={6}
+                                        icon={Search}
+                                        title={pagination.total === 0 ? 'Tidak ada pengukuran yang menunggu penetapan' : 'Tidak ada kandidat di halaman ini'}
+                                        description={pagination.total === 0
+                                            ? 'Semua versi pengukuran yang disahkan sudah memiliki status capaian, atau belum ada versi yang memenuhi syarat penetapan.'
+                                            : `Halaman ini tidak memuat kandidat, tetapi masih ada ${pagination.total} pengukuran yang menunggu penetapan pada halaman lain. Gunakan tautan Sebelumnya di bawah untuk kembali ke halaman berisi kandidat.`}
+                                    />
+                                ) : kandidat.map((baris) => (
+                                    <TableRow key={baris.id} className={barisKartu}>
+                                        {selIdentitas(baris)}
+                                        <TableCell className={selKanan}>
+                                            <TableCellLabel>Realisasi</TableCellLabel>
+                                            <span className="font-semibold tabular-nums text-ink md:whitespace-nowrap">{angka(baris, baris.nilai)}</span>
+                                            <span className="block text-xs tabular-nums text-muted md:whitespace-nowrap">Target {angka(baris, baris.target)}</span>
+                                        </TableCell>
+                                        {selCapaian(baris)}
+                                        <TableCell className={selKanan}>
+                                            <div className="inline-flex items-center gap-2">
+                                                {tombolRincian(baris)}
                                                 {can.tetapkan && baris.can.tetapkan ? (
-                                                    <Button type="button" size="sm" onClick={() => setDialog({ baris, mode: 'tetapkan' })} aria-label={`Tetapkan status capaian ${baris.indikator.kode ?? baris.indikator.nama ?? ''}`}>
+                                                    <Button type="button" size="sm" onClick={() => setDialog({ baris, mode: 'tetapkan' })} aria-label={`Tetapkan status capaian ${sebutan(baris)}`}>
                                                         <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />
                                                         Tetapkan
                                                     </Button>
                                                 ) : (
-                                                    <span className="text-xs text-muted">{can.tetapkan ? 'Tidak memenuhi syarat' : 'Tanpa izin'}</span>
+                                                    <span className="text-xs text-muted md:whitespace-nowrap">{can.tetapkan ? 'Tidak memenuhi syarat' : 'Tanpa izin'}</span>
                                                 )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-
-                            <ul className="divide-y divide-border md:hidden">
-                                {kandidat.map((baris) => (
-                                    <li key={baris.id} className="space-y-3 p-4">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-bold text-primary">{baris.indikator.kode ?? '—'}</p>
-                                                <p className="mt-0.5 break-words text-sm font-semibold leading-snug text-ink">{baris.indikator.nama ?? '—'}</p>
                                             </div>
-                                            <StatusCapaianBadge kode="belum_ditetapkan" size="sm" className="shrink-0" />
-                                        </div>
-                                        <dl className="grid grid-cols-2 gap-3">
-                                            <Data label={labelUnit}>{baris.unit.nama ?? '—'}</Data>
-                                            <Data label="Periode">{periode(baris)}</Data>
-                                            <Data label="Versi">{versi(baris)}</Data>
-                                            <Data label="Realisasi">{angka(baris, baris.nilai)}</Data>
-                                            <Data label="Target periode">{angka(baris, baris.target)}</Data>
-                                            <Data label="Capaian">{capaian(baris)}</Data>
-                                            <Data label="Target PK">{angka(baris, baris.target_pk)}</Data>
-                                            <Data label="Selisih terhadap target PK">
-                                                <NilaiSelisihPk selisih={baris.selisih_target_pk} desimal={baris.indikator.desimal_tampilan ?? 0} satuan={baris.indikator.satuan} />
-                                            </Data>
-                                        </dl>
-                                        {can.tetapkan && baris.can.tetapkan ? (
-                                            <Button type="button" size="sm" className="w-full" onClick={() => setDialog({ baris, mode: 'tetapkan' })} aria-label={`Tetapkan status capaian ${baris.indikator.kode ?? baris.indikator.nama ?? ''}`}>
-                                                <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                                                Tetapkan
-                                            </Button>
-                                        ) : (
-                                            <p className="text-xs text-muted">{can.tetapkan ? 'Tidak memenuhi syarat penetapan.' : 'Tanpa izin menetapkan.'}</p>
-                                        )}
-                                    </li>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </ul>
-                        </>
+                            </TableBody>
+                        </Table>
                     )}
 
-                    {pagination.last_page > 1 && (
-                        <nav aria-label="Halaman kandidat status capaian" className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
-                            {pagination.prev_page_url
-                                ? <Link href={pagination.prev_page_url} preserveScroll className={tautanPaginasi}>Sebelumnya</Link>
-                                : <span aria-hidden="true" />}
-                            <p className="text-xs text-muted">Halaman {pagination.current_page} dari {pagination.last_page} · {pagination.total} baris</p>
-                            {pagination.next_page_url
-                                ? <Link href={pagination.next_page_url} preserveScroll className={tautanPaginasi}>Berikutnya</Link>
-                                : <span aria-hidden="true" />}
-                        </nav>
-                    )}
-                </Card>
-
-                <Card>
-                    <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-4 sm:px-5">
-                        <div className="min-w-0">
-                            <h2 className="text-base font-semibold text-ink">Sudah ditetapkan</h2>
-                            <p className="mt-0.5 text-xs text-muted">
-                                Status berlaku pada versi sah terakhir. Revisi menulis status baru tanpa menghapus riwayat.
-                            </p>
-                        </div>
-                        <Badge variant="muted" size="sm">{pagination_status.total} pengukuran</Badge>
-                    </div>
-
-                    {sudah_ditetapkan.length === 0 ? (
-                        <p role="status" className="px-5 py-10 text-center text-sm text-muted">
-                            Belum ada status capaian yang ditetapkan pada versi pengukuran yang disahkan.
-                        </p>
-                    ) : (
-                        <ul className="divide-y divide-border">
-                            {sudah_ditetapkan.map((baris) => (
-                                <li key={baris.id} className="p-4 sm:p-5">
-                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                        <div className="min-w-0 space-y-1">
-                                            <p className="text-xs font-semibold text-primary">
-                                                {baris.indikator.kode ?? '—'} · {periode(baris)}
-                                            </p>
-                                            <h3 className="break-words text-sm font-semibold leading-snug text-ink">{baris.indikator.nama ?? '—'}</h3>
-                                            <p className="text-xs text-muted">
-                                                {baris.unit.nama ?? '—'} · {versi(baris)}
-                                            </p>
-                                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                                                {baris.status_berlaku && <StatusCapaianBadge kode={baris.status_berlaku.status} size="sm" />}
-                                                <span className="text-xs text-muted">
-                                                    {baris.status_berlaku?.penetap ?? 'Penetap tidak tercatat'}
-                                                    {' · '}
-                                                    {formatTanggal(baris.status_berlaku?.ditetapkan_pada, { withTime: true })}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        {can.tetapkan && baris.can.revisi && (
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                className="self-start"
-                                                onClick={() => setDialog({ baris, mode: 'revisi' })}
-                                                aria-label={`Revisi status capaian ${baris.indikator.kode ?? baris.indikator.nama ?? ''}`}
-                                            >
-                                                <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
-                                                Revisi
-                                            </Button>
-                                        )}
-                                    </div>
-
-                                    <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                        <Data label="Realisasi">{angka(baris, baris.nilai)}</Data>
-                                        <Data label="Target periode">{angka(baris, baris.target)}</Data>
-                                        <Data label="Capaian">{capaian(baris)}</Data>
-                                        <Data label="Selisih terhadap target PK">
-                                            <NilaiSelisihPk selisih={baris.selisih_target_pk} desimal={baris.indikator.desimal_tampilan ?? 0} satuan={baris.indikator.satuan} />
-                                        </Data>
-                                    </dl>
-
-                                    <details className="mt-3 rounded-lg border border-border bg-soft/40 p-3">
-                                        <summary className="cursor-pointer rounded text-xs font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25">
-                                            Riwayat status per versi ({baris.riwayat.length})
-                                            <span className="sr-only"> untuk {baris.indikator.kode ?? baris.indikator.nama ?? 'indikator'}</span>
-                                        </summary>
-                                        {baris.riwayat.length === 0 ? (
-                                            <p className="mt-2 text-xs text-muted">Belum ada riwayat status tercatat.</p>
-                                        ) : (
-                                            <ul className="mt-2 divide-y divide-border">
-                                                {baris.riwayat.map((item) => (
-                                                    <li key={item.id} className="flex flex-wrap items-center gap-2 py-2 text-xs">
-                                                        <StatusCapaianBadge kode={item.status} size="sm" />
-                                                        {item.id === baris.status_berlaku?.id && <Badge variant="primary" size="sm">Berlaku</Badge>}
-                                                        <span className="text-muted">
-                                                            Versi {item.versi_nomor ?? '—'} · {item.penetap ?? 'Penetap tidak tercatat'} · {formatTanggal(item.ditetapkan_pada, { withTime: true })}
-                                                        </span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </details>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-
-                    {pagination_status.last_page > 1 && (
-                        <nav aria-label="Halaman status capaian yang sudah ditetapkan" className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3">
-                            {pagination_status.prev_page_url
-                                ? <Link href={pagination_status.prev_page_url} preserveScroll className={tautanPaginasi}>Sebelumnya</Link>
-                                : <span aria-hidden="true" />}
-                            <p className="text-xs text-muted">Halaman {pagination_status.current_page} dari {pagination_status.last_page} · {pagination_status.total} baris</p>
-                            {pagination_status.next_page_url
-                                ? <Link href={pagination_status.next_page_url} preserveScroll className={tautanPaginasi}>Berikutnya</Link>
-                                : <span aria-hidden="true" />}
-                        </nav>
-                    )}
+                    <Pagination pagination={tabDitetapkan ? pagination_status : pagination} />
                 </Card>
             </div>
 
@@ -514,6 +446,43 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                     mode={dialog.mode}
                     onClose={() => setDialog(null)}
                 />
+            )}
+
+            {rincian && (
+                <Modal
+                    isOpen
+                    onClose={() => setRincian(null)}
+                    size="lg"
+                    title="Rincian status capaian"
+                    description={`${rincian.indikator.kode ?? 'Indikator'} · ${rincian.indikator.nama ?? 'Tanpa nama'} · ${periode(rincian)}`}
+                    footer={(
+                        <div className="flex justify-end">
+                            <Button type="button" variant="outline" onClick={() => setRincian(null)}>Tutup</Button>
+                        </div>
+                    )}
+                >
+                    <div className="space-y-4">
+                        <RincianAngka baris={rincian} />
+                        <section aria-labelledby="judul-riwayat-status">
+                            <h3 id="judul-riwayat-status" className="text-sm font-semibold text-ink">Riwayat status</h3>
+                            {rincian.riwayat.length === 0 ? (
+                                <p className="mt-1 text-xs text-muted">Belum ada riwayat status tercatat.</p>
+                            ) : (
+                                <ul className="mt-1 divide-y divide-border">
+                                    {rincian.riwayat.map((item) => (
+                                        <li key={item.id} className="flex flex-wrap items-center gap-2 py-2 text-xs">
+                                            <StatusCapaianBadge kode={item.status} size="sm" />
+                                            {item.id === rincian.status_berlaku?.id && <Badge variant="primary" size="sm">Berlaku</Badge>}
+                                            <span className="text-muted">
+                                                Versi {item.versi_nomor ?? '-'} · {item.penetap ?? 'Penetap tidak tercatat'} · {formatTanggal(item.ditetapkan_pada, { withTime: true })}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
+                    </div>
+                </Modal>
             )}
         </AuthenticatedLayout>
     );
