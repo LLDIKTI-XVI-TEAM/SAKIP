@@ -1,11 +1,11 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { clsx } from 'clsx';
 import { Search, Eye, RotateCcw } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
+import { TabTautan } from '@/Components/TabTautan';
 import {
     Table, TableActionLink, TableBody, TableCell, TableCellLabel, TableEmptyRow, TableHead, TableHeader, TableRow, tableCellResponsive,
 } from '@/Components/Table';
@@ -70,27 +70,11 @@ export default function VerifikasiIndex({ pengukurans = [], pagination, filters 
             <Head title="Verifikasi Kinerja" />
 
             <Card>
-                <nav aria-label="Status antrean" className="flex flex-wrap gap-x-4 border-b border-border px-4 sm:gap-x-6 sm:px-6">
-                    {antrean.map(({ status, label }) => {
-                        const aktif = statusAktif === status;
-
-                        return (
-                            <Link
-                                key={status}
-                                href={tautanAntrean(status)}
-                                aria-current={aktif ? 'page' : undefined}
-                                aria-label={`${label}, ${jumlah[status]} pengukuran`}
-                                className={clsx(
-                                    '-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 py-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25',
-                                    aktif ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-ink',
-                                )}
-                            >
-                                {label}
-                                <Badge variant={aktif ? 'primary' : 'muted'} size="sm">{String(jumlah[status])}</Badge>
-                            </Link>
-                        );
-                    })}
-                </nav>
+                <TabTautan
+                    label="Status antrean"
+                    satuan="pengukuran"
+                    items={antrean.map(({ status, label }) => ({ href: tautanAntrean(status), label, jumlah: jumlah[status], aktif: statusAktif === status }))}
+                />
                 <Filters key={JSON.stringify([filters, selected_filters])} filters={filters} selected={selected_filters} />
                 <Table wrapperClassName="overflow-x-visible" className="block md:table" aria-label="Antrean verifikasi pengukuran">
                     <TableHeader className="max-md:sr-only">
