@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { ClipboardCheck, History, PenLine, Search } from 'lucide-react';
+import { ClipboardCheck, Eye, PenLine, Search } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { Badge } from '@/Components/Badge';
@@ -46,7 +46,7 @@ function Data({ label, children }: { label: string; children: ReactNode }) {
 /** Selisih realisasi terhadap target PK; tanda mengikuti nilai server, warna tidak dipakai sebagai satu-satunya makna. */
 function NilaiSelisihPk({ selisih, desimal, satuan }: { selisih: string | null; desimal: number; satuan: string | null }) {
     const formatNilai = useFormatNilai();
-    if (selisih === null) return <span className="text-muted">—</span>;
+    if (selisih === null) return <span className="text-muted">-</span>;
 
     const negatif = selisih.startsWith('-');
     const mutlak = formatNilai(negatif ? selisih.slice(1) : selisih, desimal);
@@ -58,6 +58,31 @@ function NilaiSelisihPk({ selisih, desimal, satuan }: { selisih: string | null; 
             <span className="font-semibold tabular-nums text-ink">{`${tanda}${mutlak}${satuan ? ` ${satuan}` : ''}`}</span>
             <span className="block text-xs font-normal text-muted">{nol ? 'sama dengan target PK' : negatif ? 'di bawah target PK' : 'di atas target PK'}</span>
         </span>
+    );
+}
+
+/** Angka versi pengukuran; dipakai bersama dialog penetapan dan jendela rincian baca-saja agar isinya selalu sama. */
+function RincianAngka({ baris, children }: { baris: BarisStatusCapaian; children?: ReactNode }) {
+    const formatNilai = useFormatNilai();
+    const formatTanggal = useFormatTanggal();
+    const desimal = baris.indikator.desimal_tampilan ?? 0;
+    const satuan = baris.indikator.satuan;
+    const angka = (nilai: string | null) => nilai === null ? '-' : `${formatNilai(nilai, desimal)}${satuan ? ` ${satuan}` : ''}`;
+
+    return (
+        <dl className="grid grid-cols-2 gap-3 rounded-lg bg-soft p-3">
+            <Data label="Realisasi">{angka(baris.nilai)}</Data>
+            <Data label="Target periode">{angka(baris.target)}</Data>
+            <Data label="Capaian terhadap target">{baris.capaian_persen === null ? '-' : `${formatNilai(baris.capaian_persen, 2)}%`}</Data>
+            <Data label="Target PK">{angka(baris.target_pk)}</Data>
+            <Data label="Selisih terhadap target PK"><NilaiSelisihPk selisih={baris.selisih_target_pk} desimal={desimal} satuan={satuan} /></Data>
+            <Data label="Versi pengukuran">
+                {baris.versi_pengukuran === null
+                    ? 'Belum tersedia'
+                    : `Versi ${baris.versi_pengukuran.nomor} · disahkan ${formatTanggal(baris.versi_pengukuran.disahkan_pada)}`}
+            </Data>
+            {children}
+        </dl>
     );
 }
 
@@ -82,9 +107,6 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
     const galat = form.errors as Record<string, string | string[] | undefined>;
     const teksGalat = (nilai: string | string[] | undefined): string | undefined =>
         Array.isArray(nilai) ? nilai.join(' ') : nilai;
-    const desimal = baris.indikator.desimal_tampilan ?? 0;
-    const satuan = baris.indikator.satuan;
-    const angka = (nilai: string | null) => nilai === null ? '—' : `${formatNilai(nilai, desimal)}${satuan ? ` ${satuan}` : ''}`;
     const konflik = teksGalat(galat.versi);
     const galatPengukuranVersi = teksGalat(galat.pengukuran_versi_id);
     const galatStatus = teksGalat(galat.status);
@@ -158,17 +180,7 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
                 {galatPengukuranVersi && <p role="alert" className="text-sm text-danger">{galatPengukuranVersi}</p>}
                 {statusError && !konflik && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{statusError}</p>}
 
-                <dl className="grid grid-cols-2 gap-3 rounded-lg bg-soft p-3">
-                    <Data label="Realisasi">{angka(baris.nilai)}</Data>
-                    <Data label="Target periode">{angka(baris.target)}</Data>
-                    <Data label="Capaian terhadap target">{baris.capaian_persen === null ? '—' : `${formatNilai(baris.capaian_persen, 2)}%`}</Data>
-                    <Data label="Target PK">{angka(baris.target_pk)}</Data>
-                    <Data label="Selisih terhadap target PK"><NilaiSelisihPk selisih={baris.selisih_target_pk} desimal={desimal} satuan={satuan} /></Data>
-                    <Data label="Versi pengukuran">
-                        {baris.versi_pengukuran === null
-                            ? 'Belum tersedia'
-                            : `Versi ${baris.versi_pengukuran.nomor} · disahkan ${formatTanggal(baris.versi_pengukuran.disahkan_pada)}`}
-                    </Data>
+                <RincianAngka baris={baris}>
                     {mode === 'revisi' && baris.status_berlaku && (
                         <div className="col-span-2 min-w-0 border-t border-border pt-2">
                             <dt className="text-xs font-medium text-muted">Status berlaku</dt>
@@ -180,7 +192,7 @@ function DialogStatusCapaian({ baris, mode, onClose }: { baris: BarisStatusCapai
                             </dd>
                         </div>
                     )}
-                </dl>
+                </RincianAngka>
 
                 {versiTidakTersedia && (
                     <p role="alert" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-ink">
@@ -246,7 +258,7 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
     const labelUnit = useLabelUnit();
     const { url } = usePage();
     const [dialog, setDialog] = useState<{ baris: BarisStatusCapaian; mode: ModeStatusCapaian } | null>(null);
-    const [riwayat, setRiwayat] = useState<BarisStatusCapaian | null>(null);
+    const [rincian, setRincian] = useState<BarisStatusCapaian | null>(null);
 
     // Tab aktif dibaca dari URL agar bertahan saat pindah halaman dan setelah penetapan disimpan.
     const query = new URLSearchParams(url.split('?')[1] ?? '');
@@ -270,7 +282,7 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
     const versi = (baris: BarisStatusCapaian) => baris.versi_pengukuran === null ? 'Belum ada versi sah' : `Versi ${baris.versi_pengukuran.nomor}`;
     const sebutan = (baris: BarisStatusCapaian) => baris.indikator.kode ?? baris.indikator.nama ?? '';
 
-    // Tiga kolom pertama sama di kedua daftar; rincian lain dibaca di dialog penetapan dan jendela riwayat.
+    // Tiga kolom pertama sama di kedua daftar; rincian lain dibaca di jendela rincian yang tersedia di setiap baris.
     const selIdentitas = (baris: BarisStatusCapaian) => (
         <>
             <TableCell className={sel}>
@@ -293,6 +305,15 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
             <TableCellLabel>Capaian</TableCellLabel>
             <span className="font-semibold tabular-nums text-ink">{capaian(baris)}</span>
         </TableCell>
+    );
+
+    // Tersedia di setiap baris, termasuk yang tidak dapat ditetapkan atau direvisi, agar angkanya tetap terbaca.
+    const tombolRincian = (baris: BarisStatusCapaian) => (
+        <Tooltip content="Lihat rincian" align="right">
+            <Button type="button" size="sm" variant="outline" className="h-9 w-9 px-0" onClick={() => setRincian(baris)} aria-label={`Lihat rincian status capaian ${sebutan(baris)}`}>
+                <Eye className="h-4 w-4" aria-hidden="true" />
+            </Button>
+        </Tooltip>
     );
 
     return (
@@ -351,11 +372,7 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                                         </TableCell>
                                         <TableCell className={selKanan}>
                                             <div className="inline-flex items-center gap-2">
-                                                <Tooltip content="Riwayat status" align="right">
-                                                    <Button type="button" size="sm" variant="outline" className="h-9 w-9 px-0" onClick={() => setRiwayat(baris)} aria-label={`Riwayat status capaian ${sebutan(baris)}`}>
-                                                        <History className="h-4 w-4" aria-hidden="true" />
-                                                    </Button>
-                                                </Tooltip>
+                                                {tombolRincian(baris)}
                                                 {can.tetapkan && baris.can.revisi && (
                                                     <Button type="button" size="sm" variant="outline" onClick={() => setDialog({ baris, mode: 'revisi' })} aria-label={`Revisi status capaian ${sebutan(baris)}`}>
                                                         <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
@@ -400,14 +417,17 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                                         </TableCell>
                                         {selCapaian(baris)}
                                         <TableCell className={selKanan}>
-                                            {can.tetapkan && baris.can.tetapkan ? (
-                                                <Button type="button" size="sm" onClick={() => setDialog({ baris, mode: 'tetapkan' })} aria-label={`Tetapkan status capaian ${sebutan(baris)}`}>
-                                                    <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                                                    Tetapkan
-                                                </Button>
-                                            ) : (
-                                                <span className="text-xs text-muted md:whitespace-nowrap">{can.tetapkan ? 'Tidak memenuhi syarat' : 'Tanpa izin'}</span>
-                                            )}
+                                            <div className="inline-flex items-center gap-2">
+                                                {tombolRincian(baris)}
+                                                {can.tetapkan && baris.can.tetapkan ? (
+                                                    <Button type="button" size="sm" onClick={() => setDialog({ baris, mode: 'tetapkan' })} aria-label={`Tetapkan status capaian ${sebutan(baris)}`}>
+                                                        <ClipboardCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                                                        Tetapkan
+                                                    </Button>
+                                                ) : (
+                                                    <span className="text-xs text-muted md:whitespace-nowrap">{can.tetapkan ? 'Tidak memenuhi syarat' : 'Tanpa izin'}</span>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -428,34 +448,40 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
                 />
             )}
 
-            {riwayat && (
+            {rincian && (
                 <Modal
                     isOpen
-                    onClose={() => setRiwayat(null)}
-                    size="md"
-                    title="Riwayat status capaian"
-                    description={`${riwayat.indikator.kode ?? 'Indikator'} · ${riwayat.indikator.nama ?? 'Tanpa nama'} · ${periode(riwayat)}`}
+                    onClose={() => setRincian(null)}
+                    size="lg"
+                    title="Rincian status capaian"
+                    description={`${rincian.indikator.kode ?? 'Indikator'} · ${rincian.indikator.nama ?? 'Tanpa nama'} · ${periode(rincian)}`}
                     footer={(
                         <div className="flex justify-end">
-                            <Button type="button" variant="outline" onClick={() => setRiwayat(null)}>Tutup</Button>
+                            <Button type="button" variant="outline" onClick={() => setRincian(null)}>Tutup</Button>
                         </div>
                     )}
                 >
-                    {riwayat.riwayat.length === 0 ? (
-                        <p className="text-sm text-muted">Belum ada riwayat status tercatat.</p>
-                    ) : (
-                        <ul className="divide-y divide-border">
-                            {riwayat.riwayat.map((item) => (
-                                <li key={item.id} className="flex flex-wrap items-center gap-2 py-2 text-xs">
-                                    <StatusCapaianBadge kode={item.status} size="sm" />
-                                    {item.id === riwayat.status_berlaku?.id && <Badge variant="primary" size="sm">Berlaku</Badge>}
-                                    <span className="text-muted">
-                                        Versi {item.versi_nomor ?? '-'} · {item.penetap ?? 'Penetap tidak tercatat'} · {formatTanggal(item.ditetapkan_pada, { withTime: true })}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+                    <div className="space-y-4">
+                        <RincianAngka baris={rincian} />
+                        <section aria-labelledby="judul-riwayat-status">
+                            <h3 id="judul-riwayat-status" className="text-sm font-semibold text-ink">Riwayat status</h3>
+                            {rincian.riwayat.length === 0 ? (
+                                <p className="mt-1 text-xs text-muted">Belum ada riwayat status tercatat.</p>
+                            ) : (
+                                <ul className="mt-1 divide-y divide-border">
+                                    {rincian.riwayat.map((item) => (
+                                        <li key={item.id} className="flex flex-wrap items-center gap-2 py-2 text-xs">
+                                            <StatusCapaianBadge kode={item.status} size="sm" />
+                                            {item.id === rincian.status_berlaku?.id && <Badge variant="primary" size="sm">Berlaku</Badge>}
+                                            <span className="text-muted">
+                                                Versi {item.versi_nomor ?? '-'} · {item.penetap ?? 'Penetap tidak tercatat'} · {formatTanggal(item.ditetapkan_pada, { withTime: true })}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
+                    </div>
                 </Modal>
             )}
         </AuthenticatedLayout>
