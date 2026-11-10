@@ -54,19 +54,18 @@ describe('Antrean dan peringatan verifikasi pengukuran', () => {
         expect(screen.queryByRole('button', { name: 'Verifikasi pengukuran' })).toBeNull();
     });
 
-    it('mengirim status dan filter tahun melalui GET tanpa membawa halaman lama', async () => {
+    it('mengirim status antrean aktif dan filter tahun melalui GET tanpa membawa halaman lama', async () => {
         const user = userEvent.setup();
-        const { rerender } = render(<VerifikasiIndex {...{ pengukurans: [pengukuran], pagination, filters, selected_filters }} />);
-        await user.selectOptions(screen.getByRole('combobox', { name: 'Status antrean' }), 'diverifikasi');
+        const { rerender } = render(<VerifikasiIndex {...{ pengukurans: [pengukuran], pagination, filters: { ...filters, status: 'diverifikasi' as const }, selected_filters }} />);
         await user.type(screen.getByRole('spinbutton', { name: 'Tahun' }), '2026');
         await user.click(screen.getByRole('button', { name: 'Terapkan filter' }));
         expect(router.get).toHaveBeenCalledWith('/verifikasi', { ...filters, status: 'diverifikasi', tahun: '2026' }, expect.any(Object));
-        expect(screen.getByText('Jalur PIC')).toBeTruthy();
+        expect(screen.queryByText('Jalur PIC')).toBeNull();
         expect(screen.getByText('Reviu terlambat')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Reset filter' }).getAttribute('href')).toBe('/verifikasi');
         rerender(<VerifikasiIndex {...{ pengukurans: [], pagination, filters: { ...filters, tahun: '2027' }, selected_filters }} />);
         expect(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'Tahun' }).value).toBe('2027');
-        expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Status antrean' }).value).toBe('diajukan');
+        expect(screen.getByRole('link', { name: /^Menunggu verifikasi/ }).getAttribute('aria-current')).toBe('page');
     });
 
     it('membedakan antrean kosong terfilter dari klaim semua pengajuan selesai', () => {

@@ -70,13 +70,14 @@ describe('Alur pengukuran', () => {
         { target: null, tanpa_target_periode: true, label: 'Tanpa target periode' },
         { target: null, tanpa_target_periode: false, label: 'Belum tersedia' },
         { target: 0, tanpa_target_periode: false, label: '0,00 %' },
-    ])('daftar pengukuran dan antrean membedakan target $label', ({ target, tanpa_target_periode, label }) => {
+    ])('daftar pengukuran membedakan target $label dan antrean tidak memuatnya', ({ target, tanpa_target_periode, label }) => {
         const row = { ...measurement, target, tanpa_target_periode };
         const pagination = { current_page: 1, last_page: 1, total: 1, prev_page_url: null, next_page_url: null };
         const { rerender } = render(<PengukuranIndex {...indexProps([baris('IKU-UJI', { jenis: 'existing', pengukuran: row, can: { create: false } })])} />);
         expect(screen.getByRole('cell', { name: label })).toBeTruthy();
+        // Antrean verifikasi hanya memuat ringkasan; target dibaca di halaman detail.
         rerender(<VerifikasiIndex pengukurans={[row]} pagination={pagination} />);
-        expect(screen.getByRole('cell', { name: label })).toBeTruthy();
+        expect(screen.queryByText(/target/i)).toBeNull();
     });
 
     it('mengirim narasi terkini dan mengikat galat ke kolom tanpa menghapus input', async () => {

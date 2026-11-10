@@ -29,6 +29,22 @@ class AntreanVerifikasiTest extends TestCase
         $this->get('/verifikasi?status=diverifikasi')->assertInertia(fn ($page) => $page->has('pengukurans', 1));
     }
 
+    public function test_jumlah_per_antrean_mengikuti_filter_dan_scope_izin(): void
+    {
+        $this->ajukan();
+        $this->get('/verifikasi')->assertInertia(fn ($page) => $page->where('jumlah', ['diajukan' => 1, 'diverifikasi' => 0]));
+        $this->post('/verifikasi/'.$this->pengukuran->id.'/verifikasi', ['versi' => 2])->assertSessionHasNoErrors();
+        // Antrean yang sedang kosong tetap melaporkan jumlah antrean sebelahnya.
+        $this->get('/verifikasi')->assertInertia(fn ($page) => $page->has('pengukurans', 0)
+            ->where('jumlah', ['diajukan' => 0, 'diverifikasi' => 1]));
+        $this->get('/verifikasi?tahun=2026')->assertInertia(fn ($page) => $page->where('jumlah', ['diajukan' => 0, 'diverifikasi' => 1]));
+        $this->get('/verifikasi?tahun=2025')->assertInertia(fn ($page) => $page->where('jumlah', ['diajukan' => 0, 'diverifikasi' => 0]));
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->actor->id,
+            'permission_id' => Permission::where('kode', 'pengukuran:read')->value('id'), 'unit_id' => $this->unit->id,
+            'alasan' => 'Penolakan sintetis', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->get('/verifikasi')->assertInertia(fn ($page) => $page->where('jumlah', ['diajukan' => 0, 'diverifikasi' => 0]));
+    }
+
     public function test_filter_server_dan_label_terpilih_mengikuti_antrean(): void
     {
         $this->ajukan();

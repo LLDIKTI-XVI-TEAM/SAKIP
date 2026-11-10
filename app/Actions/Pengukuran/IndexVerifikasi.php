@@ -22,8 +22,7 @@ class IndexVerifikasi
         foreach (['renstra_id', 'tahun', 'periode_id', 'unit_id'] as $key) {
             $filters[$key] = (string) ($input[$key] ?? '');
         }
-        $query = $this->antrean($actor, $permissions)->with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
-            ->where('status_alur', $filters['status']);
+        $query = $this->antrean($actor, $permissions);
         if ($filters['renstra_id'] !== '') {
             $query->whereHas('jadwalSnapshot.jadwal', fn ($jadwal) => $jadwal->where('renstra_id', $filters['renstra_id']));
         }
@@ -35,6 +34,10 @@ class IndexVerifikasi
         if ($filters['unit_id'] !== '') {
             $query->whereRaw(PengukuranKinerja::targetUnitSql().' = ?', [$filters['unit_id']]);
         }
+        // Jumlah tiap antrean memakai scope dan filter yang sama dengan daftar, sebelum status dipilih.
+        $hitung = (clone $query)->toBase()->selectRaw('status_alur, count(*) as jumlah')->groupBy('status_alur')->pluck('jumlah', 'status_alur');
+        $query->with(['indikator', 'periode', 'jadwalSnapshot.jadwal', 'jadwalSnapshot.unit', 'latestVersion', 'ratifiedVersion'])
+            ->where('status_alur', $filters['status']);
         $page = $query->orderByDesc('updated_at')->withCount('buktiDukungs')->orderBy('id')->paginate(20)->withQueryString();
         $this->present->prepareSummary($page->getCollection());
         $selected = [];
@@ -48,6 +51,7 @@ class IndexVerifikasi
             'pengukurans' => $page->getCollection()->map(fn ($item) => $this->present->handle($item, $actor))->all(),
             'pagination' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total(), 'prev_page_url' => $page->previousPageUrl(), 'next_page_url' => $page->nextPageUrl()],
             'filters' => $filters, 'selected_filters' => $selected,
+            'jumlah' => ['diajukan' => (int) ($hitung['diajukan'] ?? 0), 'diverifikasi' => (int) ($hitung['diverifikasi'] ?? 0)],
         ];
     }
 
