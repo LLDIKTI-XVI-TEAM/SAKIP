@@ -17,8 +17,9 @@ Schedule::command('notifikasi:ews')
     ->onOneServer();
 
 // Pembukaan jendela karena tanggal memakai pola yang sama: tiap menit, gerbang jam kirim di dalam command.
+// Kunci pendek karena pembukaan yang terlewat tidak disusulkan; run ganda aman berkat kunci idempoten outbox.
 Schedule::command('notifikasi:pembukaan')
     ->everyMinute()
     ->timezone(config('app.business_timezone'))
-    ->withoutOverlapping()
+    ->withoutOverlapping(10)
     ->onOneServer();

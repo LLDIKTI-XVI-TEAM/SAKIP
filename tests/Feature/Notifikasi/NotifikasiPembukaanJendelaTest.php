@@ -16,6 +16,8 @@ use App\Services\Notifikasi\AntrekanNotifikasiEksternal;
 use App\Services\Notifikasi\AntrekanPembukaanJendela;
 use App\Services\Notifikasi\KonfigurasiNotifikasi;
 use Database\Seeders\PengaturanSeeder;
+use Illuminate\Console\Scheduling\Event;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -488,6 +490,15 @@ class NotifikasiPembukaanJendelaTest extends TestCase
     public function test_perintah_terdaftar_di_scheduler(): void
     {
         $this->artisan('schedule:list')->expectsOutputToContain('notifikasi:pembukaan')->assertSuccessful();
+    }
+
+    public function test_kunci_scheduler_kedaluwarsa_dalam_sepuluh_menit(): void
+    {
+        $event = collect(app(Schedule::class)->events())->sole(fn (Event $event): bool => str_contains((string) $event->command, 'notifikasi:pembukaan'));
+
+        // Pembukaan yang terlewat tidak disusulkan, jadi kunci dari proses yang mati tidak boleh menahan perintah sepanjang hari.
+        $this->assertTrue($event->withoutOverlapping);
+        $this->assertSame(10, $event->expiresAt);
     }
 
     public function test_producer_gagal_tidak_menggagalkan_aktivasi(): void
