@@ -7,7 +7,9 @@ use App\Services\Notifikasi\AntrekanNotifikasiEksternal;
 use Carbon\CarbonImmutable;
 use Database\Seeders\PengaturanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Mockery\MockInterface;
 use Tests\Concerns\CreatesDashboardFixture;
 use Tests\Concerns\CreatesPengukuranFixture;
@@ -27,6 +29,7 @@ class KirimPengingatEwsTest extends TestCase
     {
         $this->fixtureSetUp();
         $this->seed(PengaturanSeeder::class);
+        Cache::flush();
     }
 
     private function aturJamKirim(string $nilai): void
@@ -34,14 +37,23 @@ class KirimPengingatEwsTest extends TestCase
         DB::table('pengaturan')->where('kunci', 'notifikasi.jam_kirim')->update(['nilai' => $nilai]);
     }
 
-    public function test_jam_kirim_kosong_tidak_mengantrekan(): void
+    public function test_jam_kirim_kosong_tidak_dispatch_dan_mencatat_alasan_sekali_per_hari(): void
     {
         $this->aturJamKirim('');
+        Log::spy();
         $this->mock(AntrekanNotifikasiEksternal::class, fn (MockInterface $mock) => $mock->shouldReceive('antre')->never());
 
-        $this->artisan('notifikasi:ews')
-            ->expectsOutputToContain('Jam kirim belum ditetapkan')
-            ->assertSuccessful();
+        // Scheduler berjalan tiap menit: dua eksekusi pada hari bisnis yang sama tidak boleh spam log.
+        foreach ([1, 2] as $_) {
+            $this->artisan('notifikasi:ews')
+                ->expectsOutputToContain('Jam kirim belum ditetapkan')
+                ->assertSuccessful();
+        }
+
+        Log::shouldHaveReceived('info')
+            ->once()
+            ->withArgs(fn (string $pesan): bool => str_contains($pesan, 'jam kirim belum ditetapkan'));
+        $this->assertDatabaseCount('notifikasi_pengiriman', 0);
     }
 
     public function test_template_kosong_tidak_mengantrekan(): void
