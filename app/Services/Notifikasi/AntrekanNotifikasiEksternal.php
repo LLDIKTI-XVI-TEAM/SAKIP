@@ -4,6 +4,7 @@ namespace App\Services\Notifikasi;
 
 use App\Models\NotifikasiPengiriman;
 use App\Models\PengukuranKinerja;
+use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +19,11 @@ use RuntimeException;
 class AntrekanNotifikasiEksternal
 {
     /** Penerima ditentukan producer tepercaya; tidak melakukan pencarian PJ kedua.
+     *
+     * Tujuan yang didukung: `rencana_aksi`, `pengukuran`, dan `jadwal_periode` (pengingat EWS).
+     * Producer tidak menilai hak isi penerima; penyaringan hak isi terjadi pada gerbang kirim
+     * (`PengirimNotifikasiEksternal`) agar antrean tidak mengevaluasi seluruh kandidat.
+     *
      * @param  list<string>  $penerima
      * @param  list<string>  $kanal
      * @param  array<string, string|int|float|bool|null>  $parameter
@@ -28,6 +34,7 @@ class AntrekanNotifikasiEksternal
         $tipe = match (true) {
             $tujuan instanceof RencanaAksi => 'rencana_aksi',
             $tujuan instanceof PengukuranKinerja => 'pengukuran',
+            $tujuan instanceof PeriodeJadwal => 'jadwal_periode',
             default => throw new InvalidArgumentException('Jenis tujuan notifikasi belum didukung.'),
         };
         Validator::make(compact('kejadian', 'periode', 'kanal', 'template'), [
@@ -42,7 +49,11 @@ class AntrekanNotifikasiEksternal
 
         try {
             return DB::transaction(function () use ($kejadian, $tujuan, $periode, $penerima, $kanal, $template, $parameter, $tipe) {
-                $tujuan = $tipe === 'rencana_aksi' ? RencanaAksi::findOrFail($tujuan->getKey()) : PengukuranKinerja::findOrFail($tujuan->getKey());
+                $tujuan = match ($tipe) {
+                    'rencana_aksi' => RencanaAksi::findOrFail($tujuan->getKey()),
+                    'pengukuran' => PengukuranKinerja::findOrFail($tujuan->getKey()),
+                    'jadwal_periode' => PeriodeJadwal::findOrFail($tujuan->getKey()),
+                };
                 $rows = collect();
                 foreach (array_unique($penerima) as $userId) {
                     $user = User::findOrFail($userId);

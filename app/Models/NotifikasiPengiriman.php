@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 /** Outbox internal; serialisasi publik hanya melalui pembaca status.
  * @property CarbonImmutable|null $coba_lagi_pada
  * @property CarbonImmutable|null $dicoba_terakhir_pada
+ * @property array<string, mixed> $parameter
  */
 class NotifikasiPengiriman extends Model
 {
