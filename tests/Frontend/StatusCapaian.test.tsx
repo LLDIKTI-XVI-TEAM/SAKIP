@@ -15,12 +15,15 @@ const form = vi.hoisted(() => ({
 }));
 
 const halaman = vi.hoisted(() => ({ pengaturan: {} as Record<string, string> }));
+const lokasi = vi.hoisted(() => ({ url: '/verifikasi/status-capaian' }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    Link: ({ children, href }: { children: ReactNode; href: string }) => <a href={href}>{children}</a>,
+    Link: ({ children, href, 'aria-label': ariaLabel, 'aria-current': ariaCurrent }: { children: ReactNode; href: string; 'aria-label'?: string; 'aria-current'?: 'page' }) => (
+        <a href={href} aria-label={ariaLabel} aria-current={ariaCurrent}>{children}</a>
+    ),
     router: { reload: vi.fn(), get: vi.fn() },
-    usePage: () => ({ props: halaman }),
+    usePage: () => ({ props: halaman, url: lokasi.url }),
     useForm: (initial: Record<string, unknown>) => {
         const [data, setData] = useState(initial);
 
@@ -47,6 +50,7 @@ beforeEach(() => {
     form.errors = {};
     form.processing = false;
     halaman.pengaturan = {};
+    lokasi.url = '/verifikasi/status-capaian';
 });
 afterEach(cleanup);
 
@@ -98,9 +102,16 @@ function props(overrides: Partial<StatusCapaianProps> = {}): StatusCapaianProps 
     };
 }
 
-/** Tombol tetapkan muncul dua kali (tabel desktop + kartu mobile); keduanya harus ada. */
+const TABEL_KANDIDAT = 'Kandidat penetapan status capaian';
+const TABEL_DITETAPKAN = 'Status capaian yang sudah ditetapkan';
+
 function tombolTetapkan() {
     return screen.getAllByRole('button', { name: 'Tetapkan status capaian IKU-UJI' });
+}
+
+/** Tab aktif dibaca dari URL, sehingga daftar yang sudah ditetapkan diuji dengan parameter `tab`. */
+function bukaTabDitetapkan(query = '') {
+    lokasi.url = `/verifikasi/status-capaian?tab=ditetapkan${query}`;
 }
 
 function formDialog(): HTMLFormElement {
@@ -110,35 +121,86 @@ function formDialog(): HTMLFormElement {
 }
 
 describe('Halaman status capaian versi pengukuran', () => {
-    it('menampilkan kandidat pada tabel desktop dan kartu mobile', () => {
+    it('menampilkan kandidat pada satu tabel ringkas berpola kartu', () => {
         render(<StatusCapaian {...props()} />);
 
-        const tabel = screen.getByRole('table', { name: 'Kandidat penetapan status capaian' });
+        const tabel = screen.getByRole('table', { name: TABEL_KANDIDAT });
+        expect(tabel.className).toContain('md:table');
+        expect(within(tabel).getAllByRole('columnheader').map((kolom) => kolom.textContent)).toEqual([
+            'KODE & INDIKATOR', 'UNIT KERJA', 'PERIODE', 'REALISASI', 'CAPAIAN', 'AKSI',
+        ]);
         expect(within(tabel).getByText('IKU-UJI')).toBeTruthy();
+        expect(within(tabel).getByText('Indikator uji status capaian')).toBeTruthy();
         expect(within(tabel).getByText('Unit Uji')).toBeTruthy();
         expect(within(tabel).getByText('Triwulan I 2026')).toBeTruthy();
-        expect(within(tabel).getByText(/Versi 2/)).toBeTruthy();
+        expect(within(tabel).getByText('Versi 2')).toBeTruthy();
         expect(within(tabel).getByText('88,00 %')).toBeTruthy();
+        expect(within(tabel).getByText('Target 100,00 %')).toBeTruthy();
         expect(within(tabel).getByText('88,00%')).toBeTruthy();
 
-        const tombol = tombolTetapkan();
-        expect(tombol).toHaveLength(2);
-        const kartu = tombol.map((item) => item.closest('li')).filter((item): item is HTMLLIElement => item !== null)[0];
-        expect(kartu).toBeTruthy();
-        expect(within(kartu).getByText('Indikator uji status capaian')).toBeTruthy();
-        expect(within(kartu).getByText('Triwulan I 2026')).toBeTruthy();
-        expect(within(kartu).getByText('Belum Ditetapkan')).toBeTruthy();
+        // Satu markup untuk desktop dan layar kecil: tombol tidak lagi digandakan.
+        expect(tombolTetapkan()).toHaveLength(1);
+        // Rincian dibaca di dialog penetapan, bukan di baris.
+        expect(within(tabel).queryByText(/target PK/i)).toBeNull();
+        expect(within(tabel).queryByText(/disahkan/)).toBeNull();
+        expect(within(tabel).queryByText('Belum Ditetapkan')).toBeNull();
+    });
+
+    it('menampilkan dua daftar sebagai tab berjumlah dan hanya merender daftar aktif', () => {
+        const { unmount } = render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
+        let tab = within(screen.getByRole('navigation', { name: 'Daftar status capaian' }));
+        const belum = tab.getByRole('link', { name: 'Belum ditetapkan, 1 pengukuran' });
+        const sudah = tab.getByRole('link', { name: 'Sudah ditetapkan, 1 pengukuran' });
+
+        expect(belum.getAttribute('aria-current')).toBe('page');
+        expect(sudah.getAttribute('aria-current')).toBeNull();
+        expect(sudah.getAttribute('href')).toBe('/verifikasi/status-capaian?tab=ditetapkan');
+        expect(screen.getByRole('table', { name: TABEL_KANDIDAT })).toBeTruthy();
+        expect(screen.queryByRole('table', { name: TABEL_DITETAPKAN })).toBeNull();
+        unmount();
+
+        bukaTabDitetapkan('&status_page=2');
+        render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
+        tab = within(screen.getByRole('navigation', { name: 'Daftar status capaian' }));
+
+        expect(tab.getByRole('link', { name: 'Sudah ditetapkan, 1 pengukuran' }).getAttribute('aria-current')).toBe('page');
+        // Pindah tab hanya melepas parameter tab; halaman daftar lain tetap diingat.
+        expect(tab.getByRole('link', { name: 'Belum ditetapkan, 1 pengukuran' }).getAttribute('href')).toBe('/verifikasi/status-capaian?status_page=2');
+        expect(screen.getByRole('table', { name: TABEL_DITETAPKAN })).toBeTruthy();
+        expect(screen.queryByRole('table', { name: TABEL_KANDIDAT })).toBeNull();
+    });
+
+    it('menampilkan status berlaku pada tabel ringkas daftar yang sudah ditetapkan', () => {
+        bukaTabDitetapkan();
+        render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
+
+        const tabel = screen.getByRole('table', { name: TABEL_DITETAPKAN });
+        expect(tabel.className).toContain('md:table');
+        expect(within(tabel).getAllByRole('columnheader').map((kolom) => kolom.textContent)).toEqual([
+            'KODE & INDIKATOR', 'UNIT KERJA', 'PERIODE', 'CAPAIAN', 'STATUS', 'AKSI',
+        ]);
+        expect(within(tabel).getByText('IKU-UJI')).toBeTruthy();
+        expect(within(tabel).getByText('Triwulan I 2026')).toBeTruthy();
+        expect(within(tabel).getByText('88,00%')).toBeTruthy();
+        expect(within(tabel).getByText('Belum Tercapai')).toBeTruthy();
+        // Penetap dan riwayat dibaca dari jendela riwayat, bukan dari baris.
+        expect(within(tabel).queryByText(/Verifikator/)).toBeNull();
+        expect(within(tabel).queryByText(/Target/)).toBeNull();
     });
 
     it('menampilkan kondisi kosong kandidat dan belum ada status ditetapkan', () => {
-        render(<StatusCapaian {...props({
+        const kosong = props({
             kandidat: [],
             pagination: { current_page: 1, last_page: 1, total: 0, prev_page_url: null, next_page_url: null },
-        })} />);
+        });
+        const { unmount } = render(<StatusCapaian {...kosong} />);
 
-        expect(screen.getByText('Tidak ada pengukuran yang menunggu penetapan')).toBeTruthy();
-        expect(screen.getByText('Belum ada status capaian yang ditetapkan pada versi pengukuran yang disahkan.')).toBeTruthy();
-        expect(screen.queryByRole('table')).toBeNull();
+        expect(within(screen.getByRole('table', { name: TABEL_KANDIDAT })).getByText('Tidak ada pengukuran yang menunggu penetapan')).toBeTruthy();
+        unmount();
+
+        bukaTabDitetapkan();
+        render(<StatusCapaian {...kosong} />);
+        expect(within(screen.getByRole('table', { name: TABEL_DITETAPKAN })).getByText('Belum ada status capaian yang ditetapkan')).toBeTruthy();
     });
 
     /** P2: halaman yang melewati batas tetap memuat nav agar pengguna dapat kembali ke halaman berisi kandidat. */
@@ -156,10 +218,9 @@ describe('Halaman status capaian versi pengukuran', () => {
 
         expect(screen.getByText('Tidak ada kandidat di halaman ini')).toBeTruthy();
         expect(screen.queryByText('Tidak ada pengukuran yang menunggu penetapan')).toBeNull();
-        expect(screen.queryByRole('table')).toBeNull();
 
-        const nav = screen.getByRole('navigation', { name: 'Halaman kandidat status capaian' });
-        expect(within(nav).getByText('Halaman 3 dari 2 · 5 baris')).toBeTruthy();
+        const nav = screen.getByRole('navigation', { name: 'Halaman pengukuran' });
+        expect(within(nav).getByText('Halaman 3 dari 2 · 5 pengukuran')).toBeTruthy();
         expect(within(nav).getByRole('link', { name: 'Sebelumnya' }).getAttribute('href')).toBe('/verifikasi/status-capaian?page=2');
         expect(within(nav).queryByRole('link', { name: 'Berikutnya' })).toBeNull();
     });
@@ -173,7 +234,7 @@ describe('Halaman status capaian versi pengukuran', () => {
 
         expect(screen.getByText('Tidak ada pengukuran yang menunggu penetapan')).toBeTruthy();
         expect(screen.queryByText('Tidak ada kandidat di halaman ini')).toBeNull();
-        expect(screen.queryByRole('navigation', { name: 'Halaman kandidat status capaian' })).toBeNull();
+        expect(screen.queryByRole('navigation', { name: 'Halaman pengukuran' })).toBeNull();
         expect(screen.queryByText(/Halaman 1 dari 1/)).toBeNull();
     });
 
@@ -188,12 +249,12 @@ describe('Halaman status capaian versi pengukuran', () => {
             },
         })} />);
 
-        const tabel = screen.getByRole('table', { name: 'Kandidat penetapan status capaian' });
+        const tabel = screen.getByRole('table', { name: TABEL_KANDIDAT });
         expect(within(tabel).getByText('IKU-UJI')).toBeTruthy();
         expect(screen.queryByText('Tidak ada kandidat di halaman ini')).toBeNull();
 
-        const nav = screen.getByRole('navigation', { name: 'Halaman kandidat status capaian' });
-        expect(within(nav).getByText('Halaman 1 dari 2 · 5 baris')).toBeTruthy();
+        const nav = screen.getByRole('navigation', { name: 'Halaman pengukuran' });
+        expect(within(nav).getByText('Halaman 1 dari 2 · 5 pengukuran')).toBeTruthy();
         expect(within(nav).getByRole('link', { name: 'Berikutnya' }).getAttribute('href')).toBe('/verifikasi/status-capaian?page=2');
         expect(within(nav).queryByRole('link', { name: 'Sebelumnya' })).toBeNull();
     });
@@ -203,7 +264,7 @@ describe('Halaman status capaian versi pengukuran', () => {
 
         expect(screen.getByText(/Anda tidak memiliki izin menetapkan status capaian/)).toBeTruthy();
         expect(screen.queryByRole('button', { name: /Tetapkan status capaian/ })).toBeNull();
-        const tabel = screen.getByRole('table', { name: 'Kandidat penetapan status capaian' });
+        const tabel = screen.getByRole('table', { name: TABEL_KANDIDAT });
         expect(within(tabel).getByText('Tanpa izin')).toBeTruthy();
     });
 
@@ -214,6 +275,9 @@ describe('Halaman status capaian versi pengukuran', () => {
         await user.click(tombolTetapkan()[0]);
         const dialog = screen.getByRole('dialog', { name: 'Tetapkan status capaian' });
         expect((within(dialog).getByRole('button', { name: 'Simpan' }) as HTMLButtonElement).disabled).toBe(true);
+        // Rincian yang dikeluarkan dari baris tetap tersedia di dialog.
+        expect(within(dialog).getByText('Target PK')).toBeTruthy();
+        expect(within(dialog).getByText('Selisih terhadap target PK')).toBeTruthy();
 
         await user.click(within(dialog).getByRole('radio', { name: /^Belum tercapai/ }));
         await user.type(within(dialog).getByLabelText('Alasan (opsional)'), 'Kualitas data belum lengkap');
@@ -280,11 +344,14 @@ describe('Halaman status capaian versi pengukuran', () => {
     });
 
     it('menampilkan tombol revisi hanya ketika izin halaman dan izin baris tersedia', () => {
+        bukaTabDitetapkan();
         const { rerender } = render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
         expect(screen.getByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toBeTruthy();
 
         rerender(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan], can: { tetapkan: false } })} />);
         expect(screen.queryByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toBeNull();
+        // Riwayat tetap dapat dibuka pengguna yang hanya membaca.
+        expect(screen.getByRole('button', { name: 'Riwayat status capaian IKU-UJI' })).toBeTruthy();
 
         rerender(<StatusCapaian {...props({ sudah_ditetapkan: [{ ...sudahDitetapkan, can: { tetapkan: false, revisi: false } }] })} />);
         expect(screen.queryByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toBeNull();
@@ -292,6 +359,7 @@ describe('Halaman status capaian versi pengukuran', () => {
 
     it('membuka dialog revisi dengan status berlaku terpilih dan mengirim token versi baris', async () => {
         const user = userEvent.setup();
+        bukaTabDitetapkan();
         render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
 
         await user.click(screen.getByRole('button', { name: 'Revisi status capaian IKU-UJI' }));
@@ -306,19 +374,30 @@ describe('Halaman status capaian versi pengukuran', () => {
         expect(form.posts[0].data).toMatchObject({ status: 'belum_tercapai', pengukuran_versi_id: 'versi-1', versi: 7 });
     });
 
-    it('menandai hanya status berlaku pada riwayat per versi', () => {
+    it('membuka riwayat per versi di jendela dan menandai hanya status berlaku', async () => {
+        const user = userEvent.setup();
+        bukaTabDitetapkan();
         render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
 
-        expect(screen.getByText(/Riwayat status per versi \(2\)/)).toBeTruthy();
-        const berlaku = screen.getAllByText('Berlaku');
+        expect(screen.queryByText(/Verifikator Lama/)).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Riwayat status capaian IKU-UJI' }));
+        const dialog = screen.getByRole('dialog', { name: 'Riwayat status capaian' });
+
+        expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
+        const berlaku = within(dialog).getAllByText('Berlaku');
         expect(berlaku).toHaveLength(1);
         const barisBerlaku = berlaku[0].closest('li');
         expect(barisBerlaku).toBeTruthy();
         expect(within(barisBerlaku as HTMLElement).getByText(/^Versi 2 · Verifikator Uji/)).toBeTruthy();
         expect(within(barisBerlaku as HTMLElement).queryByText(/^Versi 1 ·/)).toBeNull();
+        expect(within(dialog).getByText(/^Versi 1 · Verifikator Lama/)).toBeTruthy();
+
+        await user.click(within(dialog).getByRole('button', { name: 'Tutup' }));
+        expect(screen.queryByRole('dialog', { name: 'Riwayat status capaian' })).toBeNull();
     });
 
     it('menampilkan paginasi revisi memakai total server dan tautan status_page', () => {
+        bukaTabDitetapkan();
         render(<StatusCapaian {...props({
             sudah_ditetapkan: [sudahDitetapkan],
             pagination_status: {
@@ -326,24 +405,25 @@ describe('Halaman status capaian versi pengukuran', () => {
                 last_page: 2,
                 total: 25,
                 prev_page_url: null,
-                next_page_url: '/verifikasi/status-capaian?status_page=2',
+                next_page_url: '/verifikasi/status-capaian?tab=ditetapkan&status_page=2',
             },
         })} />);
 
-        const nav = screen.getByRole('navigation', { name: 'Halaman status capaian yang sudah ditetapkan' });
-        expect(within(nav).getByText('Halaman 1 dari 2 · 25 baris')).toBeTruthy();
-        expect(within(nav).queryByText(/1 baris/)).toBeNull();
+        const nav = screen.getByRole('navigation', { name: 'Halaman pengukuran' });
+        expect(within(nav).getByText('Halaman 1 dari 2 · 25 pengukuran')).toBeTruthy();
 
         const berikutnya = within(nav).getByRole('link', { name: 'Berikutnya' });
-        expect(berikutnya.getAttribute('href')).toBe('/verifikasi/status-capaian?status_page=2');
+        expect(berikutnya.getAttribute('href')).toBe('/verifikasi/status-capaian?tab=ditetapkan&status_page=2');
         expect(within(nav).queryByRole('link', { name: 'Sebelumnya' })).toBeNull();
+        expect(screen.getByRole('link', { name: 'Sudah ditetapkan, 25 pengukuran' })).toBeTruthy();
     });
 
     it('menyembunyikan paginasi revisi saat koleksi hanya satu halaman', () => {
+        bukaTabDitetapkan();
         render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
 
         expect(screen.getByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toBeTruthy();
-        expect(screen.queryByRole('navigation', { name: 'Halaman status capaian yang sudah ditetapkan' })).toBeNull();
+        expect(screen.queryByRole('navigation', { name: 'Halaman pengukuran' })).toBeNull();
         expect(screen.queryByText(/Halaman 1 dari 1/)).toBeNull();
     });
 });
