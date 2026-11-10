@@ -452,6 +452,39 @@ class NotifikasiPembukaanJendelaTest extends TestCase
         $this->assertDatabaseCount('notifikasi_pengiriman', 0);
     }
 
+    public function test_gagal_antre_berulang_dicatat_sekali_per_hari(): void
+    {
+        $this->jadwalAktifJendelaMei();
+        $this->aturJamKirim('07:00');
+        // Driver selain log membuat producer melempar galat yang sama pada setiap run.
+        config(['notifikasi.kanal.email.driver' => 'smtp']);
+        Log::spy();
+
+        // Scheduler mencoba lagi tiap menit; galat yang sama tidak boleh memenuhi log.
+        foreach ([1, 2] as $_) {
+            $this->jalankanPerintah()->assertFailed();
+        }
+
+        Log::shouldHaveReceived('error')->once()->withArgs(fn (string $pesan): bool => str_contains($pesan, 'gagal diantrekan'));
+        $this->assertDatabaseCount('notifikasi_pengiriman', 0);
+        $this->assertFalse(Cache::has('notifikasi:pembukaan:diproses:2026-05-10'));
+    }
+
+    public function test_template_kosong_dicatat_sekali_per_hari(): void
+    {
+        $this->jadwalAktifJendelaMei();
+        $this->aturJamKirim('07:00');
+        config(['notifikasi.template_pembukaan' => '']);
+        Log::spy();
+
+        foreach ([1, 2] as $_) {
+            $this->jalankanPerintah()->assertSuccessful();
+        }
+
+        Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $pesan): bool => str_contains($pesan, 'template belum ditetapkan'));
+        $this->assertDatabaseCount('notifikasi_pengiriman', 0);
+    }
+
     public function test_perintah_terdaftar_di_scheduler(): void
     {
         $this->artisan('schedule:list')->expectsOutputToContain('notifikasi:pembukaan')->assertSuccessful();

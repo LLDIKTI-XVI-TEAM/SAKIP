@@ -54,7 +54,9 @@ final class KirimPembukaanJendela extends Command
         }
 
         if (trim((string) config('notifikasi.template_pembukaan', '')) === '') {
-            Log::warning('Notifikasi pembukaan tidak diantrekan: template belum ditetapkan.');
+            if (Cache::add('notifikasi:pembukaan:tanpa_template:'.$tanggal, true, $saat->endOfDay())) {
+                Log::warning('Notifikasi pembukaan tidak diantrekan: template belum ditetapkan.');
+            }
             $this->warn('Template pembukaan belum ditetapkan; tidak ada pemberitahuan pembukaan yang diantrekan.');
 
             return self::SUCCESS;
@@ -69,7 +71,9 @@ final class KirimPembukaanJendela extends Command
                 $baris += $pembukaan->antre($periode, $periode->jadwal->tahunDitutup($saat) ? $periode->jadwal->lingkup_koreksi['indikator_ids'] : null, $tanggal)->count();
             } catch (Throwable $galat) {
                 // Jendela lain tetap diproses agar satu galat tidak menahan seluruh pembukaan hari itu.
-                Log::error('Notifikasi pembukaan gagal diantrekan.', ['periode_jadwal_id' => $periode->id, 'galat' => $galat::class]);
+                if (Cache::add('notifikasi:pembukaan:gagal:'.$tanggal.':'.$periode->id, true, $saat->endOfDay())) {
+                    Log::error('Notifikasi pembukaan gagal diantrekan.', ['periode_jadwal_id' => $periode->id, 'galat' => $galat::class]);
+                }
                 $gagal = true;
             }
         }
