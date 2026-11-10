@@ -19,8 +19,8 @@ class PengirimNotifikasiEksternal
     /** Klaim persisten ditutup hanya oleh hasil pasti; crash tetap ambigu.
      *
      * Gerbang penerima dievaluasi ulang pada setiap upaya: RA/pengukuran memakai Policy `view`,
-     * sedangkan `jadwal_periode` hanya menerima prefiks kejadian `ews:` dan dinilai
-     * {@see KelayakanPenerimaEws}. Prefiks `jadwal_periode` tanpa gerbang fail-closed.
+     * sedangkan `jadwal_periode` hanya menerima prefiks kejadian `ews:` dan `jendela_dibuka:`, keduanya
+     * dinilai {@see KelayakanPenerimaEws}. Prefiks `jadwal_periode` tanpa gerbang fail-closed.
      *
      * @return int|null Jeda untuk antrean belum jatuh tempo atau penolakan sementara yang pasti belum diterima.
      */
@@ -94,13 +94,22 @@ class PengirimNotifikasiEksternal
      * Gerbang penerima per jenis tujuan pada instan kirim.
      *
      * RA dan pengukuran tetap memakai Policy `view` yang sama dengan tautan. Untuk
-     * `jadwal_periode`, hanya kejadian berprefiks `ews:` yang dilayani dan H diambil dari
-     * `parameter['h']`; H hilang/invalid atau hasil kelayakan palsu berakhir `false`.
+     * `jadwal_periode`, kejadian berprefiks `ews:` mengambil H dari `parameter['h']`, sedangkan
+     * `jendela_dibuka:` menghitung H dari tenggat jendela pada instan kirim; H hilang/invalid,
+     * jendela yang sudah tertutup, prefiks lain, atau hasil kelayakan palsu berakhir `false`.
      */
     private function berhak(NotifikasiPengiriman $pengiriman, User $user, Model $model): bool
     {
         if (! ($model instanceof PeriodeJadwal)) {
             return Gate::forUser($user)->allows('view', $model);
+        }
+
+        if (str_starts_with($pengiriman->kejadian, 'jendela_dibuka:')) {
+            // Pembukaan memakai kelayakan EWS dengan H = sisa hari sampai tenggat; H negatif berarti jendela sudah tertutup.
+            $saat = CarbonImmutable::now(config('app.business_timezone'));
+            $sisa = (int) $saat->startOfDay()->diffInDays(CarbonImmutable::parse($model->pengisian_selesai->toDateString(), config('app.business_timezone')), false);
+
+            return $sisa >= 0 && app(KelayakanPenerimaEws::class)->layak($user, $model, $sisa, $saat);
         }
 
         if (! str_starts_with($pengiriman->kejadian, 'ews:')) {

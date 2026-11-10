@@ -20,7 +20,7 @@ class AntrekanNotifikasiEksternal
 {
     /** Penerima ditentukan producer tepercaya; tidak melakukan pencarian PJ kedua.
      *
-     * Tujuan yang didukung: `rencana_aksi`, `pengukuran`, dan `jadwal_periode` (pengingat EWS).
+     * Tujuan yang didukung: `rencana_aksi`, `pengukuran`, dan `jadwal_periode` (pengingat EWS dan pembukaan jendela).
      * Producer tidak menilai hak isi penerima; penyaringan hak isi terjadi pada gerbang kirim
      * (`PengirimNotifikasiEksternal`) agar antrean tidak mengevaluasi seluruh kandidat.
      *

@@ -144,9 +144,9 @@ class NotifikasiEwsOutboxTest extends TestCase
         ];
     }
 
-    public function test_prefiks_selain_ews_fail_closed_untuk_jadwal_periode(): void
+    public function test_prefiks_tidak_dikenal_fail_closed_untuk_jadwal_periode(): void
     {
-        $row = $this->antre('jendela_dibuka:2026-03-15');
+        $row = $this->antre('tak_dikenal:2026-03-15');
         $this->assertSame('antre', $row->status);
 
         $this->kirim($row);
