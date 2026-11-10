@@ -146,6 +146,7 @@ class NotifikasiEwsOutboxTest extends TestCase
 
     public function test_prefiks_tidak_dikenal_fail_closed_untuk_jadwal_periode(): void
     {
+        $this->travelKe('2026-03-14 09:00');
         $row = $this->antre('tak_dikenal:2026-03-15');
         $this->assertSame('antre', $row->status);
 
