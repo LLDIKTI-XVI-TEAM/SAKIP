@@ -303,11 +303,6 @@ export default function StatusCapaian({ kandidat, sudah_ditetapkan, pagination, 
             <Head title="Status Capaian" />
 
             <div className="min-w-0 space-y-5">
-                <p className="text-sm text-muted">
-                    Tetapkan status capaian pada versi pengukuran yang telah disahkan. Penetapan melekat pada versi tersebut;
-                    perubahan berikutnya dicatat sebagai revisi dan seluruh riwayat tetap tersimpan.
-                </p>
-
                 {!can.tetapkan && (
                     <div role="status" className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-ink">
                         Anda tidak memiliki izin menetapkan status capaian. Halaman ini hanya dapat dibaca.
