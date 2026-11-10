@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from '@/Components/Card';
 import { Button } from '@/Components/Button';
 import { Modal } from '@/Components/Modal';
 import type { SharedPageProps } from '@/types/auth';
-import JudulLangkah from './JudulLangkah';
+import JudulLangkah from '@/Components/JudulLangkah';
 import type { RencanaAksiPengajuan } from './types';
 
 interface AjukanPanelProps {

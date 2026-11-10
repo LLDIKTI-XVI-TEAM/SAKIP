@@ -45,7 +45,7 @@ it('tetap menampilkan pengecualian file dari versi pengukuran historis yang dibe
             pemenuhan: { terpenuhi: true, mode_terpenuhi: [], mode_kurang: [], mode_dikecualikan: ['file'],
                 alasan_pengecualian: 'Unggahan file dinonaktifkan pada setelan aplikasi.' } }],
     }} />);
-    expect(screen.getByText(/Dikecualikan: file/).textContent).toContain('Pengecualian bukan bukti terunggah.');
+    expect(screen.getByText(/Dikecualikan: File/).textContent).toContain('Pengecualian bukan bukti terunggah.');
     expect(screen.queryByRole('button', { name: 'Tambah Lampiran' })).toBeNull();
 });
 

@@ -3,10 +3,11 @@ import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import type { HttpExceptionResponse } from '@inertiajs/core';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
-import { ArrowLeft, Save, Send } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Info, Save, Send } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import JudulLangkah from '@/Components/JudulLangkah';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
 import { Switch } from '@/Components/Switch';
@@ -18,7 +19,7 @@ import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
 import type { LampiranDraft } from '@/types/lampiran';
 import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
 import { PindahVersiButton } from '@/Components/Pengukuran/PindahVersiButton';
-import type { Pengukuran } from './types';
+import { labelModeBukti, type Pengukuran } from './types';
 import EvidenceList from './EvidenceList';
 import { useFormatNilai } from './formatNilai';
 import { useLabelUnit } from '@/hooks/useLabelUnit';
@@ -31,6 +32,8 @@ interface PengukuranEditProps {
 }
 
 const narasi = [['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Tindak lanjut/strategi penyelesaian']] as const;
+const kelasInfo = 'flex items-start gap-2.5 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm text-info-dark';
+const kelasPeringatan = 'flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-dark';
 
 export default function PengukuranEdit(props: PengukuranEditProps) {
     return <PengukuranForm key={props.pengukuran.id} {...props} />;
@@ -98,6 +101,7 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
     const activeMode = bukti && modes.includes(bukti.mode) ? bukti.mode : null;
     const lampiranErrors = { lampiran: fieldErrors.bukti, 'lampiran.0.mode': fieldErrors['bukti.mode'], 'lampiran.0.file': fieldErrors['bukti.file'], 'lampiran.0.tautan': fieldErrors['bukti.tautan'], 'lampiran.0.isi_teks': fieldErrors['bukti.isi_teks'] };
     const lastRejection = pengukuran.riwayats?.find((item) => item.status_ke === 'dikembalikan');
+    const catatanPerbaikan = pengukuran.status === 'dikembalikan' ? lastRejection : undefined;
     const displayedErrors = hasil_pengajuan_terakhir ? [] : Object.entries(errors);
 
     useEffect(() => {
@@ -151,49 +155,44 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
         }
     };
 
-    return <AuthenticatedLayout title="Pengisian Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja', href: '/pengukuran' }, { label: indikator.kode }]}
-        headerActions={
-            <Link href="/pengukuran" aria-label="Kembali ke daftar pengukuran" className="ml-auto inline-flex h-9 shrink-0 translate-y-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25">
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Kembali
-            </Link>
-        }>
+    return <AuthenticatedLayout title="Pengisian Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja', href: '/pengukuran' }, { label: indikator.kode }]}>
         <Head title={`Pengisian ${indikator.kode}`} />
-        <div className="mx-auto max-w-5xl space-y-5">
-            {lastRejection && pengukuran.status === 'dikembalikan' && <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark"><h2 className="font-semibold">Catatan perbaikan</h2><p className="mt-1 whitespace-pre-wrap">{lastRejection.catatan}</p><p className="mt-2 text-xs">Dikembalikan oleh {lastRejection.user?.nama || 'Verifikator'}</p></div>}
-            {!can.update && <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">Formulir hanya dapat dibaca sesuai status dan izin akses Anda.</p>}
-            {historical && <p className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-info-dark">Nilai historis hanya dapat dikoreksi melalui alur backfill resmi.</p>}
-            {pengukuran.versi_berlaku && <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning-dark">
-                <p>Memakai versi lama. Versi {pengukuran.versi_berlaku.nomor} berlaku untuk periode ini.</p>
-                {can.pindahSnapshot && <PindahVersiButton pengukuranId={pengukuran.id} versi={pengukuran.versi}
-                    versiBerlaku={pengukuran.versi_berlaku} labelAksesibel={`Pindahkan ${indikator.kode}`}
-                    disabledReason={isDirty ? 'Simpan perubahan dulu' : undefined} />}
-            </div>}
+        <div className="space-y-5">
+            <Link href="/pengukuran" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Kembali ke daftar
+            </Link>
             <Card>
                 <CardHeader className="items-start gap-4"><CardTitle className="min-w-0 flex-1 break-words">{indikator.kode} · {indikator.nama}</CardTitle><Badge status={pengukuran.status} /></CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                     {indikator.definisi_operasional && <p className="text-sm text-muted">{indikator.definisi_operasional}</p>}
-                    <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                    <dl className="grid gap-x-4 gap-y-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
                         <div><dt className="text-muted">{labelUnit} penanggung jawab</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd></div>
                         <div><dt className="text-muted">PIC</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.pic?.nama ?? 'Belum ditetapkan'}</dd></div>
                         <div><dt className="text-muted">Periode</dt><dd className="mt-1 font-medium">{`${pengukuran.periode_jadwal.nama_periode} ${pengukuran.periode_jadwal.tahun}`}<RentangPeriode tanggal={pengukuran.periode_jadwal.tanggal} tahun={pengukuran.periode_jadwal.tahun} /></dd></div>
-                        <div><dt className="text-muted">Target</dt><dd className="mt-1 font-medium">{pengukuran.tanpa_target_periode ? 'Tanpa target periode' : pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
                         <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{tipePerhitunganLabel[indikator.tipe_perhitungan]}</dd></div>
                         <div><dt className="text-muted">Arah kinerja</dt><dd className="mt-1 font-medium">{arahLabel[indikator.arah]}</dd></div>
                     </dl>
-                    {pengukuran.target_pk !== undefined && <dl className="grid gap-4 border-t border-border pt-3 text-sm sm:grid-cols-2">
-                        <div><dt className="text-muted">Target PK tahunan</dt><dd className="mt-1 font-medium">{pengukuran.target_pk === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
-                        <div><dt className="text-muted">Selisih terhadap target PK</dt><dd className="mt-1 font-medium">{pengukuran.selisih_target_pk == null ? 'Belum dapat dihitung' : `${formatNilai(pengukuran.selisih_target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd><dd className="mt-1 text-xs text-muted">Realisasi dikurangi target PK; arti tanda mengikuti arah indikator.</dd></div>
-                    </dl>}
                 </CardContent>
             </Card>
-            <section aria-labelledby="saved-draft-title" className="rounded-lg border border-border bg-surface p-4 text-sm">
-                <h2 id="saved-draft-title" className="font-semibold text-ink">Draft tersimpan</h2>
-                <p className="mt-1 text-muted">{pengukuran.prasyarat.siap ? 'Seluruh prasyarat pengajuan pada draft tersimpan telah terpenuhi.' : 'Prasyarat pengajuan pada draft tersimpan belum lengkap.'}</p>
-                {pengukuran.prasyarat.alasan.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-warning-dark">{pengukuran.prasyarat.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul>}
-                {isDirty && <p className="mt-3 text-info-dark">Ada perubahan yang belum disimpan. Saat Ajukan, server akan menyimpan dan memeriksa input terkini.</p>}
-            </section>
-            <form onSubmit={submit} className="space-y-6" aria-busy={processing}>
+            {(catatanPerbaikan || !can.update || historical || pengukuran.versi_berlaku) && <section aria-label="Pemberitahuan" className="space-y-2">
+                {catatanPerbaikan && <div role="note" className={kelasPeringatan}>
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0"><h2 className="font-semibold">Catatan perbaikan</h2><p className="mt-1 whitespace-pre-wrap">{catatanPerbaikan.catatan}</p><p className="mt-2 text-xs">Dikembalikan oleh {catatanPerbaikan.user?.nama || 'Verifikator'}</p></div>
+                </div>}
+                {!can.update && <div className={kelasInfo}><Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><p>Formulir hanya dapat dibaca sesuai status dan izin akses Anda.</p></div>}
+                {historical && <div className={kelasInfo}><Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><p>Nilai historis hanya dapat dikoreksi melalui alur backfill resmi.</p></div>}
+                {pengukuran.versi_berlaku && <div role="note" className={kelasPeringatan}>
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 space-y-3">
+                        <p>Memakai versi lama. Versi {pengukuran.versi_berlaku.nomor} berlaku untuk periode ini.</p>
+                        {can.pindahSnapshot && <PindahVersiButton pengukuranId={pengukuran.id} versi={pengukuran.versi}
+                            versiBerlaku={pengukuran.versi_berlaku} labelAksesibel={`Pindahkan ${indikator.kode}`}
+                            disabledReason={isDirty ? 'Simpan perubahan dulu' : undefined} />}
+                    </div>
+                </div>}
+            </section>}
+            <form onSubmit={submit} className="space-y-5" aria-busy={processing}>
                 {(displayedErrors.length > 0 || hasil_pengajuan_terakhir) && <div ref={errorSummary} tabIndex={-1} id="measurement-errors" role="alert" className="scroll-mt-24 rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger-dark">
                     {displayedErrors.length > 0 && <ul className="list-disc space-y-1 pl-5">{displayedErrors.map(([field, message]) => <li key={field}>{message}</li>)}</ul>}
                     {hasil_pengajuan_terakhir && <section aria-labelledby="last-submission-title" className={displayedErrors.length > 0 ? 'mt-3' : undefined}>
@@ -203,69 +202,102 @@ function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEdit
                     </section>}
                 </div>}
                 <AuthRecoveryNotice recovery={recovery.recovery} pending={processing} />
-                {requestError && !recovery.recovery && <p role="alert" className="text-sm text-danger">{requestError}</p>}
-                <Card>
-                    <CardHeader><CardTitle>Nilai pengukuran</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        {/* Pilihan dan kembali ke mode nilai sama-sama mengosongkan input dalam satu pembaruan agar angka lama tidak terkirim diam-diam. */}
-                        {!pengukuran.periode_jadwal.is_nilai_akhir && <div className="flex items-center gap-3">
-                            <Switch id="belum-dapat-diukur" checked={unmeasurable} disabled={disabled} aria-invalid={Boolean(errors.status_perhitungan)} aria-describedby={errors.status_perhitungan ? 'measurement-errors' : undefined} onChange={(checked) => {
-                                setPreviewStatus(null);
-                                setData((values) => ({ ...values, status_perhitungan: checked ? 'belum_dapat_diukur' : null, nilai: '', komponen: values.komponen.map((item) => ({ ...item, nilai: '' })), alasan_tidak_dapat_dihitung: '' }));
-                            }} />
-                            <label htmlFor="belum-dapat-diukur" className="cursor-pointer text-sm font-medium text-ink">Belum dapat diukur</label>
+                {requestError && !recovery.recovery && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger">{requestError}</p>}
+                {/* Dua kolom baru muat di samping sidebar mulai 1280 px; di bawahnya panel ringkasan turun ke bawah kartu isian. */}
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
+                    <div className="min-w-0 space-y-5">
+                        <Card role="region" aria-labelledby="langkah-nilai">
+                            <CardHeader><JudulLangkah id="langkah-nilai" nomor={1}>Nilai realisasi</JudulLangkah></CardHeader>
+                            <CardContent className="space-y-4">
+                                {/* Pilihan dan kembali ke mode nilai sama-sama mengosongkan input dalam satu pembaruan agar angka lama tidak terkirim diam-diam. */}
+                                {!pengukuran.periode_jadwal.is_nilai_akhir && <div className="flex items-center gap-3">
+                                    <Switch id="belum-dapat-diukur" checked={unmeasurable} disabled={disabled} aria-invalid={Boolean(errors.status_perhitungan)} aria-describedby={errors.status_perhitungan ? 'measurement-errors' : undefined} onChange={(checked) => {
+                                        setPreviewStatus(null);
+                                        setData((values) => ({ ...values, status_perhitungan: checked ? 'belum_dapat_diukur' : null, nilai: '', komponen: values.komponen.map((item) => ({ ...item, nilai: '' })), alasan_tidak_dapat_dihitung: '' }));
+                                    }} />
+                                    <label htmlFor="belum-dapat-diukur" className="cursor-pointer text-sm font-medium text-ink">Belum dapat diukur</label>
+                                </div>}
+                                {manual ? <Input name="nilai" label={`Nilai realisasi (${indikator.satuan})`} type="number" step="any" value={data.nilai} onChange={(event) => setData('nilai', event.target.value)} disabled={valueDisabled} error={errors.nilai} aria-invalid={Boolean(errors.nilai)} aria-describedby={errors.nilai ? 'measurement-errors' : undefined} /> : <div className="space-y-4">
+                                    <p className="text-sm text-muted">Isi nilai setiap komponen untuk periode ini. Hasilnya baru tersimpan setelah menekan Simpan Draft.</p>
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        {pengukuran.komponen.map((item, index) => <Input key={item.komponen_id} name={`komponen-${item.komponen_id}`} label={`${item.kode} · ${item.label}`} type="number" step="any" value={data.komponen[index]?.nilai ?? ''} onChange={(event) => setData('komponen', data.komponen.map((value, position) => position === index ? { ...value, nilai: event.target.value } : value))} disabled={valueDisabled} helperText={`${peranKomponenLabel[item.peran] ?? item.peran}${item.bobot === null ? '' : ` · Bobot ${item.bobot}`}`} error={fieldErrors[`komponen.${index}.nilai`]} aria-invalid={Boolean(fieldErrors[`komponen.${index}.nilai`])} aria-describedby={fieldErrors[`komponen.${index}.nilai`] ? 'measurement-errors' : undefined} />)}
+                                    </div>
+                                </div>}
+                                {tampilAlasan && <Textarea name="alasan_tidak_dapat_dihitung" label="Alasan bila hasil tidak dapat dihitung" value={data.alasan_tidak_dapat_dihitung} onChange={(event) => setData('alasan_tidak_dapat_dihitung', event.target.value)} disabled={valueDisabled} helperText="Wajib diisi sebelum pengajuan." error={errors.alasan_tidak_dapat_dihitung} aria-invalid={Boolean(errors.alasan_tidak_dapat_dihitung)} aria-describedby={errors.alasan_tidak_dapat_dihitung ? 'measurement-errors' : undefined} />}
+                                <Textarea name="catatan" label="Catatan" value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={disabled} helperText="Keterangan tambahan opsional; ketiga narasi pengukuran tetap wajib saat pengajuan periode normal." error={errors.catatan} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'measurement-errors' : undefined} />
+                            </CardContent>
+                        </Card>
+                        <Card role="region" aria-labelledby="langkah-narasi">
+                            <CardHeader><JudulLangkah id="langkah-narasi" nomor={2}>Narasi</JudulLangkah></CardHeader>
+                            <CardContent className="space-y-4">
+                                {narasi.map(([field, label]) => <Textarea key={field} name={field} label={label} value={data[field]} onChange={(event) => setData(field, event.target.value)} disabled={disabled} error={errors[field]} aria-invalid={Boolean(errors[field])} aria-describedby={errors[field] ? 'measurement-errors' : undefined} />)}
+                                {rekomendasi && <div className="space-y-2">
+                                    <p id="rekomendasi-sebelumnya" className="rounded-lg border border-border bg-soft p-3 text-sm"><span className="font-medium">Rekomendasi:</span> {rekomendasi.isi}</p>
+                                    <Textarea name="tindak_lanjut_rekomendasi" label="Tindak lanjut rekomendasi" value={data.tindak_lanjut_rekomendasi} onChange={(event) => setData('tindak_lanjut_rekomendasi', event.target.value)} disabled={disabled} error={errors.tindak_lanjut_rekomendasi} aria-invalid={Boolean(errors.tindak_lanjut_rekomendasi)} aria-describedby={errors.tindak_lanjut_rekomendasi ? 'rekomendasi-sebelumnya measurement-errors' : 'rekomendasi-sebelumnya'} />
+                                </div>}
+                            </CardContent>
+                        </Card>
+                        <Card role="region" aria-labelledby="langkah-bukti">
+                            <CardHeader><JudulLangkah id="langkah-bukti" nomor={3}>Bukti dukung</JudulLangkah></CardHeader>
+                            <CardContent className="space-y-5">
+                                <EvidenceList pengukuran={pengukuran} />
+                                {/* Menghapus lampiran ikut mengosongkan persyaratan dan koreksi agar tidak terkirim tanpa bukti. */}
+                                {can.uploadEvidence && !historical && <LampiranDraftFields items={data.lampiran} errors={lampiranErrors} disabled={disabled} maxItems={1} modes={modes}
+                                    onChange={(update) => setData((values) => { const lampiran = update(values.lampiran); return lampiran.length > 0 ? { ...values, lampiran } : { ...values, lampiran, jenis_berkas_id: '', menggantikan_id: '', alasan_koreksi: '' }; })}
+                                    title="Bukti baru" description="Satu bukti ditambahkan setiap penyimpanan. Simpan kembali untuk menambahkan mode atau persyaratan lainnya." emptyText="Belum ada bukti baru yang akan disimpan."
+                                    modeDescriptions={{ file: requirement ? `Format: ${requirement.format_diizinkan}. Maksimum ${requirement.ukuran_maks_kb} KB.` : 'Unggah berkas bukti dukung.', tautan: 'Gunakan alamat http atau https.', teks: 'Tuliskan bukti dukung dalam bentuk teks.' }}
+                                    placeholders={{ tautan: 'https://', teks: '' }} accept={requirement?.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')}
+                                    renderItemFields={() => <>
+                                        <Select id="jenis-bukti" label="Persyaratan yang dipenuhi" value={data.jenis_berkas_id} disabled={disabled} error={fieldErrors['bukti.jenis_berkas_id']} onChange={(event) => {
+                                            const selected = pengukuran.persyaratan_bukti.find((item) => item.id === event.target.value);
+                                            const available = (['file', 'tautan', 'teks'] as const).filter((mode) => !selected || selected[`izinkan_${mode}`]);
+                                            setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '',
+                                                lampiran: values.lampiran.map((item) => available.includes(item.mode) ? item : { ...item, mode: available[0] ?? item.mode, file: null, tautan: '', isi_teks: '' }) }));
+                                        }}><option value="">Lampiran tambahan</option>{pengukuran.persyaratan_bukti.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</Select>
+                                        {pengukuran.bukti_dukungs.some((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id) && <Select id="bukti-pendahulu" label="Bukti yang diganti (opsional)" value={data.menggantikan_id} disabled={disabled} onChange={(event) => setData('menggantikan_id', event.target.value)} helperText="Bukti lama tetap tersimpan pada riwayat. Pengajuan berikutnya menggunakan bukti pengganti." aria-invalid={Boolean(fieldErrors['bukti.menggantikan_id'])} aria-describedby={fieldErrors['bukti.menggantikan_id'] ? 'measurement-errors' : 'bukti-pendahulu-help'}>
+                                            <option value="">Tambahkan tanpa mengganti bukti</option>
+                                            {pengukuran.bukti_dukungs.filter((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id).map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.nama_asli || item.isi_teks?.slice(0, 60) || item.tautan || 'Bukti tersimpan'} ({labelModeBukti[item.mode]})</option>)}
+                                        </Select>}
+                                        {data.menggantikan_id && <Textarea name="alasan-koreksi-bukti" label="Alasan koreksi bukti" value={data.alasan_koreksi} disabled={disabled} required onChange={(event) => setData('alasan_koreksi', event.target.value)} error={fieldErrors['bukti.alasan_koreksi']} aria-invalid={Boolean(fieldErrors['bukti.alasan_koreksi'])} aria-describedby={fieldErrors['bukti.alasan_koreksi'] ? 'measurement-errors' : undefined} />}
+                                        {modes.length === 0 && <p className="text-sm text-warning-dark">Tidak ada mode tersedia. Persyaratan file akan dievaluasi sebagai pengecualian oleh server.</p>}
+                                    </>} />}
+                            </CardContent>
+                        </Card>
+                    </div>
+                    {/* Tinggi panel dibatasi layar; isi yang lebih panjang di-scroll di dalam panel. */}
+                    <aside aria-label="Ringkasan pengukuran" className="min-w-0 space-y-5 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
+                        <Card>
+                            <CardHeader className="px-5 py-4"><CardTitle>Ringkasan nilai</CardTitle></CardHeader>
+                            <CardContent className="space-y-4 p-5">
+                                {/* Pratinjau dilepas saat BDD: cleanup membatalkan request dan respons basi diabaikan. */}
+                                {!manual && can.update && !historical && !unmeasurable && <CalculationPreview paused={Boolean(recovery.recovery)} onRecovery={handlePreviewRecovery} onResult={setPreviewStatus} id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
+                                <dl className="space-y-3 text-sm">
+                                    <div><dt className="text-muted">Hasil terakhir tersimpan</dt><dd className="mt-1 break-words font-semibold text-ink">{pengukuran.nilai === null ? <StatusPerhitunganBadge status={pengukuran.status_perhitungan} /> : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                                    <div><dt className="text-muted">Target periode</dt><dd className="mt-1 font-medium">{pengukuran.tanpa_target_periode ? 'Tanpa target periode' : pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                                    {pengukuran.target_pk !== undefined && <>
+                                        <div><dt className="text-muted">Target PK tahunan</dt><dd className="mt-1 font-medium">{pengukuran.target_pk === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
+                                        <div><dt className="text-muted">Selisih terhadap target PK</dt><dd className="mt-1 font-medium">{pengukuran.selisih_target_pk == null ? 'Belum dapat dihitung' : `${formatNilai(pengukuran.selisih_target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd><dd className="mt-1 text-xs text-muted">Realisasi dikurangi target PK; arti tanda mengikuti arah indikator.</dd></div>
+                                    </>}
+                                </dl>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="px-5 py-4"><CardTitle>Kesiapan pengajuan</CardTitle></CardHeader>
+                            <CardContent className="space-y-3 p-5 text-sm">
+                                {pengukuran.prasyarat.siap ? <p className="text-muted">Seluruh prasyarat pengajuan pada draft tersimpan telah terpenuhi.</p> : <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-warning-dark">
+                                    <p className="font-semibold">Prasyarat pengajuan pada draft tersimpan belum lengkap.</p>
+                                    {pengukuran.prasyarat.alasan.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5">{pengukuran.prasyarat.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul>}
+                                </div>}
+                                {isDirty && <p className="text-info-dark">Ada perubahan yang belum disimpan. Saat Ajukan, server akan menyimpan dan memeriksa input terkini.</p>}
+                            </CardContent>
+                        </Card>
+                        {/* Tombol menempel di dasar panel agar tetap terlihat saat isi panel di-scroll. */}
+                        {can.update && !historical && <div className="flex flex-col gap-2 bg-page xl:sticky xl:bottom-0 xl:pb-1 xl:pt-3">
+                            <Button className="w-full" disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="draft" variant="outline" isLoading={processing}><Save className="h-4 w-4" aria-hidden="true" />Simpan Draft</Button>
+                            {can.submit && <Button className="w-full" disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="ajukan" isLoading={processing}><Send className="h-4 w-4" aria-hidden="true" />Ajukan ke Tim Perencanaan</Button>}
                         </div>}
-                        {manual ? <Input name="nilai" label={`Nilai realisasi (${indikator.satuan})`} type="number" step="any" value={data.nilai} onChange={(event) => setData('nilai', event.target.value)} disabled={valueDisabled} error={errors.nilai} aria-invalid={Boolean(errors.nilai)} aria-describedby={errors.nilai ? 'measurement-errors' : undefined} /> : <div className="space-y-4">
-                            <p className="text-sm text-muted">Isi nilai setiap komponen untuk periode ini. Hasilnya baru tersimpan setelah menekan Simpan Draft.</p>
-                            {pengukuran.komponen.map((item, index) => <Input key={item.komponen_id} name={`komponen-${item.komponen_id}`} label={`${item.kode} · ${item.label}`} type="number" step="any" value={data.komponen[index]?.nilai ?? ''} onChange={(event) => setData('komponen', data.komponen.map((value, position) => position === index ? { ...value, nilai: event.target.value } : value))} disabled={valueDisabled} helperText={`${peranKomponenLabel[item.peran] ?? item.peran}${item.bobot === null ? '' : ` · Bobot ${item.bobot}`}`} error={fieldErrors[`komponen.${index}.nilai`]} aria-invalid={Boolean(fieldErrors[`komponen.${index}.nilai`])} aria-describedby={fieldErrors[`komponen.${index}.nilai`] ? 'measurement-errors' : undefined} />)}
-                        </div>}
-                        {/* Pratinjau dilepas saat BDD: cleanup membatalkan request dan respons basi diabaikan. */}
-                        {!manual && can.update && !historical && !unmeasurable && <CalculationPreview paused={Boolean(recovery.recovery)} onRecovery={handlePreviewRecovery} onResult={setPreviewStatus} id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
-                        <p className="break-words text-sm text-muted">Hasil terakhir tersimpan: <span className="font-semibold text-ink">{pengukuran.nilai === null ? <StatusPerhitunganBadge status={pengukuran.status_perhitungan} /> : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</span></p>
-                        {tampilAlasan && <Textarea name="alasan_tidak_dapat_dihitung" label="Alasan bila hasil tidak dapat dihitung" value={data.alasan_tidak_dapat_dihitung} onChange={(event) => setData('alasan_tidak_dapat_dihitung', event.target.value)} disabled={valueDisabled} helperText="Wajib diisi sebelum pengajuan." error={errors.alasan_tidak_dapat_dihitung} aria-invalid={Boolean(errors.alasan_tidak_dapat_dihitung)} aria-describedby={errors.alasan_tidak_dapat_dihitung ? 'measurement-errors' : undefined} />}
-                        <Textarea name="catatan" label="Catatan" value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={disabled} helperText="Keterangan tambahan opsional; ketiga narasi pengukuran tetap wajib saat pengajuan periode normal." error={errors.catatan} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'measurement-errors' : undefined} />
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle>Narasi</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        {narasi.map(([field, label]) => <Textarea key={field} name={field} label={label} value={data[field]} onChange={(event) => setData(field, event.target.value)} disabled={disabled} error={errors[field]} aria-invalid={Boolean(errors[field])} aria-describedby={errors[field] ? 'measurement-errors' : undefined} />)}
-                        {rekomendasi && <div className="space-y-2">
-                            <p id="rekomendasi-sebelumnya" className="rounded-lg border border-border bg-soft p-3 text-sm"><span className="font-medium">Rekomendasi:</span> {rekomendasi.isi}</p>
-                            <Textarea name="tindak_lanjut_rekomendasi" label="Tindak lanjut rekomendasi" value={data.tindak_lanjut_rekomendasi} onChange={(event) => setData('tindak_lanjut_rekomendasi', event.target.value)} disabled={disabled} error={errors.tindak_lanjut_rekomendasi} aria-invalid={Boolean(errors.tindak_lanjut_rekomendasi)} aria-describedby={errors.tindak_lanjut_rekomendasi ? 'rekomendasi-sebelumnya measurement-errors' : 'rekomendasi-sebelumnya'} />
-                        </div>}
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle>Bukti dukung</CardTitle></CardHeader>
-                    <CardContent className="space-y-5">
-                        <EvidenceList pengukuran={pengukuran} />
-                        {/* Menghapus lampiran ikut mengosongkan persyaratan dan koreksi agar tidak terkirim tanpa bukti. */}
-                        {can.uploadEvidence && !historical && <LampiranDraftFields items={data.lampiran} errors={lampiranErrors} disabled={disabled} maxItems={1} modes={modes}
-                            onChange={(update) => setData((values) => { const lampiran = update(values.lampiran); return lampiran.length > 0 ? { ...values, lampiran } : { ...values, lampiran, jenis_berkas_id: '', menggantikan_id: '', alasan_koreksi: '' }; })}
-                            title="Bukti baru" description="Satu bukti ditambahkan setiap penyimpanan. Simpan kembali untuk menambahkan mode atau persyaratan lainnya." emptyText="Belum ada bukti baru yang akan disimpan."
-                            modeDescriptions={{ file: requirement ? `Format: ${requirement.format_diizinkan}. Maksimum ${requirement.ukuran_maks_kb} KB.` : 'Unggah berkas bukti dukung.', tautan: 'Gunakan alamat http atau https.', teks: 'Tuliskan bukti dukung dalam bentuk teks.' }}
-                            placeholders={{ tautan: 'https://', teks: '' }} accept={requirement?.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')}
-                            renderItemFields={() => <>
-                                <Select id="jenis-bukti" label="Persyaratan yang dipenuhi" value={data.jenis_berkas_id} disabled={disabled} error={fieldErrors['bukti.jenis_berkas_id']} onChange={(event) => {
-                                    const selected = pengukuran.persyaratan_bukti.find((item) => item.id === event.target.value);
-                                    const available = (['file', 'tautan', 'teks'] as const).filter((mode) => !selected || selected[`izinkan_${mode}`]);
-                                    setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '',
-                                        lampiran: values.lampiran.map((item) => available.includes(item.mode) ? item : { ...item, mode: available[0] ?? item.mode, file: null, tautan: '', isi_teks: '' }) }));
-                                }}><option value="">Lampiran tambahan</option>{pengukuran.persyaratan_bukti.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</Select>
-                                {pengukuran.bukti_dukungs.some((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id) && <Select id="bukti-pendahulu" label="Bukti yang diganti (opsional)" value={data.menggantikan_id} disabled={disabled} onChange={(event) => setData('menggantikan_id', event.target.value)} helperText="Bukti lama tetap tersimpan pada riwayat. Pengajuan berikutnya menggunakan bukti pengganti." aria-invalid={Boolean(fieldErrors['bukti.menggantikan_id'])} aria-describedby={fieldErrors['bukti.menggantikan_id'] ? 'measurement-errors' : 'bukti-pendahulu-help'}>
-                                    <option value="">Tambahkan tanpa mengganti bukti</option>
-                                    {pengukuran.bukti_dukungs.filter((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id).map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.nama_asli || item.isi_teks?.slice(0, 60) || item.tautan || 'Bukti tersimpan'} ({item.mode})</option>)}
-                                </Select>}
-                                {data.menggantikan_id && <Textarea name="alasan-koreksi-bukti" label="Alasan koreksi bukti" value={data.alasan_koreksi} disabled={disabled} required onChange={(event) => setData('alasan_koreksi', event.target.value)} error={fieldErrors['bukti.alasan_koreksi']} aria-invalid={Boolean(fieldErrors['bukti.alasan_koreksi'])} aria-describedby={fieldErrors['bukti.alasan_koreksi'] ? 'measurement-errors' : undefined} />}
-                                {modes.length === 0 && <p className="text-sm text-warning-dark">Tidak ada mode tersedia. Persyaratan file akan dievaluasi sebagai pengecualian oleh server.</p>}
-                            </>} />}
-                    </CardContent>
-                </Card>
-                {can.update && !historical && <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
-                    <Button disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="draft" variant="outline" isLoading={processing}><Save className="h-4 w-4" />Simpan Draft</Button>
-                    {can.submit && <Button disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="ajukan" isLoading={processing}><Send className="h-4 w-4" />Ajukan ke Tim Perencanaan</Button>}
-                </div>}
+                    </aside>
+                </div>
             </form>
             <Modal isOpen={confirmation} onClose={() => { if (!processing && !submitting.current) setConfirmation(false); }}
                 title="Ajukan pengukuran" size="md" footer={<>

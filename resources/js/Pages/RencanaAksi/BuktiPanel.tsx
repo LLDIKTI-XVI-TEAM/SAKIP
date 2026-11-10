@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, Ta
 import { Tooltip } from '@/Components/Tooltip';
 import { useFormatTanggal } from '@/hooks/useFormatTanggal';
 import type { LampiranDraft } from '@/types/lampiran';
-import JudulLangkah from './JudulLangkah';
+import JudulLangkah from '@/Components/JudulLangkah';
 import type { BuktiItem, BuktiMode, BuktiPersyaratan, RencanaAksiBukti } from './types';
 
 interface BuktiPanelProps {

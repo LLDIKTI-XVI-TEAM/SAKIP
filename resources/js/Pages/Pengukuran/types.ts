@@ -39,6 +39,8 @@ export interface PersyaratanBukti {
 
 export const statusPerhitungan = { belum_diisi: 'Belum diisi', terhitung: 'Terhitung', tidak_dapat_dihitung: 'Tidak dapat dihitung', belum_dapat_diukur: 'Belum dapat diukur' };
 
+export const labelModeBukti: Record<string, string> = { file: 'File', tautan: 'Tautan', teks: 'Teks' };
+
 export interface Pengukuran {
     id: string;
     versi: number;

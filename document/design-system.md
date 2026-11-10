@@ -494,6 +494,7 @@ export default function ModalAlasan({
 | `Tooltip` | `Components/Tooltip.tsx` | Tombol ikon; wajib disertai `aria-label` pada tombolnya |
 | `LampiranDraftFields` | `Components/LampiranDraftFields.tsx` | Editor draf lampiran file/tautan/teks pada form master; field khusus modul lewat `renderExtraFields` (mode tautan/teks) atau `renderItemFields` (setiap item, mis. keterangan lampiran PK) |
 | `BerkasLampiranItem` | `Components/BerkasLampiranItem.tsx` | Baris lampiran tersimpan di halaman detail; unduhan memakai URL ber-otorisasi dari server, tautan hanya http/https |
+| `JudulLangkah` | `Components/JudulLangkah.tsx` | Judul kartu bernomor pada halaman kerja berlangkah (detail Rencana Aksi, Pengisian Pengukuran); nomor hanya penanda visual sehingga nama heading tetap judulnya |
 | `Banner`, `PengingatKontekstual` | `Components/Banner.tsx`, `Components/PengingatKontekstual.tsx` | Pengingat hasil evaluasi server pada Dashboard, daftar Pengukuran, dan daftar Rencana Aksi |
 
 #### Banner pengingat kontekstual
@@ -503,6 +504,8 @@ export default function ModalAlasan({
 `PengingatKontekstual` memisahkan bagian **Kewajiban Anda**, **Ringkasan Pengajuan**, dan **Perjanjian Kinerja** hanya bila ada pesan yang terlihat. Judul kelompok ditempatkan sebagai heading di dalam card berwarna masing-masing, tanpa judul tambahan di luar card. Dashboard dapat memuat ketiganya; daftar Pengukuran memuat pribadi dan PK; daftar Rencana Aksi hanya pribadi. Tombol tutup bernama aksesibel dan berukuran sentuh 44px. Penutupan berada dalam state komponen, hanya untuk signature saat itu; navigasi Inertia, muat ulang, atau perubahan signature menampilkan pengingat kembali. Tidak ada polling, penyimpanan browser, atau mutasi server untuk menutup pesan. Pada mode fokus daftar Pengukuran, sediakan tautan **Lihat semua** untuk kembali ke daftar biasa.
 
 Pola halaman detail: tautan "← Kembali ke daftar" (`<Link>`) di kiri dan aksi berukuran `sm` di kanan, satu `h1` dari `AuthenticatedLayout`, `Card` dengan judul objek dan `Badge` status, lalu daftar data `dl` dua kolom.
+
+Pengisian Pengukuran memakai dua kolom mulai 1280 px: kartu isian bernomor (`JudulLangkah`) di kiri dan panel ringkasan di kanan berisi nilai, kesiapan pengajuan, serta tombol Simpan Draft dan Ajukan yang menempel di dasar panel. Di bawah 1280 px panel turun ke bawah kartu isian sehingga tombol menjadi elemen terakhir.
 
 ---
 
