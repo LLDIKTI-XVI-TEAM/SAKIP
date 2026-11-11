@@ -60,7 +60,13 @@ class SusunPengingatTenggatTest extends TestCase
         $this->assertSame('ews:h1', $pesan['kejadian']);
         $this->assertSame($pesan['periode_jadwal_id'].':2026-03-15', $pesan['konteks_periode']);
         $this->assertSame(1, $pesan['jumlah']);
-        $this->assertSame(['h' => 1, 'jatuh_tempo' => '2026-03-15', 'jumlah' => 1], $pesan['parameter']);
+        $this->assertSame([
+            'h' => 1,
+            'jatuh_tempo' => '2026-03-15',
+            'jatuh_tempo_tampil' => '15 Maret 2026',
+            'jumlah' => 1,
+            'url' => route('pengukuran.index'),
+        ], $pesan['parameter']);
     }
 
     public function test_beberapa_indikator_satu_pic_tetap_satu_pesan(): void
@@ -93,5 +99,6 @@ class SusunPengingatTenggatTest extends TestCase
         $this->assertCount(1, $hasil['pesan']);
         $this->assertSame($tw1->id.':2026-03-20', $hasil['pesan'][0]['konteks_periode']);
         $this->assertSame('2026-03-20', $hasil['pesan'][0]['parameter']['jatuh_tempo']);
+        $this->assertSame('20 Maret 2026', $hasil['pesan'][0]['parameter']['jatuh_tempo_tampil']);
     }
 }

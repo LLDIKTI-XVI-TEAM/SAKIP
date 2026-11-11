@@ -97,6 +97,7 @@ class PengirimNotifikasiEksternal
      * `jadwal_periode`, kejadian berprefiks `ews:` mengambil H dari `parameter['h']`, sedangkan
      * `jendela_dibuka:` menghitung H dari tenggat jendela pada instan kirim; H hilang/invalid,
      * jendela yang sudah tertutup, prefiks lain, atau hasil kelayakan palsu berakhir `false`.
+     * Untuk `ews:`, `parameter['jatuh_tempo']` yang berbeda dari tenggat terkini juga berakhir `false`.
      */
     private function berhak(NotifikasiPengiriman $pengiriman, User $user, Model $model): bool
     {
@@ -118,6 +119,11 @@ class PengirimNotifikasiEksternal
 
         $h = $pengiriman->parameter['h'] ?? null;
         if (! is_int($h) || $h < 0) {
+            return false;
+        }
+
+        // Tenggat yang sudah berubah sejak antre tidak dikirim walau H kebetulan sama.
+        if (($pengiriman->parameter['jatuh_tempo'] ?? null) !== $model->pengisian_selesai->toDateString()) {
             return false;
         }
 

@@ -18,7 +18,7 @@ final class SusunPengingatTenggat
 
     /**
      * @param  list<int>  $hMinus  daftar H-minus yang memicu pengingat
-     * @return array{tanggal:string,diperiksa:int,pesan:list<array{periode_jadwal_id:string,user_id:string,h:int,jatuh_tempo:string,kejadian:string,konteks_periode:string,jumlah:int,parameter:array{h:int,jatuh_tempo:string,jumlah:int}}>}
+     * @return array{tanggal:string,diperiksa:int,pesan:list<array{periode_jadwal_id:string,user_id:string,h:int,jatuh_tempo:string,kejadian:string,konteks_periode:string,jumlah:int,parameter:array{h:int,jatuh_tempo:string,jatuh_tempo_tampil:string,jumlah:int,url:string}}>}
      */
     public function untukTanggal(CarbonImmutable $saat, array $hMinus): array
     {
@@ -38,7 +38,9 @@ final class SusunPengingatTenggat
                 'parameter' => [
                     'h' => $k['h'],
                     'jatuh_tempo' => $k['jatuh_tempo'],
+                    'jatuh_tempo_tampil' => CarbonImmutable::parse($k['jatuh_tempo'], config('app.business_timezone'))->locale('id')->translatedFormat('j F Y'),
                     'jumlah' => $k['jumlah'],
+                    'url' => route('pengukuran.index'),
                 ],
             ], $hasil['kandidat']),
         ];

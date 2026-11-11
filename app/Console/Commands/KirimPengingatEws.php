@@ -18,7 +18,9 @@ use InvalidArgumentException;
  * Perintah ini tipis: jam kirim dan daftar H dibaca dari konfigurasi notifikasi,
  * kandidat disusun oleh evaluator, lalu producer outbox menentukan kanal, kontak,
  * dan idempotensi. Scheduler berjalan tiap menit, sehingga gerbang jam kirim dan
- * penanda harian mencegah dispatch berulang pada satu hari bisnis.
+ * penanda harian mencegah dispatch berulang pada satu hari bisnis. Kegagalan
+ * antrean di-log sekali per hari bisnis dan menit-menit berikutnya berhenti tanpa
+ * evaluasi ulang melalui kunci `gagal`, tanpa menulis penanda `diproses`.
  */
 final class KirimPengingatEws extends Command
 {
@@ -38,6 +40,7 @@ final class KirimPengingatEws extends Command
         // Satu instan bisnis dipakai untuk time-gate, evaluator, dan TTL penanda harian.
         $saat = CarbonImmutable::now(config('app.business_timezone'));
         $tanggal = $saat->toDateString();
+        $kunciGagal = 'notifikasi:ews:gagal:'.$tanggal;
         $jamKirim = $this->konfigurasi->jamKirim();
 
         if ($jamKirim === null) {
@@ -74,6 +77,13 @@ final class KirimPengingatEws extends Command
             $this->warn('Template EWS belum ditetapkan; tidak ada pengingat yang diantrekan.');
 
             return self::SUCCESS;
+        }
+
+        // Kegagalan antrean hari ini: menit-menit berikutnya berhenti tanpa evaluasi
+        // ulang; penanda diproses tetap tidak ditulis sehingga perbaikan hari yang
+        // sama masih dapat dicoba bila kunci gagal dihapus operator.
+        if (Cache::has($kunciGagal)) {
+            return self::FAILURE;
         }
 
         $hasil = $this->susun->untukTanggal($saat, $this->konfigurasi->hMinusPic());
@@ -113,12 +123,13 @@ final class KirimPengingatEws extends Command
                     parameter: $pesan['parameter'],
                 );
             } catch (InvalidArgumentException $exception) {
-                Log::error('Notifikasi EWS belum dapat diantrekan: fondasi tujuan jadwal_periode belum tersedia.', [
-                    'pesan' => $exception->getMessage(),
-                ]);
-                $this->error('Fondasi outbox jadwal_periode belum tersedia; tidak ada pengingat yang diantrekan.');
+                // Scheduler tiap menit: log dan evaluasi ulang dibatasi sekali per hari bisnis.
+                if (Cache::add($kunciGagal, true, $saat->endOfDay())) {
+                    Log::error('Notifikasi EWS gagal diantrekan.', ['pesan' => $exception->getMessage()]);
+                }
+                $this->error('Pengingat EWS gagal diantrekan.');
 
-                // Tanpa penanda: menit berikutnya boleh mencoba lagi.
+                // Tanpa penanda diproses: mencoba ulang hanya bila kunci gagal dihapus operator.
                 return self::FAILURE;
             }
 

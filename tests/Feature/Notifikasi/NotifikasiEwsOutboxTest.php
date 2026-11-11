@@ -146,6 +146,9 @@ class NotifikasiEwsOutboxTest extends TestCase
 
     public function test_prefiks_tidak_dikenal_fail_closed_untuk_jadwal_periode(): void
     {
+        // Tanggal kontrol sama dengan test_penerima_layak_menerima_hasil_provider_log:
+        // penerima memang layak pada instan ini, sehingga satu-satunya alasan
+        // dibatalkan adalah cek prefiks `ews:`.
         $this->travelKe('2026-03-14 09:00');
         $row = $this->antre('tak_dikenal:2026-03-15');
         $this->assertSame('antre', $row->status);
@@ -154,6 +157,21 @@ class NotifikasiEwsOutboxTest extends TestCase
 
         $this->assertSame('dibatalkan', $row->fresh()->status);
         $this->assertSame('penerima_tidak_berhak', $row->fresh()->kode_hasil);
+    }
+
+    public function test_tenggat_berubah_setelah_antre_dibatalkan_walau_h_sama(): void
+    {
+        $this->travelKe('2026-03-14 09:00');
+        $row = $this->antre();
+        $this->assertSame('antre', $row->status);
+
+        // Worker tertahan sehari dan tenggat diperpanjang sehari: H terhadap tenggat baru tetap 1.
+        DB::table('jadwal_periode')->where('id', $this->tw1->id)->update(['pengisian_selesai' => '2026-03-16']);
+        $this->travelKe('2026-03-15 09:00');
+
+        $this->kirim($row);
+
+        $this->assertSame(['dibatalkan', 'penerima_tidak_berhak'], [$row->fresh()->status, $row->fresh()->kode_hasil]);
     }
 
     private function travelKe(string $waktu): void
