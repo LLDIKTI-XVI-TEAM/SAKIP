@@ -9,8 +9,8 @@ return [
     ],
     'pemulihan_menit' => 10,
     'template_pengembalian' => 'Perbaikan diperlukan: {{judul}}. {{alasan}} {{url}}',
-    // Default sementara untuk pengingat tenggat; isi final menunggu penetapan pemilik layanan.
-    'template_ews' => 'Pengingat tenggat pengisian: {{jumlah}} indikator belum selesai. Batas pengisian {{jatuh_tempo}}.',
+    // Pesan EWS memuat jumlah dan tautan SAKIP; daftar kode indikator tidak diikutkan agar pesan WhatsApp tetap pendek.
+    'template_ews' => 'Pengingat tenggat pengisian: {{jumlah}} indikator belum selesai. Batas pengisian {{jatuh_tempo_tampil}}. Isi di SAKIP: {{url}}',
     // Default sementara untuk pembukaan jendela; isi final menunggu penetapan pemilik layanan.
     'template_pembukaan' => 'Jendela pengisian {{periode}} {{tahun}} di SAKIP dibuka sampai {{selesai}}. Masuk ke SAKIP untuk mengisi: {{tautan}}',
 ];

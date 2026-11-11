@@ -146,6 +146,9 @@ class NotifikasiEwsOutboxTest extends TestCase
 
     public function test_prefiks_tidak_dikenal_fail_closed_untuk_jadwal_periode(): void
     {
+        // Tanggal kontrol sama dengan test_penerima_layak_menerima_hasil_provider_log:
+        // penerima memang layak pada instan ini, sehingga satu-satunya alasan
+        // dibatalkan adalah cek prefiks `ews:`.
         $this->travelKe('2026-03-14 09:00');
         $row = $this->antre('tak_dikenal:2026-03-15');
         $this->assertSame('antre', $row->status);

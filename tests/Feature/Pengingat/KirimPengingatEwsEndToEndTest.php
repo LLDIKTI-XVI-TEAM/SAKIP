@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesDashboardFixture;
 use Tests\Concerns\CreatesPengukuranFixture;
@@ -78,7 +79,9 @@ class KirimPengingatEwsEndToEndTest extends TestCase
             $this->assertTrue($b->simulasi);
             $this->assertSame($h, $b->parameter['h']);
             $this->assertSame('2026-03-15', $b->parameter['jatuh_tempo']);
+            $this->assertSame('15 Maret 2026', $b->parameter['jatuh_tempo_tampil']);
             $this->assertSame(1, $b->parameter['jumlah']);
+            $this->assertSame(route('pengukuran.index'), $b->parameter['url']);
         }
 
         $email = $baris->firstWhere('kanal', 'email');
@@ -114,6 +117,27 @@ class KirimPengingatEwsEndToEndTest extends TestCase
 
         // Baris yang sama (identitas id identik), bukan hanya jumlah yang kebetulan sama.
         $this->assertSame($ids, NotifikasiPengiriman::orderBy('id')->pluck('id')->all());
+    }
+
+    public function test_kegagalan_antrean_berhenti_sekali_per_hari_tanpa_penanda_diproses(): void
+    {
+        // Driver kanal non-log belum didukung fondasi producer, sehingga antrean gagal pasti.
+        config(['notifikasi.kanal.email.driver' => 'http']);
+        $this->travelKe('2026-03-14 08:00');
+        Log::spy();
+
+        // Dua eksekusi scheduler tiap menit: log sekali per hari, tanpa evaluasi ulang.
+        $this->artisan('notifikasi:ews')
+            ->expectsOutputToContain('Pengingat EWS gagal diantrekan.')
+            ->assertFailed();
+        $this->artisan('notifikasi:ews')->assertFailed();
+
+        $this->assertDatabaseCount('notifikasi_pengiriman', 0);
+        $this->assertFalse(Cache::has('notifikasi:ews:diproses:2026-03-14'));
+        $this->assertTrue(Cache::has('notifikasi:ews:gagal:2026-03-14'));
+        Log::shouldHaveReceived('error')
+            ->once()
+            ->withArgs(fn (string $pesan): bool => str_contains($pesan, 'Notifikasi EWS gagal diantrekan'));
     }
 
     public function test_jam_kirim_kosong_tidak_mengantrekan_walau_dijalankan_dua_kali(): void
