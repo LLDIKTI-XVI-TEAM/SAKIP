@@ -55,6 +55,11 @@ class PengirimNotifikasiEksternal
             }
             $p->update(['status' => 'perlu_rekonsiliasi', 'kode_hasil' => 'perlu_rekonsiliasi', 'percobaan' => $p->percobaan + 1, 'percobaan_siklus' => $p->percobaan_siklus + 1, 'dicoba_terakhir_pada' => now()]);
 
+            if ($model instanceof PeriodeJadwal && str_starts_with($p->kejadian, 'jendela_dibuka:')) {
+                // Gunakan tenggat dari gerbang kelayakan untuk provider. Snapshot sudah tersimpan saat antre.
+                $p->parameter = [...$p->parameter, 'selesai' => $model->pengisian_selesai->locale('id')->translatedFormat('j F Y')];
+            }
+
             return $p;
         });
         if (is_int($row)) {
@@ -95,6 +100,9 @@ class PengirimNotifikasiEksternal
 
     /**
      * Gerbang penerima per jenis tujuan pada instan kirim.
+     *
+     * EWS dan pembukaan jendela mensyaratkan hak baca Pengukuran dan minimal satu kewajiban
+     * dengan hak isi pada unit yang tidak ditolak baca.
      *
      * RA dan pengukuran tetap memakai Policy `view` yang sama dengan tautan. Untuk
      * `jadwal_periode`, kejadian berprefiks `ews:` mengambil H dari `parameter['h']`, sedangkan

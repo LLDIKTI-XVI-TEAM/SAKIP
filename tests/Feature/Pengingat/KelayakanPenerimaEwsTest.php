@@ -87,6 +87,21 @@ class KelayakanPenerimaEwsTest extends TestCase
         $this->assertFalse($this->layak($pic, 1));
     }
 
+    public function test_hak_baca_halaman_diperiksa_meski_pic_punya_hak_isi(): void
+    {
+        $pic = $this->userWithRole('admin');
+        $this->grant($pic, 'pengukuran:create');
+        $this->picDenganIndikator('I-HAK-BACA', $pic);
+
+        $this->assertFalse($this->layak($pic, 1));
+
+        $pic->roles()->updateExistingPivot(Role::where('kode', 'admin')->value('id'), [
+            'role_id' => Role::where('kode', 'pegawai')->value('id'),
+        ]);
+
+        $this->assertTrue($this->layak($pic, 1));
+    }
+
     public function test_pic_nonaktif_tidak_layak_walau_masih_kandidat_evaluator(): void
     {
         $pic = $this->userWithRole('pegawai');
@@ -235,6 +250,26 @@ class KelayakanPenerimaEwsTest extends TestCase
         $this->headerUntuk($this->picDenganIndikator('I-CREATE-HEADER-DRAF', $picCreate))->forceFill(['status_alur' => 'draft'])->save();
 
         $this->assertFalse($this->layak($picCreate, 1), 'Header draf memerlukan pengukuran:update.');
+    }
+
+    public function test_hak_baca_dan_hak_isi_harus_berlaku_pada_kewajiban_yang_sama(): void
+    {
+        $pic = $this->userWithRole('pegawai');
+        $this->grant($pic, 'pengukuran:create');
+        $this->picDenganIndikator('I-UNIT-DITOLAK-BACA', $pic);
+        $this->assertTrue($this->layak($pic, 1));
+
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $pic->id,
+            'permission_id' => Permission::where('kode', 'pengukuran:read')->value('id'), 'unit_id' => $this->unit->id,
+            'alasan' => 'Fixture pencabutan', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+        $this->assertFalse($this->layak($pic, 1));
+
+        $unitLain = $this->unitBaru('Unit Terbaca');
+        $this->picDenganIndikator('I-UNIT-TERBACA', $pic, ['unit_id' => $unitLain->id]);
+        $this->assertFalse($this->layak($pic, 1));
+
+        $this->grantPada($pic, 'pengukuran:create', $unitLain);
+        $this->assertTrue($this->layak($pic, 1));
     }
 
     public function test_deny_eksplisit_pada_unit_menang(): void

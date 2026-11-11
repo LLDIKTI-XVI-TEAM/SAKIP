@@ -7,17 +7,15 @@ use App\Models\User;
 use App\Services\Authorization\PermissionResolver;
 use App\Services\Pengukuran\DaftarKewajibanPengukuran;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 
 /**
- * Gerbang terakhir kelayakan satu PIC sebagai penerima pengingat EWS pada instan antre/kirim; broadcast
+ * Gerbang terakhir kelayakan satu PIC sebagai penerima pengingat EWS pada instan kirim; broadcast
  * pembukaan jendela memakainya juga dengan H sama dengan sisa hari sampai tenggat.
  *
- * Penerima hanya layak bila akun aktif, memegang peran resmi aktif, masih memiliki kewajiban
- * belum selesai pada periode terkait sebagaimana dinilai {@see KandidatPengingatTenggat}, dan
- * hak isi yang sesuai tersedia pada minimal satu unit indikator kandidatnya: header belum ada
- * memerlukan `pengukuran:create`, sedangkan draf/dikembalikan memerlukan `pengukuran:update`
- * — sama dengan pengingat in-app.
+ * Penerima harus aktif, memegang peran resmi aktif, dan diizinkan `pengukuran:read` seperti pada
+ * daftar Pengukuran. Minimal satu kewajiban belum selesai harus berada di unit yang tidak ditolak
+ * baca dan memenuhi hak isi: `pengukuran:create` untuk header yang belum ada atau `pengukuran:update`
+ * untuk draf/dikembalikan. Pengingat in-app memakai syarat baca dan isi yang sama.
  *
  * Aturan "belum selesai" (header kosong/draft/dikembalikan, sesi koreksi, unit nonaktif,
  * indikator arsip) tetap milik {@see KandidatPengingatTenggat}; service ini mengevaluasi ulang
@@ -44,7 +42,7 @@ final class KelayakanPenerimaEws
         // Status akun dapat berubah setelah model pemanggil dibentuk; muat ulang agar
         // penilaian pada instan kirim tidak memakai status/relasi yang sudah basi.
         $user = User::query()->find($user->getKey());
-        if (! $user instanceof User || $user->status !== 'aktif' || $this->izin->penggunaBerperanAktif([$user->id]) === []) {
+        if (! $user instanceof User || ! $this->izin->allows($user, 'pengukuran:read')) {
             return false;
         }
 
@@ -56,11 +54,10 @@ final class KelayakanPenerimaEws
         }
 
         $tanggalBisnis = $saat->setTimezone(config('app.business_timezone'))->startOfDay();
-        // Unit diambil dari snapshot baris kewajiban (`cs.unit_id`) agar sama dengan unit yang
-        // dinilai evaluator dan resolver izin. Deny kosong: penyaringan unit bukan wewenang di sini.
+        // Deny baca dan hak isi dinilai pada unit snapshot dari baris kewajiban yang sama.
         $baris = $this->kewajiban->query(
             [$periodeJadwal->id],
-            DB::table('unit')->select('id')->whereRaw('1 = 0'),
+            $this->izin->unitDitolak($user, 'pengukuran:read'),
             $tanggalBisnis->toDateString(),
         )->where('pic.user_id', $user->id)
             ->whereIn('k.indikator_id', array_column($entri['indikator'], 'indikator_id'))

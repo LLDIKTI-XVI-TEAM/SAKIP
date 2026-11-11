@@ -9,6 +9,7 @@ use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Services\Notifikasi\AntrekanNotifikasiEksternal;
 use App\Services\Notifikasi\PengirimNotifikasiEksternal;
+use App\Services\Notifikasi\PenyediaKanalNotifikasi;
 use App\Services\Pengingat\KelayakanPenerimaEws;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -107,6 +108,21 @@ class NotifikasiEwsOutboxTest extends TestCase
         $this->assertSame('dibatalkan', $row->fresh()->status);
         $this->assertSame('penerima_tidak_berhak', $row->fresh()->kode_hasil);
         $this->assertNull($row->fresh()->rujukan_provider);
+    }
+
+    public function test_penerima_tanpa_hak_baca_dibatalkan_sebelum_provider(): void
+    {
+        $this->travelKe('2026-03-14 09:00');
+        $pic = $this->userWithRole('admin');
+        $this->grant($pic, 'pengukuran:create');
+        $this->picDenganIndikator('I-EWS-TANPA-BACA', $pic);
+        $row = $this->antre(userId: $pic->id);
+        $this->assertSame('antre', $row->status);
+        $this->mock(PenyediaKanalNotifikasi::class)->shouldNotReceive('kirim');
+
+        $this->kirim($row);
+
+        $this->assertSame(['dibatalkan', 'penerima_tidak_berhak', 0], [$row->fresh()->status, $row->fresh()->kode_hasil, $row->fresh()->percobaan]);
     }
 
     public function test_akun_nonaktif_sebelum_kirim_dibatalkan(): void

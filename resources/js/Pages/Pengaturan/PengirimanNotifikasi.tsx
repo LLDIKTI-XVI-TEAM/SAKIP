@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Inbox } from 'lucide-react';
+import { ArrowLeft, Inbox } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
 import { Badge, type BadgeVariant } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
@@ -77,11 +77,22 @@ export default function PengirimanNotifikasi({ filters, pengiriman }: Pengiriman
     const form = useForm<FilterPengiriman>({ status: filters.status ?? '', kanal: filters.kanal ?? '', mulai: filters.mulai ?? '', selesai: filters.selesai ?? '' });
 
     return (
-        <AuthenticatedLayout title="Status Pengiriman Notifikasi" breadcrumbs={[{ label: 'Pengaturan', href: '/pengaturan' }, { label: 'Status Pengiriman' }]}>
+        <AuthenticatedLayout
+            title="Status Pengiriman Notifikasi"
+            breadcrumbs={[{ label: 'Pengaturan', href: '/pengaturan' }, { label: 'Status Pengiriman' }]}
+            headerActions={
+                <Link
+                    href="/pengaturan"
+                    aria-label="Kembali ke pengaturan"
+                    className="ml-auto inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25 sm:h-9"
+                >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Kembali
+                </Link>
+            }
+        >
             <Head title="Status Pengiriman Notifikasi" />
             <div className="space-y-5">
-                <Link href="/pengaturan" className="inline-block rounded-sm text-sm font-medium text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/30">← Kembali ke pengaturan</Link>
-                <p className="max-w-prose text-sm text-muted">Status diterima provider berarti pesan diterima layanan pengiriman, belum membuktikan pesan sampai. Data simulasi ditandai terpisah dan tidak menjadi bukti pengiriman nyata.</p>
                 <Card className="p-5 sm:p-6">
                     <form onSubmit={(event) => { event.preventDefault(); form.get('/pengaturan/notifikasi/pengiriman', { preserveScroll: true, preserveState: 'errors' }); }} className="space-y-4">
                         <fieldset disabled={form.processing} className="grid gap-4 border-0 p-0 sm:grid-cols-2 xl:grid-cols-4">
