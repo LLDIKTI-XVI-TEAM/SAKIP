@@ -2349,7 +2349,7 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-> **Status implementasi — ISS-12.02 (4 November 2026):** seluruh AC terbukti lewat test backend/frontend dan smoke browser yang dicatat pada PR; AC-3 untuk pembukaan oleh aktivasi jadwal dan revisi jendela PIC (pembukaan karena tanggal tiba menunggu ISS-12.04); AC-4 untuk event akun SSO baru tanpa peran.
+> **Status implementasi — ISS-12.02 (4 November 2026, diperbarui 11 November 2026 untuk Q86):** seluruh AC terbukti lewat test backend/frontend dan smoke browser yang dicatat pada PR; AC-3 untuk pembukaan oleh aktivasi jadwal dan revisi jendela PIC (pembukaan karena tanggal tiba ditulis perintah harian mulai 00.05 WITA tanpa item ganda, Q86); AC-4 untuk event akun SSO baru tanpa peran.
 
 - [x] **AC-1:** Given RA/Pengukuran dikembalikan, Then PIC menerima item berisi ringkasan alasan dan tautan aman.
 - [x] **AC-2:** Given PIC mengajukan RA/Pengukuran, Then Perencanaan menerima item antrean review.

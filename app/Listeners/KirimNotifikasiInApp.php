@@ -17,8 +17,10 @@ use App\Models\User;
 use App\Notifications\ItemNotifikasi;
 use App\Services\Notifikasi\PenerimaNotifikasi;
 use Closure;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Ramsey\Uuid\Uuid;
 use Throwable;
 
 /**
@@ -26,6 +28,8 @@ use Throwable;
  * dijalankan sinkron tanpa queue). Listener hanya menyusun teks dan route; penerima dihitung
  * PenerimaNotifikasi. Galat apa pun dicatat tanpa isi dan tidak pernah mengubah hasil mutasi;
  * item yang gagal ditulis hilang tanpa retry. Ditemukan lewat event discovery (method `handle*`).
+ * Item "jendela pengisian dibuka" dicegah ganda per jendela, tanggal bisnis pembukaan, dan penerima
+ * (lihat `tulisJendelaDibuka`); jenis lain tetap ditulis lewat `notify()` dengan id acak.
  */
 class KirimNotifikasiInApp
 {
@@ -80,14 +84,28 @@ class KirimNotifikasiInApp
     public function handleJendelaPengisianDibuka(JendelaPengisianDibuka $event): void
     {
         foreach ($event->periodeJadwalIds as $periodeJadwalId) {
-            $this->kirim('jadwal.jendela_dibuka', $periodeJadwalId, function () use ($event, $periodeJadwalId): array {
-                $jendela = PeriodeJadwal::with(['periode', 'jadwal'])->findOrFail($periodeJadwalId);
-                $selesai = $jendela->pengisian_selesai->locale('id')->translatedFormat('j F Y');
-
-                return [$this->penerima->pjJendela($periodeJadwalId, $event->indikatorIds, $event->tanggalBisnis),
-                    new ItemNotifikasi('jadwal.jendela_dibuka', "Jendela pengisian {$jendela->periode->nama} {$jendela->jadwal->tahun} dibuka", "Pengisian sampai {$selesai}", 'pengukuran.index')];
-            });
+            $this->tulisJendelaDibuka($periodeJadwalId, $event->indikatorIds, $event->tanggalBisnis);
         }
+    }
+
+    /**
+     * Penulis item "jendela pengisian dibuka" bersama untuk jalur aksi (listener ini) dan jalur tanggal (perintah
+     * `notifikasi:lonceng-pembukaan`), sehingga penerima dan teksnya sama. Paling banyak satu item per jendela, tanggal
+     * bisnis pembukaan, dan penerima dari jalur mana pun: menutup lalu membuka ulang pada hari yang sama tidak menambah
+     * item, sedangkan pembukaan pada tanggal lain menulis item baru. Tidak pernah melempar.
+     *
+     * @param  list<string>|null  $indikatorIds  null = semua indikator; daftar = lingkup sesi koreksi
+     * @param  string  $tanggalBisnis  tanggal bisnis WITA pembukaan, format `Y-m-d`
+     */
+    public function tulisJendelaDibuka(string $periodeJadwalId, ?array $indikatorIds, string $tanggalBisnis): void
+    {
+        $this->kirim('jadwal.jendela_dibuka', $periodeJadwalId, function () use ($periodeJadwalId, $indikatorIds, $tanggalBisnis): array {
+            $jendela = PeriodeJadwal::with(['periode', 'jadwal'])->findOrFail($periodeJadwalId);
+            $selesai = $jendela->pengisian_selesai->locale('id')->translatedFormat('j F Y');
+
+            return [$this->penerima->pjJendela($periodeJadwalId, $indikatorIds, $tanggalBisnis),
+                new ItemNotifikasi('jadwal.jendela_dibuka', "Jendela pengisian {$jendela->periode->nama} {$jendela->jadwal->tahun} dibuka", "Pengisian sampai {$selesai}", 'pengukuran.index')];
+        }, kunciUnik: "{$periodeJadwalId}:{$tanggalBisnis}");
     }
 
     /** Pengelola akses diarahkan ke halaman peran yang sudah terfilter ke akun baru itu. */
@@ -139,11 +157,12 @@ class KirimNotifikasiInApp
      * padahal mutasinya sudah tersimpan. Cadangannya `error_log` tanpa pesan galat, alasan, atau judul.
      *
      * @param  Closure(): array{0: list<User>, 1: ItemNotifikasi}  $susun
+     * @param  string|null  $kunciUnik  null = item biasa lewat `notify()`; terisi = item dicegah ganda per kunci dan penerima (`tulisSekali`)
      */
-    private function kirim(string $jenis, string $objekId, Closure $susun): void
+    private function kirim(string $jenis, string $objekId, Closure $susun, ?string $kunciUnik = null): void
     {
         try {
-            $this->tulis($jenis, $objekId, $susun);
+            $this->tulis($jenis, $objekId, $susun, $kunciUnik);
         } catch (Throwable $e) {
             error_log(sprintf('Notifikasi in-app gagal ditulis: jenis=%s objek_id=%s galat=%s', $jenis, $objekId, $e::class));
         }
@@ -156,7 +175,7 @@ class KirimNotifikasiInApp
      *
      * @param  Closure(): array{0: list<User>, 1: ItemNotifikasi}  $susun
      */
-    private function tulis(string $jenis, string $objekId, Closure $susun): void
+    private function tulis(string $jenis, string $objekId, Closure $susun, ?string $kunciUnik): void
     {
         try {
             [$penerima, $item] = $susun();
@@ -170,10 +189,36 @@ class KirimNotifikasiInApp
         }
         foreach ($penerima as $user) {
             try {
-                $user->notify($item);
+                if ($kunciUnik === null) {
+                    $user->notify($item);
+                } else {
+                    $this->tulisSekali($user, $item, $kunciUnik);
+                }
             } catch (Throwable $e) {
                 Log::error('Notifikasi in-app gagal ditulis.', ['jenis' => $jenis, 'objek_id' => $objekId, 'penerima_id' => $user->id, 'galat' => $e::class]);
             }
         }
+    }
+
+    /**
+     * Tulis item dengan id tetap (UUID v5 dari jenis, `$kunciUnik`, dan penerima) lewat `INSERT ... ON CONFLICT DO
+     * NOTHING`, sehingga penulisan ulang kejadian yang sama diabaikan. Insert yang bentrok tidak boleh ditangkap sebagai
+     * galat karena membatalkan transaksi PostgreSQL yang sedang berjalan; pelanggaran FK dan galat encode tetap melempar
+     * sehingga terisolasi per penerima oleh pemanggil. Kolomnya sama dengan yang ditulis kanal `database`.
+     */
+    private function tulisSekali(User $user, ItemNotifikasi $item, string $kunciUnik): void
+    {
+        $sekarang = now();
+
+        DB::table('notifications')->insertOrIgnore([
+            'id' => Uuid::uuid5(Uuid::NAMESPACE_URL, "sakip:notifications:{$item->jenis}:{$kunciUnik}:{$user->id}")->toString(),
+            'type' => $item->databaseType($user),
+            'notifiable_type' => $user->getMorphClass(),
+            'notifiable_id' => $user->id,
+            'data' => json_encode($item->toDatabase($user), JSON_THROW_ON_ERROR),
+            'read_at' => null,
+            'created_at' => $sekarang,
+            'updated_at' => $sekarang,
+        ]);
     }
 }
