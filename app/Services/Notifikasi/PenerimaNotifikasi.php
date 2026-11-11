@@ -84,6 +84,26 @@ class PenerimaNotifikasi
     }
 
     /**
+     * Penerima rekap progres: akun aktif berperan Perencanaan aktif yang boleh membuka Dashboard, tujuan tautan
+     * pesan (deny menang). Superadmin tidak termasuk karena bukan peran Perencanaan. `$userIds` membatasi
+     * penilaian pada akun tertentu, dipakai gerbang kirim untuk menilai ulang satu penerima.
+     *
+     * @param  list<string>|null  $userIds
+     * @return list<User>
+     */
+    public function penerimaRekap(?array $userIds = null): array
+    {
+        $kandidat = User::where('status', 'aktif')
+            ->when($userIds !== null, fn ($q) => $q->whereIn('id', $userIds))
+            ->whereIn('id', DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
+                ->where('roles.kode', 'perencanaan')->where('roles.aktif', true)->select('user_roles.user_id'))
+            ->orderBy('id')->get();
+
+        // Izin dinilai per kandidat lewat resolver; layak untuk puluhan akun Perencanaan.
+        return $kandidat->filter(fn (User $u): bool => $this->resolver->allows($u, 'dashboard:read'))->values()->all();
+    }
+
+    /**
      * PJ efektif pada `$tanggalBisnis` untuk indikator yang wajib diisi pada periode itu: versi snapshot berlaku,
      * unit aktif, indikator non-arsip. `$indikatorIds` null = semua indikator; `[]` = tidak ada (lingkup sesi koreksi kosong).
      * Deny baca per pembaca tidak disaring di sini: PJ yang ditolak baca unit tetap menerima item,

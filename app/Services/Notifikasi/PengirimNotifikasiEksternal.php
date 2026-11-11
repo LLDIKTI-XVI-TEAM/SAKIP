@@ -8,6 +8,8 @@ use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\User;
 use App\Services\Pengingat\KelayakanPenerimaEws;
+use App\Services\Pengingat\PengingatKontekstual;
+use App\Services\Pengingat\SusunRekapPerencanaan;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,8 @@ class PengirimNotifikasiEksternal
      *
      * Gerbang penerima dievaluasi ulang pada setiap upaya: RA/pengukuran memakai Policy `view`,
      * sedangkan `jadwal_periode` hanya menerima prefiks kejadian `ews:` dan `jendela_dibuka:`, keduanya
-     * dinilai {@see KelayakanPenerimaEws}. Prefiks `jadwal_periode` tanpa gerbang fail-closed.
+     * dinilai {@see KelayakanPenerimaEws}, serta `rekap:` yang dinilai {@see PenerimaNotifikasi::penerimaRekap()}.
+     * Prefiks `jadwal_periode` tanpa gerbang fail-closed.
      *
      * @return int|null Jeda untuk antrean belum jatuh tempo atau penolakan sementara yang pasti belum diterima.
      */
@@ -98,6 +101,8 @@ class PengirimNotifikasiEksternal
      * `jendela_dibuka:` menghitung H dari tenggat jendela pada instan kirim; H hilang/invalid,
      * jendela yang sudah tertutup, prefiks lain, atau hasil kelayakan palsu berakhir `false`.
      * Untuk `ews:`, `parameter['jatuh_tempo']` yang berbeda dari tenggat terkini juga berakhir `false`.
+     * `rekap:` mensyaratkan tenggat dan H yang sama dengan saat antre, jendela yang masih berjalan, dan
+     * penerima yang masih penerima rekap Perencanaan.
      */
     private function berhak(NotifikasiPengiriman $pengiriman, User $user, Model $model): bool
     {
@@ -111,6 +116,17 @@ class PengirimNotifikasiEksternal
             $sisa = (int) $saat->startOfDay()->diffInDays(CarbonImmutable::parse($model->pengisian_selesai->toDateString(), config('app.business_timezone')), false);
 
             return $sisa >= 0 && app(KelayakanPenerimaEws::class)->layak($user, $model, $sisa, $saat);
+        }
+
+        if (str_starts_with($pengiriman->kejadian, 'rekap:')) {
+            // Angka rekap dibekukan saat antre, jadi hanya dikirim pada hari H yang sama dengan tenggat yang sama,
+            // selama jendela masih berjalan dan penerima masih penerima rekap.
+            $saat = CarbonImmutable::now(config('app.business_timezone'));
+
+            return ($pengiriman->parameter['jatuh_tempo'] ?? null) === $model->pengisian_selesai->toDateString()
+                && ($pengiriman->parameter['h'] ?? null) === SusunRekapPerencanaan::sisaHari($model, $saat)
+                && app(PengingatKontekstual::class)->periode($saat)->contains('id', $model->id)
+                && app(PenerimaNotifikasi::class)->penerimaRekap([$user->id]) !== [];
         }
 
         if (! str_starts_with($pengiriman->kejadian, 'ews:')) {
