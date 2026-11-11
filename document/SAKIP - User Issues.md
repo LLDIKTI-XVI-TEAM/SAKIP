@@ -5690,6 +5690,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Workflow:** —  
 **Data Model/Entitas:** recap notification
 
+> **Status implementasi lokal (11 November 2026):** perintah `notifikasi:rekap`, scheduler, penyusun rekap, penerima Perencanaan, dan gerbang kirim `rekap:` diimplementasikan di atas outbox ISS-12.07 sesuai Refinement ISS-12.05 pada Keputusan Penyelarasan. Bukti test: `SusunRekapPerencanaanTest` dan `KirimRekapPerencanaanTest` (Feature). AC-1: `test_jumlah_per_status_sesuai_fixture` dan `test_h3_dan_h1_mengantre_email_dan_whatsapp_per_penerima`; AC-2: `test_bukan_penerima_efektif_tidak_diantrekan` dan `test_penerima_dicabut_setelah_antre_dibatalkan_di_gerbang_kirim`; AC-3: `test_dijalankan_ulang_tidak_menambah_baris`; AC-4: `test_provider_gagal_sementara_dicatat_dan_diulang_terbatas`. Centang menandai bukti test otomatis, bukan CI exact-HEAD, QA/UAT, atau aktivasi kanal; kanal nyata tetap mengikuti gate Q80 §80.1.
+
 #### User Story
 
 > **Sebagai** Tim Perencanaan yang menjadi penerima efektif,  
@@ -5704,33 +5706,33 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given H-3 atau H-1, When job berjalan, Then ringkasan sudah/belum submit dikirim melalui WA dan Email kepada penerima Perencanaan yang ditetapkan.
-- [ ] **AC-2:** Given pengguna tidak lagi menjadi penerima efektif, Then tidak otomatis menerima rekap.
-- [ ] **AC-3:** Given job diulang, Then pesan tidak diduplikasi untuk kombinasi event/penerima/periode/channel yang sama.
-- [ ] **AC-4:** Given provider gagal, Then kegagalan dicatat dan retry dilakukan terkontrol.
+- [x] **AC-1:** Given H-3 atau H-1, When job berjalan, Then ringkasan sudah/belum submit dikirim melalui WA dan Email kepada penerima Perencanaan yang ditetapkan.
+- [x] **AC-2:** Given pengguna tidak lagi menjadi penerima efektif, Then tidak otomatis menerima rekap.
+- [x] **AC-3:** Given job diulang, Then pesan tidak diduplikasi untuk kombinasi event/penerima/periode/channel yang sama.
+- [x] **AC-4:** Given provider gagal, Then kegagalan dicatat dan retry dilakukan terkontrol.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: Queue/log pengiriman.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: Queue/log pengiriman.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Penerima rekap harus mengikuti daftar/hak/penugasan efektif, bukan broadcast ke semua akun Perencanaan tanpa seleksi.
+- [x] Penerima rekap harus mengikuti daftar/hak/penugasan efektif, bukan broadcast ke semua akun Perencanaan tanpa seleksi.
 
 **C. Authorization & Audit**
-- [ ] Job/scheduler bukan HTTP user route: otorisasi ditentukan pada event bisnis/pemilihan penerima, bukan dengan memasang middleware RBAC palsu pada cron.
+- [x] Job/scheduler bukan HTTP user route: otorisasi ditentukan pada event bisnis/pemilihan penerima, bukan dengan memasang middleware RBAC palsu pada cron.
 
 **E. Integration / Operations**
-- [ ] Gunakan Laravel queue/worker dan scheduler sesuai Plan; credential provider disimpan di environment/secret manager, bukan `pengaturan` biasa.
-- [ ] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
+- [x] Gunakan Laravel queue/worker dan scheduler sesuai Plan; credential provider disimpan di environment/secret manager, bukan `pengaturan` biasa.
+- [x] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given H-3 atau H-1, When job berjalan, Then ringkasan sudah/belum submit dikirim melalui WA dan Email kepada penerima Perencanaan yang ditetapkan.
-- [ ] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given pengguna tidak lagi menjadi penerima efektif, Then tidak otomatis menerima rekap.
-- [ ] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given job diulang, Then pesan tidak diduplikasi untuk kombinasi event/penerima/periode/channel yang sama.
-- [ ] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider gagal, Then kegagalan dicatat dan retry dilakukan terkontrol.
+- [x] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given H-3 atau H-1, When job berjalan, Then ringkasan sudah/belum submit dikirim melalui WA dan Email kepada penerima Perencanaan yang ditetapkan.
+- [x] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given pengguna tidak lagi menjadi penerima efektif, Then tidak otomatis menerima rekap.
+- [x] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given job diulang, Then pesan tidak diduplikasi untuk kombinasi event/penerima/periode/channel yang sama.
+- [x] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider gagal, Then kegagalan dicatat dan retry dilakukan terkontrol.
 
 #### Definition of Done
 

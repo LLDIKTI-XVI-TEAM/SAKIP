@@ -2718,3 +2718,21 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 Traceability: Plan 14.2; PRD §28; Data Model §2.16 dan §2.40; US/ISS-12.03; Kesiapan Infrastruktur §3. Status ini merupakan keputusan refinement, bukan bukti CI, UAT, merge, atau deployment.
 
 **Status implementasi lokal, 10 November 2026:** butir 1 sampai 6, 8, dan 9 diterapkan melalui ISS-12.03 dengan kedua kanal tetap mati secara bawaan. Bukti otomatis berada pada `NotifikasiPembukaanJendelaTest` dan `NotifikasiPembukaanGerbangTest`.
+
+---
+
+## Refinement ISS-12.05: Rekap Progres untuk Tim Perencanaan H-3 dan H-1
+
+**Keputusan PM: 11 November 2026 (K1-K7) atas rencana eksekusi [issue #233](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/233).** Memperjelas penerapan Q4 (rekap Perencanaan H-3/H-1), Q32 (penerima ditentukan server, deny menang), Q87 butir 1 dan 3, serta Q80 §80.1 butir 2. Refinement ini tidak mengaktifkan kanal eksternal dan tidak menambah kunci `pengaturan` maupun izin.
+
+1. **Penerima (K1).** "Penerima Perencanaan yang ditetapkan" adalah akun aktif berperan `perencanaan` aktif yang lolos `dashboard:read` (deny menang), dinilai saat antre dan dinilai ulang sebelum setiap upaya kirim. Peran lain tidak menerima, termasuk Superadmin. Isi rekap tiap penerima tidak memuat unit yang ditolak `dashboard:read` bagi penerima itu, sama dengan Dashboard. Daftar penerima pada `pengaturan` tidak dibuat.
+2. **Isi pesan (K2).** Pesan memuat jumlah belum mengisi, draf, dikembalikan, dan sudah diajukan (diajukan, diverifikasi, atau disahkan), total indikator, tenggat, tautan Dashboard, serta satu baris jumlah belum selesai per unit untuk paling banyak 10 unit; unit selebihnya hanya disebut jumlahnya. Nama indikator tidak dimuat. Template bawaan bersifat sementara; butir Template pesan pada Kesiapan Infrastruktur §3 tetap `Belum diaktifkan`.
+3. **Tanpa yang belum selesai (K3).** Rekap tetap dikirim walau seluruh indikator sudah diajukan.
+4. **Kelayakan saat kirim (K4).** Angka dibekukan saat antre. Pesan hanya dikirim pada hari H yang sama, dengan tenggat yang sama, selama jendela masih berjalan dan penerima masih memenuhi butir 1. Bila tidak, baris menjadi `dibatalkan`/`penerima_tidak_berhak` tanpa pengalihan ke penerima lain.
+5. **Cakupan hitungan (K5).** Dihitung seluruh kewajiban yang berlaku pada jendela itu: unit aktif, indikator non-arsip, dan di dalam sesi koreksi hanya indikator lingkup. Indikator tanpa PJ ikut dihitung sebagai belum mengisi.
+6. **Perintah (K6).** Perintah terjadwal terpisah `notifikasi:rekap` mengantrekan `kejadian = rekap:h{H}` untuk jendela yang `pengisian_selesai`-nya tepat H-3 atau H-1 menurut tanggal bisnis WITA. Gerbang `notifikasi.jam_kirim` dan penanda harian mengikuti `notifikasi:ews`; kegagalan mengantre dicatat sekali per hari bisnis dan tidak dievaluasi ulang sampai kunci gagal dihapus operator.
+7. **Pencatatan (K7).** Keputusan ini dicatat sebagai refinement tanpa nomor Q karena tidak mengubah keputusan Q yang berlaku.
+
+Traceability: Plan 14.2; PRD §28; Data Model §2.16 dan §2.40; US/ISS-12.05; Kesiapan Infrastruktur §2 baris 8 dan §3. Status ini merupakan keputusan refinement, bukan bukti CI, UAT, merge, atau deployment.
+
+**Status implementasi lokal, 11 November 2026:** butir 1 sampai 6 diterapkan melalui ISS-12.05 dengan kedua kanal tetap mati secara bawaan. Bukti otomatis berada pada `SusunRekapPerencanaanTest` dan `KirimRekapPerencanaanTest`.
