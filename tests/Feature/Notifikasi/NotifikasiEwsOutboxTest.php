@@ -159,6 +159,21 @@ class NotifikasiEwsOutboxTest extends TestCase
         $this->assertSame('penerima_tidak_berhak', $row->fresh()->kode_hasil);
     }
 
+    public function test_tenggat_berubah_setelah_antre_dibatalkan_walau_h_sama(): void
+    {
+        $this->travelKe('2026-03-14 09:00');
+        $row = $this->antre();
+        $this->assertSame('antre', $row->status);
+
+        // Worker tertahan sehari dan tenggat diperpanjang sehari: H terhadap tenggat baru tetap 1.
+        DB::table('jadwal_periode')->where('id', $this->tw1->id)->update(['pengisian_selesai' => '2026-03-16']);
+        $this->travelKe('2026-03-15 09:00');
+
+        $this->kirim($row);
+
+        $this->assertSame(['dibatalkan', 'penerima_tidak_berhak'], [$row->fresh()->status, $row->fresh()->kode_hasil]);
+    }
+
     private function travelKe(string $waktu): void
     {
         $this->travelTo(CarbonImmutable::parse($waktu, 'Asia/Makassar'));
