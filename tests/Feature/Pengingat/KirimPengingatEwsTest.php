@@ -117,6 +117,19 @@ class KirimPengingatEwsTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_kunci_gagal_hari_ini_menghentikan_tanpa_evaluasi_ulang(): void
+    {
+        $this->aturJamKirim('08:00');
+        $this->travelTo(CarbonImmutable::parse('2026-03-14 09:00', 'Asia/Makassar'));
+        // Tanggal sama dengan kontrol positif: tanpa kunci gagal, satu pesan diantrekan.
+        Cache::put('notifikasi:ews:gagal:2026-03-14', true, now()->addDay());
+        $this->mock(AntrekanNotifikasiEksternal::class, fn (MockInterface $mock) => $mock->shouldReceive('antre')->never());
+
+        $this->artisan('notifikasi:ews')->assertFailed();
+
+        $this->assertFalse(Cache::has('notifikasi:ews:diproses:2026-03-14'));
+    }
+
     public function test_tanggal_selain_h_minus_tidak_mengantrekan(): void
     {
         $this->aturJamKirim('08:00');
