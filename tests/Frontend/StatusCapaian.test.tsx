@@ -183,7 +183,7 @@ describe('Halaman status capaian versi pengukuran', () => {
         expect(within(tabel).getByText('Triwulan I 2026')).toBeTruthy();
         expect(within(tabel).getByText('88,00%')).toBeTruthy();
         expect(within(tabel).getByText('Belum Tercapai')).toBeTruthy();
-        // Penetap dan riwayat dibaca dari jendela riwayat, bukan dari baris.
+        // Penetap dan riwayat dibaca dari halaman rincian, bukan dari baris.
         expect(within(tabel).queryByText(/Verifikator/)).toBeNull();
         expect(within(tabel).queryByText(/Target/)).toBeNull();
     });
@@ -351,7 +351,7 @@ describe('Halaman status capaian versi pengukuran', () => {
         rerender(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan], can: { tetapkan: false } })} />);
         expect(screen.queryByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toBeNull();
         // Rincian tetap dapat dibuka pengguna yang hanya membaca.
-        expect(screen.getByRole('button', { name: 'Lihat rincian status capaian IKU-UJI' })).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Lihat rincian status capaian IKU-UJI' })).toBeTruthy();
 
         rerender(<StatusCapaian {...props({ sudah_ditetapkan: [{ ...sudahDitetapkan, can: { tetapkan: false, revisi: false } }] })} />);
         expect(screen.queryByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toBeNull();
@@ -374,62 +374,28 @@ describe('Halaman status capaian versi pengukuran', () => {
         expect(form.posts[0].data).toMatchObject({ status: 'belum_tercapai', pengukuran_versi_id: 'versi-1', versi: 7 });
     });
 
-    it('membuka rincian dan riwayat per versi di jendela serta menandai hanya status berlaku', async () => {
-        const user = userEvent.setup();
-        bukaTabDitetapkan();
-        render(<StatusCapaian {...props({ sudah_ditetapkan: [sudahDitetapkan] })} />);
+    /** Rincian dibuka sebagai halaman dari setiap baris, termasuk baris yang tidak dapat ditetapkan atau direvisi. */
+    it('menautkan setiap baris kedua tab ke halaman rincian tanpa jendela rincian', () => {
+        const tautanRincian = () => screen.getAllByRole('link', { name: /^Lihat rincian status capaian/ }).map((tautan) => tautan.getAttribute('href'));
 
-        expect(screen.queryByText(/Verifikator Lama/)).toBeNull();
-        await user.click(screen.getByRole('button', { name: 'Lihat rincian status capaian IKU-UJI' }));
-        const dialog = screen.getByRole('dialog', { name: 'Rincian status capaian' });
-
-        expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
-        const berlaku = within(dialog).getAllByText('Berlaku');
-        expect(berlaku).toHaveLength(1);
-        const barisBerlaku = berlaku[0].closest('li');
-        expect(barisBerlaku).toBeTruthy();
-        expect(within(barisBerlaku as HTMLElement).getByText(/^Versi 2 · Verifikator Uji/)).toBeTruthy();
-        expect(within(barisBerlaku as HTMLElement).queryByText(/^Versi 1 ·/)).toBeNull();
-        expect(within(dialog).getByText(/^Versi 1 · Verifikator Lama/)).toBeTruthy();
-        // Jendela ini hanya untuk membaca: tidak ada isian maupun tombol simpan.
-        expect(within(dialog).queryByRole('radio')).toBeNull();
-        expect(within(dialog).queryByRole('button', { name: 'Simpan' })).toBeNull();
-
-        await user.click(within(dialog).getByRole('button', { name: 'Tutup' }));
-        expect(screen.queryByRole('dialog', { name: 'Rincian status capaian' })).toBeNull();
-    });
-
-    /** Baris yang tidak dapat direvisi tidak punya dialog revisi, sehingga angkanya harus terbaca dari jendela rincian. */
-    it('menampilkan angka pengukuran di jendela rincian untuk status yang tidak dapat direvisi', async () => {
-        const user = userEvent.setup();
-        bukaTabDitetapkan();
-        render(<StatusCapaian {...props({ sudah_ditetapkan: [{ ...sudahDitetapkan, can: { tetapkan: false, revisi: false } }] })} />);
-
-        expect(screen.queryByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toBeNull();
-        await user.click(screen.getByRole('button', { name: 'Lihat rincian status capaian IKU-UJI' }));
-        const dialog = screen.getByRole('dialog', { name: 'Rincian status capaian' });
-
-        const nilai = (label: string) => within(dialog).getByText(label).nextElementSibling?.textContent;
-        expect(nilai('Realisasi')).toBe('88,00 %');
-        expect(nilai('Target periode')).toBe('100,00 %');
-        expect(nilai('Capaian terhadap target')).toBe('88,00%');
-        expect(nilai('Target PK')).toBe('100,00 %');
-        expect(nilai('Selisih terhadap target PK')).toContain('di bawah target PK');
-        expect(nilai('Versi pengukuran')).toContain('Versi 2');
-    });
-
-    it('menyediakan jendela rincian untuk kandidat yang tidak memenuhi syarat penetapan', async () => {
-        const user = userEvent.setup();
-        render(<StatusCapaian {...props({ kandidat: [baris({ can: { tetapkan: false, revisi: false } })] })} />);
-
+        const { unmount } = render(<StatusCapaian {...props({
+            kandidat: [baris(), baris({ id: 'pengukuran-3', can: { tetapkan: false, revisi: false } })],
+        })} />);
         expect(screen.getByText('Tidak memenuhi syarat')).toBeTruthy();
-        expect(screen.queryByRole('button', { name: /Tetapkan status capaian/ })).toBeNull();
-        await user.click(screen.getByRole('button', { name: 'Lihat rincian status capaian IKU-UJI' }));
-        const dialog = screen.getByRole('dialog', { name: 'Rincian status capaian' });
+        expect(tautanRincian()).toEqual(['/verifikasi/status-capaian/pengukuran-1', '/verifikasi/status-capaian/pengukuran-3']);
+        expect(screen.queryByRole('button', { name: /Lihat rincian/ })).toBeNull();
+        unmount();
 
-        expect(within(dialog).getByText('Target PK').nextElementSibling?.textContent).toBe('100,00 %');
-        expect(within(dialog).getByText('Selisih terhadap target PK').nextElementSibling?.textContent).toContain('di bawah target PK');
-        expect(within(dialog).getByText('Belum ada riwayat status tercatat.')).toBeTruthy();
+        bukaTabDitetapkan();
+        render(<StatusCapaian {...props({
+            sudah_ditetapkan: [sudahDitetapkan, { ...sudahDitetapkan, id: 'pengukuran-4', can: { tetapkan: false, revisi: false } }],
+        })} />);
+        expect(screen.getAllByRole('button', { name: 'Revisi status capaian IKU-UJI' })).toHaveLength(1);
+        expect(tautanRincian()).toEqual(['/verifikasi/status-capaian/pengukuran-2', '/verifikasi/status-capaian/pengukuran-4']);
+        expect(screen.queryByRole('button', { name: /Lihat rincian/ })).toBeNull();
+        // Riwayat dan penetap hanya dibaca di halaman rincian.
+        expect(screen.queryByText(/Verifikator/)).toBeNull();
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('menampilkan paginasi revisi memakai total server dan tautan status_page', () => {
