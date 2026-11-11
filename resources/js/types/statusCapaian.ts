@@ -78,6 +78,12 @@ export interface StatusCapaianProps {
     can: { tetapkan: boolean };
 }
 
+/** Halaman rincian: satu baris dengan bentuk yang sama seperti baris daftar. */
+export interface StatusCapaianRincianProps {
+    pengukuran: BarisStatusCapaian;
+    can: { tetapkan: boolean };
+}
+
 export interface FormStatusCapaian {
     status: StatusCapaianNilai | '';
     pengukuran_versi_id: string;

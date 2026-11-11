@@ -13,6 +13,7 @@ use App\Support\PermissionCodes;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
@@ -44,22 +45,10 @@ class IndexStatusCapaian
     /** @return array<string, mixed> */
     public function handle(User $actor): array
     {
-        // Gerbang halaman fail-closed: tanpa izin ini halaman maupun endpoint tulis tidak pernah dibuka.
-        $bolehMenetapkan = $this->resolver->allows($actor, PermissionCodes::STATUS_CAPAIAN_UPDATE);
-        if (! $bolehMenetapkan) {
-            throw new AuthorizationException('Anda tidak memiliki izin menetapkan status capaian.');
-        }
+        $this->gerbang($actor);
 
         $kandidat = $this->dasar($actor)
-            ->whereExists(fn (QueryBuilder $exists) => $this->versiSahTerakhir($exists, function (QueryBuilder $versi): void {
-                // Versi sah terakhir belum punya status berlaku dan bukan kondisi yang dilarang Q47.
-                $versi->whereNotExists(fn (QueryBuilder $status) => $status->selectRaw('1')->from('status_capaian as sc')
-                    ->whereColumn('sc.pengukuran_versi_id', 'versi_sah.id'))
-                    // Predikat AC-5 dibaca dari JSON versi beku dengan urutan yang sama seperti policy: tanpa target lebih dulu.
-                    // Perbandingan teks dipakai agar nilai JSON yang tidak persis boolean tidak menggagalkan query daftar.
-                    ->whereRaw("COALESCE(versi_sah.snapshot->>'tanpa_target_periode', 'false') <> 'true'")
-                    ->whereRaw("COALESCE(versi_sah.snapshot->>'status_perhitungan', '') NOT IN ('belum_dapat_diukur', 'tidak_dapat_dihitung')");
-            }))
+            ->whereExists(fn (QueryBuilder $exists) => $this->versiSahTerakhir($exists, $this->syaratKandidat(...)))
             ->leftJoin('periode as urut_periode', 'urut_periode.id', '=', 'pengukuran_kinerjas.periode_id')
             ->with($this->relasi())
             // Urutan periode memakai `periode.urutan` (urutan bisnis yang dibaca pengguna), bukan UUID `periode_id`
@@ -72,9 +61,7 @@ class IndexStatusCapaian
             ->withQueryString();
 
         $sudahDitetapkan = $this->dasar($actor)
-            ->whereExists(fn (QueryBuilder $exists) => $this->versiSahTerakhir($exists, fn (QueryBuilder $versi) => $versi
-                ->whereExists(fn (QueryBuilder $status) => $status->selectRaw('1')->from('status_capaian as sc')
-                    ->whereColumn('sc.pengukuran_versi_id', 'versi_sah.id'))))
+            ->whereExists(fn (QueryBuilder $exists) => $this->versiSahTerakhir($exists, $this->syaratSudahDitetapkan(...)))
             ->with($this->relasi())
             // Urutan memakai waktu status berlaku terbaru per pengukuran, dibaca di database agar batas koleksi menyaring
             // baris yang benar; subquery select juga menjadi kunci urut yang deterministik bersama `id`.
@@ -87,10 +74,8 @@ class IndexStatusCapaian
         $rows = $kandidat->getCollection()->concat($sudahDitetapkan->getCollection());
         $units = $rows->map(fn (PengukuranKinerja $row) => $row->targetUnitId())->unique()->values()->all();
         $izin = $units === [] ? [] : $this->resolver->decideManyForUnits($actor, [PermissionCodes::STATUS_CAPAIAN_UPDATE], $units);
-        $statusPerVersi = StatusCapaian::berlakuPerVersi($sudahDitetapkan->getCollection()
-            ->map(fn (PengukuranKinerja $p) => $p->ratifiedVersion?->id)->filter()->unique()->values()->all())
-            // Relasi penetap dan nomor versi dimuat sekali untuk seluruh halaman, bukan per baris.
-            ->load(['ditetapkanOleh:id,nama', 'versi:id,nomor']);
+        $statusPerVersi = $this->statusBerlaku($sudahDitetapkan->getCollection()
+            ->map(fn (PengukuranKinerja $p) => $p->ratifiedVersion?->id)->filter()->unique()->values()->all());
 
         return [
             'kandidat' => $kandidat->getCollection()->map(fn (PengukuranKinerja $row) => $this->baris($row, $izin))->all(),
@@ -108,8 +93,71 @@ class IndexStatusCapaian
                 'current_page' => $sudahDitetapkan->currentPage(), 'last_page' => $sudahDitetapkan->lastPage(), 'total' => $sudahDitetapkan->total(),
                 'prev_page_url' => $sudahDitetapkan->previousPageUrl(), 'next_page_url' => $sudahDitetapkan->nextPageUrl(),
             ],
-            'can' => ['tetapkan' => $bolehMenetapkan],
+            'can' => ['tetapkan' => true],
         ];
+    }
+
+    /**
+     * Satu baris untuk halaman rincian. Gerbang halaman, scope unit, syarat koleksi, dan penyaji baris sama dengan
+     * daftar, sehingga pengukuran yang tidak tampil di salah satu dari dua daftar bagi pengguna ini tidak ditemukan.
+     *
+     * @return array<string, mixed>
+     */
+    public function rincian(User $actor, string $pengukuranId): array
+    {
+        $this->gerbang($actor);
+
+        $row = $this->dasar($actor)
+            ->whereKey($pengukuranId)
+            ->where(fn (EloquentBuilder $salahSatu) => $salahSatu
+                ->whereExists(fn (QueryBuilder $exists) => $this->versiSahTerakhir($exists, $this->syaratKandidat(...)))
+                ->orWhereExists(fn (QueryBuilder $exists) => $this->versiSahTerakhir($exists, $this->syaratSudahDitetapkan(...))))
+            ->with($this->relasi())
+            ->firstOrFail();
+        $versiId = $row->ratifiedVersion?->id;
+        $izin = $this->resolver->decideManyForUnits($actor, [PermissionCodes::STATUS_CAPAIAN_UPDATE], [$row->targetUnitId()]);
+
+        return [
+            'pengukuran' => $this->baris($row, $izin, $versiId === null ? null : $this->statusBerlaku([$versiId])->get($versiId)),
+            'can' => ['tetapkan' => true],
+        ];
+    }
+
+    /** Gerbang halaman fail-closed: tanpa izin ini daftar, rincian, maupun endpoint tulis tidak pernah dibuka. */
+    private function gerbang(User $actor): void
+    {
+        if (! $this->resolver->allows($actor, PermissionCodes::STATUS_CAPAIAN_UPDATE)) {
+            throw new AuthorizationException('Anda tidak memiliki izin menetapkan status capaian.');
+        }
+    }
+
+    /** Syarat koleksi `kandidat`: versi sah terakhir belum punya status berlaku dan bukan kondisi yang dilarang Q47. */
+    private function syaratKandidat(QueryBuilder $versi): void
+    {
+        $versi->whereNotExists(fn (QueryBuilder $status) => $status->selectRaw('1')->from('status_capaian as sc')
+            ->whereColumn('sc.pengukuran_versi_id', 'versi_sah.id'))
+            // Predikat AC-5 dibaca dari JSON versi beku dengan urutan yang sama seperti policy: tanpa target lebih dulu.
+            // Perbandingan teks dipakai agar nilai JSON yang tidak persis boolean tidak menggagalkan query daftar.
+            ->whereRaw("COALESCE(versi_sah.snapshot->>'tanpa_target_periode', 'false') <> 'true'")
+            ->whereRaw("COALESCE(versi_sah.snapshot->>'status_perhitungan', '') NOT IN ('belum_dapat_diukur', 'tidak_dapat_dihitung')");
+    }
+
+    /** Syarat koleksi `sudah_ditetapkan`: versi sah terakhir sudah punya status berlaku. */
+    private function syaratSudahDitetapkan(QueryBuilder $versi): void
+    {
+        $versi->whereExists(fn (QueryBuilder $status) => $status->selectRaw('1')->from('status_capaian as sc')
+            ->whereColumn('sc.pengukuran_versi_id', 'versi_sah.id'));
+    }
+
+    /**
+     * Status berlaku per versi beserta penetap dan nomor versinya, dimuat sekali untuk seluruh versi yang diminta.
+     *
+     * @param  list<string>  $versiIds
+     * @return Collection<string, StatusCapaian>
+     */
+    private function statusBerlaku(array $versiIds): Collection
+    {
+        return StatusCapaian::berlakuPerVersi($versiIds)->load(['ditetapkanOleh:id,nama', 'versi:id,nomor']);
     }
 
     /**

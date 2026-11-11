@@ -24,6 +24,11 @@ class StatusCapaianController extends Controller
         return Inertia::render('Verifikasi/StatusCapaian', $action->handle($request->user()));
     }
 
+    public function show(Request $request, string $pengukuran, IndexStatusCapaian $action): Response
+    {
+        return Inertia::render('Verifikasi/StatusCapaianRincian', $action->rincian($request->user(), $pengukuran));
+    }
+
     public function store(StoreStatusCapaianRequest $request, PengukuranKinerja $pengukuran, TetapkanStatusCapaian $action): RedirectResponse
     {
         $row = $action->handle($request->user(), $pengukuran->id, $request->validated());

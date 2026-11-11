@@ -2444,7 +2444,7 @@ Nomor Q75 dan Q76 dicadangkan untuk mencatat keputusan PM K3–K7 ISS-10.05 ([ko
 4. **Q-D — alasan.** Alasan bersifat opsional karena Q43 §43.2 dan §43.3 tidak menyebut status capaian; audit tetap wajib memuat `dasar_izin` dan alasan baku server bila pengguna mengosongkan.
 5. **Q-E — cakupan konsumen.** PR ISS-09.02 memuat konsumen wajib rekap dan status tampilan dashboard. AC-5 ISS-10.01 dan ISS-10.02 tetap milik issue masing-masing dan tidak dicentang dari ISS-09.02.
 6. **Q-F — konkurensi.** Token `pengukuran_kinerjas.versi` dibandingkan di bawah lock header dan dinaikkan setelah penetapan atau revisi sukses, sehingga tampilan usang ditolak 409.
-7. **Q-G — penempatan UI.** `GET /verifikasi/status-capaian` dan `POST /verifikasi/{pengukuran}/status-capaian`; halaman berada pada modul Reviu & Pengesahan dengan menu di grup Pelaksanaan & Evaluasi.
+7. **Q-G — penempatan UI.** `GET /verifikasi/status-capaian` dan `POST /verifikasi/{pengukuran}/status-capaian`; halaman berada pada modul Reviu & Pengesahan dengan menu di grup Pelaksanaan & Evaluasi. Keputusan PM 12 November 2026: ditambahkan `GET /verifikasi/status-capaian/{pengukuran}` sebagai halaman rincian per pengukuran dengan akses yang sama dengan daftar (tanpa `status_capaian:update` ditolak 403; pengukuran yang tidak tampil pada daftar pengguna itu menghasilkan 404), sedangkan penetapan dan revisi tetap melalui `POST` yang sama.
 
 ## 78.2 Status implementasi dan traceability
 
