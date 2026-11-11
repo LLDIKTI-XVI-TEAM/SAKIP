@@ -23,3 +23,10 @@ Schedule::command('notifikasi:pembukaan')
     ->timezone(config('app.business_timezone'))
     ->withoutOverlapping(10)
     ->onOneServer();
+
+// Item lonceng pembukaan karena tanggal: gerbang 00.05 WITA dan penanda harian ada di dalam command.
+Schedule::command('notifikasi:lonceng-pembukaan')
+    ->everyMinute()
+    ->timezone(config('app.business_timezone'))
+    ->withoutOverlapping(10)
+    ->onOneServer();
