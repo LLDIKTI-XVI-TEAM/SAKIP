@@ -8,11 +8,13 @@ use App\Models\PenugasanIndikator;
 use App\Models\PeriodeJadwal;
 use App\Models\User;
 use App\Services\Notifikasi\AntrekanNotifikasiEksternal;
+use App\Services\Notifikasi\AntrekanPembukaanJendela;
 use App\Services\Notifikasi\HasilKirim;
 use App\Services\Notifikasi\PengirimNotifikasiEksternal;
 use App\Services\Notifikasi\PenyediaKanalNotifikasi;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesDashboardFixture;
 use Tests\Concerns\CreatesPengukuranFixture;
@@ -54,10 +56,10 @@ class NotifikasiPembukaanGerbangTest extends TestCase
         (new KirimNotifikasiEksternal($row->id))->handle(app(PengirimNotifikasiEksternal::class));
     }
 
-    /** Pegawai PJ satu indikator tambahan pada jendela fixture; hak isi diberikan terpisah. */
-    private function picDenganIndikator(string $kode, bool $hakIsi = true): array
+    /** PJ satu indikator tambahan pada jendela fixture; hak isi diberikan terpisah. */
+    private function picDenganIndikator(string $kode, bool $hakIsi = true, string $peran = 'pegawai'): array
     {
-        $pic = $this->userWithRole('pegawai');
+        $pic = $this->userWithRole($peran);
         $snapshot = $this->indikatorBaru($kode);
         PenugasanIndikator::create(['indikator_id' => $snapshot->indikator_id, 'user_id' => $pic->id,
             'tanggal_mulai_berlaku' => '2026-01-01', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
@@ -104,16 +106,98 @@ class NotifikasiPembukaanGerbangTest extends TestCase
         $this->assertSame('diterima_provider', $row->fresh()->status);
     }
 
+    private function antrePembukaan(): NotifikasiPengiriman
+    {
+        // Aktivasi mendahului jendela agar tenggat yang dimajukan tidak menjadi periode lampau 2026.
+        $this->jadwal->update(['activated_at' => '2026-03-01 00:00:00']);
+        [$pic] = $this->picDenganIndikator('I-BUKA-TENGGAT');
+
+        return app(AntrekanPembukaanJendela::class)->antre($this->tw1, null, '2026-03-10')
+            ->where('kanal', 'email')->where('penerima_user_id', $pic->id)->firstOrFail();
+    }
+
+    #[DataProvider('revisiTenggat')]
+    public function test_tanggal_pesan_pembukaan_mengikuti_tenggat_saat_kirim(?string $tenggatBaru, ?string $tanggalPesan): void
+    {
+        $row = $this->antrePembukaan();
+        $this->assertSame('antre', $row->status);
+        $this->assertSame('15 Maret 2026', $row->parameter['selesai']);
+        $this->assertStringContainsString('{{selesai}}', $row->template);
+
+        if ($tenggatBaru !== null) {
+            DB::table('jadwal_periode')->where('id', $this->tw1->id)->update(['pengisian_selesai' => $tenggatBaru]);
+        }
+        config(['notifikasi.template_pembukaan' => 'Template baru.']);
+        $pesan = [];
+        $this->mock(PenyediaKanalNotifikasi::class)->shouldReceive('kirim')->andReturnUsing(
+            static function (NotifikasiPengiriman $pengiriman) use (&$pesan): HasilKirim {
+                $pesan[] = [$pengiriman->template, $pengiriman->parameter, $pengiriman->kunci_idempoten];
+
+                return HasilKirim::diterima('fixture');
+            },
+        );
+
+        $this->kirim($row);
+
+        $tersimpan = $row->fresh();
+        $this->assertSame($row->parameter, $tersimpan->parameter);
+        if ($tanggalPesan === null) {
+            $this->assertSame(['dibatalkan', 'penerima_tidak_berhak', 0], [$tersimpan->status, $tersimpan->kode_hasil, $tersimpan->percobaan]);
+            $this->assertSame([], $pesan);
+
+            return;
+        }
+
+        $this->assertSame('diterima_provider', $tersimpan->status);
+        $this->assertSame([[$row->template, [...$row->parameter, 'selesai' => $tanggalPesan], $row->kunci_idempoten]], $pesan);
+    }
+
+    public static function revisiTenggat(): array
+    {
+        return [
+            'tanpa revisi' => [null, '15 Maret 2026'],
+            'diperpanjang' => ['2026-03-20', '20 Maret 2026'],
+            'dimajukan masih terbuka' => ['2026-03-12', '12 Maret 2026'],
+            'dimajukan sudah lewat' => ['2026-03-09', null],
+        ];
+    }
+
+    public function test_retry_aman_pembukaan_membaca_tenggat_ulang(): void
+    {
+        $row = $this->antrePembukaan();
+        $tanggal = [];
+        $this->mock(PenyediaKanalNotifikasi::class)->shouldReceive('kirim')->andReturnUsing(
+            static function (NotifikasiPengiriman $pengiriman) use (&$tanggal): HasilKirim {
+                $tanggal[] = $pengiriman->parameter['selesai'];
+
+                return count($tanggal) === 1 ? HasilKirim::sementara(120) : HasilKirim::diterima('fixture');
+            },
+        );
+
+        $pengirim = app(PengirimNotifikasiEksternal::class);
+        $this->assertSame(120, $pengirim->kirim($row->id, 4));
+        $this->assertSame('antre', $row->fresh()->status);
+        DB::table('jadwal_periode')->where('id', $this->tw1->id)->update(['pengisian_selesai' => '2026-03-20']);
+        $this->travelKe('2026-03-10 09:02');
+        $pengirim->kirim($row->id, 4);
+
+        $tersimpan = $row->fresh();
+        $this->assertSame(['diterima_provider', 2], [$tersimpan->status, $tersimpan->percobaan]);
+        $this->assertSame($row->parameter, $tersimpan->parameter);
+        $this->assertSame(['15 Maret 2026', '20 Maret 2026'], $tanggal);
+    }
+
     #[DataProvider('penerimaTidakLayak')]
     public function test_penerima_tidak_layak_dibatalkan_sebelum_provider(string $kasus): void
     {
-        [$pic, $snapshot] = $this->picDenganIndikator('I-BUKA-TOLAK', hakIsi: $kasus !== 'tanpa hak isi');
+        [$pic, $snapshot] = $this->picDenganIndikator('I-BUKA-TOLAK', hakIsi: $kasus !== 'tanpa hak isi', peran: $kasus === 'tanpa hak baca' ? 'admin' : 'pegawai');
         $row = $this->antre($pic);
         $this->assertSame('antre', $row->status);
+        $this->mock(PenyediaKanalNotifikasi::class)->shouldNotReceive('kirim');
 
         match ($kasus) {
             'akun nonaktif' => $pic->update(['status' => 'nonaktif']),
-            'tanpa hak isi' => null,
+            'tanpa hak isi', 'tanpa hak baca' => null,
             'pj dialihkan' => PenugasanIndikator::create(['indikator_id' => $snapshot->indikator_id, 'user_id' => $this->userWithRole('pegawai')->id,
                 'tanggal_mulai_berlaku' => '2026-03-05', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]),
             // Pagi setelah tenggat di WITA masih tanggal 15 Maret di UTC.
@@ -134,6 +218,7 @@ class NotifikasiPembukaanGerbangTest extends TestCase
         return [
             'akun nonaktif' => ['akun nonaktif'],
             'tanpa hak isi' => ['tanpa hak isi'],
+            'tanpa hak baca' => ['tanpa hak baca'],
             'pj dialihkan' => ['pj dialihkan'],
             'jendela tertutup' => ['jendela tertutup'],
             'kewajiban sudah diajukan' => ['kewajiban sudah diajukan'],
