@@ -261,6 +261,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/verifikasi/pilihan', [IndexVerifikasi::class, 'pilihan'])->name('verifikasi.pilihan');
     // Didaftarkan sebelum `/verifikasi/{id}` agar tidak bergantung pada urutan pencocokan rute.
     Route::get('/verifikasi/status-capaian', [StatusCapaianController::class, 'index'])->name('status-capaian.index');
+    Route::get('/verifikasi/status-capaian/{pengukuran}', [StatusCapaianController::class, 'show'])
+        ->whereUuid('pengukuran')->name('status-capaian.show');
     // Antrean Disahkan (Plan 6.3, Q67) tetap halaman terpisah dari antrean reviu.
     Route::get('/verifikasi/disahkan', IndexPengukuranDisahkan::class)->name('verifikasi.disahkan');
     Route::get('/verifikasi/disahkan/pilihan', [IndexPengukuranDisahkan::class, 'pilihan'])->name('verifikasi.disahkan.pilihan');
