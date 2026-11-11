@@ -104,6 +104,15 @@ class PenerimaNotifikasi
     }
 
     /**
+     * Sidik daftar unit yang ditolak baca bagi penerima rekap. Dibekukan bersama angka saat antre dan dibandingkan
+     * di gerbang kirim, agar rekap yang memuat unit yang kemudian ditolak tidak terkirim tanpa menghitung ulang angka.
+     */
+    public function cakupanRekap(User $user): string
+    {
+        return hash('sha256', $this->resolver->unitDitolak($user, 'dashboard:read')->orderBy('user_permission_denied.unit_id')->pluck('unit_id')->implode(','));
+    }
+
+    /**
      * PJ efektif pada `$tanggalBisnis` untuk indikator yang wajib diisi pada periode itu: versi snapshot berlaku,
      * unit aktif, indikator non-arsip. `$indikatorIds` null = semua indikator; `[]` = tidak ada (lingkup sesi koreksi kosong).
      * Deny baca per pembaca tidak disaring di sini: PJ yang ditolak baca unit tetap menerima item,

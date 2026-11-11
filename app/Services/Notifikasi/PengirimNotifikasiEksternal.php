@@ -101,8 +101,9 @@ class PengirimNotifikasiEksternal
      * `jendela_dibuka:` menghitung H dari tenggat jendela pada instan kirim; H hilang/invalid,
      * jendela yang sudah tertutup, prefiks lain, atau hasil kelayakan palsu berakhir `false`.
      * Untuk `ews:`, `parameter['jatuh_tempo']` yang berbeda dari tenggat terkini juga berakhir `false`.
-     * `rekap:` mensyaratkan tenggat dan H yang sama dengan saat antre, jendela yang masih berjalan, dan
-     * penerima yang masih penerima rekap Perencanaan.
+     * `rekap:` mensyaratkan tenggat dan H yang sama dengan saat antre, jendela yang masih berjalan,
+     * penerima yang masih penerima rekap Perencanaan, dan `parameter['cakupan_unit']` yang sama dengan
+     * daftar unit yang ditolak baca bagi penerima pada instan kirim.
      */
     private function berhak(NotifikasiPengiriman $pengiriman, User $user, Model $model): bool
     {
@@ -120,13 +121,15 @@ class PengirimNotifikasiEksternal
 
         if (str_starts_with($pengiriman->kejadian, 'rekap:')) {
             // Angka rekap dibekukan saat antre, jadi hanya dikirim pada hari H yang sama dengan tenggat yang sama,
-            // selama jendela masih berjalan dan penerima masih penerima rekap.
+            // selama jendela masih berjalan, penerima masih penerima rekap, dan unit yang ditolak baca tidak berubah.
             $saat = CarbonImmutable::now(config('app.business_timezone'));
+            $penerima = app(PenerimaNotifikasi::class);
 
             return ($pengiriman->parameter['jatuh_tempo'] ?? null) === $model->pengisian_selesai->toDateString()
                 && ($pengiriman->parameter['h'] ?? null) === SusunRekapPerencanaan::sisaHari($model, $saat)
                 && app(PengingatKontekstual::class)->periode($saat)->contains('id', $model->id)
-                && app(PenerimaNotifikasi::class)->penerimaRekap([$user->id]) !== [];
+                && $penerima->penerimaRekap([$user->id]) !== []
+                && ($pengiriman->parameter['cakupan_unit'] ?? null) === $penerima->cakupanRekap($user);
         }
 
         if (! str_starts_with($pengiriman->kejadian, 'ews:')) {

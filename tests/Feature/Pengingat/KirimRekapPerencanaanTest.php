@@ -84,6 +84,8 @@ class KirimRekapPerencanaanTest extends TestCase
                 'h' => $h, 'jatuh_tempo' => '2026-03-15', 'jatuh_tempo_tampil' => '15 Maret 2026', 'periode' => 'Triwulan I', 'tahun' => 2026,
                 'belum_mengisi' => 2, 'draf' => 1, 'dikembalikan' => 0, 'diajukan' => 0, 'belum_selesai' => 3, 'total' => 3,
                 'rincian_unit' => 'Belum selesai per unit: Unit Pengujian 3.', 'url' => route('dashboard'),
+                // Tanpa unit yang ditolak baca, sidik cakupan adalah hash daftar kosong.
+                'cakupan_unit' => hash('sha256', ''),
             ], json_decode($b->parameter, true));
         }
 
@@ -222,6 +224,27 @@ class KirimRekapPerencanaanTest extends TestCase
             ->map(fn ($b): int => json_decode($b->parameter, true)['total'])->all();
         $this->assertSame([2, 2], $total($this->perencana));
         $this->assertSame([1, 1], $total($terbatas));
+    }
+
+    public function test_deny_unit_setelah_antre_dibatalkan_di_gerbang_kirim(): void
+    {
+        $unitB = $this->unitBaru('Unit B');
+        $this->indikatorBaru('I-B-KOSONG', [], ['unit_id' => $unitB->id]);
+        $lain = $this->akunPerencanaan('perencana.lain@example.test', '6281234567806');
+        $this->travelKe('2026-03-12 08:00');
+        $this->jalankan();
+        // Rekap yang sudah antre memuat Unit B; penolakan baca unit itu baru ditetapkan sesudahnya.
+        DB::table('user_permission_denied')->insert(['id' => (string) Str::uuid(), 'user_id' => $lain->id,
+            'permission_id' => Permission::where('kode', 'dashboard:read')->value('id'), 'unit_id' => $unitB->id,
+            'alasan' => 'Fixture pengujian', 'ditetapkan_oleh' => $this->actor->id, 'created_at' => now()]);
+
+        $tetap = NotifikasiPengiriman::where('penerima_user_id', $this->perencana->id)->where('kanal', 'email')->firstOrFail();
+        $batal = NotifikasiPengiriman::where('penerima_user_id', $lain->id)->where('kanal', 'email')->firstOrFail();
+        $this->kirim($tetap);
+        $this->kirim($batal);
+
+        $this->assertSame('diterima_provider', $tetap->fresh()->status);
+        $this->assertSame(['dibatalkan', 'penerima_tidak_berhak', null], [$batal->fresh()->status, $batal->fresh()->kode_hasil, $batal->fresh()->rujukan_provider]);
     }
 
     public function test_dijalankan_ulang_tidak_menambah_baris(): void

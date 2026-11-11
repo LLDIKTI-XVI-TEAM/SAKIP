@@ -91,7 +91,10 @@ final class KirimRekapPerencanaan extends Command
                         penerima: [$user->id],
                         kanal: ['email', 'whatsapp'],
                         template: $template,
-                        parameter: $susun->parameter($periode, $h, $izin->unitDitolak($user, 'dashboard:read'), $saat),
+                        parameter: [
+                            ...$susun->parameter($periode, $h, $izin->unitDitolak($user, 'dashboard:read'), $saat),
+                            'cakupan_unit' => $penerima->cakupanRekap($user),
+                        ],
                     )->count();
                 } catch (InvalidArgumentException $galat) {
                     if (Cache::add($kunciGagal, true, $saat->endOfDay())) {
