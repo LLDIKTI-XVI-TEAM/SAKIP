@@ -10,7 +10,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Gerbang terakhir kelayakan satu PIC sebagai penerima pengingat EWS pada instan antre/kirim.
+ * Gerbang terakhir kelayakan satu PIC sebagai penerima pengingat EWS pada instan antre/kirim; broadcast
+ * pembukaan jendela memakainya juga dengan H sama dengan sisa hari sampai tenggat.
  *
  * Penerima hanya layak bila akun aktif, memegang peran resmi aktif, masih memiliki kewajiban
  * belum selesai pada periode terkait sebagaimana dinilai {@see KandidatPengingatTenggat}, dan
@@ -35,7 +36,7 @@ final class KelayakanPenerimaEws
     ) {}
 
     /**
-     * @param  int  $h  H-minus yang diminta scheduler (mis. 7, 3, 1)
+     * @param  int  $h  H-minus yang diminta pemanggil (EWS: 7, 3, 1; pembukaan: sisa hari sampai tenggat)
      * @param  CarbonImmutable  $saat  Instan kirim; dinormalkan ke zona bisnis sebelum dinilai
      */
     public function layak(User $user, PeriodeJadwal $periodeJadwal, int $h, CarbonImmutable $saat): bool

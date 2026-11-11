@@ -2008,7 +2008,7 @@ Outbox pengiriman eksternal per kejadian × objek × penerima × konteks periode
 | `id` | uuid | PK | Identitas baris tetap pada retry |
 | `kunci_idempoten` | varchar | unique, not null | Identitas kanonis kejadian, objek, penerima, konteks periode, dan kanal |
 | `kejadian` | varchar | not null | Identitas satu kejadian/versi, bukan hanya jenis event; pengembalian sah berikutnya mempunyai identitas berbeda |
-| `objek_tipe`, `objek_id` | enum(`rencana_aksi`, `pengukuran`), uuid | not null | Referensi objek domain untuk pemeriksaan akses saat pengiriman. Jenis tujuan baru ditambahkan producer pemiliknya lewat migrasi enum dan pemeriksaan kelayakan setara Q4 refinement #227 |
+| `objek_tipe`, `objek_id` | enum(`rencana_aksi`, `pengukuran`, `jadwal_periode`), uuid | not null | Referensi objek domain untuk pemeriksaan akses saat pengiriman. Jenis tujuan baru ditambahkan producer pemiliknya lewat migrasi enum dan pemeriksaan kelayakan setara Q4 refinement #227. `jadwal_periode` dipakai pengingat EWS (ISS-12.04) dan broadcast pembukaan jendela (ISS-12.03) |
 | `konteks_periode` | varchar | not null | Konteks periode/slot pengingat yang stabil, ditentukan pemanggil server |
 | `kanal` | enum(`whatsapp`, `email`) | not null | Satu kanal per baris |
 | `penerima_user_id` | uuid | FK → users.id, not null | Penerima ditetapkan pada kejadian; tidak dialihkan saat retry |
@@ -2029,6 +2029,7 @@ Outbox pengiriman eksternal per kejadian × objek × penerima × konteks periode
 **Semantik dan transisi:**
 
 - `antre`: menunggu percobaan pertama atau retry yang dipastikan belum diterima provider. Saklar kanal, akun aktif, dan Policy baca objek diperiksa kembali sebelum setiap percobaan. Kanal mati atau akses dicabut menghasilkan `dibatalkan`, tanpa mengganti penerima/alamat.
+- **Gerbang hak penerima per prefiks `kejadian`:** `ews:` dinilai ulang dengan `KelayakanPenerimaEws` memakai H dari `parameter['h']` dan tenggat berjalan; H hilang/invalid atau penerima tidak layak menghasilkan `dibatalkan`/`penerima_tidak_berhak`. `jendela_dibuka:{tanggal}` (ISS-12.03) dinilai dengan `KelayakanPenerimaEws` yang sama memakai H sama dengan sisa hari sampai `pengisian_selesai` pada instan kirim; jendela yang sudah tertutup atau penerima tidak layak menghasilkan `dibatalkan`/`penerima_tidak_berhak`. Prefiks yang belum mempunyai gerbang fail-closed. Untuk `objek_tipe=jadwal_periode` hanya prefiks `ews:` dan `jendela_dibuka:` yang dilayani. Producer tidak menyaring hak isi saat antre (Q4 refinement #227, review #251 C2).
 - `diterima_provider`: provider mengakui accepted/queued; label tidak boleh menyatakan delivered. Baris `simulasi=true` tetap dinyatakan simulasi. Status ini tidak dikirim ulang.
 - `gagal`: penolakan permanen, kontak tidak valid, atau batas retry sementara habis. Hanya kegagalan sementara yang dipastikan belum accepted boleh membuka siklus baru melalui `queue:retry`; jumlah `percobaan` tidak direset dan batas tunggu `coba_lagi_pada` tetap dihormati. Kegagalan permanen tidak diulang.
 - `dibatalkan`: terminal. Mengaktifkan kembali kanal tidak memutar ulang pesan lama.

@@ -5556,6 +5556,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Workflow:** —  
 **Data Model/Entitas:** WA/Email queue
 
+> **Status implementasi (10 November 2026):** producer `AntrekanPembukaanJendela`, listener `JendelaPengisianDibuka` untuk jalur aksi, perintah `notifikasi:pembukaan` beserta scheduler, dan gerbang kirim `jendela_dibuka:` diimplementasikan serta diverifikasi lokal sesuai "Refinement ISS-12.03" pada Keputusan Penyelarasan. AC/TEST dan task implementasi dicentang berdasarkan bukti test; CI exact-HEAD, UAT, dan deployment belum diklaim. Kedua kanal tetap mati secara bawaan dan aktivasi mengikuti Q80 §80.1.
+
 #### User Story
 
 > **Sebagai** PIC terkait,  
@@ -5572,34 +5574,34 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given tanggal/waktu pembukaan resmi tercapai, When pemicu berjalan, Then job WA dan Email didispatch ke PIC yang relevan.
-- [ ] **AC-2:** Given jadwal diaktifkan jauh sebelum `pengisian_mulai`, Then broadcast pembukaan tidak dikirim terlalu awal.
-- [ ] **AC-3:** Given provider gagal, Then transaksi bisnis pembukaan jadwal tidak dirollback.
-- [ ] **AC-4:** Given job diulang, Then idempotency mencegah pesan ganda untuk event-penerima-periode-channel yang sama.
+- [x] **AC-1:** Given tanggal/waktu pembukaan resmi tercapai, When pemicu berjalan, Then job WA dan Email didispatch ke PIC yang relevan.
+- [x] **AC-2:** Given jadwal diaktifkan jauh sebelum `pengisian_mulai`, Then broadcast pembukaan tidak dikirim terlalu awal.
+- [x] **AC-3:** Given provider gagal, Then transaksi bisnis pembukaan jadwal tidak dirollback.
+- [x] **AC-4:** Given job diulang, Then idempotency mencegah pesan ganda untuk event-penerima-periode-channel yang sama.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: Queue/job dan log status pengiriman tanpa secret.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: Queue/job dan log status pengiriman tanpa secret.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Dispatch broadcast berdasarkan waktu pembukaan resmi, bukan hanya saat jadwal diaktifkan; gunakan queue setelah event bisnis sah.
-- [ ] Kegagalan provider tidak boleh me-rollback transaksi domain.
+- [x] Dispatch broadcast berdasarkan waktu pembukaan resmi, bukan hanya saat jadwal diaktifkan; gunakan queue setelah event bisnis sah.
+- [x] Kegagalan provider tidak boleh me-rollback transaksi domain.
 
 **C. Authorization & Audit**
-- [ ] Job/scheduler bukan HTTP user route: otorisasi ditentukan pada event bisnis/pemilihan penerima, bukan dengan memasang middleware RBAC palsu pada cron.
+- [x] Job/scheduler bukan HTTP user route: otorisasi ditentukan pada event bisnis/pemilihan penerima, bukan dengan memasang middleware RBAC palsu pada cron.
 
 **E. Integration / Operations**
-- [ ] Gunakan Laravel queue/worker dan scheduler sesuai Plan; credential provider disimpan di environment/secret manager, bukan `pengaturan` biasa.
-- [ ] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
+- [x] Gunakan Laravel queue/worker dan scheduler sesuai Plan; credential provider disimpan di environment/secret manager, bukan `pengaturan` biasa.
+- [x] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given tanggal/waktu pembukaan resmi tercapai, When pemicu berjalan, Then job WA dan Email didispatch ke PIC yang relevan.
-- [ ] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given jadwal diaktifkan jauh sebelum `pengisian_mulai`, Then broadcast pembukaan tidak dikirim terlalu awal.
-- [ ] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider gagal, Then transaksi bisnis pembukaan jadwal tidak dirollback.
-- [ ] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given job diulang, Then idempotency mencegah pesan ganda untuk event-penerima-periode-channel yang sama.
+- [x] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given tanggal/waktu pembukaan resmi tercapai, When pemicu berjalan, Then job WA dan Email didispatch ke PIC yang relevan.
+- [x] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given jadwal diaktifkan jauh sebelum `pengisian_mulai`, Then broadcast pembukaan tidak dikirim terlalu awal.
+- [x] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given provider gagal, Then transaksi bisnis pembukaan jadwal tidak dirollback.
+- [x] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given job diulang, Then idempotency mencegah pesan ganda untuk event-penerima-periode-channel yang sama.
 
 #### Definition of Done
 
@@ -5620,6 +5622,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 **Workflow:** —  
 **Data Model/Entitas:** EWS
 
+> **Status implementasi (10 November 2026):** command `notifikasi:ews`, scheduler, outbox `jadwal_periode`, dan gerbang kirim `ews:` diimplementasikan serta diverifikasi lokal di PR #261. AC/TEST dan task implementasi dicentang berdasarkan bukti test; CI exact-HEAD, UAT, dan deployment belum diklaim.
+
 #### User Story
 
 > **Sebagai** PIC yang belum menyelesaikan pengajuan,  
@@ -5636,36 +5640,36 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given scheduler mengevaluasi harian, When tanggal tepat H-7/H-3/H-1 dari `pengisian_selesai`, Then PIC yang belum selesai menjadi kandidat penerima.
-- [ ] **AC-2:** Given tanggal H-6/H-5/H-4/H-2, Then scheduler tidak mendispatch pengingat PIC meskipun tetap melakukan pengecekan.
-- [ ] **AC-3:** Given pengukuran sudah diajukan dan tidak sedang dikembalikan untuk revisi, Then PIC dikeluarkan dari daftar pengingat.
-- [ ] **AC-4:** Given pengukuran dikembalikan dan belum diajukan ulang, Then tetap dianggap pekerjaan belum selesai.
-- [ ] **AC-5:** Given jam operasional belum ditetapkan, Then dokumen tidak menghardcode pukul 08.00 sebagai requirement final.
+- [x] **AC-1:** Given scheduler mengevaluasi harian, When tanggal tepat H-7/H-3/H-1 dari `pengisian_selesai`, Then PIC yang belum selesai menjadi kandidat penerima.
+- [x] **AC-2:** Given tanggal H-6/H-5/H-4/H-2, Then scheduler tidak mendispatch pengingat PIC meskipun tetap melakukan pengecekan.
+- [x] **AC-3:** Given pengukuran sudah diajukan dan tidak sedang dikembalikan untuk revisi, Then PIC dikeluarkan dari daftar pengingat.
+- [x] **AC-4:** Given pengukuran dikembalikan dan belum diajukan ulang, Then tetap dianggap pekerjaan belum selesai.
+- [x] **AC-5:** Given jam operasional belum ditetapkan, Then dokumen tidak menghardcode pukul 08.00 sebagai requirement final.
 
 #### Implementation Tasks
 
 **A. Persistence / Data Model**
-- [ ] Implementasikan/validasi persistence untuk dampak data: Queue/log pengiriman.
-- [ ] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
+- [x] Implementasikan/validasi persistence untuk dampak data: Queue/log pengiriman.
+- [x] Pastikan FK, unique/partial index, enum/check constraint, optimistic locking, dan aturan imutabilitas yang relevan mengikuti Data Model; jangan mengganti constraint dengan validasi UI saja.
 
 **B. Backend / Domain**
-- [ ] Scheduler boleh berjalan harian tetapi dispatch hanya H-7/H-3/H-1; jangan hardcode pukul 08.00 sebagai requirement sebelum jam/zona waktu ditetapkan.
-- [ ] Pengukuran dikembalikan yang belum diajukan ulang tetap dianggap belum selesai.
+- [x] Scheduler boleh berjalan harian tetapi dispatch hanya H-7/H-3/H-1; jangan hardcode pukul 08.00 sebagai requirement sebelum jam/zona waktu ditetapkan.
+- [x] Pengukuran dikembalikan yang belum diajukan ulang tetap dianggap belum selesai.
 
 **C. Authorization & Audit**
-- [ ] Job/scheduler bukan HTTP user route: otorisasi ditentukan pada event bisnis/pemilihan penerima, bukan dengan memasang middleware RBAC palsu pada cron.
+- [x] Job/scheduler bukan HTTP user route: otorisasi ditentukan pada event bisnis/pemilihan penerima, bukan dengan memasang middleware RBAC palsu pada cron.
 
 **E. Integration / Operations**
-- [ ] Gunakan Laravel queue/worker dan scheduler sesuai Plan; credential provider disimpan di environment/secret manager, bukan `pengaturan` biasa.
-- [ ] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
+- [x] Gunakan Laravel queue/worker dan scheduler sesuai Plan; credential provider disimpan di environment/secret manager, bukan `pengaturan` biasa.
+- [x] Log error provider tanpa token/secret; dukung fake/mock provider untuk automated test.
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given scheduler mengevaluasi harian, When tanggal tepat H-7/H-3/H-1 dari `pengisian_selesai`, Then PIC yang belum selesai menjadi kandidat penerima.
-- [ ] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given tanggal H-6/H-5/H-4/H-2, Then scheduler tidak mendispatch pengingat PIC meskipun tetap melakukan pengecekan.
-- [ ] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given pengukuran sudah diajukan dan tidak sedang dikembalikan untuk revisi, Then PIC dikeluarkan dari daftar pengingat.
-- [ ] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given pengukuran dikembalikan dan belum diajukan ulang, Then tetap dianggap pekerjaan belum selesai.
-- [ ] TEST-5: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given jam operasional belum ditetapkan, Then dokumen tidak menghardcode pukul 08.00 sebagai requirement final.
+- [x] TEST-1: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given scheduler mengevaluasi harian, When tanggal tepat H-7/H-3/H-1 dari `pengisian_selesai`, Then PIC yang belum selesai menjadi kandidat penerima.
+- [x] TEST-2: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given tanggal H-6/H-5/H-4/H-2, Then scheduler tidak mendispatch pengingat PIC meskipun tetap melakukan pengecekan.
+- [x] TEST-3: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given pengukuran sudah diajukan dan tidak sedang dikembalikan untuk revisi, Then PIC dikeluarkan dari daftar pengingat.
+- [x] TEST-4: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given pengukuran dikembalikan dan belum diajukan ulang, Then tetap dianggap pekerjaan belum selesai.
+- [x] TEST-5: Gunakan Queue/Notification/HTTP fake + time travel bila perlu — Given jam operasional belum ditetapkan, Then dokumen tidak menghardcode pukul 08.00 sebagai requirement final.
 
 #### Definition of Done
 

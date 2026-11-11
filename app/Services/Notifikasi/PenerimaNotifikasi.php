@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Log;
  * Setiap method mengembalikan akun unik yang aktif dan berperan aktif: akun tanpa peran
  * tidak punya izin apa pun (penugasan PJ tidak memberi akses), jadi dilewati.
  * Hanya membaca ACL lewat PermissionResolver dan Policy; tanpa transaksi, kunci, atau audit.
- * Pemanggil: KirimNotifikasiInApp. Item yang sudah ditulis tidak disaring ulang saat request;
+ * Pemanggil: KirimNotifikasiInApp dan AntrekanPembukaanJendela. Item yang sudah ditulis tidak disaring ulang saat request;
  * tautannya diotorisasi route tujuan.
  */
 class PenerimaNotifikasi

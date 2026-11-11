@@ -4,8 +4,12 @@ namespace App\Services\Notifikasi;
 
 use App\Models\NotifikasiPengiriman;
 use App\Models\PengukuranKinerja;
+use App\Models\PeriodeJadwal;
 use App\Models\RencanaAksi;
 use App\Models\User;
+use App\Services\Pengingat\KelayakanPenerimaEws;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Throwable;
@@ -13,6 +17,11 @@ use Throwable;
 class PengirimNotifikasiEksternal
 {
     /** Klaim persisten ditutup hanya oleh hasil pasti; crash tetap ambigu.
+     *
+     * Gerbang penerima dievaluasi ulang pada setiap upaya: RA/pengukuran memakai Policy `view`,
+     * sedangkan `jadwal_periode` hanya menerima prefiks kejadian `ews:` dan `jendela_dibuka:`, keduanya
+     * dinilai {@see KelayakanPenerimaEws}. Prefiks `jadwal_periode` tanpa gerbang fail-closed.
+     *
      * @return int|null Jeda untuk antrean belum jatuh tempo atau penolakan sementara yang pasti belum diterima.
      */
     public function kirim(string $id, int $tries): ?int
@@ -30,10 +39,11 @@ class PengirimNotifikasiEksternal
             $model = match ($p->objek_tipe) {
                 'rencana_aksi' => RencanaAksi::find($p->objek_id),
                 'pengukuran' => PengukuranKinerja::find($p->objek_id),
+                'jadwal_periode' => PeriodeJadwal::find($p->objek_id),
                 default => null,
             };
             $code = ! app(KonfigurasiNotifikasi::class)->aktif($p->kanal) ? 'kanal_nonaktif'
-                : (! $user || $user->status !== 'aktif' || ! $model || ! Gate::forUser($user)->allows('view', $model) ? 'penerima_tidak_berhak'
+                : (! $user || $user->status !== 'aktif' || ! $model || ! $this->berhak($p, $user, $model) ? 'penerima_tidak_berhak'
                     : (! AntrekanNotifikasiEksternal::kontakValid($p->kanal, $p->alamat) ? 'kontak_tidak_tersedia' : null));
             if ($code) {
                 $p->update(['status' => $code === 'kontak_tidak_tersedia' ? 'gagal' : 'dibatalkan', 'kode_hasil' => $code]);
@@ -78,5 +88,44 @@ class PengirimNotifikasiEksternal
 
             return null;
         });
+    }
+
+    /**
+     * Gerbang penerima per jenis tujuan pada instan kirim.
+     *
+     * RA dan pengukuran tetap memakai Policy `view` yang sama dengan tautan. Untuk
+     * `jadwal_periode`, kejadian berprefiks `ews:` mengambil H dari `parameter['h']`, sedangkan
+     * `jendela_dibuka:` menghitung H dari tenggat jendela pada instan kirim; H hilang/invalid,
+     * jendela yang sudah tertutup, prefiks lain, atau hasil kelayakan palsu berakhir `false`.
+     */
+    private function berhak(NotifikasiPengiriman $pengiriman, User $user, Model $model): bool
+    {
+        if (! ($model instanceof PeriodeJadwal)) {
+            return Gate::forUser($user)->allows('view', $model);
+        }
+
+        if (str_starts_with($pengiriman->kejadian, 'jendela_dibuka:')) {
+            // Pembukaan memakai kelayakan EWS dengan H = sisa hari sampai tenggat; H negatif berarti jendela sudah tertutup.
+            $saat = CarbonImmutable::now(config('app.business_timezone'));
+            $sisa = (int) $saat->startOfDay()->diffInDays(CarbonImmutable::parse($model->pengisian_selesai->toDateString(), config('app.business_timezone')), false);
+
+            return $sisa >= 0 && app(KelayakanPenerimaEws::class)->layak($user, $model, $sisa, $saat);
+        }
+
+        if (! str_starts_with($pengiriman->kejadian, 'ews:')) {
+            return false;
+        }
+
+        $h = $pengiriman->parameter['h'] ?? null;
+        if (! is_int($h) || $h < 0) {
+            return false;
+        }
+
+        return app(KelayakanPenerimaEws::class)->layak(
+            $user,
+            $model,
+            $h,
+            CarbonImmutable::now(config('app.business_timezone')),
+        );
     }
 }
