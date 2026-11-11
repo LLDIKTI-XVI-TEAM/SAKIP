@@ -2406,6 +2406,8 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 ### US-12.05 · Rekap Progres untuk Tim Perencanaan H-3 & H-1
 
+> **Status implementasi lokal (11 November 2026):** rekap diantrekan perintah `notifikasi:rekap` di atas outbox ISS-12.07 sesuai Refinement ISS-12.05 pada Keputusan Penyelarasan. Bukti test: `SusunRekapPerencanaanTest` dan `KirimRekapPerencanaanTest` (Feature). AC-1: `test_jumlah_per_status_sesuai_fixture` dan `test_h3_dan_h1_mengantre_email_dan_whatsapp_per_penerima`; AC-2: `test_bukan_penerima_efektif_tidak_diantrekan` dan `test_penerima_dicabut_setelah_antre_dibatalkan_di_gerbang_kirim`; AC-3: `test_dijalankan_ulang_tidak_menambah_baris`; AC-4: `test_provider_gagal_sementara_dicatat_dan_diulang_terbatas`. Centang menandai bukti test otomatis, bukan CI exact-HEAD, QA/UAT, atau aktivasi kanal; kanal nyata tetap mengikuti gate Q80 §80.1.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-12.05` |
@@ -2422,10 +2424,10 @@ _Status implementasi: lihat ISS-11.04; Pengukuran dikecualikan dari endpoint hap
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given H-3 atau H-1, When job berjalan, Then ringkasan sudah/belum submit dikirim melalui WA dan Email kepada penerima Perencanaan yang ditetapkan.
-- [ ] **AC-2:** Given pengguna tidak lagi menjadi penerima efektif, Then tidak otomatis menerima rekap.
-- [ ] **AC-3:** Given job diulang, Then pesan tidak diduplikasi untuk kombinasi event/penerima/periode/channel yang sama.
-- [ ] **AC-4:** Given provider gagal, Then kegagalan dicatat dan retry dilakukan terkontrol.
+- [x] **AC-1:** Given H-3 atau H-1, When job berjalan, Then ringkasan sudah/belum submit dikirim melalui WA dan Email kepada penerima Perencanaan yang ditetapkan.
+- [x] **AC-2:** Given pengguna tidak lagi menjadi penerima efektif, Then tidak otomatis menerima rekap.
+- [x] **AC-3:** Given job diulang, Then pesan tidak diduplikasi untuk kombinasi event/penerima/periode/channel yang sama.
+- [x] **AC-4:** Given provider gagal, Then kegagalan dicatat dan retry dilakukan terkontrol.
 
 ### US-12.06 · Notifikasi Instan Pengembalian RA/Pengukuran via WhatsApp & Email
 

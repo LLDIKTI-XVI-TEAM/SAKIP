@@ -16,6 +16,13 @@ Schedule::command('notifikasi:ews')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Rekap Perencanaan H-3/H-1 memakai pola yang sama dengan EWS: tiap menit, gerbang jam kirim di dalam command.
+Schedule::command('notifikasi:rekap')
+    ->everyMinute()
+    ->timezone(config('app.business_timezone'))
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Pembukaan jendela karena tanggal memakai pola yang sama: tiap menit, gerbang jam kirim di dalam command.
 // Kunci pendek karena pembukaan yang terlewat tidak disusulkan; run ganda aman berkat kunci idempoten outbox.
 Schedule::command('notifikasi:pembukaan')
