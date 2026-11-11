@@ -2683,6 +2683,26 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 
 ---
 
+# Keputusan Q86: Item Lonceng untuk Pembukaan Jendela karena Tanggal (ISS-12.02)
+
+**Keputusan PM: 7 November 2026 (WITA)** oleh `Diyoncrz18` pada [issue #257](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/257#issuecomment-6707919777). Opsi A ditetapkan; opsi B (batasan, hanya pengingat kontekstual) dan opsi C (perintah in-app terpisah dengan evaluator sendiri) tidak dipilih. Melanjutkan butir 7 Refinement ISS-12.03, yang menyerahkan item lonceng untuk pembukaan karena tanggal ke issue ini.
+
+1. Jendela yang terbuka karena tanggal (jadwal aktif, `pengisian_mulai` sama dengan tanggal bisnis WITA, bukan periode lampau 2026) menghasilkan item lonceng `jadwal.jendela_dibuka` dengan penerima dan teks yang sama dengan jalur aksi resmi.
+2. Bagian in-app berjalan harian pada awal hari bisnis WITA (00.05), tidak bergantung pada jam kirim maupun saklar kanal eksternal ISS-13.04. Bagian WA/Email tetap mengikuti jam kirim (butir 3 Refinement ISS-12.03). Evaluator jendela yang terbuka memakai milik ISS-12.03; tidak ada evaluator kedua.
+3. Jalannya bagian in-app tidak mengantrekan WA/Email. Antrean eksternal jalur terjadwal hanya berasal dari jalannya pada jam kirim. Karena itu `JendelaPengisianDibuka` tidak dipancarkan ulang dari perintah harian: listener eksternal akan mengantre di luar jam kirim.
+4. Item `jadwal.jendela_dibuka` dicegah ganda per jendela, tanggal bisnis WITA pembukaan, dan penerima, baik dari jalur aksi maupun jalur tanggal (selaras butir 2 Refinement ISS-12.03).
+5. Kegagalan menulis item tidak menggagalkan perintah maupun antrean WA/Email.
+
+**Alasan butir 2:** `KonfigurasiNotifikasi::jamKirim()` bernilai kosong secara bawaan (pengaturan bawaan ISS-13.04, `PengaturanSeeder`), dan jam kosong berarti scheduler tidak mendispatch. Bila item lonceng ikut jam kirim, pembukaan karena tanggal tidak menghasilkan lonceng sampai kanal eksternal disiapkan (gate Q80 §80.1), padahal in-app adalah baseline MVP (Q4).
+
+## 86.1 Dampak dan traceability
+
+- Plan 14.1 (butir ISS-12.02); Data Model §2.39; US/ISS-12.02; butir 7 Refinement ISS-12.03; Kesiapan Infrastruktur §2 baris 8 (Scheduler).
+- Status implementasi: perintah `notifikasi:lonceng-pembukaan` (tiap menit, aktif mulai 00.05 WITA, penanda harian) memakai pemilih jendela ISS-12.03 dan penulis item yang sama dengan jalur aksi. Pencegah ganda memakai id item tetap dari jendela, tanggal bisnis pembukaan, dan penerima, tanpa migrasi; akibatnya membuka ulang jendela pada tanggal yang sama tidak menambah item, sedangkan pembukaan pada tanggal lain menulis item baru. Item yang ditulis sebelum rilis memakai id acak sehingga tidak ikut dicegah ganda pada hari rilis. Bila scheduler tidak berjalan sepanjang hari `pengisian_mulai`, item hari itu tidak disusulkan.
+- Status keputusan: keputusan PM 7 November 2026.
+
+---
+
 # Keputusan Q87: Konfigurasi Operasional Notifikasi Eksternal (ISS-13.04)
 
 **Keputusan PM: 6 November 2026 (WITA)** oleh `Diyoncrz18` atas enam pertanyaan refinement [issue #228](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/228#issuecomment-6686106676). Nomor [Q87 ditetapkan PM pada PR #254](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/pull/254#issuecomment-6709559606).

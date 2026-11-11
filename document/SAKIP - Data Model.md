@@ -1977,11 +1977,11 @@ Revisi target Renstra pada Renstra `aktif` (Q71; ISS-02.13). Baris berstatus `dr
 
 ### 2.39 `notifications`
 
-Item notifikasi in-app (ISS-12.02) memakai tabel bawaan Laravel `notifications` dengan trait `Notifiable` pada `User`. Pemilik hanya pengguna (`notifiable_type` selalu `App\Models\User`). Item ditulis listener setelah transaksi bisnis commit untuk: RA/pengukuran dikembalikan atau dibuka kembali (ke PJ efektif saat pengembalian, Q37 §37.3), RA/pengukuran diajukan (ke Perencanaan peninjau unit), jendela pengisian dibuka oleh aktivasi jadwal atau revisi jendela PIC (ke PJ efektif indikator yang wajib diisi pada periode itu), dan akun SSO baru tanpa peran (ke pengelola akses).
+Item notifikasi in-app (ISS-12.02) memakai tabel bawaan Laravel `notifications` dengan trait `Notifiable` pada `User`. Pemilik hanya pengguna (`notifiable_type` selalu `App\Models\User`). Item ditulis listener setelah transaksi bisnis commit untuk: RA/pengukuran dikembalikan atau dibuka kembali (ke PJ efektif saat pengembalian, Q37 §37.3), RA/pengukuran diajukan (ke Perencanaan peninjau unit), jendela pengisian dibuka oleh aktivasi jadwal atau revisi jendela PIC (ke PJ efektif indikator yang wajib diisi pada periode itu), dan akun SSO baru tanpa peran (ke pengelola akses). Item jendela pengisian dibuka juga ditulis perintah harian `notifikasi:lonceng-pembukaan` untuk jendela yang `pengisian_mulai`-nya sama dengan tanggal bisnis WITA hari itu (jalur tanggal, Q86), dengan penerima dan teks yang sama.
 
 | Kolom | Tipe | Constraint | Keterangan |
 |---|---|---|---|
-| `id` | uuid | PK | |
+| `id` | uuid | PK | Acak, kecuali `jadwal.jendela_dibuka`: UUID v5 dari jendela (`periode_jadwal_id`), tanggal bisnis WITA pembukaan, dan penerima, sehingga penulisan ganda dari jalur aksi maupun jalur tanggal diabaikan (`ON CONFLICT DO NOTHING`, Q86 butir 4) |
 | `type` | string | not null | Jenis kejadian: `rencana_aksi.dikembalikan`, `rencana_aksi.dibuka_kembali`, `rencana_aksi.diajukan`, `pengukuran.dikembalikan`, `pengukuran.dibuka_kembali`, `pengukuran.diajukan`, `jadwal.jendela_dibuka`, `pengguna.menunggu_peran` |
 | `notifiable_type` | string | not null | Selalu `App\Models\User` |
 | `notifiable_id` | uuid | FK → users.id, not null | Pemilik item |
