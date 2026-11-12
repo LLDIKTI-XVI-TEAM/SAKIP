@@ -115,8 +115,8 @@ export function DenyMutationDialog({ deny, actorId, onClose, onSaved }: { deny: 
         });
     };
     return <dialog ref={dialog} aria-labelledby="deny-title" aria-describedby={self ? 'deny-description deny-self-warning' : 'deny-description'} onCancel={(event) => { if (form.processing || message) event.preventDefault(); }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-xl border border-border bg-surface p-5 text-ink shadow-xl backdrop:bg-ink/50 sm:p-6">
-        <h2 id="deny-title" className="text-lg font-semibold">{deny ? 'Cabut deny' : 'Tambah deny'}</h2>
-        <p id="deny-description" className="mt-2 text-sm text-muted">{deny ? 'Mencabut deny tidak otomatis memberikan izin. Akses mengikuti peran, grant, dan pembatasan lain yang masih berlaku.' : 'Global membatasi izin di seluruh konteks yang relevan. Unit tertentu hanya membatasi pemeriksaan izin pada unit tersebut.'}</p>
+        <h2 id="deny-title" className="text-lg font-semibold">{deny ? 'Cabut pembatasan' : 'Tambah pembatasan'}</h2>
+        <p id="deny-description" className="mt-2 text-sm text-muted">{deny ? 'Mencabut pembatasan tidak otomatis memberikan izin. Akses mengikuti peran, grant, dan pembatasan lain yang masih berlaku.' : 'Global membatasi izin di seluruh konteks yang relevan. Unit tertentu hanya membatasi pemeriksaan izin pada unit tersebut.'}</p>
         <form onSubmit={submit} className="mt-5 space-y-5" aria-busy={form.processing}>
             {deny ? <dl className="space-y-2 rounded-lg bg-soft p-4 text-sm">
                 <div><dt className="font-medium">Pengguna</dt><dd className="break-words">{deny.user.nama} ({deny.user.email})</dd></div>
@@ -132,13 +132,13 @@ export function DenyMutationDialog({ deny, actorId, onClose, onSaved }: { deny: 
                 {scope === 'unit' && <DenyLookup<UnitOption> id="deny-unit_id" label="Unit" endpoint="/akses/deny/opsi/unit" value={form.data.unit_id ?? ''} onChange={(id) => form.setData('unit_id', id)} describe={(unit) => `${unit.nama}${unit.status === 'nonaktif' ? ' — nonaktif' : ''}`} paused={Boolean(recovery.recovery)} onRecovery={handleLookupRecovery} disabled={form.processing} error={form.errors.unit_id} />}
                 {self && <p id="deny-self-warning" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">Anda membatasi izin akun sendiri. Akses dan menu dapat hilang setelah disimpan; Anda mungkin memerlukan pengelola lain untuk memulihkannya.</p>}
             </>}
-            <div><label htmlFor="deny-reason" className="block text-sm font-medium">{deny ? 'Alasan pencabutan deny' : 'Alasan pembatasan'} <span className="text-danger">*</span></label>
+            <div><label htmlFor="deny-reason" className="block text-sm font-medium">{deny ? 'Alasan pencabutan pembatasan' : 'Alasan pembatasan'} <span className="text-danger">*</span></label>
                 <textarea ref={reason} autoFocus={Boolean(deny)} id="deny-reason" required maxLength={2000} rows={3} value={form.data.alasan} disabled={form.processing} onChange={(event) => form.setData('alasan', event.target.value)} aria-invalid={Boolean(form.errors.alasan)} aria-describedby={form.errors.alasan ? 'deny-reason-error' : 'deny-reason-help'} className={fieldClass} />
                 {form.errors.alasan ? <p id="deny-reason-error" role="alert" className="mt-1 text-sm text-danger">{form.errors.alasan}</p> : <p id="deny-reason-help" className="mt-1 text-xs text-muted">Wajib diisi, maksimal 2.000 karakter. Dicatat dalam jejak audit.</p>}
             </div>
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {needsReload && !recovery.recovery && <div className="space-y-2 rounded-lg bg-soft p-3"><p ref={alert} tabIndex={-1} role="alert" className="text-sm text-danger">{form.errors.deny_id || message}</p><Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={() => router.get('/akses/deny', {}, { replace: true, preserveState: false })}>Muat ulang daftar</Button></div>}
-            <div className="flex flex-wrap justify-end gap-3"><Button type="button" variant="outline" className={secondaryButton} disabled={form.processing || Boolean(message)} onClick={onClose}>Batal</Button><Button type="submit" className={primaryButton} isLoading={form.processing} disabled={Boolean(recovery.recovery) || needsReload || missingSelection}>{deny ? 'Konfirmasi cabut deny' : 'Simpan deny'}</Button></div>
+            <div className="flex flex-wrap justify-end gap-3"><Button type="button" variant="outline" className={secondaryButton} disabled={form.processing || Boolean(message)} onClick={onClose}>Batal</Button><Button type="submit" className={primaryButton} isLoading={form.processing} disabled={Boolean(recovery.recovery) || needsReload || missingSelection}>{deny ? 'Konfirmasi cabut pembatasan' : 'Simpan pembatasan'}</Button></div>
         </form>
     </dialog>;
 }
