@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 import { SidebarNavigation } from '@/Components/Navigation/SidebarNavigation';
-import { Tooltip } from '@/Components/Tooltip';
 import { setTema, useTema } from '@/lib/tema';
 
 /**
@@ -50,17 +49,15 @@ function TombolTema({ className }: { className: string }) {
     const Ikon = gelap ? Sun : Moon;
 
     return (
-        <Tooltip content={gelap ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'} position="bottom" align="right">
-            <button
-                type="button"
-                aria-label="Tema gelap"
-                aria-pressed={gelap}
-                onClick={() => setTema(gelap ? 'terang' : 'gelap')}
-                className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 ${className}`}
-            >
-                <Ikon className="h-5 w-5" aria-hidden="true" />
-            </button>
-        </Tooltip>
+        <button
+            type="button"
+            aria-label="Tema gelap"
+            aria-pressed={gelap}
+            onClick={() => setTema(gelap ? 'terang' : 'gelap')}
+            className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 ${className}`}
+        >
+            <Ikon className="h-5 w-5" aria-hidden="true" />
+        </button>
     );
 }
 

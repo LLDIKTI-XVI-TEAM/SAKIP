@@ -307,9 +307,14 @@ describe('AuthenticatedLayout Tombol Tema', () => {
         expect(document.documentElement.dataset.tema).toBe('gelap');
         expect(localStorage.getItem('sakip-tema')).toBe('gelap');
         for (const item of tombol()) expect(item.getAttribute('aria-pressed')).toBe('true');
-        expect(screen.getAllByRole('tooltip').map((item) => item.textContent)).toContain('Ganti ke tema terang');
+        // Tanpa teks hover; tombol ikon dikenali lewat aria-label dan aria-pressed.
+        expect(screen.queryByText(/Ganti ke tema/)).toBeNull();
+        for (const item of tombol()) expect(item.parentElement?.querySelector('[role="tooltip"]')).toBeNull();
 
+        // Fokus keyboard tetap pada tombol yang sama setelah tema berganti.
+        tombol()[0].focus();
         fireEvent.click(tombol()[0]);
+        expect(document.activeElement).toBe(tombol()[0]);
         expect(document.documentElement.hasAttribute('data-tema')).toBe(false);
         expect(localStorage.getItem('sakip-tema')).toBe('terang');
         for (const item of tombol()) expect(item.getAttribute('aria-pressed')).toBe('false');
