@@ -28,6 +28,52 @@
     --color-info: #2563EB;
     --color-info-dark: #1D4ED8;
     --color-soft: #F1F5F9;
+    --color-field: #FFFFFF;
+    --color-on-primary: #FFFFFF;
+    --color-on-secondary: #0F172A;
+    --color-on-danger: #FFFFFF;
+    --color-sidebar: #0F2A6B;
+    --color-sidebar-ink: #FFFFFF;
+    --color-overlay: #0F172A;
+}
+
+/* Tema gelap (Q89): hanya menukar nilai token; cetak tetap memakai nilai terang. */
+@media screen {
+    :root[data-tema="gelap"] {
+        --color-primary: #7EA6F8;
+        --color-secondary: #C09A43;
+        --color-page: #0A0A0A;
+        --color-surface: #171717;
+        --color-border: #2E2E2E;
+        --color-ink: #F5F5F5;
+        --color-muted: #A1A1A1;
+        --color-success: #22C55E;
+        --color-success-dark: #4ADE80;
+        --color-warning: #EAB308;
+        --color-warning-dark: #FACC15;
+        --color-danger: #F87171;
+        --color-danger-dark: #FCA5A5;
+        --color-info: #60A5FA;
+        --color-info-dark: #93C5FD;
+        --color-soft: #1F1F1F;
+        --color-field: #212121;
+        --color-on-primary: #081A4A;
+        --color-on-secondary: #0A0A0A;
+        --color-on-danger: #450A0A;
+        --color-sidebar: #171717;
+        --color-sidebar-ink: #F5F5F5;
+        --color-overlay: #000000;
+        color-scheme: dark;
+    }
+}
+
+@layer base {
+    /* Offset cincin fokus bawaan Tailwind putih; ikut latar kartu agar tidak menyala di tema gelap. */
+    *,
+    ::before,
+    ::after {
+        --tw-ring-offset-color: var(--color-surface);
+    }
 }
 
 body {
