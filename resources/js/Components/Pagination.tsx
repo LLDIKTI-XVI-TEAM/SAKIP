@@ -52,7 +52,7 @@ export function Pagination({ links, from, to, total, ariaLabel, className }: Pag
                             aria-current={link.active ? 'page' : undefined}
                             className={clsx(
                                 'rounded-lg px-3 py-1.5 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20',
-                                link.active ? 'bg-primary text-white' : 'border border-border bg-surface text-ink hover:bg-soft',
+                                link.active ? 'bg-primary text-on-primary' : 'border border-border bg-surface text-ink hover:bg-soft',
                             )}
                         >
                             {cleanLabel(link.label)}
