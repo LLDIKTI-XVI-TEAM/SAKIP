@@ -41,7 +41,7 @@ Antarmuka harus **legible**, **scannable**, berorientasi pada **kepadatan data k
 
 **Color strategy:** Restrained — *tinted neutrals* dengan satu warna institusi utama yang berwibawa (*institutional blue*) membawa otoritas resmi kementerian/lembaga. Warna emas (*secondary gold*) digunakan secara selektif sebagai aksen prestisius. Warna semantik (*success, warning, danger, info*) memiliki peran tegas dalam status alur dan evaluasi capaian kinerja.
 
-- ✅ Tema **light only** — tidak ada dark mode (konsistensi dokumen formal instansi)
+- ✅ Tema **terang** adalah tampilan bawaan; tema **gelap** opsional dipilih pengguna per browser lewat tombol di header dan tidak mengikuti setelan perangkat (Q89). Cetak selalu terang. Setiap halaman harus terbaca di kedua tema.
 - ✅ Prioritaskan **keterbacaan data numerik**, persentase, dan label indikator
 - ✅ Tampilan **profesional, enterprise, dan berwibawa** — formal instansi pemerintah tanpa kaku
 - ✅ Hindari efek visual berlebihan (no decorative glassmorphism, no gradient text, no side-stripe borders)
@@ -64,47 +64,76 @@ Design System tidak boleh memperkenalkan aturan authorization baru. Baseline fin
 
 ## 🎨 Referensi Token Desain
 
-Semua token didefinisikan sebagai CSS custom properties di `resources/css/app.css` via Tailwind CSS v4 `@theme {}`.
-Warna dan font **tetap sama persis** dengan identitas visual institusi:
+Semua token didefinisikan sebagai CSS custom properties di `resources/css/app.css` via Tailwind CSS v4 `@theme {}`. Kolom **Terang** adalah nilai `@theme` dan menjadi acuan identitas visual institusi. Kolom **Gelap** adalah nilai yang menimpa token yang sama di dalam `@media screen { :root[data-tema="gelap"] { ... color-scheme: dark } }` (Q89), sehingga komponen memakai kelas yang sama di kedua tema. Token bertanda **(Q89)** adalah token baru; nilai terangnya sama dengan warna yang digantikan, kecuali `overlay` (`#0F172A`) yang juga menggantikan `bg-black/60` (latar drawer mobile) dan `ring-black/5` (menu akun), dengan selisih warna terukur paling besar 25/255 per kanal.
 
 ### Brand Colors
 
-| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
-|-------|-------------|---------------|-----------|---------------------|
-| Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#122E92` | Brand utama, CTA, active state sidebar, header resmi |
-| Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#D6AC48` | Aksen emas, badge sekunder, highlight target khusus |
+| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
+|-------|-------------|---------------|--------|-------|---------------------|
+| Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#0F2A6B` | `#7EA6F8` | Brand utama, CTA, tautan, cincin fokus, header resmi |
+| On Primary (Q89) | `--color-on-primary` | `text-on-primary` | `#FFFFFF` | `#081A4A` | Teks dan ikon di atas `bg-primary` (tombol utama, paginasi aktif, avatar, lencana) |
+| Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#C09A43` | `#C09A43` | Aksen emas, badge sekunder, highlight target khusus |
+| On Secondary (Q89) | `--color-on-secondary` | `text-on-secondary` | `#0F172A` | `#0A0A0A` | Teks di atas `bg-secondary` (tombol sekunder) |
+
+`--color-primary-dark` (`#081A4A`), `--color-primary-mid` (`#0D286D`), dan `--color-primary-light` (`#1546B8`) ada di `@theme` tetapi tidak dipakai di `resources/js` saat Q89 dicatat dan belum memiliki nilai gelap. Jangan memakainya pada komponen baru.
 
 ### Surface Colors
 
-| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
-|-------|-------------|---------------|-----------|---------------------|
-| Page | `--color-page` | `bg-page` | `#F8FAFC` | Background body seluruh aplikasi |
-| Surface | `--color-surface` | `bg-surface` | `#FFFFFF` | Card, container data, panel, navbar, sidebar |
+| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
+|-------|-------------|---------------|--------|-------|---------------------|
+| Page | `--color-page` | `bg-page` | `#F8FAFC` | `#0A0A0A` | Background body seluruh aplikasi |
+| Surface | `--color-surface` | `bg-surface` | `#FFFFFF` | `#171717` | Card, container data, panel, navbar, modal |
+| Field (Q89) | `--color-field` | `bg-field` | `#FFFFFF` | `#212121` | Latar Input, Select, Textarea, dan kontrol isian lain (K10) |
+
+### Sidebar dan Overlay (Q89)
+
+| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
+|-------|-------------|---------------|--------|-------|---------------------|
+| Sidebar | `--color-sidebar` | `bg-sidebar` | `#0F2A6B` | `#171717` | Latar sidebar dan header mobile (K3) |
+| Sidebar Ink | `--color-sidebar-ink` | `text-sidebar-ink` / `text-sidebar-ink/NN` / `bg-sidebar-ink/NN` / `border-sidebar-ink/NN` / `ring-sidebar-ink/NN` | `#FFFFFF` | `#F5F5F5` | Teks, ikon, garis, sorotan hover dan menu aktif di atas `bg-sidebar`; tingkatan memakai opasitas sesuai kebutuhan |
+| Overlay | `--color-overlay` | `bg-overlay/NN` / `backdrop:bg-overlay/NN` / `ring-overlay/NN` | `#0F172A` | `#000000` | Latar gelap di belakang modal, dialog, dan drawer, serta cincin tipis menu; selalu dengan opasitas sesuai kebutuhan |
 
 ### Text Colors
 
-| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
-|-------|-------------|---------------|-----------|---------------------|
-| Ink | `--color-ink` | `text-ink` | `#0F172A` | Teks utama, judul, angka metrik, isi tabel |
-| Muted | `--color-muted` | `text-muted` | `#64748B` | Label, metadata, satuan indikator, placeholder |
+| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
+|-------|-------------|---------------|--------|-------|---------------------|
+| Ink | `--color-ink` | `text-ink` | `#0F172A` | `#F5F5F5` | Teks utama, judul, angka metrik, isi tabel |
+| Muted | `--color-muted` | `text-muted` | `#64748B` | `#A1A1A1` | Label, metadata, satuan indikator, placeholder |
 
 ### Status Colors (Alur & Capaian Kinerja)
 
-| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Penggunaan SAKIP |
-|-------|-------------|---------------|-----------|------------------|
-| Success | `--color-success` | `bg-success` / `text-success` | `#16A34A` | Status **Disahkan**, status capaian **Tercapai**, Renstra/Jadwal Aktif |
-| Warning | `--color-warning` | `bg-warning` / `text-warning` | `#EAB308` | Status **Diajukan** (menunggu verifikasi), pengingat deadline H-3 |
-| Warning Dark | `--color-warning-dark` | `text-warning-dark` | `#A16207` | Teks peringatan pada badge/alert terang (kontras ≥ 4.5:1) |
-| Danger | `--color-danger` | `bg-danger` / `text-danger` | `#DC2626` | Status **Dikembalikan** (revisi), status capaian **Belum Tercapai**, deadline H-1 |
-| Info | `--color-info` | `bg-info` | `#2563EB` | Status **Diverifikasi**, arah **Naik Baik**, pengingat H-7 |
-| Info Dark | `--color-info-dark` | `text-info-dark` | `#1D4ED8` | Teks informasi pada badge/alert surface terang |
+| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Penggunaan SAKIP |
+|-------|-------------|---------------|--------|-------|------------------|
+| Success | `--color-success` | `bg-success` / `text-success` | `#16A34A` | `#22C55E` | Status **Disahkan**, status capaian **Tercapai**, Renstra/Jadwal Aktif |
+| Success Dark | `--color-success-dark` | `text-success-dark` | `#166534` | `#4ADE80` | Teks sukses di atas latar tint `bg-success/10` |
+| Warning | `--color-warning` | `bg-warning` / `text-warning` | `#EAB308` | `#EAB308` | Status **Diajukan** (menunggu verifikasi), pengingat deadline H-3 |
+| Warning Dark | `--color-warning-dark` | `text-warning-dark` | `#A16207` | `#FACC15` | Teks peringatan di atas latar tint `bg-warning/10` |
+| Danger | `--color-danger` | `bg-danger` / `text-danger` | `#DC2626` | `#F87171` | Status **Dikembalikan** (revisi), status capaian **Belum Tercapai**, deadline H-1 |
+| Danger Dark | `--color-danger-dark` | `text-danger-dark` | `#B91C1C` | `#FCA5A5` | Teks bahaya di atas latar tint `bg-danger/10` |
+| On Danger (Q89) | `--color-on-danger` | `text-on-danger` | `#FFFFFF` | `#450A0A` | Teks dan ikon di atas `bg-danger` (tombol bahaya, lencana jumlah) |
+| Info | `--color-info` | `bg-info` | `#2563EB` | `#60A5FA` | Status **Diverifikasi**, arah **Naik Baik**, pengingat H-7 |
+| Info Dark | `--color-info-dark` | `text-info-dark` | `#1D4ED8` | `#93C5FD` | Teks informasi di atas latar tint `bg-info/10` |
+
+**Makna `*-dark` (Q89 K11):** `success-dark`, `warning-dark`, `danger-dark`, dan `info-dark` adalah warna **teks status di atas latar tipis (tint)** dari token yang sama, bukan "versi lebih gelap" secara harfiah. Di tema terang nilainya lebih gelap daripada token dasarnya; di tema gelap nilainya lebih terang. Tidak ada token `on-success`, `on-warning`, atau `on-info`.
 
 ### Utility Colors
 
-| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
-|-------|-------------|---------------|-----------|---------------------|
-| Border | `--color-border` | `border-border` | `#E2E8F0` | Garis pemisah tabel, border input, border card |
-| Soft | `--color-soft` | `bg-soft` | `#F1F5F9` | Header tabel, background hover menu, fill subtle |
+| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
+|-------|-------------|---------------|--------|-------|---------------------|
+| Border | `--color-border` | `border-border` | `#E2E8F0` | `#2E2E2E` | Garis pemisah tabel, border input, border card |
+| Soft | `--color-soft` | `bg-soft` | `#F1F5F9` | `#1F1F1F` | Header tabel, background hover menu, fill subtle |
+
+### Kontras Wajib di Kedua Tema
+
+Ambang: **teks 4,5:1** dan **komponen non-teks 3:1** (border isian, ikon tanpa teks, cincin fokus, penanda aktif), sesuai WCAG 2.1 AA kriteria 1.4.3 dan 1.4.11. Pasangan yang wajib memenuhi ambang di tema terang dan gelap:
+
+- `ink` dan `muted` di atas `page`, `surface`, `soft`, dan `field`;
+- `on-primary` di atas `primary` (termasuk hover `primary/90`), `on-secondary` di atas `secondary`, `on-danger` di atas `danger`;
+- `primary` sebagai tautan di atas `surface` dan `page`;
+- `*-dark` di atas tint `*/10` pada `surface`;
+- `sidebar-ink` (termasuk tingkatan opasitas untuk teks) di atas `sidebar`.
+
+Rasio dihitung dari nilai token; warna beropasitas dicampur di atas `surface`. Di tema gelap seluruh pasangan teks memenuhi 4,5:1; yang terendah `on-danger` di atas `danger` saat hover `danger/90` (4,92:1), `on-primary` di atas `primary` saat hover `primary/90` (5,81:1), dan `muted` di atas `field` (6,23:1). Yang belum memenuhi dan ditangani issue kontras terpisah (Q89 butir 9): di tema terang `on-danger` di atas `danger` saat hover `danger/90` (4,32:1), `muted` di atas `soft` (4,34:1), `warning-dark` pada badge status Diajukan `bg-warning/15` (4,46:1), dan `danger` sebagai teks pada alert dan badge `bg-danger/10` (4,14:1); di kedua tema border isian (terang 1,23:1, gelap 1,32:1) dan sorotan menu aktif sidebar (terang 1,56:1, gelap 1,54:1) belum mencapai 3:1. `success` dan `warning` di atas `surface` hanya 3,30:1 dan 1,92:1 di tema terang, sehingga tidak boleh dipakai sebagai warna teks; teks status memakai `*-dark`. Kode baru tidak boleh menambah pasangan yang gagal.
 
 ---
 
@@ -117,18 +146,46 @@ bg-primary        text-primary        border-primary
 bg-secondary      text-secondary      border-secondary
 bg-page           bg-surface
 text-ink          text-muted
-bg-success        text-success        border-success
+bg-success        text-success        border-success      text-success-dark
 bg-warning        text-warning        text-warning-dark
-bg-danger         text-danger         border-danger
+bg-danger         text-danger         border-danger       text-danger-dark
 bg-info           text-info-dark
 border-border     bg-soft
+
+# Q89 (NN = opasitas sesuai kebutuhan)
+text-on-primary   text-on-secondary   text-on-danger
+bg-field
+bg-sidebar        text-sidebar-ink    text-sidebar-ink/NN bg-sidebar-ink/NN
+border-sidebar-ink/NN                 ring-sidebar-ink/NN
+bg-overlay/NN     backdrop:bg-overlay/NN                  ring-overlay/NN
 ```
+
+Aturan pemakaian token Q89:
+
+- Teks dan ikon di atas warna solid memakai pasangan `on-*`: `bg-primary text-on-primary`, `bg-secondary text-on-secondary`, `bg-danger text-on-danger`.
+- Input, Select, Textarea, dan kontrol isian mentah memakai `bg-field`; kartu dan panel tetap `bg-surface`.
+- Sidebar dan header mobile memakai `bg-sidebar`; teks, ikon, garis, sorotan hover, dan menu aktif di dalamnya memakai `sidebar-ink` dengan opasitas.
+- Latar di belakang modal, dialog, dan drawer memakai `overlay` dengan opasitas.
+- Warna offset cincin fokus (`focus:ring-offset-*`) mengikuti `surface` lewat aturan dasar di `app.css`; jangan menulis warna offset sendiri.
+- Pemakaian lama yang belum dimigrasi dibereskan lewat issue tema gelap; kode baru wajib mengikuti aturan ini sejak Q89.
 
 ### ❌ Dilarang Keras (Forbidden):
 
 ```
 bg-blue-600       bg-yellow-500       bg-red-500
 text-gray-500     border-gray-300     text-slate-600
+
+# Q89: warna literal yang tidak ikut tema
+text-white        bg-white            bg-black            ring-black/5
+text-white/70     border-white/10     ring-white/40       (semua *-white/NN)
+ring-offset-white
+
+# Q89: token yang dipakai di luar perannya
+bg-surface/10     bg-surface/15       bg-surface/20       (bg-surface/NN sebagai sorotan, ganti bg-sidebar-ink/NN)
+bg-ink/50         bg-ink/60           backdrop:bg-ink/50  (bg-ink/NN sebagai overlay, ganti bg-overlay/NN)
+
+# Q89: varian dark: Tailwind mengikuti setelan perangkat, bukan pilihan pengguna
+dark:bg-*         dark:text-*
 ```
 
 ---
@@ -164,6 +221,13 @@ Aplikasi menggunakan root blade template minimalis yang memuat bundle Inertia 3 
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title inertia>{{ config('app.name', 'SAKIP LLDIKTI XVI') }}</title>
+    <script>
+        try {
+            if (localStorage.getItem('sakip-tema') === 'gelap') {
+                document.documentElement.dataset.tema = 'gelap';
+            }
+        } catch (e) {}
+    </script>
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
     @inertiaHead
@@ -173,6 +237,8 @@ Aplikasi menggunakan root blade template minimalis yang memuat bundle Inertia 3 
 </body>
 </html>
 ```
+
+**Pemasang tema (Q89):** skrip inline di `<head>` dijalankan sebelum aset Vite dan sebelum halaman digambar. Bila `localStorage` kunci `sakip-tema` bernilai `gelap`, skrip memasang `data-tema="gelap"` pada `<html>`; nilai lain, kunci kosong, atau `localStorage` yang tidak dapat dibaca berarti terang (tanpa atribut). Dengan begitu halaman tidak berkedip terang saat dimuat dengan tema gelap. Tombol tema di header mengubah atribut yang sama dan menyimpan `terang` atau `gelap` ke kunci yang sama. Skrip ini tidak boleh dipindah ke bundle Vite. Bila kelak Content-Security-Policy diterapkan, skrip ini memerlukan nonce atau hash.
 
 ### 2. Layout Utama: `resources/js/layouts/AppLayout.tsx`
 
@@ -200,7 +266,7 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
             {/* Mobile Overlay */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-ink/50 lg:hidden transition-opacity"
+                    className="fixed inset-0 z-40 bg-overlay/50 lg:hidden transition-opacity"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
@@ -240,8 +306,6 @@ import { Link } from '@inertiajs/react';
 export type ButtonVariant = 
     | 'primary' 
     | 'secondary' 
-    | 'success' 
-    | 'warning' 
     | 'danger' 
     | 'danger-solid' 
     | 'ghost' 
@@ -257,12 +321,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-    primary: 'bg-primary text-white hover:opacity-90 shadow-sm focus:ring-primary/20',
+    primary: 'bg-primary text-on-primary hover:opacity-90 shadow-sm focus:ring-primary/20',
     secondary: 'bg-surface border border-border text-ink hover:bg-soft shadow-sm focus:ring-primary/20',
-    success: 'bg-success text-white hover:opacity-90 shadow-sm focus:ring-success/20',
-    warning: 'bg-warning text-white hover:opacity-90 shadow-sm focus:ring-warning/20',
     danger: 'bg-surface border border-danger/30 text-danger hover:bg-danger/10 focus:ring-danger/20',
-    'danger-solid': 'bg-danger text-white hover:opacity-90 shadow-sm focus:ring-danger/20',
+    'danger-solid': 'bg-danger text-on-danger hover:opacity-90 shadow-sm focus:ring-danger/20',
     ghost: 'text-muted hover:bg-soft hover:text-ink',
     link: 'text-primary hover:underline p-0 h-auto font-medium',
 };
@@ -442,7 +504,7 @@ export default function ModalAlasan({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay/50 p-4">
             <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-xl">
                 <h3 className="text-base font-semibold text-ink flex items-center gap-2">
                     <svg className="h-5 w-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -461,7 +523,7 @@ export default function ModalAlasan({
                         value={alasan}
                         onChange={e => setAlasan(e.target.value)}
                         placeholder="Tuliskan alasan lengkap untuk audit log..."
-                        className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-lg border border-border bg-field px-4 py-2.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                     {error && <p className="text-xs text-danger">{error}</p>}
                 </div>
@@ -565,7 +627,7 @@ export default function EditPengukuran({ pengukuran }: Props) {
                             step="0.01"
                             value={data.nilai}
                             onChange={e => setData('nilai', e.target.value)}
-                            className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 font-mono text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            className="w-full rounded-lg border border-border bg-field px-4 py-2.5 font-mono text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                         {errors.nilai && <p className="text-xs text-danger mt-1">{errors.nilai}</p>}
                     </div>
@@ -579,7 +641,7 @@ export default function EditPengukuran({ pengukuran }: Props) {
                             value={data.catatan}
                             onChange={e => setData('catatan', e.target.value)}
                             placeholder="Jelaskan kendala pencapaian bila realisasi di bawah target..."
-                            className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            className="w-full rounded-lg border border-border bg-field px-4 py-2.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                         {errors.catatan && <p className="text-xs text-danger mt-1">{errors.catatan}</p>}
                     </div>
@@ -694,15 +756,15 @@ export default function SidebarNav() {
     ].filter(item => item.visible);
 
     return (
-        <nav className="space-y-1 px-3 py-4">
+        <nav className="space-y-1 bg-sidebar px-3 py-4">
             {navItems.map(item => (
                 <Link
                     key={item.href}
                     href={item.href}
                     className={`flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                         item.active
-                            ? 'bg-primary text-white shadow-sm'
-                            : 'text-muted hover:bg-soft hover:text-ink'
+                            ? 'bg-sidebar-ink/15 text-sidebar-ink'
+                            : 'text-sidebar-ink/70 hover:bg-sidebar-ink/10 hover:text-sidebar-ink'
                     }`}
                 >
                     {item.label}
@@ -792,7 +854,8 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 
 - [ ] **Font Poppins**: Menggunakan `font-sans` (Poppins)
 - [ ] **Design Tokens**: Menggunakan token resmi (`bg-primary`, `text-primary`, `bg-secondary`, `bg-surface`, `bg-page`, `text-ink`, `text-muted`)
-- [ ] **Bebas Raw Hex**: Tidak ada hardcode `#122E92` atau warna Tailwind default di luar token
+- [ ] **Bebas Raw Hex**: Tidak ada hardcode hex (mis. `#0F2A6B`), warna Tailwind default, atau warna literal (`text-white`, `bg-white`, `bg-black`, `*-white/NN`) di luar token
+- [ ] **Token Q89**: Teks di atas warna solid memakai `on-*`; isian memakai `bg-field`; sidebar memakai `sidebar`/`sidebar-ink`; overlay memakai `bg-overlay/NN`; tidak ada varian `dark:`
 - [ ] **Navigasi Inertia**: Menggunakan `<Link>` dari `@inertiajs/react` untuk seluruh navigasi internal (hindari tag `<a>` biasa)
 - [ ] **Form Handling**: Menggunakan `useForm` dari `@inertiajs/react` untuk submit form dan error binding
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit
@@ -807,9 +870,10 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 - [ ] **Assign Peran Lengkap**: Form Assign Peran menampilkan tepat lima role dan mendukung user baru yang belum memiliki role
 - [ ] **Toolchain Bun**: Tidak ada `package-lock.json` atau referensi npm; lockfile yang sah adalah `bun.lock`/`bun.lockb`
 - [ ] **shadcn/ui Konsisten**: Komponen shadcn/ui dikustomisasi menggunakan token design system ini, bukan warna default-nya
-- [ ] **Aksesibilitas & Kontras**: Kontras teks body terhadap background ≥ 4.5:1
+- [ ] **Aksesibilitas & Kontras**: Di tema terang dan gelap, kontras teks ≥ 4,5:1 dan komponen non-teks (border isian, ikon tanpa teks, cincin fokus, penanda aktif) ≥ 3:1 terhadap latarnya; pasangan wajib di §Kontras Wajib di Kedua Tema
+- [ ] **Dua Tema**: Halaman yang diubah diperiksa di tema terang dan gelap (desktop dan mobile): tidak ada teks hilang, isian terbedakan dari kartu, overlay dan fokus terlihat, grafik ikut tema; pratinjau cetak tetap terang
 - [ ] **Mobile Responsive**: Sidebar off-canvas rapi di mobile, tidak ada horizontal overflow pada viewport
 
 ---
 
-*Versi 4.1 — SAKIP LLDIKTI Wilayah XVI — 20 September 2026 — Penyelarasan Q31 (6 role) — Canonical Implementation Guide for Laravel 13 + Inertia 3 + React 19 + TypeScript + Bun*
+*Versi 4.2, SAKIP LLDIKTI Wilayah XVI, 12 November 2026: tema gelap opsional dan token warna Q89, nilai hex diselaraskan dengan `resources/css/app.css`. Versi 4.1, 20 September 2026: penyelarasan Q31 (6 role). Canonical Implementation Guide for Laravel 13 + Inertia 3 + React 19 + TypeScript + Bun*
