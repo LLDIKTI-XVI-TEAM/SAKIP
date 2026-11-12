@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { router } from '@inertiajs/react';
 import type { Page, PendingVisit } from '@inertiajs/core';
@@ -34,11 +34,16 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
+async function pick(user: ReturnType<typeof userEvent.setup>, label: string, option: RegExp) {
+    await user.click(screen.getByRole('combobox', { name: label }));
+    await user.click(await screen.findByRole('option', { name: option }));
+}
+
 async function fillCreate() {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Tambah pembatasan' }));
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Pengguna' }), 'target');
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Izin' }), 'permission');
+    await pick(user, 'Pengguna', /Ayu/);
+    await pick(user, 'Izin', /pengukuran:update/);
     await user.type(screen.getByRole('textbox', { name: /Alasan pembatasan/ }), 'Evaluasi akses');
     return user;
 }
@@ -51,7 +56,7 @@ it('mengirim scope unit lalu membersihkan unit saat global, mempertahankan input
     expect(screen.queryByText(/Anda membatasi izin akun sendiri/)).toBeNull();
     await user.click(screen.getByRole('radio', { name: 'Unit tertentu' }));
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan pembatasan' }).disabled).toBe(true);
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Unit' }), 'unit');
+    await pick(user, 'Unit', /Unit A/);
     await user.click(screen.getByRole('button', { name: 'Simpan pembatasan' }));
     expect(vi.mocked(router.post).mock.calls[0].slice(0, 2)).toEqual(['/akses/deny', { user_id: 'target', permission_id: 'permission', unit_id: 'unit', alasan: 'Evaluasi akses' }]);
     await act(async () => { vi.mocked(router.post).mock.calls[0][2]?.onError?.({ alasan: 'Jelaskan alasan.' }); });
@@ -126,15 +131,56 @@ it('lookup mengabaikan respons lama dan menampilkan kegagalan izin sebagai error
     render(<DenyIndex {...props} />);
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Tambah pembatasan' }));
-    const search = screen.getByRole('searchbox', { name: 'Cari pengguna' });
-    await user.type(search, 'lama'); await user.click(screen.getByRole('button', { name: 'Cari pengguna' }));
-    await user.clear(search); await user.type(search, 'baru'); await user.click(screen.getByRole('button', { name: 'Cari pengguna' }));
+    const search = screen.getByRole('combobox', { name: 'Pengguna' });
+    await user.type(search, 'lama');
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('q=lama'), expect.anything()));
+    await user.clear(search); await user.type(search, 'baru');
     await waitFor(() => expect(screen.getByRole('option', { name: /Ayu/ })).toBeTruthy());
     await act(async () => { finishOld?.(new Response(JSON.stringify({ items: [{ ...target, nama: 'Respons Lama' }], page: 1, hasMore: false }))); });
     expect(screen.queryByRole('option', { name: /Respons Lama/ })).toBeNull();
-    await user.clear(search); await user.type(search, 'tolak'); await user.click(screen.getByRole('button', { name: 'Cari pengguna' }));
+    await user.clear(search); await user.type(search, 'tolak');
     expect((await screen.findByRole('alert')).textContent).toContain('Izin pembacaan ditolak');
-    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Pengguna' }).disabled).toBe(true);
+    expect(screen.queryByRole('option')).toBeNull();
+});
+
+it('pengguna, izin, dan unit masing-masing satu isian: ketik untuk mencari, pilih dengan klik atau keyboard, Escape hanya menutup daftar', async () => {
+    render(<DenyIndex {...props} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Tambah pembatasan' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getAllByRole('combobox')).toHaveLength(2);
+    expect(within(dialog).queryByRole('searchbox')).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: /^Cari/ })).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+
+    await pick(user, 'Pengguna', /Ayu/);
+    expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Pengguna' }).value).toContain('Ayu');
+    const izin = screen.getByRole<HTMLInputElement>('combobox', { name: 'Izin' });
+    expect(izin.getAttribute('aria-expanded')).toBe('false');
+    await user.type(izin, 'ukur');
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/akses/deny/opsi/izin?q=ukur'), expect.anything()));
+    expect(izin.getAttribute('aria-expanded')).toBe('true');
+    const option = await screen.findByRole('option', { name: 'pengukuran:update' });
+    await user.keyboard('{ArrowDown}');
+    expect(izin.getAttribute('aria-activedescendant')).toBe(option.id);
+    await user.keyboard('{Enter}');
+    expect(izin.value).toBe('pengukuran:update');
+    expect(izin.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('option')).toBeNull();
+    expect(router.post).not.toHaveBeenCalled();
+
+    await user.type(screen.getByRole('textbox', { name: /Alasan pembatasan/ }), 'Evaluasi akses');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan pembatasan' }).disabled).toBe(false);
+    await user.type(izin, 'x');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan pembatasan' }).disabled).toBe(true);
+
+    await user.click(screen.getByRole('radio', { name: 'Unit tertentu' }));
+    const unitBox = screen.getByRole('combobox', { name: 'Unit' });
+    await user.click(unitBox);
+    await screen.findByRole('option', { name: /Unit A/ });
+    expect(fireEvent.keyDown(unitBox, { key: 'Escape' })).toBe(false);
+    expect(screen.queryByRole('option')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeTruthy();
 });
 
 it('toast hanya mengikuti flash server dan receipt tanpa izin tidak menawarkan pengelolaan', async () => {
@@ -156,14 +202,19 @@ it('toast hanya mengikuti flash server dan receipt tanpa izin tidak menawarkan p
 it.each([401, 419])('lookup %s mempertahankan pilihan dan menghentikan pembacaan serta mutation', async (status) => {
     render(<DenyIndex {...props} />);
     const user = await fillCreate();
+    await user.click(screen.getByRole('radio', { name: 'Unit tertentu' }));
     vi.mocked(fetch).mockResolvedValue(new Response('{}', { status }));
-    await user.click(screen.getByRole('button', { name: 'Cari pengguna' }));
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }));
     await screen.findByRole(status === 401 ? 'link' : 'button', { name: status === 401 ? 'Masuk ulang' : 'Muat ulang halaman' });
-    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Pengguna' }).value).toBe('target');
+    await user.click(screen.getByRole('radio', { name: 'Global' }));
+    expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Pengguna' }).value).toContain('Ayu');
+    expect(screen.getByRole<HTMLInputElement>('combobox', { name: 'Izin' }).value).toBe('pengukuran:update');
     expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: /Alasan pembatasan/ }).value).toBe('Evaluasi akses');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan pembatasan' }).disabled).toBe(true);
     const count = vi.mocked(fetch).mock.calls.length;
-    await user.click(screen.getByRole('button', { name: 'Cari izin' }));
+    const izin = screen.getByRole<HTMLInputElement>('combobox', { name: 'Izin' });
+    expect(izin.disabled).toBe(true);
+    await user.click(izin);
     expect(fetch).toHaveBeenCalledTimes(count);
     expect(router.post).not.toHaveBeenCalled();
 });
