@@ -11,9 +11,13 @@ import {
     X,
     Search,
     Bell,
+    Moon,
+    Sun,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 import { SidebarNavigation } from '@/Components/Navigation/SidebarNavigation';
+import { Tooltip } from '@/Components/Tooltip';
+import { setTema, useTema } from '@/lib/tema';
 
 /**
  * Lonceng ke halaman notifikasi dengan badge angka belum dibaca dari props server (tanpa polling).
@@ -37,6 +41,26 @@ function LoncengNotifikasi({ jumlah, className }: { jumlah: number | null | unde
                 </span>
             )}
         </Link>
+    );
+}
+
+/** Tombol dua keadaan tema terang/gelap (Q89, K1); ukuran sentuh sama dengan lonceng. */
+function TombolTema({ className }: { className: string }) {
+    const gelap = useTema() === 'gelap';
+    const Ikon = gelap ? Sun : Moon;
+
+    return (
+        <Tooltip content={gelap ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'} position="bottom" align="right">
+            <button
+                type="button"
+                aria-label="Tema gelap"
+                aria-pressed={gelap}
+                onClick={() => setTema(gelap ? 'terang' : 'gelap')}
+                className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 ${className}`}
+            >
+                <Ikon className="h-5 w-5" aria-hidden="true" />
+            </button>
+        </Tooltip>
     );
 }
 
@@ -192,6 +216,7 @@ export function AuthenticatedLayout({
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                     <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-sidebar-ink hover:bg-sidebar-ink/10 focus:ring-sidebar-ink/40" />
+                    <TombolTema className="text-sidebar-ink hover:bg-sidebar-ink/10 focus:ring-sidebar-ink/40" />
                     {/* Satu instance profil per viewport agar state logout tidak terduplikasi atau tertinggal tersembunyi. */}
                     {!isDesktopViewport && (
                         <UserProfileDropdown
@@ -305,6 +330,7 @@ export function AuthenticatedLayout({
                     <div className="ml-auto flex items-center gap-2 xl:gap-4">
 
                         <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-muted hover:bg-soft hover:text-ink focus:ring-primary/20" />
+                        <TombolTema className="text-muted hover:bg-soft hover:text-ink focus:ring-primary/20" />
 
                         {isDesktopViewport && <UserProfileDropdown user={auth?.user ?? null} placement="header" />}
                     </div>

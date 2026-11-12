@@ -289,3 +289,29 @@ describe('AuthenticatedLayout Navigation Active State', () => {
         expect(within(nav).queryByRole('link', { name: 'Kebijakan Storage' })).toBeNull();
     });
 });
+
+describe('AuthenticatedLayout Tombol Tema', () => {
+    afterEach(() => {
+        delete document.documentElement.dataset.tema;
+        localStorage.clear();
+    });
+
+    it('tombol di header desktop dan mobile mengganti tema, menandai aria-pressed, dan menyimpan pilihan', () => {
+        render(<AuthenticatedLayout><div>Konten</div></AuthenticatedLayout>);
+        const tombol = () => screen.getAllByRole('button', { name: 'Tema gelap' });
+
+        expect(tombol()).toHaveLength(2);
+        for (const item of tombol()) expect(item.getAttribute('aria-pressed')).toBe('false');
+
+        fireEvent.click(tombol()[1]);
+        expect(document.documentElement.dataset.tema).toBe('gelap');
+        expect(localStorage.getItem('sakip-tema')).toBe('gelap');
+        for (const item of tombol()) expect(item.getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getAllByRole('tooltip').map((item) => item.textContent)).toContain('Ganti ke tema terang');
+
+        fireEvent.click(tombol()[0]);
+        expect(document.documentElement.hasAttribute('data-tema')).toBe(false);
+        expect(localStorage.getItem('sakip-tema')).toBe('terang');
+        for (const item of tombol()) expect(item.getAttribute('aria-pressed')).toBe('false');
+    });
+});
