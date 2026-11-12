@@ -24,31 +24,40 @@ function DenyLookup<T extends { id: string }>({ id, label, endpoint, value, onCh
     const [open, setOpen] = useState(false);
     const [active, setActive] = useState(-1);
     const timer = useRef<number | undefined>(undefined);
+    // Naik setiap teks berubah, agar jawaban permintaan lama yang tiba selama jeda ketik tidak ditampilkan.
+    const generation = useRef(0);
     useEffect(() => () => window.clearTimeout(timer.current), []);
     useEffect(() => {
         if (paused || !query) { setLoading(false); return; }
         const controller = new AbortController();
+        const mine = generation.current;
         let current = true;
+        const fresh = () => current && mine === generation.current;
         setLoading(true); setFailure(''); setActive(-1);
         void fetch(`${endpoint}?${new URLSearchParams({ q: query.q, page: String(query.page) })}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
             .then(async (response) => {
-                if (!current) return;
+                if (!fresh()) return;
                 if (response.status === 401 || response.status === 419) {
                     const data = await response.text();
-                    if (current) onRecovery({ status: response.status, data, headers: {} });
+                    if (fresh()) onRecovery({ status: response.status, data, headers: {} });
                     return;
                 }
                 if (!response.ok) throw new Error(response.status === 403 ? 'Izin pembacaan ditolak. Muat ulang daftar untuk memeriksa akses.' : 'Pilihan belum dapat dimuat. Coba cari kembali.');
                 const data: OptionPage<T> = await response.json();
-                if (current) setResult(data);
+                if (fresh()) setResult(data);
             })
-            .catch((error: unknown) => { if (current) setFailure(error instanceof Error ? error.message : 'Pilihan belum dapat dimuat. Coba cari kembali.'); })
-            .finally(() => { if (current) setLoading(false); });
+            .catch((error: unknown) => { if (fresh()) setFailure(error instanceof Error ? error.message : 'Pilihan belum dapat dimuat. Coba cari kembali.'); })
+            .finally(() => { if (fresh()) setLoading(false); });
         return () => { current = false; controller.abort(); };
     }, [endpoint, query, paused, onRecovery]);
+    // Fokus tetap di isian, jadi opsi aktif digulir sendiri ke area daftar yang terlihat.
+    useEffect(() => {
+        if (open && active >= 0) document.getElementById(`${id}-option-${active}`)?.scrollIntoView?.({ block: 'nearest' });
+    }, [open, active, id]);
     const locked = disabled || paused;
     const showList = () => { if (locked) return; setOpen(true); if (!query) setQuery({ q: '', page: 1 }); };
     const search = (next: string) => {
+        generation.current += 1;
         setText(next); setOpen(true); setActive(-1); setLoading(true);
         // Teks yang diubah membatalkan pilihan lama sampai opsi baru dipilih.
         if (value) onChange('');

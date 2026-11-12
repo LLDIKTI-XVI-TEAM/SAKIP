@@ -183,6 +183,54 @@ it('pengguna, izin, dan unit masing-masing satu isian: ketik untuk mencari, pili
     expect(screen.getByRole('dialog')).toBeTruthy();
 });
 
+it('jawaban pencarian lama yang tiba selama jeda ketik diabaikan; hasil pencarian baru tetap tampil dan dapat dipilih', async () => {
+    let finishFirst: ((response: Response) => void) | undefined;
+    vi.mocked(fetch).mockImplementation(async (url) => {
+        if (String(url).includes('opsi/izin?q=&')) return new Promise<Response>((resolve) => { finishFirst = resolve; });
+        return new Response(JSON.stringify({ items: [permission], page: 1, hasMore: false }));
+    });
+    render(<DenyIndex {...props} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Tambah pembatasan' }));
+    const izin = screen.getByRole<HTMLInputElement>('combobox', { name: 'Izin' });
+    await user.click(izin);
+    await waitFor(() => expect(finishFirst).toBeDefined());
+    // Teks diganti tanpa menunggu, lalu permintaan awal selesai jauh sebelum jeda 300 ms berakhir.
+    fireEvent.change(izin, { target: { value: 'ukur' } });
+    await act(async () => {
+        finishFirst?.(new Response(JSON.stringify({ items: [{ id: 'lama', kode: 'akses:update', keterangan: null, butuh_scope: 'global' }], page: 1, hasMore: false })));
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(screen.queryByRole('option', { name: 'akses:update' })).toBeNull();
+    fireEvent.keyDown(izin, { key: 'ArrowDown' });
+    fireEvent.keyDown(izin, { key: 'Enter' });
+    expect(izin.value).toBe('ukur');
+
+    await screen.findByRole('option', { name: 'pengukuran:update' });
+    fireEvent.keyDown(izin, { key: 'ArrowDown' });
+    fireEvent.keyDown(izin, { key: 'Enter' });
+    expect(izin.value).toBe('pengukuran:update');
+});
+
+it('panah menggulir opsi aktif ke area daftar yang terlihat', async () => {
+    const scrolled: string[] = [];
+    Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value(this: Element) { scrolled.push(this.id); } });
+    try {
+        vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({ items: ['a:read', 'b:read', 'c:read'].map((kode, index) => ({ id: `p${index}`, kode, keterangan: null, butuh_scope: 'global' })), page: 1, hasMore: false })));
+        render(<DenyIndex {...props} />);
+        const user = userEvent.setup();
+        await user.click(screen.getByRole('button', { name: 'Tambah pembatasan' }));
+        await user.click(screen.getByRole('combobox', { name: 'Izin' }));
+        await screen.findByRole('option', { name: 'c:read' });
+        await user.keyboard('{ArrowDown}');
+        expect(scrolled.at(-1)).toBe(screen.getByRole('option', { name: 'a:read' }).id);
+        await user.keyboard('{ArrowUp}');
+        expect(scrolled.at(-1)).toBe(screen.getByRole('option', { name: 'c:read' }).id);
+    } finally {
+        Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+    }
+});
+
 it('toast hanya mengikuti flash server dan receipt tanpa izin tidak menawarkan pengelolaan', async () => {
     currentPage.flash = { denyStatus: 'revoked' };
     const view = render(<DenyIndex {...props} />);
