@@ -2,6 +2,7 @@ import type { HttpExceptionResponse } from '@inertiajs/core';
 import { useAuthRecovery } from '@/hooks/useAuthRecovery';
 import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
 import { router, useForm } from '@inertiajs/react';
+import { ChevronDown } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/Components/Button';
 import { primaryButton, secondaryButton } from '@/Pages/Auth/AuthShell';
@@ -9,60 +10,136 @@ import type { DenyRow, OptionPage, PermissionOption, UnitOption, UserOption } fr
 
 const fieldClass = 'mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50';
 
+/** Satu isian pencarian dan pilihan (combobox): ketik untuk mencari, pilih dengan klik atau panah + Enter. */
 function DenyLookup<T extends { id: string }>({ id, label, endpoint, value, onChange, describe, disabled, error, paused, onRecovery }: {
     id: string; label: string; endpoint: string; value: string; onChange: (id: string) => void;
     describe: (option: T) => string; disabled: boolean; error?: string; paused: boolean; onRecovery: (response: HttpExceptionResponse) => void;
 }) {
-    const [search, setSearch] = useState('');
-    const [query, setQuery] = useState({ q: '', page: 1 });
+    const [text, setText] = useState('');
+    // null sampai daftar pertama kali dibuka, agar dialog tidak memuat ketiga daftar sekaligus.
+    const [query, setQuery] = useState<{ q: string; page: number } | null>(null);
     const [result, setResult] = useState<OptionPage<T>>({ items: [], page: 1, hasMore: false });
-    const [selected, setSelected] = useState<T | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [failure, setFailure] = useState('');
+    const [open, setOpen] = useState(false);
+    const [active, setActive] = useState(-1);
+    const timer = useRef<number | undefined>(undefined);
+    // Naik setiap teks berubah, agar jawaban permintaan lama yang tiba selama jeda ketik tidak ditampilkan.
+    const generation = useRef(0);
+    useEffect(() => () => window.clearTimeout(timer.current), []);
     useEffect(() => {
-        if (paused) { setLoading(false); return; }
+        if (paused || !query) { setLoading(false); return; }
         const controller = new AbortController();
+        const mine = generation.current;
         let current = true;
-        setLoading(true); setFailure('');
+        const fresh = () => current && mine === generation.current;
+        setLoading(true); setFailure(''); setActive(-1);
         void fetch(`${endpoint}?${new URLSearchParams({ q: query.q, page: String(query.page) })}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
             .then(async (response) => {
-                if (!current) return;
+                if (!fresh()) return;
                 if (response.status === 401 || response.status === 419) {
                     const data = await response.text();
-                    if (current) onRecovery({ status: response.status, data, headers: {} });
+                    if (fresh()) onRecovery({ status: response.status, data, headers: {} });
                     return;
                 }
                 if (!response.ok) throw new Error(response.status === 403 ? 'Izin pembacaan ditolak. Muat ulang daftar untuk memeriksa akses.' : 'Pilihan belum dapat dimuat. Coba cari kembali.');
                 const data: OptionPage<T> = await response.json();
-                if (current) setResult(data);
+                if (fresh()) setResult(data);
             })
-            .catch((error: unknown) => { if (current) setFailure(error instanceof Error ? error.message : 'Pilihan belum dapat dimuat. Coba cari kembali.'); })
-            .finally(() => { if (current) setLoading(false); });
+            .catch((error: unknown) => { if (fresh()) setFailure(error instanceof Error ? error.message : 'Pilihan belum dapat dimuat. Coba cari kembali.'); })
+            .finally(() => { if (fresh()) setLoading(false); });
         return () => { current = false; controller.abort(); };
     }, [endpoint, query, paused, onRecovery]);
-    const options = selected && !result.items.some((item) => item.id === selected.id) ? [selected, ...result.items] : result.items;
-    const applySearch = () => { if (paused) return; setQuery({ q: search, page: 1 }); };
-    return <div className="space-y-2">
-        <div className="flex items-end gap-2">
-            <div className="min-w-0 flex-1"><label htmlFor={`${id}-search`} className="block text-sm font-medium">Cari {label.toLowerCase()}</label>
-                <input id={`${id}-search`} type="search" maxLength={100} value={search} disabled={disabled || paused} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySearch(); } }} className={fieldClass} /></div>
-            <Button type="button" variant="outline" className={secondaryButton} disabled={disabled || paused} aria-label={`Cari ${label.toLowerCase()}`} onClick={applySearch}>Cari</Button>
-        </div>
+    // Fokus tetap di isian, jadi opsi aktif digulir sendiri ke area daftar yang terlihat.
+    useEffect(() => {
+        if (open && active >= 0) document.getElementById(`${id}-option-${active}`)?.scrollIntoView?.({ block: 'nearest' });
+    }, [open, active, id]);
+    const locked = disabled || paused;
+    const showList = () => { if (locked) return; setOpen(true); if (!query) setQuery({ q: '', page: 1 }); };
+    const search = (next: string) => {
+        generation.current += 1;
+        setText(next); setOpen(true); setActive(-1); setLoading(true);
+        // Teks yang diubah membatalkan pilihan lama sampai opsi baru dipilih.
+        if (value) onChange('');
+        window.clearTimeout(timer.current);
+        timer.current = window.setTimeout(() => setQuery({ q: next.trim(), page: 1 }), 300);
+    };
+    const choose = (option: T) => { setText(describe(option)); setOpen(false); setActive(-1); onChange(option.id); };
+    const items = loading || failure ? [] : result.items;
+    return <div
+        className="space-y-2"
+        onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
+        onKeyDown={(event) => {
+            // Escape dari isian, daftar, atau tombol halaman menutup daftar saja, bukan dialog.
+            if (event.key !== 'Escape' || !open) return;
+            event.preventDefault();
+            document.getElementById(id)?.focus();
+            setOpen(false);
+        }}
+    >
         <label htmlFor={id} className="block text-sm font-medium">{label}</label>
-        <select id={id} required value={value} disabled={disabled || paused || loading || Boolean(failure)} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-error` : `${id}-status`} className={fieldClass} onChange={(event) => {
-            setSelected(options.find((option) => option.id === event.target.value) ?? null); onChange(event.target.value);
-        }}>
-            <option value="" disabled>Pilih {label.toLowerCase()}</option>
-            {options.map((option) => <option key={option.id} value={option.id}>{describe(option)}</option>)}
-        </select>
-        {error && <p id={`${id}-error`} role="alert" className="text-sm text-danger">{error}</p>}
-        <p id={`${id}-status`} role={failure ? 'alert' : 'status'} className={`text-xs ${failure ? 'text-danger' : 'text-muted'}`}>
-            {failure || (loading ? 'Memuat pilihan…' : result.items.length === 0 ? 'Tidak ada pilihan yang sesuai.' : `Halaman ${result.page}`)}
-        </p>
-        {(result.page > 1 || result.hasMore) && <div className="flex gap-3">
-            <button type="button" disabled={disabled || paused || loading || result.page <= 1} onClick={() => setQuery({ ...query, page: result.page - 1 })} className="rounded p-2 text-sm text-primary underline focus:ring-2 focus:ring-primary disabled:opacity-50">{label} sebelumnya</button>
-            <button type="button" disabled={disabled || paused || loading || !result.hasMore} onClick={() => setQuery({ ...query, page: result.page + 1 })} className="rounded p-2 text-sm text-primary underline focus:ring-2 focus:ring-primary disabled:opacity-50">{label} berikutnya</button>
+        <div className="relative">
+            <input
+                id={id}
+                type="text"
+                role="combobox"
+                autoComplete="off"
+                aria-autocomplete="list"
+                aria-required="true"
+                aria-expanded={open}
+                aria-controls={`${id}-list`}
+                aria-activedescendant={open && active >= 0 && items[active] ? `${id}-option-${active}` : undefined}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? `${id}-error` : failure ? `${id}-status` : undefined}
+                placeholder={`Ketik untuk mencari ${label.toLowerCase()}`}
+                maxLength={100}
+                value={text}
+                disabled={locked}
+                onChange={(event) => search(event.target.value)}
+                onClick={showList}
+                onKeyDown={(event) => {
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        if (!open) { showList(); return; }
+                        if (items.length === 0) return;
+                        setActive((index) => event.key === 'ArrowDown' ? (index + 1) % items.length : (index <= 0 ? items.length - 1 : index - 1));
+                    } else if (event.key === 'Enter') {
+                        // Enter di isian pencarian tidak boleh mengirim form.
+                        event.preventDefault();
+                        if (open && items[active]) choose(items[active]);
+                    }
+                }}
+                className="w-full rounded-lg border border-border bg-surface p-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            />
+            <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+        </div>
+        {open && <div className="rounded-lg border border-border bg-surface shadow-sm">
+            {items.length > 0
+                // tabIndex -1: daftar yang dapat digulir tidak menjadi tempat berhenti Tab; opsi dipilih dengan panah dari isian.
+                ? <ul id={`${id}-list`} role="listbox" tabIndex={-1} aria-label={`Pilihan ${label.toLowerCase()}`} className="max-h-60 overflow-y-auto py-1">
+                    {items.map((option, index) => <li
+                        key={option.id}
+                        id={`${id}-option-${index}`}
+                        role="option"
+                        aria-selected={option.id === value}
+                        // Fokus tetap di isian agar daftar tidak tertutup sebelum klik diproses.
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => choose(option)}
+                        onMouseEnter={() => setActive(index)}
+                        className={`cursor-pointer break-words px-3 py-2 text-sm ${index === active ? 'bg-primary/10' : ''} ${option.id === value ? 'font-semibold text-primary' : 'text-ink'}`}
+                    >{describe(option)}</li>)}
+                </ul>
+                : !failure && <p role="status" className="px-3 py-2 text-xs text-muted">{loading ? 'Memuat pilihan…' : 'Tidak ada pilihan yang sesuai.'}</p>}
+            {!failure && (result.page > 1 || result.hasMore) && <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs">
+                <span className="text-muted">Halaman {result.page}</span>
+                <div className="flex gap-2">
+                    <button type="button" disabled={locked || loading || result.page <= 1} onClick={() => query && setQuery({ ...query, page: result.page - 1 })} className="rounded px-2 py-1 text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50">{label} sebelumnya</button>
+                    <button type="button" disabled={locked || loading || !result.hasMore} onClick={() => query && setQuery({ ...query, page: result.page + 1 })} className="rounded px-2 py-1 text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50">{label} berikutnya</button>
+                </div>
+            </div>}
         </div>}
+        {error && <p id={`${id}-error`} role="alert" className="text-sm text-danger">{error}</p>}
+        {failure && <p id={`${id}-status`} role="alert" className="text-xs text-danger">{failure}</p>}
     </div>;
 }
 
@@ -95,7 +172,7 @@ export function DenyMutationDialog({ deny, actorId, onClose, onSaved }: { deny: 
         if (needsReload) alert.current?.focus();
         else {
             const field = ['user_id', 'permission_id', 'unit_id'].find((key) => form.errors[key as keyof DenyForm]);
-            if (field) dialog.current?.querySelector<HTMLSelectElement>(`#deny-${field}`)?.focus();
+            if (field) dialog.current?.querySelector<HTMLInputElement>(`#deny-${field}`)?.focus();
             else if (form.errors.alasan) reason.current?.focus();
         }
     }, [form.processing, form.errors, needsReload, message]);
@@ -115,8 +192,8 @@ export function DenyMutationDialog({ deny, actorId, onClose, onSaved }: { deny: 
         });
     };
     return <dialog ref={dialog} aria-labelledby="deny-title" aria-describedby={self ? 'deny-description deny-self-warning' : 'deny-description'} onCancel={(event) => { if (form.processing || message) event.preventDefault(); }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-xl border border-border bg-surface p-5 text-ink shadow-xl backdrop:bg-ink/50 sm:p-6">
-        <h2 id="deny-title" className="text-lg font-semibold">{deny ? 'Cabut deny' : 'Tambah deny'}</h2>
-        <p id="deny-description" className="mt-2 text-sm text-muted">{deny ? 'Mencabut deny tidak otomatis memberikan izin. Akses mengikuti peran, grant, dan pembatasan lain yang masih berlaku.' : 'Global membatasi izin di seluruh konteks yang relevan. Unit tertentu hanya membatasi pemeriksaan izin pada unit tersebut.'}</p>
+        <h2 id="deny-title" className="text-lg font-semibold">{deny ? 'Cabut pembatasan' : 'Tambah pembatasan'}</h2>
+        <p id="deny-description" className="mt-2 text-sm text-muted">{deny ? 'Mencabut pembatasan tidak otomatis memberikan izin. Akses mengikuti peran, grant, dan pembatasan lain yang masih berlaku.' : 'Global membatasi izin di seluruh konteks yang relevan. Unit tertentu hanya membatasi pemeriksaan izin pada unit tersebut.'}</p>
         <form onSubmit={submit} className="mt-5 space-y-5" aria-busy={form.processing}>
             {deny ? <dl className="space-y-2 rounded-lg bg-soft p-4 text-sm">
                 <div><dt className="font-medium">Pengguna</dt><dd className="break-words">{deny.user.nama} ({deny.user.email})</dd></div>
@@ -132,13 +209,13 @@ export function DenyMutationDialog({ deny, actorId, onClose, onSaved }: { deny: 
                 {scope === 'unit' && <DenyLookup<UnitOption> id="deny-unit_id" label="Unit" endpoint="/akses/deny/opsi/unit" value={form.data.unit_id ?? ''} onChange={(id) => form.setData('unit_id', id)} describe={(unit) => `${unit.nama}${unit.status === 'nonaktif' ? ' — nonaktif' : ''}`} paused={Boolean(recovery.recovery)} onRecovery={handleLookupRecovery} disabled={form.processing} error={form.errors.unit_id} />}
                 {self && <p id="deny-self-warning" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">Anda membatasi izin akun sendiri. Akses dan menu dapat hilang setelah disimpan; Anda mungkin memerlukan pengelola lain untuk memulihkannya.</p>}
             </>}
-            <div><label htmlFor="deny-reason" className="block text-sm font-medium">{deny ? 'Alasan pencabutan deny' : 'Alasan pembatasan'} <span className="text-danger">*</span></label>
+            <div><label htmlFor="deny-reason" className="block text-sm font-medium">{deny ? 'Alasan pencabutan pembatasan' : 'Alasan pembatasan'} <span className="text-danger">*</span></label>
                 <textarea ref={reason} autoFocus={Boolean(deny)} id="deny-reason" required maxLength={2000} rows={3} value={form.data.alasan} disabled={form.processing} onChange={(event) => form.setData('alasan', event.target.value)} aria-invalid={Boolean(form.errors.alasan)} aria-describedby={form.errors.alasan ? 'deny-reason-error' : 'deny-reason-help'} className={fieldClass} />
                 {form.errors.alasan ? <p id="deny-reason-error" role="alert" className="mt-1 text-sm text-danger">{form.errors.alasan}</p> : <p id="deny-reason-help" className="mt-1 text-xs text-muted">Wajib diisi, maksimal 2.000 karakter. Dicatat dalam jejak audit.</p>}
             </div>
             <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
             {needsReload && !recovery.recovery && <div className="space-y-2 rounded-lg bg-soft p-3"><p ref={alert} tabIndex={-1} role="alert" className="text-sm text-danger">{form.errors.deny_id || message}</p><Button type="button" variant="outline" className={secondaryButton} disabled={form.processing} onClick={() => router.get('/akses/deny', {}, { replace: true, preserveState: false })}>Muat ulang daftar</Button></div>}
-            <div className="flex flex-wrap justify-end gap-3"><Button type="button" variant="outline" className={secondaryButton} disabled={form.processing || Boolean(message)} onClick={onClose}>Batal</Button><Button type="submit" className={primaryButton} isLoading={form.processing} disabled={Boolean(recovery.recovery) || needsReload || missingSelection}>{deny ? 'Konfirmasi cabut deny' : 'Simpan deny'}</Button></div>
+            <div className="flex flex-wrap justify-end gap-3"><Button type="button" variant="outline" className={secondaryButton} disabled={form.processing || Boolean(message)} onClick={onClose}>Batal</Button><Button type="submit" className={primaryButton} isLoading={form.processing} disabled={Boolean(recovery.recovery) || needsReload || missingSelection}>{deny ? 'Konfirmasi cabut pembatasan' : 'Simpan pembatasan'}</Button></div>
         </form>
     </dialog>;
 }

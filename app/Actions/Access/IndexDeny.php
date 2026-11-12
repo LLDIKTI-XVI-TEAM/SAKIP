@@ -17,7 +17,7 @@ class IndexDeny
             ->with(['user:id,nama,email,status', 'permission:id,kode,keterangan,butuh_scope,aktif', 'unit:id,nama,status', 'penetap:id,nama'])
             ->when($search !== '', fn ($query) => $query->whereHas('user', fn ($user) => $user
                 ->where(fn ($filter) => $filter->where('nama', 'ilike', '%'.$search.'%')->orWhere('email', 'ilike', '%'.$search.'%'))))
-            ->orderByDesc('created_at')->orderByDesc('id')->simplePaginate(20)->withQueryString();
+            ->orderByDesc('created_at')->orderByDesc('id')->paginate(20)->withQueryString();
 
         return [
             'denies' => $rows->getCollection()->map(fn (UserPermissionDeny $deny) => [
@@ -26,7 +26,7 @@ class IndexDeny
                 'unit' => $deny->unit?->only(['id', 'nama', 'status']), 'alasan' => $deny->alasan,
                 'ditetapkan_oleh' => $deny->penetap->only(['id', 'nama']), 'created_at' => $deny->created_at->toISOString(),
             ])->all(),
-            'pagination' => ['current_page' => $rows->currentPage(), 'prev_page_url' => $rows->previousPageUrl(), 'next_page_url' => $rows->nextPageUrl()],
+            'pagination' => ['links' => $rows->linkCollection()->all(), 'from' => $rows->firstItem(), 'to' => $rows->lastItem(), 'total' => $rows->total()],
             'filters' => ['q' => $search], 'can' => ['manageDeny' => true],
         ];
     }

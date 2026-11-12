@@ -1,3 +1,5 @@
+import type { PaginationLinkItem } from '@/Components/Pagination';
+
 export type UserOption = { id: string; nama: string; email: string; status: 'aktif' | 'nonaktif' };
 export type UnitOption = { id: string; nama: string; status: 'aktif' | 'nonaktif' };
 export type PermissionOption = { id: string; kode: string; keterangan: string | null; butuh_scope: 'global' | 'unit' };
@@ -13,7 +15,7 @@ export type DenyRow = {
 };
 export type DenyIndexProps = {
     denies: DenyRow[];
-    pagination: { current_page: number; prev_page_url: string | null; next_page_url: string | null };
+    pagination: { links: PaginationLinkItem[]; from: number | null; to: number | null; total: number };
     filters: { q: string };
     can: { manageDeny: boolean };
 };

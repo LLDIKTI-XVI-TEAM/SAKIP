@@ -453,14 +453,26 @@ class ExplicitDenyTest extends TestCase
     public function test_http_list_and_lookups_are_bounded_filtered_and_projected(): void
     {
         for ($i = 0; $i < 21; $i++) {
-            $target = User::factory()->create(['nama' => sprintf('Fixture %02d', $i), 'status' => 'nonaktif']);
+            $target = User::factory()->create(['nama' => sprintf('Fixture %02d', $i), 'email' => sprintf('pembatasan.%02d@uji.test', $i), 'status' => 'nonaktif']);
             $unit = Unit::create(['nama' => sprintf('Fixture %02d', $i), 'status' => 'nonaktif', 'created_by' => $this->actor->id]);
             UserPermissionDeny::create(['user_id' => $target->id, 'permission_id' => $this->permission->id, 'unit_id' => $unit->id, 'alasan' => 'Fixture', 'ditetapkan_oleh' => $this->actor->id]);
+            // Waktu penetapan bertahap agar urutan terbaru dapat dibuktikan.
+            $this->travel(1)->minutes();
         }
         $this->actingAs($this->actor)->get('/akses/deny?q=Fixture')->assertInertia(fn (Assert $page) => $page
-            ->component('Access/DenyIndex', false)->has('denies', 20)->where('pagination.current_page', 1)
-            ->where('pagination.next_page_url', fn ($url) => str_contains($url, 'page=2')));
-        $this->get('/akses/deny?q=Fixture&page=2')->assertInertia(fn (Assert $page) => $page->has('denies', 1)->where('pagination.next_page_url', null));
+            ->component('Access/DenyIndex', false)->has('denies', 20)
+            ->where('denies.0.user.nama', 'Fixture 20')->where('denies.19.user.nama', 'Fixture 01')
+            ->where('pagination.total', 21)->where('pagination.from', 1)->where('pagination.to', 20)
+            ->where('pagination.links', fn ($links) => collect($links)->contains(fn ($link) => $link['label'] === '2' && $link['active'] === false
+                && str_contains((string) $link['url'], 'page=2') && str_contains((string) $link['url'], 'q=Fixture')))
+            ->missing('pagination.next_page_url')->missing('pagination.current_page'));
+        $this->get('/akses/deny?q=Fixture&page=2')->assertInertia(fn (Assert $page) => $page->has('denies', 1)
+            ->where('denies.0.user.nama', 'Fixture 00')->where('pagination.total', 21)->where('pagination.from', 21)->where('pagination.to', 21));
+        $this->get('/akses/deny?q=pembatasan.20@uji')->assertInertia(fn (Assert $page) => $page->has('denies', 1)
+            ->where('denies.0.user.nama', 'Fixture 20')->where('pagination.total', 1));
+        // Nomor halaman melewati halaman terakhir (mis. baris terakhirnya baru dicabut): daftar kosong, total tetap terkirim.
+        $this->get('/akses/deny?q=Fixture&page=5')->assertInertia(fn (Assert $page) => $page->has('denies', 0)
+            ->where('pagination.total', 21)->where('pagination.from', null)->where('pagination.to', null));
         foreach (['pengguna', 'unit'] as $lookup) {
             $response = $this->getJson('/akses/deny/opsi/'.$lookup.'?q=Fixture')->assertOk()->assertJsonCount(20, 'items')->assertJsonPath('hasMore', true);
             $this->assertSame('Fixture 00', $response->json('items.0.nama'));
