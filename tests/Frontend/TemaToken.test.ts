@@ -82,6 +82,7 @@ const PASANGAN: [string, string, string, number, Partial<Record<NamaTema, string
     ['danger di atas surface (pesan error)', 'danger', 'surface', 4.5],
     ['success di atas surface (teks sukses)', 'success', 'surface', 4.5, { terang: K9 }],
     ['on-danger di atas danger (tombol hapus)', 'on-danger', 'danger', 4.5],
+    ['on-danger di atas danger/90 (hover tombol hapus)', 'on-danger', 'danger@90/surface', 4.5, { terang: K9 }],
     ['sidebar-ink di atas sidebar', 'sidebar-ink', 'sidebar', 4.5],
     ['sidebar-ink/75 di atas sidebar (nama instansi)', 'sidebar-ink@75/sidebar', 'sidebar', 4.5],
     ['sidebar-ink/70 di atas sidebar (submenu)', 'sidebar-ink@70/sidebar', 'sidebar', 4.5],
