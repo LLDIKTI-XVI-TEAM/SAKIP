@@ -231,6 +231,26 @@ it('panah menggulir opsi aktif ke area daftar yang terlihat', async () => {
     }
 });
 
+it('Escape dari dalam daftar yang terbuka hanya menutup daftar dan mengembalikan fokus ke isian; daftar bukan tempat berhenti Tab', async () => {
+    const pengguna = Array.from({ length: 20 }, (_, index) => ({ ...target, id: `u${index}`, nama: `Pengguna ${index}` }));
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({ items: pengguna, page: 1, hasMore: true })));
+    render(<DenyIndex {...props} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Tambah pembatasan' }));
+    const box = screen.getByRole('combobox', { name: 'Pengguna' });
+    await user.click(box);
+    await screen.findByRole('option', { name: /Pengguna 19/ });
+    expect(screen.getByRole('listbox').getAttribute('tabindex')).toBe('-1');
+    const next = screen.getByRole('button', { name: 'Pengguna berikutnya' });
+    next.focus();
+    expect(fireEvent.keyDown(next, { key: 'Escape' })).toBe(false);
+    expect(box.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(document.activeElement).toBe(box);
+    // Kontrol positif: saat daftar tertutup Escape tidak dicegah, jadi dialog tetap dapat ditutup.
+    expect(fireEvent.keyDown(box, { key: 'Escape' })).toBe(true);
+});
+
 it('toast hanya mengikuti flash server dan receipt tanpa izin tidak menawarkan pengelolaan', async () => {
     currentPage.flash = { denyStatus: 'revoked' };
     const view = render(<DenyIndex {...props} />);

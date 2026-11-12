@@ -66,7 +66,17 @@ function DenyLookup<T extends { id: string }>({ id, label, endpoint, value, onCh
     };
     const choose = (option: T) => { setText(describe(option)); setOpen(false); setActive(-1); onChange(option.id); };
     const items = loading || failure ? [] : result.items;
-    return <div className="space-y-2" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+    return <div
+        className="space-y-2"
+        onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
+        onKeyDown={(event) => {
+            // Escape dari isian, daftar, atau tombol halaman menutup daftar saja, bukan dialog.
+            if (event.key !== 'Escape' || !open) return;
+            event.preventDefault();
+            document.getElementById(id)?.focus();
+            setOpen(false);
+        }}
+    >
         <label htmlFor={id} className="block text-sm font-medium">{label}</label>
         <div className="relative">
             <input
@@ -97,10 +107,6 @@ function DenyLookup<T extends { id: string }>({ id, label, endpoint, value, onCh
                         // Enter di isian pencarian tidak boleh mengirim form.
                         event.preventDefault();
                         if (open && items[active]) choose(items[active]);
-                    } else if (event.key === 'Escape' && open) {
-                        // Escape menutup daftar saja, bukan dialog.
-                        event.preventDefault();
-                        setOpen(false);
                     }
                 }}
                 className="w-full rounded-lg border border-border bg-surface p-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
@@ -109,7 +115,8 @@ function DenyLookup<T extends { id: string }>({ id, label, endpoint, value, onCh
         </div>
         {open && <div className="rounded-lg border border-border bg-surface shadow-sm">
             {items.length > 0
-                ? <ul id={`${id}-list`} role="listbox" aria-label={`Pilihan ${label.toLowerCase()}`} className="max-h-60 overflow-y-auto py-1">
+                // tabIndex -1: daftar yang dapat digulir tidak menjadi tempat berhenti Tab; opsi dipilih dengan panah dari isian.
+                ? <ul id={`${id}-list`} role="listbox" tabIndex={-1} aria-label={`Pilihan ${label.toLowerCase()}`} className="max-h-60 overflow-y-auto py-1">
                     {items.map((option, index) => <li
                         key={option.id}
                         id={`${id}-option-${index}`}
