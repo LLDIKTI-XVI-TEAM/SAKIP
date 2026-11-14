@@ -1789,6 +1789,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q47 dan ketentuan pelengkap Q47–Q51 (13 Oktober 2026):** saat verifikasi, sistem memperingatkan bila realisasi atau narasi sama persis dengan periode sebelumnya tanpa memblokir verifikasi, dan Perencanaan menilai alasan pengukuran berstatus `belum_dapat_diukur` (Q47 §47.4 butir 2). AC-6 dan AC-7 ditambahkan karena story ini belum dikerjakan.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-3 memiliki bukti test; rincian test dan batas bukti tercatat pada [ISS-08.01](SAKIP%20-%20User%20Issues.md#iss-0801--feature-verifikasi--pengembalian-pengukuran-dengan-f1). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-08.01` |
@@ -1807,13 +1809,15 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 - [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
 - [x] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
-- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1, sedangkan kanal eksternal WhatsApp dan Email mengikuti ISS-12.06. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
+- [x] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app mengikuti ISS-12.02 AC-1, sedangkan kanal eksternal WhatsApp dan Email mengikuti ISS-12.06. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
 - [x] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
 - [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat. *(Berlaku untuk PR #144; digantikan Q70 §70.2 butir 4: penanda tidak lagi dibuat, penanda lama tetap ditampilkan — US-03.07.)*
 - [x] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
 - [x] **AC-7:** Given pengukuran berstatus `belum_dapat_diukur`, When Perencanaan menilai narasi alasannya tidak dapat diterima, Then pengukuran dapat dikembalikan dengan alasan. *(Q47 §47.4 butir 2)*
 
 ### US-08.02 · Pengesahan Pengukuran & F1/F2
+
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-6 memiliki bukti test `RekapIndikatorPeriodeTest::test_versi_sah_tetap_dibaca_ketika_koreksi_dan_master_berubah` dan `SahkanPengukuranTest::test_snapshot_beku_tetap_dibaca_setelah_master_berubah`, selaras dengan AC-6 [ISS-08.02](SAKIP%20-%20User%20Issues.md#iss-0802--feature-pengesahan-pengukuran--f1f2) yang sudah tercentang. Centang bukan persetujuan QA/UAT atau deployment.
 
 | Field | Detail |
 |---|---|
@@ -1836,7 +1840,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-3:** Given jalur pengajuan Perencanaan, When pengaju yang sama mereviu/mengesahkan dan izin efektif masih ada, Then F2 mengizinkan dan mencatat `self_approval`.
 - [x] **AC-4:** Given deny/permission tidak memenuhi, Then F2 tidak dapat melewati resolver.
 - [x] **AC-5:** Given versi stale, When sahkan, Then ditolak.
-- [ ] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
+- [x] **AC-6:** Given pengesahan berhasil, Then laporan resmi membaca snapshot `pengukuran_versi` tersebut, bukan live join master terbaru.
 
 ### US-08.03 · Buka-Kembali Pengukuran Disahkan & Histori Status Capaian
 
@@ -1872,6 +1876,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q55 (16 Oktober 2026):** paling banyak satu draf terbuka per indikator × tahun × periode; penyimpanan dan persetujuan membawa token versi draf dan rekomendasi berlaku yang dilihat, sehingga tampilan basi ditolak sebagai konflik versi tanpa mengubah data. Penyetuju cadangan boleh menulis rekomendasi yang langsung disetujui dengan penanda cadangan, dan versi pengajuan pengukuran membekukan rekomendasi yang tampil; pengajuan dari tampilan basi ditolak (Q55 §55.1).
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-7 memiliki bukti test; AC-4 belum hanya untuk bagian Laporan Kinerja Triwulan karena keluaran ISS-10.05 belum dibangun; rincian test dan batas bukti tercatat pada [ISS-09.01](SAKIP%20-%20User%20Issues.md#iss-0901--feature-rekomendasi-pimpinan-draf-perencanaan-dan-persetujuan-pimpinan). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-09.01` |
@@ -1895,7 +1901,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [ ] **AC-4:** Given rekomendasi masih berstatus `draf`, Then rekomendasi tidak tampil bagi PIC, tidak tampil pada pengukuran periode berikutnya maupun Laporan Kinerja Triwulan, dan tidak memicu tindak lanjut wajib; hanya rekomendasi `disetujui` yang berlaku. *(Q51 §51.1 butir 2)* *(Draf tidak tampil pada pengukuran periode berikutnya, dan halaman Rekomendasi Pimpinan hanya untuk pemegang izin; bagian Laporan Kinerja Triwulan menunggu ISS-10.05 dan tindak lanjut wajib menunggu gerbang ISS-07.03, keduanya memakai pembaca rekomendasi yang berlaku.)*
 - [x] **AC-5:** Given pengukuran periode belum disahkan, When rekomendasi ditulis setelah rapat, Then sistem tetap mengizinkan karena rekomendasi opsional per indikator per periode dan independen dari status pengukuran. *(Q51 §51.1 butir 3)*
 - [x] **AC-6:** Given rekomendasi sudah disetujui, When diubah, Then perubahan membentuk baris baru yang melalui persetujuan yang sama, sedangkan baris lama tidak dihapus dan tetap menjadi histori. *(Q51 §51.2 butir 3)*
-- [ ] **AC-7:** Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)* *(Gerbang pengajuan dipasang pada ISS-07.03 / #82; issue ini menyediakan pembaca rekomendasi yang berlaku, termasuk lintas tahun.)*
+- [x] **AC-7:** Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)* *(Gerbang pengajuan dipasang pada ISS-07.03 / #82; issue ini menyediakan pembaca rekomendasi yang berlaku, termasuk lintas tahun.)*
 - [x] **AC-8:** Given seeder preset dijalankan, Then `rekomendasi:tetapkan` dimiliki preset Pimpinan dan Perencanaan; simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission. *(Q45 §45.2 butir 1, Q51 §51.2 butir 1)*
 
 **Business Rules / Catatan**
