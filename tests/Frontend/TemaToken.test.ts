@@ -106,6 +106,21 @@ describe('token tema (resources/css/app.css)', () => {
         expect(css).toMatch(/@media screen\s*\{\s*:root\[data-tema="gelap"\]\s*\{[^}]*color-scheme:\s*dark\s*;/);
     });
 
+    // ApexCharts menulis warna token tema aktif ke atribut SVG saat render; saat cetak token kembali terang, jadi teks dan garis grafik ditimpa (Q89 K6).
+    it.each([
+        ['.apexcharts-text', 'fill', 'muted'],
+        ['.apexcharts-text.apexcharts-datalabel-value', 'fill', 'ink'],
+        ['.apexcharts-legend-text', 'color', 'muted'],
+        ['.apexcharts-gridline', 'stroke', 'border'],
+        ['.apexcharts-grid-borders line', 'stroke', 'border'],
+        ['.apexcharts-pie-area', 'stroke', 'surface'],
+    ])('cetak: %s memakai %s token %s', (selektor, properti, token) => {
+        const cetak = (css.match(/@media print\s*\{([\s\S]*?)\n\}/)?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '');
+        const aturan = [...cetak.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(([, sel]) => sel.split(',').map((s) => s.trim()).includes(selektor));
+
+        expect(aturan?.[2], `aturan cetak untuk ${selektor}`).toMatch(new RegExp(`${properti}:\\s*var\\(--color-${token}\\)`));
+    });
+
     it('token tanpa nilai gelap tidak dipakai di resources/js', () => {
         const pola = new RegExp(`-(?:${TANPA_NILAI_GELAP.join('|')})\\b`);
         const pemakai = Object.entries(sumberJs)

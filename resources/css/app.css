@@ -67,6 +67,31 @@
     }
 }
 
+/* ApexCharts menulis warna token tema aktif ke atribut SVG saat render; saat cetak token kembali terang, jadi teks dan garis grafik ditimpa (Q89 K6). */
+@media print {
+    .apexcharts-text {
+        fill: var(--color-muted);
+    }
+
+    .apexcharts-text.apexcharts-datalabel-value {
+        fill: var(--color-ink);
+    }
+
+    /* Warna legenda ditulis sebagai style inline. */
+    .apexcharts-legend-text {
+        color: var(--color-muted) !important;
+    }
+
+    .apexcharts-gridline,
+    .apexcharts-grid-borders line {
+        stroke: var(--color-border);
+    }
+
+    .apexcharts-pie-area {
+        stroke: var(--color-surface);
+    }
+}
+
 @layer base {
     /* Offset cincin fokus bawaan Tailwind putih; ikut latar kartu agar tidak menyala di tema gelap. */
     *,
