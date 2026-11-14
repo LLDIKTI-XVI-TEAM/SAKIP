@@ -85,7 +85,7 @@ Kode mengikuti PK, Rencana Aksi, dan laporan triwulan (Q50 §50.4): **S1–S4** 
 | Target TW IV IKU 1.2 | Tertulis 92,9 pada RA 2026; berbeda dengan target PK 94 | Tindak lanjut "Target TW IV IKU 1.2" | Menunggu Perencanaan | Rencana Aksi → target periode | — |
 | Rencana Aksi 2026 | Status `disahkan` sebelum pengajuan TW IV | Q32.8 (diperbarui Q46) | Menunggu Perencanaan (isi) | Rencana Aksi → ajukan/sahkan | — |
 | Kegiatan per triwulan | Boleh tanpa anggaran; tercatat belum diisi | Q46 §46.1 butir 3 | Dikonfirmasi dokumen | Rencana Aksi → kegiatan (`TambahKegiatanRencanaAksi`) | — |
-| Kegiatan TW IV | Ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan | Q46 §46.1 butir 3 | Dikonfirmasi dokumen | Rencana Aksi → kegiatan | — |
+| Kegiatan TW IV | Kegiatan baru ditambahkan lewat buka-kembali RA oleh Perencanaan; klaim tahap pengukuran hanya untuk kegiatan lanjutan | Q46 §46.1 butir 3; Q90 | Dikonfirmasi dokumen | Rencana Aksi → kegiatan | — |
 
 ### 2.4 Realisasi, narasi, dan rekomendasi TW I–II 2026
 
