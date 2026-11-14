@@ -126,7 +126,7 @@ export function LogoutActions({ appearance = 'default', showLocal = true, onPend
                     }}
                     // Dialog mengelola keyboard sendiri, bukan focus trap drawer di belakangnya.
                     onKeyDown={(event) => event.stopPropagation()}
-                    className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/55"
+                    className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-overlay/55"
                 >
                     <h2 id={`${id}-title`} className="text-lg font-semibold">Keluar dari layanan terhubung?</h2>
                     <p id={`${id}-description`} className="mt-3 text-sm leading-6 text-muted">

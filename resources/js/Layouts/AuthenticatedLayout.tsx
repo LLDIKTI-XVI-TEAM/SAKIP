@@ -11,9 +11,12 @@ import {
     X,
     Search,
     Bell,
+    Moon,
+    Sun,
 } from 'lucide-react';
 import type { SharedPageProps } from '@/types/auth';
 import { SidebarNavigation } from '@/Components/Navigation/SidebarNavigation';
+import { setTema, useTema } from '@/lib/tema';
 
 /**
  * Lonceng ke halaman notifikasi dengan badge angka belum dibaca dari props server (tanpa polling).
@@ -32,11 +35,29 @@ function LoncengNotifikasi({ jumlah, className }: { jumlah: number | null | unde
         >
             <Bell className="h-5 w-5" aria-hidden="true" />
             {belumDibaca > 0 && (
-                <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-xs font-semibold leading-none text-white">
+                <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-xs font-semibold leading-none text-on-danger">
                     {belumDibaca > 99 ? '99+' : belumDibaca}
                 </span>
             )}
         </Link>
+    );
+}
+
+/** Tombol dua keadaan tema terang/gelap (Q89, K1); ukuran sentuh sama dengan lonceng. */
+function TombolTema({ className }: { className: string }) {
+    const gelap = useTema() === 'gelap';
+    const Ikon = gelap ? Sun : Moon;
+
+    return (
+        <button
+            type="button"
+            aria-label="Tema gelap"
+            aria-pressed={gelap}
+            onClick={() => setTema(gelap ? 'terang' : 'gelap')}
+            className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 ${className}`}
+        >
+            <Ikon className="h-5 w-5" aria-hidden="true" />
+        </button>
     );
 }
 
@@ -174,7 +195,7 @@ export function AuthenticatedLayout({
             </a>
 
             {/* Mobile Header Bar */}
-            <header className="flex h-16 items-center justify-between border-b border-primary bg-primary px-4 md:hidden sticky top-0 z-40 text-white shadow-sm">
+            <header className="flex h-16 items-center justify-between border-b border-sidebar bg-sidebar px-4 md:hidden sticky top-0 z-40 text-sidebar-ink shadow-sm">
                 <div className="flex min-w-0 flex-1 items-center gap-2.5 mr-2">
                     {!logoFailed && logoUrl && (
                         <img
@@ -187,11 +208,12 @@ export function AuthenticatedLayout({
                         />
                     )}
                     <div className="min-w-0 flex-1">
-                        <span className="text-base font-bold tracking-tight text-white leading-none block truncate">{appName}</span>
+                        <span className="text-base font-bold tracking-tight text-sidebar-ink leading-none block truncate">{appName}</span>
                     </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                    <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-white hover:bg-surface/10 focus:ring-white/40" />
+                    <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-sidebar-ink hover:bg-sidebar-ink/10 focus:ring-sidebar-ink/40" />
+                    <TombolTema className="text-sidebar-ink hover:bg-sidebar-ink/10 focus:ring-sidebar-ink/40" />
                     {/* Satu instance profil per viewport agar state logout tidak terduplikasi atau tertinggal tersembunyi. */}
                     {!isDesktopViewport && (
                         <UserProfileDropdown
@@ -209,7 +231,7 @@ export function AuthenticatedLayout({
                         aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
                         disabled={logoutPending}
                         onClick={() => setNavigationOpen((isOpen) => !isOpen)}
-                        className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-sidebar-ink hover:bg-sidebar-ink/10 focus:outline-none focus:ring-2 focus:ring-sidebar-ink/40 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
                     </button>
@@ -219,7 +241,7 @@ export function AuthenticatedLayout({
             {/* Mobile Backdrop */}
             {navigationOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs transition-opacity md:hidden"
+                    className="fixed inset-0 z-40 bg-overlay/60 backdrop-blur-xs transition-opacity md:hidden"
                     onClick={() => setNavigationOpen(false)}
                     aria-hidden="true"
                 />
@@ -235,12 +257,12 @@ export function AuthenticatedLayout({
                 aria-hidden={sidebarHidden || undefined}
                 inert={sidebarHidden || undefined}
                 tabIndex={-1}
-                className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-primary text-white transition-transform duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0 ${
+                className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar text-sidebar-ink transition-transform duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0 ${
                     navigationOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0 md:shadow-none'
                 }`}
             >
                 {/* Brand Header */}
-                <div className="flex h-[68px] items-center justify-between border-b border-white/10 px-5 shrink-0">
+                <div className="flex h-[68px] items-center justify-between border-b border-sidebar-ink/10 px-5 shrink-0">
                     <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
                         {!logoFailed && logoUrl && (
                             <img
@@ -253,8 +275,8 @@ export function AuthenticatedLayout({
                             />
                         )}
                         <div className="min-w-0 flex-1">
-                            <span className="text-lg font-bold tracking-tight text-white leading-tight block truncate">{appName}</span>
-                            <HoverScrollText className="text-xs font-semibold text-white/75 tracking-wider leading-tight">
+                            <span className="text-lg font-bold tracking-tight text-sidebar-ink leading-tight block truncate">{appName}</span>
+                            <HoverScrollText className="text-xs font-semibold text-sidebar-ink/75 tracking-wider leading-tight">
                                 {instansiNama}
                             </HoverScrollText>
                         </div>
@@ -262,7 +284,7 @@ export function AuthenticatedLayout({
                     <button
                         type="button"
                         onClick={() => setNavigationOpen(false)}
-                        className="inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40 md:hidden"
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-sidebar-ink hover:bg-sidebar-ink/10 focus:outline-none focus:ring-2 focus:ring-sidebar-ink/40 md:hidden"
                         aria-label="Tutup navigasi"
                     >
                         <X aria-hidden="true" className="h-5 w-5" />
@@ -305,6 +327,7 @@ export function AuthenticatedLayout({
                     <div className="ml-auto flex items-center gap-2 xl:gap-4">
 
                         <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-muted hover:bg-soft hover:text-ink focus:ring-primary/20" />
+                        <TombolTema className="text-muted hover:bg-soft hover:text-ink focus:ring-primary/20" />
 
                         {isDesktopViewport && <UserProfileDropdown user={auth?.user ?? null} placement="header" />}
                     </div>

@@ -73,14 +73,14 @@ export function SidebarNavigation({
                             onClick={onNavigate}
                             className={`group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all ${
                                 isActive
-                                    ? 'bg-surface/15 text-white font-semibold shadow-xs'
-                                    : 'text-white/80 hover:bg-surface/10 hover:text-white'
+                                    ? 'bg-sidebar-ink/15 text-sidebar-ink font-semibold shadow-xs'
+                                    : 'text-sidebar-ink/80 hover:bg-sidebar-ink/10 hover:text-sidebar-ink'
                             }`}
                         >
                             <Icon
                                 aria-hidden="true"
                                 className={`h-[18px] w-[18px] shrink-0 transition-colors ${
-                                    isActive ? 'text-white' : 'text-white/75 group-hover:text-white'
+                                    isActive ? 'text-sidebar-ink' : 'text-sidebar-ink/75 group-hover:text-sidebar-ink'
                                 }`}
                             />
                             <HoverScrollText>{entry.item.label}</HoverScrollText>

@@ -8,7 +8,7 @@ import { Button } from '@/Components/Button';
 import { primaryButton, secondaryButton } from '@/Pages/Auth/AuthShell';
 import type { DenyRow, OptionPage, PermissionOption, UnitOption, UserOption } from '@/types/deny';
 
-const fieldClass = 'mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50';
+const fieldClass = 'mt-2 w-full rounded-lg border border-border bg-field p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50';
 
 /** Satu isian pencarian dan pilihan (combobox): ketik untuk mencari, pilih dengan klik atau panah + Enter. */
 function DenyLookup<T extends { id: string }>({ id, label, endpoint, value, onChange, describe, disabled, error, paused, onRecovery }: {
@@ -109,7 +109,7 @@ function DenyLookup<T extends { id: string }>({ id, label, endpoint, value, onCh
                         if (open && items[active]) choose(items[active]);
                     }
                 }}
-                className="w-full rounded-lg border border-border bg-surface p-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                className="w-full rounded-lg border border-border bg-field p-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             />
             <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
         </div>
@@ -191,7 +191,7 @@ export function DenyMutationDialog({ deny, actorId, onClose, onSaved }: { deny: 
             onHttpException: (response) => { if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: deny ? `/akses/deny/${deny.id}/cabut` : '/akses/deny', mutation: true })) return false; setMessage(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
         });
     };
-    return <dialog ref={dialog} aria-labelledby="deny-title" aria-describedby={self ? 'deny-description deny-self-warning' : 'deny-description'} onCancel={(event) => { if (form.processing || message) event.preventDefault(); }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-xl border border-border bg-surface p-5 text-ink shadow-xl backdrop:bg-ink/50 sm:p-6">
+    return <dialog ref={dialog} aria-labelledby="deny-title" aria-describedby={self ? 'deny-description deny-self-warning' : 'deny-description'} onCancel={(event) => { if (form.processing || message) event.preventDefault(); }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-xl border border-border bg-surface p-5 text-ink shadow-xl backdrop:bg-overlay/50 sm:p-6">
         <h2 id="deny-title" className="text-lg font-semibold">{deny ? 'Cabut pembatasan' : 'Tambah pembatasan'}</h2>
         <p id="deny-description" className="mt-2 text-sm text-muted">{deny ? 'Mencabut pembatasan tidak otomatis memberikan izin. Akses mengikuti peran, grant, dan pembatasan lain yang masih berlaku.' : 'Global membatasi izin di seluruh konteks yang relevan. Unit tertentu hanya membatasi pemeriksaan izin pada unit tersebut.'}</p>
         <form onSubmit={submit} className="mt-5 space-y-5" aria-busy={form.processing}>
