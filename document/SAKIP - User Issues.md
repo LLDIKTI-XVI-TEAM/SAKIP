@@ -4134,11 +4134,13 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** `pengukuran:verifikasi`, `pengukuran:kembalikan`.
 - **Dampak Data:** `pengukuran`, `pengukuran_versi`, `audit_log`; item notifikasi in-app pengembalian menunggu ISS-12.02 (Q37 §37.3 butir 4).
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-3 `VerifikasiPengukuranTest::test_peringatan_tidak_memblokir_review_dan_snapshot_tetap_utuh` (dataset `diajukan` dan `diverifikasi`: status `dikembalikan`, snapshot utuh, riwayat, dan audit beralasan) dan `NotifikasiPengembalianTest::test_pengukuran_dikembalikan_menulis_item_bertautan_halaman_isi_pengukuran` (item in-app; WhatsApp dan Email diantre). Batas completion di atas yang menahan AC-3 untuk ISS-12.02 sudah tidak berlaku.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given versi diajukan melalui jalur PIC, When aktor sama dengan `pengukuran_versi.diajukan_by` mencoba **memverifikasi**, Then F1 menolak.
 - [x] **AC-2:** Given reviewer berbeda dan berizin, When verifikasi dilakukan, Then status menjadi `diverifikasi` tanpa mengubah snapshot versi.
-- [ ] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app dibuat oleh ISS-12.02 AC-1 (ISS-12.02, PR #249); kanal eksternal WhatsApp dan Email diantre oleh ISS-12.06. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
+- [x] **AC-3:** Given kesalahan ditemukan pada status `diajukan` atau `diverifikasi`, When dikembalikan dengan alasan, Then status menjadi `dikembalikan`; item notifikasi pengembalian in-app dibuat oleh ISS-12.02 AC-1 (ISS-12.02, PR #249); kanal eksternal WhatsApp dan Email diantre oleh ISS-12.06. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi dikirim setelah commit.)*
 - [x] **AC-4:** Given pengembalian tanpa alasan, Then ditolak.
 - [x] **AC-5:** Given tanggal melewati `reviu_selesai` tetapi belum penutupan, When Perencanaan mereviu, Then aksi tetap dapat dilakukan dan diberi penanda reviu terlambat. *(Berlaku untuk PR #144; digantikan Q70 §70.2 butir 4: penanda tidak lagi dibuat, penanda lama tetap ditampilkan — ISS-03.07.)*
 - [x] **AC-6:** Given realisasi atau narasi pengukuran sama persis dengan periode sebelumnya, When Perencanaan memverifikasi, Then sistem menampilkan peringatan yang tidak memblokir verifikasi. *(Ketentuan pelengkap butir 2, pengantar Q47–Q51)*
@@ -4379,6 +4381,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Rule (Q51 §51.1 butir 5):** data awal 2026: rekomendasi TW I–II dari laporan triwulan yang sudah ditandatangani Pimpinan dicatat Perencanaan langsung berstatus `disetujui`, dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada `rujukan_sumber` (ISS-15.01).
 - **Rule (Q51 §51.2 butir 2):** penanda persetujuan cadangan berlaku untuk setiap persetujuan oleh peran selain Pimpinan, termasuk Superadmin, dan tercatat di audit.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-7/TEST-7 `RekomendasiBerlakuTest::test_rekomendasi_disetujui_menolak_tindak_lanjut_kosong_dan_checklist_memakai_gerbang_yang_sama` (termasuk lintas tahun) dengan kontrol positif `RekomendasiBerlakuTest::test_tindak_lanjut_tidak_wajib_tanpa_rekomendasi_disetujui_atau_pada_periode_lampau`; gerbang ISS-07.03 yang ditunggu catatan kurung AC-7/TEST-7 sudah tersedia. AC-4/TEST-4 tetap terbuka hanya untuk bagian Laporan Kinerja Triwulan karena keluaran ISS-10.05 belum dibangun; bagian lain terbukti oleh `RekomendasiBerlakuTest::test_draf_tidak_tampil_dan_hanya_rekomendasi_disetujui_terbaru_yang_berlaku_pada_periode_berikutnya`, `RekomendasiBerlakuTest::test_tindak_lanjut_tidak_wajib_tanpa_rekomendasi_disetujui_atau_pada_periode_lampau` (dataset hanya draf), dan `HalamanRekomendasiTest::test_halaman_hanya_untuk_pemegang_izin_dan_capability_menu_mengikutinya`.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given Perencanaan menyimpan rekomendasi untuk indikator × periode, Then baris baru dibuat berstatus `draf` dengan `ditetapkan_oleh` dan waktu, serta tercatat di audit. *(Diperbarui Q51 §51.1 butir 1; semula baris langsung berlaku.)*
@@ -4387,7 +4391,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] **AC-4:** Given rekomendasi masih berstatus `draf`, Then rekomendasi tidak tampil bagi PIC, tidak tampil pada pengukuran periode berikutnya maupun Laporan Kinerja Triwulan, dan tidak memicu tindak lanjut wajib; hanya rekomendasi `disetujui` yang berlaku. *(Q51 §51.1 butir 2)* *(Draf tidak tampil pada pengukuran periode berikutnya, dan halaman Rekomendasi Pimpinan hanya untuk pemegang izin; bagian Laporan Kinerja Triwulan menunggu ISS-10.05 dan tindak lanjut wajib menunggu gerbang ISS-07.03, keduanya memakai pembaca rekomendasi yang berlaku.)*
 - [x] **AC-5:** Given pengukuran periode belum disahkan, When rekomendasi ditulis setelah rapat, Then sistem tetap mengizinkan karena rekomendasi opsional per indikator per periode dan independen dari status pengukuran. *(Q51 §51.1 butir 3)*
 - [x] **AC-6:** Given rekomendasi sudah disetujui, When diubah, Then perubahan membentuk baris baru yang melalui persetujuan yang sama, sedangkan baris lama tidak dihapus dan tetap menjadi histori. *(Q51 §51.2 butir 3)*
-- [ ] **AC-7:** Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)* *(Gerbang pengajuan dipasang pada ISS-07.03 / #82; issue ini menyediakan pembaca rekomendasi yang berlaku, termasuk lintas tahun.)*
+- [x] **AC-7:** Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)* *(Gerbang pengajuan dipasang pada ISS-07.03 / #82; issue ini menyediakan pembaca rekomendasi yang berlaku, termasuk lintas tahun.)*
 - [x] **AC-8:** Given seeder preset dijalankan, Then `rekomendasi:tetapkan` dimiliki preset Pimpinan dan Perencanaan; simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission. *(Q45 §45.2 butir 1, Q51 §51.2 butir 1)*
 
 #### Implementation Tasks
@@ -4425,7 +4429,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi masih berstatus `draf`, Then rekomendasi tidak tampil bagi PIC, tidak tampil pada pengukuran periode berikutnya maupun Laporan Kinerja Triwulan, dan tidak memicu tindak lanjut wajib; hanya rekomendasi `disetujui` yang berlaku. *(Q51 §51.1 butir 2)* *(Dibuktikan untuk pengukuran periode berikutnya dan halaman Rekomendasi Pimpinan; Laporan Kinerja Triwulan dan gerbang tindak lanjut menunggu ISS-10.05 dan ISS-07.03.)*
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran periode belum disahkan, When rekomendasi ditulis setelah rapat, Then sistem tetap mengizinkan karena rekomendasi opsional per indikator per periode dan independen dari status pengukuran. *(Q51 §51.1 butir 3)*
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi sudah disetujui, When diubah, Then perubahan membentuk baris baru yang melalui persetujuan yang sama, sedangkan baris lama tidak dihapus dan tetap menjadi histori. *(Q51 §51.2 butir 3)*
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)* *(Menunggu gerbang ISS-07.03 / #82.)*
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given rekomendasi disetujui pada periode N, Then pengukuran periode N+1 untuk indikator tersebut wajib memuat tindak lanjut atas rekomendasi saat diajukan (gerbang pada US-07.03). *(Q45 §45.2 butir 3)* *(Menunggu gerbang ISS-07.03 / #82.)*
 - [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given seeder preset dijalankan, Then `rekomendasi:tetapkan` dimiliki preset Pimpinan dan Perencanaan; simpan draf dan setujui dibedakan oleh status rekomendasi, bukan oleh permission. *(Q45 §45.2 butir 1, Q51 §51.2 butir 1)*
 - [x] LINTAS TAHUN: Uji rekomendasi disetujui pada periode terakhir suatu tahun berlaku sebagai dasar tindak lanjut pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
 - [x] DATA AWAL: Uji rekomendasi TW I–II data awal 2026 tersimpan berstatus `disetujui` dengan penanda persetujuan cadangan dan rujukan laporan sumbernya pada `rujukan_sumber` (Q51 §51.1 butir 5).
@@ -4618,6 +4622,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** `dashboard:read`.
 - **Dampak Data:** Read-only query terhadap snapshot/versi resmi dan data kerja sesuai konteks.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-8/TEST-8 dan AKSES ANGGARAN tetap terbuka sebagai gap fitur di `development` `eadfabf2`: panel kegiatan dashboard (`KegiatanDashboard`) hanya menghitung jumlah kegiatan per status per IKU, tanpa total anggaran, drill-down anggaran, maupun penanda kegiatan bersama. Service `TotalAnggaranKegiatan` (ISS-06.08) sudah tersedia tetapi belum dipakai dashboard, sehingga batas completion di atas kini menunggu pemasangannya ke dashboard.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given dashboard dibuka, Then filter Renstra, tahun, periode, sasaran, dan unit bekerja sesuai hak akses.
@@ -4705,6 +4711,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Dependensi:** Pengguna memiliki akses laporan.
 - **Otorisasi:** `laporan:read`.
 - **Dampak Data:** Read-only atas versi resmi, snapshot, rekomendasi, status capaian, kegiatan/klaim/bukti yang dibekukan.
+
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-5/TEST-5 tetap terbuka di `development` `eadfabf2`: rekomendasi yang berlaku (`RekapIndikatorPeriodeTest::test_rekomendasi_hanya_yang_disetujui_dan_berbeda_dari_rekomendasi_sebelumnya`) dan status capaian (`RekapIndikatorPeriodeTest::test_status_capaian_tercapai_pada_versi_resmi_tampil_dengan_waktu_penetapan`, `RekapIndikatorPeriodeTest::test_versi_koreksi_baru_mulai_belum_ditetapkan_dan_status_versi_lama_tetap_tersimpan`) terbukti, tetapi status bukti hanya di-assert untuk nilai `lengkap`; nilai `belum_lengkap` dan `tidak_tercatat` belum diuji.
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -4853,6 +4861,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** Proses UAT/acceptance, bukan permission aplikasi baru.
 - **Dampak Data:** Artefak UAT/keputusan baseline; tidak menambah tabel domain.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-1 sampai AC-4 dan UAT-1 sampai UAT-4 tetap terbuka. Pemilik: Perencanaan sebagai pengesah contoh dan PM sebagai penyimpan bukti persetujuan (`SAKIP - Acuan Keluaran Excel.md` §1, U2); pelaksana UAT pembandingan PM bersama Tim Perencanaan (keputusan PM 15 November 2026 (K16 audit traceability gelombang 3)). Pemicu: tanggapan Perencanaan atas permintaan U5 (diminta paling lambat 6 November 2026, belum tercatat hasilnya dan ditindaklanjuti PM) untuk pengesahan contoh, dan keluaran ISS-10.05 yang belum dibangun untuk UAT pembandingan Rencana Aksi tahunan dan Laporan Kinerja Triwulan.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given build ekspor siap UAT, When contoh dibandingkan, Then baseline/target/realisasi/persentase dan informasi wajib dinilai kesetaraannya.
@@ -4923,6 +4933,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Rule:** keterangan berkas (mis. "Rencana Aksi perubahan") disimpan pada kolom baru `berkas.keterangan` (nullable); `alasan_koreksi` tetap khusus untuk berkas pengganti (Q48 §48.2 butir 6).
 - **Rule:** bila periode tanpa target dan realisasi belum dapat diukur berlaku bersamaan, keluaran memakai keterangan "Belum dapat diukur" (Q47 §47.3 butir 3).
 - **Rule:** arsip yang diunggah hanya berformat PDF dengan ukuran mengikuti batas teknis Q44 (Q48 §48.2 butir 7).
+
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-1 sampai AC-4, TEST-1 sampai TEST-4, dan TAMPILAN BERSAMAAN tetap terbuka sebagai gap fitur di `development` `eadfabf2`: belum ada Action maupun route pembuat Excel Rencana Aksi tahunan dan Laporan Kinerja Triwulan; yang tersedia baru slice arsip. AC-5/TEST-5 baru sebagian: unduh arsip ditolak 403 bila `laporan:ekspor` di-deny (`ArsipDokumenResmiTest::test_izin_dan_deny_unit_menolak_unduh_tanpa_audit_penolakan`), sedangkan bagian meminta keluaran menunggu generatornya.
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -6598,6 +6610,8 @@ Perubahan per request (tanpa nomor baris kode):
 - **Dependensi:** Tahun/periode penggunaan pertama telah ditetapkan PM/Perencanaan.
 - **Otorisasi:** Akses administratif/substantif sesuai data yang diverifikasi.
 - **Dampak Data:** Seed/config awal, master Renstra/indikator/unit/PIC, data historis wajib.
+
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-2 dan AC-4 sampai AC-8 tetap terbuka. Pemilik dan pemicu yang tercatat: AC-5 pengelola Keycloak (owner masih "Belum ditetapkan" pada `SAKIP - Kesiapan Infrastruktur.md` §2), dipicu tersedianya realm Keycloak UAT; AC-6 sampai AC-8 Perencanaan, dipicu penyerahan data dan dokumen resmi 2026; AC-4 diisi akun Perencanaan lewat UI/Action (`SAKIP - Data Awal 2026.md` butir 3) saat data awal dimasukkan. AC-2 dieksekusi PM bersama Tim Perencanaan (keputusan PM 15 November 2026 (K16 audit traceability gelombang 3)) saat lingkungan UAT ISS-15.02 tersedia; tanggalnya belum ditetapkan.
 
 #### Acceptance Criteria (QA/UAT)
 
