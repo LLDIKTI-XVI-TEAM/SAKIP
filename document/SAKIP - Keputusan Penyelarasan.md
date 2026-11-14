@@ -94,6 +94,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 12 November 2026 (Q89)** menetapkan tema gelap opsional per browser yang dipilih lewat tombol di header dan disimpan di `localStorage`, dengan tema terang tetap bawaan, token warna baru untuk teks di atas warna solid, isian, sidebar, dan overlay, cetak selalu terang, serta kegagalan kontras tema terang yang sudah ada sebagai issue terpisah. Q89 menggantikan prinsip "light only" pada design-system.
 
+**Keputusan 15 November 2026 (Q90)** menetapkan bahwa kegiatan TW IV baru pada Rencana Aksi data awal 2026 ditambahkan lewat buka-kembali Rencana Aksi oleh Perencanaan, sedangkan klaim tahap pengukuran hanya dipakai untuk kegiatan lanjutan dari kegiatan yang ditunda.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -2770,6 +2772,16 @@ Rujukan: PRD §7.4 dan §28, Refinement ISS-12.03 K4, Plan 14.2, Data Model §2.
 - Engineering Standards §9 tidak berubah: kewajiban memakai token dan kontras mengikuti design-system. PRD, Data Model, Workflow, dan Plan tidak berubah karena Q89 tidak menambah data, izin, maupun alur bisnis.
 - Rencana implementasi: PR dokumen ini, lalu satu PR kode dari branch `feature/tema-gelap-pengalih` berisi tiga commit bertumpuk (fondasi token, migrasi warna literal ke token, tombol tema dengan penyimpanan dan grafik). QA visual dua tema menyusul; QA SSO dua tema mengikuti alur tim.
 - Status implementasi: belum. Status keputusan: keputusan PM 12 November 2026. Asal prinsip "light only" tidak tercatat dan konfirmasi pihak LLDIKTI di luar PM belum diminta.
+
+---
+
+# Keputusan Q90: Jalur Kegiatan TW IV pada Rencana Aksi Data Awal 2026
+
+**Keputusan PM: 15 November 2026 (WITA)** oleh `Diyoncrz18` atas K10 audit traceability gelombang 3, memperjelas Q46 §46.1 butir 3.
+
+Kegiatan TW IV baru pada Rencana Aksi data awal 2026 ditambahkan lewat buka-kembali Rencana Aksi oleh Perencanaan; klaim tahap pengukuran hanya dipakai untuk kegiatan lanjutan dari kegiatan yang ditunda (Q41 §41.4 butir 2).
+
+Traceability: US/ISS-03.05 dan `SAKIP - Data Awal 2026.md` §2.3. Status implementasi: kedua jalur sudah ada di kode; test buka-kembali untuk Rencana Aksi data awal belum ada. Status keputusan: keputusan PM 15 November 2026.
 
 ---
 

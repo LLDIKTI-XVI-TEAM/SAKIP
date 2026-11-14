@@ -47,7 +47,7 @@ Dokumen ini menerjemahkan seluruh User Story menjadi **development issue yang ex
 
 Setiap issue memuat: **Terkait User Story, Prioritas/Story Point, Traceability, Labels, Scope, Acceptance Criteria, Implementation Tasks, Automated Tests/UAT, dan Definition of Done**. Nomor `ISS-XX.YY` selalu mengikuti `US-XX.YY`.
 
-Centang `[x]` pada Acceptance Criteria dan Automated Tests adalah **bukti implementasi dan test yang ditambahkan oleh PR yang bersangkutan**, bukan status rencana, sehingga jumlah centang tidak dapat dipakai menghitung sisa pekerjaan. Per 4 November 2026, centang ISS-01.03, ISS-01.06, ISS-01.07, ISS-02.02, ISS-02.03, ISS-02.04, ISS-02.08, ISS-03.05, ISS-05.04, ISS-06.09, ISS-07.01, dan ISS-13.06 (beserta US-02.15 dan US-09.02) disinkronkan lewat #225 dengan nama test bukti; butir yang belum terbukti tetap terbuka dengan alasannya pada catatan status masing-masing. ISS-04.01 sudah tercentang sebelumnya. Yang masih belum atau baru sebagian memperoleh centang: ISS-01.01, ISS-01.04, dan ISS-03.01; statusnya mengikuti issue dan PR GitHub masing-masing sampai dicentang lewat PR dokumen yang menyebut nama test bukti. ISS yang kodenya sudah ada di `development` tanpa issue GitHub (ISS-02.05, ISS-07.02, ISS-11.02–ISS-11.05) ditangani issue traceability tersendiri.
+Centang `[x]` pada Acceptance Criteria dan Automated Tests adalah **bukti implementasi dan test yang ditambahkan oleh PR yang bersangkutan**, bukan status rencana, sehingga jumlah centang tidak dapat dipakai menghitung sisa pekerjaan. Per 4 November 2026, centang ISS-01.03, ISS-01.06, ISS-01.07, ISS-02.02, ISS-02.03, ISS-02.04, ISS-02.08, ISS-03.05, ISS-05.04, ISS-06.09, ISS-07.01, dan ISS-13.06 (beserta US-02.15 dan US-09.02) disinkronkan lewat #225 dengan nama test bukti; butir yang belum terbukti tetap terbuka dengan alasannya pada catatan status masing-masing. ISS-04.01 sudah tercentang sebelumnya. Per 14 November 2026, centang ISS-01.01, ISS-01.04, dan ISS-03.01 serta butir terbuka lain yang terbukti disinkronkan lewat audit traceability gelombang 3 dengan nama test bukti pada catatan status masing-masing; butir yang belum terbukti tetap terbuka dengan alasannya. ISS yang kodenya sudah ada di `development` tanpa issue GitHub (ISS-02.05, ISS-07.02, ISS-11.02–ISS-11.05) ditangani issue traceability tersendiri.
 
 ### 4.1 Kontrak Penyelarasan Q32 untuk Development Issue
 
@@ -134,13 +134,15 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanju
 - **Rule:** Tidak ada password lokal SAKIP.
 - **Rule:** Token/secret Keycloak tidak boleh masuk log, audit, atau props React.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1/TEST-1 `AuthHttpTest::test_guest_login_redirects_and_password_and_demo_endpoints_are_gone`, `KeycloakBoundaryTest::test_redirect_is_stateful_pkce_and_ignores_input_redirect`; AC-3/TEST-3 `AuthHttpTest::test_first_sso_login_is_active_without_role_and_has_no_business_access`, `AccountLifecycleTest::test_onboarding_and_relogin_preserve_local_access_and_do_not_link_email`; AC-4/TEST-4 `AuthHttpTest::test_failed_callback_does_not_leak_provider_exception_or_create_session`, `KeycloakTokenValidationTest::test_rejects_invalid_identity_claims`, `KeycloakTokenValidationTest::test_rejects_invalid_signature`; AC-5/TEST-5 `AuthHttpTest::test_logout_is_local_first_and_landing_does_not_restart_sso`. AC-2/TEST-2 tetap terbuka: pencocokan `keycloak_id`, sinkron nama, sesi, dan pengalihan ke dashboard terbukti (`KeycloakBoundaryTest::test_signed_callback_with_active_official_role_logs_in_and_lands_on_dashboard`), tetapi sinkron email pada login ulang belum di-assert.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given pengguna belum login, When menekan **Login SSO**, Then sistem mengarahkan ke Keycloak melalui OIDC Authorization Code Flow.
+- [x] **AC-1:** Given pengguna belum login, When menekan **Login SSO**, Then sistem mengarahkan ke Keycloak melalui OIDC Authorization Code Flow.
 - [ ] **AC-2:** Given callback membawa token yang valid, When callback diproses, Then sistem mencocokkan `keycloak_id`, menyinkronkan nama/email yang diizinkan, membentuk sesi Laravel, dan mengarahkan pengguna ke dashboard.
-- [ ] **AC-3:** Given pengguna belum ada pada `users`, When login pertama berhasil, Then akun lokal dibuat dengan identitas Keycloak dan status aktif sesuai kebijakan onboarding.
-- [ ] **AC-4:** Given callback gagal atau token tidak valid, When diproses, Then sesi lokal tidak dibuat dan pengguna menerima pesan kesalahan yang aman tanpa membocorkan token/credential.
-- [ ] **AC-5:** Given pengguna telah logout, When mencoba membuka rute terproteksi, Then sistem meminta autentikasi kembali.
+- [x] **AC-3:** Given pengguna belum ada pada `users`, When login pertama berhasil, Then akun lokal dibuat dengan identitas Keycloak dan status aktif sesuai kebijakan onboarding.
+- [x] **AC-4:** Given callback gagal atau token tidak valid, When diproses, Then sesi lokal tidak dibuat dan pengguna menerima pesan kesalahan yang aman tanpa membocorkan token/credential.
+- [x] **AC-5:** Given pengguna telah logout, When mencoba membuka rute terproteksi, Then sistem meminta autentikasi kembali.
 
 #### Implementation Tasks
 
@@ -168,11 +170,11 @@ Bila body issue lama bertentangan dengan poin di atas, **Q32 dan keputusan lanju
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given pengguna belum login, When menekan **Login SSO**, Then sistem mengarahkan ke Keycloak melalui OIDC Authorization Code Flow.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given pengguna belum login, When menekan **Login SSO**, Then sistem mengarahkan ke Keycloak melalui OIDC Authorization Code Flow.
 - [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given callback membawa token yang valid, When callback diproses, Then sistem mencocokkan `keycloak_id`, menyinkronkan nama/email yang diizinkan, membentuk sesi Laravel, dan mengarahkan pengguna ke dashboard.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna belum ada pada `users`, When login pertama berhasil, Then akun lokal dibuat dengan identitas Keycloak dan status aktif sesuai kebijakan onboarding.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given callback gagal atau token tidak valid, When diproses, Then sesi lokal tidak dibuat dan pengguna menerima pesan kesalahan yang aman tanpa membocorkan token/credential.
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengguna telah logout, When mencoba membuka rute terproteksi, Then sistem meminta autentikasi kembali.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given pengguna belum ada pada `users`, When login pertama berhasil, Then akun lokal dibuat dengan identitas Keycloak dan status aktif sesuai kebijakan onboarding.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given callback gagal atau token tidak valid, When diproses, Then sesi lokal tidak dibuat dan pengguna menerima pesan kesalahan yang aman tanpa membocorkan token/credential.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given pengguna telah logout, When mencoba membuka rute terproteksi, Then sistem meminta autentikasi kembali.
 
 #### Definition of Done
 
@@ -321,12 +323,14 @@ kegiatan:create
 kegiatan:update
 ```
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: izin global ditolak `GrantIzinTambahanUnitTest::test_granting_global_permission_is_rejected`, `GrantIzinTambahanUnitTest::test_read_permissions_cannot_be_granted_via_unit_grant_endpoint`; request tanpa `delegasi:update` 403 `GrantIzinTambahanUnitTest::test_user_with_only_akses_update_cannot_manage_grants`, `GrantIzinTambahanUnitTest::test_kelola_ditolak_403_dengan_audit_penolakan`. Butir US-01.04 yang setara juga dibuktikan `GrantIzinTambahanUnitTest::test_all_seven_unit_permissions_can_be_granted_and_revoked`, `GrantIzinTambahanUnitTest::test_grant_creation_and_dropdown_rejects_unit_permission_not_in_catalog_scoped`, `GrantIzinTambahanUnitTest::test_perencanaan_user_with_delegasi_update_can_manage_grants`, `GrantIzinTambahanUnitTest::test_admin_can_grant_permission_to_admin_or_superadmin`, dan `GrantIzinTambahanUnitTest::test_superadmin_can_grant_permission_to_admin_and_superadmin`. Penolakan izin global pada aksi Kelola izin (Q62) belum memiliki test tersendiri.
+
 #### Acceptance Criteria
 
 - [x] Create/revoke grant valid dengan user aktif, unit aktif, alasan.
-- [ ] Permission global, termasuk `rencana_aksi:read` dan `kegiatan:read`, ditolak oleh Form Grant Unit.
+- [x] Permission global, termasuk `rencana_aksi:read` dan `kegiatan:read`, ditolak oleh Form Grant Unit.
 - [x] Missing unit/reason/duplicate ditolak.
-- [ ] Direct request tanpa `delegasi:update` 403.
+- [x] Direct request tanpa `delegasi:update` 403.
 - [x] Grant/revoke tidak mengubah role atau assignment PJ.
 - [x] Deny tetap menang.
 
@@ -498,6 +502,8 @@ kegiatan:update
 
 > **Status implementasi — sinkronisasi #225 (2026-11-04), PR #38 dan #200, issue #6:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: lima peran dan preset `RolePermissionManagementTest::test_read_gate_uses_live_pengguna_read_without_role_allowlist_or_akses_update`, `RolePermissionManagementTest::test_persisted_membership_is_bounded_searchable_and_honest_about_inactive_or_legacy_metadata`; 403 `RolePermissionManagementTest::test_missing_permission_inactive_actor_or_role_cannot_read`; tanpa kontrol dan endpoint mutasi `RolePermissionManagement.test.tsx`, `RolePermissionManagementTest::test_old_mutations_and_result_cannot_write_or_claim_success`; audit delta rilis `RolePermissionPresetTest::test_release_corrects_drift_and_metadata_preserving_existing_identity_and_inactive_permission`, `RolePermissionPresetTest::test_release_grants_pimpinan_rekomendasi_tetapkan_with_audited_before_after`. Butir role `pic` tetap terbuka: katalog dan seeder bersih (`AccessFoundationTest::test_pic_and_unknown_roles_are_invalid`), tetapi beberapa test sengaja memakai fixture `pic` legacy sebagai kasus negatif.
 
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** butir "Tidak ada role `pic` di katalog/fixture/test" dicentang berdasarkan keputusan PM 15 November 2026 (K8 audit traceability gelombang 3), bukan bukti test atas teks harfiahnya: butir ditafsirkan sebagai katalog peran, seeder, dan fixture produksi, dibuktikan `AccessFoundationTest::test_pic_and_unknown_roles_are_invalid` di `development` `eadfabf2`. Test yang membuat peran `pic` lama sebagai kasus negatif dipertahankan untuk menjaga larangan ini.
+
 #### Acceptance Criteria
 
 - [x] User berizin dapat melihat 5 role dan presetnya.
@@ -505,7 +511,7 @@ kegiatan:update
 - [x] Tidak ada tombol/form add/revoke/edit permission role.
 - [x] Mutation route/controller/service lama dihapus/nonaktif.
 - [x] Perubahan preset via release menghasilkan audit delta.
-- [ ] Tidak ada role `pic` di katalog/fixture/test.
+- [x] Tidak ada role `pic` di katalog/fixture/test.
 
 #### Implementation Tasks
 
@@ -541,6 +547,8 @@ kegiatan:update
 - Penonaktifan dan pengaktifan kembali: aktor `akses:update`, alasan wajib, audit; akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan; peran dan grant dipertahankan; peringatan bila pengguna masih Penanggung Jawab aktif.
 - Penetapan peran tidak dapat menurunkan peran superadmin aktif terakhir, termasuk peran akun sendiri; superadmin `nonaktif` tidak dihitung (Q53).
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-7 `UserStatusMigrationTest::test_status_cutover_preserves_identity_relations_and_history_in_both_directions` (baris audit `pengguna.aktivasi` lama tetap identik setelah migrasi naik dan turun) dan `AccessFoundationTest::test_database_rejects_raw_update_and_delete_of_final_audit_records`. AC-5 tetap terbuka: pengalihan `/auth/pending` ke dashboard untuk akun aktif berperan ada di kode (`PendingAccount`), tetapi belum ada test yang menetapkan peran lalu membuka "Periksa status".
+
 #### Acceptance Criteria
 
 - [x] **AC-1:** login SSO pertama membuat user `aktif` tanpa role, audit `pengguna.terdaftar` mencatat `status: aktif`, dan pengguna diarahkan ke "Menunggu penetapan peran".
@@ -549,7 +557,7 @@ kegiatan:update
 - [x] **AC-4:** bootstrap berhasil sekali untuk akun aktif tanpa role yang tercatat onboarding; kandidat berperan atau tanpa jejak onboarding ditolak tanpa perubahan data.
 - [ ] **AC-5:** setelah admin menetapkan role, pengguna dapat masuk dashboard melalui "Periksa status".
 - [x] **AC-6:** GET dan POST `/akses/aktivasi` mengembalikan 404 dan menu "Aktivasi Pengguna" tidak tampil.
-- [ ] **AC-7:** riwayat audit `pengguna.aktivasi` lama tetap utuh.
+- [x] **AC-7:** riwayat audit `pengguna.aktivasi` lama tetap utuh.
 - [x] **AC-8:** penonaktifan akun lain dengan alasan membuat status `nonaktif`, memblokir sesi target pada request berikutnya, dan tercatat di audit.
 - [x] **AC-9:** pengaktifan kembali membuat status `aktif` dengan peran dan grant sebelumnya tetap berlaku.
 - [x] **AC-10:** akun sendiri dan superadmin aktif terakhir tidak dapat dinonaktifkan.
@@ -816,11 +824,13 @@ kegiatan:update
 
 > **Status implementasi — sinkronisasi #225 (2026-11-04), PR #42, issue #26:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `SasaranIndikatorTest::test_1_create_sasaran_valid_menghasilkan_data_dan_audit_log`; AC-2 `SasaranIndikatorTest::test_2_create_indikator_valid_dengan_seluruh_atribut_utama`, `SasaranIndikatorTest::test_4_enum_arah_dan_tipe_perhitungan_invalid_ditolak`, `SasaranIndikatorTest::test_r301_transisi_atomik_manual_ke_rasio_berhasil`. AC-3/TEST-3 tetap terbuka karena tidak ada status indikator "belum siap" (perlindungan hanya lewat snapshot dan periode mulai); AC-4/TEST-4 tetap terbuka karena kode Sasaran/Indikator tidak divalidasi unik.
 
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** AC-3/TEST-3 dicentang berdasarkan keputusan PM 15 November 2026 (K12 audit traceability gelombang 3), bukan bukti status "belum siap" (status itu tidak ada): butir ditafsirkan sebagai mekanisme snapshot dan periode mulai berlaku (ISS-03.04), dibuktikan `TambahIndikatorJadwalTest::test_periode_sebelum_mulai_tidak_berlaku_di_dashboard_pengukuran_rencana_aksi_dan_rekap` di `development` `eadfabf2`. AC-4/TEST-4 tetap terbuka: relasi tidak valid sudah ditolak dan teruji, sedangkan keputusan yang sama menetapkan kode Sasaran/Indikator wajib unik per Renstra, dan aturan itu belum divalidasi server.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
 - [x] **AC-2:** Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
-- [ ] **AC-3:** Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
+- [x] **AC-3:** Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
 - [ ] **AC-4:** Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
 
 #### Implementation Tasks
@@ -847,7 +857,7 @@ kegiatan:update
 
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
 
 #### Definition of Done
@@ -1034,12 +1044,14 @@ kegiatan:update
 
 > **Status implementasi parsial — PR #64:** centang menunjukkan bukti implementasi dan QA pada `5c056e5`, dengan [CI 9/9 lulus](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/actions/runs/37452026989); bukan persetujuan UAT atau deployment. Bukti memakai test PHPUnit Feature/Unit existing pada `tests/Feature/TargetTahunan/` dan test frontend pada `tests/Frontend/TargetTahunan/`. AC-3/TEST-3 dibuktikan melalui regresi snapshot existing yang tidak berubah saat master dikoreksi; bukan pengujian laporan akhir atau pembentukan snapshot. Konkurensi pembentukan snapshot dengan koreksi target dituntaskan pada [#53](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/53); koreksi/versi snapshot AC-4/TEST-4 tetap pada ISS-03.03. Checklist gabungan yang belum terbukti penuh tetap terbuka.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-4/TEST-4 lewat koreksi snapshot ISS-03.03 (Q79) `KoreksiSnapshotTest::test_koreksi_menerbitkan_versi_baru_dari_data_master_tanpa_mengubah_versi_lama` (versi pengganti dengan `menggantikan_id`, alasan, dan rujukan; versi lama utuh; audit nilai lama dan baru) dan `KoreksiSnapshotTest::test_alasan_dan_rujukan_wajib_serta_field_tak_dikenal_ditolak`.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
 - [x] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
 - [x] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
-- [ ] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
+- [x] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
 - [x] **AC-5 (Q33):** Given baseline atau target tahunan bernilai `0`, When disimpan, Then sistem menerima `0` sebagai nilai sah dan tetap membedakannya dari `null`.
 - [x] **AC-6 (Q33):** Given baseline atau target tahunan bernilai negatif atau non-finite, When disimpan melalui jalur aplikasi maupun writer yang tunduk pada constraint database, Then nilai ditolak; nilai di atas `100` tidak ditolak hanya karena melewati `100` selama sesuai presisi indikator dan kapasitas storage.
 
@@ -1070,7 +1082,7 @@ kegiatan:update
 - [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
 - [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
-- [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
+- [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
 - [x] **TEST-5 (Q33):** Buktikan `0` dapat disimpan untuk baseline/target tahunan dan tetap berbeda dari `null`.
 - [x] **TEST-6 (Q33):** Buktikan nilai negatif dan non-finite ditolak, sementara nilai valid di atas `100` tidak ditolak hanya karena melewati `100`.
 
@@ -1778,13 +1790,15 @@ kegiatan:update
 - **Otorisasi:** `periode:create`, `periode:update`, `jadwal:create`, `jadwal:update`.
 - **Dampak Data:** `periode`, `jadwal_tahunan`, `jadwal_periode`, `audit_log`.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-2/TEST-2 `JadwalDraftTest::test_missing_nested_dates_and_duplicate_periods_are_rejected`; AC-5/TEST-5 `JadwalDraftTest::test_penutupan_wajib_setelah_pengisian_selesai_terakhir`, `BatasAwalPengisianTest::test_pengisian_mulai_sebelum_tanggal_1_bulan_terakhir_periode_ditolak`, dan `tests/Unit/Jadwal/JadwalDraftRulesTest.php` (invalid calendar boundaries have field errors). AC-1/TEST-1 dan AC-3/TEST-3 tetap kosong karena digantikan Q41 (catatan pembuka), AC-4/TEST-4 karena digantikan Q70 §70.2.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [ ] **AC-1:** Given tahun Y disiapkan, When jadwal tahunan dibuat, Then status awal `draft` dengan `rencana_aksi_mulai`, `rencana_aksi_selesai`, dan `penutupan`.
-- [ ] **AC-2:** Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
+- [x] **AC-2:** Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
 - [ ] **AC-3:** Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
 - [ ] **AC-4:** Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2: jendela reviu dihapus dari jadwal; reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan tanpa penanda terlambat baru — ISS-03.07.)*
-- [ ] **AC-5:** Given tanggal tidak konsisten, When submit, Then server menolak.
+- [x] **AC-5:** Given tanggal tidak konsisten, When submit, Then server menolak.
 - [x] **AC-6:** Given lebih dari 12 periode dipilih, When jadwal disimpan, Then server menolak; satu jadwal tahunan memuat paling banyak 12 periode. *(Q35 §35.3; bukti `RencanaAksiMatrixLimitTest` pada PR #62.)*
 
 #### Implementation Tasks
@@ -1810,10 +1824,10 @@ kegiatan:update
 #### Automated Tests / Verification
 
 - [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given tahun Y disiapkan, When jadwal tahunan dibuat, Then status awal `draft` dengan `rencana_aksi_mulai`, `rencana_aksi_selesai`, dan `penutupan`.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
 - [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
 - [ ] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2; bukti pengganti pada TEST-4, TEST-6, dan TEST-7 ISS-03.07.)*
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal tidak konsisten, When submit, Then server menolak.
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given tanggal tidak konsisten, When submit, Then server menolak.
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given lebih dari 12 periode dipilih, When jadwal disimpan, Then server menolak. *(`RencanaAksiMatrixLimitTest`: 13 periode ditolak, 12 diterima.)*
 
 #### Definition of Done
@@ -2085,6 +2099,8 @@ Nomor TEST/AC pada tabel berikut milik issue #220; penomoran AC issue #91 di baw
 Mendukung TW I–III 2026 sebagai periode lampau berdasarkan `pengisian_selesai < activated_at`, tanpa flag/backfill mode khusus (Q46 §46.1 butir 2; semula Q32: TW I–II). Perencanaan mengisi periode lampau; PK 2026 tetap wajib; gerbang RA/komponen/bukti normal serta gerbang baru Q42–Q45 (RA minimal satu kegiatan, RAB, persyaratan tahap perencanaan kegiatan, narasi wajib, dan tindak lanjut rekomendasi) dikecualikan pada jalur ini (Q46 §46.1 butir 1). Kunci per triwulan tetap berlaku: periode lampau terkunci bagi PIC sejak aktivasi (Q41 §41.2 butir 4). Data awal 2026 diisi Perencanaan dari dokumen resmi 2026 (Q46 §46.1 butir 6; rincian pada ISS-15.01).
 
 > **Status implementasi — sinkronisasi #225 (2026-11-04), PR #146 dan #210, issue #131:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: periode lampau dari jadwal tanpa `is_backfill` `RencanaAksiTanpaTargetTest::test_past_period_uses_activation_business_date`, `PengukuranTanpaBackfillTest::test_skema_pengukuran_tidak_memiliki_kolom_is_backfill`; jalur Perencanaan dan kunci PIC `RencanaAksiPeriodeLampauMatrixTest::test_periode_lampau_terkunci_bagi_pic_dan_terbuka_bagi_perencanaan`, `PengukuranPeriodeLampauMatrixTest::test_perencanaan_mengisi_setiap_periode_lampau_tanpa_gerbang`, `PengukuranPeriodeLampauMatrixTest::test_pic_ditolak_pada_setiap_periode_lampau`; pengecualian gerbang dengan PK tetap wajib `PengukuranPeriodeLampauTest::test_lampau_mengecualikan_gerbang_dan_membekukan_konteks_yang_tersedia`, `PengukuranPeriodeLampauTest::test_gerbang_tetap_berlaku_di_luar_pengecualian_2026`, `RencanaAksiPeriodeLampauMatrixTest::test_bukti_wajib_dikecualikan_pada_data_awal_2026_jalur_perencanaan`, `JadwalActivationReadinessTest::test_pk_year_and_attachment_gates`; audit `RencanaAksiPeriodeLampauMatrixTest::test_pengajuan_lampau_membekukan_versi_dan_mengaudit_aktor`, `PengukuranProvenanceLampauTest::test_audit_pengajuan_lampau_mencatat_aktor_dan_dasar_izin`. Tetap terbuka: gerbang Q42–Q45 dan RA data awal (RAB beranggaran di atas 0 belum diuji; jalur klaim tahap pengukuran untuk kegiatan TW IV baru tidak ada di kode), pembeda target 0 pada periode lampau, data awal dari dokumen resmi (UAT ISS-15.01), dan larangan 2025 sebagai Jadwal/Pengukuran (belum ada test).
+
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** sesuai Q90, kegiatan TW IV baru pada RA data awal 2026 ditambahkan lewat buka-kembali RA oleh Perencanaan; klaim tahap pengukuran hanya dibuat untuk kegiatan lanjutan dari kegiatan yang ditunda, sehingga frasa "klaim tahap pengukuran" pada butir RA data awal tidak berlaku bagi kegiatan baru. Butir dan uji RA data awal tetap terbuka sampai ada test jalur buka-kembali untuk RA data awal; gerbang RAB untuk anggaran lebih dari 0 dan target 0 pada periode lampau juga belum memiliki test. Larangan 2025 sebagai baris Jadwal/Pengukuran diperlakukan sebagai aturan pengisian data yang diverifikasi saat UAT ISS-15.01, tanpa penjaga di kode (keputusan PM 15 November 2026 (K11 audit traceability gelombang 3)); butir dan uji 2025 tetap terbuka sampai UAT.
 
 #### Acceptance Criteria
 
@@ -2552,6 +2568,8 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 
 > **Status implementasi — PR #92 (ISS-05.03):** centang menunjukkan bukti implementasi dan test pada PostgreSQL disposable (`tests/Feature/RencanaAksi/RencanaAksiAjukanTest`, `RencanaAksiKesiapanPengajuanTest`, `RencanaAksiVersiBekuTest`, `tests/Unit/RencanaAksi/DeviasiTargetPkTest`, serta race dua koneksi `tests/Integration/Concurrency/MutationConcurrencyTest`) dan test frontend `tests/Frontend/RencanaAksiAjukan.test.tsx`; SHA dan CI exact-HEAD dicatat pada PR, bukan persetujuan UAT/deployment. AC-7/TEST-7 diubah oleh keputusan PM L3 (10 Oktober 2026): ISS-05.03 tidak membuat notifikasi, inbox, atau antrean; antrean berbasis status milik ISS-05.04/ISS-05.05 dan item notifikasi in-app milik ISS-12.02 AC-2. Klaim kegiatan belum dibekukan pada versi karena belum ada writer klaim rencana aksi. Provenance saat PJ berganti terbukti melalui `test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti`; bagian REGRESSION tentang F1 diverifikasi bersama ISS-05.04/ISS-05.05. Kontrak `rencana_aksi_versi` dan isi `snapshot` ada di Data Model §2.34.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-7/TEST-7 gabungan dari pengajuan yang menghasilkan status `diajukan` (`RencanaAksiAjukanTest::test_pic_mengajukan_draf_lengkap_membentuk_versi_beku`), RA berstatus `diajukan` pada antrean berbasis status dengan aksi reviu (`RencanaAksiIndexTest::test_capability_review_mengikuti_policy_view_dan_status`), dan item lonceng ISS-12.02 AC-2 (`NotifikasiPengajuanTest::test_rencana_aksi_diajukan_jalur_pic_menulis_item_untuk_setiap_perencanaan_peninjau_unit`). REGRESSION tetap terbuka: pembuat draf berbeda dari pengaju, pergantian PJ, dan perubahan peran sudah teruji (`RencanaAksiAjukanTest::test_pengaju_berbeda_dari_pembuat_dan_provenance_tidak_berubah_saat_pj_berganti`, `ReviewRencanaAksiTest::test_promosi_role_dan_pergantian_pj_tidak_mengubah_f1_pengaju_pic`), tetapi perubahan grant setelah submit belum di-assert.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given target wajib/periode berlaku belum lengkap, When submit, Then pengajuan ditolak.
@@ -2560,7 +2578,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
 - [x] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
 - [x] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
-- [ ] **AC-7:** Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app dibuat oleh ISS-12.02 AC-2 (ISS-12.02, PR #249).
+- [x] **AC-7:** Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app dibuat oleh ISS-12.02 AC-2 (ISS-12.02, PR #249).
 
 #### Implementation Tasks
 
@@ -2592,7 +2610,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
 - [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app diuji pada ISS-12.02 AC-2 (ISS-12.02, PR #249).
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app diuji pada ISS-12.02 AC-2 (ISS-12.02, PR #249).
 - [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
 - [x] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
 
@@ -2797,6 +2815,8 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - **Otorisasi:** `rencana_aksi:buka_kembali` (sensitif).
 - **Dampak Data:** `rencana_aksi`, versi historis, `audit_log`.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-6/TEST-6 untuk target `BukaKembaliRencanaAksiTest::test_kunci_periode_terkunci_pic_ditolak_422_perencanaan_dikecualikan` dan `BukaKembaliRencanaAksiTest::test_ajukan_menolak_bila_nilai_periode_terkunci_berubah_dibanding_versi_sah`; untuk daftar kegiatan saat simpan `KlaimKegiatanTest::test_pic_ditolak_pada_periode_terkunci_tetapi_perencanaan_tidak` dan saat ajukan `RencanaAksiKegiatanPengajuanTest::test_pic_tidak_dapat_mengajukan_perubahan_daftar_kegiatan_periode_terkunci_dibanding_versi_sah`, `RencanaAksiKegiatanPengajuanTest::test_perubahan_atribut_rencana_kegiatan_menjaga_periode_terkunci`. Writer klaim tahap RA yang ditunggu catatan review 14 Oktober 2026 sudah tersedia; pada test daftar kegiatan, keadaan dibuka kembali disiapkan langsung lewat status data, bukan lewat aksi buka-kembali.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given alasan valid dan waktu koreksi sah, When buka kembali dilakukan, Then header berpindah ke `dikembalikan`.
@@ -2804,7 +2824,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Terbukti CI exact-HEAD run 38533032704 9/9.)*
 - [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08)*
+- [x] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08)*
 - [x] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Dibuktikan ISS-14.03 memakai sesi dan jendela PIC dari aksi resmi.)*
 
 > **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, regresi `RencanaAksiAjukanTest`/`SahkanRencanaAksiTest`/`ReviewRencanaAksiTest`, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tests/Frontend/RencanaAksiKoreksi.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `feature/iss-05.06-buka-kembali-ra`; bukan persetujuan UAT, merge, maupun deployment. Selaras Q41: jendela penyusunan tidak lagi dibaca, guard kunci per periode berbasis perubahan di `JendelaTulisRencanaAksi`. Review 14 Oktober 2026: AC-6/TEST-6/DoD-1 dikembalikan `[ ]` karena frasa "atau daftar kegiatan" baru ditegakkan pada level target periode — writer klaim tahap RA belum ada (milik ISS-06.02/06.08). AC-3/TEST-3 dan AC-7/TEST-7 dikembalikan `[ ]` menunggu CI exact-HEAD untuk kunci berbasis perubahan (B1) dan lingkup koreksi berbasis perubahan (M1). Checklist `design-system.md` dan browser smoke desktop/mobile belum dilakukan.
@@ -2838,7 +2858,7 @@ Pembandingan menggunakan [baseline development `6e09189`](https://github.com/LLD
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Terbukti CI exact-HEAD run 38533032704 9/9.)*
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08)*
 - [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Dibuktikan ISS-14.03, `RencanaAksiKoreksiKunciTanggalTest`.)*
 
 #### Definition of Done
@@ -3056,6 +3076,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Otorisasi:** `kegiatan:update`/capability sumber dan kewenangan RA sesuai alur; penambahan kegiatan dari halaman RA memakai `kegiatan:create` dan kewenangan mutasi RA pada unit yang sama.
 - **Dampak Data:** `kegiatan`, `klaim_kegiatan`, `rencana_aksi_versi` (pembekuan klaim tahap RA), `audit_log`.
 - **Keputusan terkait:** Q42 §42.1, Q49 §49.2, Q41 §41.2, Q46 §46.1.
+
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** TEST-8 tetap terbuka: `KegiatanRencanaAksiTest::test_salin_ke_periode_lain_membuat_pasangan_tersendiri_tanpa_berkas` membuktikan salinan menjadi kegiatan tersendiri dengan klaim `rencana_aksi` sendiri dan nama, tujuan, serta anggaran ikut tersalin, tetapi aktornya superadmin, bukan PIC, klausa "dapat diubah per kegiatan" belum di-assert, dan assertion berkas tidak ikut disalin belum dapat gagal karena salinan dibuat sebelum ada berkas.
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -3382,6 +3404,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Otorisasi:** Kewenangan mengikuti sumber yang sedang dikoreksi.
 - **Dampak Data:** `klaim_kegiatan`, versi RA/Pengukuran, `audit_log`.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-2/TEST-2 tetap terbuka sebagai gap fitur di `development` `eadfabf2`: belum ada jalur koreksi klaim tahap pengukuran (`HapusKlaimKegiatan` menolaknya); `KoreksiKlaimVersiPengukuranTest` hanya membuktikan penolakan yang diaudit.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given klaim menjadi bagian snapshot RA, When koreksi dilakukan, Then koreksi mengikuti siklus RA dan baru masuk versi RA berikutnya.
@@ -3514,6 +3538,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Rule:** bila PR #97 di-merge sebelum Q49 diterapkan, `nama` hingga 500 karakter dan `tujuan` opsional dikerjakan di issue ini (Q49 §49.1 butir 3).
 - **Di luar cakupan:** dashboard anggaran per IKU (ISS-10.01), salin kegiatan (ISS-06.02).
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-6/TEST-6 `PelaksanaanKegiatanTest::test_gerbang_terlaksana_memakai_union_persyaratan_global_dan_indikator_yang_diklaim` (persyaratan tahap `kegiatan` yang kurang ditolak 422 dan diaudit, RAB tahap `kegiatan_perencanaan` tidak ikut, dengan kontrol positif) dan `RencanaAksiPerencanaanKegiatanTest::test_tahap_pelaksanaan_kegiatan_tidak_tercampur_dengan_tahap_perencanaan`.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given kegiatan dibuat atau diubah, When `anggaran` kosong, Then ditolak; When diisi, Then harus rupiah nonnegatif; `0` sah dan kegiatan beranggaran nol tetap dapat diklaim. *(Q42 §42.2 butir 1–2)*
@@ -3521,7 +3547,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-3:** Given Perencanaan menyimpan persyaratan berkas, Then tersedia tahap `kegiatan_perencanaan`; persyaratan dapat dilampiri contoh berkas yang dapat diunduh PIC. *(Q42 §42.3 butir 2, §42.4 butir 3)*
 - [x] **AC-4:** Given RA diajukan, When ada kegiatan berklaim tahap RA yang belum memenuhi persyaratan wajib tahap `kegiatan_perencanaan`, termasuk RAB (Excel atau PDF) untuk kegiatan beranggaran lebih dari 0, Then pengajuan ditolak dengan daftar kegiatan dan persyaratan yang kurang. *(Q42 §42.3 butir 1, §42.4 butir 1)*
 - [x] **AC-5:** Given kegiatan beranggaran 0, Then RAB tidak diwajibkan. *(Q42 §42.3 butir 1)*
-- [ ] **AC-6:** Given kegiatan ditandai `terlaksana`, Then persyaratan tahap `kegiatan` (pelaksanaan) tetap diperiksa sesuai PRD §15.6 dan Q22. *(Q42 §42.4 butir 2)*
+- [x] **AC-6:** Given kegiatan ditandai `terlaksana`, Then persyaratan tahap `kegiatan` (pelaksanaan) tetap diperiksa sesuai PRD §15.6 dan Q22. *(Q42 §42.4 butir 2)*
 - [x] **AC-7:** Given halaman RA, Then total anggaran tampil per periode dan per RA, dan total per IKU tersedia untuk dashboard; kegiatan yang diklaim lebih dari satu IKU tampil penuh di setiap IKU dengan penanda "kegiatan bersama", sedangkan total per unit dan per tahun dihitung dari kegiatan unik. *(Q42 §42.2 butir 4)*
 - [x] **AC-8:** Given pengguna tanpa akses detail kegiatan unit tersebut, Then anggaran per kegiatan dan RAB tidak tampil; Perencanaan dan Pimpinan melihat seluruhnya. *(Q42 §42.5)*
 - [x] **AC-9:** Given RA data awal 2026 atau periode lampau 2026, Then gerbang RAB dan persyaratan tahap perencanaan kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
@@ -3563,7 +3589,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given Perencanaan menyimpan persyaratan berkas, Then tersedia tahap `kegiatan_perencanaan`; persyaratan dapat dilampiri contoh berkas yang dapat diunduh PIC. *(Q42 §42.3 butir 2, §42.4 butir 3)*
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given RA diajukan, When ada kegiatan berklaim tahap RA yang belum memenuhi persyaratan wajib tahap `kegiatan_perencanaan`, termasuk RAB (Excel atau PDF) untuk kegiatan beranggaran lebih dari 0, Then pengajuan ditolak dengan daftar kegiatan dan persyaratan yang kurang. *(Q42 §42.3 butir 1, §42.4 butir 1)*
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan beranggaran 0, Then RAB tidak diwajibkan. *(Q42 §42.3 butir 1)*
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan ditandai `terlaksana`, Then persyaratan tahap `kegiatan` (pelaksanaan) tetap diperiksa sesuai PRD §15.6 dan Q22. *(Q42 §42.4 butir 2)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given kegiatan ditandai `terlaksana`, Then persyaratan tahap `kegiatan` (pelaksanaan) tetap diperiksa sesuai PRD §15.6 dan Q22. *(Q42 §42.4 butir 2)*
 - [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given halaman RA, Then total anggaran tampil per periode dan per RA, dan total per IKU tersedia untuk dashboard; kegiatan yang diklaim lebih dari satu IKU tampil penuh di setiap IKU dengan penanda "kegiatan bersama", sedangkan total per unit dan per tahun dihitung dari kegiatan unik. *(Q42 §42.2 butir 4)*
 - [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given pengguna tanpa akses detail kegiatan unit tersebut, Then anggaran per kegiatan dan RAB tidak tampil; Perencanaan dan Pimpinan melihat seluruhnya. *(Q42 §42.5)*
 - [x] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given RA data awal 2026 atau periode lampau 2026, Then gerbang RAB dan persyaratan tahap perencanaan kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
@@ -3614,6 +3640,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Di luar cakupan:** form realisasi (perubahan ISS-06.03).
 
 > **Status implementasi — sinkronisasi #225 (2026-11-04), PR #194, issue #169:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. AC-7 dan TEST-5 `HalamanKegiatanRencanaAksiTest::test_kegiatan_dari_ra_a_dapat_diklaim_ra_b_dan_ditandai_kegiatan_bersama`, dengan AC-9 `HalamanKegiatanRencanaAksiTest::test_periode_terkunci_tampil_dan_pembuatan_pada_periode_itu_ditolak`. AC-8 tetap terbuka karena dashboard, verifikasi, dan laporan belum memiliki tautan ke kegiatan; TEST-6 adalah uji browser.
+
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** AC-8 tetap kosong sesuai keputusan PM 15 November 2026 (K13 audit traceability gelombang 3): di `development` `eadfabf2` belum ada tautan ke kegiatan dari dashboard, verifikasi, maupun laporan, sehingga butir ini berlaku saat tautan semacam itu dibuat dan tidak dijadikan issue tersendiri.
 
 #### Acceptance Criteria (QA/UAT)
 
@@ -3696,6 +3724,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Status implementasi — sinkronisasi #225 (2026-11-04), PR #106 dan #115, issue #80:** centang menunjukkan bukti test otomatis di `development` `c26a2293`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1 `CanonicalPengukuranTest::test_large_component_decimal_survives_calculation_and_submission_snapshot`, `PreviewPengukuranTest::test_preview_uses_snapshot_formula_without_mutating_measurement_or_audit`; AC-2 `CanonicalPengukuranTest::test_large_manual_decimal_survives_storage_snapshot_audit_and_page_props`; AC-3 `CalculatePengukuranTest::test_manual_preserves_null_and_zero_as_different_states`; AC-4 `EnsureDraftPengukuranTest::test_periode_belum_efektif_ditolak_tanpa_header`, `IndexPengukuranTest::test_sebelum_efektif_tidak_berlaku_memakai_versi_terendah`; AC-5 `EnsureDraftPengukuranTest::test_indikator_arsip_menolak_header_baru_tetapi_histori_tetap_dapat_dibuka`; AC-7 `PengukuranDraftStateTest::test_belum_dapat_diukur_mengosongkan_realisasi_manual_lalu_dapat_dibatalkan`, `PengukuranDraftStateTest::test_pengukuran_status_nilai_check_menegakkan_pasangan_status_dan_nilai`; AC-8 `PengukuranDraftStateTest::test_narasi_draft_boleh_parsial_dan_catatan_tetap_dikosongkan`, `RekomendasiBerlakuTest::test_draf_tidak_tampil_dan_hanya_rekomendasi_disetujui_terbaru_yang_berlaku_pada_periode_berikutnya`, dengan tampilan isian dibuktikan `PengukuranWorkflow.test.tsx`; SECURITY `AuthorizationHttpRegressionTest::test_matching_unit_deny_overrides_grant_only_allow_through_http`, `EnsureDraftPengukuranTest::test_deny_unit_menang_atas_allow_peran`. AC-6/TEST-6 tetap terbuka: `CanonicalPengukuranTest::test_rasio_antarperiode_tidak_menjumlah_persen` membuktikan persen tidak dijumlah, tetapi kesebandingan basis dengan target kumulatif (Q8) belum di-assert.
 
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** AC-6/TEST-6 dicentang berdasarkan keputusan PM 15 November 2026 (K14 audit traceability gelombang 3): klausa basis waktu/populasi yang sebanding dengan target kumulatif adalah aturan definisi indikator yang disusun Perencanaan, bukan validasi sistem. Bagian yang ditegakkan sistem, yaitu persentase antarperiode tidak dijumlahkan, dibuktikan `CanonicalPengukuranTest::test_rasio_antarperiode_tidak_menjumlah_persen` di `development` `eadfabf2`.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given indikator nonmanual, When semua komponen diisi, Then server menghitung `nilai` dari snapshot dan UI menampilkan nilai turunan read-only.
@@ -3703,7 +3733,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-3:** Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
 - [x] **AC-4:** Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
 - [x] **AC-5:** Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
-- [ ] **AC-6:** Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
+- [x] **AC-6:** Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
 - [x] **AC-7:** Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
 - [x] **AC-8:** Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
 
@@ -3739,7 +3769,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
 - [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
 - [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
 - [x] SECURITY: Uji request langsung untuk scope unit lain dan deny yang cocok menghasilkan 403 meski tombol UI disembunyikan.
@@ -3854,20 +3884,22 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - **Rule (Q51 §51.1 butir 4):** kewajiban tindak lanjut rekomendasi (AC-8) berlaku lintas tahun: rekomendasi disetujui pada periode terakhir suatu tahun ditindaklanjuti pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur.
 - **Rule (Q47 §47.3 butir 3–4):** bila periode tanpa target dan realisasi belum dapat diukur berlaku bersamaan, tampilan memakai "Belum dapat diukur"; penetapan status capaian manual tidak tersedia untuk kedua kondisi tersebut (ISS-09.02).
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-1/TEST-1 `PengukuranWorkflowTest::test_normal_submission_requires_real_schedule_snapshot_and_ratified_action_plan`, `PindahSnapshotPengukuranTest::test_pemindahan_menunggu_ra_sah_bersnapshot_tujuan_sebelum_pengajuan`; AC-2/TEST-2 `CanonicalPengukuranTest::test_normal_ratio_rejects_missing_components_but_accepts_explained_zero_denominator`, `PenyebutNolTest::test_komponen_belum_lengkap_tidak_memakai_pengecualian_penyebut_nol`, `PengukuranTanpaTargetTest::test_target_rasio_tidak_ditargetkan_harus_memuat_seluruh_komponen_kosong`; AC-3/TEST-3 `CanonicalPengukuranTest::test_required_evidence_without_modes_and_missing_file_blocks_submission`, `CanonicalPengukuranTest::test_required_modes_remain_mandatory_and_requirements_are_frozen`; AC-5/TEST-5 `VerticalSlice1Test::test_pic_can_submit_with_frozen_canonical_version_and_audit`, `PengukuranWorkflowTest::test_pengajuan_membekukan_empat_narasi_dan_presenter_hanya_membaca_versi`; AC-6/TEST-6 `SahkanPengukuranTest::test_pembuat_draft_bukan_pengaju_tidak_terkena_f1`, `SahkanPengukuranTest::test_f2_mengizinkan_self_approval_jalur_perencanaan_dan_menandainya`; AC-7/TEST-7 `PengukuranWorkflowTest::test_successful_submission_appears_in_scoped_verification_queue`, `NotifikasiPengajuanPengukuranTest::test_pengukuran_diajukan_pic_menulis_item_bertautan_halaman_verifikasi`; AC-12/TEST-12 `PengukuranTanpaTargetTest::test_pengajuan_membedakan_tanpa_target_sah_dari_target_belum_lengkap`, `PengukuranWorkflow.test.tsx` (membedakan tanpa target periode dari target nol pada form dan detail versi), `TetapkanStatusCapaianTest::test_penetapan_ditolak_bila_versi_tanpa_target_periode`, `RekapIndikatorPeriodeTest::test_tanpa_target_tetap_memuat_realisasi_dan_selisih_pk_tanpa_persen`; TAMPILAN BERSAMAAN `DashboardStatusIndikatorTest::test_belum_dapat_diukur_bukan_nol_dan_menang_atas_tanpa_target`, `RekapIndikatorPeriodeTest::test_belum_dapat_diukur_mendahului_tanpa_target_periode`; REGRESSION `SahkanPengukuranTest::test_pembuat_draft_bukan_pengaju_tidak_terkena_f1`, `SahkanPengukuranTest::test_pergantian_pic_setelah_submit_tidak_menghapus_f1`, `VerticalSlice1Test::test_f1_keeps_blocking_pic_submitter_after_role_and_assignment_change`, `VerticalSlice1Test::test_deny_create_and_revoke_preserve_access_assignment_and_submission_provenance`; CONCURRENCY `MutationConcurrencyTest::test_two_submission_requests_with_one_token_create_one_version`, `MutationConcurrencyTest::test_submission_and_ra_ratification_use_consistent_locks`, `PengukuranWorkflowTest::test_repeated_submission_keeps_one_frozen_version_and_reports_stale_token`. AC-9/TEST-9 tetap terbuka: narasi wajib dan penolakan `belum_dapat_diukur` pada periode nilai akhir terbukti (`PengukuranWorkflowTest::test_gerbang_final_belum_dapat_diukur`), tetapi klausa kondisi tidak dapat dihitung (Q9) yang tetap diperbolehkan pada periode nilai akhir belum di-assert.
+
 #### Acceptance Criteria (QA/UAT)
 
-- [ ] **AC-1:** Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
-- [ ] **AC-2:** Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan, dan pengukuran berstatus `belum_dapat_diukur` dikecualikan dari gerbang kelengkapan komponen. *(Q9; diperbarui Q47 §47.4 butir 1)*
-- [ ] **AC-3:** Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
+- [x] **AC-1:** Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
+- [x] **AC-2:** Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan, dan pengukuran berstatus `belum_dapat_diukur` dikecualikan dari gerbang kelengkapan komponen. *(Q9; diperbarui Q47 §47.4 butir 1)*
+- [x] **AC-3:** Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
 - [x] **AC-4:** Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
-- [ ] **AC-5:** Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
-- [ ] **AC-6:** Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
-- [ ] **AC-7:** Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); item notifikasi in-app dibuat oleh ISS-12.02 AC-2 (ISS-12.02, PR #249). *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi antrean Perencanaan dibuat setelah commit.)*
+- [x] **AC-5:** Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
+- [x] **AC-6:** Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
+- [x] **AC-7:** Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); item notifikasi in-app dibuat oleh ISS-12.02 AC-2 (ISS-12.02, PR #249). *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi antrean Perencanaan dibuat setelah commit.)*
 - [x] **AC-8:** Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
 - [ ] **AC-9:** Given pengukuran berstatus `belum_dapat_diukur`, When diajukan, Then narasi pengukuran tetap wajib dan menjelaskan mengapa nilai belum tersedia; pada periode nilai akhir status ini ditolak karena realisasi wajib terisi, sedangkan kondisi tidak dapat dihitung menurut Q9 tetap diperbolehkan. *(Q47 §47.4 butir 2 dan 4)*
 - [x] **AC-10:** Given pengukuran periode lampau 2026 diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
 - [x] **AC-11:** Given form indikator, Then saklar `wajib_catatan` tidak ditampilkan dan kolomnya tetap tersimpan. *(Q45 §45.1 butir 3)*
-- [ ] **AC-12:** Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
+- [x] **AC-12:** Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
 
 #### Implementation Tasks
 
@@ -3899,22 +3931,22 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 #### Automated Tests / Verification
 
-- [ ] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
-- [ ] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan, dan pengukuran berstatus `belum_dapat_diukur` dikecualikan dari gerbang kelengkapan komponen. *(Q9; diperbarui Q47 §47.4 butir 1)*
-- [ ] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
+- [x] TEST-1: Buat Pest Feature/Unit test yang membuktikan — Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
+- [x] TEST-2: Buat Pest Feature/Unit test yang membuktikan — Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan, dan pengukuran berstatus `belum_dapat_diukur` dikecualikan dari gerbang kelengkapan komponen. *(Q9; diperbarui Q47 §47.4 butir 1)*
+- [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
-- [ ] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
-- [ ] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); pengiriman notifikasi in-app diuji pada ISS-12.02 (ISS-12.02, PR #249).
+- [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
+- [x] TEST-7: Buat Pest Feature/Unit test yang membuktikan — Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); pengiriman notifikasi in-app diuji pada ISS-12.02 (ISS-12.02, PR #249).
 - [x] TEST-8: Buat Pest Feature/Unit test yang membuktikan — Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
 - [ ] TEST-9: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran berstatus `belum_dapat_diukur`, When diajukan, Then narasi pengukuran tetap wajib dan menjelaskan mengapa nilai belum tersedia; pada periode nilai akhir status ini ditolak karena realisasi wajib terisi, sedangkan kondisi tidak dapat dihitung menurut Q9 tetap diperbolehkan. *(Q47 §47.4 butir 2 dan 4)*
 - [x] TEST-10: Buat Pest Feature/Unit test yang membuktikan — Given pengukuran periode lampau 2026 diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
 - [x] TEST-11: Buat Vitest frontend test dan Pest Feature test yang membuktikan — Given form indikator, Then saklar `wajib_catatan` tidak ditampilkan dan kolomnya tetap tersimpan. *(Q45 §45.1 butir 3)*
-- [ ] TEST-12: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
+- [x] TEST-12: Buat Pest Feature/Unit test yang membuktikan — Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
 - [x] LINTAS TAHUN: Uji rekomendasi disetujui pada periode terakhir suatu tahun mewajibkan `tindak_lanjut_rekomendasi` pada periode pertama jadwal tahun berikutnya bila indikatornya masih diukur (Q51 §51.1 butir 4).
-- [ ] TAMPILAN BERSAMAAN: Uji periode tanpa target yang realisasinya `belum_dapat_diukur` ditampilkan sebagai "Belum dapat diukur" (Q47 §47.3 butir 3).
-- [ ] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
-- [ ] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
+- [x] TAMPILAN BERSAMAAN: Uji periode tanpa target yang realisasinya `belum_dapat_diukur` ditampilkan sebagai "Belum dapat diukur" (Q47 §47.3 butir 3).
+- [x] REGRESSION: Uji pembuat draft berbeda dari pengaju; perubahan role/PIC/grant setelah submit tidak mengubah provenance atau meloloskan F1.
+- [x] CONCURRENCY: Uji transaksi/optimistic locking/versi stale sesuai kontrak Data Model.
 
 #### Definition of Done
 
@@ -4051,6 +4083,8 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - **Otorisasi:** `pengukuran:update` sesuai scope.
 - **Dampak Data:** `pengukuran`, `pengukuran_komponen`, versi, `audit_log`.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** centang menunjukkan bukti test otomatis di `development` `eadfabf2`, bukan persetujuan QA/UAT, merge, atau deployment. Test: AC-6/TEST-6 `PengukuranDraftStateTest::test_belum_dapat_diukur_mengosongkan_realisasi_manual_lalu_dapat_dibatalkan`, `PengukuranDraftStateTest::test_status_perhitungan_client_hanya_menerima_belum_dapat_diukur`, `CanonicalPengukuranTest::test_belum_dapat_diukur_mengosongkan_komponen_tersimpan_tanpa_input_lengkap`; tampilan yang berbeda dan bukan capaian 0 `RekapIndikatorPeriodeTest::test_penanda_tidak_dapat_dihitung_menyertakan_alasan_resmi`, `RekapIndikatorPeriodeTest::test_belum_dapat_diukur_mendahului_tanpa_target_periode`, `DashboardStatusIndikatorTest::test_belum_dapat_diukur_bukan_nol_dan_menang_atas_tanpa_target`. AC-5 US-07.06 (tampilan laporan) dibuktikan `RekapIndikatorPeriodeTest::test_penanda_tidak_dapat_dihitung_menyertakan_alasan_resmi` dan `RekapIndikatorPeriodeTest::test_akses_laporan_fail_closed_dan_admin_tidak_otomatis_membaca_detail_kegiatan`.
+
 #### Acceptance Criteria (QA/UAT)
 
 - [x] **AC-1:** Given seluruh komponen lengkap dan penyebut = 0, When dihitung, Then `nilai = NULL` dan `status_perhitungan = tidak_dapat_dihitung`.
@@ -4058,7 +4092,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] **AC-3:** Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
 - [x] **AC-4:** Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
 - [x] **AC-5:** Given versi diajukan/disahkan dengan `tidak_dapat_dihitung`, Then halaman verifikasi menampilkan penanda dan alasan dari snapshot versi sesuai hak baca; tampilan laporan milik ISS-10.02.
-- [ ] **AC-6:** Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
+- [x] **AC-6:** Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
 
 #### Implementation Tasks
 
@@ -4086,7 +4120,7 @@ Mencatat pengukuran TW I–III 2026 melalui jalur Perencanaan karena jendela nor
 - [x] TEST-3: Buat Pest Feature/Unit test yang membuktikan — Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
 - [x] TEST-4: Buat Pest Feature/Unit test yang membuktikan — Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
 - [x] TEST-5: Buat Pest Feature/Unit test yang membuktikan — Given versi diajukan/disahkan dengan `tidak_dapat_dihitung`, Then halaman verifikasi menampilkan penanda dan alasan dari snapshot versi sesuai hak baca; tampilan laporan milik ISS-10.02.
-- [ ] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
+- [x] TEST-6: Buat Pest Feature/Unit test yang membuktikan — Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
 
 #### Definition of Done
 

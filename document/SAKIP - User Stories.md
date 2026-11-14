@@ -53,6 +53,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 >
 > **Q38 (13 Oktober 2026):** login pertama kini membuat user `aktif` tanpa role; langkah aktivasi dihapus. Lihat US-01.08.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-1, AC-3, AC-4, dan AC-5 memiliki bukti test; AC-2 belum karena sinkron email pada login ulang belum di-assert; rincian test dan batas bukti tercatat pada [ISS-01.01](SAKIP%20-%20User%20Issues.md#iss-0101--feature-login-terpusat-menggunakan-single-sign-on-sso-keycloak). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-01.01` |
@@ -69,11 +71,11 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given pengguna belum login, When menekan **Login SSO**, Then sistem mengarahkan ke Keycloak melalui OIDC Authorization Code Flow.
+- [x] **AC-1:** Given pengguna belum login, When menekan **Login SSO**, Then sistem mengarahkan ke Keycloak melalui OIDC Authorization Code Flow.
 - [ ] **AC-2:** Given callback membawa token yang valid, When callback diproses, Then sistem mencocokkan `keycloak_id`, menyinkronkan nama/email yang diizinkan, membentuk sesi Laravel, dan mengarahkan pengguna ke dashboard.
-- [ ] **AC-3:** Given pengguna belum ada pada `users`, When login pertama berhasil, Then akun lokal dibuat dengan identitas Keycloak dan status aktif sesuai kebijakan onboarding.
-- [ ] **AC-4:** Given callback gagal atau token tidak valid, When diproses, Then sesi lokal tidak dibuat dan pengguna menerima pesan kesalahan yang aman tanpa membocorkan token/credential.
-- [ ] **AC-5:** Given pengguna telah logout, When mencoba membuka rute terproteksi, Then sistem meminta autentikasi kembali.
+- [x] **AC-3:** Given pengguna belum ada pada `users`, When login pertama berhasil, Then akun lokal dibuat dengan identitas Keycloak dan status aktif sesuai kebijakan onboarding.
+- [x] **AC-4:** Given callback gagal atau token tidak valid, When diproses, Then sesi lokal tidak dibuat dan pengguna menerima pesan kesalahan yang aman tanpa membocorkan token/credential.
+- [x] **AC-5:** Given pengguna telah logout, When mencoba membuka rute terproteksi, Then sistem meminta autentikasi kembali.
 
 **Business Rules / Catatan**
 
@@ -136,6 +138,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 > **Q43 (13 Oktober 2026):** alasan pemberian grant menjadi opsional; bila dikosongkan, server mengisi alasan baku sehingga kolom `alasan` tetap terisi (Q43 §43.3 butir 1). Pencabutan grant tetap wajib alasan (Q43 §43.2 butir 4). Butir "alasan wajib" di bawah dipertahankan sebagai histori implementasi; perubahan dikerjakan pada US-13.05.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** Tiga butir yang sebelumnya terbuka (hanya 7 izin unit-scoped, izin baca tidak tersedia pada Form Grant Unit, dan flow bagi pemegang `delegasi:update`) memiliki bukti test; rincian test dan batas bukti tercatat pada [ISS-01.04](SAKIP%20-%20User%20Issues.md#iss-0104--feature-pemberian-grant-izin-tambahan-per-unit). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-01.04` |
@@ -148,12 +152,12 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 **Acceptance Criteria**
 
-- [ ] Hanya 7 permission unit-scoped dapat diberikan: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`.
-- [ ] `rencana_aksi:read` dan `kegiatan:read` tidak tersedia pada Form Grant Unit.
+- [x] Hanya 7 permission unit-scoped dapat diberikan: `pengukuran:create/update`, `rencana_aksi:create/update/ajukan`, `kegiatan:create/update`.
+- [x] `rencana_aksi:read` dan `kegiatan:read` tidak tersedia pada Form Grant Unit.
 - [x] User target dan unit harus aktif; alasan wajib.
 - [x] Grant/revoke tidak mengubah role atau assignment PJ.
 - [x] Deny yang cocok tetap menang.
-- [ ] Perencanaan, Admin, Superadmin dapat menggunakan flow sesuai `delegasi:update` efektif.
+- [x] Perencanaan, Admin, Superadmin dapat menggunakan flow sesuai `delegasi:update` efektif.
 
 ### US-01.05 · Pencabutan Izin Eksplisit (Deny)
 
@@ -211,6 +215,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 > **Q45, Q48, Q51 (13 Oktober 2026):** preset Pimpinan memperoleh `rekomendasi:tetapkan` melalui seeder (Q32.4), sedangkan Perencanaan tetap memegangnya sebagai cadangan; simpan draf dan persetujuan rekomendasi dibedakan oleh status rekomendasi, bukan oleh permission (Q45 §45.2 butir 1, Q51 §51.2 butir 1). Katalog memperoleh permission baru `laporan:unggah` dengan preset Perencanaan dan Superadmin (Q48 §48.2 butir 2). Perubahan preset dikerjakan pada US-09.01 (`rekomendasi:tetapkan`) dan US-10.05 (`laporan:unggah`) serta mengikuti audit delta preset di bawah.
 
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** AC terakhir dicentang berdasarkan keputusan PM 15 November 2026 (K9 audit traceability gelombang 3), bukan bukti test atas teks harfiahnya: "tidak diglobalisasi" ditafsirkan sebagai cakupan izin tetap unit. Tujuh izin unit-scoped tidak berlaku tanpa konteks unit (`PermissionResolverBatchTest::test_navigasi_peran_hanya_dari_allow_peran_tanpa_deny_global_dan_scope_unit_tetap`, alasan `invalid_scope`), dan preset Perencanaan serta Superadmin memberikannya per unit lewat peran (`AccessFoundationTest::test_planning_and_superadmin_presets_supply_role_provenance_in_each_unit`), selaras Q79; konteks lain pada [ISS-01.07](SAKIP%20-%20User%20Issues.md#iss-0107--security-peran--izin-read-only--preset-permission-via-seeder). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-01.07` |
@@ -228,7 +234,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 - [x] Preset role bersumber dari kode/seeder/release.
 - [x] Perubahan preset menghasilkan audit before/after + alasan/sumber release.
 - [x] Seeder rerun tanpa delta tidak menghasilkan audit palsu.
-- [ ] 7 permission unit-scoped tidak diglobalisasi melalui preset role.
+- [x] 7 permission unit-scoped tidak diglobalisasi melalui preset role.
 
 ### US-01.08 · Onboarding SSO Langsung Aktif dan Status Akun
 
@@ -344,6 +350,8 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 >
 > **Q50 (13 Oktober 2026):** kode sasaran dan indikator mengikuti PK, Rencana Aksi, dan laporan triwulan (S1–S4, IKU 1.1–IKU 4.1); nomor IKU Renstra (IKU 1–8) dicatat sebagai keterangan pada definisi operasional tanpa kolom baru (Q50 §50.4).
 
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** AC-3 dicentang berdasarkan keputusan PM 15 November 2026 (K12 audit traceability gelombang 3) yang menafsirkannya sebagai mekanisme snapshot dan periode mulai berlaku; AC-4 belum karena keunikan kode per Renstra belum divalidasi server; rincian pada [ISS-02.04](SAKIP%20-%20User%20Issues.md#iss-0204--feature-penyusunan-sasaran-strategis--indikator-kinerja). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-02.04` |
@@ -362,7 +370,7 @@ Jika terdapat konflik, developer tidak boleh memilih interpretasi sendiri; gunak
 
 - [x] **AC-1:** Given data sasaran valid, When disimpan, Then sasaran tersimpan di bawah Renstra yang benar.
 - [x] **AC-2:** Given data indikator valid, When disimpan, Then indikator memiliki unit pemilik, arah (`naik_baik`/`turun_baik`), tipe (`manual`/`rasio_persen`/`penjumlahan`), satuan, presisi, dan regulasi bila ada.
-- [ ] **AC-3:** Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
+- [x] **AC-3:** Given indikator baru dibuat, When status belum siap digunakan, Then indikator tidak otomatis masuk kewajiban periode yang sudah lampau.
 - [ ] **AC-4:** Given kode/relasi tidak valid, When submit, Then server menolak terlepas dari validasi klien.
 
 ### US-02.05 · Perpindahan Unit dan Pengarsipan Indikator
@@ -428,6 +436,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 >
 > **Q50 (13 Oktober 2026):** target PK disimpan dengan nilai penuh yang dipakai pengukuran (mis. 94,05), bukan nilai tercetak pada dokumen PK yang dibulatkan; tampilan mengikuti `desimal_tampilan`. Baseline tetap disimpan pada `target_tahunan`, tetapi menjadi data pendukung dan bukan isi dokumen PK (Q50 §50.2–§50.3; US-02.11).
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-4 memiliki bukti test lewat koreksi snapshot ISS-03.03; rincian test dan batas bukti tercatat pada [ISS-02.07](SAKIP%20-%20User%20Issues.md#iss-0207--feature-penetapan-baseline--target-tahunan). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-02.07` |
@@ -449,7 +459,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - [x] **AC-1:** Given indikator dan tahun valid, When baseline/target disimpan, Then satu baris target tahunan tersedia untuk kombinasi tersebut.
 - [x] **AC-2:** Given kombinasi indikator-tahun sudah ada, When nilai diperbarui, Then data diperbarui melalui `target:update` dan tidak membuat duplikasi.
 - [x] **AC-3:** Given target sudah dibekukan ke snapshot yang dirujuk histori, When master target dikoreksi, Then laporan lama tidak ikut berubah.
-- [ ] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
+- [x] **AC-4:** Given koreksi salah input terhadap sumber PK resmi dibutuhkan, Then koreksi snapshot dilakukan melalui mekanisme versi dengan alasan dan rujukan bukti.
 
 **Business Rules / Catatan**
 
@@ -780,6 +790,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 >
 > **Q46 (13 Oktober 2026):** TW III 2026 ikut menjadi periode lampau yang diisi Perencanaan; TW IV 2026 menjadi triwulan pertama workflow normal PIC operasional. Catatan Q32 di atas dipertahankan sebagai riwayat.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-2 dan AC-5 memiliki bukti test; AC-1 dan AC-3 digantikan Q41 serta AC-4 digantikan Q70 sehingga tetap kosong sebagai histori; rincian test dan batas bukti tercatat pada [ISS-03.01](SAKIP%20-%20User%20Issues.md#iss-0301--feature-penyusunan-master-periode-jadwal-tahunan-dan-jendela-periode). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-03.01` |
@@ -797,10 +809,10 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 **Acceptance Criteria**
 
 - [ ] **AC-1:** Given tahun Y disiapkan, When jadwal tahunan dibuat, Then status awal `draft` dengan `rencana_aksi_mulai`, `rencana_aksi_selesai`, dan `penutupan`.
-- [ ] **AC-2:** Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
+- [x] **AC-2:** Given daftar Triwulan/Semester dimasukkan, When disimpan, Then `jadwal_periode` unik per periode pada jadwal tersebut.
 - [ ] **AC-3:** Given urutan normal, Then `rencana_aksi_mulai <= rencana_aksi_selesai < pengisian_mulai` periode pertama.
 - [ ] **AC-4:** Given jendela reviu disusun, Then `reviu_selesai` diperlakukan sebagai target operasional; Perencanaan masih dapat reviu sampai penutupan dengan penanda terlambat. *(Digantikan Q70 §70.2: jendela reviu dihapus dari jadwal; reviu dapat dilakukan sejak pengukuran diajukan sampai penutupan tanpa penanda terlambat baru — US-03.07.)*
-- [ ] **AC-5:** Given tanggal tidak konsisten, When submit, Then server menolak.
+- [x] **AC-5:** Given tanggal tidak konsisten, When submit, Then server menolak.
 - [x] **AC-6:** Given lebih dari 12 periode dipilih, When jadwal disimpan, Then server menolak; satu jadwal tahunan memuat paling banyak 12 periode. *(Q35 §35.3; bukti `RencanaAksiMatrixLimitTest` pada PR #62.)*
 
 ### US-03.02 · Aktivasi Jadwal Tahunan melalui Empat Gerbang & Pembentukan Snapshot
@@ -1118,6 +1130,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 > **Q41, Q42, Q47 (13 Oktober 2026):** pengajuan RA kini juga mensyaratkan minimal satu kegiatan yang diklaim pada tahap RA (Q42 §42.1 butir 3; US-06.02) serta kelengkapan persyaratan tahap `kegiatan_perencanaan`, termasuk RAB untuk kegiatan beranggaran lebih dari 0 (Q42 §42.3–§42.4; US-06.08). Pengajuan oleh PIC tidak boleh mengubah periode yang terkunci baginya (Q41 §41.2; US-05.07). AC-1 dibaca bersama Q47 §47.2: indikator dinilai tahunan boleh tanpa target pada periode sebelum periode nilai akhir (US-05.07). Aturan Q41 §41.3 tetap: pengukuran mensyaratkan RA disahkan, Perencanaan boleh mengesahkan RA yang diinputnya sendiri dengan penanda self-approval, target kumulatif yang turun tetap peringatan, dan deviasi target periode terakhir terhadap target PK wajib dijelaskan (ADR-0008). Catatan AC-5 tentang klaim yang belum dibekukan ditindaklanjuti setelah kegiatan dapat ditambahkan dari halaman RA (US-06.02).
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-7 memiliki bukti test gabungan; rincian test dan batas bukti tercatat pada [ISS-05.03](SAKIP%20-%20User%20Issues.md#iss-0503--feature-pengajuan-rencana-aksi--pembekuan-versi). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-05.03` |
@@ -1140,7 +1154,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - [x] **AC-4:** Given seluruh gerbang lolos, When submit commit, Then status header menjadi `diajukan` dan **baris baru `rencana_aksi_versi`** dibuat.
 - [x] **AC-5:** Given versi dibuat, Then server membekukan `diajukan_by`, `diajukan_at`, `jalur_pengajuan` (`pic`/`perencanaan`), `dasar_izin_pengajuan`, target, persyaratan, bukti, klaim/narasi yang relevan, dan snapshot konteks. *Catatan: klaim/narasi kegiatan belum dibekukan karena modul Kegiatan belum memiliki writer klaim (non-goal #57).*
 - [x] **AC-6:** Given draft dibuat oleh A tetapi diajukan B, Then `diajukan_by = B`; `created_by` tidak dipakai sebagai identitas pengaju F1/F2.
-- [ ] **AC-7:** Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app mengikuti ISS-12.02 AC-2.
+- [x] **AC-7:** Given submit berhasil, Then RA tampil pada antrean reviu berbasis status (ISS-05.04/ISS-05.05); item notifikasi in-app mengikuti ISS-12.02 AC-2.
 
 ### US-05.04 · Verifikasi & Pengembalian Rencana Aksi dengan F1
 
@@ -1208,6 +1222,8 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 
 > **Q40, Q41 (13 Oktober 2026):** buka-kembali dipakai untuk mengubah target periode yang belum terkunci, bukan untuk memindahkan kegiatan, dan versi setelah dibuka kembali tetap tunduk kunci per periode bagi PIC (Q41 §41.2, §41.4). AC-3 diperbarui serta AC-6 dan AC-7 ditambahkan langsung karena story ini sedang dikerjakan dan belum di-merge.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-6 memiliki bukti test untuk target dan daftar kegiatan; rincian test dan batas bukti tercatat pada [ISS-05.06](SAKIP%20-%20User%20Issues.md#iss-0506--feature-buka-kembali-rencana-aksi-yang-telah-disahkan). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-05.06` |
@@ -1229,7 +1245,7 @@ _Status implementasi: lihat ISS-02.05; AC-4 adalah arsip/never-delete, bukan pen
 - [x] **AC-3:** Given PIC perlu memperbaiki sebelum `penutupan`, Then PIC dapat bekerja tanpa jendela penyusunan RA selama grant + PIC efektif valid, tetapi hanya pada periode yang belum terkunci baginya. *(Diperbarui Q41 §41.1–§41.2; semula PIC hanya dapat bekerja bila jendela PIC resmi masih/baru dibuka. Terbukti CI exact-HEAD run 38533032704 9/9.)*
 - [x] **AC-4:** Given jadwal ditutup tanpa sesi koreksi, When buka kembali RA langsung dicoba, Then ditolak.
 - [x] **AC-5:** Given RA diajukan ulang setelah perbaikan, Then baris `rencana_aksi_versi` baru dibuat.
-- [ ] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08 — review 14 Oktober 2026)*
+- [x] **AC-6:** Given RA dibuka kembali, When PIC menyimpan draf atau mengajukan versi baru yang mengubah target atau daftar kegiatan periode yang sudah terkunci baginya, Then ditolak sebagai validasi bisnis (422) dan diaudit; Perencanaan dikecualikan sampai `penutupan`. *(Q41 §41.2 butir 2–3; guard level target terbukti, klausa daftar kegiatan menunggu writer klaim ISS-06.02/06.08 — review 14 Oktober 2026)*
 - [x] **AC-7:** Given sesi koreksi setelah penutupan, When PIC mengubah RA, Then perubahan hanya diizinkan pada periode yang jendela pengisiannya dibuka kembali secara resmi (US-14.03); koreksi RA di luar periode tersebut dilakukan Perencanaan. *(Q41 §41.2 butir 6, Q19. Dibuktikan US-14.03.)*
 
 > **Status implementasi — ISS-05.06 (#85):** centang menunjukkan bukti implementasi dan test (`tests/Feature/RencanaAksi/BukaKembaliRencanaAksiTest`, regresi RA, `tests/Frontend/RencanaAksiBukaKembali.test.tsx`, `tests/Frontend/RencanaAksiKoreksi.test.tsx`, `tsc`, Pint, PHPStan bersih) pada branch `feature/iss-05.06-buka-kembali-ra`; bukan persetujuan UAT, merge, maupun deployment. Selaras Q41/Q43. Review 14 Oktober 2026: AC-6 dikembalikan `[ ]` karena frasa "atau daftar kegiatan" baru ditegakkan pada level target periode (writer klaim tahap RA milik ISS-06.02/06.08). AC-3 dan AC-7 dikembalikan `[ ]` menunggu CI exact-HEAD untuk kunci berbasis perubahan (B1) dan lingkup koreksi berbasis perubahan (M1).
@@ -1513,6 +1529,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### US-06.08 · Anggaran Kegiatan, RAB, Persyaratan Tahap Perencanaan Kegiatan, dan Penjumlahan Anggaran
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-6 memiliki bukti test; rincian test dan batas bukti tercatat pada [ISS-06.08](SAKIP%20-%20User%20Issues.md#iss-0608--feature-anggaran-kegiatan-rab-persyaratan-tahap-perencanaan-kegiatan-dan-penjumlahan-anggaran). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-06.08` |
@@ -1537,7 +1555,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-3:** Given Perencanaan menyimpan persyaratan berkas, Then tersedia tahap `kegiatan_perencanaan`; persyaratan dapat dilampiri contoh berkas yang dapat diunduh PIC. *(Q42 §42.3 butir 2, §42.4 butir 3)*
 - [x] **AC-4:** Given RA diajukan, When ada kegiatan berklaim tahap RA yang belum memenuhi persyaratan wajib tahap `kegiatan_perencanaan`, termasuk RAB (Excel atau PDF) untuk kegiatan beranggaran lebih dari 0, Then pengajuan ditolak dengan daftar kegiatan dan persyaratan yang kurang. *(Q42 §42.3 butir 1, §42.4 butir 1)*
 - [x] **AC-5:** Given kegiatan beranggaran 0, Then RAB tidak diwajibkan. *(Q42 §42.3 butir 1)*
-- [ ] **AC-6:** Given kegiatan ditandai `terlaksana`, Then persyaratan tahap `kegiatan` (pelaksanaan) tetap diperiksa sesuai PRD §15.6 dan Q22. *(Q42 §42.4 butir 2)*
+- [x] **AC-6:** Given kegiatan ditandai `terlaksana`, Then persyaratan tahap `kegiatan` (pelaksanaan) tetap diperiksa sesuai PRD §15.6 dan Q22. *(Q42 §42.4 butir 2)*
 - [x] **AC-7:** Given halaman RA, Then total anggaran tampil per periode dan per RA, dan total per IKU tersedia untuk dashboard; kegiatan yang diklaim lebih dari satu IKU tampil penuh di setiap IKU dengan penanda "kegiatan bersama", sedangkan total per unit dan per tahun dihitung dari kegiatan unik. *(Q42 §42.2 butir 4)*
 - [x] **AC-8:** Given pengguna tanpa akses detail kegiatan unit tersebut, Then anggaran per kegiatan dan RAB tidak tampil; Perencanaan dan Pimpinan melihat seluruhnya. *(Q42 §42.5)*
 - [x] **AC-9:** Given RA data awal 2026 atau periode lampau 2026, Then gerbang RAB dan persyaratan tahap perencanaan kegiatan dikecualikan. *(Q46 §46.1 butir 1 dan 3)*
@@ -1605,6 +1623,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q45, Q47, Q51 (13 Oktober 2026):** form pengukuran memuat narasi pengukuran per indikator per periode (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`), isian `tindak_lanjut_rekomendasi` bila ada Rekomendasi Pimpinan disetujui pada periode sebelumnya, dan `catatan` sebagai keterangan opsional (Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2). Realisasi yang belum tersedia dicatat sebagai `status_perhitungan = belum_dapat_diukur` (Q47 §47.4). Gerbang pengajuan dan tampilan periode tanpa target berada pada US-07.03. AC-7 dan AC-8 ditambahkan karena story ini belum dikerjakan.
 
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** AC-6 dicentang berdasarkan keputusan PM 15 November 2026 (K14 audit traceability gelombang 3) yang menetapkan basis kumulatif sebagai aturan definisi indikator; bagian yang ditegakkan sistem (persentase antarperiode tidak dijumlahkan) memiliki bukti test; rincian pada [ISS-07.01](SAKIP%20-%20User%20Issues.md#iss-0701--feature-pengisian-nilai-realisasi-komponenmanual). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-07.01` |
@@ -1626,7 +1646,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-3:** Given nilai 0, When disimpan, Then 0 diperlakukan sebagai nilai sah dan berbeda dari NULL.
 - [x] **AC-4:** Given periode sebelum `periode_mulai_id`, When pengukuran dibuat, Then ditolak sebagai Tidak berlaku.
 - [x] **AC-5:** Given indikator master sudah arsip, When pengukuran baru dibuat, Then create ditolak.
-- [ ] **AC-6:** Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
+- [x] **AC-6:** Given rasio antarperiode, Then sistem tidak menjumlahkan persentase; realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif.
 - [x] **AC-7:** Given nilai realisasi belum tersedia pada periode tersebut, When pengukuran dinyatakan belum dapat diukur, Then tersimpan `status_perhitungan = belum_dapat_diukur` dengan `nilai` kosong secara eksplisit, bukan disimpulkan dari nilai kosong, dan dibedakan dari realisasi `0` maupun `tidak_dapat_dihitung`. *(Q47 §47.4 butir 1 dan 3)*
 - [x] **AC-8:** Given form pengukuran dibuka, Then tersedia isian narasi `progres_kegiatan`, `kendala_masalah`, dan `strategi_tindak_lanjut`, isian `tindak_lanjut_rekomendasi` bila terdapat Rekomendasi Pimpinan disetujui pada periode sebelumnya, serta `catatan` opsional. *(Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2)*
 
@@ -1665,6 +1685,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q45, Q46, Q47, Q51 (13 Oktober 2026):** kewajiban `catatan` saat nilai memburuk atau indikator `wajib_catatan` digantikan narasi pengukuran wajib; `catatan` menjadi keterangan opsional dan saklar `wajib_catatan` disembunyikan dari form indikator tanpa menghapus kolomnya (Q45 §45.1 butir 1 dan 3). Tindak lanjut wajib hanya atas Rekomendasi Pimpinan yang disetujui (Q45 §45.2 butir 3, Q51 §51.1 butir 2). Realisasi `belum_dapat_diukur` mengecualikan gerbang kelengkapan komponen, dan periode tanpa target ditampilkan dengan selisih terhadap target PK (Q47 §47.3–§47.4). Gerbang baru dikecualikan untuk periode lampau 2026 (Q46 §46.1 butir 1). AC-2 dan AC-4 diperbarui serta AC-8 sampai AC-12 ditambahkan karena story ini belum dikerjakan.
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-1, AC-2, AC-3, AC-5, AC-6, AC-7, dan AC-12 memiliki bukti test; AC-9 belum karena klausa kondisi tidak dapat dihitung pada periode nilai akhir belum di-assert; rincian test dan batas bukti tercatat pada [ISS-07.03](SAKIP%20-%20User%20Issues.md#iss-0703--feature-pengajuan-pengukuran--pembekuan-versi). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-07.03` |
@@ -1681,18 +1703,18 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 **Acceptance Criteria**
 
-- [ ] **AC-1:** Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
-- [ ] **AC-2:** Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan, dan pengukuran berstatus `belum_dapat_diukur` dikecualikan dari gerbang kelengkapan komponen. *(Q9; diperbarui Q47 §47.4 butir 1)*
-- [ ] **AC-3:** Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
+- [x] **AC-1:** Given jalur normal, When submit, Then RA indikator-tahun harus memiliki versi yang telah disahkan.
+- [x] **AC-2:** Given nonmanual dan input wajib belum lengkap, When submit, Then ditolak; pengecualian `tidak_dapat_dihitung` hanya berlaku untuk penyebut efektif nol dengan komponen lengkap dan alasan, dan pengukuran berstatus `belum_dapat_diukur` dikecualikan dari gerbang kelengkapan komponen. *(Q9; diperbarui Q47 §47.4 butir 1)*
+- [x] **AC-3:** Given bukti wajib menurut persyaratan saat submit belum terpenuhi, When submit, Then ditolak.
 - [x] **AC-4:** Given pengukuran diajukan, When salah satu narasi `progres_kegiatan`, `kendala_masalah`, atau `strategi_tindak_lanjut` kosong, Then submit ditolak; `catatan` tetap opsional. *(Diperbarui Q45 §45.1 butir 1 dan 3; semula `catatan` wajib bila nilai memburuk menurut arah atau indikator `wajib_catatan`.)*
-- [ ] **AC-5:** Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
-- [ ] **AC-6:** Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
-- [ ] **AC-7:** Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); item notifikasi in-app mengikuti ISS-12.02 AC-2. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi antrean Perencanaan dibuat setelah commit.)*
+- [x] **AC-5:** Given seluruh gerbang lolos, Then header menjadi `diajukan` dan **`pengukuran_versi` baru** dibuat dengan `diajukan_by`, `diajukan_at`, `jalur_pengajuan`, `dasar_izin_pengajuan`, nilai/komponen, status perhitungan, snapshot target PK/RA, bukti, klaim/narasi, dan persyaratan.
+- [x] **AC-6:** Given A membuat draft dan B melakukan submit, Then `diajukan_by = B`; F1/F2 tidak menggunakan `created_by`.
+- [x] **AC-7:** Given submit berhasil, Then pengukuran tampil pada antrean verifikasi berbasis status (ISS-08.01); item notifikasi in-app mengikuti ISS-12.02 AC-2. *(Diperbarui Q37 §37.3 butir 4, keputusan PM 14 Oktober 2026; semula notifikasi antrean Perencanaan dibuat setelah commit.)*
 - [x] **AC-8:** Given terdapat Rekomendasi Pimpinan berstatus `disetujui` pada periode N untuk indikator tersebut, When pengukuran periode N+1 diajukan tanpa `tindak_lanjut_rekomendasi`, Then submit ditolak; rekomendasi berstatus `draf` tidak memicu kewajiban ini. *(Q45 §45.2 butir 3, Q51 §51.1 butir 2)*
 - [ ] **AC-9:** Given pengukuran berstatus `belum_dapat_diukur`, When diajukan, Then narasi pengukuran tetap wajib dan menjelaskan mengapa nilai belum tersedia; pada periode nilai akhir status ini ditolak karena realisasi wajib terisi, sedangkan kondisi tidak dapat dihitung menurut Q9 tetap diperbolehkan. *(Q47 §47.4 butir 2 dan 4)*
 - [x] **AC-10:** Given pengukuran periode lampau 2026 diisi Perencanaan, Then gerbang narasi wajib dan tindak lanjut rekomendasi dikecualikan. *(Q46 §46.1 butir 1 dan 4)*
 - [x] **AC-11:** Given form indikator, Then saklar `wajib_catatan` tidak ditampilkan dan kolomnya tetap tersimpan. *(Q45 §45.1 butir 3)*
-- [ ] **AC-12:** Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
+- [x] **AC-12:** Given periode tanpa target, Then tampilan pengukuran menunjukkan realisasi, target PK, dan selisih terhadap target PK tanpa capaian persen maupun status capaian; pada periode bertarget, selisih terhadap target PK tampil sebagai informasi tambahan. *(Q47 §47.3 butir 1–2)*
 
 **Business Rules / Catatan**
 
@@ -1752,6 +1774,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 ### US-07.06 · Penanganan Penyebut Nol — Tidak Dapat Dihitung
 
+> **Status implementasi, audit traceability gelombang 3 (2026-11-14):** AC-5 (tampilan laporan) dan AC-6 memiliki bukti test; rincian test dan batas bukti tercatat pada [ISS-07.06](SAKIP%20-%20User%20Issues.md#iss-0706--feature-penanganan-penyebut-nol--tidak-dapat-dihitung). Centang bukan persetujuan QA/UAT atau deployment.
+
 | Field | Detail |
 |---|---|
 | **ID** | `US-07.06` |
@@ -1772,8 +1796,8 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 - [x] **AC-2:** Given status tersebut akan disubmit, Then `alasan_tidak_dapat_dihitung` wajib.
 - [x] **AC-3:** Given komponen belum lengkap, Then status tetap `belum_diisi` dan tidak boleh menggunakan pengecualian penyebut nol.
 - [x] **AC-4:** Given nilai faktual 0 pada indikator yang dapat dihitung, Then 0 tetap `terhitung` dan bukan NULL.
-- [ ] **AC-5:** Given versi disahkan, Then laporan menampilkan penanda tidak dapat dihitung beserta alasan yang sesuai hak baca.
-- [ ] **AC-6:** Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
+- [x] **AC-5:** Given versi disahkan, Then laporan menampilkan penanda tidak dapat dihitung beserta alasan yang sesuai hak baca.
+- [x] **AC-6:** Given nilai realisasi belum tersedia dan bukan karena penyebut nol, Then status yang dipakai adalah `belum_dapat_diukur`, bukan `tidak_dapat_dihitung`; keduanya ditampilkan berbeda dan tidak dihitung sebagai capaian 0. *(Q47 §47.4 butir 3)*
 
 ---
 
