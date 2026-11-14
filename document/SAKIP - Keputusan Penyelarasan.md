@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **12 November 2026**
+Pembaruan terakhir: **15 November 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -2746,7 +2746,7 @@ Rujukan: PRD §7.4 dan §28, Refinement ISS-12.03 K4, Plan 14.2, Data Model §2.
 1. **Cara memilih tema (K1).** Satu tombol ikon di header layout utama, desktop dan mobile, dengan dua keadaan: terang dan gelap. Tanpa pilihan tersimpan, tema terang dipakai; tema tidak mengikuti setelan perangkat (`prefers-color-scheme`). Tombol memiliki `aria-label` dan `aria-pressed`.
 2. **Penyimpanan (K2).** Pilihan disimpan per browser di `localStorage` dengan kunci `sakip-tema` dan nilai `terang` atau `gelap`. Pilihan tidak disimpan di server, profil, cookie, maupun `pengaturan`, tidak diaudit, dan tidak berpindah antarperangkat. Nilai lain, atau `localStorage` yang tidak dapat dibaca (mode privat, diblokir), diperlakukan sebagai terang tanpa galat.
 3. **Sidebar (K3).** Di tema gelap, sidebar dan header mobile memakai abu-abu `#171717` (token `sidebar`) dengan teks `#F5F5F5` (token `sidebar-ink`). Di tema terang sidebar tetap biru tua `#0F2A6B`.
-4. **Cakupan (K4).** Yang ikut pilihan: layout utama (`AuthenticatedLayout` dan seluruh halaman di dalamnya) serta AuthShell (`Auth/Error`, `Auth/LoggedOut`, `Auth/Pending`, `Auth/Recovered`). Tombol hanya ada di layout utama; AuthShell membaca pilihan yang tersimpan. Di luar cakupan: halaman login Keycloak, halaman galat bawaan Laravel yang bukan halaman Inertia, dan file Excel hasil ekspor.
+4. **Cakupan (K4).** Yang ikut pilihan: layout utama (`AuthenticatedLayout` dan seluruh halaman di dalamnya, termasuk `Auth/Recovered`) serta AuthShell (`Auth/Error`, `Auth/LoggedOut`, `Auth/Pending`). Tombol hanya ada di layout utama, sehingga juga tampil di `Auth/Recovered`; AuthShell membaca pilihan yang tersimpan. (Koreksi 15 November 2026: `Auth/Recovered` dirender di dalam `AuthenticatedLayout`, bukan AuthShell; isi keputusan tidak berubah.) Di luar cakupan: halaman login Keycloak, halaman galat bawaan Laravel yang bukan halaman Inertia, dan file Excel hasil ekspor.
 5. **Grafik (K5).** Grafik Dashboard (ApexCharts) ikut tema: warna dibaca dari token dan grafik digambar ulang saat tema berganti, termasuk tooltip dan warna teks sumbu.
 6. **Cetak (K6).** Cetak selalu terang. Nilai tema gelap berada di dalam `@media screen`, sehingga cetak dari browser memakai nilai terang.
 7. **Warna utama gelap (K7).** Di tema gelap `primary` bernilai `#7EA6F8` dengan teks di atasnya `on-primary` `#081A4A`. Tautan tetap memakai `primary`; token tautan terpisah tidak dibuat.
