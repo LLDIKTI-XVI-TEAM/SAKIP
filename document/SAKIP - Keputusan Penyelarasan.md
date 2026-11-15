@@ -1,7 +1,7 @@
 # SAKIP — Keputusan Penyelarasan Dokumen
 
 Tanggal baseline awal: **18 September 2026**  
-Pembaruan terakhir: **8 November 2026**
+Pembaruan terakhir: **12 November 2026**
 
 Branch acuan: `development`  
 Basis commit sebelum pembaruan Q33: `b3adc237f09aafd8a8e3723f56d53a3107465105`  
@@ -91,6 +91,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 **Keputusan 3 November 2026 (Q82)** menetapkan bahwa editor target PK tidak lagi memuat isian alasan perubahan maupun rujukan sumber, sehingga perubahan target PK yang sudah tersimpan disimpan tanpa alasan pengguna dan jejaknya cukup nilai lama dan baru di audit; penolakan target PK yang menyimpang dari target Renstra tetap berlaku. Q82 mencabut kewajiban alasan Q72 §72.2.
 
 **Keputusan 6 November 2026 (Q85)** menetapkan refinement revisi PK berversi ISS-02.12: versi snapshot hasil revisi menyalin versi terakhir indikator dan hanya mengganti target, target PK master ikut diperbarui, versi 1 dibentuk saat revisi pertama dengan target dari snapshot versi 1, periode mulai adalah periode terendah yang belum dilaporkan, serta izin, alasan, dan lampiran file wajib pada setiap revisi.
+
+**Keputusan 12 November 2026 (Q89)** menetapkan tema gelap opsional per browser yang dipilih lewat tombol di header dan disimpan di `localStorage`, dengan tema terang tetap bawaan, token warna baru untuk teks di atas warna solid, isian, sidebar, dan overlay, cetak selalu terang, serta kegagalan kontras tema terang yang sudah ada sebagai issue terpisah. Q89 menggantikan prinsip "light only" pada design-system.
 
 Prinsip penyelarasan yang tetap berlaku:
 
@@ -2734,6 +2736,40 @@ Traceability: Plan 2.12; PRD §12.7; Workflow §3.3; Data Model §2.10/§2.32; U
 **Keputusan PM: 11 November 2026 (WITA)** pada [refinement AC-5 issue #265](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/265#issuecomment-6800602026). Opsi A berlaku khusus untuk pesan `jendela_dibuka:`. Pada setiap upaya kirim, termasuk retry yang dipastikan aman, worker memakai `pengisian_selesai` yang sama untuk gerbang kelayakan dan parameter `selesai` yang diteruskan ke provider. Jika tenggat baru sudah lewat, gerbang membatalkan baris dengan `penerima_tidak_berhak` sebelum provider. Snapshot `parameter`, template, dan kunci idempoten di outbox tetap mengikuti data saat antre. EWS dan rekap Perencanaan tetap membatalkan baris bila tenggat berubah.
 
 Rujukan: PRD §7.4 dan §28, Refinement ISS-12.03 K4, Plan 14.2, Data Model §2.40, dan ADR-0010.
+
+---
+
+# Keputusan Q89: Tema Gelap Opsional
+
+**Keputusan PM: 12 November 2026 (WITA)** oleh `Diyoncrz18` atas sebelas butir rencana tema gelap (K1 sampai K11), semuanya opsi A. SAKIP mendapat tema gelap opsional bernuansa hitam dan abu-abu dengan aksen biru token `primary`; tema terang tetap tampilan bawaan dan nilainya tidak berubah. Q89 menggantikan prinsip "Tema light only, tidak ada dark mode" pada design-system §Prinsip Desain. Prinsip lama itu tidak bernomor Q dan tidak tercatat di PRD, Engineering Standards, maupun dokumen ini. Pencatatan ini bukan bukti implementasi, kelulusan test, QA, atau persetujuan merge.
+
+1. **Cara memilih tema (K1).** Satu tombol ikon di header layout utama, desktop dan mobile, dengan dua keadaan: terang dan gelap. Tanpa pilihan tersimpan, tema terang dipakai; tema tidak mengikuti setelan perangkat (`prefers-color-scheme`). Tombol memiliki `aria-label` dan `aria-pressed`.
+2. **Penyimpanan (K2).** Pilihan disimpan per browser di `localStorage` dengan kunci `sakip-tema` dan nilai `terang` atau `gelap`. Pilihan tidak disimpan di server, profil, cookie, maupun `pengaturan`, tidak diaudit, dan tidak berpindah antarperangkat. Nilai lain, atau `localStorage` yang tidak dapat dibaca (mode privat, diblokir), diperlakukan sebagai terang tanpa galat.
+3. **Sidebar (K3).** Di tema gelap, sidebar dan header mobile memakai abu-abu `#171717` (token `sidebar`) dengan teks `#F5F5F5` (token `sidebar-ink`). Di tema terang sidebar tetap biru tua `#0F2A6B`.
+4. **Cakupan (K4).** Yang ikut pilihan: layout utama (`AuthenticatedLayout` dan seluruh halaman di dalamnya) serta AuthShell (`Auth/Error`, `Auth/LoggedOut`, `Auth/Pending`, `Auth/Recovered`). Tombol hanya ada di layout utama; AuthShell membaca pilihan yang tersimpan. Di luar cakupan: halaman login Keycloak, halaman galat bawaan Laravel yang bukan halaman Inertia, dan file Excel hasil ekspor.
+5. **Grafik (K5).** Grafik Dashboard (ApexCharts) ikut tema: warna dibaca dari token dan grafik digambar ulang saat tema berganti, termasuk tooltip dan warna teks sumbu.
+6. **Cetak (K6).** Cetak selalu terang. Nilai tema gelap berada di dalam `@media screen`, sehingga cetak dari browser memakai nilai terang.
+7. **Warna utama gelap (K7).** Di tema gelap `primary` bernilai `#7EA6F8` dengan teks di atasnya `on-primary` `#081A4A`. Tautan tetap memakai `primary`; token tautan terpisah tidak dibuat.
+8. **Dokumen dan issue (K8).** Q89 dan design-system diperbarui lewat PR dokumen terpisah yang merge sebelum PR tombol tema. Issue GitHub implementasi dibuat PM.
+9. **Kontras tema terang yang sudah ada (K9).** Kegagalan kontras tema terang yang sudah ada sebelum Q89 dicatat sebagai issue terpisah. Rangkaian tema gelap tidak mengubah nilai maupun tampilan tema terang, kecuali latar drawer mobile (`bg-black/60`) dan cincin menu akun (`ring-black/5`) yang beralih ke token `overlay` (`#0F172A`) dengan selisih warna terukur paling besar 25/255 per kanal.
+10. **Token isian (K10).** Input, Select, Textarea, dan kontrol isian lain memakai token `field` (`bg-field`), bukan `bg-surface`, agar isian terbedakan dari kartu di tema gelap.
+11. **Nama `*-dark` (K11).** Nama `success-dark`, `warning-dark`, `danger-dark`, dan `info-dark` dipertahankan. Maknanya: warna teks status di atas latar tipis (tint) dari token yang sama, misalnya `text-warning-dark` di atas `bg-warning/10`. Di tema gelap nilainya lebih terang daripada token dasarnya.
+
+## 89.1 Nama dan nilai yang mengikat
+
+1. Tema gelap ditandai atribut `<html data-tema="gelap">`; tanpa atribut berarti terang.
+2. Skrip inline di `<head>` `resources/views/app.blade.php`, sebelum aset Vite, membaca `sakip-tema` dan memasang atribut sebelum halaman digambar, sehingga halaman tidak berkedip terang saat dimuat dengan tema gelap.
+3. Nilai gelap ditulis di `resources/css/app.css` sebagai `@media screen { :root[data-tema="gelap"] { ... color-scheme: dark } }` yang menimpa `--color-*` dari `@theme`. Komponen memakai kelas token yang sama di kedua tema; varian `dark:` Tailwind tidak dipakai karena mengikuti setelan perangkat, bukan pilihan K1.
+4. Token baru (`--color-*`): `field`, `on-primary`, `on-secondary`, `on-danger`, `sidebar`, `sidebar-ink`, `overlay`. Nilai terangnya sama dengan warna yang digantikan, kecuali `overlay` yang juga menggantikan `bg-black/60` dan `ring-black/5` (butir 9). Tabel nilai terang dan gelap seluruh token berada di design-system §Referensi Token Desain.
+5. Kelas warna literal (`text-white`, `bg-white`, `bg-black`, `*-white/NN`, `ring-black/NN`), `bg-surface/NN` sebagai sorotan, dan `bg-ink/NN` sebagai overlay diganti token: teks di atas warna solid memakai `on-*`, sidebar memakai `sidebar` dan `sidebar-ink` dengan opasitas, overlay memakai `overlay` dengan opasitas.
+6. Ambang kontras di kedua tema: teks 4,5:1 dan komponen non-teks 3:1 (WCAG 2.1 AA, kriteria 1.4.3 dan 1.4.11). Seluruh pasangan teks di tema gelap memenuhi 4,5:1; yang terendah `on-danger` di atas `danger` saat hover `danger/90` (4,92:1), `on-primary` di atas `primary` saat hover `primary/90` (5,81:1), dan `muted` di atas `field` (6,23:1). Border isian (1,32:1) dan sorotan menu aktif sidebar (1,54:1) di tema gelap belum memenuhi 3:1, sama dengan tema terang sekarang (1,23:1 dan 1,56:1), dan ditangani bersama issue butir 9. Rasio dihitung dari nilai token dengan campuran opasitas di atas `surface`.
+
+## 89.2 Dampak dan traceability
+
+- design-system: §Prinsip Desain, §Referensi Token Desain, §Kelas Tailwind yang Diizinkan dan Dilarang, §Struktur Layout (root template), contoh Button, Modal Alasan, AppLayout, form `useForm`, dan SidebarNav, serta §Review Checklist. README: baris Design System (nilai hex).
+- Engineering Standards §9 tidak berubah: kewajiban memakai token dan kontras mengikuti design-system. PRD, Data Model, Workflow, dan Plan tidak berubah karena Q89 tidak menambah data, izin, maupun alur bisnis.
+- Rencana implementasi: PR dokumen ini, lalu satu PR kode dari branch `feature/tema-gelap-pengalih` berisi tiga commit bertumpuk (fondasi token, migrasi warna literal ke token, tombol tema dengan penyimpanan dan grafik). QA visual dua tema menyusul; QA SSO dua tema mengikuti alur tim.
+- Status implementasi: belum. Status keputusan: keputusan PM 12 November 2026. Asal prinsip "light only" tidak tercatat dan konfirmasi pihak LLDIKTI di luar PM belum diminta.
 
 ---
 
