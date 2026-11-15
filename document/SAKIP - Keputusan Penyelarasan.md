@@ -94,6 +94,10 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 12 November 2026 (Q89)** menetapkan tema gelap opsional per browser yang dipilih lewat tombol di header dan disimpan di `localStorage`, dengan tema terang tetap bawaan, token warna baru untuk teks di atas warna solid, isian, sidebar, dan overlay, cetak selalu terang, serta kegagalan kontras tema terang yang sudah ada sebagai issue terpisah. Q89 menggantikan prinsip "light only" pada design-system.
 
+**Keputusan 15 November 2026 (Q90)** menetapkan bahwa kegiatan TW IV baru pada Rencana Aksi data awal 2026 ditambahkan lewat buka-kembali Rencana Aksi oleh Perencanaan, sedangkan klaim tahap pengukuran hanya dipakai untuk kegiatan lanjutan dari kegiatan yang ditunda.
+
+**Keputusan 15 November 2026 (Q91)** menetapkan bahwa larangan membuat 2025 sebagai baris Jadwal/Pengukuran diverifikasi sebagai aturan pengisian data saat UAT tanpa penjaga di kode, dan bahwa basis kumulatif realisasi rasio antarperiode (Q8) adalah aturan definisi indikator, bukan validasi sistem.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -660,7 +664,7 @@ Tahun aktif tidak boleh di-hardcode; tahun aktif adalah tahun yang mempunyai Jad
 
 ## 32.8 Rencana Aksi 2026
 
-> **Diperbarui Q46 (13 Oktober 2026):** RA 2026 yang dicatat Perencanaan sebagai data awal dikecualikan dari gerbang kegiatan minimal dan RAB (Q42); kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan. Batas "sebelum pengajuan TW III" dibaca sebagai "sebelum pengajuan TW IV".
+> **Diperbarui Q46 (13 Oktober 2026):** RA 2026 yang dicatat Perencanaan sebagai data awal dikecualikan dari gerbang kegiatan minimal dan RAB (Q42); kegiatan TW IV baru ditambahkan lewat buka-kembali RA oleh Perencanaan, sedangkan klaim tahap pengukuran hanya untuk kegiatan lanjutan (diperjelas Q90). Batas "sebelum pengajuan TW III" dibaca sebagai "sebelum pengajuan TW IV".
 
 Rencana Aksi 2026 sudah disusun oleh Perencanaan. Data tersebut harus dicatat di aplikasi dengan status **disahkan** sebelum pengajuan TW III karena gerbang pengajuan mensyaratkan RA yang sah.
 
@@ -1278,7 +1282,7 @@ Sumber: rapat 13 Oktober 2026, menit 1:25:19–1:26:59, 1:29:56–1:30:52, dan 1
 
 1. Gerbang baru Q42–Q45 — RA minimal satu kegiatan, RAB, persyaratan tahap perencanaan kegiatan, narasi wajib, dan tindak lanjut rekomendasi — **dikecualikan untuk periode lampau**, sama seperti gerbang lain pada Q32.7. Kunci per triwulan (Q41 §41.2) bukan bagian pengecualian ini: periode lampau terkunci bagi PIC sejak aktivasi, sedangkan Perencanaan yang mengisinya memang tidak terikat kunci (Q41 §41.2 butir 3–4). *(Dikoreksi 13 Oktober 2026 saat penyelarasan Q47–Q51; semula kunci per triwulan ikut disebut sebagai gerbang yang dikecualikan.)*
 2. Dengan pola pelaporan pada minggu pertama bulan setelah triwulan (menit 1:25:19), **TW III 2026** menjadi periode lampau yang diisi Perencanaan; **TW IV 2026** menjadi triwulan pertama workflow normal PIC operasional, dengan pelaporan awal Januari 2027. Status periode lampau tetap dihitung dari jendela pengisian terhadap waktu aktivasi, tanpa `is_backfill`. *(Catatan 19 Oktober 2026: status periode lampau beserta seluruh pengecualiannya hanya berlaku pada jadwal 2026. Pengecualian itu meliputi target boleh kosong, gerbang pengajuan pengukuran, serta persyaratan tahap `kegiatan_perencanaan` (termasuk RAB) dan anggaran kegiatan pada periode lampau (Q42); bukti wajib tahap RA dan gerbang kegiatan minimal mengikuti Q63. Pada tahun lain, periode yang jendelanya sudah lewat saat aktivasi hanya terkunci bagi PIC dan diisi Perencanaan. Tahun 2026 di kode adalah pengecualian data awal, bukan penentu tahun aktif (Q32.7). Status lampau dihitung dari `pengisian_selesai` yang berlaku terhadap tanggal aktivasi (Q41 §41.2 butir 5) ([keputusan PM 19 Oktober 2026](https://github.com/LLDIKTI-XVI-TEAM/SAKIP/issues/130#issuecomment-6322219488)).)*
-3. RA 2026 yang dicatat Perencanaan sebagai data awal (Q32.8) dikecualikan dari gerbang kegiatan minimal dan RAB; kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan. Kegiatan data awal dan kegiatan pada periode lampau boleh tanpa anggaran (tercatat belum diisi, Q42 §42.2 butir 2), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output. (Ketentuan anggaran ditambahkan PM saat penyelarasan Q47–Q51) *(Catatan 16 Oktober 2026: RA data awal 2026 dikenali dari tahun 2026 yang diajukan lewat jalur Perencanaan, tanpa kolom penanda (keputusan PM 16 Oktober 2026, PR #111).)*
+3. RA 2026 yang dicatat Perencanaan sebagai data awal (Q32.8) dikecualikan dari gerbang kegiatan minimal dan RAB; kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan. Kegiatan data awal dan kegiatan pada periode lampau boleh tanpa anggaran (tercatat belum diisi, Q42 §42.2 butir 2), karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output. (Ketentuan anggaran ditambahkan PM saat penyelarasan Q47–Q51) *(Catatan 16 Oktober 2026: RA data awal 2026 dikenali dari tahun 2026 yang diajukan lewat jalur Perencanaan, tanpa kolom penanda (keputusan PM 16 Oktober 2026, PR #111).)* *(Catatan 15 November 2026: diperjelas Q90; kegiatan TW IV baru ditambahkan lewat buka-kembali RA oleh Perencanaan, sedangkan klaim tahap pengukuran hanya untuk kegiatan lanjutan.)*
 4. Setiap issue yang menambah gerbang Q42–Q45 menyertakan pengecualian periode lampau beserta test-nya; issue kunci per triwulan (Q41) menyertakan test bahwa periode lampau terkunci bagi PIC.
 5. Memperbarui Q32.7 ("TW III–IV normal"), Q32.8, dan PRD §12.6.
 6. Data awal 2026 diisi Perencanaan dari dokumen resmi 2026 (pengantar Q47–Q51): target PK, target periode dan kegiatan Rencana Aksi, serta realisasi, narasi, dan rekomendasi TW I–II. Target periode lampau boleh kosong (Q47 §47.2), dan data yang belum dikonfirmasi mengikuti asumsi kerja pada bagian tindak lanjut.
@@ -2770,6 +2774,27 @@ Rujukan: PRD §7.4 dan §28, Refinement ISS-12.03 K4, Plan 14.2, Data Model §2.
 - Engineering Standards §9 tidak berubah: kewajiban memakai token dan kontras mengikuti design-system. PRD, Data Model, Workflow, dan Plan tidak berubah karena Q89 tidak menambah data, izin, maupun alur bisnis.
 - Rencana implementasi: PR dokumen ini, lalu satu PR kode dari branch `feature/tema-gelap-pengalih` berisi tiga commit bertumpuk (fondasi token, migrasi warna literal ke token, tombol tema dengan penyimpanan dan grafik). QA visual dua tema menyusul; QA SSO dua tema mengikuti alur tim.
 - Status implementasi: belum. Status keputusan: keputusan PM 12 November 2026. Asal prinsip "light only" tidak tercatat dan konfirmasi pihak LLDIKTI di luar PM belum diminta.
+
+---
+
+# Keputusan Q90: Jalur Kegiatan TW IV pada Rencana Aksi Data Awal 2026
+
+**Keputusan PM: 15 November 2026 (WITA)** oleh `Diyoncrz18` atas K10 audit traceability gelombang 3, memperjelas Q46 §46.1 butir 3.
+
+Kegiatan TW IV baru pada Rencana Aksi data awal 2026 ditambahkan lewat buka-kembali Rencana Aksi oleh Perencanaan; klaim tahap pengukuran hanya dipakai untuk kegiatan lanjutan dari kegiatan yang ditunda (Q41 §41.4 butir 2).
+
+Traceability: Q46 §46.1 butir 3 dan catatan Q32.8 di dokumen ini; PRD §12.6 dan §14.6; Plan Pengembangan "Baseline data 2026 untuk Modul 2–5" dan §3.11; Workflow §13 dan §15; US/ISS-03.05; `SAKIP - Data Awal 2026.md` §2.3. Status implementasi: kedua jalur sudah ada di kode; test buka-kembali untuk Rencana Aksi data awal belum ada. Status keputusan: keputusan PM 15 November 2026.
+
+---
+
+# Keputusan Q91: Larangan Jadwal 2025 dan Basis Kumulatif Rasio sebagai Aturan Data
+
+**Keputusan PM: 15 November 2026 (WITA)** oleh `Diyoncrz18` atas K11 dan K14 audit traceability gelombang 3 (PR #273).
+
+1. **Larangan jadwal 2025 (K11).** Ketentuan bahwa 2025 tidak dibuat sebagai baris Jadwal/Pengukuran dan hanya menjadi baseline (Q32.7; US/ISS-03.05) diperlakukan sebagai aturan pengisian data yang diverifikasi saat UAT ISS-15.01. Sistem tidak menolak jadwal tahun 2025.
+2. **Basis kumulatif rasio antarperiode (K14).** Ketentuan bahwa realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif (Q8; US/ISS-07.01 AC-6) adalah aturan definisi indikator yang disusun Perencanaan, bukan validasi sistem. Yang ditegakkan sistem hanya larangan menjumlahkan persentase antarperiode.
+
+Traceability: Q8, Q32.7, US/ISS-03.05, US/ISS-07.01 AC-6, ISS-15.01. Status implementasi: tidak ada perubahan kode. Butir 1 belum diverifikasi karena UAT ISS-15.01 belum berjalan; butir 2 dibuktikan sebatas bagian yang ditegakkan sistem oleh `CanonicalPengukuranTest::test_rasio_antarperiode_tidak_menjumlah_persen`. Status keputusan: keputusan PM 15 November 2026.
 
 ---
 

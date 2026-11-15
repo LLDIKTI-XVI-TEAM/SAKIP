@@ -900,9 +900,9 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
      → Jalur utama: "Tambah kegiatan" di halaman Rencana Aksi per periode — membuat kegiatan
        sekaligus klaimnya ke RA dengan sumber_klaim = rencana_aksi (Q42 §42.1 butir 2, §7, §9);
        periode yang terkunci bagi PIC tidak dapat ditambah kegiatan (Q41 §41.2)
-     → Kegiatan yang tidak masuk penyusunan RA — kegiatan lanjutan dari kegiatan yang ditunda
-       (langkah 4) dan kegiatan TW IV pada RA 2026 data awal (Q46 §46.1 butir 3) — diklaim
-       pada tahap pengukuran (sumber_klaim = pengukuran, §9)
+     → Kegiatan lanjutan dari kegiatan yang ditunda (langkah 4) tidak masuk penyusunan RA dan
+       diklaim pada tahap pengukuran (sumber_klaim = pengukuran, §9); kegiatan TW IV baru pada
+       RA 2026 data awal ditambahkan lewat buka-kembali RA oleh Perencanaan (§13, Q90)
      → anggaran WAJIB diisi saat kegiatan dibuat atau diubah: satu angka rupiah, nonnegatif;
        0 sah dan kegiatan beranggaran 0 tetap dapat diklaim. anggaran kosong hanya ada pada
        data sebelum Q42, tampil "belum diisi", dan tidak dihitung sebagai 0 (Q42 §42.2
@@ -1564,8 +1564,8 @@ Koreksi data rencana aksi/pengukuran/jadwal disediakan lewat tiga permission ber
      → Revisi oleh PIC TIDAK boleh mengubah target maupun daftar kegiatan periode yang sudah
        terkunci (pengisian_selesai lewat) — DITOLAK 422 dan diaudit; Perencanaan dikecualikan
        sampai penutupan (Q41 §41.2)
-     → Pada RA 2026 data awal, Perencanaan dapat memakai jalur ini untuk menambah kegiatan
-       TW IV, selain lewat klaim tahap pengukuran (Q46 §46.1 butir 3)
+     → Pada RA 2026 data awal, Perencanaan memakai jalur ini untuk menambah kegiatan
+       TW IV baru; klaim tahap pengukuran hanya untuk kegiatan lanjutan (Q46 §46.1 butir 3, Q90)
      → Rencana aksi yang kembali ke dikembalikan/draft TIDAK otomatis mencabut gerbang
        pengukuran yang sudah terlanjur diajukan sebelumnya pada periode lain; gerbang hanya
        dievaluasi ulang pada pengajuan BARU
@@ -1777,7 +1777,7 @@ Untuk periode lampau:
 7. target Rencana Aksi periode lampau boleh kosong = tidak ditargetkan (Q46 §46.1 butir 6, Q47 §47.2 butir 4);
 8. kegiatan data awal 2026 dan kegiatan pada periode lampau boleh tanpa anggaran — tercatat "belum diisi" (Q46 §46.1 butir 3, Q42 §42.2 butir 2).
 
-Rencana Aksi 2026 yang telah disusun Perencanaan harus dicatat dengan status **disahkan** sebelum pengajuan TW IV (diperbarui Q46; semula sebelum pengajuan TW III). RA 2026 data awal dikecualikan dari gerbang kegiatan minimal dan RAB; kegiatan TW IV ditambahkan lewat klaim tahap pengukuran atau buka-kembali RA oleh Perencanaan; kegiatannya boleh tanpa anggaran karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output (Q46 §46.1 butir 3). Workflow PIC operasional untuk RA baru berlaku normal mulai siklus berikutnya (2027).
+Rencana Aksi 2026 yang telah disusun Perencanaan harus dicatat dengan status **disahkan** sebelum pengajuan TW IV (diperbarui Q46; semula sebelum pengajuan TW III). RA 2026 data awal dikecualikan dari gerbang kegiatan minimal dan RAB; kegiatan TW IV baru ditambahkan lewat buka-kembali RA oleh Perencanaan, sedangkan klaim tahap pengukuran hanya untuk kegiatan lanjutan (Q90); kegiatannya boleh tanpa anggaran karena Rencana Aksi resmi hanya memuat anggaran per Rincian Output (Q46 §46.1 butir 3). Workflow PIC operasional untuk RA baru berlaku normal mulai siklus berikutnya (2027).
 
 **Data awal 2026 (Q46 §46.1 butir 6; ISS-15.01, di akhir tahap 1):** Perencanaan mengisi data awal dari dokumen resmi 2026 — Renstra 2025–2029, Perjanjian Kinerja 2026, Rencana Aksi 2026, serta Laporan Kinerja Triwulan I dan II 2026 (pengantar Q47–Q51).
 
