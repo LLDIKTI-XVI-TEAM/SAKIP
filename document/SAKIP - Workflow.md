@@ -900,9 +900,9 @@ Kegiatan disusun per **periode** dan terikat tahun; kegiatan milik satu `unit` (
      → Jalur utama: "Tambah kegiatan" di halaman Rencana Aksi per periode — membuat kegiatan
        sekaligus klaimnya ke RA dengan sumber_klaim = rencana_aksi (Q42 §42.1 butir 2, §7, §9);
        periode yang terkunci bagi PIC tidak dapat ditambah kegiatan (Q41 §41.2)
-     → Kegiatan yang tidak masuk penyusunan RA — kegiatan lanjutan dari kegiatan yang ditunda
-       (langkah 4) dan kegiatan TW IV pada RA 2026 data awal (Q46 §46.1 butir 3) — diklaim
-       pada tahap pengukuran (sumber_klaim = pengukuran, §9)
+     → Kegiatan lanjutan dari kegiatan yang ditunda (langkah 4) tidak masuk penyusunan RA dan
+       diklaim pada tahap pengukuran (sumber_klaim = pengukuran, §9); kegiatan TW IV baru pada
+       RA 2026 data awal ditambahkan lewat buka-kembali RA oleh Perencanaan (§13, Q90)
      → anggaran WAJIB diisi saat kegiatan dibuat atau diubah: satu angka rupiah, nonnegatif;
        0 sah dan kegiatan beranggaran 0 tetap dapat diklaim. anggaran kosong hanya ada pada
        data sebelum Q42, tampil "belum diisi", dan tidak dihitung sebagai 0 (Q42 §42.2
