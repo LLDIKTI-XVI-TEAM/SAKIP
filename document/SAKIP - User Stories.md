@@ -1623,7 +1623,7 @@ Catatan tindak lanjut review (18 Oktober 2026): tautan Kelola klaim ditahan saat
 
 > **Q45, Q47, Q51 (13 Oktober 2026):** form pengukuran memuat narasi pengukuran per indikator per periode (`progres_kegiatan`, `kendala_masalah`, `strategi_tindak_lanjut`), isian `tindak_lanjut_rekomendasi` bila ada Rekomendasi Pimpinan disetujui pada periode sebelumnya, dan `catatan` sebagai keterangan opsional (Q45 §45.1, §45.2 butir 3; Q51 §51.1 butir 2). Realisasi yang belum tersedia dicatat sebagai `status_perhitungan = belum_dapat_diukur` (Q47 §47.4). Gerbang pengajuan dan tampilan periode tanpa target berada pada US-07.03. AC-7 dan AC-8 ditambahkan karena story ini belum dikerjakan.
 
-> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** AC-6 dicentang berdasarkan keputusan PM 15 November 2026 (K14 audit traceability gelombang 3) yang menetapkan basis kumulatif sebagai aturan definisi indikator; bagian yang ditegakkan sistem (persentase antarperiode tidak dijumlahkan) memiliki bukti test; rincian pada [ISS-07.01](SAKIP%20-%20User%20Issues.md#iss-0701--feature-pengisian-nilai-realisasi-komponenmanual). Centang bukan persetujuan QA/UAT atau deployment.
+> **Status keputusan, audit traceability gelombang 3 (2026-11-15):** AC-6 dicentang berdasarkan keputusan PM 15 November 2026 (Q91 butir 2; K14 audit traceability gelombang 3) yang menetapkan basis kumulatif sebagai aturan definisi indikator; bagian yang ditegakkan sistem (persentase antarperiode tidak dijumlahkan) memiliki bukti test; rincian pada [ISS-07.01](SAKIP%20-%20User%20Issues.md#iss-0701--feature-pengisian-nilai-realisasi-komponenmanual). Centang bukan persetujuan QA/UAT atau deployment.
 
 | Field | Detail |
 |---|---|

@@ -96,6 +96,8 @@ Keputusan ini menggantikan baseline lama yang hanya mendefinisikan lima role (`s
 
 **Keputusan 15 November 2026 (Q90)** menetapkan bahwa kegiatan TW IV baru pada Rencana Aksi data awal 2026 ditambahkan lewat buka-kembali Rencana Aksi oleh Perencanaan, sedangkan klaim tahap pengukuran hanya dipakai untuk kegiatan lanjutan dari kegiatan yang ditunda.
 
+**Keputusan 15 November 2026 (Q91)** menetapkan bahwa larangan membuat 2025 sebagai baris Jadwal/Pengukuran diverifikasi sebagai aturan pengisian data saat UAT tanpa penjaga di kode, dan bahwa basis kumulatif realisasi rasio antarperiode (Q8) adalah aturan definisi indikator, bukan validasi sistem.
+
 Prinsip penyelarasan yang tetap berlaku:
 
 - Q4 mengikuti perubahan PM pada `d04ae5e`. Klarifikasi langsung pengguna menetapkan pengingat **hanya H-7, H-3, H-1**; scheduler yang berjalan harian tidak berarti pesan dikirim setiap hari.
@@ -2782,6 +2784,17 @@ Rujukan: PRD §7.4 dan §28, Refinement ISS-12.03 K4, Plan 14.2, Data Model §2.
 Kegiatan TW IV baru pada Rencana Aksi data awal 2026 ditambahkan lewat buka-kembali Rencana Aksi oleh Perencanaan; klaim tahap pengukuran hanya dipakai untuk kegiatan lanjutan dari kegiatan yang ditunda (Q41 §41.4 butir 2).
 
 Traceability: Q46 §46.1 butir 3 dan catatan Q32.8 di dokumen ini; PRD §12.6 dan §14.6; Plan Pengembangan "Baseline data 2026 untuk Modul 2–5" dan §3.11; Workflow §13 dan §15; US/ISS-03.05; `SAKIP - Data Awal 2026.md` §2.3. Status implementasi: kedua jalur sudah ada di kode; test buka-kembali untuk Rencana Aksi data awal belum ada. Status keputusan: keputusan PM 15 November 2026.
+
+---
+
+# Keputusan Q91: Larangan Jadwal 2025 dan Basis Kumulatif Rasio sebagai Aturan Data
+
+**Keputusan PM: 15 November 2026 (WITA)** oleh `Diyoncrz18` atas K11 dan K14 audit traceability gelombang 3 (PR #273).
+
+1. **Larangan jadwal 2025 (K11).** Ketentuan bahwa 2025 tidak dibuat sebagai baris Jadwal/Pengukuran dan hanya menjadi baseline (Q32.7; US/ISS-03.05) diperlakukan sebagai aturan pengisian data yang diverifikasi saat UAT ISS-15.01. Sistem tidak menolak jadwal tahun 2025.
+2. **Basis kumulatif rasio antarperiode (K14).** Ketentuan bahwa realisasi memakai basis waktu/populasi yang sebanding dengan target kumulatif (Q8; US/ISS-07.01 AC-6) adalah aturan definisi indikator yang disusun Perencanaan, bukan validasi sistem. Yang ditegakkan sistem hanya larangan menjumlahkan persentase antarperiode.
+
+Traceability: Q8, Q32.7, US/ISS-03.05, US/ISS-07.01 AC-6, ISS-15.01. Status implementasi: tidak ada perubahan kode. Butir 1 belum diverifikasi karena UAT ISS-15.01 belum berjalan; butir 2 dibuktikan sebatas bagian yang ditegakkan sistem oleh `CanonicalPengukuranTest::test_rasio_antarperiode_tidak_menjumlah_persen`. Status keputusan: keputusan PM 15 November 2026.
 
 ---
 
