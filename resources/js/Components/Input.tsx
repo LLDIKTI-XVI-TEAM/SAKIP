@@ -28,7 +28,7 @@ export const Input: React.FC<InputProps> = ({ label, labelClassName, error, help
                 aria-describedby={[describedBy, messageId].filter(Boolean).join(' ') || undefined}
                 className={twMerge(
                     clsx(
-                        'w-full h-[42px] rounded-lg border bg-surface px-3.5 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted',
+                        'w-full h-[42px] rounded-lg border bg-field px-3.5 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted',
                         error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border',
                         className
                     )

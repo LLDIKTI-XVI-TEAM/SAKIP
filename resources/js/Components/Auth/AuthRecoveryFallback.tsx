@@ -36,7 +36,7 @@ export function AuthRecoveryFallback() {
     };
     return <dialog ref={dialog} aria-labelledby="auth-recovery-title" aria-describedby="auth-recovery-description"
         onCancel={(event) => { event.preventDefault(); dismiss(); }}
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-5 text-ink shadow-xl backdrop:bg-ink/50">
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-5 text-ink shadow-xl backdrop:bg-overlay/50">
         <p id="auth-recovery-description" className="text-sm text-muted">Halaman tetap tersedia sampai Anda memilih untuk meninggalkannya.</p>
         <AuthRecoveryNotice recovery={recovery} focus={false} headingId="auth-recovery-title" />
         <Button type="button" variant="outline" onClick={dismiss}>Tetap di halaman</Button>

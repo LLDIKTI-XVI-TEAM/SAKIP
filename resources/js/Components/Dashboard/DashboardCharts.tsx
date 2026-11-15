@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { STATUS_ALUR, persenDisahkan, warnaToken } from '@/Components/Dashboard/statusAlur';
 import { STATUS_TAMPILAN } from '@/Components/Dashboard/statusTampilan';
 import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useTema, type Tema } from '@/lib/tema';
 import type { DashboardProps, DashboardStats, ProgresPeriode } from '@/types/dashboard';
 
 // Kewajiban tanpa pengukuran ikut digambar agar batang progres sama dengan total kewajiban.
@@ -28,9 +29,10 @@ const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.char
 
 const reduceMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const baseOptions = (muted: string): ApexOptions => ({
+const baseOptions = (muted: string, tema: Tema): ApexOptions => ({
     chart: {
         fontFamily: 'Poppins, ui-sans-serif, system-ui, sans-serif',
+        foreColor: muted,
         toolbar: { show: false },
         zoom: { enabled: false },
         animations: { enabled: !reduceMotion() },
@@ -47,7 +49,7 @@ const baseOptions = (muted: string): ApexOptions => ({
         markers: { size: 5, shape: 'circle', offsetX: -2 },
         itemMargin: { horizontal: 8, vertical: 4 },
     },
-    tooltip: { theme: 'light', y: { formatter: (value: number) => `${value} pengukuran` } },
+    tooltip: { theme: tema === 'gelap' ? 'dark' : 'light', y: { formatter: (value: number) => `${value} pengukuran` } },
     states: { active: { filter: { type: 'none' } } },
 });
 
@@ -68,7 +70,9 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun, gr
     const progresKosong = progres.every((item) => item.total === 0);
     const persen = persenDisahkan(stats.disahkan, stats.total);
     const muted = warnaToken('muted');
-    const base = baseOptions(muted);
+    // Warna token dibaca ulang dan grafik dipasang ulang saat tema berganti (Q89).
+    const tema = useTema();
+    const base = baseOptions(muted, tema);
 
     const progresOptions: ApexOptions = {
         ...base,
@@ -127,6 +131,7 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun, gr
                     <>
                         <div className="px-3 pb-3" aria-hidden="true">
                             <Chart
+                                key={tema}
                                 type="bar"
                                 height={300}
                                 options={progresOptions}
@@ -180,7 +185,7 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun, gr
                 ) : (
                     <>
                         <div className="px-3 pb-3" aria-hidden="true">
-                            <Chart type="donut" height={300} options={komposisiOptions} series={SERI_PROGRES.map((status) => stats[status.key])} />
+                            <Chart key={tema} type="donut" height={300} options={komposisiOptions} series={SERI_PROGRES.map((status) => stats[status.key])} />
                         </div>
                         <p className="sr-only">
                             {persen}% pengukuran {periodeNama} telah disahkan. Rincian per status tersedia pada kartu ringkasan.
@@ -189,7 +194,7 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun, gr
                 )}
             </Card>
 
-            <GrafikTargetRealisasi grafik={grafik} base={base} tahun={tahun} />
+            <GrafikTargetRealisasi grafik={grafik} base={base} tahun={tahun} tema={tema} />
         </div>
     );
 }
@@ -198,7 +203,7 @@ export default function DashboardCharts({ stats, progres, periodeNama, tahun, gr
  * Target periode vs realisasi disahkan untuk satu indikator lintas periode; satuan berbeda tidak digabung pada satu sumbu.
  * Periode tanpa target atau realisasi belum dapat diukur digambar kosong, bukan nol.
  */
-function GrafikTargetRealisasi({ grafik, base, tahun }: { grafik: DashboardProps['grafik']; base: ApexOptions; tahun: number }) {
+function GrafikTargetRealisasi({ grafik, base, tahun, tema }: { grafik: DashboardProps['grafik']; base: ApexOptions; tahun: number; tema: Tema }) {
     const formatNilai = useFormatNilai();
     const [dipilih, setDipilih] = useState(grafik.indikator[0]?.id ?? '');
     const indikator = grafik.indikator.find((item) => item.id === dipilih) ?? grafik.indikator[0];
@@ -271,6 +276,7 @@ function GrafikTargetRealisasi({ grafik, base, tahun }: { grafik: DashboardProps
                 <>
                     <div className="px-3 pb-2" aria-hidden="true">
                         <Chart
+                            key={tema}
                             type="line"
                             height={300}
                             options={options}

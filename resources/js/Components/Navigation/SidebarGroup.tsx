@@ -34,22 +34,22 @@ export function SidebarGroup({
                 onClick={onToggle}
                 className={`group/btn flex w-full items-center justify-between gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all ${
                     hasActiveChild
-                        ? 'bg-surface/15 text-white font-semibold shadow-xs'
-                        : 'text-white/80 hover:bg-surface/10 hover:text-white'
+                        ? 'bg-sidebar-ink/15 text-sidebar-ink font-semibold shadow-xs'
+                        : 'text-sidebar-ink/80 hover:bg-sidebar-ink/10 hover:text-sidebar-ink'
                 }`}
             >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                     <Icon
                         aria-hidden="true"
                         className={`h-[18px] w-[18px] shrink-0 transition-colors ${
-                            hasActiveChild ? 'text-white' : 'text-white/75 group-hover/btn:text-white'
+                            hasActiveChild ? 'text-sidebar-ink' : 'text-sidebar-ink/75 group-hover/btn:text-sidebar-ink'
                         }`}
                     />
                     <HoverScrollText>{group.label}</HoverScrollText>
                 </div>
                 <ChevronRight
                     aria-hidden="true"
-                    className={`h-4 w-4 shrink-0 text-white/60 transition-transform duration-200 ease-in-out motion-reduce:transition-none group-hover/btn:text-white/80 ${
+                    className={`h-4 w-4 shrink-0 text-sidebar-ink/60 transition-transform duration-200 ease-in-out motion-reduce:transition-none group-hover/btn:text-sidebar-ink/80 ${
                         isExpanded ? 'rotate-90' : ''
                     }`}
                 />
@@ -76,14 +76,14 @@ export function SidebarGroup({
                             onClick={onNavigate}
                             className={`group/child flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
                                 isActive
-                                    ? 'bg-surface/20 text-white font-semibold shadow-2xs'
-                                    : 'text-white/70 hover:bg-surface/10 hover:text-white'
+                                    ? 'bg-sidebar-ink/20 text-sidebar-ink font-semibold shadow-2xs'
+                                    : 'text-sidebar-ink/70 hover:bg-sidebar-ink/10 hover:text-sidebar-ink'
                             }`}
                         >
                             <ChildIcon
                                 aria-hidden="true"
                                 className={`h-4 w-4 shrink-0 transition-colors ${
-                                    isActive ? 'text-white' : 'text-white/60 group-hover/child:text-white'
+                                    isActive ? 'text-sidebar-ink' : 'text-sidebar-ink/60 group-hover/child:text-sidebar-ink'
                                 }`}
                             />
                             <HoverScrollText>{child.label}</HoverScrollText>

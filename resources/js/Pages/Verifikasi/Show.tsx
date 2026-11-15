@@ -391,17 +391,17 @@ export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran 
                             </div>
                             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
                                 {can.return && (
-                                    <Button type="button" variant="danger" className="w-full bg-danger text-white hover:bg-danger/90 focus:ring-danger sm:w-auto" onClick={(event) => choose('kembalikan', event.currentTarget)}>
+                                    <Button type="button" variant="danger" className="w-full bg-danger text-on-danger hover:bg-danger/90 focus:ring-danger sm:w-auto" onClick={(event) => choose('kembalikan', event.currentTarget)}>
                                         Kembalikan untuk revisi
                                     </Button>
                                 )}
                                 {can.verify && (
-                                    <Button type="button" className="w-full bg-primary text-white hover:bg-primary/90 focus:ring-primary sm:w-auto" onClick={(event) => choose('verifikasi', event.currentTarget)}>
+                                    <Button type="button" className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:ring-primary sm:w-auto" onClick={(event) => choose('verifikasi', event.currentTarget)}>
                                         Verifikasi pengukuran
                                     </Button>
                                 )}
                                 {can.ratify && (
-                                    <Button type="button" className="w-full bg-primary text-white hover:bg-primary/90 focus:ring-primary sm:w-auto" onClick={(event) => choose('sahkan', event.currentTarget)}>
+                                    <Button type="button" className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:ring-primary sm:w-auto" onClick={(event) => choose('sahkan', event.currentTarget)}>
                                         Sahkan kinerja resmi
                                     </Button>
                                 )}

@@ -85,7 +85,7 @@ export function UserProfileDropdown({ user, placement, disabled = false, onLogou
                 // Tetap terbuka bila logout masih berjalan; selain itu berfungsi sebagai toggle biasa.
                 onClick={() => setOpen((isOpen) => !isOpen || logoutPending)}
                 className={mobile
-                    ? 'inline-flex items-center gap-1.5 rounded-lg p-1.5 text-white hover:bg-surface/10 focus:outline-none focus:ring-2 focus:ring-white/40'
+                    ? 'inline-flex items-center gap-1.5 rounded-lg p-1.5 text-sidebar-ink hover:bg-sidebar-ink/10 focus:outline-none focus:ring-2 focus:ring-sidebar-ink/40'
                     : `flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary/25 ${
                         open ? 'bg-soft ring-1 ring-border' : 'hover:bg-soft'
                     }`}
@@ -93,7 +93,7 @@ export function UserProfileDropdown({ user, placement, disabled = false, onLogou
                 <span
                     aria-hidden="true"
                     className={`flex shrink-0 items-center justify-center rounded-full shadow-2xs ${
-                        mobile ? 'h-8 w-8 bg-surface/15 text-white' : 'h-9 w-9 bg-primary text-white'
+                        mobile ? 'h-8 w-8 bg-sidebar-ink/15 text-sidebar-ink' : 'h-9 w-9 bg-primary text-on-primary'
                     }`}
                 >
                     <User className={mobile ? 'h-4 w-4' : 'h-4.5 w-4.5'} />
@@ -111,7 +111,7 @@ export function UserProfileDropdown({ user, placement, disabled = false, onLogou
                 <ChevronDown
                     aria-hidden="true"
                     className={`h-4 w-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none ${
-                        mobile ? 'text-white/80' : 'text-muted'
+                        mobile ? 'text-sidebar-ink/80' : 'text-muted'
                     } ${open ? 'rotate-180 text-primary' : ''}`}
                 />
             </button>
@@ -119,7 +119,7 @@ export function UserProfileDropdown({ user, placement, disabled = false, onLogou
             <div
                 id={panelId}
                 hidden={!open}
-                className={`z-50 rounded-2xl border border-border/80 bg-surface text-ink shadow-xl ring-1 ring-black/5 ${
+                className={`z-50 rounded-2xl border border-border/80 bg-surface text-ink shadow-xl ring-1 ring-overlay/5 ${
                     mobile
                         ? 'fixed right-4 top-[4.5rem] w-[calc(100vw-2rem)] max-w-xs'
                         : 'absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)]'
@@ -128,7 +128,7 @@ export function UserProfileDropdown({ user, placement, disabled = false, onLogou
                 <div className="flex items-start gap-3 border-b border-border/80 p-4 bg-soft/40">
                     <span
                         aria-hidden="true"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-2xs mt-0.5"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary shadow-2xs mt-0.5"
                     >
                         <User className="h-5 w-5" />
                     </span>

@@ -298,7 +298,7 @@ export function GrantUserAutocomplete({
                             onKeyDown={handleKeyDown}
                             aria-invalid={Boolean(error)}
                             aria-describedby={error ? `${id}-error` : undefined}
-                            className={`w-full h-[42px] rounded-lg border bg-surface pl-9 pr-9 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted ${error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border focus:border-primary focus:ring-primary/20'}`}
+                            className={`w-full h-[42px] rounded-lg border bg-field pl-9 pr-9 py-2 text-sm text-ink transition-colors placeholder:text-muted focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-soft disabled:text-muted ${error ? 'border-danger focus:border-danger focus:ring-danger/20' : 'border-border focus:border-primary focus:ring-primary/20'}`}
                         />
                         {isLoading ? (
                             <Loader2 className="w-4 h-4 text-primary animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />

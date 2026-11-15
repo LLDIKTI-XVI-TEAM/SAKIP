@@ -62,7 +62,7 @@ export default function JadwalIndex({ jadwal, filters, can }: JadwalIndexProps) 
                 !existingPair && (
                     <Link
                         href="/jadwal/create"
-                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white shadow-xs transition-all duration-150 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1"
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-on-primary shadow-xs transition-all duration-150 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-1"
                     >
                         <Plus className="h-4 w-4" aria-hidden="true" />
                         Susun jadwal

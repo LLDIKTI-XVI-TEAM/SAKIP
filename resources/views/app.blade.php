@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- Tema gelap (Q89) dipasang sebelum CSS dimuat agar tidak berkedip; logikanya sama dengan resources/js/lib/tema.ts. --}}
+    <script>try { if (localStorage.getItem('sakip-tema') === 'gelap') document.documentElement.dataset.tema = 'gelap'; } catch (e) {}</script>
     <title inertia>{{ app(\App\Services\Pengaturan\PengaturanService::class)->get('aplikasi.nama', config('app.name', 'SAKIP LLDIKTI XVI')) }}</title>
     <meta name="app-name" content="{{ app(\App\Services\Pengaturan\PengaturanService::class)->get('aplikasi.nama', config('app.name', 'SAKIP LLDIKTI XVI')) }}">
     <link rel="icon" type="image/png" sizes="150x150" href="/img/dikti16-favicon-blue-150x150.png">

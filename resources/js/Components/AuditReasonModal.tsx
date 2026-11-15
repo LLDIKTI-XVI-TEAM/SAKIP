@@ -65,7 +65,7 @@ export function AuditReasonModal({
                 event.preventDefault();
                 if (!busy) onClose();
             }}
-            className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-0 shadow-xl backdrop:bg-ink/60 backdrop:backdrop-blur-md"
+            className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-0 shadow-xl backdrop:bg-overlay/60 backdrop:backdrop-blur-md"
         >
             {open && <div
                 className="w-full max-w-lg rounded-xl bg-surface"
@@ -110,7 +110,7 @@ export function AuditReasonModal({
                         value={reason}
                         onChange={(event) => onReasonChange(event.target.value)}
                         placeholder={placeholder ?? 'Jelaskan alasan yang dapat dipahami saat audit…'}
-                        className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-lg border border-border bg-field px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                     {error && <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">{error}</p>}
                     {showAuditHint && (

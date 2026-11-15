@@ -136,7 +136,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                 <button
                     type="button"
                     onClick={openCreateModal}
-                    className="relative top-1 sm:top-3 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                    className="relative top-1 sm:top-3 inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-on-primary shadow-xs transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
                     <Plus className="h-4 w-4" aria-hidden="true" />
                     <span>Tambah Renstra</span>
@@ -161,7 +161,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                         value={query}
                                         onChange={(e) => setQuery(e.target.value)}
                                         placeholder="Cari berdasarkan nama atau kode Renstra..."
-                                        className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        className="w-full rounded-lg border border-border bg-field py-2 pl-9 pr-3 text-sm text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                                     />
                                 </div>
                             </div>
@@ -175,7 +175,7 @@ export default function RenstraIndex({ renstra, regulasiPilihan = [], filters, c
                                         id="status-select"
                                         value={status}
                                         onChange={(e) => setStatus(e.target.value)}
-                                        className="w-full appearance-none rounded-lg border border-border bg-surface py-2 pl-3 pr-9 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                                        className="w-full appearance-none rounded-lg border border-border bg-field py-2 pl-3 pr-9 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                                     >
                                         <option value="">Semua Status</option>
                                         <option value="draft">Draft</option>

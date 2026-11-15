@@ -56,13 +56,13 @@ export default function DecisionDialog({ pengukuran, decision, onClose }: { peng
             },
         });
     };
-    return <dialog ref={dialog} aria-labelledby="decision-title" aria-describedby="decision-description" onCancel={(event) => { if (processing) event.preventDefault(); }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] overflow-y-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-ink/50">
+    return <dialog ref={dialog} aria-labelledby="decision-title" aria-describedby="decision-description" onCancel={(event) => { if (processing) event.preventDefault(); }} onClose={onClose} className="m-auto max-h-[calc(100dvh-2rem)] overflow-y-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-border bg-surface p-6 text-ink shadow-xl backdrop:bg-overlay/50">
         <h2 id="decision-title" className="text-lg font-semibold">{action.title}</h2>
         <p id="decision-description" className="mt-2 text-sm text-muted">{action.description}</p>
         <form onSubmit={submit} className="mt-5 space-y-4" aria-busy={processing}>
             {decision === 'kembalikan' && <div>
                 <label htmlFor="review-reason" className="block text-sm font-medium">Catatan perbaikan <span className="text-danger">*</span></label>
-                <textarea ref={reason} id="review-reason" name="catatan" required autoFocus rows={4} value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={processing} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'review-reason-error' : undefined} className="mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" />
+                <textarea ref={reason} id="review-reason" name="catatan" required autoFocus rows={4} value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={processing} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'review-reason-error' : undefined} className="mt-2 w-full rounded-lg border border-border bg-field p-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" />
                 {errors.catatan && <p id="review-reason-error" role="alert" className="mt-1 text-sm text-danger">{errors.catatan}</p>}
             </div>}
             {Object.entries(errors).filter(([field]) => field !== 'catatan').map(([field, error]) => <p key={field} role="alert" className="text-sm text-danger">{error}</p>)}
@@ -70,7 +70,7 @@ export default function DecisionDialog({ pengukuran, decision, onClose }: { peng
             {message && !recovery.recovery && <p role="alert" className="text-sm text-danger">{message}</p>}
             <div className="flex flex-wrap justify-end gap-3">
                 <Button type="button" variant="outline" disabled={processing} className="border-border bg-surface text-ink hover:bg-soft focus:ring-primary" onClick={onClose}>Batal</Button>
-                <Button disabled={Boolean(recovery.recovery || message)} type="submit" isLoading={processing} className="bg-primary text-white hover:bg-primary/90 focus:ring-primary">Konfirmasi</Button>
+                <Button disabled={Boolean(recovery.recovery || message)} type="submit" isLoading={processing} className="bg-primary text-on-primary hover:bg-primary/90 focus:ring-primary">Konfirmasi</Button>
             </div>
         </form>
     </dialog>;

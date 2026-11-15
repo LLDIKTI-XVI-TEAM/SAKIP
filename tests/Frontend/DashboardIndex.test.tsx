@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import type { ApexOptions } from 'apexcharts';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest';
 import Index from '@/Pages/Dashboard/Index';
 import type { DashboardProps } from '@/types/dashboard';
+import { setTema } from '@/lib/tema';
 
 const can = { pengukuran: true, verifikasi: true };
 
@@ -351,4 +352,29 @@ it('keterangan tabel status menyebut realisasi dan selisih dari pengukuran disah
     render(<Index {...props()} />);
 
     expect(screen.getByText(/Realisasi dan selisih hanya dari pengukuran yang disahkan; target PK dari snapshot jadwal\./)).toBeTruthy();
+});
+
+it('opsi grafik mengikuti tema: tooltip, warna teks, dan warna token dibaca ulang', async () => {
+    const root = document.documentElement;
+    root.style.setProperty('--color-muted', 'muted-terang');
+    onTestFinished(() => {
+        root.removeAttribute('style');
+        delete root.dataset.tema;
+        localStorage.clear();
+    });
+    render(<Index {...props()} />);
+    await screen.findByTestId('chart-bar');
+
+    for (const type of ['bar', 'donut', 'line']) {
+        expect(chartProps.get(type)!.options.tooltip?.theme, type).toBe('light');
+        expect(chartProps.get(type)!.options.chart?.foreColor, type).toBe('muted-terang');
+    }
+
+    root.style.setProperty('--color-muted', 'muted-gelap');
+    act(() => setTema('gelap'));
+
+    for (const type of ['bar', 'donut', 'line']) {
+        expect(chartProps.get(type)!.options.tooltip?.theme, type).toBe('dark');
+        expect(chartProps.get(type)!.options.chart?.foreColor, type).toBe('muted-gelap');
+    }
 });
