@@ -2,17 +2,41 @@
 
 namespace App\Http\Controllers\Verifikasi;
 
-use App\Actions\Pengukuran\ReturnPengukuran;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Pengukuran\ReviewPengukuranRequest;
+use App\Models\PengukuranKinerja;
+use App\Models\RiwayatPengukuran;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class KembalikanPengukuran extends Controller
 {
-    public function __invoke(ReviewPengukuranRequest $request, string $id, ReturnPengukuran $action): RedirectResponse
+    public function __invoke(Request $request, int $id): RedirectResponse
     {
-        $pengukuran = $action->handle($request->user(), $id, $request->validated());
+        $pengukuran = PengukuranKinerja::findOrFail($id);
+        Gate::authorize('verify', $pengukuran);
 
-        return redirect()->route('verifikasi.index', ['status' => $pengukuran->getPrevious()['status_alur']])->with('success', 'Pengukuran dikembalikan untuk perbaikan.');
+        $validated = $request->validate([
+            'catatan' => ['required', 'string', 'min:10'],
+        ]);
+
+        DB::transaction(function () use ($request, $pengukuran, $validated) {
+            $statusSebelum = $pengukuran->status;
+
+            $pengukuran->update([
+                'status' => 'dikembalikan',
+            ]);
+
+            RiwayatPengukuran::create([
+                'pengukuran_kinerja_id' => $pengukuran->id,
+                'user_id' => $request->user()->id,
+                'status_dari' => $statusSebelum,
+                'status_ke' => 'dikembalikan',
+                'catatan' => $validated['catatan'],
+            ]);
+        });
+
+        return redirect()->route('verifikasi.index')->with('success', 'Kinerja berhasil dikembalikan ke PIC untuk perbaikan.');
     }
 }

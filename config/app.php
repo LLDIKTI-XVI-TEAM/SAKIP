@@ -67,9 +67,6 @@ return [
 
     'timezone' => 'UTC',
 
-    // Batas tanggal operasional memakai WITA; penyimpanan timestamp tetap UTC.
-    'business_timezone' => 'Asia/Makassar',
-
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

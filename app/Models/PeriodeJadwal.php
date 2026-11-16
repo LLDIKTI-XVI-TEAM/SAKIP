@@ -2,37 +2,50 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PeriodeJadwal extends Model
 {
-    use HasUuids;
+    use HasFactory;
 
-    protected $table = 'jadwal_periode';
+    protected $table = 'periode_jadwals';
 
-    public $timestamps = false;
+    protected $fillable = [
+        'tahun',
+        'triwulan',
+        'nama_periode',
+        'tanggal_mulai',
+        'tanggal_selesai',
+        'status',
+        'is_tahun_ditutup',
+    ];
 
-    protected $fillable = ['jadwal_id', 'periode_id', 'pengisian_mulai', 'pengisian_selesai'];
+    protected $casts = [
+        'tahun' => 'integer',
+        'triwulan' => 'integer',
+        'tanggal_mulai' => 'datetime',
+        'tanggal_selesai' => 'datetime',
+        'is_tahun_ditutup' => 'boolean',
+    ];
 
-    protected $casts = ['pengisian_mulai' => 'date', 'pengisian_selesai' => 'date'];
-
-    /** Jendela pengisian PIC jalur normal berjalan pada tanggal bisnis (inklusif pengisian_mulai..pengisian_selesai). */
-    public function berjalanPada(string $tanggal): bool
+    public function pengukuranKinerjas(): HasMany
     {
-        return $tanggal >= $this->pengisian_mulai->toDateString() && $tanggal <= $this->pengisian_selesai->toDateString();
+        return $this->hasMany(PengukuranKinerja::class, 'periode_jadwal_id');
     }
 
-    /** @return BelongsTo<JadwalTahunan, $this> */
-    public function jadwal(): BelongsTo
+    /**
+     * Cek apakah periode saat ini aktif/buka dan belum melewati deadline
+     */
+    public function isAktifBuka(): bool
     {
-        return $this->belongsTo(JadwalTahunan::class, 'jadwal_id');
-    }
+        if ($this->status !== 'buka' || $this->is_tahun_ditutup) {
+            return false;
+        }
 
-    /** @return BelongsTo<Periode, $this> */
-    public function periode(): BelongsTo
-    {
-        return $this->belongsTo(Periode::class, 'periode_id');
+        $now = Carbon::now();
+        return $now->between($this->tanggal_mulai, $this->tanggal_selesai);
     }
 }

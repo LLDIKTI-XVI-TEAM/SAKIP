@@ -1,366 +1,46 @@
 <?php
 
-use App\Http\Controllers\Access\DenyManagement;
-use App\Http\Controllers\Access\EffectivePermissionExplorer;
-use App\Http\Controllers\Access\RoleAssignment;
-use App\Http\Controllers\Access\RolePermissionManagement;
-use App\Http\Controllers\Access\UserStatus;
-use App\Http\Controllers\Akses\IndexGrant;
-use App\Http\Controllers\Akses\KelolaGrant;
-use App\Http\Controllers\Akses\RevokeGrant;
-use App\Http\Controllers\Akses\SearchGrantUsers;
-use App\Http\Controllers\Akses\ShowGrant;
-use App\Http\Controllers\Akses\StoreGrant;
-use App\Http\Controllers\Audit\AuditLogController;
-use App\Http\Controllers\Auth\KeycloakCallback;
-use App\Http\Controllers\Auth\PendingAccount;
+use App\Http\Controllers\Auth\ProcessLogin;
 use App\Http\Controllers\Auth\ProcessLogout;
-use App\Http\Controllers\Auth\ProcessSsoLogout;
-use App\Http\Controllers\Auth\RedirectToKeycloak;
+use App\Http\Controllers\Auth\ShowLoginPage;
+use App\Http\Controllers\Auth\SwitchRole;
 use App\Http\Controllers\Dashboard\IndexDashboard;
-use App\Http\Controllers\Indikator\IndikatorKomponenController;
-use App\Http\Controllers\Jadwal\JadwalController;
-use App\Http\Controllers\Jadwal\SnapshotIndikatorController;
-use App\Http\Controllers\JenisBerkas\JenisBerkasController;
-use App\Http\Controllers\Kegiatan\AlihkanKegiatanLama;
-use App\Http\Controllers\Kegiatan\BerkasKegiatanController;
-use App\Http\Controllers\Kegiatan\EditKegiatanRencanaAksi;
-use App\Http\Controllers\Kegiatan\KegiatanController;
-use App\Http\Controllers\Kegiatan\KegiatanRencanaAksi;
-use App\Http\Controllers\Kegiatan\KlaimKegiatanController;
-use App\Http\Controllers\Kegiatan\RealisasiKegiatanRencanaAksi;
-use App\Http\Controllers\Kegiatan\StoreKegiatanRencanaAksi;
-use App\Http\Controllers\Laporan\DokumenResmiController;
-use App\Http\Controllers\Laporan\EksporRekapIndikatorPeriodeController;
-use App\Http\Controllers\Laporan\RekapIndikatorPeriodeController;
-use App\Http\Controllers\Notifikasi\BukaNotifikasi;
-use App\Http\Controllers\Notifikasi\IndexNotifikasi;
-use App\Http\Controllers\PenanggungJawab\PenanggungJawabController;
-use App\Http\Controllers\Pengaturan\IndexPengaturan;
-use App\Http\Controllers\Pengaturan\IndexPengirimanNotifikasi;
-use App\Http\Controllers\Pengaturan\UpdatePengaturan;
-use App\Http\Controllers\Pengukuran\DownloadBuktiKlaimPengukuran;
-use App\Http\Controllers\Pengukuran\DownloadBuktiPengukuran;
 use App\Http\Controllers\Pengukuran\EditPengukuran;
-use App\Http\Controllers\Pengukuran\EnsureDraftPengukuran;
 use App\Http\Controllers\Pengukuran\IndexPengukuran;
-use App\Http\Controllers\Pengukuran\PindahSnapshotPengukuran;
-use App\Http\Controllers\Pengukuran\PreviewPengukuran;
 use App\Http\Controllers\Pengukuran\UpdatePengukuran;
-use App\Http\Controllers\Perencanaan\ChangeIndicatorFormula;
-use App\Http\Controllers\Perencanaan\DestroyIndikator;
-use App\Http\Controllers\Perencanaan\DestroySasaran;
-use App\Http\Controllers\Perencanaan\IndexSasaranIndikator;
-use App\Http\Controllers\Perencanaan\PindahUnitIndikator;
-use App\Http\Controllers\Perencanaan\PreviewIndicatorFormula;
-use App\Http\Controllers\Perencanaan\ShowIndicatorEditor;
-use App\Http\Controllers\Perencanaan\ShowIndikator;
-use App\Http\Controllers\Perencanaan\StoreIndikator;
-use App\Http\Controllers\Perencanaan\StoreSasaran;
-use App\Http\Controllers\Perencanaan\UpdateIndikator;
-use App\Http\Controllers\Perencanaan\UpdateSasaran;
-use App\Http\Controllers\Periode\PeriodeController;
-use App\Http\Controllers\PerjanjianKinerja\PerjanjianKinerjaController;
-use App\Http\Controllers\Regulasi\CreateRegulasi;
-use App\Http\Controllers\Regulasi\DestroyBerkasRegulasi;
-use App\Http\Controllers\Regulasi\DestroyRegulasi;
-use App\Http\Controllers\Regulasi\DownloadBerkasRegulasi;
-use App\Http\Controllers\Regulasi\EditRegulasi;
-use App\Http\Controllers\Regulasi\IndexRegulasi;
-use App\Http\Controllers\Regulasi\ShowRegulasi;
-use App\Http\Controllers\Regulasi\StoreRegulasi;
-use App\Http\Controllers\Regulasi\UpdateRegulasi;
-use App\Http\Controllers\Rekomendasi\RekomendasiController;
-use App\Http\Controllers\RencanaAksi\BukaKembaliRencanaAksi;
-use App\Http\Controllers\RencanaAksi\DaftarRencanaAksi;
-use App\Http\Controllers\RencanaAksi\DestroyBuktiRencanaAksi;
-use App\Http\Controllers\RencanaAksi\DownloadBuktiRencanaAksi;
-use App\Http\Controllers\RencanaAksi\DownloadBuktiVersiRencanaAksi;
-use App\Http\Controllers\RencanaAksi\KembalikanRencanaAksi;
-use App\Http\Controllers\RencanaAksi\PindahUnitRencanaAksi;
-use App\Http\Controllers\RencanaAksi\PreviewRencanaAksiTarget;
-use App\Http\Controllers\RencanaAksi\SahkanRencanaAksi;
-use App\Http\Controllers\RencanaAksi\ShowRencanaAksi;
-use App\Http\Controllers\RencanaAksi\ShowReviewRencanaAksi;
-use App\Http\Controllers\RencanaAksi\StoreBuktiRencanaAksi;
-use App\Http\Controllers\RencanaAksi\StoreRencanaAksiDraft;
-use App\Http\Controllers\RencanaAksi\SubmitRencanaAksi;
-use App\Http\Controllers\RencanaAksi\UpdateRencanaAksiTarget;
-use App\Http\Controllers\RencanaAksi\VerifikasiRencanaAksi;
-use App\Http\Controllers\Renstra\ChangeRenstraStatusController;
-use App\Http\Controllers\Renstra\CreateRenstra;
-use App\Http\Controllers\Renstra\DestroyBerkasRenstra;
-use App\Http\Controllers\Renstra\DestroyRenstra;
-use App\Http\Controllers\Renstra\DownloadBerkasRenstra;
-use App\Http\Controllers\Renstra\EditRenstra;
-use App\Http\Controllers\Renstra\IndexRenstra;
-use App\Http\Controllers\Renstra\ShowRenstra;
-use App\Http\Controllers\Renstra\StoreRenstra;
-use App\Http\Controllers\Renstra\UpdateRenstra;
-use App\Http\Controllers\StatusCapaian\StatusCapaianController;
-use App\Http\Controllers\TargetRenstra\RevisiTargetRenstraController;
-use App\Http\Controllers\TargetRenstra\TargetRenstraController;
-use App\Http\Controllers\Unit\DestroyUnit;
-use App\Http\Controllers\Unit\IndexUnit;
-use App\Http\Controllers\Unit\StoreUnit;
-use App\Http\Controllers\Unit\UpdateUnit;
-use App\Http\Controllers\Verifikasi\BukaKembaliPengukuran;
-use App\Http\Controllers\Verifikasi\IndexPengukuranDisahkan;
 use App\Http\Controllers\Verifikasi\IndexVerifikasi;
 use App\Http\Controllers\Verifikasi\KembalikanPengukuran;
 use App\Http\Controllers\Verifikasi\SahkanPengukuran;
 use App\Http\Controllers\Verifikasi\ShowVerifikasi;
-use App\Http\Controllers\Verifikasi\VerifyPengukuran;
-use App\Http\Middleware\EnsureJadwalKoreksiActorIsActive;
-use App\Http\Middleware\EnsureKegiatanActorIsActive;
-use App\Http\Middleware\EnsureKlaimKegiatanActorIsActive;
-use App\Http\Middleware\EnsurePenanggungJawabActorIsActive;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', fn () => redirect()->route('dashboard'));
-Route::get('/login', RedirectToKeycloak::class)->name('login')->block();
-// Lock mencakup empat request provider yang masing-masing dibatasi sepuluh detik.
-Route::get('/auth/keycloak/callback', KeycloakCallback::class)->name('auth.callback')->block(60, 10);
-Route::get('/auth/error', fn (Request $request) => Inertia::render('Auth/Error', ['recoveryRetry' => $request->session()->pull('auth_recovery_retry') === true]))->name('auth.error');
-Route::get('/auth/logged-out', function () {
-    Inertia::clearHistory();
-
-    return Inertia::render('Auth/LoggedOut');
-})->name('auth.logged-out');
-Route::post('/logout', ProcessLogout::class)->name('logout')->block();
-Route::post('/logout/sso', ProcessSsoLogout::class)->name('logout.sso')->block();
-Route::get('/auth/pending', PendingAccount::class)->middleware('auth')->name('auth.pending');
-
-Route::middleware(['auth', EnsurePenanggungJawabActorIsActive::class])->group(function () {
-    Route::post('/perencanaan/indikator/{indikator}/penanggung-jawab', [PenanggungJawabController::class, 'store'])->whereUuid('indikator')->name('penanggung-jawab.store');
-    Route::post('/perencanaan/indikator/{indikator}/penanggung-jawab/pergantian', [PenanggungJawabController::class, 'change'])->whereUuid('indikator')->name('penanggung-jawab.change');
+// Redirect root to dashboard or login
+Route::get('/', function () {
+    return redirect()->route('dashboard');
 });
 
-Route::middleware(['auth', EnsureKegiatanActorIsActive::class])->group(function () {
-    // Permukaan baca kegiatan berkonteks Rencana Aksi (Q74 §74.1); tulisnya tetap memakai URL lama.
-    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan', KegiatanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.kegiatan.index');
-    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan/{kegiatan}', EditKegiatanRencanaAksi::class)->whereUuid(['rencanaAksi', 'kegiatan'])
-        ->name('rencana-aksi.kegiatan.edit');
-    Route::get('/rencana-aksi/{rencanaAksi}/kegiatan/{kegiatan}/realisasi', RealisasiKegiatanRencanaAksi::class)->whereUuid(['rencanaAksi', 'kegiatan'])
-        ->name('rencana-aksi.kegiatan.realisasi');
-    Route::post('/kegiatan/{kegiatan}', [KegiatanController::class, 'update'])->whereUuid('kegiatan')->name('kegiatan.update');
-    Route::post('/kegiatan/{kegiatan}/status', [KegiatanController::class, 'ubahStatus'])->whereUuid('kegiatan')->name('kegiatan.status');
-    Route::post('/kegiatan/{kegiatan}/realisasi', [KegiatanController::class, 'realisasi'])->whereUuid('kegiatan')->name('kegiatan.realisasi');
-});
+// Authentication Routes
+Route::get('/login', ShowLoginPage::class)->name('login');
+Route::post('/login', ProcessLogin::class)->name('login.store');
+Route::post('/logout', ProcessLogout::class)->name('logout');
 
-// Daftar kegiatan tahap RA: akun nonaktif dicatat sebagai percobaan klaim yang ditolak.
-Route::middleware(['auth', EnsureKlaimKegiatanActorIsActive::class])->group(function () {
-    Route::post('/kegiatan/{kegiatan}/klaim', [KlaimKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.klaim.store');
-    Route::delete('/kegiatan/{kegiatan}/klaim/{klaim}', [KlaimKegiatanController::class, 'destroy'])->whereUuid('kegiatan')->whereUuid('klaim')->name('kegiatan.klaim.destroy');
-    Route::post('/rencana-aksi/{rencanaAksi}/kegiatan', StoreKegiatanRencanaAksi::class)->whereUuid('rencanaAksi')
-        ->middleware('throttle:30,1,rencana-aksi-tulis')->name('rencana-aksi.kegiatan.store');
-});
+// Quick Switcher Route for Local Development
+if (app()->environment('local')) {
+    Route::post('/dev/switch-role/{id}', SwitchRole::class)->name('dev.switch-role');
+}
 
-Route::middleware(['auth', 'active'])->group(function () {
-    Route::get('/penanggung-jawab', [PenanggungJawabController::class, 'index'])->name('penanggung-jawab.index');
-    Route::get('/penanggung-jawab/opsi/pengguna', [PenanggungJawabController::class, 'users'])->name('penanggung-jawab.users');
-    Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab', [PenanggungJawabController::class, 'show'])->whereUuid('indikator')->name('penanggung-jawab.show');
-    Route::get('/perencanaan/indikator/{indikator}/penanggung-jawab/hak-kerja', [PenanggungJawabController::class, 'readiness'])->whereUuid('indikator')->name('penanggung-jawab.readiness');
-    Route::put('/perencanaan/indikator/{indikator}/target-renstra', [TargetRenstraController::class, 'update'])->whereUuid('indikator')->name('target-renstra.update');
-    Route::get('/perencanaan/indikator/{indikator}/target-renstra/riwayat', [TargetRenstraController::class, 'riwayat'])->whereUuid('indikator')->name('target-renstra.riwayat');
-    Route::get('/perencanaan/renstra/{renstra}/revisi-target/histori', [RevisiTargetRenstraController::class, 'histori'])->whereUuid('renstra')->name('target-renstra.revisi.histori');
-    Route::post('/perencanaan/renstra/{renstra}/revisi-target', [RevisiTargetRenstraController::class, 'mulai'])->whereUuid('renstra')->name('target-renstra.revisi.mulai');
-    Route::put('/perencanaan/renstra/{renstra}/revisi-target', [RevisiTargetRenstraController::class, 'draf'])->whereUuid('renstra')->name('target-renstra.revisi.draf');
-    Route::post('/perencanaan/renstra/{renstra}/revisi-target/simpan', [RevisiTargetRenstraController::class, 'simpan'])->whereUuid('renstra')->name('target-renstra.revisi.simpan');
-    Route::delete('/perencanaan/renstra/{renstra}/revisi-target', [RevisiTargetRenstraController::class, 'batal'])->whereUuid('renstra')->name('target-renstra.revisi.batal');
-    Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
-    Route::get('/jadwal/create', [JadwalController::class, 'create'])->name('jadwal.create');
-    Route::get('/jadwal/{jadwal}', [JadwalController::class, 'show'])->whereUuid('jadwal')->name('jadwal.show');
-    Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
-    Route::put('/jadwal/{jadwal}', [JadwalController::class, 'update'])->whereUuid('jadwal')->name('jadwal.update');
-    Route::get('/jadwal/{jadwal}/kesiapan-aktivasi', [JadwalController::class, 'readiness'])->whereUuid('jadwal')->name('jadwal.activation-readiness');
-    Route::post('/jadwal/{jadwal}/aktivasi', [JadwalController::class, 'activate'])->whereUuid('jadwal')->name('jadwal.activate');
-    Route::post('/jadwal/{jadwal}/tutup', [JadwalController::class, 'close'])->whereUuid('jadwal')->name('jadwal.close');
-    Route::post('/jadwal/{jadwal}/buka-kembali', [JadwalController::class, 'reopen'])->withoutMiddleware('active')->middleware(EnsureJadwalKoreksiActorIsActive::class)->whereUuid('jadwal')->name('jadwal.reopen');
-    Route::post('/jadwal/{jadwal}/revisi-jendela', [JadwalController::class, 'reviseWindows'])->whereUuid('jadwal')->name('jadwal.revise-windows');
-    Route::post('/jadwal/{jadwal}/indikator', [JadwalController::class, 'addIndicator'])->whereUuid('jadwal')->name('jadwal.add-indicator');
-    Route::get('/jadwal/{jadwal}/snapshot', [SnapshotIndikatorController::class, 'index'])->whereUuid('jadwal')->name('jadwal.snapshot.index');
-    Route::post('/jadwal/{jadwal}/snapshot/{snapshot}/koreksi', [SnapshotIndikatorController::class, 'koreksi'])->whereUuid(['jadwal', 'snapshot'])->name('jadwal.snapshot.koreksi');
-    Route::get('/periode', [PeriodeController::class, 'index'])->name('periode.index');
-    Route::post('/periode', [PeriodeController::class, 'store'])->name('periode.store');
-    Route::post('/periode/ganti-nilai-akhir', [PeriodeController::class, 'replaceFinal'])->name('periode.replace-final');
-    Route::put('/periode/{periode}', [PeriodeController::class, 'update'])->whereUuid('periode')->name('periode.update');
-    Route::get('/auth/recovered', fn () => Inertia::render('Auth/Recovered'))->name('auth.recovered');
-    Route::get('/akses/izin-peran', [RolePermissionManagement::class, 'index'])->name('role-permission.index');
-    Route::get('/akses/jelaskan-izin', [EffectivePermissionExplorer::class, 'index'])->name('effective-permission.index');
-    Route::get('/akses/jelaskan-izin/opsi/pengguna', [EffectivePermissionExplorer::class, 'users'])->name('effective-permission.users');
-    Route::get('/akses/jelaskan-izin/opsi/unit', [EffectivePermissionExplorer::class, 'units'])->name('effective-permission.units');
-    Route::get('/akses/deny', [DenyManagement::class, 'index'])->name('deny.index');
-    Route::get('/akses/deny/opsi/pengguna', [DenyManagement::class, 'users'])->name('deny.users');
-    Route::get('/akses/deny/opsi/unit', [DenyManagement::class, 'units'])->name('deny.units');
-    Route::get('/akses/deny/opsi/izin', [DenyManagement::class, 'permissions'])->name('deny.permissions');
-    Route::get('/akses/deny/hasil', [DenyManagement::class, 'result'])->name('deny.result');
-    Route::post('/akses/deny', [DenyManagement::class, 'store'])->name('deny.store');
-    Route::post('/akses/deny/{deny}/cabut', [DenyManagement::class, 'revoke'])->whereUuid('deny')->name('deny.revoke');
-    Route::get('/akses/peran', [RoleAssignment::class, 'index'])->name('role-assignment.index');
-    Route::get('/akses/peran/hasil', [RoleAssignment::class, 'result'])->name('role-assignment.result');
-    Route::get('/akses/peran/opsi/pengguna', [RoleAssignment::class, 'users'])->name('role-assignment.users');
-    Route::post('/akses/peran/{user}', [RoleAssignment::class, 'store'])->whereUuid('user')->name('role-assignment.store');
-    Route::post('/akses/peran/{user}/status', UserStatus::class)->whereUuid('user')->name('user-status.update');
+// Protected Application Routes
+Route::middleware('auth')->group(function () {
     Route::get('/dashboard', IndexDashboard::class)->name('dashboard');
-    Route::get('/laporan/dokumen-resmi', [DokumenResmiController::class, 'index'])->name('laporan.dokumen-resmi');
-    Route::post('/laporan/dokumen-resmi/arsip', [DokumenResmiController::class, 'store'])->name('laporan.dokumen-resmi.unggah');
-    Route::get('/laporan/dokumen-resmi/arsip/{berkas}', [DokumenResmiController::class, 'download'])->whereUuid('berkas')->name('laporan.dokumen-resmi.unduh');
-    Route::get('/laporan/rekap', RekapIndikatorPeriodeController::class)->name('laporan.rekap');
-    Route::get('/laporan/rekap/ekspor', EksporRekapIndikatorPeriodeController::class)->name('laporan.rekap.ekspor');
 
-    // Regulasi
-    Route::get('/regulasi', IndexRegulasi::class)->name('regulasi.index');
-    Route::get('/regulasi/create', CreateRegulasi::class)->name('regulasi.create');
-    Route::post('/regulasi', StoreRegulasi::class)->name('regulasi.store');
-    Route::get('/regulasi/{regulasi}/edit', EditRegulasi::class)->whereUuid('regulasi')->name('regulasi.edit');
-    Route::put('/regulasi/{regulasi}', UpdateRegulasi::class)->whereUuid('regulasi')->name('regulasi.update');
-    Route::delete('/regulasi/{regulasi}', DestroyRegulasi::class)->whereUuid('regulasi')->name('regulasi.destroy');
-    Route::delete('/regulasi/{regulasi}/berkas/{berkas}', DestroyBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.destroy');
-    Route::get('/regulasi/{regulasi}/berkas/{berkas}/download', DownloadBerkasRegulasi::class)->whereUuid('regulasi')->whereUuid('berkas')->name('regulasi.berkas.download');
-    Route::get('/regulasi/{regulasi}', ShowRegulasi::class)->whereUuid('regulasi')->name('regulasi.show');
-
-    // Master Renstra
-    Route::post('/renstra/{renstra}/aktifkan', [ChangeRenstraStatusController::class, 'activate'])->whereUuid('renstra')->name('renstra.activate');
-    Route::post('/renstra/{renstra}/nonaktifkan', [ChangeRenstraStatusController::class, 'deactivate'])->whereUuid('renstra')->name('renstra.deactivate');
-    Route::post('/renstra/{renstra}/arsipkan', [ChangeRenstraStatusController::class, 'archive'])->whereUuid('renstra')->name('renstra.archive');
-    Route::get('/renstra', IndexRenstra::class)->name('renstra.index');
-    Route::get('/renstra/create', CreateRenstra::class)->name('renstra.create');
-    Route::post('/renstra', StoreRenstra::class)->name('renstra.store');
-    Route::get('/renstra/{renstra}/edit', EditRenstra::class)->whereUuid('renstra')->name('renstra.edit');
-    Route::put('/renstra/{renstra}', UpdateRenstra::class)->whereUuid('renstra')->name('renstra.update');
-    Route::delete('/renstra/{renstra}', DestroyRenstra::class)->whereUuid('renstra')->name('renstra.destroy');
-    Route::delete('/renstra/{renstra}/berkas/{berkas}', DestroyBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.destroy');
-    Route::get('/renstra/{renstra}/berkas/{berkas}/download', DownloadBerkasRenstra::class)->whereUuid('renstra')->whereUuid('berkas')->name('renstra.berkas.download');
-    Route::get('/renstra/{renstra}', ShowRenstra::class)->whereUuid('renstra')->name('renstra.show');
-
-    // Tautan lama dipertahankan sebagai pengalihan ke halaman kegiatan Rencana Aksi terkait (Q74 §74.1 butir 5).
-    Route::get('/kegiatan', [AlihkanKegiatanLama::class, 'index'])->name('kegiatan.index');
-    Route::get('/kegiatan/{kegiatan}/edit', [AlihkanKegiatanLama::class, 'edit'])->whereUuid('kegiatan')->name('kegiatan.edit');
-    Route::post('/kegiatan/{kegiatan}/berkas', [BerkasKegiatanController::class, 'store'])->whereUuid('kegiatan')->name('kegiatan.berkas.store');
-    Route::delete('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'destroy'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.destroy');
-    Route::get('/kegiatan/{kegiatan}/berkas/{berkas}', [BerkasKegiatanController::class, 'download'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.berkas.download');
-    Route::get('/kegiatan/{kegiatan}/pelaksanaan/berkas/{berkas}', [BerkasKegiatanController::class, 'downloadPelaksanaan'])->whereUuid(['kegiatan', 'berkas'])->name('kegiatan.pelaksanaan.berkas.download');
-    // Notifikasi in-app: daftar milik aktor dan buka item (tandai dibaca lalu alihkan ke tujuan yang memeriksa izin sendiri)
-    Route::get('/notifikasi', IndexNotifikasi::class)->name('notifikasi.index');
-    Route::post('/notifikasi/{id}/buka', BukaNotifikasi::class)->whereUuid('id')->name('notifikasi.buka');
-    // Pengukuran Kinerja
+    // Pengukuran Kinerja (Alur PIC)
     Route::get('/pengukuran', IndexPengukuran::class)->name('pengukuran.index');
-    Route::post('/pengukuran/ensure-draft', EnsureDraftPengukuran::class)->name('pengukuran.ensure-draft');
-    Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->whereUuid('id')->name('pengukuran.edit');
-    Route::post('/pengukuran/{id}', UpdatePengukuran::class)->whereUuid('id')->name('pengukuran.update');
-    Route::post('/pengukuran/{id}/pratinjau', PreviewPengukuran::class)->whereUuid('id')->name('pengukuran.preview');
-    Route::post('/pengukuran/{id}/pindah-snapshot', PindahSnapshotPengukuran::class)->whereUuid('id')->name('pengukuran.pindah-snapshot');
-    Route::get('/pengukuran/{id}/bukti/{buktiId}', [DownloadBuktiPengukuran::class, '__invoke'])->whereUuid('id')->whereUuid('buktiId')->name('pengukuran.bukti');
-    Route::get('/pengukuran/{id}/bukti-klaim/{buktiId}', DownloadBuktiKlaimPengukuran::class)->whereUuid('id')->whereUuid('buktiId')->name('pengukuran.bukti-klaim');
+    Route::get('/pengukuran/{id}/edit', EditPengukuran::class)->name('pengukuran.edit');
+    Route::post('/pengukuran/{id}', UpdatePengukuran::class)->name('pengukuran.update');
 
-    // Verifikasi & Pengesahan Kinerja
+    // Verifikasi & Pengesahan Kinerja (Alur Tim Perencanaan)
     Route::get('/verifikasi', IndexVerifikasi::class)->name('verifikasi.index');
-    Route::get('/verifikasi/pilihan', [IndexVerifikasi::class, 'pilihan'])->name('verifikasi.pilihan');
-    // Didaftarkan sebelum `/verifikasi/{id}` agar tidak bergantung pada urutan pencocokan rute.
-    Route::get('/verifikasi/status-capaian', [StatusCapaianController::class, 'index'])->name('status-capaian.index');
-    Route::get('/verifikasi/status-capaian/{pengukuran}', [StatusCapaianController::class, 'show'])
-        ->whereUuid('pengukuran')->name('status-capaian.show');
-    // Antrean Disahkan (Plan 6.3, Q67) tetap halaman terpisah dari antrean reviu.
-    Route::get('/verifikasi/disahkan', IndexPengukuranDisahkan::class)->name('verifikasi.disahkan');
-    Route::get('/verifikasi/disahkan/pilihan', [IndexPengukuranDisahkan::class, 'pilihan'])->name('verifikasi.disahkan.pilihan');
-    Route::get('/verifikasi/{id}', ShowVerifikasi::class)->whereUuid('id')->name('verifikasi.show');
-    Route::post('/verifikasi/{id}/verifikasi', [VerifyPengukuran::class, '__invoke'])->whereUuid('id')->name('verifikasi.verify');
-    Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->whereUuid('id')->name('verifikasi.kembalikan');
-    Route::post('/verifikasi/{id}/buka-kembali', BukaKembaliPengukuran::class)->whereUuid('id')->name('verifikasi.buka-kembali');
-    Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->whereUuid('id')->name('verifikasi.sahkan');
-    Route::post('/verifikasi/{pengukuran}/status-capaian', [StatusCapaianController::class, 'store'])
-        ->whereUuid('pengukuran')->name('status-capaian.store');
-
-    // Rekomendasi Pimpinan
-    Route::get('/rekomendasi', [RekomendasiController::class, 'index'])->name('rekomendasi.index');
-    Route::get('/rekomendasi/{rekomendasi}', [RekomendasiController::class, 'show'])->whereUuid('rekomendasi')->name('rekomendasi.show');
-    Route::post('/rekomendasi', [RekomendasiController::class, 'store'])->name('rekomendasi.store');
-    Route::get('/pengaturan/notifikasi/pengiriman', IndexPengirimanNotifikasi::class)->name('pengaturan.notifikasi.pengiriman');
-    Route::get('/pengaturan', IndexPengaturan::class)->name('pengaturan.index');
-    Route::put('/pengaturan', UpdatePengaturan::class)->name('pengaturan.update');
-
-    // Master Unit Organisasi
-    Route::get('/unit', IndexUnit::class)->name('unit.index');
-    Route::post('/unit', StoreUnit::class)->name('unit.store');
-    Route::post('/unit/{id}', UpdateUnit::class)->whereUuid('id')->name('unit.update');
-    Route::delete('/unit/{id}', DestroyUnit::class)->whereUuid('id')->name('unit.destroy');
-
-    // Manajemen Hak Akses: Grant Izin per Unit
-    Route::get('/akses/grant', IndexGrant::class)->name('akses.grant.index');
-    Route::get('/akses/grant/opsi/pengguna', SearchGrantUsers::class)->name('akses.grant.users');
-    Route::post('/akses/grant', StoreGrant::class)->name('akses.grant.store');
-    Route::put('/akses/grant/kelola', KelolaGrant::class)->name('akses.grant.kelola');
-    Route::get('/akses/grant/{user}/{unit}', ShowGrant::class)->whereUuid('user')->whereUuid('unit')->name('akses.grant.show');
-    Route::delete('/akses/grant/{id}', RevokeGrant::class)->whereUuid('id')->name('akses.grant.destroy');
-
-    // Konfigurasi Persyaratan Jenis Berkas (Alur Tim Perencanaan)
-    Route::get('/jenis-berkas', [JenisBerkasController::class, 'index'])->name('jenis-berkas.index');
-    Route::post('/jenis-berkas', [JenisBerkasController::class, 'store'])->name('jenis-berkas.store');
-    Route::put('/jenis-berkas/{id}', [JenisBerkasController::class, 'update'])->whereUuid('id')->name('jenis-berkas.update');
-    Route::delete('/jenis-berkas/{id}', [JenisBerkasController::class, 'destroy'])->whereUuid('id')->name('jenis-berkas.destroy');
-    Route::post('/jenis-berkas/{id}/contoh', [JenisBerkasController::class, 'storeContoh'])->whereUuid('id')->name('jenis-berkas.contoh.store');
-    Route::delete('/jenis-berkas/{id}/contoh/{contoh}', [JenisBerkasController::class, 'destroyContoh'])->whereUuid(['id', 'contoh'])->name('jenis-berkas.contoh.destroy');
-    Route::get('/jenis-berkas/{id}/contoh/{contoh}', [JenisBerkasController::class, 'downloadContoh'])->whereUuid(['id', 'contoh'])->name('jenis-berkas.contoh.download');
-
-    // Jejak audit append-only: hanya baca, tanpa rute ubah atau hapus.
-    Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
-    Route::get('/audit/{id}', [AuditLogController::class, 'show'])->whereUuid('id')->name('audit.show');
-
-    // Sasaran Strategis & Indikator Kinerja
-    Route::get('/perencanaan/sasaran-indikator', IndexSasaranIndikator::class)->name('perencanaan.sasaran-indikator.index');
-    Route::post('/perencanaan/sasaran', StoreSasaran::class)->name('perencanaan.sasaran.store');
-    Route::put('/perencanaan/sasaran/{sasaran}', UpdateSasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.update');
-    Route::delete('/perencanaan/sasaran/{sasaran}', DestroySasaran::class)->whereUuid('sasaran')->name('perencanaan.sasaran.destroy');
-
-    Route::post('/perencanaan/indikator', StoreIndikator::class)->name('perencanaan.indikator.store');
-    Route::get('/perencanaan/indikator/{indikator}', ShowIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.show');
-    Route::put('/perencanaan/indikator/{indikator}', UpdateIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.update');
-    Route::patch('/perencanaan/indikator/{indikator}/pindah-unit', PindahUnitIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.pindah-unit');
-    Route::get('/perencanaan/indikator/{indikator}/editor', ShowIndicatorEditor::class)->whereUuid('indikator')->name('perencanaan.indikator.editor');
-    Route::post('/perencanaan/indikator/{indikator}/komponen/preview', PreviewIndicatorFormula::class)->whereUuid('indikator')->name('perencanaan.indikator.preview');
-    Route::patch('/perencanaan/indikator/{indikator}/formula', ChangeIndicatorFormula::class)->whereUuid('indikator')->name('perencanaan.indikator.formula');
-    Route::delete('/perencanaan/indikator/{indikator}', DestroyIndikator::class)->whereUuid('indikator')->name('perencanaan.indikator.destroy');
-
-    // Konfigurasi Komponen Indikator Kinerja (Data-Driven)
-    Route::get('/indikator/{indikator}/komponen', [IndikatorKomponenController::class, 'index'])->whereUuid('indikator')->name('indikator.komponen.index');
-
-    // Perjanjian Kinerja (PK) & Lampiran Legal
-    Route::get('/perjanjian-kinerja', [PerjanjianKinerjaController::class, 'index'])->name('perjanjian-kinerja.index');
-    Route::get('/perjanjian-kinerja/create', [PerjanjianKinerjaController::class, 'create'])->name('perjanjian-kinerja.create');
-    Route::post('/perjanjian-kinerja', [PerjanjianKinerjaController::class, 'store'])->name('perjanjian-kinerja.store');
-    Route::get('/perjanjian-kinerja/{perjanjian_kinerja}', [PerjanjianKinerjaController::class, 'show'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.show');
-    Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/target/{indikator}/editor', [PerjanjianKinerjaController::class, 'targetEditor'])->whereUuid('perjanjian_kinerja')->whereUuid('indikator')->name('perjanjian-kinerja.target.editor');
-    Route::put('/perjanjian-kinerja/{perjanjian_kinerja}/target/{indikator}', [PerjanjianKinerjaController::class, 'updateTarget'])->whereUuid('perjanjian_kinerja')->whereUuid('indikator')->name('perjanjian-kinerja.target.update');
-    Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/edit', [PerjanjianKinerjaController::class, 'edit'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.edit');
-    Route::put('/perjanjian-kinerja/{perjanjian_kinerja}', [PerjanjianKinerjaController::class, 'update'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.update');
-    Route::post('/perjanjian-kinerja/{perjanjian_kinerja}/versi', [PerjanjianKinerjaController::class, 'storeVersi'])->whereUuid('perjanjian_kinerja')->name('perjanjian-kinerja.versi.store');
-    Route::delete('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}', [PerjanjianKinerjaController::class, 'destroyBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.destroy');
-    Route::get('/perjanjian-kinerja/{perjanjian_kinerja}/berkas/{berkas}/unduh', [PerjanjianKinerjaController::class, 'downloadBerkas'])->whereUuid('perjanjian_kinerja')->whereUuid('berkas')->name('perjanjian-kinerja.berkas.download');
-
-    // Rencana Aksi — penyusunan target per periode
-    Route::get('/rencana-aksi', DaftarRencanaAksi::class)->name('rencana-aksi.index');
-    // Antrean review menyatu dengan daftar (filter `status`) sejak Q59; URL lama dipertahankan sebagai redirect.
-    Route::redirect('/rencana-aksi/review', '/rencana-aksi');
-    Route::get('/rencana-aksi/{rencanaAksi}/review', ShowReviewRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.review');
-    Route::get('/rencana-aksi/{rencanaAksi}/versi/{versi}/bukti/{bukti}/unduh', DownloadBuktiVersiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('versi')->whereUuid('bukti')->name('rencana-aksi.versi.bukti.download');
-    Route::get('/rencana-aksi/{rencanaAksi}', ShowRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.show');
-    // Tulis RA menambah audit append-only (matriks penuh); batasi per pengguna.
-    // Pratinjau tidak menulis audit dan dipanggil tiap ketikan, jadi dikecualikan.
-    Route::middleware('throttle:30,1,rencana-aksi-tulis')->group(function (): void {
-        Route::post('/rencana-aksi/{rencanaAksi}/verifikasi', VerifikasiRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.verifikasi');
-        Route::post('/rencana-aksi/{rencanaAksi}/kembalikan', KembalikanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.kembalikan');
-        Route::post('/rencana-aksi/ensure-draft', StoreRencanaAksiDraft::class)->name('rencana-aksi.ensure-draft');
-        Route::post('/rencana-aksi/{rencanaAksi}/pindah-unit', PindahUnitRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.pindah-unit');
-        Route::post('/rencana-aksi/{rencanaAksi}/target', UpdateRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.target.update');
-        Route::post('/rencana-aksi/{rencanaAksi}/bukti', StoreBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.bukti.store');
-        Route::delete('/rencana-aksi/{rencanaAksi}/bukti/{bukti}', DestroyBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('bukti')->name('rencana-aksi.bukti.destroy');
-        Route::post('/rencana-aksi/{rencanaAksi}/sahkan', SahkanRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.sahkan');
-        Route::post('/rencana-aksi/{rencanaAksi}/buka-kembali', BukaKembaliRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.buka-kembali');
-        Route::post('/rencana-aksi/{rencanaAksi}/ajukan', SubmitRencanaAksi::class)->whereUuid('rencanaAksi')->name('rencana-aksi.ajukan');
-    });
-    Route::post('/rencana-aksi/{rencanaAksi}/preview', PreviewRencanaAksiTarget::class)->whereUuid('rencanaAksi')->name('rencana-aksi.preview');
-    Route::get('/rencana-aksi/{rencanaAksi}/bukti/{bukti}/unduh', DownloadBuktiRencanaAksi::class)->whereUuid('rencanaAksi')->whereUuid('bukti')->name('rencana-aksi.bukti.download');
+    Route::get('/verifikasi/{id}', ShowVerifikasi::class)->name('verifikasi.show');
+    Route::post('/verifikasi/{id}/kembalikan', KembalikanPengukuran::class)->name('verifikasi.kembalikan');
+    Route::post('/verifikasi/{id}/sahkan', SahkanPengukuran::class)->name('verifikasi.sahkan');
 });

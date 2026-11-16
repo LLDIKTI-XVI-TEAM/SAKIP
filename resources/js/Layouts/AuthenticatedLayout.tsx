@@ -1,414 +1,210 @@
-import { UserProfileDropdown } from '@/Components/Auth/UserProfileDropdown';
-import { HoverScrollText } from '@/Components/HoverScrollText';
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, usePage } from '@inertiajs/react';
-import {
+import React, { ReactNode } from 'react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { 
+    LayoutDashboard, 
+    FileSpreadsheet, 
+    CheckCircle2, 
+    LogOut, 
+    Building2, 
+    Calendar,
     ChevronRight,
     CheckCircle,
-    AlertCircle,
-    Info,
-    Menu,
-    X,
-    Search,
-    Bell,
-    Moon,
-    Sun,
+    AlertCircle
 } from 'lucide-react';
-import type { SharedPageProps } from '@/types/auth';
-import { SidebarNavigation } from '@/Components/Navigation/SidebarNavigation';
-import { setTema, useTema } from '@/lib/tema';
-
-/**
- * Lonceng ke halaman notifikasi dengan badge angka belum dibaca dari props server (tanpa polling).
- * Tidak dirender bila server mengirim null (tamu, akun nonaktif, akun tanpa peran) karena daftar notifikasi pasti ditolak.
- * Angka dibatasi "99+"; nama aksesibel menyebut jumlah sebenarnya, badge visual disembunyikan dari pembaca layar.
- */
-function LoncengNotifikasi({ jumlah, className }: { jumlah: number | null | undefined; className: string }) {
-    if (jumlah == null) return null;
-    const belumDibaca = jumlah;
-
-    return (
-        <Link
-            href="/notifikasi"
-            aria-label={belumDibaca > 0 ? `Notifikasi, ${belumDibaca} belum dibaca` : 'Notifikasi'}
-            className={`relative inline-flex items-center justify-center rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 ${className}`}
-        >
-            <Bell className="h-5 w-5" aria-hidden="true" />
-            {belumDibaca > 0 && (
-                <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-xs font-semibold leading-none text-on-danger">
-                    {belumDibaca > 99 ? '99+' : belumDibaca}
-                </span>
-            )}
-        </Link>
-    );
-}
-
-/** Tombol dua keadaan tema terang/gelap (Q89, K1); ukuran sentuh sama dengan lonceng. */
-function TombolTema({ className }: { className: string }) {
-    const gelap = useTema() === 'gelap';
-    const Ikon = gelap ? Sun : Moon;
-
-    return (
-        <button
-            type="button"
-            aria-label="Tema gelap"
-            aria-pressed={gelap}
-            onClick={() => setTema(gelap ? 'terang' : 'gelap')}
-            className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors focus:outline-none focus:ring-2 ${className}`}
-        >
-            <Ikon className="h-5 w-5" aria-hidden="true" />
-        </button>
-    );
-}
+import { RoleSwitcher } from '@/Components/RoleSwitcher';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
     title?: string;
     breadcrumbs?: { label: string; href?: string }[];
-    headerActions?: ReactNode;
-    renderTitleHeading?: boolean;
-    hasCustomHeading?: boolean;
 }
 
-export function AuthenticatedLayout({
+export const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({
     children,
     title,
     breadcrumbs = [],
-    headerActions,
-    renderTitleHeading = true,
-    hasCustomHeading = false,
-}: AuthenticatedLayoutProps) {
-    const shouldRenderH1 = renderTitleHeading && !hasCustomHeading;
-    const { props: { auth, flash: legacyFlash, pengaturan, notifikasi_belum_dibaca: jumlahNotifikasi }, flash: transientFlash, url } = usePage<SharedPageProps>();
-    // Flash native Inertia tidak diputar ulang ketika pengguna membuka history.
-    const flash = { ...legacyFlash, ...transientFlash };
-    const appName = (pengaturan?.['aplikasi.nama'] as string) || 'SAKIP';
-    const instansiNama = (pengaturan?.['instansi.nama_pendek'] as string)
-        || (pengaturan?.['instansi.nama'] as string)
-        || 'LLDIKTI WILAYAH XVI';
-    const rawLogo = pengaturan ? (pengaturan['instansi.logo'] as string | null | undefined) : undefined;
-    const hasLogoKey = Boolean(pengaturan && Object.prototype.hasOwnProperty.call(pengaturan, 'instansi.logo'));
-    const logoUrl = hasLogoKey
-        ? (rawLogo && rawLogo.trim() !== '' ? rawLogo : null)
-        : '/img/dikti16-favicon-blue-150x150.png';
-    const [navigationOpen, setNavigationOpen] = useState(false);
-    // Drawer tidak dibuka selama logout berjalan agar profil tidak menjadi inert dan hasilnya tetap terbaca.
-    const [logoutPending, setLogoutPending] = useState(false);
-    const [isDesktopViewport, setIsDesktopViewport] = useState(() => typeof window !== 'undefined'
-        && typeof window.matchMedia === 'function'
-        && window.matchMedia('(min-width: 768px)').matches);
-    const menuButtonRef = useRef<HTMLButtonElement>(null);
-    const drawerRef = useRef<HTMLElement>(null);
+}) => {
+    const { auth, flash } = usePage<any>().props;
+    const user = auth?.user;
+    const currentRole = user?.roles?.[0] || 'pegawai';
 
-    const [logoFailed, setLogoFailed] = useState(false);
+    const handleLogout = (e: React.FormEvent) => {
+        e.preventDefault();
+        router.post('/logout');
+    };
 
-    useEffect(() => {
-        setLogoFailed(false);
-    }, [logoUrl]);
-
-    const normalizedBreadcrumbs = breadcrumbs.length > 0
-        ? (breadcrumbs[0]?.label.toLowerCase() === 'dashboard'
-            ? breadcrumbs
-            : [
-                auth?.can?.dashboard
-                    ? { label: 'Dashboard', href: '/dashboard' }
-                    : { label: 'Dashboard' },
-                ...breadcrumbs,
-            ])
-        : [];
-
-    useEffect(() => {
-        const mediaQuery = window.matchMedia('(min-width: 768px)');
-        const updateViewport = () => setIsDesktopViewport(mediaQuery.matches);
-
-        updateViewport();
-        mediaQuery.addEventListener('change', updateViewport);
-
-        return () => mediaQuery.removeEventListener('change', updateViewport);
-    }, []);
-
-    const sidebarHidden = !isDesktopViewport && !navigationOpen;
-    const isMobileDrawerOpen = navigationOpen && !isDesktopViewport;
-
-    useEffect(() => {
-        if (!isMobileDrawerOpen) return;
-
-        const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        const menuButton = menuButtonRef.current;
-        const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-        // Link di submenu yang tertutup (atribut hidden) tidak dapat difokuskan sehingga tidak boleh menjadi batas trap.
-        const drawerControls = () => Array.from(drawerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])
-            .filter((control) => !control.closest('[hidden]'));
-        const focusFirstDrawerControl = () => {
-            drawerControls().at(0)?.focus();
-        };
-        const focusFrame = window.requestAnimationFrame(focusFirstDrawerControl);
-        const trapFocus = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                setNavigationOpen(false);
-                return;
-            }
-
-            if (event.key !== 'Tab') return;
-
-            const controls = drawerControls();
-            const firstControl = controls.at(0);
-            const lastControl = controls.at(-1);
-
-            if (!firstControl || !lastControl) {
-                event.preventDefault();
-                drawerRef.current?.focus();
-                return;
-            }
-
-            if (event.shiftKey && document.activeElement === firstControl) {
-                event.preventDefault();
-                lastControl.focus();
-            } else if (!event.shiftKey && document.activeElement === lastControl) {
-                event.preventDefault();
-                firstControl.focus();
-            }
-        };
-
-        document.addEventListener('keydown', trapFocus);
-
-        return () => {
-            window.cancelAnimationFrame(focusFrame);
-            document.removeEventListener('keydown', trapFocus);
-            if (!window.matchMedia('(min-width: 768px)').matches && menuButton?.isConnected) {
-                menuButton.focus();
-            } else if (previousFocus?.isConnected) {
-                previousFocus.focus();
-            }
-        };
-    }, [isMobileDrawerOpen]);
+    const isPerencanaanOrSuper = currentRole === 'perencanaan' || currentRole === 'superadmin';
 
     return (
-        <div className="min-h-screen bg-page font-sans text-ink flex flex-col md:flex-row">
-            {/* Skip to Content for Accessibility */}
-            <a
-                href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:rounded-md focus:bg-surface focus:p-3 focus:text-primary focus:shadow-md focus:ring-2 focus:ring-primary"
-            >
-                Langsung ke isi halaman
-            </a>
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
+            {/* Top Quick Role Switcher for local dev */}
+            <RoleSwitcher />
 
-            {/* Mobile Header Bar */}
-            <header className="flex h-16 items-center justify-between border-b border-sidebar bg-sidebar px-4 md:hidden sticky top-0 z-40 text-sidebar-ink shadow-sm">
-                <div className="flex min-w-0 flex-1 items-center gap-2.5 mr-2">
-                    {!logoFailed && logoUrl && (
-                        <img
-                            src={logoUrl}
-                            width={36}
-                            height={36}
-                            alt=""
-                            className="h-9 w-9 shrink-0 object-contain rounded-md"
-                            onError={() => setLogoFailed(true)}
-                        />
-                    )}
-                    <div className="min-w-0 flex-1">
-                        <span className="text-base font-bold tracking-tight text-sidebar-ink leading-none block truncate">{appName}</span>
-                    </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                    <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-sidebar-ink hover:bg-sidebar-ink/10 focus:ring-sidebar-ink/40" />
-                    <TombolTema className="text-sidebar-ink hover:bg-sidebar-ink/10 focus:ring-sidebar-ink/40" />
-                    {/* Satu instance profil per viewport agar state logout tidak terduplikasi atau tertinggal tersembunyi. */}
-                    {!isDesktopViewport && (
-                        <UserProfileDropdown
-                            user={auth?.user ?? null}
-                            placement="mobile"
-                            disabled={navigationOpen}
-                            onLogoutPendingChange={setLogoutPending}
-                        />
-                    )}
-                    <button
-                        ref={menuButtonRef}
-                        type="button"
-                        aria-expanded={navigationOpen}
-                        aria-controls="application-navigation"
-                        aria-label={navigationOpen ? 'Tutup navigasi' : 'Buka navigasi'}
-                        disabled={logoutPending}
-                        onClick={() => setNavigationOpen((isOpen) => !isOpen)}
-                        className="inline-flex items-center justify-center rounded-lg p-2 text-sidebar-ink hover:bg-sidebar-ink/10 focus:outline-none focus:ring-2 focus:ring-sidebar-ink/40 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        {navigationOpen ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
-                    </button>
-                </div>
-            </header>
-
-            {/* Mobile Backdrop */}
-            {navigationOpen && (
-                <div
-                    className="fixed inset-0 z-40 bg-overlay/60 backdrop-blur-xs transition-opacity md:hidden"
-                    onClick={() => setNavigationOpen(false)}
-                    aria-hidden="true"
-                />
-            )}
-
-            {/* Deep Navy Sidebar */}
-            <aside
-                id="application-navigation"
-                ref={drawerRef}
-                role={isMobileDrawerOpen ? 'dialog' : undefined}
-                aria-modal={isMobileDrawerOpen || undefined}
-                aria-label={isMobileDrawerOpen ? 'Navigasi utama' : undefined}
-                aria-hidden={sidebarHidden || undefined}
-                inert={sidebarHidden || undefined}
-                tabIndex={-1}
-                className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar text-sidebar-ink transition-transform duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0 ${
-                    navigationOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0 md:shadow-none'
-                }`}
-            >
-                {/* Brand Header */}
-                <div className="flex h-[68px] items-center justify-between border-b border-sidebar-ink/10 px-5 shrink-0">
-                    <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
-                        {!logoFailed && logoUrl && (
-                            <img
-                                src={logoUrl}
-                                width={38}
-                                height={38}
-                                alt=""
-                                className="h-[38px] w-[38px] shrink-0 object-contain rounded-md"
-                                onError={() => setLogoFailed(true)}
-                            />
-                        )}
-                        <div className="min-w-0 flex-1">
-                            <span className="text-lg font-bold tracking-tight text-sidebar-ink leading-tight block truncate">{appName}</span>
-                            <HoverScrollText className="text-xs font-semibold text-sidebar-ink/75 tracking-wider leading-tight">
-                                {instansiNama}
-                            </HoverScrollText>
+            <div className="flex flex-1 overflow-hidden">
+                {/* Modern Institutional Sidebar */}
+                <aside className="w-64 bg-[#0a1b5c] text-white flex flex-col border-r border-[#122E92]/40 shrink-0 select-none">
+                    {/* Brand / Logo */}
+                    <div className="p-5 border-b border-white/10 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#122E92] to-[#D6AC48] flex items-center justify-center font-bold text-white shadow-md text-lg">
+                            S
+                        </div>
+                        <div>
+                            <div className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+                                SAKIP
+                                <span className="text-[10px] bg-[#D6AC48] text-slate-900 font-bold px-1.5 py-0.2 rounded uppercase">
+                                    XVI
+                                </span>
+                            </div>
+                            <div className="text-[11px] text-slate-300 font-normal leading-tight">
+                                LLDIKTI Wilayah XVI
+                            </div>
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setNavigationOpen(false)}
-                        className="inline-flex items-center justify-center rounded-lg p-2 text-sidebar-ink hover:bg-sidebar-ink/10 focus:outline-none focus:ring-2 focus:ring-sidebar-ink/40 md:hidden"
-                        aria-label="Tutup navigasi"
-                    >
-                        <X aria-hidden="true" className="h-5 w-5" />
-                    </button>
-                </div>
 
-                {/* Scrollable Navigation Body */}
-                <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 sidebar-scroll">
-                    <SidebarNavigation
-                        can={auth?.can}
-                        url={url}
-                        onNavigate={() => setNavigationOpen(false)}
-                    />
-                </div>
-            </aside>
+                    {/* Navigation Menu */}
+                    <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+                        <div className="px-3 py-2 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                            Menu Utama
+                        </div>
 
-            {/* Main Column */}
-            <div
-                aria-hidden={isMobileDrawerOpen || undefined}
-                inert={isMobileDrawerOpen || undefined}
-                className="min-w-0 flex-1 flex flex-col"
-            >
-                {/* Top White Header Bar */}
-                <header className="hidden md:flex h-[68px] items-center justify-between border-b border-border bg-surface px-4 xl:px-8 sticky top-0 z-30 shadow-2xs">
-                    {/* Left: Search Input Pill */}
-                    <div className="relative hidden xl:block">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-                        <input
-                            type="text"
-                            placeholder="Cari menu, indikator, atau data..."
-                            aria-label="Pencarian"
-                            aria-describedby="search-coming-soon"
-                            className="h-9 w-72 lg:w-80 rounded-xl border border-border bg-soft pl-9 pr-3 text-xs text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-2xs cursor-default"
-                            readOnly
-                        />
-                        <span id="search-coming-soon" className="sr-only">Pencarian akan segera tersedia.</span>
+                        <Link
+                            href="/dashboard"
+                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                                window.location.pathname.startsWith('/dashboard')
+                                    ? 'bg-white/15 text-white font-semibold shadow-xs'
+                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                            }`}
+                        >
+                            <LayoutDashboard className="w-4 h-4 text-[#D6AC48]" />
+                            Dashboard Capaian
+                        </Link>
+
+                        <Link
+                            href="/pengukuran"
+                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                                window.location.pathname.startsWith('/pengukuran')
+                                    ? 'bg-white/15 text-white font-semibold shadow-xs'
+                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                            }`}
+                        >
+                            <FileSpreadsheet className="w-4 h-4 text-[#D6AC48]" />
+                            Pengukuran Kinerja
+                        </Link>
+
+                        {isPerencanaanOrSuper && (
+                            <>
+                                <div className="px-3 pt-4 pb-1 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
+                                    Verifikasi & Reviu
+                                </div>
+                                <Link
+                                    href="/verifikasi"
+                                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                                        window.location.pathname.startsWith('/verifikasi')
+                                            ? 'bg-white/15 text-white font-semibold shadow-xs'
+                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    <CheckCircle2 className="w-4 h-4 text-[#D6AC48]" />
+                                    Verifikasi & Pengesahan
+                                </Link>
+                            </>
+                        )}
+                    </nav>
+
+                    {/* Bottom User Profile */}
+                    <div className="p-4 border-t border-white/10 bg-black/15">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-9 h-9 rounded-full bg-[#122E92] border border-[#D6AC48]/40 flex items-center justify-center font-bold text-xs text-white uppercase">
+                                {user?.name?.slice(0, 2) || 'US'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-xs font-semibold text-white truncate">
+                                    {user?.name || 'Pengguna'}
+                                </div>
+                                <div className="text-[11px] text-slate-400 truncate flex items-center gap-1">
+                                    <span className="capitalize text-[#D6AC48] font-medium">{currentRole}</span>
+                                    <span>•</span>
+                                    <span>{user?.unit_kerja?.singkatan || 'LLDIKTI'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleLogout}>
+                            <button
+                                type="submit"
+                                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-slate-300 hover:bg-rose-500/20 hover:text-rose-300 transition-colors cursor-pointer"
+                            >
+                                <LogOut className="w-3.5 h-3.5" />
+                                Keluar Sistem
+                            </button>
+                        </form>
                     </div>
+                </aside>
 
-                    {/* Right Functional Chips */}
-                    <div className="ml-auto flex items-center gap-2 xl:gap-4">
-
-                        <LoncengNotifikasi jumlah={jumlahNotifikasi} className="text-muted hover:bg-soft hover:text-ink focus:ring-primary/20" />
-                        <TombolTema className="text-muted hover:bg-soft hover:text-ink focus:ring-primary/20" />
-
-                        {isDesktopViewport && <UserProfileDropdown user={auth?.user ?? null} placement="header" />}
-                    </div>
-                </header>
-
-                {(title || normalizedBreadcrumbs.length > 0) && (
-                    <header className="px-4 pt-4 pb-0 sm:px-6 sm:pt-5 lg:px-8 max-w-7xl w-full mx-auto">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            {title && (
-                                shouldRenderH1 ? (
-                                    <h1 className="text-lg font-bold text-ink">{title}</h1>
-                                ) : (
-                                    <p className="text-lg font-bold text-ink">{title}</p>
-                                )
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+                    {/* Top Header */}
+                    <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-2xs">
+                        {/* Breadcrumbs & Title */}
+                        <div>
+                            {breadcrumbs.length > 0 && (
+                                <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
+                                    <Link href="/dashboard" className="hover:text-slate-900">
+                                        SAKIP
+                                    </Link>
+                                    {breadcrumbs.map((b, idx) => (
+                                        <React.Fragment key={idx}>
+                                            <ChevronRight className="w-3 h-3 text-slate-400" />
+                                            {b.href ? (
+                                                <Link href={b.href} className="hover:text-slate-900">
+                                                    {b.label}
+                                                </Link>
+                                            ) : (
+                                                <span className="font-semibold text-slate-800">{b.label}</span>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </nav>
                             )}
-                            {headerActions}
+                            <h1 className="text-lg font-bold text-slate-900 tracking-tight">
+                                {title || 'Dashboard Kinerja'}
+                            </h1>
                         </div>
-                        {normalizedBreadcrumbs.length > 0 && (
-                            <nav aria-label="Jejak navigasi" className={`${title ? 'mt-1 ' : ''}flex flex-wrap items-center gap-1.5 text-xs text-muted`}>
-                                {normalizedBreadcrumbs.map((item, index) => (
-                                    <Fragment key={`${index}-${item.label}`}>
-                                        {index > 0 && <ChevronRight aria-hidden="true" className="h-3 w-3" />}
-                                        {item.href ? (
-                                            <Link href={item.href} className="rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary">
-                                                {item.label}
-                                            </Link>
-                                        ) : (
-                                            <span aria-current={index === normalizedBreadcrumbs.length - 1 ? 'page' : undefined} className="font-medium text-ink">
-                                                {item.label}
-                                            </span>
-                                        )}
-                                    </Fragment>
-                                ))}
-                            </nav>
-                        )}
-                    </header>
-                )}
 
-                {/* Alerts */}
-                {flash?.success && (
-                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
-                        <div role="status" className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success/10 p-3.5 text-sm text-ink shadow-2xs">
-                            <CheckCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-success mt-0.5" />
+                        {/* Top Right Badges */}
+                        <div className="flex items-center gap-3">
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg text-xs text-slate-600 border border-slate-200">
+                                <Calendar className="w-3.5 h-3.5 text-[#122E92]" />
+                                <span className="font-medium">Tahun Anggaran 2026</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 px-3 py-1 bg-[#122E92]/10 rounded-lg text-xs text-[#122E92] font-semibold border border-[#122E92]/20">
+                                <Building2 className="w-3.5 h-3.5 text-[#122E92]" />
+                                <span>{user?.unit_kerja?.nama || 'LLDIKTI XVI'}</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Flash Message Alerts */}
+                    {flash?.success && (
+                        <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2.5 text-emerald-800 text-xs font-medium animate-fade-in shadow-xs">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
                             <span>{flash.success}</span>
                         </div>
-                    </div>
-                )}
-                {flash?.warning && (
-                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
-                        <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/10 p-3.5 text-sm text-warning-dark shadow-2xs">
-                            <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-warning-dark mt-0.5" />
-                            <span>{flash.warning}</span>
-                        </div>
-                    </div>
-                )}
-                {flash?.error && (
-                    <div className="px-4 mt-3 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto">
-                        <div role="alert" className="flex items-start gap-2.5 rounded-xl border border-danger/30 bg-danger/10 p-3.5 text-sm text-danger shadow-2xs">
-                            <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0 text-danger mt-0.5" />
+                    )}
+                    {flash?.error && (
+                        <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-2.5 text-rose-800 text-xs font-medium animate-fade-in shadow-xs">
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                             <span>{flash.error}</span>
                         </div>
-                    </div>
-                )}
-                {flash?.message && (
-                    <div className="mx-4 mt-4 lg:mx-8 max-w-7xl">
-                        <div role="status" className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 p-3.5 text-sm text-ink shadow-2xs">
-                            <Info aria-hidden="true" className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-                            <span>{flash.message}</span>
-                        </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Main Viewport */}
-                <main
-                    id="main-content"
-                    tabIndex={-1}
-                    className={`flex-1 px-4 sm:px-6 lg:px-8 pb-8 ${title || normalizedBreadcrumbs.length > 0 ? 'pt-3 sm:pt-4' : 'pt-5 sm:pt-6 lg:pt-8'} max-w-7xl w-full mx-auto outline-none`}
-                >
-                    {children}
-                </main>
+                    {/* Page Content */}
+                    <main className="flex-1 p-6">
+                        {children}
+                    </main>
+                </div>
             </div>
         </div>
     );
-}
+};

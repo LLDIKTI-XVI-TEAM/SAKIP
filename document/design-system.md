@@ -1,16 +1,9 @@
 # SAKIP Design System — Implementation Guide
 
-> **Klarifikasi final LLDIKTI Wilayah XVI — 24 September 2026**  
-> Bagian ini adalah kontrak terbaru dan **menggantikan keputusan Q31 atau teks lama yang bertentangan**. Role bawaan SAKIP berjumlah **lima**: `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. **PIC bukan role sistem**; PIC adalah konteks operasional yang dibentuk oleh penugasan dan grant unit. Detail keputusan dicatat sebagai **Q32** pada dokumen Keputusan Penyelarasan.
-
-
 > Panduan implementasi antarmuka dan design system aplikasi **SAKIP** (Sistem Akuntabilitas Kinerja Instansi Pemerintah) LLDIKTI Wilayah XVI.
 > Dokumen ini adalah panduan kanonis untuk pengembangan UI SAKIP berbasis arsitektur **Laravel 13 + Inertia 3 + React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui**, dengan toolchain **Bun**.
 >
 > Gunakan panduan ini saat membuat atau memodifikasi komponen antarmuka React (`resources/js/pages/`, `resources/js/components/`, `resources/js/layouts/`). Jangan menggunakan kelas ad-hoc atau raw hex apabila token dan komponen reusable yang sesuai sudah tersedia.
-
- > **Q32 berlaku:** role bawaan final adalah `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`. PIC bukan role sistem. UI hanya menggunakan capability server dan mempresentasikan PIC sebagai konteks operasional/assignment + grant bila relevan.
-
 
 ---
 
@@ -35,13 +28,13 @@ Design system dan panduan implementasi UI untuk aplikasi **SAKIP LLDIKTI Wilayah
 
 ## 🎯 Prinsip Desain
 
-**Physical scene:** pengguna SAKIP di lingkungan LLDIKTI Wilayah XVI mencakup lima role resmi — **Super Admin, Admin, Perencanaan, Pimpinan, dan Pegawai** — serta konteks bisnis **Penanggung Jawab/PIC operasional**. PIC bukan role; ia adalah konteks pekerjaan yang dibentuk oleh assignment dan grant. Pengguna bekerja menggunakan laptop atau komputer kerja di lingkungan kantor terang, memproses data akuntabilitas instansi: penyusunan Renstra, penjadwalan triwulanan, penginputan realisasi indikator kinerja, pengunggahan dokumen bukti dukung, verifikasi bertingkat, dan pemantauan capaian IKU.
+**Physical scene:** Tim Perencanaan Kinerja, Pimpinan Lembaga, Penanggung Jawab (PIC Unit Kerja), serta Auditor/Admin di lingkungan LLDIKTI Wilayah XVI. Pengguna bekerja menggunakan laptop atau komputer kerja di lingkungan kantor terang, memproses data akuntabilitas instansi: penyusunan Renstra, penjadwalan triwulanan, penginputan realisasi indikator kinerja, pengunggahan dokumen bukti dukung, verifikasi bertingkat, dan pemantauan capaian IKU.
 
 Antarmuka harus **legible**, **scannable**, berorientasi pada **kepadatan data kinerja tinggi**, andal, dan fungsional — bukan dekoratif.
 
 **Color strategy:** Restrained — *tinted neutrals* dengan satu warna institusi utama yang berwibawa (*institutional blue*) membawa otoritas resmi kementerian/lembaga. Warna emas (*secondary gold*) digunakan secara selektif sebagai aksen prestisius. Warna semantik (*success, warning, danger, info*) memiliki peran tegas dalam status alur dan evaluasi capaian kinerja.
 
-- ✅ Tema **terang** adalah tampilan bawaan; tema **gelap** opsional dipilih pengguna per browser lewat tombol di header dan tidak mengikuti setelan perangkat (Q89). Cetak selalu terang. Setiap halaman harus terbaca di kedua tema.
+- ✅ Tema **light only** — tidak ada dark mode (konsistensi dokumen formal instansi)
 - ✅ Prioritaskan **keterbacaan data numerik**, persentase, dan label indikator
 - ✅ Tampilan **profesional, enterprise, dan berwibawa** — formal instansi pemerintah tanpa kaku
 - ✅ Hindari efek visual berlebihan (no decorative glassmorphism, no gradient text, no side-stripe borders)
@@ -49,91 +42,51 @@ Antarmuka harus **legible**, **scannable**, berorientasi pada **kepadatan data k
 - ✅ Semua halaman wajib **mobile responsive** dan rapi di layar desktop
 - ✅ **Single Page Application Feel** — Navigasi instan tanpa reload halaman via `<Link>` dari `@inertiajs/react`
 
-### Prinsip UI untuk Role, Permission, dan Q32
-
-Design System tidak boleh memperkenalkan aturan authorization baru. Baseline final:
-
-- role resmi: Superadmin, Admin, Perencanaan, Pimpinan, Pegawai;
-- tidak ada role PIC;
-- label “PIC” pada UI berarti **konteks operasional**, bukan role database;
-- visibilitas aksi selalu berasal dari capability server (`can.*`), bukan hardcode nama role;
-- Grant Unit hanya 7 permission scoped dan dikelola melalui `delegasi:update`;
-- halaman **Peran & Izin** bersifat read-only;
-- user SSO baru berstatus aktif tanpa role (Q38); status nonaktif berarti akun dinonaktifkan;
-- UI harus mampu menampilkan keadaan “Belum memiliki peran” tanpa error.
+---
 
 ## 🎨 Referensi Token Desain
 
-Semua token didefinisikan sebagai CSS custom properties di `resources/css/app.css` via Tailwind CSS v4 `@theme {}`. Kolom **Terang** adalah nilai `@theme` dan menjadi acuan identitas visual institusi. Kolom **Gelap** adalah nilai yang menimpa token yang sama di dalam `@media screen { :root[data-tema="gelap"] { ... color-scheme: dark } }` (Q89), sehingga komponen memakai kelas yang sama di kedua tema. Token bertanda **(Q89)** adalah token baru; nilai terangnya sama dengan warna yang digantikan, kecuali `overlay` (`#0F172A`) yang juga menggantikan `bg-black/60` (latar drawer mobile) dan `ring-black/5` (menu akun), dengan selisih warna terukur paling besar 25/255 per kanal.
+Semua token didefinisikan sebagai CSS custom properties di `resources/css/app.css` via Tailwind CSS v4 `@theme {}`.
+Warna dan font **tetap sama persis** dengan identitas visual institusi:
 
 ### Brand Colors
 
-| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
-|-------|-------------|---------------|--------|-------|---------------------|
-| Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#0F2A6B` | `#7EA6F8` | Brand utama, CTA, tautan, cincin fokus, header resmi |
-| On Primary (Q89) | `--color-on-primary` | `text-on-primary` | `#FFFFFF` | `#081A4A` | Teks dan ikon di atas `bg-primary` (tombol utama, paginasi aktif, avatar, lencana) |
-| Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#C09A43` | `#C09A43` | Aksen emas, badge sekunder, highlight target khusus |
-| On Secondary (Q89) | `--color-on-secondary` | `text-on-secondary` | `#0F172A` | `#0A0A0A` | Teks di atas `bg-secondary` (tombol sekunder) |
-
-`--color-primary-dark` (`#081A4A`), `--color-primary-mid` (`#0D286D`), dan `--color-primary-light` (`#1546B8`) ada di `@theme` tetapi tidak dipakai di `resources/js` saat Q89 dicatat dan belum memiliki nilai gelap. Jangan memakainya pada komponen baru.
+| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
+|-------|-------------|---------------|-----------|---------------------|
+| Primary | `--color-primary` | `bg-primary` / `text-primary` / `border-primary` | `#122E92` | Brand utama, CTA, active state sidebar, header resmi |
+| Secondary | `--color-secondary` | `bg-secondary` / `text-secondary` | `#D6AC48` | Aksen emas, badge sekunder, highlight target khusus |
 
 ### Surface Colors
 
-| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
-|-------|-------------|---------------|--------|-------|---------------------|
-| Page | `--color-page` | `bg-page` | `#F8FAFC` | `#0A0A0A` | Background body seluruh aplikasi |
-| Surface | `--color-surface` | `bg-surface` | `#FFFFFF` | `#171717` | Card, container data, panel, navbar, modal |
-| Field (Q89) | `--color-field` | `bg-field` | `#FFFFFF` | `#212121` | Latar Input, Select, Textarea, dan kontrol isian lain (K10) |
-
-### Sidebar dan Overlay (Q89)
-
-| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
-|-------|-------------|---------------|--------|-------|---------------------|
-| Sidebar | `--color-sidebar` | `bg-sidebar` | `#0F2A6B` | `#171717` | Latar sidebar dan header mobile (K3) |
-| Sidebar Ink | `--color-sidebar-ink` | `text-sidebar-ink` / `text-sidebar-ink/NN` / `bg-sidebar-ink/NN` / `border-sidebar-ink/NN` / `ring-sidebar-ink/NN` | `#FFFFFF` | `#F5F5F5` | Teks, ikon, garis, sorotan hover dan menu aktif di atas `bg-sidebar`; tingkatan memakai opasitas sesuai kebutuhan |
-| Overlay | `--color-overlay` | `bg-overlay/NN` / `backdrop:bg-overlay/NN` / `ring-overlay/NN` | `#0F172A` | `#000000` | Latar gelap di belakang modal, dialog, dan drawer, serta cincin tipis menu; selalu dengan opasitas sesuai kebutuhan |
+| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
+|-------|-------------|---------------|-----------|---------------------|
+| Page | `--color-page` | `bg-page` | `#F8FAFC` | Background body seluruh aplikasi |
+| Surface | `--color-surface` | `bg-surface` | `#FFFFFF` | Card, container data, panel, navbar, sidebar |
 
 ### Text Colors
 
-| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
-|-------|-------------|---------------|--------|-------|---------------------|
-| Ink | `--color-ink` | `text-ink` | `#0F172A` | `#F5F5F5` | Teks utama, judul, angka metrik, isi tabel |
-| Muted | `--color-muted` | `text-muted` | `#64748B` | `#A1A1A1` | Label, metadata, satuan indikator, placeholder |
+| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
+|-------|-------------|---------------|-----------|---------------------|
+| Ink | `--color-ink` | `text-ink` | `#0F172A` | Teks utama, judul, angka metrik, isi tabel |
+| Muted | `--color-muted` | `text-muted` | `#64748B` | Label, metadata, satuan indikator, placeholder |
 
 ### Status Colors (Alur & Capaian Kinerja)
 
-| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Penggunaan SAKIP |
-|-------|-------------|---------------|--------|-------|------------------|
-| Success | `--color-success` | `bg-success` / `text-success` | `#16A34A` | `#22C55E` | Status **Disahkan**, status capaian **Tercapai**, Renstra/Jadwal Aktif |
-| Success Dark | `--color-success-dark` | `text-success-dark` | `#166534` | `#4ADE80` | Teks sukses di atas latar tint `bg-success/10` |
-| Warning | `--color-warning` | `bg-warning` / `text-warning` | `#EAB308` | `#EAB308` | Status **Diajukan** (menunggu verifikasi), pengingat deadline H-3 |
-| Warning Dark | `--color-warning-dark` | `text-warning-dark` | `#A16207` | `#FACC15` | Teks peringatan di atas latar tint `bg-warning/10` |
-| Danger | `--color-danger` | `bg-danger` / `text-danger` | `#DC2626` | `#F87171` | Status **Dikembalikan** (revisi), status capaian **Belum Tercapai**, deadline H-1 |
-| Danger Dark | `--color-danger-dark` | `text-danger-dark` | `#B91C1C` | `#FCA5A5` | Teks bahaya di atas latar tint `bg-danger/10` |
-| On Danger (Q89) | `--color-on-danger` | `text-on-danger` | `#FFFFFF` | `#450A0A` | Teks dan ikon di atas `bg-danger` (tombol bahaya, lencana jumlah) |
-| Info | `--color-info` | `bg-info` | `#2563EB` | `#60A5FA` | Status **Diverifikasi**, arah **Naik Baik**, pengingat H-7 |
-| Info Dark | `--color-info-dark` | `text-info-dark` | `#1D4ED8` | `#93C5FD` | Teks informasi di atas latar tint `bg-info/10` |
-
-**Makna `*-dark` (Q89 K11):** `success-dark`, `warning-dark`, `danger-dark`, dan `info-dark` adalah warna **teks status di atas latar tipis (tint)** dari token yang sama, bukan "versi lebih gelap" secara harfiah. Di tema terang nilainya lebih gelap daripada token dasarnya; di tema gelap nilainya lebih terang. Tidak ada token `on-success`, `on-warning`, atau `on-info`.
+| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Penggunaan SAKIP |
+|-------|-------------|---------------|-----------|------------------|
+| Success | `--color-success` | `bg-success` / `text-success` | `#16A34A` | Status **Disahkan**, status capaian **Tercapai**, Renstra/Jadwal Aktif |
+| Warning | `--color-warning` | `bg-warning` / `text-warning` | `#EAB308` | Status **Diajukan** (menunggu verifikasi), pengingat deadline H-3 |
+| Warning Dark | `--color-warning-dark` | `text-warning-dark` | `#A16207` | Teks peringatan pada badge/alert terang (kontras ≥ 4.5:1) |
+| Danger | `--color-danger` | `bg-danger` / `text-danger` | `#DC2626` | Status **Dikembalikan** (revisi), status capaian **Belum Tercapai**, deadline H-1 |
+| Info | `--color-info` | `bg-info` | `#2563EB` | Status **Diverifikasi**, arah **Naik Baik**, pengingat H-7 |
+| Info Dark | `--color-info-dark` | `text-info-dark` | `#1D4ED8` | Teks informasi pada badge/alert surface terang |
 
 ### Utility Colors
 
-| Token | CSS Variable | Kelas Tailwind | Terang | Gelap | Peran Implementasi |
-|-------|-------------|---------------|--------|-------|---------------------|
-| Border | `--color-border` | `border-border` | `#E2E8F0` | `#2E2E2E` | Garis pemisah tabel, border input, border card |
-| Soft | `--color-soft` | `bg-soft` | `#F1F5F9` | `#1F1F1F` | Header tabel, background hover menu, fill subtle |
-
-### Kontras Wajib di Kedua Tema
-
-Ambang: **teks 4,5:1** dan **komponen non-teks 3:1** (border isian, ikon tanpa teks, cincin fokus, penanda aktif), sesuai WCAG 2.1 AA kriteria 1.4.3 dan 1.4.11. Pasangan yang wajib memenuhi ambang di tema terang dan gelap:
-
-- `ink` dan `muted` di atas `page`, `surface`, `soft`, dan `field`;
-- `on-primary` di atas `primary` (termasuk hover `primary/90`), `on-secondary` di atas `secondary`, `on-danger` di atas `danger`;
-- `primary` sebagai tautan di atas `surface` dan `page`;
-- `*-dark` di atas tint `*/10` pada `surface`;
-- `sidebar-ink` (termasuk tingkatan opasitas untuk teks) di atas `sidebar`.
-
-Rasio dihitung dari nilai token; warna beropasitas dicampur di atas `surface`. Di tema gelap seluruh pasangan teks memenuhi 4,5:1; yang terendah `on-danger` di atas `danger` saat hover `danger/90` (4,92:1), `on-primary` di atas `primary` saat hover `primary/90` (5,81:1), dan `muted` di atas `field` (6,23:1). Yang belum memenuhi dan ditangani issue kontras terpisah (Q89 butir 9): di tema terang `on-danger` di atas `danger` saat hover `danger/90` (4,32:1), `muted` di atas `soft` (4,34:1), `warning-dark` pada badge status Diajukan `bg-warning/15` (4,46:1), dan `danger` sebagai teks pada alert dan badge `bg-danger/10` (4,14:1); di kedua tema border isian (terang 1,23:1, gelap 1,32:1) dan sorotan menu aktif sidebar (terang 1,56:1, gelap 1,54:1) belum mencapai 3:1. `success` dan `warning` di atas `surface` hanya 3,30:1 dan 1,92:1 di tema terang, sehingga tidak boleh dipakai sebagai warna teks; teks status memakai `*-dark`. Kode baru tidak boleh menambah pasangan yang gagal.
+| Token | CSS Variable | Kelas Tailwind | Nilai Hex | Peran Implementasi |
+|-------|-------------|---------------|-----------|---------------------|
+| Border | `--color-border` | `border-border` | `#E2E8F0` | Garis pemisah tabel, border input, border card |
+| Soft | `--color-soft` | `bg-soft` | `#F1F5F9` | Header tabel, background hover menu, fill subtle |
 
 ---
 
@@ -146,46 +99,18 @@ bg-primary        text-primary        border-primary
 bg-secondary      text-secondary      border-secondary
 bg-page           bg-surface
 text-ink          text-muted
-bg-success        text-success        border-success      text-success-dark
+bg-success        text-success        border-success
 bg-warning        text-warning        text-warning-dark
-bg-danger         text-danger         border-danger       text-danger-dark
+bg-danger         text-danger         border-danger
 bg-info           text-info-dark
 border-border     bg-soft
-
-# Q89 (NN = opasitas sesuai kebutuhan)
-text-on-primary   text-on-secondary   text-on-danger
-bg-field
-bg-sidebar        text-sidebar-ink    text-sidebar-ink/NN bg-sidebar-ink/NN
-border-sidebar-ink/NN                 ring-sidebar-ink/NN
-bg-overlay/NN     backdrop:bg-overlay/NN                  ring-overlay/NN
 ```
-
-Aturan pemakaian token Q89:
-
-- Teks dan ikon di atas warna solid memakai pasangan `on-*`: `bg-primary text-on-primary`, `bg-secondary text-on-secondary`, `bg-danger text-on-danger`.
-- Input, Select, Textarea, dan kontrol isian mentah memakai `bg-field`; kartu dan panel tetap `bg-surface`.
-- Sidebar dan header mobile memakai `bg-sidebar`; teks, ikon, garis, sorotan hover, dan menu aktif di dalamnya memakai `sidebar-ink` dengan opasitas.
-- Latar di belakang modal, dialog, dan drawer memakai `overlay` dengan opasitas.
-- Warna offset cincin fokus (`focus:ring-offset-*`) mengikuti `surface` lewat aturan dasar di `app.css`; jangan menulis warna offset sendiri.
-- Pemakaian lama yang belum dimigrasi dibereskan lewat issue tema gelap; kode baru wajib mengikuti aturan ini sejak Q89.
 
 ### ❌ Dilarang Keras (Forbidden):
 
 ```
 bg-blue-600       bg-yellow-500       bg-red-500
 text-gray-500     border-gray-300     text-slate-600
-
-# Q89: warna literal yang tidak ikut tema
-text-white        bg-white            bg-black            ring-black/5
-text-white/70     border-white/10     ring-white/40       (semua *-white/NN)
-ring-offset-white
-
-# Q89: token yang dipakai di luar perannya
-bg-surface/10     bg-surface/15       bg-surface/20       (bg-surface/NN sebagai sorotan, ganti bg-sidebar-ink/NN)
-bg-ink/50         bg-ink/60           backdrop:bg-ink/50  (bg-ink/NN sebagai overlay, ganti bg-overlay/NN)
-
-# Q89: varian dark: Tailwind mengikuti setelan perangkat, bukan pilihan pengguna
-dark:bg-*         dark:text-*
 ```
 
 ---
@@ -221,13 +146,6 @@ Aplikasi menggunakan root blade template minimalis yang memuat bundle Inertia 3 
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title inertia>{{ config('app.name', 'SAKIP LLDIKTI XVI') }}</title>
-    <script>
-        try {
-            if (localStorage.getItem('sakip-tema') === 'gelap') {
-                document.documentElement.dataset.tema = 'gelap';
-            }
-        } catch (e) {}
-    </script>
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
     @inertiaHead
@@ -237,8 +155,6 @@ Aplikasi menggunakan root blade template minimalis yang memuat bundle Inertia 3 
 </body>
 </html>
 ```
-
-**Pemasang tema (Q89):** skrip inline di `<head>` dijalankan sebelum aset Vite dan sebelum halaman digambar. Bila `localStorage` kunci `sakip-tema` bernilai `gelap`, skrip memasang `data-tema="gelap"` pada `<html>`; nilai lain, kunci kosong, atau `localStorage` yang tidak dapat dibaca berarti terang (tanpa atribut). Dengan begitu halaman tidak berkedip terang saat dimuat dengan tema gelap. Tombol tema di header mengubah atribut yang sama dan menyimpan `terang` atau `gelap` ke kunci yang sama. Skrip ini tidak boleh dipindah ke bundle Vite. Bila kelak Content-Security-Policy diterapkan, skrip ini memerlukan nonce atau hash.
 
 ### 2. Layout Utama: `resources/js/layouts/AppLayout.tsx`
 
@@ -266,7 +182,7 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
             {/* Mobile Overlay */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-overlay/50 lg:hidden transition-opacity"
+                    className="fixed inset-0 z-40 bg-ink/50 lg:hidden transition-opacity"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
@@ -306,6 +222,8 @@ import { Link } from '@inertiajs/react';
 export type ButtonVariant = 
     | 'primary' 
     | 'secondary' 
+    | 'success' 
+    | 'warning' 
     | 'danger' 
     | 'danger-solid' 
     | 'ghost' 
@@ -321,10 +239,12 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-    primary: 'bg-primary text-on-primary hover:opacity-90 shadow-sm focus:ring-primary/20',
+    primary: 'bg-primary text-white hover:opacity-90 shadow-sm focus:ring-primary/20',
     secondary: 'bg-surface border border-border text-ink hover:bg-soft shadow-sm focus:ring-primary/20',
+    success: 'bg-success text-white hover:opacity-90 shadow-sm focus:ring-success/20',
+    warning: 'bg-warning text-white hover:opacity-90 shadow-sm focus:ring-warning/20',
     danger: 'bg-surface border border-danger/30 text-danger hover:bg-danger/10 focus:ring-danger/20',
-    'danger-solid': 'bg-danger text-on-danger hover:opacity-90 shadow-sm focus:ring-danger/20',
+    'danger-solid': 'bg-danger text-white hover:opacity-90 shadow-sm focus:ring-danger/20',
     ghost: 'text-muted hover:bg-soft hover:text-ink',
     link: 'text-primary hover:underline p-0 h-auto font-medium',
 };
@@ -404,8 +324,6 @@ export default function Badge({ variant = 'muted', children, className = '' }: B
 }
 ```
 
-> **Tipografi badge:** tipografi badge minimal `text-xs` (12px) pada semua varian dan ukuran; prop `size` (`sm`/`md`) hanya membedakan padding horizontal (`px-2` vs `px-2.5`), bukan mengecilkan huruf.
-
 #### Static Mapping untuk Status SAKIP:
 
 ```tsx
@@ -424,49 +342,21 @@ export const capaianBadgeMap: Record<string, { variant: BadgeVariant; label: str
     tercapai: { variant: 'success', label: 'Tercapai' },
     belum_tercapai: { variant: 'danger', label: 'Belum Tercapai' },
     belum_ditetapkan: { variant: 'muted', label: 'Belum Ditetapkan' },
-    // Tampilan Q47, bukan nilai status_capaian: capaian tidak dihitung pada periode ini
-    tanpa_target_periode: { variant: 'info', label: 'Tanpa Target Periode' },
-    belum_dapat_diukur: { variant: 'warning', label: 'Belum Dapat Diukur' },
-};
-
-// Status Perhitungan Pengukuran: badge hanya saat nilai kosong; `terhitung` tampil sebagai angka/teks.
-// Komponen: Components/Pengukuran/StatusPerhitunganBadge.tsx
-export const statusPerhitunganBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
-    belum_diisi: { variant: 'muted', label: 'Belum Diisi' },
-    tidak_dapat_dihitung: { variant: 'secondary', label: 'Tidak Dapat Dihitung' },
-    belum_dapat_diukur: { variant: 'warning', label: 'Belum Dapat Diukur' },
-};
-
-// Status Rekomendasi Pimpinan (Q51): hanya yang disetujui berlaku
-export const rekomendasiBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
-    draf: { variant: 'muted', label: 'Draf' },
-    disetujui: { variant: 'success', label: 'Disetujui' },
 };
 
 // Status Kegiatan
 export const kegiatanStatusBadgeMap: Record<string, { variant: BadgeVariant; label: string }> = {
-    rencana: { variant: 'muted', label: 'Rencana' },
+    direncanakan: { variant: 'muted', label: 'Direncanakan' },
     terlaksana: { variant: 'success', label: 'Terlaksana' },
-    tidak_terlaksana: { variant: 'danger', label: 'Tidak terlaksana' },
-    ditunda: { variant: 'warning', label: 'Ditunda' },
-    batal: { variant: 'danger', label: 'Batal' },
+    tidak_terlaksana: { variant: 'danger', label: 'Tidak Terlaksana' },
 };
 ```
-
-> **Q42, Q45, Q47, Q49, Q51 (13 Oktober 2026):** pola tampilan tambahan berikut memakai `Badge` dan token yang sama.
-> - Indikator **dinilai tahunan** diberi badge `secondary` "Dinilai tahunan" di Sasaran & Indikator dan Rencana Aksi; target periode yang dikosongkan tampil "—" dengan keterangan "Tidak ditargetkan", bukan `0` (Q47).
-> - Pada pengukuran, dashboard, dan rekap, **selisih terhadap target PK** ditampilkan dalam satuan indikator dengan tanda (mis. "−3,57 poin"); warnanya mengikuti arah indikator, dan teksnya tetap menyebut "di atas" atau "di bawah" target agar tidak bergantung pada warna saja (Q47 §47.3).
-> - Status kegiatan di dashboard diberi label "belum diverifikasi" (Q45 §45.3); kegiatan yang diklaim lebih dari satu IKU diberi badge `muted` "Kegiatan bersama" (Q42 §42.2).
-> - Status tampilan indikator × periode di dashboard (Q64) memakai `Badge` dengan varian: "Belum mengisi" `muted`, "Tidak mengisi" `danger`, "Dalam proses" `info` (disertai badge status alur), "Belum ditetapkan" `muted`, "Tanpa target periode" `info`, "Belum dapat diukur" `warning`, "Tidak dapat dihitung" `secondary`, "Tidak berlaku" dan "Belum dibuka" `muted`. Target periode yang tidak ditargetkan tampil "—" dengan keterangan "Tidak ditargetkan".
-> - Panel hitungan dashboard (Q66) menampilkan jumlah per status sebagai daftar: titik berwarna token status, label teks, dan angka rata kanan, didahului bar proporsi yang disembunyikan dari pembaca layar. Warna hanya penanda tambahan.
-> - Rekomendasi yang disetujui Perencanaan sebagai cadangan diberi keterangan "Disetujui Perencanaan (cadangan)" di samping badge `Disetujui` (Q51 §51.2).
-> - Field nama kegiatan menampilkan penghitung karakter dengan batas 500; field tujuan berlabel "Tujuan (opsional)" (Q49 §49.1).
 
 ---
 
 ### 3. Modal Alasan Wajib (`resources/js/components/ui/ModalAlasan.tsx`)
 
-Digunakan pada aksi yang **mewajibkan alasan menurut kontrak domain (Q43 §43.2)** — termasuk pengembalian pengukuran/rencana aksi, koreksi dan revisi PK, buka kembali jadwal/pengukuran/rencana aksi, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan akses (peran, penonaktifan/pengaktifan kembali akun, pembatasan izin, pencabutan grant). Aksi beralasan **opsional** (Q43 §43.3: pemberian grant, perubahan persyaratan berkas, pindah unit indikator, aktivasi jadwal, perubahan setelan aplikasi, dan perubahan PK sebelum PK dipakai jadwal aktif) menampilkan field "Alasan (opsional)" tanpa validasi wajib; bila alasan grant kosong, server mengisi alasan baku. Alasan deviasi terhadap target PK pada Rencana Aksi (ADR-0008) wajib, tetapi diisi pada isian di form tersebut dengan error validasi pada isiannya, bukan Modal Alasan Wajib. Editor target PK tidak menampilkan isian alasan maupun rujukan sumber (Q82). Form penetapan Penanggung Jawab tidak menampilkan field alasan. `permissions.sensitif = true` mewajibkan audit `dasar_izin`, bukan otomatis modal input alasan (Q37 §37.2; Data Model §2.32/§3.5). Verifikasi RA cukup dialog konfirmasi tanpa input alasan; audit memakai alasan baku server dan `dasar_izin`. Pengembalian RA memakai modal alasan dengan validasi dan sanitasi backend:
+Digunakan pada setiap aksi audit sensitif — termasuk pengembalian pengukuran/rencana aksi, koreksi PK, buka kembali jadwal/pengukuran, penghapusan berkas/klaim, perubahan definisi komponen, dan perubahan setelan aplikasi:
 
 ```tsx
 import React, { useState } from 'react';
@@ -504,7 +394,7 @@ export default function ModalAlasan({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
             <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-xl">
                 <h3 className="text-base font-semibold text-ink flex items-center gap-2">
                     <svg className="h-5 w-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -523,7 +413,7 @@ export default function ModalAlasan({
                         value={alasan}
                         onChange={e => setAlasan(e.target.value)}
                         placeholder="Tuliskan alasan lengkap untuk audit log..."
-                        className="w-full rounded-lg border border-border bg-field px-4 py-2.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                     {error && <p className="text-xs text-danger">{error}</p>}
                 </div>
@@ -542,41 +432,11 @@ export default function ModalAlasan({
 }
 ```
 
-### 4. Komponen Bersama Halaman Daftar & Detail
-
-> Contoh di atas memakai path lama (`components/ui/…`). Komponen aktual berada di `resources/js/Components/` (huruf C besar). Gunakan komponen di bawah sebelum membuat pola baru; komponen bersama tidak memuat logika domain, dan visibilitas aksi tetap berasal dari `can.*` server.
-
-| Komponen | Path | Gunakan untuk |
-|----------|------|---------------|
-| `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell` | `Components/Table.tsx` | Seluruh tabel daftar; jangan menulis `<table>` dengan kelas header sendiri |
-| `TableEmptyRow`, `TableCellLabel`, `tableCellResponsive` | `Components/Table.tsx` | Tabel dengan pola mobile `block md:table` (setiap baris menjadi kartu): baris kosong selebar tabel (ikon, judul, keterangan dan aksi opsional), label kolom yang hanya tampil di mobile, dan kelas sel tanpa padding mobile |
-| `TableActionLink` | `Components/Table.tsx` | Tautan ikon di kolom aksi tabel; `label` menjadi `aria-label` dan `tooltip` wajib diisi |
-| `Pagination` | `Components/Pagination.tsx` | Paginator Laravel (`links`, `from`, `to`, `total`); label sebelumnya/berikutnya diterjemahkan tanpa `dangerouslySetInnerHTML` |
-| `TabTautan` | `Components/TabTautan.tsx` | Tab berupa tautan untuk memilah satu daftar menjadi beberapa antrean (antrean Verifikasi, Status Capaian); jumlah tiap tab tampil sebagai lencana dan ikut dibacakan, tab aktif ditandai `aria-current` |
-| `ActionMenu` | `Components/ActionMenu.tsx` | Dropdown aksi (kolom aksi tabel, tombol "Tambah" bercabang); item dari pemanggil, aksi berbahaya diberi `danger` |
-| `Tooltip` | `Components/Tooltip.tsx` | Tombol ikon; wajib disertai `aria-label` pada tombolnya |
-| `LampiranDraftFields` | `Components/LampiranDraftFields.tsx` | Editor draf lampiran file/tautan/teks pada form master; field khusus modul lewat `renderExtraFields` (mode tautan/teks) atau `renderItemFields` (setiap item, mis. keterangan lampiran PK) |
-| `BerkasLampiranItem` | `Components/BerkasLampiranItem.tsx` | Baris lampiran tersimpan di halaman detail; unduhan memakai URL ber-otorisasi dari server, tautan hanya http/https |
-| `JudulLangkah` | `Components/JudulLangkah.tsx` | Judul kartu bernomor pada halaman kerja berlangkah (detail Rencana Aksi, Pengisian Pengukuran); nomor hanya penanda visual sehingga nama heading tetap judulnya |
-| `Banner`, `PengingatKontekstual` | `Components/Banner.tsx`, `Components/PengingatKontekstual.tsx` | Pengingat hasil evaluasi server pada Dashboard, daftar Pengukuran, dan daftar Rencana Aksi |
-
-#### Banner pengingat kontekstual
-
-`Banner` menerima `id`, `signature`, `tingkat` (`info`, `warning`, `danger`), `judul`, `keterangan`, serta `href`/`label` opsional dari server. React hanya merender hasil; tanggal, hitungan kewajiban, izin, tingkat urgensi, dan tujuan tautan diputuskan server. Gunakan token `info`/`info-dark`, `warning`/`warning-dark`, atau `danger`/`danger-dark`, teks minimal `text-xs`, ikon berlabel melalui teks, dan `<Link>` Inertia. Info/peringatan memakai `role="status"`; bahaya memakai `role="alert"`.
-
-`PengingatKontekstual` memisahkan bagian **Kewajiban Anda**, **Ringkasan Pengajuan**, dan **Perjanjian Kinerja** hanya bila ada pesan yang terlihat. Judul kelompok ditempatkan sebagai heading di dalam card berwarna masing-masing, tanpa judul tambahan di luar card. Dashboard dapat memuat ketiganya; daftar Pengukuran memuat pribadi dan PK; daftar Rencana Aksi hanya pribadi. Tombol tutup bernama aksesibel dan berukuran sentuh 44px. Penutupan berada dalam state komponen, hanya untuk signature saat itu; navigasi Inertia, muat ulang, atau perubahan signature menampilkan pengingat kembali. Tidak ada polling, penyimpanan browser, atau mutasi server untuk menutup pesan. Pada mode fokus daftar Pengukuran, sediakan tautan **Lihat semua** untuk kembali ke daftar biasa.
-
-Pola halaman detail: tautan "← Kembali ke daftar" (`<Link>`) di kiri dan aksi berukuran `sm` di kanan, satu `h1` dari `AuthenticatedLayout`, `Card` dengan judul objek dan `Badge` status, lalu daftar data `dl` dua kolom.
-
-Pengisian Pengukuran memakai dua kolom mulai 1280 px: kartu isian bernomor (`JudulLangkah`) di kiri dan panel ringkasan di kanan berisi nilai, kesiapan pengajuan, serta tombol Simpan Draft dan Ajukan yang menempel di dasar panel. Di bawah 1280 px panel turun ke bawah kartu isian sehingga tombol menjadi elemen terakhir.
-
 ---
 
 ## 📝 Pola Form Inertia 3 (`useForm`)
 
 Contoh pengisian form pengukuran realisasi dengan hook `useForm` dari `@inertiajs/react` v3:
-
-> **Q45 (13 Oktober 2026):** contoh ini masih memakai satu field `catatan`. Form pengukuran aktual wajib memuat narasi **progres kegiatan**, **kendala/masalah**, dan **tindak lanjut/strategi** (serta tindak lanjut rekomendasi bila ada rekomendasi periode sebelumnya); `catatan` menjadi keterangan tambahan opsional dan saklar `wajib_catatan` tidak dipakai (ISS-07.03). Pola `useForm` di bawah tetap berlaku.
 
 ```tsx
 // resources/js/pages/Pengukuran/Edit.tsx
@@ -594,7 +454,7 @@ interface Props {
         nilai: number | null;
         catatan: string | null;
         versi: number;
-        wajib_catatan: boolean; // tidak dipakai sejak Q45
+        wajib_catatan: boolean;
         arah: 'naik_baik' | 'turun_baik';
     };
 }
@@ -627,7 +487,7 @@ export default function EditPengukuran({ pengukuran }: Props) {
                             step="0.01"
                             value={data.nilai}
                             onChange={e => setData('nilai', e.target.value)}
-                            className="w-full rounded-lg border border-border bg-field px-4 py-2.5 font-mono text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 font-mono text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                         {errors.nilai && <p className="text-xs text-danger mt-1">{errors.nilai}</p>}
                     </div>
@@ -641,7 +501,7 @@ export default function EditPengukuran({ pengukuran }: Props) {
                             value={data.catatan}
                             onChange={e => setData('catatan', e.target.value)}
                             placeholder="Jelaskan kendala pencapaian bila realisasi di bawah target..."
-                            className="w-full rounded-lg border border-border bg-field px-4 py-2.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-ink focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                         {errors.catatan && <p className="text-xs text-danger mt-1">{errors.catatan}</p>}
                     </div>
@@ -661,110 +521,41 @@ export default function EditPengukuran({ pengukuran }: Props) {
 
 ## 🗂️ Navigasi Sidebar Berbasis `<Link>` Inertia
 
-Navigasi antar halaman menggunakan `<Link>` dari `@inertiajs/react`. Daftar menu mengikuti rantai kinerja, tetapi **visibilitas menu harus berasal dari capability yang sudah dihitung server**, bukan dari nama role.
-
-> Contoh berikut memakai objek `can` sebagai representasi capability server. Nama key dapat disesuaikan dengan kontrak props aplikasi, tetapi keputusan allow/deny tetap dibuat backend.
-
-> **Q44 (13 Oktober 2026):** pada sidebar aktual (`resources/js/lib/navigation/sidebarNavigation.ts`), **Dasar Aturan** berada di grup **Master Data & Referensi** dan **Persyaratan Berkas** di grup **Perencanaan Kinerja**; menu **Kebijakan Storage** dihapus. Visibilitas tetap mengikuti `can.*` server.
+Navigasi antar halaman dilakukan menggunakan komponen `<Link>` dari `@inertiajs/react` agar transisi halaman cepat tanpa refresh layar penuh:
 
 ```tsx
 import { Link, usePage } from '@inertiajs/react';
 
-interface NavigationPageProps {
-    can: Record<string, boolean>;
-}
-
 export default function SidebarNav() {
-    const { url, props } = usePage<NavigationPageProps>();
-    const { can } = props;
+    const { url } = usePage();
 
-    // Rantai menu:
-    // Regulasi/Renstra → Indikator → PK → Jadwal → Rencana Aksi
-    // → Kegiatan → Pengukuran → Dashboard/Laporan
-    //
-    // PENTING:
-    // - Jangan gunakan user.role === 'pic' untuk membuka menu.
-    // - Server sudah menghitung capability efektif melalui role/grant/deny/business context.
-
+    // Menu disusun mengikuti rantai kinerja:
+    // Regulasi/Renstra → Indikator → PK → Jadwal → Rencana Aksi → Kegiatan → Pengukuran → Dashboard/Laporan
+    // Visibilitas item disesuaikan oleh server via props `can.*`
     const navItems = [
-        {
-            label: 'Dashboard',
-            href: '/dashboard',
-            active: url.startsWith('/dashboard'),
-            visible: can['dashboard:read'] === true,
-        },
-        {
-            label: 'Regulasi',
-            href: '/regulasi',
-            active: url.startsWith('/regulasi'),
-            visible: can['regulasi:read'] === true,
-        },
-        {
-            label: 'Renstra & Indikator',
-            href: '/renstra',
-            active: url.startsWith('/renstra'),
-            visible: can['renstra:read'] === true || can['indikator:read'] === true,
-        },
-        {
-            label: 'Perjanjian Kinerja',
-            href: '/pk',
-            active: url.startsWith('/pk'),
-            visible: can['pk:read'] === true,
-        },
-        {
-            label: 'Jadwal Tahunan',
-            href: '/jadwal',
-            active: url.startsWith('/jadwal'),
-            visible: can['jadwal:read'] === true,
-        },
-        {
-            label: 'Rencana Aksi',
-            href: '/rencana-aksi',
-            active: url.startsWith('/rencana-aksi'),
-            visible: can['rencana_aksi:read'] === true,
-        },
-        {
-            label: 'Kegiatan',
-            href: '/kegiatan',
-            active: url.startsWith('/kegiatan'),
-            visible: can['kegiatan:read'] === true,
-        },
-        {
-            label: 'Pengukuran Kinerja',
-            href: '/pengukuran',
-            active: url.startsWith('/pengukuran'),
-            visible: can['pengukuran:read'] === true,
-        },
-        {
-            label: 'Laporan & Ekspor',
-            href: '/laporan',
-            active: url.startsWith('/laporan'),
-            visible: can['laporan:read'] === true,
-        },
-        {
-            label: 'Kelola Akses',
-            href: '/akses',
-            active: url.startsWith('/akses'),
-            visible: can['akses:update'] === true,
-        },
-        {
-            label: 'Pengaturan',
-            href: '/pengaturan',
-            active: url.startsWith('/pengaturan'),
-            visible: can['pengaturan:update'] === true,
-        },
-    ].filter(item => item.visible);
+        { label: 'Dashboard', href: '/dashboard', active: url.startsWith('/dashboard') },
+        { label: 'Regulasi', href: '/regulasi', active: url.startsWith('/regulasi') },
+        { label: 'Renstra & Indikator', href: '/renstra', active: url.startsWith('/renstra') },
+        { label: 'Perjanjian Kinerja', href: '/pk', active: url.startsWith('/pk') },
+        { label: 'Jadwal Tahunan', href: '/jadwal', active: url.startsWith('/jadwal') },
+        { label: 'Rencana Aksi', href: '/rencana-aksi', active: url.startsWith('/rencana-aksi') },
+        { label: 'Kegiatan', href: '/kegiatan', active: url.startsWith('/kegiatan') },
+        { label: 'Pengukuran Kinerja', href: '/pengukuran', active: url.startsWith('/pengukuran') },
+        { label: 'Laporan & Ekspor', href: '/laporan', active: url.startsWith('/laporan') },
+        { label: 'Kelola Akses', href: '/akses', active: url.startsWith('/akses') },
+        { label: 'Pengaturan', href: '/pengaturan', active: url.startsWith('/pengaturan') },
+    ];
 
     return (
-        <nav className="space-y-1 bg-sidebar px-3 py-4">
+        <nav className="space-y-1 px-3 py-4">
             {navItems.map(item => (
                 <Link
                     key={item.href}
                     href={item.href}
                     className={`flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                        item.active
-                            ? 'bg-sidebar-ink/15 text-sidebar-ink'
-                            : 'text-sidebar-ink/70 hover:bg-sidebar-ink/10 hover:text-sidebar-ink'
+                        item.active 
+                            ? 'bg-primary text-white shadow-sm' 
+                            : 'text-muted hover:bg-soft hover:text-ink'
                     }`}
                 >
                     {item.label}
@@ -775,78 +566,7 @@ export default function SidebarNav() {
 }
 ```
 
-### Aturan Tombol dan Aksi Sensitif
-
-Prinsip yang sama berlaku pada tombol **Tambah**, **Edit**, **Ajukan**, **Verifikasi**, **Sahkan**, **Kembalikan**, **Buka Kembali**, **Hapus**, dan aksi lain:
-
-```tsx
-{canUpdate && (
-    <Button variant="primary" onClick={handleEdit}>
-        Edit
-    </Button>
-)}
-```
-
-`canUpdate` harus berasal dari server. React tidak menghitung sendiri kombinasi role, unit, grant, deny, Penanggung Jawab efektif, jendela waktu, status record, atau F1/F2.
-
-**Review RA (Q37):** verifikasi memakai dialog konfirmasi; pengembalian memakai modal alasan wajib. Capability dan alasan penolakan indikator `arsip`/unit `nonaktif` berasal dari `businessErrors` server yang sama untuk verifikasi, pengembalian, dan pengesahan. Detail/histori tetap dapat dibaca sesuai otorisasi; UI menampilkan alasan aksi tidak tersedia, dan request langsung tetap ditolak backend. Pengiriman notifikasi in-app menunggu ISS-12.02; event setelah commit pada ISS-05.04 bukan bukti notifikasi sudah terkirim.
-
-### UI Assign Peran
-
-Dropdown role hanya memuat:
-
-```text
-Superadmin
-Admin
-Perencanaan
-Pimpinan
-Pegawai
-```
-
-Tidak ada pilihan PIC. Form menampilkan role saat ini, alasan wajib, loading/disabled/error/success states, dan warning bila perubahan menyentuh user yang sedang menjadi Penanggung Jawab aktif. Perubahan role tidak boleh digambarkan seolah otomatis mengubah grant atau assignment.
-
-### Presentasi PIC Operasional vs Penanggung Jawab
-
-Jangan tampilkan PIC sebagai badge role resmi. Gunakan istilah yang menjelaskan konteks:
-
-- **Role:** Pegawai / Perencanaan / dst.
-- **Penanggung Jawab:** Ya/Tidak + indikator aktif.
-- **Hak isi unit:** berasal dari Grant Unit.
-
-Jika PJ belum punya grant yang dibutuhkan, tampilkan warning non-blocking dan status **“PJ aktif tanpa hak isi”**. Jangan membuat komponen yang menyiratkan assignment PJ otomatis memberi permission.
-
-## 🔐 Kontrak UI Authorization Q32
-
-### Yang Boleh Dilakukan React
-
-- menampilkan capability yang sudah dihitung server (`can.*`);
-- menyembunyikan/disable aksi berdasarkan capability;
-- menampilkan 5 role final;
-- menampilkan status akun aktif/nonaktif dan “belum memiliki peran”;
-- menampilkan Grant Unit dan scope secara eksplisit;
-- menampilkan warning PJ tanpa hak isi;
-- menampilkan halaman Peran & Izin read-only;
-- menyediakan dua aksi logout dengan label yang tidak ambigu.
-
-### Yang Tidak Boleh Dilakukan React
-
-- menentukan authorization hanya dari nama role;
-- menganggap PIC sebagai role keenam;
-- membuat grant otomatis ketika seseorang menjadi PJ;
-- mengubah preset role dari UI;
-- menganggap `rencana_aksi:read`/`kegiatan:read` sebagai unit-scoped;
-- menampilkan tren IKU 3 dari perbedaan baseline 74,2 dan target 76,25;
-- menampilkan 66,395 atau 87,08 sebagai realisasi TW II;
-- hardcode angka 84 sebagai penyebut IKU 8.
-
-### UI Peran & Izin
-
-Halaman read-only menampilkan tabel daftar peran (nama, jumlah izin tersimpan, status); setelah peran dipilih, halaman menampilkan tabel izin tersimpan peran tersebut dengan pencarian dan paginasi. Tidak ada checkbox editable, tombol Save, Tambah Izin, Cabut Izin, atau Modal Alasan untuk role-permission. Perubahan preset adalah concern rilis kode/seeder.
-
-### UI Logout
-
-- **Keluar**: label utama; session SAKIP saja.
-- **Keluar dari semua aplikasi (SSO)**: secondary/destructive contextual action dengan penjelasan dampak sesi bersama.
+---
 
 ## ✅ Review Checklist Pengembangan UI SAKIP (Inertia 3 + React 19)
 
@@ -854,26 +574,17 @@ Sebelum merge atau submit kode antarmuka SAKIP, pastikan seluruh item berikut te
 
 - [ ] **Font Poppins**: Menggunakan `font-sans` (Poppins)
 - [ ] **Design Tokens**: Menggunakan token resmi (`bg-primary`, `text-primary`, `bg-secondary`, `bg-surface`, `bg-page`, `text-ink`, `text-muted`)
-- [ ] **Bebas Raw Hex**: Tidak ada hardcode hex (mis. `#0F2A6B`), warna Tailwind default, atau warna literal (`text-white`, `bg-white`, `bg-black`, `*-white/NN`) di luar token
-- [ ] **Token Q89**: Teks di atas warna solid memakai `on-*`; isian memakai `bg-field`; sidebar memakai `sidebar`/`sidebar-ink`; overlay memakai `bg-overlay/NN`; tidak ada varian `dark:`
+- [ ] **Bebas Raw Hex**: Tidak ada hardcode `#122E92` atau warna Tailwind default di luar token
 - [ ] **Navigasi Inertia**: Menggunakan `<Link>` dari `@inertiajs/react` untuk seluruh navigasi internal (hindari tag `<a>` biasa)
 - [ ] **Form Handling**: Menggunakan `useForm` dari `@inertiajs/react` untuk submit form dan error binding
 - [ ] **TypeScript Safety**: Seluruh komponen dan props memiliki interface/type yang eksplisit
-- [ ] **Modal Alasan Audit**: Aksi yang mewajibkan alasan menurut kontrak domain (Q43 §43.2) memicu modal input alasan dengan validasi backend; aksi beralasan opsional (Q43 §43.3) memakai field opsional; alasan deviasi Rencana Aksi memakai isian di form, bukan modal; editor target PK tanpa isian alasan (Q82); `sensitif=true` mewajibkan audit `dasar_izin`, bukan otomatis alasan pengguna. Verifikasi RA cukup konfirmasi dengan alasan audit baku server (Q37)
+- [ ] **Modal Alasan Audit**: Aksi sensitif (permission `sensitif=true`) memicu modal input alasan sebelum request dikirim
 - [ ] **Otorisasi di Server**: Logika izin hanya di backend (Policy/Gate/Middleware); React hanya membaca props `can.*` dari server — tidak pernah mengevaluasi permission sendiri
-
-- [ ] **Lima Role Q32**: UI yang menampilkan pilihan/label role hanya mengenal `superadmin`, `admin`, `perencanaan`, `pimpinan`, `pegawai`
-- [ ] **PIC bukan role**: Tidak ada label/logic frontend yang memperlakukan PIC sebagai role keenam; konteks PIC ditampilkan terpisah dari role utama
-- [ ] **PIC ≠ Penanggung Jawab**: Assignment indikator ditampilkan sebagai konteks terpisah dari role utama
-- [ ] **Tidak Ada Role-Based Authorization**: Tidak ada `if (role === 'pic')`, `if (role === 'admin')`, atau pola sejenis untuk memberikan akses bisnis
-- [ ] **Capability-Based Navigation**: Sidebar, tombol, dan aksi sensitif mengikuti `can.*` dari server
-- [ ] **Assign Peran Lengkap**: Form Assign Peran menampilkan tepat lima role dan mendukung user baru yang belum memiliki role
 - [ ] **Toolchain Bun**: Tidak ada `package-lock.json` atau referensi npm; lockfile yang sah adalah `bun.lock`/`bun.lockb`
 - [ ] **shadcn/ui Konsisten**: Komponen shadcn/ui dikustomisasi menggunakan token design system ini, bukan warna default-nya
-- [ ] **Aksesibilitas & Kontras**: Di tema terang dan gelap, kontras teks ≥ 4,5:1 dan komponen non-teks (border isian, ikon tanpa teks, cincin fokus, penanda aktif) ≥ 3:1 terhadap latarnya; pasangan wajib di §Kontras Wajib di Kedua Tema
-- [ ] **Dua Tema**: Halaman yang diubah diperiksa di tema terang dan gelap (desktop dan mobile): tidak ada teks hilang, isian terbedakan dari kartu, overlay dan fokus terlihat, grafik ikut tema; pratinjau cetak tetap terang
+- [ ] **Aksesibilitas & Kontras**: Kontras teks body terhadap background ≥ 4.5:1
 - [ ] **Mobile Responsive**: Sidebar off-canvas rapi di mobile, tidak ada horizontal overflow pada viewport
 
 ---
 
-*Versi 4.2, SAKIP LLDIKTI Wilayah XVI, 12 November 2026: tema gelap opsional dan token warna Q89, nilai hex diselaraskan dengan `resources/css/app.css`. Versi 4.1, 20 September 2026: penyelarasan Q31 (6 role). Canonical Implementation Guide for Laravel 13 + Inertia 3 + React 19 + TypeScript + Bun*
+*Versi 4.0 — SAKIP LLDIKTI Wilayah XVI — September 2026 — Canonical Implementation Guide for Laravel 13 + Inertia 3 + React 19 + TypeScript + Bun*

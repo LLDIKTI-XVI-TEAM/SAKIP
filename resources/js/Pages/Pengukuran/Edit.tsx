@@ -1,312 +1,425 @@
-import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
-import type { HttpExceptionResponse } from '@inertiajs/core';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import React, { useMemo } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
-import { AlertTriangle, ArrowLeft, Info, Save, Send } from 'lucide-react';
+import { 
+    Calculator, 
+    UploadCloud, 
+    Link as LinkIcon, 
+    FileText, 
+    AlertTriangle, 
+    CheckCircle2, 
+    ArrowLeft,
+    Send,
+    Save,
+    ExternalLink,
+    Clock
+} from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
-import JudulLangkah from '@/Components/JudulLangkah';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
-import { Switch } from '@/Components/Switch';
 import { Input } from '@/Components/Input';
-import { Select } from '@/Components/Select';
 import { Textarea } from '@/Components/Textarea';
-import { Modal } from '@/Components/Modal';
-import { LampiranDraftFields } from '@/Components/LampiranDraftFields';
-import type { LampiranDraft } from '@/types/lampiran';
-import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
-import { PindahVersiButton } from '@/Components/Pengukuran/PindahVersiButton';
-import { labelModeBukti, type Pengukuran } from './types';
-import EvidenceList from './EvidenceList';
-import { useFormatNilai } from './formatNilai';
-import { useLabelUnit } from '@/hooks/useLabelUnit';
-import CalculationPreview from './CalculationPreview';
-import { arahLabel, peranKomponenLabel, tipePerhitunganLabel } from '@/lib/indikator';
 
 interface PengukuranEditProps {
-    pengukuran: Pengukuran;
-    hasil_pengajuan_terakhir?: { alasan: string[] } | null;
+    pengukuran: any;
 }
 
-const narasi = [['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Tindak lanjut/strategi penyelesaian']] as const;
-const kelasInfo = 'flex items-start gap-2.5 rounded-lg border border-info/30 bg-info/10 px-4 py-3 text-sm text-info-dark';
-const kelasPeringatan = 'flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-dark';
+export default function PengukuranEdit({ pengukuran }: PengukuranEditProps) {
+    const iku = pengukuran.penugasan_indikator?.indikator_kinerja;
+    const isLocked = !['draft', 'dikembalikan'].includes(pengukuran.status);
 
-export default function PengukuranEdit(props: PengukuranEditProps) {
-    return <PengukuranForm key={props.pengukuran.id} {...props} />;
-}
+    const { data, setData, post, processing, errors } = useForm({
+        realisasi: pengukuran.realisasi !== null ? String(pengukuran.realisasi) : '',
+        kendala: pengukuran.kendala || '',
+        tindak_lanjut: pengukuran.tindak_lanjut || '',
+        strategi: pengukuran.strategi || '',
+        file_bukti: null as File | null,
+        url_bukti: '',
+        keterangan_bukti: '',
+        action: 'draft',
+    });
 
-/** Isi form dari data tersimpan: nilai awal useForm sekaligus tampilan form baca-saja. */
-const nilaiTersimpan = (pengukuran: Pengukuran) => ({
-    versi: pengukuran.versi,
-    nilai: pengukuran.nilai === null ? '' : String(pengukuran.nilai),
-    komponen: pengukuran.komponen.map((item) => ({ komponen_id: item.komponen_id, nilai: item.nilai === null ? '' : String(item.nilai) })),
-    catatan: pengukuran.catatan || '',
-    // Penanda hanya berasal dari BDD tersimpan; status numerik selalu dihitung ulang server.
-    status_perhitungan: (pengukuran.status_perhitungan === 'belum_dapat_diukur' ? 'belum_dapat_diukur' : null) as 'belum_dapat_diukur' | null,
-    progres_kegiatan: pengukuran.progres_kegiatan ?? '',
-    kendala_masalah: pengukuran.kendala_masalah ?? '',
-    strategi_tindak_lanjut: pengukuran.strategi_tindak_lanjut ?? '',
-    tindak_lanjut_rekomendasi: pengukuran.tindak_lanjut_rekomendasi ?? '',
-    alasan_tidak_dapat_dihitung: pengukuran.alasan_tidak_dapat_dihitung || '',
-    jenis_berkas_id: '',
-    menggantikan_id: '',
-    alasan_koreksi: '',
-    lampiran: [] as LampiranDraft[],
-    action: 'draft' as 'draft' | 'ajukan',
-});
-
-function PengukuranForm({ pengukuran, hasil_pengajuan_terakhir }: PengukuranEditProps) {
-    const formatNilai = useFormatNilai();
-    const labelUnit = useLabelUnit();
-    const { can } = pengukuran;
-    const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
-    const historical = pengukuran.sumber_nilai === 'historis';
-    const manual = pengukuran.sumber_nilai !== 'komponen';
-    const errorSummary = useRef<HTMLDivElement>(null);
-    const focusErrors = useRef(false);
-    const submitting = useRef(false);
-    const [confirmation, setConfirmation] = useState(false);
-    const [requestError, setRequestError] = useState('');
-    const [previewStatus, setPreviewStatus] = useState<Pengukuran['status_perhitungan'] | null>(null);
-    const recovery = useAuthRecovery();
-    const form = useForm(nilaiTersimpan(pengukuran));
-    const { setData, transform, post, processing, errors, isDirty } = form;
-    // Simpan yang ditolak mengganti props tanpa remount (POST useForm memakai preserveState), jadi form baca-saja membaca nilai
-    // tersimpan, bukan input lokal yang tidak pernah masuk. Tanpa remount, galat penolakan tetap tampil dan input form yang masih dapat diubah tetap utuh.
-    const data = can.update ? form.data : nilaiTersimpan(pengukuran);
-    const { handleHttpException } = recovery;
-    const handlePreviewRecovery = useCallback((response: HttpExceptionResponse) => {
-        handleHttpException(response, {
-            effectiveMethod: 'post',
-            path: `/pengukuran/${pengukuran.id}/pratinjau`,
-            mutation: false,
-        });
-    }, [handleHttpException, pengukuran.id]);
-    const fieldErrors: Record<string, string | undefined> = errors;
-    const disabled = !can.update || historical || processing;
-    const unmeasurable = data.status_perhitungan !== null;
-    const valueDisabled = disabled || unmeasurable;
-    // Pratinjau sukses terakhir mengungguli status tersimpan selama form dapat diubah; pratinjau gagal mengosongkannya. State lokal (pratinjau dan centang BDD)
-    // bertahan lintas POST tanpa remount, jadi form baca-saja selalu mengikuti status tersimpan atau beku.
-    const statusAlasan = can.update ? (unmeasurable ? null : previewStatus ?? pengukuran.status_perhitungan) : pengukuran.status_perhitungan;
-    const tampilAlasan = !manual && statusAlasan === 'tidak_dapat_dihitung';
-    const rekomendasi = pengukuran.rekomendasi_sebelumnya;
-    const requirement = pengukuran.persyaratan_bukti.find((item) => item.id === data.jenis_berkas_id);
-    const modes = (['file', 'tautan', 'teks'] as const).filter((mode) => !requirement || requirement[`izinkan_${mode}`]);
-    const bukti = data.lampiran[0];
-    const activeMode = bukti && modes.includes(bukti.mode) ? bukti.mode : null;
-    const lampiranErrors = { lampiran: fieldErrors.bukti, 'lampiran.0.mode': fieldErrors['bukti.mode'], 'lampiran.0.file': fieldErrors['bukti.file'], 'lampiran.0.tautan': fieldErrors['bukti.tautan'], 'lampiran.0.isi_teks': fieldErrors['bukti.isi_teks'] };
-    const lastRejection = pengukuran.riwayats?.find((item) => item.status_ke === 'dikembalikan');
-    const catatanPerbaikan = pengukuran.status === 'dikembalikan' ? lastRejection : undefined;
-    const displayedErrors = hasil_pengajuan_terakhir ? [] : Object.entries(errors);
-
-    useEffect(() => {
-        // Fokus setelah cleanup modal selesai mengembalikan fokus ke tombol asal.
-        if (!confirmation && focusErrors.current && errorSummary.current) {
-            focusErrors.current = false;
-            errorSummary.current.focus();
+    // Real-time live calculation in React
+    const calculatedCapaian = useMemo(() => {
+        if (!data.realisasi || isNaN(Number(data.realisasi))) {
+            return null;
         }
-    }, [confirmation, errors, hasil_pengajuan_terakhir]);
 
-    const send = (intent: 'draft' | 'ajukan') => {
-        if (disabled || submitting.current || recovery.recovery || requestError) return;
-        if (intent === 'ajukan' && !can.submit) return;
-        // Kunci sinkron menutup jeda sebelum processing diperbarui oleh Inertia.
-        submitting.current = true;
-        setRequestError('');
-        transform((values) => ({
-            versi: values.versi, action: intent, status_perhitungan: values.status_perhitungan,
-            ...(manual ? { nilai: values.nilai === '' ? null : values.nilai } : { komponen: values.komponen.map((item) => ({ ...item, nilai: item.nilai === '' ? null : item.nilai })) }),
-            catatan: values.catatan, alasan_tidak_dapat_dihitung: values.alasan_tidak_dapat_dihitung,
-            progres_kegiatan: values.progres_kegiatan, kendala_masalah: values.kendala_masalah, strategi_tindak_lanjut: values.strategi_tindak_lanjut,
-            // Tanpa rekomendasi approved, field diomit (bukan null) agar isi tersimpan tetap utuh.
-            ...(rekomendasi ? { tindak_lanjut_rekomendasi: values.tindak_lanjut_rekomendasi } : {}),
-            // Rekomendasi yang dilihat; pengajuan ditolak bila sudah diganti sebelum dikirim.
-            rekomendasi_sebelumnya_id: rekomendasi?.id ?? null,
-            ...(bukti && activeMode && can.uploadEvidence ? { bukti: {
-                jenis_berkas_id: values.jenis_berkas_id || null, mode: activeMode,
-                ...(values.menggantikan_id ? { menggantikan_id: values.menggantikan_id, alasan_koreksi: values.alasan_koreksi } : {}),
-                ...(activeMode === 'file' ? { file: bukti.file } : activeMode === 'tautan' ? { tautan: bukti.tautan } : { isi_teks: bukti.isi_teks }),
-            } } : {}),
-        }));
+        const realisasi = parseFloat(data.realisasi);
+        const target = parseFloat(pengukuran.target);
+
+        if (target <= 0) {
+            return realisasi > 0 ? 100 : 0;
+        }
+
+        if (iku?.tipe_perhitungan === 'turun_baik') {
+            const res = ((2 * target - realisasi) / target) * 100;
+            return Math.max(0, Math.round(res * 100) / 100);
+        } else {
+            const res = (realisasi / target) * 100;
+            return Math.max(0, Math.round(res * 100) / 100);
+        }
+    }, [data.realisasi, pengukuran.target, iku?.tipe_perhitungan]);
+
+    const isUnderperforming = calculatedCapaian !== null && calculatedCapaian < 100.0;
+
+    const handleSubmit = (actionType: 'draft' | 'ajukan') => {
+        data.action = actionType;
         post(`/pengukuran/${pengukuran.id}`, {
             preserveScroll: true,
-            onError: () => { focusErrors.current = true; setConfirmation(false); },
-            onSuccess: () => setConfirmation(false),
-            onFinish: () => { submitting.current = false; },
-            onCancel: () => { setConfirmation(false); setRequestError('Permintaan dibatalkan. Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); },
-            onNetworkError: () => { setConfirmation(false); setRequestError('Koneksi terputus. Hasil penyimpanan belum diketahui; periksa status pengukuran sebelum mencoba kembali.'); return false; },
-            onHttpException: (response) => { setConfirmation(false); if (recovery.handleHttpException(response, { effectiveMethod: 'post', path: `/pengukuran/${pengukuran.id}`, mutation: true })) return false; setRequestError(response.status === 403 ? 'Izin tindakan ditolak. Periksa akses sebelum mencoba kembali.' : 'Hasil tindakan belum dapat dipastikan. Periksa data terbaru sebelum mencoba kembali.'); return false; },
         });
     };
 
-    const submit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (disabled || submitting.current || recovery.recovery || requestError) return;
-        const submitter = (event.nativeEvent as SubmitEvent).submitter;
-        if (submitter instanceof HTMLButtonElement && submitter.value === 'ajukan') {
-            if (can.submit) setConfirmation(true);
-        } else {
-            send('draft');
-        }
-    };
+    // Find if there is a rejection note from previous review
+    const lastRejection = pengukuran.riwayats?.find((r: any) => r.status_ke === 'dikembalikan');
 
-    return <AuthenticatedLayout title="Pengisian Pengukuran Kinerja" breadcrumbs={[{ label: 'Pengukuran Kinerja', href: '/pengukuran' }, { label: indikator.kode }]}>
-        <Head title={`Pengisian ${indikator.kode}`} />
-        <div className="space-y-5">
-            <Link href="/pengukuran" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary/20">
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Kembali ke daftar
-            </Link>
-            <Card>
-                <CardHeader className="items-start gap-4"><CardTitle className="min-w-0 flex-1 break-words">{indikator.kode} · {indikator.nama}</CardTitle><Badge status={pengukuran.status} /></CardHeader>
-                <CardContent className="space-y-4">
-                    {indikator.definisi_operasional && <p className="text-sm text-muted">{indikator.definisi_operasional}</p>}
-                    <dl className="grid gap-x-4 gap-y-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                        <div><dt className="text-muted">{labelUnit} penanggung jawab</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd></div>
-                        <div><dt className="text-muted">PIC</dt><dd className="mt-1 font-medium">{pengukuran.penugasan_indikator.pic?.nama ?? 'Belum ditetapkan'}</dd></div>
-                        <div><dt className="text-muted">Periode</dt><dd className="mt-1 font-medium">{`${pengukuran.periode_jadwal.nama_periode} ${pengukuran.periode_jadwal.tahun}`}<RentangPeriode tanggal={pengukuran.periode_jadwal.tanggal} tahun={pengukuran.periode_jadwal.tahun} /></dd></div>
-                        <div><dt className="text-muted">Cara hitung</dt><dd className="mt-1 font-medium">{tipePerhitunganLabel[indikator.tipe_perhitungan]}</dd></div>
-                        <div><dt className="text-muted">Arah kinerja</dt><dd className="mt-1 font-medium">{arahLabel[indikator.arah]}</dd></div>
-                    </dl>
-                </CardContent>
-            </Card>
-            {(catatanPerbaikan || !can.update || historical || pengukuran.versi_berlaku) && <section aria-label="Pemberitahuan" className="space-y-2">
-                {catatanPerbaikan && <div role="note" className={kelasPeringatan}>
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                    <div className="min-w-0"><h2 className="font-semibold">Catatan perbaikan</h2><p className="mt-1 whitespace-pre-wrap">{catatanPerbaikan.catatan}</p><p className="mt-2 text-xs">Dikembalikan oleh {catatanPerbaikan.user?.nama || 'Verifikator'}</p></div>
-                </div>}
-                {!can.update && <div className={kelasInfo}><Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><p>Formulir hanya dapat dibaca sesuai status dan izin akses Anda.</p></div>}
-                {historical && <div className={kelasInfo}><Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /><p>Nilai historis hanya dapat dikoreksi melalui alur backfill resmi.</p></div>}
-                {pengukuran.versi_berlaku && <div role="note" className={kelasPeringatan}>
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                    <div className="min-w-0 space-y-3">
-                        <p>Memakai versi lama. Versi {pengukuran.versi_berlaku.nomor} berlaku untuk periode ini.</p>
-                        {can.pindahSnapshot && <PindahVersiButton pengukuranId={pengukuran.id} versi={pengukuran.versi}
-                            versiBerlaku={pengukuran.versi_berlaku} labelAksesibel={`Pindahkan ${indikator.kode}`}
-                            disabledReason={isDirty ? 'Simpan perubahan dulu' : undefined} />}
+    return (
+        <AuthenticatedLayout
+            title="Form Pengisian Realisasi Kinerja"
+            breadcrumbs={[
+                { label: 'Pengukuran Kinerja', href: '/pengukuran' },
+                { label: `Pengisian ${iku?.kode}` },
+            ]}
+        >
+            <Head title={`Pengisian ${iku?.kode}`} />
+
+            <div className="max-w-4xl mx-auto space-y-6">
+                {/* Back button */}
+                <div className="flex items-center justify-between">
+                    <Link
+                        href="/pengukuran"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Kembali ke Daftar Pengukuran
+                    </Link>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">Status Saat Ini:</span>
+                        <Badge status={pengukuran.status} />
                     </div>
-                </div>}
-            </section>}
-            <form onSubmit={submit} className="space-y-5" aria-busy={processing}>
-                {(displayedErrors.length > 0 || hasil_pengajuan_terakhir) && <div ref={errorSummary} tabIndex={-1} id="measurement-errors" role="alert" className="scroll-mt-24 rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger-dark">
-                    {displayedErrors.length > 0 && <ul className="list-disc space-y-1 pl-5">{displayedErrors.map(([field, message]) => <li key={field}>{message}</li>)}</ul>}
-                    {hasil_pengajuan_terakhir && <section aria-labelledby="last-submission-title" className={displayedErrors.length > 0 ? 'mt-3' : undefined}>
-                        <h2 id="last-submission-title" className="font-semibold">Hasil pengajuan terakhir</h2>
-                        <ul className="mt-2 list-disc space-y-1 pl-5">{hasil_pengajuan_terakhir.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-                        <p className="mt-2">Alasan ini berasal dari input pada percobaan terakhir. Perubahan berikutnya diperiksa saat Anda mengajukan kembali.</p>
-                    </section>}
-                </div>}
-                <AuthRecoveryNotice recovery={recovery.recovery} pending={processing} />
-                {requestError && !recovery.recovery && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 p-4 text-sm text-danger">{requestError}</p>}
-                {/* Dua kolom baru muat di samping sidebar mulai 1280 px; di bawahnya panel ringkasan turun ke bawah kartu isian. */}
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
-                    <div className="min-w-0 space-y-5">
-                        <Card role="region" aria-labelledby="langkah-nilai">
-                            <CardHeader><JudulLangkah id="langkah-nilai" nomor={1}>Nilai realisasi</JudulLangkah></CardHeader>
-                            <CardContent className="space-y-4">
-                                {/* Pilihan dan kembali ke mode nilai sama-sama mengosongkan input dalam satu pembaruan agar angka lama tidak terkirim diam-diam. */}
-                                {!pengukuran.periode_jadwal.is_nilai_akhir && <div className="flex items-center gap-3">
-                                    <Switch id="belum-dapat-diukur" checked={unmeasurable} disabled={disabled} aria-invalid={Boolean(errors.status_perhitungan)} aria-describedby={errors.status_perhitungan ? 'measurement-errors' : undefined} onChange={(checked) => {
-                                        setPreviewStatus(null);
-                                        setData((values) => ({ ...values, status_perhitungan: checked ? 'belum_dapat_diukur' : null, nilai: '', komponen: values.komponen.map((item) => ({ ...item, nilai: '' })), alasan_tidak_dapat_dihitung: '' }));
-                                    }} />
-                                    <label htmlFor="belum-dapat-diukur" className="cursor-pointer text-sm font-medium text-ink">Belum dapat diukur</label>
-                                </div>}
-                                {manual ? <Input name="nilai" label={`Nilai realisasi (${indikator.satuan})`} type="number" step="any" value={data.nilai} onChange={(event) => setData('nilai', event.target.value)} disabled={valueDisabled} error={errors.nilai} aria-invalid={Boolean(errors.nilai)} aria-describedby={errors.nilai ? 'measurement-errors' : undefined} /> : <div className="space-y-4">
-                                    <p className="text-sm text-muted">Isi nilai setiap komponen untuk periode ini. Hasilnya baru tersimpan setelah menekan Simpan Draft.</p>
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        {pengukuran.komponen.map((item, index) => <Input key={item.komponen_id} name={`komponen-${item.komponen_id}`} label={`${item.kode} · ${item.label}`} type="number" step="any" value={data.komponen[index]?.nilai ?? ''} onChange={(event) => setData('komponen', data.komponen.map((value, position) => position === index ? { ...value, nilai: event.target.value } : value))} disabled={valueDisabled} helperText={`${peranKomponenLabel[item.peran] ?? item.peran}${item.bobot === null ? '' : ` · Bobot ${item.bobot}`}`} error={fieldErrors[`komponen.${index}.nilai`]} aria-invalid={Boolean(fieldErrors[`komponen.${index}.nilai`])} aria-describedby={fieldErrors[`komponen.${index}.nilai`] ? 'measurement-errors' : undefined} />)}
-                                    </div>
-                                </div>}
-                                {tampilAlasan && <Textarea name="alasan_tidak_dapat_dihitung" label="Alasan bila hasil tidak dapat dihitung" value={data.alasan_tidak_dapat_dihitung} onChange={(event) => setData('alasan_tidak_dapat_dihitung', event.target.value)} disabled={valueDisabled} helperText="Wajib diisi sebelum pengajuan." error={errors.alasan_tidak_dapat_dihitung} aria-invalid={Boolean(errors.alasan_tidak_dapat_dihitung)} aria-describedby={errors.alasan_tidak_dapat_dihitung ? 'measurement-errors' : undefined} />}
-                                <Textarea name="catatan" label="Catatan" value={data.catatan} onChange={(event) => setData('catatan', event.target.value)} disabled={disabled} helperText="Keterangan tambahan opsional; ketiga narasi pengukuran tetap wajib saat pengajuan periode normal." error={errors.catatan} aria-invalid={Boolean(errors.catatan)} aria-describedby={errors.catatan ? 'measurement-errors' : undefined} />
-                            </CardContent>
-                        </Card>
-                        <Card role="region" aria-labelledby="langkah-narasi">
-                            <CardHeader><JudulLangkah id="langkah-narasi" nomor={2}>Narasi</JudulLangkah></CardHeader>
-                            <CardContent className="space-y-4">
-                                {narasi.map(([field, label]) => <Textarea key={field} name={field} label={label} value={data[field]} onChange={(event) => setData(field, event.target.value)} disabled={disabled} error={errors[field]} aria-invalid={Boolean(errors[field])} aria-describedby={errors[field] ? 'measurement-errors' : undefined} />)}
-                                {rekomendasi && <div className="space-y-2">
-                                    <p id="rekomendasi-sebelumnya" className="rounded-lg border border-border bg-soft p-3 text-sm"><span className="font-medium">Rekomendasi:</span> {rekomendasi.isi}</p>
-                                    <Textarea name="tindak_lanjut_rekomendasi" label="Tindak lanjut rekomendasi" value={data.tindak_lanjut_rekomendasi} onChange={(event) => setData('tindak_lanjut_rekomendasi', event.target.value)} disabled={disabled} error={errors.tindak_lanjut_rekomendasi} aria-invalid={Boolean(errors.tindak_lanjut_rekomendasi)} aria-describedby={errors.tindak_lanjut_rekomendasi ? 'rekomendasi-sebelumnya measurement-errors' : 'rekomendasi-sebelumnya'} />
-                                </div>}
-                            </CardContent>
-                        </Card>
-                        <Card role="region" aria-labelledby="langkah-bukti">
-                            <CardHeader><JudulLangkah id="langkah-bukti" nomor={3}>Bukti dukung</JudulLangkah></CardHeader>
-                            <CardContent className="space-y-5">
-                                <EvidenceList pengukuran={pengukuran} />
-                                {/* Menghapus lampiran ikut mengosongkan persyaratan dan koreksi agar tidak terkirim tanpa bukti. */}
-                                {can.uploadEvidence && !historical && <LampiranDraftFields items={data.lampiran} errors={lampiranErrors} disabled={disabled} maxItems={1} modes={modes}
-                                    onChange={(update) => setData((values) => { const lampiran = update(values.lampiran); return lampiran.length > 0 ? { ...values, lampiran } : { ...values, lampiran, jenis_berkas_id: '', menggantikan_id: '', alasan_koreksi: '' }; })}
-                                    title="Bukti baru" description="Satu bukti ditambahkan setiap penyimpanan. Simpan kembali untuk menambahkan mode atau persyaratan lainnya." emptyText="Belum ada bukti baru yang akan disimpan."
-                                    modeDescriptions={{ file: requirement ? `Format: ${requirement.format_diizinkan}. Maksimum ${requirement.ukuran_maks_kb} KB.` : 'Unggah berkas bukti dukung.', tautan: 'Gunakan alamat http atau https.', teks: 'Tuliskan bukti dukung dalam bentuk teks.' }}
-                                    placeholders={{ tautan: 'https://', teks: '' }} accept={requirement?.format_diizinkan.split(',').map((format) => `.${format.trim()}`).join(',')}
-                                    renderItemFields={() => <>
-                                        <Select id="jenis-bukti" label="Persyaratan yang dipenuhi" value={data.jenis_berkas_id} disabled={disabled} error={fieldErrors['bukti.jenis_berkas_id']} onChange={(event) => {
-                                            const selected = pengukuran.persyaratan_bukti.find((item) => item.id === event.target.value);
-                                            const available = (['file', 'tautan', 'teks'] as const).filter((mode) => !selected || selected[`izinkan_${mode}`]);
-                                            setData((values) => ({ ...values, jenis_berkas_id: event.target.value, menggantikan_id: '', alasan_koreksi: '',
-                                                lampiran: values.lampiran.map((item) => available.includes(item.mode) ? item : { ...item, mode: available[0] ?? item.mode, file: null, tautan: '', isi_teks: '' }) }));
-                                        }}><option value="">Lampiran tambahan</option>{pengukuran.persyaratan_bukti.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</Select>
-                                        {pengukuran.bukti_dukungs.some((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id) && <Select id="bukti-pendahulu" label="Bukti yang diganti (opsional)" value={data.menggantikan_id} disabled={disabled} onChange={(event) => setData('menggantikan_id', event.target.value)} helperText="Bukti lama tetap tersimpan pada riwayat. Pengajuan berikutnya menggunakan bukti pengganti." aria-invalid={Boolean(fieldErrors['bukti.menggantikan_id'])} aria-describedby={fieldErrors['bukti.menggantikan_id'] ? 'measurement-errors' : 'bukti-pendahulu-help'}>
-                                            <option value="">Tambahkan tanpa mengganti bukti</option>
-                                            {pengukuran.bukti_dukungs.filter((item) => (item.jenis_berkas_id ?? '') === data.jenis_berkas_id).map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.nama_asli || item.isi_teks?.slice(0, 60) || item.tautan || 'Bukti tersimpan'} ({labelModeBukti[item.mode]})</option>)}
-                                        </Select>}
-                                        {data.menggantikan_id && <Textarea name="alasan-koreksi-bukti" label="Alasan koreksi bukti" value={data.alasan_koreksi} disabled={disabled} required onChange={(event) => setData('alasan_koreksi', event.target.value)} error={fieldErrors['bukti.alasan_koreksi']} aria-invalid={Boolean(fieldErrors['bukti.alasan_koreksi'])} aria-describedby={fieldErrors['bukti.alasan_koreksi'] ? 'measurement-errors' : undefined} />}
-                                        {modes.length === 0 && <p className="text-sm text-warning-dark">Tidak ada mode tersedia. Persyaratan file akan dievaluasi sebagai pengecualian oleh server.</p>}
-                                    </>} />}
-                            </CardContent>
-                        </Card>
-                    </div>
-                    {/* Tinggi panel dibatasi layar; isi yang lebih panjang di-scroll di dalam panel. */}
-                    <aside aria-label="Ringkasan pengukuran" className="min-w-0 space-y-5 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
-                        <Card>
-                            <CardHeader className="px-5 py-4"><CardTitle>Ringkasan nilai</CardTitle></CardHeader>
-                            <CardContent className="space-y-4 p-5">
-                                {/* Pratinjau dilepas saat BDD: cleanup membatalkan request dan respons basi diabaikan. */}
-                                {!manual && can.update && !historical && !unmeasurable && <CalculationPreview paused={Boolean(recovery.recovery)} onRecovery={handlePreviewRecovery} onResult={setPreviewStatus} id={pengukuran.id} komponen={data.komponen} satuan={indikator.satuan} desimalTampilan={indikator.desimal_tampilan} />}
-                                <dl className="space-y-3 text-sm">
-                                    <div><dt className="text-muted">Hasil terakhir tersimpan</dt><dd className="mt-1 break-words font-semibold text-ink">{pengukuran.nilai === null ? <StatusPerhitunganBadge status={pengukuran.status_perhitungan} /> : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
-                                    <div><dt className="text-muted">Target periode</dt><dd className="mt-1 font-medium">{pengukuran.tanpa_target_periode ? 'Tanpa target periode' : pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
-                                    {pengukuran.target_pk !== undefined && <>
-                                        <div><dt className="text-muted">Target PK tahunan</dt><dd className="mt-1 font-medium">{pengukuran.target_pk === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd></div>
-                                        <div><dt className="text-muted">Selisih terhadap target PK</dt><dd className="mt-1 font-medium">{pengukuran.selisih_target_pk == null ? 'Belum dapat dihitung' : `${formatNilai(pengukuran.selisih_target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd><dd className="mt-1 text-xs text-muted">Realisasi dikurangi target PK; arti tanda mengikuti arah indikator.</dd></div>
-                                    </>}
-                                </dl>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="px-5 py-4"><CardTitle>Kesiapan pengajuan</CardTitle></CardHeader>
-                            <CardContent className="space-y-3 p-5 text-sm">
-                                {pengukuran.prasyarat.siap ? <p className="text-muted">Seluruh prasyarat pengajuan pada draft tersimpan telah terpenuhi.</p> : <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-warning-dark">
-                                    <p className="font-semibold">Prasyarat pengajuan pada draft tersimpan belum lengkap.</p>
-                                    {pengukuran.prasyarat.alasan.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5">{pengukuran.prasyarat.alasan.map((reason) => <li key={reason}>{reason}</li>)}</ul>}
-                                </div>}
-                                {isDirty && <p className="text-info-dark">Ada perubahan yang belum disimpan. Saat Ajukan, server akan menyimpan dan memeriksa input terkini.</p>}
-                            </CardContent>
-                        </Card>
-                        {/* Tombol menempel di dasar panel agar tetap terlihat saat isi panel di-scroll. */}
-                        {can.update && !historical && <div className="flex flex-col gap-2 bg-page xl:sticky xl:bottom-0 xl:pb-1 xl:pt-3">
-                            <Button className="w-full" disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="draft" variant="outline" isLoading={processing}><Save className="h-4 w-4" aria-hidden="true" />Simpan Draft</Button>
-                            {can.submit && <Button className="w-full" disabled={Boolean(recovery.recovery || requestError)} type="submit" name="action" value="ajukan" isLoading={processing}><Send className="h-4 w-4" aria-hidden="true" />Ajukan ke Tim Perencanaan</Button>}
-                        </div>}
-                    </aside>
                 </div>
-            </form>
-            <Modal isOpen={confirmation} onClose={() => { if (!processing && !submitting.current) setConfirmation(false); }}
-                title="Ajukan pengukuran" size="md" footer={<>
-                    <Button type="button" variant="outline" disabled={processing} onClick={() => setConfirmation(false)}>Batal</Button>
-                    <Button type="button" isLoading={processing} disabled={Boolean(recovery.recovery || requestError)} onClick={() => send('ajukan')}>Ajukan dan bekukan</Button>
-                </>}>
-                <p className="text-sm text-ink">Server akan menyimpan dan memeriksa input terkini, termasuk perubahan yang belum disimpan. Jika seluruh syarat terpenuhi, data dibekukan sebagai versi pengajuan dan diteruskan ke Tim Perencanaan.</p>
-                <p className="mt-3 text-sm text-muted">Versi yang sudah diajukan hanya dapat diperbaiki setelah dikembalikan.</p>
-            </Modal>
-        </div>
-    </AuthenticatedLayout>;
+
+                {/* Catatan Revisi jika Dikembalikan */}
+                {lastRejection && pengukuran.status === 'dikembalikan' && (
+                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                            <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wide">
+                                Catatan Perbaikan dari Tim Perencanaan
+                            </h4>
+                            <p className="text-xs text-rose-800 mt-1 whitespace-pre-wrap">
+                                {lastRejection.catatan}
+                            </p>
+                            <span className="text-[10px] text-rose-500 mt-1 block">
+                                Dikembalikan oleh {lastRejection.user?.name || 'Verifikator'} • {new Date(lastRejection.created_at).toLocaleString('id-ID')}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Lock banner if not draft */}
+                {isLocked && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-900 text-xs">
+                        <Clock className="w-5 h-5 text-blue-600 shrink-0" />
+                        <div>
+                            <span className="font-semibold">Data sedang dalam status {pengukuran.status}.</span>{' '}
+                            Formulir ini terkunci untuk pengeditan karena telah diajukan ke tim verifikator.
+                        </div>
+                    </div>
+                )}
+
+                {/* Info Indikator Card */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Informasi Indikator Kinerja Utama</CardTitle>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded bg-[#122E92]/10 text-[#122E92]">
+                            {iku?.kode}
+                        </span>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div>
+                            <h2 className="text-base font-bold text-slate-900">
+                                {iku?.nama}
+                            </h2>
+                            {iku?.definisi_operasional && (
+                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                    {iku?.definisi_operasional}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-100 text-xs">
+                            <div className="p-2.5 bg-slate-50 rounded-lg">
+                                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                                    Unit Penanggung Jawab
+                                </span>
+                                <span className="font-semibold text-slate-800">
+                                    {pengukuran.penugasan_indikator?.unit_kerja?.nama}
+                                </span>
+                            </div>
+                            <div className="p-2.5 bg-slate-50 rounded-lg">
+                                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                                    Tipe Perhitungan Formula
+                                </span>
+                                <span className="font-semibold text-[#122E92] uppercase">
+                                    {iku?.tipe_perhitungan}
+                                </span>
+                                <span className="text-slate-500 text-[10px] block">
+                                    {iku?.tipe_perhitungan === 'turun_baik'
+                                        ? 'Semakin kecil realisasi, capaian semakin tinggi'
+                                        : 'Semakin besar realisasi, capaian semakin tinggi'}
+                                </span>
+                            </div>
+                            <div className="p-2.5 bg-slate-50 rounded-lg">
+                                <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                                    Target Triwulan {pengukuran.periode_jadwal?.triwulan}
+                                </span>
+                                <span className="font-bold text-base text-slate-900">
+                                    {pengukuran.target} {iku?.satuan}
+                                </span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Form Pengukuran */}
+                <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                    {/* Realisasi & Live Calculator */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Calculator className="w-4 h-4 text-[#122E92]" />
+                                Realisasi & Simulasi Capaian
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+                                <div>
+                                    <Input
+                                        label={`Realisasi Capaian (${iku?.satuan})`}
+                                        type="number"
+                                        step="any"
+                                        name="realisasi"
+                                        placeholder="Masukkan angka realisasi..."
+                                        value={data.realisasi}
+                                        onChange={(e) => setData('realisasi', e.target.value)}
+                                        error={errors.realisasi}
+                                        disabled={isLocked}
+                                        required
+                                        helperText={`Target yang harus dipenuhi: ${pengukuran.target} ${iku?.satuan}`}
+                                    />
+                                </div>
+
+                                {/* Live Calculation Result Card */}
+                                <div className={`p-4 rounded-xl border transition-all ${
+                                    calculatedCapaian === null
+                                        ? 'bg-slate-50 border-slate-200'
+                                        : calculatedCapaian >= 100
+                                        ? 'bg-emerald-50/80 border-emerald-300'
+                                        : calculatedCapaian >= 80
+                                        ? 'bg-blue-50/80 border-blue-300'
+                                        : 'bg-rose-50/80 border-rose-300'
+                                }`}>
+                                    <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                                        Hasil Kalkulasi Otomatis (Live Preview)
+                                    </div>
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                        <span className={`text-3xl font-extrabold ${
+                                            calculatedCapaian === null
+                                                ? 'text-slate-400'
+                                                : calculatedCapaian >= 100
+                                                ? 'text-emerald-700'
+                                                : calculatedCapaian >= 80
+                                                ? 'text-blue-700'
+                                                : 'text-rose-700'
+                                        }`}>
+                                            {calculatedCapaian !== null ? `${calculatedCapaian}%` : '0.00%'}
+                                        </span>
+                                        {calculatedCapaian !== null && (
+                                            <span className="text-xs font-semibold">
+                                                {calculatedCapaian >= 100
+                                                    ? 'Target Tercapai / Melampaui'
+                                                    : calculatedCapaian >= 80
+                                                    ? 'Cukup Baik'
+                                                    : 'Perlu Perhatian Khusus'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 mt-1 font-mono">
+                                        Rumus: {iku?.tipe_perhitungan === 'turun_baik'
+                                            ? `((2 * ${pengukuran.target} - ${data.realisasi || '0'}) / ${pengukuran.target}) * 100%`
+                                            : `(${data.realisasi || '0'} / ${pengukuran.target}) * 100%`}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Bukti Dukung (Evidence) Card */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <UploadCloud className="w-4 h-4 text-[#122E92]" />
+                                Dokumen Bukti Dukung (Evidence)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Existing Evidence List */}
+                            {pengukuran.bukti_dukungs && pengukuran.bukti_dukungs.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="text-xs font-semibold text-slate-700">
+                                        Berkas Bukti Dukung Terlampir:
+                                    </div>
+                                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
+                                        {pengukuran.bukti_dukungs.map((b: any) => (
+                                            <div key={b.id} className="p-3 bg-white flex items-center justify-between text-xs hover:bg-slate-50">
+                                                <div className="flex items-center gap-2">
+                                                    <FileText className="w-4 h-4 text-[#122E92]" />
+                                                    <div>
+                                                        <div className="font-semibold text-slate-800">{b.nama_file}</div>
+                                                        <div className="text-[10px] text-slate-400">{b.keterangan || 'Dokumen Bukti'}</div>
+                                                    </div>
+                                                </div>
+                                                {b.download_url && (
+                                                    <a
+                                                        href={b.download_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="inline-flex items-center gap-1 text-[#122E92] hover:underline font-medium text-xs"
+                                                    >
+                                                        Lihat Dokumen
+                                                        <ExternalLink className="w-3 h-3" />
+                                                    </a>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isLocked && (
+                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                                    <div className="text-xs font-semibold text-slate-700">
+                                        Unggah Bukti Dukung Baru
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {/* File Upload Option */}
+                                        <div>
+                                            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                                                Unggah File Fisik (PDF / Gambar / Excel)
+                                            </label>
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx"
+                                                onChange={(e) => setData('file_bukti', e.target.files?.[0] || null)}
+                                                className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#122E92] file:text-white hover:file:bg-[#0d226b] file:cursor-pointer cursor-pointer border border-slate-300 rounded-lg p-1.5 bg-white"
+                                            />
+                                            {errors.file_bukti && (
+                                                <p className="mt-1 text-xs text-rose-600">{errors.file_bukti}</p>
+                                            )}
+                                        </div>
+
+                                        {/* Cloud Link Option */}
+                                        <div>
+                                            <Input
+                                                label="Atau Tautan Cloud (Google Drive / OneDrive)"
+                                                type="url"
+                                                placeholder="https://drive.google.com/..."
+                                                value={data.url_bukti}
+                                                onChange={(e) => setData('url_bukti', e.target.value)}
+                                                error={errors.url_bukti}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Input
+                                            label="Keterangan Singkat Bukti Dukung"
+                                            placeholder="Contoh: SK Rektor, Laporan Akreditasi BAN-PT..."
+                                            value={data.keterangan_bukti}
+                                            onChange={(e) => setData('keterangan_bukti', e.target.value)}
+                                            error={errors.keterangan_bukti}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Catatan Analisis & Kendala (Mandatory if Capaian < 100%) */}
+                    <Card className={isUnderperforming ? 'border-amber-300 ring-1 ring-amber-200' : ''}>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-[#122E92]" />
+                                Analisis Kinerja & Tindak Lanjut
+                            </CardTitle>
+                            {isUnderperforming && (
+                                <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-md flex items-center gap-1">
+                                    <AlertTriangle className="w-3.5 h-3.5" />
+                                    Wajib Diisi (Capaian &lt; 100%)
+                                </span>
+                            )}
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Textarea
+                                label="Identifikasi Kendala dan Permasalahan"
+                                placeholder="Jelaskan hambatan atau tantangan operasional yang dihadapi selama periode berjalan..."
+                                value={data.kendala}
+                                onChange={(e) => setData('kendala', e.target.value)}
+                                error={errors.kendala}
+                                disabled={isLocked}
+                                required={isUnderperforming}
+                            />
+
+                            <Textarea
+                                label="Tindak Lanjut Yang Telah Dilakukan"
+                                placeholder="Upaya dan penanganan konkrit yang sudah dijalankan untuk mengatasi kendala..."
+                                value={data.tindak_lanjut}
+                                onChange={(e) => setData('tindak_lanjut', e.target.value)}
+                                error={errors.tindak_lanjut}
+                                disabled={isLocked}
+                                required={isUnderperforming}
+                            />
+
+                            <Textarea
+                                label="Strategi dan Solusi Periode Berikutnya"
+                                placeholder="Rencana strategi perbaikan untuk mencapai target pada triwulan berikutnya..."
+                                value={data.strategi}
+                                onChange={(e) => setData('strategi', e.target.value)}
+                                error={errors.strategi}
+                                disabled={isLocked}
+                                required={isUnderperforming}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    {/* Action Buttons */}
+                    {!isLocked && (
+                        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-200">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleSubmit('draft')}
+                                isLoading={processing}
+                            >
+                                <Save className="w-4 h-4 mr-1" />
+                                Simpan Sebagai Draft
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="primary"
+                                onClick={() => handleSubmit('ajukan')}
+                                isLoading={processing}
+                            >
+                                <Send className="w-4 h-4 mr-1" />
+                                Ajukan ke Tim Perencanaan
+                            </Button>
+                        </div>
+                    )}
+                </form>
+            </div>
+        </AuthenticatedLayout>
+    );
 }

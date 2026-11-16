@@ -1,428 +1,331 @@
-import { useEffect, useState, useRef } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { 
+    ArrowLeft, 
+    CheckCircle, 
+    XCircle, 
+    FileText, 
+    ExternalLink, 
+    Clock, 
+    UserCheck, 
+    ShieldCheck, 
+    AlertCircle,
+    Building2,
+    Calendar
+} from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { AuditReasonModal } from '@/Components/AuditReasonModal';
-import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
-import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
 import { Button } from '@/Components/Button';
-import { Table, TableBody, TableCell, TableCellLabel, TableHead, TableHeader, TableRow, tableCellResponsive } from '@/Components/Table';
-import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
-import { StatusCapaianBadge } from '@/Components/Pengukuran/StatusCapaianBadge';
-import type { HistoriVersiPengukuran, Pengukuran } from '@/Pages/Pengukuran/types';
-import EvidenceList from '@/Pages/Pengukuran/EvidenceList';
-import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
-import { useAuthRecovery } from '@/hooks/useAuthRecovery';
-import { useFormatTanggal } from '@/hooks/useFormatTanggal';
-import { useLabelUnit } from '@/hooks/useLabelUnit';
-import { tipePerhitunganLabel } from '@/lib/indikator';
-import DecisionDialog, { type ReviewDecision } from './DecisionDialog';
-import ClaimedActivities from './ClaimedActivities';
+import { Textarea } from '@/Components/Textarea';
 
-const labelJalur = (jalur: 'pic' | 'perencanaan' | null): string =>
-    jalur === null ? '—' : jalur === 'pic' ? 'PIC' : 'Perencanaan';
+interface VerifikasiShowProps {
+    pengukuran: any;
+}
 
-const selHistori = `${tableCellResponsive} block align-top md:table-cell`;
+export default function VerifikasiShow({ pengukuran }: VerifikasiShowProps) {
+    const [showKembalikanModal, setShowKembalikanModal] = useState(false);
+    const [catatanRevisi, setCatatanRevisi] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-/** Dialog alasan wajib untuk membuka kembali pengukuran yang telah disahkan. */
-function BukaKembaliDialog({ pengukuran, onClose }: { pengukuran: Pengukuran; onClose: () => void }) {
-    const recovery = useAuthRecovery();
-    const [pesan, setPesan] = useState('');
-    const [perluMuatUlang, setPerluMuatUlang] = useState(false);
-    const form = useForm<{ versi: number; alasan: string }>({ versi: pengukuran.versi, alasan: '' });
+    const iku = pengukuran.penugasan_indikator?.indikator_kinerja;
+    const unit = pengukuran.penugasan_indikator?.unit_kerja;
+    const pic = pengukuran.penugasan_indikator?.pic;
 
-    // 409/422 versi dan validasi field dikirim server; normalisasi sekali agar render hanya menerima teks.
-    const galat = form.errors as Partial<Record<string, string | string[]>>;
-    const teksGalat = (nilai: string | string[] | undefined): string | undefined =>
-        Array.isArray(nilai) ? nilai.join(' ') : nilai;
-    const galatAlasan = teksGalat(galat.alasan);
-    const galatVersi = teksGalat(galat.versi);
-    const alasanKosong = form.data.alasan.trim() === '';
-    const terkunci = form.processing || perluMuatUlang || Boolean(recovery.recovery);
-    const nomorResmi = pengukuran.snapshot?.nomor_pengajuan ?? null;
-    const path = `/verifikasi/${pengukuran.id}/buka-kembali`;
-    const muatUlang = () => router.reload({ onSuccess: () => onClose() });
+    const handleSahkan = () => {
+        if (confirm('Apakah Anda yakin ingin mengesahkan capaian kinerja ini secara resmi? Data akan dibekukan ke dalam snapshot imutabel.')) {
+            setIsSubmitting(true);
+            router.post(`/verifikasi/${pengukuran.id}/sahkan`, {}, {
+                onFinish: () => setIsSubmitting(false),
+            });
+        }
+    };
 
-    const kirim = () => {
-        if (terkunci || alasanKosong) return;
-        setPesan('');
-        form.post(path, {
-            preserveScroll: true,
-            onSuccess: () => onClose(),
-            onCancel: () => setPesan('Permintaan dibatalkan. Hasil buka kembali belum diketahui; muat ulang halaman sebelum mencoba lagi.'),
-            onError: (errors) => {
-                // Versi yang dikirim sudah tidak berlaku: data di layar harus dibaca ulang sebelum mengulang tindakan.
-                if (errors.versi) setPerluMuatUlang(true);
-            },
-            onNetworkError: () => {
-                setPesan('Koneksi terputus. Hasil buka kembali belum diketahui; muat ulang halaman sebelum mencoba lagi.');
-                return false;
-            },
-            onHttpException: (response) => {
-                if (recovery.handleHttpException(response, { effectiveMethod: 'post', path, mutation: true })) return false;
-                if (response.status === 409 || response.status === 422) {
-                    setPerluMuatUlang(true);
-                    setPesan('Data telah berubah atau tindakan belum dapat diproses. Muat ulang halaman sebelum mencoba lagi.');
-                    return false;
-                }
-                setPesan(response.status === 403
-                    ? 'Izin buka kembali tidak tersedia atau telah dicabut.'
-                    : response.status === 429
-                        ? 'Terlalu banyak permintaan. Muat ulang halaman sebelum mencoba lagi.'
-                        : 'Hasil buka kembali belum dapat dipastikan. Muat ulang halaman sebelum mencoba lagi.');
-                return false;
+    const handleKembalikan = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!catatanRevisi || catatanRevisi.length < 10) {
+            alert('Harap masukkan catatan perbaikan yang jelas (minimal 10 karakter).');
+            return;
+        }
+
+        setIsSubmitting(true);
+        router.post(`/verifikasi/${pengukuran.id}/kembalikan`, {
+            catatan: catatanRevisi,
+        }, {
+            onFinish: () => {
+                setIsSubmitting(false);
+                setShowKembalikanModal(false);
             },
         });
     };
 
-    const notice = (
-        <div className="space-y-2">
-            {galatVersi && (
-                <div role="alert" className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-ink">
-                    <p className="font-medium">{galatVersi}</p>
-                    <Button type="button" size="sm" variant="outline" onClick={muatUlang} disabled={form.processing}>Muat ulang halaman</Button>
-                </div>
-            )}
-            {pesan && (
-                <div role="alert" className="space-y-2 rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-                    <p>{pesan}</p>
-                    {perluMuatUlang && !galatVersi && (
-                        <Button type="button" size="sm" variant="outline" onClick={muatUlang} disabled={form.processing}>Muat ulang halaman</Button>
-                    )}
-                </div>
-            )}
-            <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
-        </div>
-    );
-
-    return (
-        <AuditReasonModal
-            open
-            title="Buka kembali pengukuran"
-            description={nomorResmi === null
-                ? 'Pengukuran yang telah disahkan akan dibuka kembali untuk dikoreksi. Versi resmi tetap tersimpan sebagai histori.'
-                : `Versi resmi nomor ${nomorResmi} akan dibuka kembali untuk dikoreksi. Versi resmi tetap tersimpan dan dapat dibaca sebagai histori.`}
-            reason={form.data.alasan}
-            error={galatAlasan}
-            busy={form.processing}
-            submitDisabled={terkunci || alasanKosong}
-            reasonRequired
-            confirmLabel="Buka Kembali"
-            placeholder="Contoh: koreksi nilai berdasarkan berita acara reviu…"
-            notice={notice}
-            onReasonChange={(alasan) => form.setData('alasan', alasan)}
-            onClose={() => { if (!form.processing) onClose(); }}
-            onConfirm={kirim}
-        />
-    );
-}
-
-export default function VerifikasiShow({ pengukuran }: { pengukuran: Pengukuran }) {
-    const formatNilai = useFormatNilai();
-    const formatTanggal = useFormatTanggal();
-    const labelUnit = useLabelUnit();
-    const { can, peringatan_verifikasi: peringatan } = pengukuran;
-    const businessErrors = pengukuran.businessErrors ?? { verifikasi: [], sahkan: [], kembalikan: [], buka_kembali: [] };
-    const alasanGuard: string[] = [...new Set([
-        ...(!can.verify ? (businessErrors.verifikasi ?? []) : []),
-        ...(!can.ratify ? (businessErrors.sahkan ?? []) : []),
-        ...(!can.return ? (businessErrors.kembalikan ?? []) : []),
-        ...(!can.reopen ? (businessErrors.buka_kembali ?? []) : []),
-    ])];
-    const panelKeputusanTerlihat: boolean = can.verify || can.ratify || can.return || can.reopen === true;
-    const judulGuard = pengukuran.status === 'disahkan' && !panelKeputusanTerlihat
-        ? 'Tindakan koreksi tidak tersedia'
-        : panelKeputusanTerlihat ? 'Sebagian tindakan tidak tersedia' : 'Tindakan reviu tidak tersedia';
-    const [decision, setDecision] = useState<ReviewDecision | null>(null);
-    const [reopenTerbuka, setReopenTerbuka] = useState(false);
-    const trigger = useRef<HTMLButtonElement | null>(null);
-    const indikator = pengukuran.penugasan_indikator.indikator_kinerja;
-    const historiVersi: HistoriVersiPengukuran[] = pengukuran.histori_versi ?? [];
-    const choose = (action: ReviewDecision, button: HTMLButtonElement) => { trigger.current = button; setDecision(action); };
-    const bukaReopen = (button: HTMLButtonElement) => { trigger.current = button; setReopenTerbuka(true); };
-    const closeDecision = () => { setDecision(null); };
-    useEffect(() => {
-        // Tunggu dialog dilepas agar fokus tidak ditolak oleh halaman yang masih inert.
-        if (decision === null && !reopenTerbuka && trigger.current?.isConnected) trigger.current.focus();
-    }, [decision, reopenTerbuka]);
+    const isAlreadyRatified = pengukuran.status === 'disahkan';
 
     return (
         <AuthenticatedLayout
-            title="Reviu & Verifikasi Kinerja"
-            breadcrumbs={[{ label: 'Verifikasi Kinerja', href: '/verifikasi' }, { label: indikator.kode }]}
-            headerActions={
-                <Link
-                    href="/verifikasi"
-                    aria-label="Kembali ke antrean verifikasi"
-                    className="ml-auto inline-flex h-9 shrink-0 translate-y-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
-                >
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Kembali
-                </Link>
-            }
+            title="Reviu & Verifikasi Capaian Kinerja"
+            breadcrumbs={[
+                { label: 'Verifikasi Kinerja', href: '/verifikasi' },
+                { label: `Reviu ${iku?.kode}` },
+            ]}
         >
-            <Head title={`Reviu ${indikator.kode}`} />
-            <div className="space-y-5">
-                {pengukuran.status === 'disahkan' && (
-                    <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm">
-                        <p className="font-semibold">Pengukuran telah disahkan</p>
-                        <p className="mt-1">Snapshot resmi tersimpan. Waktu pengesahan: {formatTanggal(pengukuran.snapshot?.disahkan_pada, { withTime: true })}.</p>
+            <Head title={`Reviu ${iku?.kode}`} />
+
+            <div className="max-w-4xl mx-auto space-y-6">
+                {/* Top Nav */}
+                <div className="flex items-center justify-between">
+                    <Link
+                        href="/verifikasi"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Kembali ke Antrean Verifikasi
+                    </Link>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">Status Capaian:</span>
+                        <Badge status={pengukuran.status} />
+                    </div>
+                </div>
+
+                {/* Status Snapshot Banner if Disahkan */}
+                {isAlreadyRatified && (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-900 text-xs">
+                        <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                        <div>
+                            <span className="font-bold">Kinerja ini telah resmi Disahkan!</span>{' '}
+                            Snapshot historis tersimpan secara imutabel. Disahkan pada{' '}
+                            {new Date(pengukuran.disahkan_pada).toLocaleString('id-ID')}
+                        </div>
                     </div>
                 )}
 
+                {/* Ringkasan Indikator */}
                 <Card>
-                    <CardHeader className="items-start">
-                        <div className="min-w-0 flex-1">
-                            <CardTitle className="break-words">{indikator.kode} · {indikator.nama}</CardTitle>
-                            <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-                                <span>Pengajuan ke-{pengukuran.nomor_pengajuan}</span>
-                                {pengukuran.jalur_pengajuan && (
-                                    <span>Jalur pengajuan: <strong className="capitalize text-ink">{pengukuran.jalur_pengajuan}</strong></span>
-                                )}
+                    <CardHeader>
+                        <div>
+                            <span className="text-xs font-bold text-[#122E92] bg-blue-50 px-2.5 py-0.5 rounded mr-2">
+                                {iku?.kode}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                                {unit?.nama}
+                            </span>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                            Diajukan oleh: <span className="font-semibold text-slate-700">{pic?.name}</span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <h2 className="text-lg font-bold text-slate-900">
+                            {iku?.nama}
+                        </h2>
+
+                        {iku?.definisi_operasional && (
+                            <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 leading-relaxed">
+                                <strong className="text-slate-700">Definisi Operasional:</strong> {iku?.definisi_operasional}
+                            </p>
+                        )}
+
+                        {/* Metrik Target vs Realisasi */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-xs text-slate-500 font-semibold block uppercase">
+                                    Target Triwulan {pengukuran.periode_jadwal?.triwulan}
+                                </span>
+                                <span className="text-2xl font-bold text-slate-900 mt-1 block">
+                                    {pengukuran.target} <span className="text-xs font-normal text-slate-500">{iku?.satuan}</span>
+                                </span>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-xs text-slate-500 font-semibold block uppercase">
+                                    Realisasi Dilaporkan
+                                </span>
+                                <span className="text-2xl font-bold text-slate-900 mt-1 block">
+                                    {pengukuran.realisasi !== null ? pengukuran.realisasi : '-'} <span className="text-xs font-normal text-slate-500">{iku?.satuan}</span>
+                                </span>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-200">
+                                <span className="text-xs text-blue-700 font-semibold block uppercase">
+                                    Persentase Capaian
+                                </span>
+                                <span className="text-2xl font-extrabold text-[#122E92] mt-1 block">
+                                    {pengukuran.capaian_persen !== null ? `${pengukuran.capaian_persen}%` : '-'}
+                                </span>
+                                <span className="text-[10px] text-slate-500 block mt-0.5">
+                                    Formula: {iku?.tipe_perhitungan}
+                                </span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Dokumen Bukti Dukung */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm">Dokumen & Tautan Bukti Dukung ({pengukuran.bukti_dukungs?.length || 0})</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {pengukuran.bukti_dukungs && pengukuran.bukti_dukungs.length > 0 ? (
+                            <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
+                                {pengukuran.bukti_dukungs.map((b: any) => (
+                                    <div key={b.id} className="p-3 bg-white flex items-center justify-between text-xs hover:bg-slate-50">
+                                        <div className="flex items-center gap-2.5">
+                                            <FileText className="w-4 h-4 text-[#122E92]" />
+                                            <div>
+                                                <div className="font-semibold text-slate-800">{b.nama_file}</div>
+                                                <div className="text-[11px] text-slate-400">
+                                                    {b.keterangan || 'Bukti Dukung'} • {b.tipe_file?.toUpperCase()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {b.download_url && (
+                                            <a
+                                                href={b.download_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 px-3 py-1 bg-[#122E92]/10 hover:bg-[#122E92]/20 text-[#122E92] rounded font-semibold text-xs transition-colors"
+                                            >
+                                                Buka Berkas
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                            </a>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-800 flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                PIC tidak melampirkan file dokumen fisik atau tautan bukti dukung pada pengajuan ini.
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Analisis Kendala & Solusi PIC */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm">Catatan Analisis Kinerja dari PIC</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-xs">
+                        <div>
+                            <span className="font-bold text-slate-700 block mb-1">
+                                Identifikasi Kendala & Hambatan:
+                            </span>
+                            <p className="text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">
+                                {pengukuran.kendala || 'Tidak ada catatan kendala dilaporkan.'}
                             </p>
                         </div>
-                        <Badge status={pengukuran.status} />
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                        <dl className="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                            <div className="min-w-0">
-                                <dt className="text-muted">{labelUnit}</dt>
-                                <dd className="mt-1 break-words font-medium">{pengukuran.penugasan_indikator.unit_kerja.nama}</dd>
-                            </div>
-                            <div className="min-w-0">
-                                <dt className="text-muted">PIC</dt>
-                                <dd className="mt-1 break-words font-medium">{pengukuran.penugasan_indikator.pic?.nama || '—'}</dd>
-                            </div>
-                            <div className="min-w-0">
-                                <dt className="text-muted">Periode</dt>
-                                <dd className="mt-1 font-medium">{pengukuran.periode_jadwal.nama_periode} {pengukuran.periode_jadwal.tahun}<RentangPeriode tanggal={pengukuran.periode_jadwal.tanggal} tahun={pengukuran.periode_jadwal.tahun} /></dd>
-                            </div>
-                        </dl>
-                        {indikator.definisi_operasional && (
-                            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted">{indikator.definisi_operasional}</p>
-                        )}
-                        {(pengukuran.self_approval || pengukuran.reviu_terlambat) && (
-                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
-                                {pengukuran.self_approval && <span className="font-medium text-info-dark">Tindakan oleh pengaju tercatat sesuai kewenangan Perencanaan</span>}
-                                {pengukuran.reviu_terlambat && <span className="font-medium text-warning-dark">Reviu terlambat</span>}
-                            </div>
-                        )}
-                        <dl className="grid gap-x-6 gap-y-5 border-t border-border pt-5 sm:grid-cols-2 xl:grid-cols-4">
-                            <div className="min-w-0">
-                                <dt className="text-xs text-muted">Target PK tahunan</dt>
-                                <dd className="mt-1 break-words text-lg font-semibold tabular-nums">{pengukuran.target_pk == null ? 'Belum tersedia' : `${formatNilai(pengukuran.target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd>
-                            </div>
-                            <div className="min-w-0">
-                                <dt className="text-xs text-muted">Target periode RA · {pengukuran.periode_jadwal.nama_periode}</dt>
-                                <dd className="mt-1 break-words text-lg font-semibold tabular-nums">{pengukuran.tanpa_target_periode ? 'Tanpa target periode' : pengukuran.target === null ? 'Belum tersedia' : `${formatNilai(pengukuran.target, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd>
-                            </div>
-                            <div className="min-w-0">
-                                <dt className="text-xs text-muted">Nilai pengukuran</dt>
-                                <dd className="mt-1 break-words text-lg font-semibold tabular-nums">{pengukuran.nilai === null ? '—' : `${formatNilai(pengukuran.nilai, indikator.desimal_tampilan)} ${indikator.satuan}`}</dd>
-                            </div>
-                            <div className="min-w-0">
-                                <dt className="text-xs text-muted">Hasil perhitungan</dt>
-                                <dd className="mt-1 break-words text-lg font-semibold"><StatusPerhitunganBadge status={pengukuran.status_perhitungan} /></dd>
-                                <dd className="mt-1 text-xs text-muted">{tipePerhitunganLabel[indikator.tipe_perhitungan]}</dd>
-                            </div>
-                        </dl>
-                        {pengukuran.selisih_target_pk !== undefined && (
-                            <div className="border-t border-border pt-4 text-sm">
-                                <p className="text-muted">Selisih terhadap target PK</p>
-                                <p className="mt-1 break-words text-lg font-semibold tabular-nums">{pengukuran.selisih_target_pk === null ? 'Belum dapat dihitung' : `${formatNilai(pengukuran.selisih_target_pk, indikator.desimal_tampilan)} ${indikator.satuan}`}</p>
-                                <p className="mt-1 text-xs leading-relaxed text-muted">Realisasi dikurangi target PK; arti tanda mengikuti arah indikator.</p>
-                            </div>
-                        )}
-                        {pengukuran.komponen.length > 0 && (
-                            <section className="space-y-3 border-t border-border pt-5" aria-labelledby="komponen-pengajuan-title">
-                                <h2 id="komponen-pengajuan-title" className="text-sm font-semibold">Komponen pengajuan</h2>
-                                <Table aria-labelledby="komponen-pengajuan-title" wrapperClassName="rounded-lg border border-border">
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Komponen</TableHead>
-                                            <TableHead>Peran / Bobot</TableHead>
-                                            <TableHead className="text-right">Nilai</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {pengukuran.komponen.map((item) => (
-                                            <TableRow key={item.komponen_id}>
-                                                <TableHead scope="row" className="whitespace-normal font-normal normal-case tracking-normal">{item.kode} · {item.label}</TableHead>
-                                                <TableCell>{item.peran}{item.bobot === null ? '' : ` / ${item.bobot}`}</TableCell>
-                                                <TableCell className="text-right tabular-nums">{item.nilai === null ? 'Belum diisi' : formatNilai(item.nilai, indikator.desimal_tampilan)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </section>
-                        )}
+
+                        <div>
+                            <span className="font-bold text-slate-700 block mb-1">
+                                Tindak Lanjut yang Dilakukan:
+                            </span>
+                            <p className="text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">
+                                {pengukuran.tindak_lanjut || 'Tidak ada catatan tindak lanjut dilaporkan.'}
+                            </p>
+                        </div>
+
+                        <div>
+                            <span className="font-bold text-slate-700 block mb-1">
+                                Rencana Strategi Perbaikan:
+                            </span>
+                            <p className="text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">
+                                {pengukuran.strategi || 'Tidak ada catatan strategi dilaporkan.'}
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader><CardTitle>Narasi pengukuran</CardTitle></CardHeader>
-                    <CardContent className="space-y-5 text-sm">
-                        <dl className="grid gap-x-6 gap-y-5 md:grid-cols-2">
-                            {([['progres_kegiatan', 'Progres kegiatan'], ['kendala_masalah', 'Kendala/masalah'], ['strategi_tindak_lanjut', 'Tindak lanjut/strategi penyelesaian']] as const).map(([field, label]) => (
-                                <div key={field} className="min-w-0">
-                                    <dt className="font-semibold text-ink">{label}</dt>
-                                    <dd className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-ink">{pengukuran[field] || 'Tidak diisi.'}</dd>
-                                </div>
-                            ))}
-                        </dl>
-                        <dl className="grid gap-x-6 gap-y-5 border-t border-border pt-5 md:grid-cols-2">
-                            <div className="min-w-0">
-                                <dt className="font-semibold text-ink">Rekomendasi periode sebelumnya</dt>
-                                <dd className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-ink">{pengukuran.rekomendasi_sebelumnya?.isi ?? 'Tidak ada rekomendasi pada versi pengajuan ini.'}</dd>
-                            </div>
-                            <div className="min-w-0">
-                                <dt className="font-semibold text-ink">Tindak lanjut rekomendasi</dt>
-                                <dd className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-ink">{pengukuran.tindak_lanjut_rekomendasi || 'Tidak diisi.'}</dd>
-                            </div>
-                        </dl>
-                        <div className="border-t border-border pt-4">
-                            <h2 className="font-semibold">Catatan pengukuran</h2>
-                            <p className="mt-1 whitespace-pre-wrap break-words leading-relaxed">{pengukuran.catatan || 'Tidak ada catatan.'}</p>
+                {/* Action Bar (Only if not already ratified) */}
+                {!isAlreadyRatified && (
+                    <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                Keputusan Tim Perencanaan
+                            </h4>
+                            <p className="text-xs text-slate-500">
+                                Kembalikan jika berkas tidak sesuai, atau sahkan secara resmi jika valid.
+                            </p>
                         </div>
-                        {pengukuran.alasan_tidak_dapat_dihitung && (
-                            <div>
-                                <h2 className="font-medium">Alasan hasil tidak dapat dihitung</h2>
-                                <p className="mt-1 whitespace-pre-wrap break-words leading-relaxed text-muted">{pengukuran.alasan_tidak_dapat_dihitung}</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
 
-                <Card>
-                    <CardHeader><CardTitle>Bukti dukung pengajuan</CardTitle></CardHeader>
-                    <CardContent><EvidenceList pengukuran={pengukuran} /></CardContent>
-                </Card>
-                <ClaimedActivities pengukuran={pengukuran} />
+                        <div className="flex items-center gap-3">
+                            <Button
+                                type="button"
+                                variant="danger"
+                                onClick={() => setShowKembalikanModal(true)}
+                                disabled={isSubmitting}
+                            >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Kembalikan ke PIC (Revisi)
+                            </Button>
 
-                <Card aria-labelledby="histori-versi-title">
-                    <CardHeader>
-                        <div className="min-w-0">
-                            <CardTitle id="histori-versi-title">Histori versi pengukuran</CardTitle>
-                            <p className="mt-1 text-xs leading-relaxed text-muted">Metadata versi pengajuan dan status capaian yang menempel pada versi. Hanya dapat dibaca.</p>
+                            <Button
+                                type="button"
+                                variant="primary"
+                                onClick={handleSahkan}
+                                isLoading={isSubmitting}
+                            >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Sahkan Kinerja Resmi
+                            </Button>
                         </div>
-                        <Badge variant="muted" size="sm">{historiVersi.length} versi</Badge>
-                    </CardHeader>
-
-                    {historiVersi.length === 0 ? (
-                        <p className="px-6 py-10 text-center text-sm text-muted">Belum ada versi pengajuan.</p>
-                    ) : (
-                        <Table wrapperClassName="overflow-x-visible" className="block md:table" aria-label="Histori versi pengukuran">
-                            <TableHeader className="max-md:sr-only">
-                                <TableRow>
-                                    <TableHead>Versi</TableHead>
-                                    <TableHead>Diajukan</TableHead>
-                                    <TableHead>Disahkan</TableHead>
-                                    <TableHead>Jalur</TableHead>
-                                    <TableHead>Status capaian</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody className="block md:table-row-group">
-                                {historiVersi.map((item) => (
-                                    <TableRow key={item.id} className="block min-w-0 space-y-2 p-4 md:table-row md:space-y-0 md:p-0">
-                                        <TableCell className={selHistori}>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className="font-semibold">Versi {item.nomor}</span>
-                                                {item.resmi && <Badge variant="primary" size="sm">Resmi</Badge>}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className={`${selHistori} md:whitespace-nowrap`}>
-                                            <TableCellLabel>Diajukan</TableCellLabel>
-                                            {formatTanggal(item.diajukan_at, { withTime: true })}
-                                        </TableCell>
-                                        <TableCell className={`${selHistori} md:whitespace-nowrap`}>
-                                            <TableCellLabel>Disahkan</TableCellLabel>
-                                            {item.disahkan_at === null
-                                                ? <span className="text-muted">Belum disahkan</span>
-                                                : formatTanggal(item.disahkan_at, { withTime: true })}
-                                        </TableCell>
-                                        <TableCell className={`${selHistori} md:whitespace-nowrap`}>
-                                            <TableCellLabel>Jalur</TableCellLabel>
-                                            {labelJalur(item.jalur_pengajuan)}
-                                        </TableCell>
-                                        <TableCell className={selHistori}>
-                                            <TableCellLabel>Status capaian</TableCellLabel>
-                                            {item.status_capaian === null ? (
-                                                <span className="text-muted">Belum ditetapkan</span>
-                                            ) : (
-                                                <div className="min-w-0">
-                                                    <StatusCapaianBadge kode={item.status_capaian.status} size="sm" />
-                                                    {(item.status_capaian.penetap || item.status_capaian.ditetapkan_pada) && (
-                                                        <p className="mt-1 break-words text-muted">
-                                                            {item.status_capaian.penetap?.nama ?? 'Penetap tidak tercatat'}
-                                                            {item.status_capaian.ditetapkan_pada
-                                                                ? ` · ${formatTanggal(item.status_capaian.ditetapkan_pada, { withTime: true })}`
-                                                                : ''}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </Card>
-
-                {peringatan && (peringatan.realisasi_sama || peringatan.narasi_sama || peringatan.keterangan) && (
-                    <section aria-labelledby="peringatan-verifikasi-title" className={`rounded-lg border p-4 text-sm ${peringatan.realisasi_sama || peringatan.narasi_sama ? 'border-warning/30 bg-warning/10' : 'border-border bg-soft'}`}>
-                        <h2 id="peringatan-verifikasi-title" className="font-semibold">{peringatan.realisasi_sama || peringatan.narasi_sama ? 'Data sama dengan periode sebelumnya' : 'Perbandingan antarperiode'}</h2>
-                        {peringatan.periode_pembanding && <p className="mt-1 text-xs">Pembanding resmi: {peringatan.periode_pembanding}.</p>}
-                        {peringatan.realisasi_sama && <p className="mt-2">Realisasi sama dengan periode pembanding.</p>}
-                        {peringatan.narasi_sama && <p className="mt-2">Ketiga narasi utama sama dengan periode pembanding.</p>}
-                        {peringatan.keterangan && <p className="mt-2">{peringatan.keterangan}</p>}
-                        {(peringatan.realisasi_sama || peringatan.narasi_sama) && <p className="mt-2 leading-relaxed">Periksa kewajaran data dan bukti dukung. Peringatan ini tidak menghalangi verifikasi.</p>}
-                    </section>
-                )}
-
-                {panelKeputusanTerlihat && (
-                    <Card>
-                        <CardContent className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                            <div className="min-w-0">
-                                <h2 className="text-sm font-semibold">Keputusan pengukuran</h2>
-                                <p className="mt-1 text-xs leading-relaxed text-muted">Tindakan mengikuti status dan kewenangan Anda saat ini.</p>
-                            </div>
-                            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
-                                {can.return && (
-                                    <Button type="button" variant="danger" className="w-full bg-danger text-on-danger hover:bg-danger/90 focus:ring-danger sm:w-auto" onClick={(event) => choose('kembalikan', event.currentTarget)}>
-                                        Kembalikan untuk revisi
-                                    </Button>
-                                )}
-                                {can.verify && (
-                                    <Button type="button" className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:ring-primary sm:w-auto" onClick={(event) => choose('verifikasi', event.currentTarget)}>
-                                        Verifikasi pengukuran
-                                    </Button>
-                                )}
-                                {can.ratify && (
-                                    <Button type="button" className="w-full bg-primary text-on-primary hover:bg-primary/90 focus:ring-primary sm:w-auto" onClick={(event) => choose('sahkan', event.currentTarget)}>
-                                        Sahkan kinerja resmi
-                                    </Button>
-                                )}
-                                {can.reopen && (
-                                    <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={(event) => bukaReopen(event.currentTarget)}>
-                                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                                        Buka Kembali
-                                    </Button>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-                {alasanGuard.length > 0 && (
-                    <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm">
-                        <p className="font-semibold text-warning-dark">{judulGuard}</p>
-                        <ul className="mt-2 list-disc space-y-1 pl-5">{alasanGuard.map((alasan: string) => <li key={alasan}>{alasan}</li>)}</ul>
                     </div>
                 )}
-                {decision && <DecisionDialog key={`${pengukuran.id}-${decision}`} pengukuran={pengukuran} decision={decision} onClose={closeDecision} />}
-                {reopenTerbuka && <BukaKembaliDialog key={pengukuran.id} pengukuran={pengukuran} onClose={() => setReopenTerbuka(false)} />}
+
+                {/* Modal Kembalikan Catatan Revisi */}
+                {showKembalikanModal && (
+                    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-scale-in">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <XCircle className="w-5 h-5 text-rose-600" />
+                                    Kembalikan Pengukuran ke PIC
+                                </h3>
+                                <button
+                                    onClick={() => setShowKembalikanModal(false)}
+                                    className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleKembalikan} className="space-y-4">
+                                <p className="text-xs text-slate-600">
+                                    Tuliskan catatan perbaikan atau koreksi yang wajib dipenuhi oleh PIC sebelum mengajukan kembali:
+                                </p>
+
+                                <Textarea
+                                    rows={4}
+                                    placeholder="Contoh: Bukti dukung SK belum ditandatangani, angka realisasi TW1 perlu diverifikasi ulang..."
+                                    value={catatanRevisi}
+                                    onChange={(e) => setCatatanRevisi(e.target.value)}
+                                    required
+                                />
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowKembalikanModal(false)}
+                                        disabled={isSubmitting}
+                                    >
+                                        Batal
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        variant="danger"
+                                        size="sm"
+                                        isLoading={isSubmitting}
+                                    >
+                                        Kirim Catatan & Kembalikan
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         </AuthenticatedLayout>
     );

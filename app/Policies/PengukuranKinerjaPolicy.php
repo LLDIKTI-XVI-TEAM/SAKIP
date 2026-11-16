@@ -2,345 +2,95 @@
 
 namespace App\Policies;
 
-use App\Models\JadwalSnapshot;
-use App\Models\JadwalTahunan;
-use App\Models\KinerjaSnapshot;
 use App\Models\PengukuranKinerja;
-use App\Models\PeriodeJadwal;
-use App\Models\RencanaAksi;
 use App\Models\User;
-use App\Services\Authorization\PermissionResolver;
-use App\Services\Jadwal\SesiKoreksiJadwal;
-use App\Support\PermissionCodes;
 use Illuminate\Auth\Access\Response;
-use Illuminate\Support\Facades\DB;
 
 class PengukuranKinerjaPolicy
 {
-    public function __construct(private PermissionResolver $resolver) {}
+    /**
+     * Admin sistem secara tegas dilarang memanipulasi data substansi kinerja SAKIP
+     */
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->hasRole('admin') && in_array($ability, ['update', 'submit', 'verify', 'ratify', 'delete'])) {
+            return false;
+        }
+
+        if ($user->hasRole('superadmin')) {
+            return true;
+        }
+
+        return null;
+    }
 
     public function viewAny(User $user): bool
     {
-        return $this->resolver->allows($user, 'pengukuran:read');
+        return true;
     }
 
-    public function view(User $user, PengukuranKinerja $p): bool
+    public function view(User $user, PengukuranKinerja $pengukuran): bool
     {
-        return $this->resolver->allows($user, 'pengukuran:read', $p->targetUnitId());
+        if ($user->hasRole('perencanaan') || $user->hasRole('pimpinan') || $user->hasRole('superadmin')) {
+            return true;
+        }
+
+        // PIC hanya bisa melihat indikator unit kerjanya
+        return $user->unit_kerja_id === $pengukuran->penugasanIndikator->unit_kerja_id;
     }
 
-    public function viewEvidence(User $user, PengukuranKinerja $p): bool
+    public function update(User $user, PengukuranKinerja $pengukuran): Response
     {
-        if (! $this->view($user, $p)) {
-            return false;
-        }
-        $decision = $this->resolver->decide($user, 'berkas:read', $p->targetUnitId());
-        if (in_array($decision['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'no_role', 'inactive_unit', 'invalid_scope'], true)) {
-            return false;
+        if ($user->hasRole('perencanaan')) {
+            return Response::allow();
         }
 
-        return $decision['allowed'] || $this->resolver->allows($user, 'pengukuran:update', $p->targetUnitId()) || $this->resolver->allows($user, 'pengukuran:create', $p->targetUnitId());
+        // Cek status alur
+        if (!in_array($pengukuran->status, ['draft', 'dikembalikan'])) {
+            return Response::deny('Kinerja yang sudah diajukan atau disahkan tidak dapat diedit tanpa persetujuan buka kembali.');
+        }
+
+        // Cek apakah user adalah PIC unit kerja terkait
+        if ($user->unit_kerja_id !== $pengukuran->penugasanIndikator->unit_kerja_id) {
+            return Response::deny('Anda bukan pegawai dari unit kerja penanggung jawab indikator ini.');
+        }
+
+        // Cek deadline jadwal periode
+        if (!$pengukuran->periodeJadwal->isAktifBuka()) {
+            return Response::deny('Batas waktu pengisian untuk periode ini telah ditutup.');
+        }
+
+        return Response::allow();
     }
 
-    /**
-     * Jalur Perencanaan (global) bila allow berasal dari peran; allow yang hanya dari grant unit
-     * adalah jalur PIC yang tunduk pada PJ efektif dan jendela (Data Model §4.2; ADR-0002).
-     */
-    public function usesPlanningPath(User $user, PengukuranKinerja $p, string $permission = 'pengukuran:update'): bool
+    public function submit(User $user, PengukuranKinerja $pengukuran): Response
     {
-        $decision = $this->resolver->decide($user, $permission, $p->targetUnitId());
-
-        return $decision['allowed'] && $decision['roles'] !== [];
+        return $this->update($user, $pengukuran);
     }
 
-    public function viewClaims(User $user, PengukuranKinerja $p): bool
+    public function verify(User $user, PengukuranKinerja $pengukuran): Response
     {
-        // Submit memastikan seluruh kegiatan klaim cocok dengan unit konteks pengukuran.
-        return $this->view($user, $p) && $this->resolver->allows($user, 'kegiatan:read', $p->targetUnitId());
+        if (!$user->hasRole('perencanaan') && !$user->hasRole('superadmin')) {
+            return Response::deny('Hanya Tim Perencanaan yang berwenang memverifikasi capaian kinerja.');
+        }
+
+        if (!in_array($pengukuran->status, ['diajukan', 'diverifikasi'])) {
+            return Response::deny('Hanya pengukuran dengan status Diajukan yang dapat diverifikasi.');
+        }
+
+        return Response::allow();
     }
 
-    public function viewClaimEvidence(User $user, PengukuranKinerja $p): bool
+    public function ratify(User $user, PengukuranKinerja $pengukuran): Response
     {
-        // Allow berkas mengikuti akses induk kegiatan; deny dan katalog nonaktif tetap menang.
-        return $this->viewClaims($user, $p)
-            && ! in_array($this->resolver->decide($user, 'berkas:read', $p->targetUnitId())['reason'],
-                ['explicit_deny', 'unknown_permission', 'inactive_user', 'no_role', 'inactive_unit', 'invalid_scope'], true);
-    }
-
-    public function update(User $user, PengukuranKinerja $p): Response
-    {
-        return $this->capability($user, $p, 'draft', 'pengukuran:update');
-    }
-
-    public function submit(User $user, PengukuranKinerja $p): Response
-    {
-        // Input terkini disimpan dan diperiksa atomik oleh Action; kesiapan draf bukan izin tombol.
-        return $this->capability($user, $p, 'ajukan', 'pengukuran:update');
-    }
-
-    public function pindahSnapshot(User $user, PengukuranKinerja $p): Response
-    {
-        if (! in_array($p->status_alur, ['draft', 'dikembalikan'], true)) {
-            return Response::deny('Status pengukuran tidak sesuai untuk tindakan ini.');
-        }
-        $lama = $p->jadwalSnapshot;
-        $tujuan = JadwalSnapshot::versiBerlaku($lama->jadwal_id, $p->indikator_id, $p->periode->urutan);
-        if ($tujuan) {
-            $tujuan->setRelation('jadwal', $lama->jadwal);
-        }
-        $decisionLama = $this->resolver->decide($user, 'pengukuran:update', $lama->unit_id);
-        $decisionTujuan = $tujuan && $tujuan->unit_id !== $lama->unit_id
-            ? $this->resolver->decide($user, 'pengukuran:update', $tujuan->unit_id) : $decisionLama;
-        if (! $decisionLama['allowed'] || $decisionLama['roles'] === [] || ! $decisionTujuan['allowed'] || $decisionTujuan['roles'] === []) {
-            return Response::deny('Izin tindakan tidak tersedia atau telah dicabut.');
-        }
-        $errors = $this->pindahSnapshotErrors($user, $p, $tujuan);
-
-        return $errors === [] ? Response::allow() : Response::deny(implode(' ', $errors));
-    }
-
-    /**
-     * Guard memakai salinan header dengan versi tujuan; header dan objek relasi asli tidak dimutasi.
-     *
-     * @return list<string>
-     */
-    public function pindahSnapshotErrors(User $user, PengukuranKinerja $p, ?JadwalSnapshot $tujuan): array
-    {
-        if (! $tujuan || $tujuan->id === $p->jadwal_snapshot_id || $tujuan->nomor_versi <= $p->jadwalSnapshot->nomor_versi) {
-            return ['Tidak ada versi yang lebih baru untuk periode pengukuran ini.'];
-        }
-        $q = clone $p;
-        $q->jadwal_snapshot_id = $tujuan->id;
-        $q->setRelation('jadwalSnapshot', $tujuan);
-        $errors = $this->businessErrors($user, $q, 'draft');
-        $unitRa = RencanaAksi::where('indikator_id', $p->indikator_id)->where('tahun', $p->tahun)->value('unit_id');
-        if ($unitRa !== null && $unitRa !== $tujuan->unit_id) {
-            $errors[] = 'Unit pada versi terbaru berbeda dengan unit Rencana Aksi tahun ini.';
+        if (!$user->hasRole('perencanaan') && !$user->hasRole('superadmin')) {
+            return Response::deny('Hanya Tim Perencanaan yang berwenang mengesahkan capaian kinerja.');
         }
 
-        return $errors;
-    }
-
-    public function uploadEvidence(User $user, PengukuranKinerja $p): bool
-    {
-        return $this->update($user, $p)->allowed() && ! in_array($this->resolver->decide($user, 'berkas:upload', $p->targetUnitId())['reason'], ['explicit_deny', 'unknown_permission', 'inactive_user', 'no_role', 'inactive_unit', 'invalid_scope'], true);
-    }
-
-    public function verify(User $user, PengukuranKinerja $p): Response
-    {
-        return $this->capability($user, $p, 'verifikasi', 'pengukuran:verifikasi');
-    }
-
-    public function ratify(User $user, PengukuranKinerja $p): Response
-    {
-        return $this->capability($user, $p, 'sahkan', 'pengukuran:sahkan');
-    }
-
-    public function returnMeasurement(User $user, PengukuranKinerja $p): Response
-    {
-        return $this->capability($user, $p, 'kembalikan', 'pengukuran:kembalikan');
-    }
-
-    public function reopen(User $user, PengukuranKinerja $p): Response
-    {
-        return $this->capability($user, $p, 'buka_kembali', 'pengukuran:buka_kembali');
-    }
-
-    /**
-     * Tombol/route penetapan status capaian. Guard penuh per versi dijalankan Action atas baris terkunci;
-     * di sini dipakai versi sah terakhir agar UI tidak menawarkan tindakan yang pasti ditolak (Q-B, Q-C).
-     */
-    public function updateStatusCapaian(User $user, PengukuranKinerja $p): Response
-    {
-        if (! $this->resolver->allows($user, PermissionCodes::STATUS_CAPAIAN_UPDATE, $p->targetUnitId())) {
-            return Response::deny('Izin menetapkan status capaian tidak tersedia atau telah dicabut.');
-        }
-        $versi = $p->ratifiedVersion;
-        if (! $versi) {
-            return Response::deny('Pengukuran belum memiliki versi yang disahkan; status capaian belum dapat ditetapkan.');
-        }
-        $errors = $this->statusCapaianErrors($p, $versi);
-
-        return $errors === [] ? Response::allow() : Response::deny(implode(' ', $errors));
-    }
-
-    /**
-     * Guard bisnis penetapan status capaian dari header dan snapshot versi beku (bukan hitungan ulang).
-     * Dipakai Policy dan diulang Action setelah baris terkunci; `versi` adalah versi yang dirujuk permintaan.
-     *
-     * @return list<string>
-     */
-    public function statusCapaianErrors(PengukuranKinerja $p, KinerjaSnapshot $versi): array
-    {
-        $errors = [];
-        if ($p->status_alur !== 'disahkan') {
-            $errors[] = 'Status capaian hanya dapat ditetapkan pada pengukuran berstatus Disahkan.';
-        }
-        if ($versi->pengukuran_id !== $p->id) {
-            $errors[] = 'Versi pengukuran tidak termasuk pengukuran ini.';
-        }
-        if ($versi->disahkan_at === null) {
-            $errors[] = 'Status capaian hanya dapat ditetapkan pada versi yang telah disahkan.';
-        } elseif ($p->ratifiedVersion?->id !== $versi->id) {
-            $errors[] = 'Versi pengukuran yang dipilih bukan versi sah terakhir; muat ulang sebelum mengulangi tindakan.';
-        }
-        $snapshot = $versi->snapshot ?? [];
-        if ((bool) ($snapshot['tanpa_target_periode'] ?? false)) {
-            $errors[] = 'Pengukuran pada periode tanpa target tidak dapat diberi status capaian.';
-        } elseif (($snapshot['status_perhitungan'] ?? null) === 'belum_dapat_diukur') {
-            $errors[] = 'Pengukuran berstatus Belum dapat diukur tidak dapat diberi status capaian.';
-        } elseif (($snapshot['status_perhitungan'] ?? null) === 'tidak_dapat_dihitung') {
-            $errors[] = 'Pengukuran berstatus Tidak dapat dihitung tidak dapat diberi status capaian.';
+        if (!in_array($pengukuran->status, ['diajukan', 'diverifikasi'])) {
+            return Response::deny('Hanya pengukuran yang telah diajukan/diverifikasi yang dapat disahkan.');
         }
 
-        return $errors;
-    }
-
-    private function capability(User $user, PengukuranKinerja $p, string $command, string $permission): Response
-    {
-        if (! $this->resolver->allows($user, $permission, $p->targetUnitId())) {
-            return Response::deny('Izin tindakan tidak tersedia atau telah dicabut.');
-        }
-        $errors = $this->businessErrors($user, $p, $command);
-
-        return $errors === [] ? Response::allow() : Response::deny(implode(' ', $errors));
-    }
-
-    /** Dipakai Action setelah resolver; kegagalan bisnis menghasilkan validasi, bukan keputusan deny palsu. */
-    public function businessErrors(User $user, PengukuranKinerja $p, string $command): array
-    {
-        $snapshot = $p->jadwalSnapshot;
-        $errors = [];
-        if (! $snapshot || $snapshot->indikator_id !== $p->indikator_id || $snapshot->jadwal->tahun !== $p->tahun) {
-            return ['Snapshot jadwal tidak cocok dengan pengukuran.'];
-        }
-        $schedule = $snapshot->jadwal;
-        $date = today(config('app.business_timezone'))->toDateString();
-        if ($schedule->renstra_id !== $p->indikator->sasaranStrategis->renstra_id) {
-            $errors[] = 'Renstra jadwal tidak cocok dengan indikator.';
-        }
-        if (! PeriodeJadwal::where('jadwal_id', $schedule->id)->where('periode_id', $snapshot->periode_mulai_id)->exists()) {
-            $errors[] = 'Periode efektif snapshot bukan anggota jadwal.';
-        }
-        if (! DB::table('unit')->where('id', $snapshot->unit_id)->where('status', 'aktif')->exists()) {
-            $errors[] = 'Unit organisasi pengukuran berstatus nonaktif.';
-        }
-        if ($p->indikator && $p->indikator->isArsip()) {
-            $errors[] = 'Indikator berstatus arsip; pengukuran tidak dapat diubah, diajukan, atau direviu.';
-        }
-        if ($p->sumber_nilai === 'historis') {
-            $errors[] = 'Koreksi nilai historis memerlukan alur backfill resmi.';
-        }
-        if ($schedule->status !== 'aktif') {
-            $errors[] = 'Jadwal tahunan harus aktif.';
-        }
-        $period = PeriodeJadwal::where('jadwal_id', $snapshot->jadwal_id)->where('periode_id', $p->periode_id)->first();
-        if (! $period || $p->periode->urutan < $snapshot->periodeMulai->urutan) {
-            $errors[] = 'Periode belum termasuk kewajiban efektif indikator pada jadwal ini.';
-        }
-        $correction = $this->sesiKoreksiAktif($schedule, $p->indikator_id, $p->periode_id);
-        // Jalur mengikuti izin tindakan; deny input tidak mencabut izin review yang berbeda.
-        $planning = $this->usesPlanningPath($user, $p, match ($command) {
-            'draft', 'ajukan' => 'pengukuran:update',
-            'verifikasi' => 'pengukuran:verifikasi', 'sahkan' => 'pengukuran:sahkan', 'kembalikan' => 'pengukuran:kembalikan',
-            'buka_kembali' => 'pengukuran:buka_kembali',
-        });
-        // PIC hanya ikut koreksi lewat jendela resmi di dalam sesi; jendela lama yang masih berjalan tidak membuka akses.
-        $picDalamSesi = ! $planning && in_array($command, ['draft', 'ajukan'], true) && SesiKoreksiJadwal::jendelaPicTerbuka($schedule, $period);
-        if ($schedule->tahunDitutup() && (! $correction || ! ($planning || $picDalamSesi))) {
-            $errors[] = $command === 'buka_kembali'
-                ? 'Tahun sudah ditutup; buka kembali jadwal tahunan (jadwal:buka_kembali) lalu ulangi di dalam sesi koreksi yang mencakup pengukuran ini.'
-                : 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
-        }
-        $statuses = match ($command) {
-            'draft','ajukan' => ['draft', 'dikembalikan'], 'verifikasi' => ['diajukan'], 'sahkan' => ['diverifikasi'], 'kembalikan' => ['diajukan', 'diverifikasi'], 'buka_kembali' => ['disahkan']
-        };
-        if (! in_array($p->status_alur, $statuses, true)) {
-            $errors[] = 'Status pengukuran tidak sesuai untuk tindakan ini.';
-        }
-        if (in_array($command, ['draft', 'ajukan'], true)) {
-            if (! $planning) {
-                if ($p->effectivePic()?->user_id !== $user->id) {
-                    $errors[] = 'Tindakan ini memerlukan penugasan PIC yang efektif.';
-                }
-                if (($pesanJendela = $this->pesanJendelaPic($date, $period)) !== null) {
-                    $errors[] = $pesanJendela;
-                }
-            }
-        } elseif ($command === 'buka_kembali') {
-            // Hanya versi resmi terakhir yang boleh dibuka; versi koreksi yang belum disahkan tidak punya status resmi.
-            $ratified = $p->ratifiedVersion;
-            if (! $ratified || $ratified->disahkan_at === null) {
-                $errors[] = 'Pengukuran belum memiliki versi resmi yang disahkan; buka kembali tidak tersedia.';
-            } else {
-                $version = $p->latestVersion;
-                if (! $version || $version->id !== $ratified->id) {
-                    $errors[] = 'Versi resmi pengukuran bukan versi terakhir; muat ulang sebelum membuka kembali.';
-                } elseif ($version->jadwal_snapshot_id !== $p->jadwal_snapshot_id) {
-                    $errors[] = 'Snapshot versi resmi tidak cocok dengan konteks pengukuran.';
-                }
-            }
-        } else {
-            $version = $p->latestVersion;
-            if (! $version || $version->jadwal_snapshot_id !== $p->jadwal_snapshot_id) {
-                $errors[] = 'Versi pengajuan yang direviu belum tersedia atau tidak cocok.';
-            } elseif (in_array($command, ['verifikasi', 'sahkan'], true) && $version->diajukan_by === $user->id && $version->jalur_pengajuan === 'pic') {
-                $errors[] = 'Pengaju jalur PIC tidak boleh menyetujui pengajuannya sendiri.';
-            }
-        }
-
-        return $errors;
-    }
-
-    /**
-     * Guard bisnis pembentukan header draf, tanpa query: snapshot membawa relasi jadwal dan unit yang sudah dimuat,
-     * dan PJ efektif dipasok pemanggil (Action dari baris terkunci; daftar dari data pramuat). Keputusan resolver
-     * pengukuran:create menentukan jalur: allow dari peran = Perencanaan tanpa syarat PJ/jendela; grant unit saja = PIC.
-     */
-    public function creationErrors(User $actor, JadwalSnapshot $snapshot, PeriodeJadwal $period, array $decision, ?string $picUserId): array
-    {
-        $schedule = $snapshot->jadwal;
-        $date = today(config('app.business_timezone'))->toDateString();
-        $errors = [];
-        if ($snapshot->unit?->status !== 'aktif') {
-            $errors[] = 'Unit organisasi pengukuran berstatus nonaktif.';
-        }
-        if ($schedule->status !== 'aktif') {
-            $errors[] = 'Jadwal tahunan harus aktif.';
-        }
-        if ($schedule->tahunDitutup() && (! $this->sesiKoreksiAktif($schedule, $snapshot->indikator_id, $period->periode_id)
-            || ($decision['roles'] === [] && ! SesiKoreksiJadwal::jendelaPicTerbuka($schedule, $period)))) {
-            $errors[] = 'Tahun sudah ditutup; diperlukan sesi koreksi resmi yang mencakup pengukuran ini.';
-        }
-        if ($decision['roles'] === []) {
-            if ($picUserId !== $actor->id) {
-                $errors[] = 'Tindakan ini memerlukan penugasan PIC yang efektif.';
-            }
-            if (($pesanJendela = $this->pesanJendelaPic($date, $period)) !== null) {
-                $errors[] = $pesanJendela;
-            }
-        }
-
-        return $errors;
-    }
-
-    /**
-     * Pesan jendela pengisian PIC pada tanggal bisnis (WITA), atau null bila tanggal berada di dalam jendela
-     * inklusif pengisian_mulai..pengisian_selesai. Periode yang bukan anggota jadwal tetap dijawab "sudah ditutup";
-     * ketidakcocokan periodenya sudah dilaporkan pesan tersendiri.
-     */
-    private function pesanJendelaPic(string $date, ?PeriodeJadwal $period): ?string
-    {
-        if (! $period || $date > $period->pengisian_selesai->toDateString()) {
-            return 'Jendela pengisian PIC periode ini sudah ditutup.';
-        }
-
-        return $date < $period->pengisian_mulai->toDateString() ? 'Jendela pengisian PIC periode ini belum dibuka.' : null;
-    }
-
-    /** Sesi koreksi resmi membuka tahun yang ditutup hanya untuk indikator × periode × jenis objek dalam lingkupnya. */
-    private function sesiKoreksiAktif(JadwalTahunan $schedule, string $indicatorId, string $periodId): bool
-    {
-        return SesiKoreksiJadwal::berlaku($schedule, 'pengukuran', $indicatorId, [$periodId]);
+        return Response::allow();
     }
 }

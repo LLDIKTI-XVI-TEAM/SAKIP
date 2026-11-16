@@ -2,202 +2,74 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\JadwalTahunan;
-use App\Models\RencanaAksi;
-use App\Models\RenstraPk;
-use App\Models\User;
-use App\Policies\RolePermissionPolicy;
-use App\Services\Authorization\PermissionResolver;
-use App\Services\Pengaturan\PengaturanService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
+    /**
+     * The root template that's loaded on the first page visit.
+     *
+     * @see https://inertiajs.com/server-side-setup#root-template
+     *
+     * @var string
+     */
     protected $rootView = 'app';
 
-    public function share(Request $request): array
+    /**
+     * Determines the current asset version.
+     *
+     * @see https://inertiajs.com/asset-versioning
+     */
+    public function version(Request $request): ?string
     {
-        return [
-            ...parent::share($request),
-            'auth' => function () use ($request) {
-                $user = $request->user()?->fresh();
-                $can = $this->capabilities($user, $request);
-
-                return [
-                    'user' => $user ? ['id' => $user->id, 'nama' => $user->nama, 'email' => $user->email, 'status' => $user->status, 'role' => $user->status === 'aktif' ? $user->roles()->value('kode') : null] : null,
-                    'can' => [
-                        'dashboard' => $can['dashboard'],
-                        'kegiatan' => $can['kegiatan'],
-                        'pengukuran' => $can['pengukuran'],
-                        'verifikasi' => $can['verifikasi'],
-                        'rencanaAksi' => $can['rencanaAksi'],
-                        'regulasi' => $can['regulasi'],
-                        'renstra' => $can['renstra'],
-                        'assignRole' => $can['assignRole'],
-                        'manageDeny' => $can['manageDeny'],
-                        'unit' => $can['unit'],
-                        'grant' => $can['grant'],
-                        'pengaturan' => $can['pengaturan'],
-                        'pengaturan:update' => $can['pengaturan:update'],
-                        'audit' => $can['audit'],
-                        'viewRolePermissions' => $can['viewRolePermissions'],
-                        'viewEffectivePermissions' => $can['viewEffectivePermissions'],
-                        'jenisBerkas' => $can['jenisBerkas'],
-                        'sasaranIndikator' => $can['sasaranIndikator'],
-                        'pk' => $can['pk'],
-                        'periode' => $can['periode'],
-                        'jadwal' => $can['jadwal'],
-                        'pk:create' => $can['pk:create'],
-                        'pk:update' => $can['pk:update'],
-                        'rekomendasi' => $can['rekomendasi'],
-                        'laporan_read' => $can['laporan_read'],
-                        'dokumenResmi' => $can['dokumenResmi'],
-                        'statusCapaian' => $can['statusCapaian'],
-                    ],
-                ];
-            },
-            'can' => fn () => $this->capabilities($request->user()?->fresh(), $request),
-            'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
-                'warning' => fn () => $request->session()->get('warning'),
-                'message' => fn () => $request->session()->get('message'),
-            ],
-            'pengaturan' => fn () => app(PengaturanService::class)->allValues(),
-            'notifikasi_belum_dibaca' => fn () => $this->notifikasiBelumDibaca($request->user()),
-        ];
+        return parent::version($request);
     }
 
     /**
-     * Angka lonceng: hanya untuk akun aktif berperan aktif (satu cek peran + satu COUNT berindeks per request);
-     * null untuk tamu, akun nonaktif, dan akun tanpa peran karena mereka tidak boleh membuka daftar notifikasi.
+     * Define the props that are shared by default.
+     *
+     * @see https://inertiajs.com/shared-data
+     *
+     * @return array<string, mixed>
      */
-    private function notifikasiBelumDibaca(?User $user): ?int
+    public function share(Request $request): array
     {
-        if ($user === null || $user->status !== 'aktif' || app(PermissionResolver::class)->penggunaBerperanAktif([$user->id]) === []) {
-            return null;
-        }
+        $user = $request->user();
 
-        return $user->unreadNotifications()->count();
-    }
-
-    /** @return array<string, bool> */
-    private function capabilities(?User $user, ?Request $request = null): array
-    {
-        $defaultCapabilities = [
-            'dashboard' => false,
-            'kegiatan' => false,
-            'pengukuran' => false,
-            'verifikasi' => false,
-            'rencanaAksi' => false,
-            'assignRole' => false,
-            'manageDeny' => false,
-            'unit' => false,
-            'grant' => false,
-            'viewRolePermissions' => false,
-            'viewEffectivePermissions' => false,
-            'regulasi' => false,
-            'regulasi:create' => false,
-            'regulasi:read' => false,
-            'regulasi:update' => false,
-            'regulasi:delete' => false,
-            'renstra' => false,
-            'renstra:create' => false,
-            'renstra:read' => false,
-            'renstra:update' => false,
-            'renstra:delete' => false,
-            'berkas:delete' => false,
-            'pengaturan' => false,
-            'pengaturan:update' => false,
-            'audit' => false,
-            'jenisBerkas' => false,
-            'sasaranIndikator' => false,
-            'pk' => false,
-            'periode' => false,
-            'jadwal' => false,
-            'pk:create' => false,
-            'pk:update' => false,
-            'rekomendasi' => false,
-            'laporan_read' => false,
-            'dokumenResmi' => false,
-            'statusCapaian' => false,
+        return [
+            ...parent::share($request),
+            'auth' => [
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'nip' => $user->nip,
+                    'jabatan' => $user->jabatan,
+                    'unit_kerja' => $user->unitKerja ? [
+                        'id' => $user->unitKerja->id,
+                        'nama' => $user->unitKerja->nama,
+                        'singkatan' => $user->unitKerja->singkatan,
+                    ] : null,
+                    'roles' => $user->roles->pluck('name')->toArray(),
+                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                ] : null,
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'message' => fn () => $request->session()->get('message'),
+            ],
+            'is_dev' => app()->environment('local'),
+            'demo_users' => app()->environment('local') ? \App\Models\User::with('unitKerja', 'roles')->get()->map(function ($u) {
+                return [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'role' => $u->roles->first()?->name ?? 'pegawai',
+                    'unit' => $u->unitKerja?->singkatan ?? 'LLDIKTI',
+                ];
+            }) : [],
         ];
-
-        if ($user === null || $user->status !== 'aktif') {
-            return $defaultCapabilities;
-        }
-
-        if ($request && $request->attributes->has('inertia_capabilities_'.$user->id)) {
-            /** @var array<string, bool> */
-            return $request->attributes->get('inertia_capabilities_'.$user->id);
-        }
-
-        // Satu keputusan batch untuk seluruh izin langsung; capability berbasis
-        // Policy tetap memakai Policy masing-masing.
-        $izin = app(PermissionResolver::class)->decideMany($user, [
-            'kegiatan:read', 'dashboard:read', 'pengukuran:read', 'pengukuran:verifikasi', 'pengukuran:sahkan', 'pengukuran:kembalikan',
-            'pengguna:read', 'akses:update', 'unit:read', 'delegasi:update', 'audit:read',
-            'regulasi:read', 'regulasi:create', 'regulasi:update', 'regulasi:delete',
-            'renstra:read', 'renstra:create', 'renstra:update', 'renstra:delete',
-            'berkas:delete', 'pengaturan:update', 'jenis_berkas:read', 'indikator:read',
-            'periode:create', 'periode:update', 'pk:create', 'pk:update', 'rekomendasi:tetapkan', 'laporan:read', 'laporan:ekspor',
-            'status_capaian:update',
-        ]);
-        $boleh = fn (string $kode): bool => $izin[$kode]['allowed'];
-        $regulasiRead = $boleh('regulasi:read');
-        $renstraRead = $boleh('renstra:read');
-        $pengaturanUpdate = $boleh('pengaturan:update');
-        $jenisBerkasRead = $boleh('jenis_berkas:read');
-
-        $computed = [
-            'dashboard' => $boleh('dashboard:read'),
-            'kegiatan' => $boleh('kegiatan:read'),
-            'pengukuran' => $boleh('pengukuran:read'),
-            'verifikasi' => $boleh('pengukuran:read')
-                && ($boleh('pengukuran:verifikasi')
-                    || $boleh('pengukuran:sahkan')
-                    || $boleh('pengukuran:kembalikan')),
-            'assignRole' => $boleh('pengguna:read')
-                && $boleh('akses:update'),
-            'manageDeny' => $boleh('akses:update'),
-            'unit' => $boleh('unit:read'),
-            'grant' => $boleh('delegasi:update'),
-            'viewRolePermissions' => app(RolePermissionPolicy::class)->decide($user)['allowed'],
-            'viewEffectivePermissions' => $boleh('pengguna:read'),
-            'regulasi' => $regulasiRead,
-            'regulasi:create' => $boleh('regulasi:create'),
-            'regulasi:read' => $regulasiRead,
-            'regulasi:update' => $boleh('regulasi:update'),
-            'regulasi:delete' => $boleh('regulasi:delete'),
-            'renstra' => $renstraRead,
-            'renstra:create' => $boleh('renstra:create'),
-            'renstra:read' => $renstraRead,
-            'renstra:update' => $boleh('renstra:update'),
-            'renstra:delete' => $boleh('renstra:delete'),
-            'berkas:delete' => $boleh('berkas:delete'),
-            'pengaturan' => $pengaturanUpdate,
-            'pengaturan:update' => $pengaturanUpdate,
-            'audit' => $boleh('audit:read'),
-            'jenisBerkas' => $jenisBerkasRead,
-            'sasaranIndikator' => $boleh('indikator:read'),
-            'rencanaAksi' => $user->can('viewAny', RencanaAksi::class),
-            'pk' => $user->can('viewAny', RenstraPk::class),
-            'periode' => $boleh('periode:create') || $boleh('periode:update'),
-            'jadwal' => $user->can('viewAny', JadwalTahunan::class),
-            'pk:create' => $boleh('pk:create'),
-            'pk:update' => $boleh('pk:update'),
-            'rekomendasi' => $boleh('rekomendasi:tetapkan'),
-            'laporan_read' => $boleh('laporan:read'),
-            'dokumenResmi' => $boleh('laporan:ekspor'),
-            // Halaman/menu status capaian dijaga izin yang sama dengan gerbang tulis Action (fail-closed).
-            'statusCapaian' => $boleh('status_capaian:update'),
-        ];
-
-        if ($request) {
-            $request->attributes->set('inertia_capabilities_'.$user->id, $computed);
-        }
-
-        return $computed;
     }
 }
