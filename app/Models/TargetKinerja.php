@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TargetKinerja extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
 
     protected $table = 'target_kinerjas';
 
@@ -16,6 +17,9 @@ class TargetKinerja extends Model
         'indikator_kinerja_id',
         'tahun',
         'target_tahunan',
+        'baseline',
+        'alasan_deviasi_renstra',
+        'updated_by',
         'target_tw1',
         'target_tw2',
         'target_tw3',
@@ -24,7 +28,8 @@ class TargetKinerja extends Model
 
     protected $casts = [
         'tahun' => 'integer',
-        'target_tahunan' => 'float',
+        'target_tahunan' => 'decimal:12',
+        'baseline' => 'decimal:12',
         'target_tw1' => 'float',
         'target_tw2' => 'float',
         'target_tw3' => 'float',

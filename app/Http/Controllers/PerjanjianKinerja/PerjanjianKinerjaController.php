@@ -1,0 +1,173 @@
+<?php
+
+namespace App\Http\Controllers\PerjanjianKinerja;
+
+use App\Actions\PerjanjianKinerja\CreatePerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\DeleteBerkasPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\DownloadBerkasPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\IndexPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\SetujuiRevisiPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\ShowPerjanjianKinerja;
+use App\Actions\PerjanjianKinerja\UpdatePerjanjianKinerja;
+use App\Actions\TargetTahunan\SaveTargetTahunan;
+use App\Actions\TargetTahunan\ShowTargetTahunan;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\PerjanjianKinerja\DestroyBerkasPerjanjianKinerjaRequest;
+use App\Http\Requests\PerjanjianKinerja\StorePerjanjianKinerjaRequest;
+use App\Http\Requests\PerjanjianKinerja\StoreVersiPerjanjianKinerjaRequest;
+use App\Http\Requests\PerjanjianKinerja\UpdatePerjanjianKinerjaRequest;
+use App\Http\Requests\TargetTahunan\SaveTargetTahunanRequest;
+use App\Models\Berkas;
+use App\Models\RenstraPk;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
+use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class PerjanjianKinerjaController extends Controller
+{
+    /**
+     * Menampilkan daftar Perjanjian Kinerja tahunan.
+     */
+    public function index(Request $request, IndexPerjanjianKinerja $action): Response
+    {
+        Gate::authorize('viewAny', RenstraPk::class);
+
+        $filters = $request->validate([
+            'renstra_id' => ['nullable', 'uuid', 'exists:renstras,id'],
+            'tahun' => ['nullable', 'integer', 'between:1900,2100'],
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        return Inertia::render('PerjanjianKinerja/Index', $action->handle($request->user(), $filters, $request->only(['renstra_id', 'tahun', 'q'])));
+    }
+
+    /**
+     * Menampilkan formulir pencatatan Perjanjian Kinerja baru.
+     */
+    public function create(): RedirectResponse
+    {
+        Gate::authorize('create', RenstraPk::class);
+
+        return redirect()->route('perjanjian-kinerja.index');
+    }
+
+    /**
+     * Menyimpan data Perjanjian Kinerja baru beserta lampiran.
+     */
+    public function store(StorePerjanjianKinerjaRequest $request, CreatePerjanjianKinerja $action): RedirectResponse
+    {
+        $pk = $action->handle($request->validated(), $request->user());
+
+        return redirect()
+            ->route('perjanjian-kinerja.show', $pk)
+            ->with('success', 'Perjanjian Kinerja berhasil dicatat.');
+    }
+
+    /**
+     * Menampilkan detail Perjanjian Kinerja dan daftar lampiran legalnya.
+     */
+    public function show(Request $request, RenstraPk $perjanjianKinerja, ShowPerjanjianKinerja $action): Response
+    {
+        Gate::authorize('view', $perjanjianKinerja);
+
+        return Inertia::render('PerjanjianKinerja/Show', $action->handle($request->user(), $perjanjianKinerja));
+    }
+
+    /**
+     * Memuat editor baseline dan target PK satu indikator pada tahun Perjanjian Kinerja.
+     */
+    public function targetEditor(Request $request, RenstraPk $perjanjianKinerja, string $indikator, ShowTargetTahunan $action): JsonResponse
+    {
+        return response()->json($action->handle($request->user(), $indikator, $perjanjianKinerja->tahun, $perjanjianKinerja->renstra_id));
+    }
+
+    /**
+     * Menyimpan baseline dan target PK satu indikator dari halaman Perjanjian Kinerja.
+     */
+    public function updateTarget(SaveTargetTahunanRequest $request, RenstraPk $perjanjianKinerja, string $indikator, SaveTargetTahunan $action): JsonResponse|RedirectResponse
+    {
+        $outcome = $action->handle($request->user(), $indikator, $perjanjianKinerja->tahun, $request->validated(), $perjanjianKinerja->renstra_id);
+        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+            return response()->json($outcome);
+        }
+        Inertia::flash('target_tahunan', $outcome);
+
+        return redirect()->route('perjanjian-kinerja.show', $perjanjianKinerja);
+    }
+
+    /**
+     * Menampilkan formulir pengubahan data Perjanjian Kinerja.
+     */
+    public function edit(RenstraPk $perjanjianKinerja): RedirectResponse
+    {
+        Gate::authorize('update', $perjanjianKinerja);
+
+        return redirect()->route('perjanjian-kinerja.show', $perjanjianKinerja);
+    }
+
+    /**
+     * Memperbarui metadata dan lampiran Perjanjian Kinerja.
+     */
+    public function update(
+        UpdatePerjanjianKinerjaRequest $request,
+        RenstraPk $perjanjianKinerja,
+        UpdatePerjanjianKinerja $action,
+    ): RedirectResponse {
+        $action->handle(
+            $perjanjianKinerja,
+            $request->validated(),
+            $request->validated('alasan'),
+            $request->user(),
+        );
+
+        return redirect()
+            ->route('perjanjian-kinerja.show', $perjanjianKinerja)
+            ->with('success', 'Perjanjian Kinerja berhasil diperbarui.');
+    }
+
+    /**
+     * Menyimpan revisi PK berversi yang sudah disetujui Eselon I beserta lampirannya.
+     */
+    public function storeVersi(StoreVersiPerjanjianKinerjaRequest $request, RenstraPk $perjanjianKinerja, SetujuiRevisiPerjanjianKinerja $action): RedirectResponse
+    {
+        $versi = $action->handle($request->user(), $perjanjianKinerja->id, $request->validated());
+        Inertia::flash('success', 'Revisi PK versi '.$versi->nomor_versi.' berhasil disimpan.');
+
+        return redirect()->route('perjanjian-kinerja.show', $perjanjianKinerja);
+    }
+
+    /**
+     * Menghapus lampiran berkas Perjanjian Kinerja dengan validasi guard imutabilitas.
+     */
+    public function destroyBerkas(
+        DestroyBerkasPerjanjianKinerjaRequest $request,
+        RenstraPk $perjanjianKinerja,
+        Berkas $berkas,
+        DeleteBerkasPerjanjianKinerja $action,
+    ): RedirectResponse {
+        $action->handle(
+            $perjanjianKinerja,
+            $berkas,
+            $request->validated('alasan'),
+            $request->user(),
+        );
+
+        return back()->with('success', 'Lampiran Perjanjian Kinerja berhasil dihapus.');
+    }
+
+    /**
+     * Mengunduh file lampiran dokumen Perjanjian Kinerja dari private storage.
+     */
+    public function downloadBerkas(RenstraPk $perjanjianKinerja, Berkas $berkas, DownloadBerkasPerjanjianKinerja $action): StreamedResponse
+    {
+        Gate::authorize('downloadBerkas', $perjanjianKinerja);
+        $file = $action->handle($perjanjianKinerja, $berkas);
+
+        return Storage::disk('local')->download($file['path'], $file['name']);
+    }
+}

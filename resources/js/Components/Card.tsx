@@ -6,7 +6,7 @@ export const Card: React.FC<HTMLAttributes<HTMLDivElement>> = ({ className, chil
     return (
         <div
             className={twMerge(
-                clsx('bg-white border border-slate-200/80 rounded-xl shadow-xs overflow-hidden transition-all', className)
+                clsx('overflow-hidden rounded-xl border border-border bg-surface shadow-xs transition-shadow', className)
             )}
             {...props}
         >
@@ -17,7 +17,7 @@ export const Card: React.FC<HTMLAttributes<HTMLDivElement>> = ({ className, chil
 
 export const CardHeader: React.FC<HTMLAttributes<HTMLDivElement>> = ({ className, children, ...props }) => {
     return (
-        <div className={twMerge(clsx('px-6 py-4 border-b border-slate-100 flex items-center justify-between', className))} {...props}>
+        <div className={twMerge(clsx('flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-6 py-4.5', className))} {...props}>
             {children}
         </div>
     );
@@ -25,7 +25,7 @@ export const CardHeader: React.FC<HTMLAttributes<HTMLDivElement>> = ({ className
 
 export const CardTitle: React.FC<HTMLAttributes<HTMLHeadingElement>> = ({ className, children, ...props }) => {
     return (
-        <h3 className={twMerge(clsx('text-base font-semibold text-slate-900', className))} {...props}>
+        <h3 className={twMerge(clsx('text-base font-semibold text-ink tracking-tight', className))} {...props}>
             {children}
         </h3>
     );

@@ -1,0 +1,156 @@
+import type { Paginated, RenstraStatus } from '@/types/renstra';
+
+/** Tanggal periode tanpa tahun dari Master Periode; keempatnya terisi atau kosong bersamaan. */
+export interface TanggalPeriode {
+    bulan_mulai: number | null;
+    hari_mulai: number | null;
+    bulan_selesai: number | null;
+    hari_selesai: number | null;
+}
+
+export interface PeriodeOption extends TanggalPeriode {
+    id: string;
+    nama: string;
+    urutan: number;
+    aktif: boolean;
+    is_nilai_akhir: boolean;
+    revisi: number;
+}
+
+export interface PeriodeSummary extends PeriodeOption {
+    metadata_locked: boolean;
+    metadata_locked_reason: string | null;
+}
+
+export interface PeriodeIndexProps {
+    periode: Paginated<PeriodeSummary>;
+    current_final: { id: string; nama: string; revisi: number } | null;
+    filters: { q: string; status: string | null; sort: string };
+    can: { create: boolean; update: boolean; replaceFinal: boolean };
+}
+
+export interface JadwalRenstraOption {
+    id: string;
+    nama: string;
+    status: RenstraStatus;
+    tahun_mulai: number;
+    tahun_selesai: number;
+}
+
+export type JadwalStatus = 'draft' | 'aktif' | 'ditutup';
+
+export interface JadwalSummary {
+    id: string;
+    renstra: Pick<JadwalRenstraOption, 'id' | 'nama' | 'status'>;
+    tahun: number;
+    status: JadwalStatus;
+    revisi: number;
+    penutupan: string | null;
+    can_update: boolean;
+}
+
+export interface JadwalIndexProps {
+    jadwal: Paginated<JadwalSummary>;
+    filters: {
+        q: string;
+        status: string | null;
+        renstra_id: string | null;
+        tahun: string | number | null;
+        sort: string;
+    };
+    can: { create: boolean };
+}
+
+export interface JadwalPeriodeInput {
+    periode_id: string;
+    periode_revisi: number;
+    pengisian_mulai: string;
+    pengisian_selesai: string;
+}
+
+export interface JadwalPeriode extends JadwalPeriodeInput, TanggalPeriode {
+    nama: string;
+    urutan: number;
+    aktif: boolean;
+    is_nilai_akhir: boolean;
+}
+
+export interface JadwalDetail {
+    id: string;
+    renstra_id: string;
+    renstra: JadwalRenstraOption;
+    tahun: number;
+    status: JadwalStatus;
+    revisi: number;
+    penutupan: string | null;
+    periode: JadwalPeriode[];
+}
+
+/** Kandidat panel tambah indikator; tanpa nilai target agar hanya status kelengkapan yang dikirim. */
+export interface IndikatorBelumTerjadwal {
+    id: string;
+    kode: string;
+    nama: string;
+    target_terisi: boolean;
+    dapat_dibekukan: boolean;
+}
+
+export interface JadwalEditorProps {
+    jadwal: JadwalDetail | null;
+    /** close, revise_windows, reopen, dan tambah_indikator sudah memuat status jadwal dari server. */
+    can: { create: boolean; update: boolean; activate: boolean; close: boolean; revise_windows: boolean; tambah_indikator: boolean; reopen: boolean };
+    koreksi: SesiKoreksi | null;
+    koreksi_indikator_options: { id: string; nama: string }[];
+    read_only_reason: string | null;
+    /** Indikator Renstra yang belum masuk jadwal; kosong bila can.tambah_indikator false. */
+    indikator_belum_terjadwal: IndikatorBelumTerjadwal[];
+    /** Periode pertama yang jendelanya belum selesai (tanggal bisnis), atau null. */
+    periode_mulai_default: string | null;
+    perjanjian_kinerja_id: string | null;
+    /** Renstra draft/aktif; kosong bila kalender hanya dapat dibaca. */
+    renstra_options: JadwalRenstraOption[];
+    /** Periode aktif untuk ditambahkan; kosong bila kalender hanya dapat dibaca. */
+    periode_options: PeriodeOption[];
+}
+
+export interface LingkupKoreksi {
+    jenis_objek: string[];
+    indikator_ids: string[];
+    periode_ids: string[];
+}
+
+export interface SesiKoreksi {
+    status: 'terjadwal' | 'berjalan' | 'berakhir' | 'ditutup';
+    mulai: string;
+    sampai: string;
+    lingkup: LingkupKoreksi;
+}
+
+/** Pratinjau server yang advisory; hanya agregat, tanpa nama/nilai indikator atau identitas lampiran. */
+export interface JadwalActivationReadiness {
+    jadwal_id: string;
+    checked_revisi: number;
+    checked_at: string;
+    allowed: boolean;
+    blockers: { code: string; message: string }[];
+    gates: { key: 'G1' | 'G2' | 'G3' | 'G4'; status: 'lolos' | 'gagal'; message: string; count: number | null }[];
+    counts: {
+        indikator_berlaku: number;
+        target_belum_terisi: number;
+        snapshot_existing: number;
+        snapshot_baru: number;
+        komponen_baru: number;
+    };
+    periode_lampau_ids: string[];
+}
+
+/** Hasil mutasi yang dikirim lewat flash jadwal_aktivasi; hanya sah bila cocok dengan operasi dan objek request. */
+export interface JadwalActivationOutcome {
+    operation_id: string;
+    jadwal_id: string;
+    status: 'aktif';
+    activated_at: string;
+    revisi: number;
+    changed: boolean;
+    snapshot_created_count: number;
+}

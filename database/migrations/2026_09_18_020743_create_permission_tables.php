@@ -2,136 +2,111 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        $teams = config('permission.teams');
-        $tableNames = config('permission.table_names');
-        $columnNames = config('permission.column_names');
-        $pivotRole = $columnNames['role_pivot_key'] ?? 'role_id';
-        $pivotPermission = $columnNames['permission_pivot_key'] ?? 'permission_id';
-
-        throw_if(empty($tableNames), 'Error: config/permission.php not loaded. Run [php artisan config:clear] and try again.');
-        throw_if($teams && empty($columnNames['team_foreign_key'] ?? null), 'Error: team_foreign_key on config/permission.php not loaded. Run [php artisan config:clear] and try again.');
-
-        /**
-         * See `docs/prerequisites.md` for suggested lengths on 'name' and 'guard_name' if "1071 Specified key was too long" errors are encountered.
-         */
-        Schema::create($tableNames['permissions'], static function (Blueprint $table) {
-            $table->id(); // permission id
-            $table->string('name');
-            $table->string('guard_name');
+        Schema::create('permissions', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('kode')->unique();
+            $table->string('entitas');
+            $table->string('aksi');
+            $table->text('keterangan')->nullable();
+            $table->enum('butuh_scope', ['global', 'unit'])->default('global');
+            $table->boolean('sensitif')->default(false);
+            $table->boolean('aktif')->default(true);
             $table->timestamps();
-
-            $table->unique(['name', 'guard_name']);
         });
-
-        /**
-         * See `docs/prerequisites.md` for suggested lengths on 'name' and 'guard_name' if "1071 Specified key was too long" errors are encountered.
-         */
-        Schema::create($tableNames['roles'], static function (Blueprint $table) use ($teams, $columnNames) {
-            $table->id(); // role id
-            if ($teams || config('permission.testing')) { // permission.testing is a fix for sqlite testing
-                $table->unsignedBigInteger($columnNames['team_foreign_key'])->nullable();
-                $table->index($columnNames['team_foreign_key'], 'roles_team_foreign_key_index');
-            }
-            $table->string('name');
-            $table->string('guard_name');
-            $table->timestamps();
-            if ($teams || config('permission.testing')) {
-                $table->unique([$columnNames['team_foreign_key'], 'name', 'guard_name']);
-            } else {
-                $table->unique(['name', 'guard_name']);
-            }
+        Schema::create('roles', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('kode')->unique();
+            $table->string('nama');
+            $table->text('keterangan')->nullable();
+            $table->boolean('is_sistem')->default(true);
+            $table->integer('urutan');
+            $table->boolean('aktif')->default(true);
         });
-
-        Schema::create($tableNames['model_has_permissions'], static function (Blueprint $table) use ($tableNames, $columnNames, $pivotPermission, $teams) {
-            $table->unsignedBigInteger($pivotPermission);
-
-            $table->string('model_type');
-            $table->unsignedBigInteger($columnNames['model_morph_key']);
-            $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_permissions_model_id_model_type_index');
-
-            $table->foreign($pivotPermission)
-                ->references('id') // permission id
-                ->on($tableNames['permissions'])
-                ->cascadeOnDelete();
-            if ($teams) {
-                $table->unsignedBigInteger($columnNames['team_foreign_key']);
-                $table->index($columnNames['team_foreign_key'], 'model_has_permissions_team_foreign_key_index');
-
-                $table->primary([$columnNames['team_foreign_key'], $pivotPermission, $columnNames['model_morph_key'], 'model_type'],
-                    'model_has_permissions_permission_model_type_primary');
-            } else {
-                $table->primary([$pivotPermission, $columnNames['model_morph_key'], 'model_type'],
-                    'model_has_permissions_permission_model_type_primary');
-            }
+        Schema::create('role_permissions', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->foreignUuid('role_id')->constrained('roles')->restrictOnDelete();
+            $table->foreignUuid('permission_id')->constrained('permissions')->restrictOnDelete();
+            $table->timestamp('created_at');
+            $table->unique(['role_id', 'permission_id']);
         });
-
-        Schema::create($tableNames['model_has_roles'], static function (Blueprint $table) use ($tableNames, $columnNames, $pivotRole, $teams) {
-            $table->unsignedBigInteger($pivotRole);
-
-            $table->string('model_type');
-            $table->unsignedBigInteger($columnNames['model_morph_key']);
-            $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_roles_model_id_model_type_index');
-
-            $table->foreign($pivotRole)
-                ->references('id') // role id
-                ->on($tableNames['roles'])
-                ->cascadeOnDelete();
-            if ($teams) {
-                $table->unsignedBigInteger($columnNames['team_foreign_key']);
-                $table->index($columnNames['team_foreign_key'], 'model_has_roles_team_foreign_key_index');
-
-                $table->primary([$columnNames['team_foreign_key'], $pivotRole, $columnNames['model_morph_key'], 'model_type'],
-                    'model_has_roles_role_model_type_primary');
-            } else {
-                $table->primary([$pivotRole, $columnNames['model_morph_key'], 'model_type'],
-                    'model_has_roles_role_model_type_primary');
-            }
+        Schema::create('audit_log', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->foreignUuid('actor_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->enum('actor_type', ['user', 'system', 'operator']);
+            $table->enum('sumber', ['manual', 'sso_onboarding', 'bootstrap']);
+            $table->string('operator_reference')->nullable();
+            $table->string('runtime_identity')->nullable();
+            $table->timestampTz('waktu');
+            $table->string('tindakan');
+            $table->string('objek_tipe');
+            $table->uuid('objek_id');
+            $table->jsonb('nilai_lama')->nullable();
+            $table->jsonb('nilai_baru')->nullable();
+            $table->text('alasan')->nullable();
+            $table->jsonb('dasar_izin')->nullable();
+            $table->index(['objek_tipe', 'objek_id', 'waktu']);
         });
-
-        Schema::create($tableNames['role_has_permissions'], static function (Blueprint $table) use ($tableNames, $pivotRole, $pivotPermission) {
-            $table->unsignedBigInteger($pivotPermission);
-            $table->unsignedBigInteger($pivotRole);
-
-            $table->foreign($pivotPermission)
-                ->references('id') // permission id
-                ->on($tableNames['permissions'])
-                ->cascadeOnDelete();
-
-            $table->foreign($pivotRole)
-                ->references('id') // role id
-                ->on($tableNames['roles'])
-                ->cascadeOnDelete();
-
-            $table->primary([$pivotPermission, $pivotRole], 'role_has_permissions_permission_id_role_id_primary');
+        DB::statement("ALTER TABLE audit_log ADD CONSTRAINT audit_actor_provenance CHECK (
+            (actor_type = 'user' AND sumber = 'manual' AND actor_id IS NOT NULL AND operator_reference IS NULL AND runtime_identity IS NULL)
+            OR (actor_type = 'system' AND sumber = 'sso_onboarding' AND actor_id IS NULL AND operator_reference IS NULL AND runtime_identity IS NULL AND tindakan = 'user_roles.tambah')
+            OR (actor_type = 'operator' AND sumber = 'bootstrap' AND actor_id IS NULL AND operator_reference IS NOT NULL AND runtime_identity IS NOT NULL AND length(trim(operator_reference)) > 0 AND length(trim(runtime_identity)) > 0)
+        )");
+        // Query builder dan SQL langsung tidak boleh melewati sifat final jejak audit.
+        DB::unprepared(<<<'SQL'
+            CREATE OR REPLACE FUNCTION reject_audit_log_mutation() RETURNS trigger AS $$
+            BEGIN
+                RAISE EXCEPTION 'Audit bersifat append-only.' USING ERRCODE = '23514';
+            END;
+            $$ LANGUAGE plpgsql;
+            CREATE TRIGGER audit_log_immutable
+                BEFORE UPDATE OR DELETE ON audit_log
+                FOR EACH ROW EXECUTE FUNCTION reject_audit_log_mutation();
+            SQL);
+        Schema::create('user_roles', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->foreignUuid('user_id')->unique()->constrained('users')->restrictOnDelete();
+            $table->foreignUuid('role_id')->constrained('roles')->restrictOnDelete();
+            $table->foreignUuid('diberikan_oleh')->nullable()->constrained('users')->restrictOnDelete();
+            $table->enum('sumber_pemberian', ['manual', 'sso_onboarding', 'bootstrap']);
+            $table->foreignUuid('audit_id')->nullable()->constrained('audit_log')->restrictOnDelete();
+            $table->timestamp('created_at');
         });
-
-        app('cache')
-            ->store(config('permission.cache.store') != 'default' ? config('permission.cache.store') : null)
-            ->forget(config('permission.cache.key'));
+        DB::statement("ALTER TABLE user_roles ADD CONSTRAINT user_roles_provenance CHECK ((sumber_pemberian = 'manual' AND diberikan_oleh IS NOT NULL) OR (sumber_pemberian = 'sso_onboarding' AND diberikan_oleh IS NULL) OR (sumber_pemberian = 'bootstrap' AND diberikan_oleh IS NULL AND audit_id IS NOT NULL))");
+        foreach (['user_permission_granted' => 'diberikan_oleh', 'user_permission_denied' => 'ditetapkan_oleh'] as $name => $actor) {
+            Schema::create($name, function (Blueprint $table) use ($actor) {
+                $table->uuid('id')->primary();
+                $table->foreignUuid('user_id')->constrained('users')->restrictOnDelete();
+                $table->foreignUuid('permission_id')->constrained('permissions')->restrictOnDelete();
+                $table->foreignUuid('unit_id')->nullable()->constrained('unit')->restrictOnDelete();
+                $table->text('alasan');
+                $table->foreignUuid($actor)->constrained('users')->restrictOnDelete();
+                $table->timestamp('created_at');
+            });
+            // Index parsial menegakkan scope NULL tunggal tanpa mengarang UUID sentinel.
+            DB::statement("CREATE UNIQUE INDEX {$name}_scoped_unique ON {$name} (user_id, permission_id, unit_id) WHERE unit_id IS NOT NULL");
+            DB::statement("CREATE UNIQUE INDEX {$name}_global_unique ON {$name} (user_id, permission_id) WHERE unit_id IS NULL");
+            DB::statement("ALTER TABLE {$name} ADD CONSTRAINT {$name}_reason CHECK (length(trim(alasan)) > 0)");
+        }
+        Schema::create('auth_bootstraps', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->foreignUuid('user_id')->constrained('users')->restrictOnDelete();
+            $table->foreignUuid('audit_id')->constrained('audit_log')->restrictOnDelete();
+            $table->timestamp('created_at');
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        $tableNames = config('permission.table_names');
-
-        throw_if(empty($tableNames), 'Error: config/permission.php not found and defaults could not be merged. Please publish the package configuration before proceeding, or drop the tables manually.');
-
-        Schema::dropIfExists($tableNames['role_has_permissions']);
-        Schema::dropIfExists($tableNames['model_has_roles']);
-        Schema::dropIfExists($tableNames['model_has_permissions']);
-        Schema::dropIfExists($tableNames['roles']);
-        Schema::dropIfExists($tableNames['permissions']);
+        foreach (['auth_bootstraps', 'user_permission_denied', 'user_permission_granted', 'user_roles', 'audit_log', 'role_permissions', 'roles', 'permissions'] as $table) {
+            Schema::dropIfExists($table);
+        }
+        DB::unprepared('DROP FUNCTION IF EXISTS reject_audit_log_mutation()');
     }
 };

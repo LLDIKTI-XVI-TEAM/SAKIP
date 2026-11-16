@@ -1,131 +1,150 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { CheckCircle2, Clock, Eye, AlertCircle, Paperclip } from 'lucide-react';
+import { Search, Eye, RotateCcw } from 'lucide-react';
 import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/Card';
+import { RentangPeriode } from '@/Components/Periode/RentangPeriode';
+import { Card } from '@/Components/Card';
 import { Badge } from '@/Components/Badge';
-import { Button } from '@/Components/Button';
+import { TabTautan } from '@/Components/TabTautan';
+import {
+    Table, TableActionLink, TableBody, TableCell, TableCellLabel, TableEmptyRow, TableHead, TableHeader, TableRow, tableCellResponsive,
+} from '@/Components/Table';
+import type { Pengukuran, PengukuranPagination } from '@/Pages/Pengukuran/types';
+import { StatusPerhitunganBadge } from '@/Components/Pengukuran/StatusPerhitunganBadge';
+import Pagination from '@/Pages/Pengukuran/Pagination';
+import { useFormatNilai } from '@/Pages/Pengukuran/formatNilai';
+import { useLabelUnit } from '@/hooks/useLabelUnit';
+import Filters, { type FilterVerifikasi, type PilihanFilterTerpilih } from './Filters';
 
 interface VerifikasiIndexProps {
-    pengukurans: any[];
+    pengukurans: Pengukuran[];
+    pagination: PengukuranPagination;
+    filters?: FilterVerifikasi;
+    selected_filters?: PilihanFilterTerpilih;
+    /** Jumlah pengukuran tiap antrean pada filter yang diterapkan; dihitung server dengan scope izin yang sama. */
+    jumlah?: Record<StatusAntrean, number>;
+    /** Capability tautan antrean Disahkan; dihitung server dari izin baca dan buka kembali. */
+    can?: { buka_kembali?: boolean };
 }
 
-export default function VerifikasiIndex({ pengukurans = [] }: VerifikasiIndexProps) {
+type StatusAntrean = 'diajukan' | 'diverifikasi';
+
+const antrean: { status: StatusAntrean; label: string }[] = [
+    { status: 'diajukan', label: 'Menunggu verifikasi' },
+    { status: 'diverifikasi', label: 'Siap disahkan' },
+];
+const sel = `${tableCellResponsive} block align-top md:table-cell`;
+const selKanan = `${sel} md:text-right`;
+const defaultFilters: FilterVerifikasi = { status: 'diajukan', renstra_id: '', tahun: '', periode_id: '', unit_id: '' };
+const defaultSelected: PilihanFilterTerpilih = { renstra_id: null, periode_id: null, unit_id: null };
+
+export default function VerifikasiIndex({ pengukurans = [], pagination, filters = defaultFilters, selected_filters = defaultSelected, jumlah = { diajukan: 0, diverifikasi: 0 }, can }: VerifikasiIndexProps) {
+    const formatNilai = useFormatNilai();
+    const labelUnit = useLabelUnit();
+    const statusAktif = filters.status ?? 'diajukan';
+    // Pindah antrean membawa filter yang diterapkan, tanpa nomor halaman antrean sebelumnya.
+    const tautanAntrean = (status: StatusAntrean): string => {
+        const params = new URLSearchParams({ status });
+        for (const kunci of ['renstra_id', 'tahun', 'periode_id', 'unit_id'] as const) {
+            if (filters[kunci] !== '') params.set(kunci, filters[kunci]);
+        }
+
+        return `/verifikasi?${params}`;
+    };
+
     return (
         <AuthenticatedLayout
             title="Verifikasi & Pengesahan Kinerja"
             breadcrumbs={[{ label: 'Verifikasi Kinerja' }]}
+            headerActions={can?.buka_kembali === true ? (
+                <Link
+                    href="/verifikasi/disahkan"
+                    aria-label="Buka antrean pengukuran disahkan untuk koreksi"
+                    className="ml-auto inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    Pengukuran Disahkan
+                </Link>
+            ) : undefined}
         >
             <Head title="Verifikasi Kinerja" />
 
-            <div className="mb-6">
-                <h2 className="text-sm font-semibold text-slate-700">
-                    Antrean Verifikasi Capaian Kinerja
-                </h2>
-                <p className="text-xs text-slate-500">
-                    Daftar capaian kinerja yang diajukan oleh PIC Unit Kerja dan memerlukan reviu substansi serta pengesahan resmi oleh Tim Perencanaan.
-                </p>
-            </div>
-
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-[#122E92]" />
-                        Daftar Pengajuan Masuk ({pengukurans.length})
-                    </CardTitle>
-                </CardHeader>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-slate-700">
-                        <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
-                            <tr>
-                                <th className="px-5 py-3.5">KODE & INDIKATOR</th>
-                                <th className="px-5 py-3.5">UNIT KERJA & PIC</th>
-                                <th className="px-5 py-3.5 text-right">TARGET</th>
-                                <th className="px-5 py-3.5 text-right">REALISASI</th>
-                                <th className="px-5 py-3.5 text-right">CAPAIAN (%)</th>
-                                <th className="px-5 py-3.5 text-center">BUKTI DUKUNG</th>
-                                <th className="px-5 py-3.5 text-center">STATUS</th>
-                                <th className="px-5 py-3.5 text-center">AKSI</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {pengukurans.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
-                                        <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-60" />
-                                        <p className="text-sm font-medium text-slate-600">Semua pengajuan telah diproses!</p>
-                                        <p className="text-xs text-slate-400 mt-0.5">
-                                            Tidak ada antrean capaian yang menunggu verifikasi saat ini.
-                                        </p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                pengukurans.map((p) => {
-                                    const iku = p.penugasan_indikator?.indikator_kinerja;
-                                    const unit = p.penugasan_indikator?.unit_kerja;
-                                    const pic = p.penugasan_indikator?.pic;
+                <TabTautan
+                    label="Status antrean"
+                    satuan="pengukuran"
+                    items={antrean.map(({ status, label }) => ({ href: tautanAntrean(status), label, jumlah: jumlah[status], aktif: statusAktif === status }))}
+                />
+                <Filters key={JSON.stringify([filters, selected_filters])} filters={filters} selected={selected_filters} />
+                <Table wrapperClassName="overflow-x-visible" className="block md:table" aria-label="Antrean verifikasi pengukuran">
+                    <TableHeader className="max-md:sr-only">
+                        <TableRow>
+                            <TableHead className="whitespace-normal">KODE &amp; INDIKATOR</TableHead>
+                            <TableHead>{labelUnit.toUpperCase()}</TableHead>
+                            <TableHead>PERIODE</TableHead>
+                            <TableHead className="text-right">REALISASI</TableHead>
+                            <TableHead>STATUS</TableHead>
+                            <TableHead className="text-right">AKSI</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody className="block md:table-row-group">
+                        {pengukurans.length === 0 ? (
+                            <TableEmptyRow
+                                colSpan={6}
+                                icon={Search}
+                                title="Tidak ada pengukuran sesuai filter"
+                                description={`${statusAktif === 'diajukan' ? 'Belum ada pengajuan menunggu verifikasi untuk pilihan ini.' : 'Belum ada pengukuran terverifikasi yang siap disahkan untuk pilihan ini.'} Ubah atau reset filter untuk melihat antrean lain.`}
+                            />
+                        ) : pengukurans.map((p) => {
+                            const iku = p.penugasan_indikator.indikator_kinerja;
+                            const angka = p.nilai === null ? '-' : formatNilai(p.nilai, iku.desimal_tampilan);
 
-                                    return (
-                                        <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                                            <td className="px-5 py-3.5 max-w-xs">
-                                                <div className="font-bold text-slate-900 text-xs">
-                                                    {iku?.kode}
-                                                </div>
-                                                <div className="text-slate-600 mt-0.5 line-clamp-2">
-                                                    {iku?.nama}
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-3.5">
-                                                <div className="font-medium text-slate-800">{unit?.singkatan || unit?.nama}</div>
-                                                <div className="text-[11px] text-slate-400">
-                                                    PIC: {pic?.name || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-3.5 text-right font-medium">
-                                                {p.target} {iku?.satuan}
-                                            </td>
-                                            <td className="px-5 py-3.5 text-right font-semibold">
-                                                {p.realisasi} {iku?.satuan}
-                                            </td>
-                                            <td className="px-5 py-3.5 text-right">
-                                                <span className={`font-bold px-2 py-0.5 rounded text-xs ${
-                                                    p.capaian_persen >= 100
-                                                        ? 'bg-emerald-50 text-emerald-700'
-                                                        : p.capaian_persen >= 80
-                                                        ? 'bg-blue-50 text-blue-700'
-                                                        : 'bg-rose-50 text-rose-700'
-                                                }`}>
-                                                    {p.capaian_persen}%
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-3.5 text-center">
-                                                {p.bukti_dukungs?.length > 0 ? (
-                                                    <span className="inline-flex items-center gap-1 font-semibold text-[#122E92]">
-                                                        <Paperclip className="w-3.5 h-3.5" />
-                                                        {p.bukti_dukungs.length} Dokumen
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-amber-600 font-medium">Tanpa Bukti</span>
-                                                )}
-                                            </td>
-                                            <td className="px-5 py-3.5 text-center">
-                                                <Badge status={p.status} />
-                                            </td>
-                                            <td className="px-5 py-3.5 text-center">
-                                                <Link href={`/verifikasi/${p.id}`}>
-                                                    <Button variant="primary" size="sm">
-                                                        <Eye className="w-3.5 h-3.5 mr-1" />
-                                                        Reviu & Sahkan
-                                                    </Button>
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            return (
+                                <TableRow key={p.id} className="block min-w-0 space-y-2 p-4 md:table-row md:space-y-0 md:p-0">
+                                    <TableCell className={sel}>
+                                        <p className="text-xs font-bold text-ink">{iku.kode}</p>
+                                        {/* Rincian lain (PIC, target, bukti, jalur) dibaca di halaman detail agar baris tetap ringkas. */}
+                                        <p title={iku.nama} className="mt-0.5 line-clamp-2 whitespace-normal break-words text-xs leading-relaxed text-muted">{iku.nama}</p>
+                                    </TableCell>
+                                    <TableCell className={sel}>
+                                        <TableCellLabel>{labelUnit}</TableCellLabel>
+                                        <span className="break-words text-xs text-ink">{p.penugasan_indikator.unit_kerja.nama}</span>
+                                    </TableCell>
+                                    <TableCell className={sel}>
+                                        <TableCellLabel>Periode</TableCellLabel>
+                                        <span className="text-xs text-ink md:whitespace-nowrap">{p.periode_jadwal.nama_periode} {p.periode_jadwal.tahun}<RentangPeriode tanggal={p.periode_jadwal.tanggal} tahun={p.periode_jadwal.tahun} /></span>
+                                    </TableCell>
+                                    <TableCell className={selKanan}>
+                                        <TableCellLabel>Realisasi</TableCellLabel>
+                                        <span className="font-semibold tabular-nums text-ink md:whitespace-nowrap">{p.nilai !== null && iku.satuan ? `${angka} ${iku.satuan}` : angka}</span>
+                                        {p.status_perhitungan !== 'terhitung' && (
+                                            <span className="mt-1 block">
+                                                <StatusPerhitunganBadge status={p.status_perhitungan} size="sm" />
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className={sel}>
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 md:flex-col md:items-start md:whitespace-nowrap">
+                                            <Badge status={p.status} />
+                                            {p.reviu_terlambat && <span className="text-xs font-medium text-warning-dark">Reviu terlambat</span>}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className={selKanan}>
+                                        {p.can.view && (
+                                            <TableActionLink
+                                                href={`/verifikasi/${p.id}`}
+                                                label={`Lihat pengajuan ${iku.kode}`}
+                                                tooltip="Lihat pengajuan"
+                                                icon={Eye}
+                                            />
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+                <Pagination pagination={pagination} />
             </Card>
         </AuthenticatedLayout>
     );

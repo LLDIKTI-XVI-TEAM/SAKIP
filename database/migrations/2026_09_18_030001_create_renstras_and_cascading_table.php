@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('renstras', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('kode', 50)->unique();
             $table->string('nama');
             $table->integer('tahun_mulai');
@@ -20,8 +20,8 @@ return new class extends Migration
         });
 
         Schema::create('sasaran_strategis', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('renstra_id')->constrained('renstras')->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('renstra_id')->constrained('renstras')->cascadeOnDelete();
             $table->string('kode', 50);
             $table->text('deskripsi');
             $table->integer('urutan')->default(0);
@@ -29,21 +29,26 @@ return new class extends Migration
         });
 
         Schema::create('indikator_kinerjas', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('sasaran_strategis_id')->constrained('sasaran_strategis')->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('sasaran_strategis_id')->constrained('sasaran_strategis')->cascadeOnDelete();
             $table->string('kode', 50);
             $table->text('nama');
             $table->text('definisi_operasional')->nullable();
             $table->string('satuan', 50);
-            $table->enum('tipe_perhitungan', ['naik_baik', 'turun_baik'])->default('naik_baik');
+            $table->foreignUuid('unit_id')->constrained('unit')->restrictOnDelete();
+            $table->enum('arah', ['naik_baik', 'turun_baik'])->default('naik_baik');
+            $table->enum('tipe_perhitungan', ['manual', 'rasio_persen', 'penjumlahan'])->default('manual');
+            $table->smallInteger('presisi')->default(2);
+            $table->smallInteger('desimal_tampilan')->default(2);
+            $table->boolean('wajib_catatan')->default(false);
             $table->string('jenis_agregasi', 50)->default('terakhir');
             $table->boolean('is_aktif')->default(true);
             $table->timestamps();
         });
 
         Schema::create('target_kinerjas', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('indikator_kinerja_id')->constrained('indikator_kinerjas')->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('indikator_kinerja_id')->constrained('indikator_kinerjas')->cascadeOnDelete();
             $table->integer('tahun');
             $table->decimal('target_tahunan', 14, 2)->default(0);
             $table->decimal('target_tw1', 14, 2)->default(0);
