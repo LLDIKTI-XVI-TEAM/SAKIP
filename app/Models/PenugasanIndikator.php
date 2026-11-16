@@ -2,47 +2,66 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
 
 class PenugasanIndikator extends Model
 {
-    use HasFactory;
+    use HasUuids;
 
-    protected $table = 'penugasan_indikators';
+    protected $table = 'penanggung_jawab';
 
-    protected $fillable = [
-        'indikator_kinerja_id',
-        'unit_kerja_id',
-        'user_id',
-        'tahun',
-        'is_active',
-    ];
+    public $timestamps = false;
 
-    protected $casts = [
-        'tahun' => 'integer',
-        'is_active' => 'boolean',
-    ];
+    protected $fillable = ['indikator_id', 'user_id', 'tanggal_mulai_berlaku', 'ditetapkan_oleh', 'alasan', 'created_at'];
 
-    public function indikatorKinerja(): BelongsTo
+    protected $casts = ['tanggal_mulai_berlaku' => 'date', 'created_at' => 'datetime'];
+
+    protected static function booted(): void
     {
-        return $this->belongsTo(IndikatorKinerja::class, 'indikator_kinerja_id');
+        static::updating(function (): void {
+            throw new LogicException('Histori penanggung jawab tidak boleh diubah.');
+        });
+        static::deleting(function (): void {
+            throw new LogicException('Histori penanggung jawab tidak boleh dihapus.');
+        });
     }
 
-    public function unitKerja(): BelongsTo
+    /**
+     * Pilih pemenang seluruh histori dahulu; filter user pada query luar tidak
+     * boleh membuat penugasan lama menjadi PJ efektif kembali. Pada tanggal
+     * sama, penugasan dengan `urutan` terbesar (terakhir dicatat) yang menang.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeEffectiveOn(Builder $query, string $date): Builder
     {
-        return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
+        $winners = static::query()->select('penanggung_jawab.*')
+            ->where('tanggal_mulai_berlaku', '<=', $date)
+            ->distinct('indikator_id')->orderBy('indikator_id')->orderByDesc('tanggal_mulai_berlaku')->orderByDesc('urutan');
+
+        return $query->fromSub($winners, 'penanggung_jawab');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function pic(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function pengukurans(): HasMany
+    /** @return BelongsTo<User, $this> */
+    public function establishedBy(): BelongsTo
     {
-        return $this->hasMany(PengukuranKinerja::class, 'penugasan_indikator_id');
+        return $this->belongsTo(User::class, 'ditetapkan_oleh');
+    }
+
+    /** @return BelongsTo<IndikatorKinerja, $this> */
+    public function indikatorKinerja(): BelongsTo
+    {
+        return $this->belongsTo(IndikatorKinerja::class, 'indikator_id');
     }
 }

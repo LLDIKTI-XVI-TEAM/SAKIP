@@ -2,7 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,92 +11,115 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PengukuranKinerja extends Model
 {
-    use HasFactory;
+    use HasUuids;
 
     protected $table = 'pengukuran_kinerjas';
 
-    protected $fillable = [
-        'penugasan_indikator_id',
-        'periode_jadwal_id',
-        'target',
-        'realisasi',
-        'capaian_persen',
-        'status',
-        'kendala',
-        'tindak_lanjut',
-        'strategi',
-        'diajukan_pada',
-        'diverifikasi_oleh',
-        'diverifikasi_pada',
-        'disahkan_oleh',
-        'disahkan_pada',
-    ];
+    /** Narasi laporan draft; ikut dibekukan pada versi pengajuan dengan nama key yang sama. */
+    public const NARASI = ['progres_kegiatan', 'kendala_masalah', 'strategi_tindak_lanjut', 'tindak_lanjut_rekomendasi'];
 
-    protected $casts = [
-        'target' => 'float',
-        'realisasi' => 'float',
-        'capaian_persen' => 'float',
-        'diajukan_pada' => 'datetime',
-        'diverifikasi_pada' => 'datetime',
-        'disahkan_pada' => 'datetime',
-    ];
+    protected $fillable = ['indikator_id', 'tahun', 'periode_id', 'jadwal_snapshot_id', 'nilai', 'sumber_nilai', 'status_perhitungan', 'alasan_tidak_dapat_dihitung', 'alasan_historis', 'sumber_historis', 'catatan', ...self::NARASI, 'status_alur', 'versi', 'created_by'];
 
-    public function penugasanIndikator(): BelongsTo
+    protected $casts = ['tahun' => 'integer', 'nilai' => 'decimal:12', 'versi' => 'integer'];
+
+    /**
+     * Pratinjau pengukuran belum disahkan dan cek ulang di transaksi koreksi snapshot.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeBelumDisahkanPadaJadwal(Builder $query, string $jadwalId): void
     {
-        return $this->belongsTo(PenugasanIndikator::class, 'penugasan_indikator_id');
+        $query->join('jadwal_snapshot', 'jadwal_snapshot.id', '=', 'pengukuran_kinerjas.jadwal_snapshot_id')
+            ->where('jadwal_snapshot.jadwal_id', $jadwalId)->where('pengukuran_kinerjas.status_alur', '<>', 'disahkan')
+            ->select(['pengukuran_kinerjas.id', 'pengukuran_kinerjas.indikator_id', 'pengukuran_kinerjas.periode_id',
+                'pengukuran_kinerjas.status_alur', 'jadwal_snapshot.nomor_versi']);
     }
 
-    public function periodeJadwal(): BelongsTo
+    /** @return BelongsTo<IndikatorKinerja, $this> */
+    public function indikator(): BelongsTo
     {
-        return $this->belongsTo(PeriodeJadwal::class, 'periode_jadwal_id');
+        return $this->belongsTo(IndikatorKinerja::class, 'indikator_id');
     }
 
-    public function verifikator(): BelongsTo
+    /** @return BelongsTo<Periode, $this> */
+    public function periode(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'diverifikasi_oleh');
+        return $this->belongsTo(Periode::class, 'periode_id');
     }
 
-    public function pengesah(): BelongsTo
+    /** @return BelongsTo<JadwalSnapshot, $this> */
+    public function jadwalSnapshot(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'disahkan_oleh');
+        return $this->belongsTo(JadwalSnapshot::class, 'jadwal_snapshot_id');
     }
 
+    /** @return HasMany<PengukuranKomponen, $this> */
+    public function komponen(): HasMany
+    {
+        return $this->hasMany(PengukuranKomponen::class, 'pengukuran_id');
+    }
+
+    /** @return HasMany<KinerjaSnapshot, $this> */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(KinerjaSnapshot::class, 'pengukuran_id')->orderBy('nomor');
+    }
+
+    /** @return HasOne<KinerjaSnapshot, $this> */
+    public function latestVersion(): HasOne
+    {
+        return $this->hasOne(KinerjaSnapshot::class, 'pengukuran_id')->orderByDesc('nomor')->limit(1);
+    }
+
+    /** @return HasOne<KinerjaSnapshot, $this> */
+    public function ratifiedVersion(): HasOne
+    {
+        return $this->hasOne(KinerjaSnapshot::class, 'pengukuran_id')->whereNotNull('disahkan_at')->orderByDesc('nomor')->limit(1);
+    }
+
+    /** Seluruh riwayat status capaian pengukuran; yang berlaku dibaca lewat statusCapaianBerlaku(). @return HasMany<StatusCapaian, $this> */
+    public function statusCapaian(): HasMany
+    {
+        return $this->hasMany(StatusCapaian::class, 'pengukuran_id');
+    }
+
+    /**
+     * Status capaian yang berlaku: baris terbaru pada versi sah terakhir (Data Model §2.21). Versi koreksi
+     * baru tidak mewarisi status versi lama; urutan tampilan tetap mengikuti status alur di konsumen.
+     */
+    public function statusCapaianBerlaku(): ?StatusCapaian
+    {
+        $versiId = $this->ratifiedVersion?->id;
+
+        return $versiId === null ? null : StatusCapaian::berlaku($versiId)->first();
+    }
+
+    /** @return HasMany<BuktiDukung, $this> */
     public function buktiDukungs(): HasMany
     {
-        return $this->hasMany(BuktiDukung::class, 'pengukuran_kinerja_id');
+        return $this->hasMany(BuktiDukung::class, 'berkasable_id')->where('berkasable_type', 'pengukuran')->whereNull('dihapus_pada');
     }
 
+    /** @return HasMany<RiwayatPengukuran, $this> */
     public function riwayats(): HasMany
     {
         return $this->hasMany(RiwayatPengukuran::class, 'pengukuran_kinerja_id')->latest();
     }
 
-    public function snapshot(): HasOne
+    public function targetUnitId(): string
     {
-        return $this->hasOne(KinerjaSnapshot::class, 'pengukuran_kinerja_id');
+        return $this->jadwalSnapshot->unit_id;
     }
 
-    /**
-     * Hitung capaian kinerja otomatis berdasarkan tipe perhitungan indikator
-     */
-    public static function hitungCapaian(float $target, ?float $realisasi, string $tipePerhitungan = 'naik_baik'): ?float
+    public static function targetUnitSql(): string
     {
-        if ($realisasi === null) {
-            return null;
-        }
+        return '(select unit_id from jadwal_snapshot where jadwal_snapshot.id = pengukuran_kinerjas.jadwal_snapshot_id)';
+    }
 
-        if ($target <= 0) {
-            return $realisasi > 0 ? 100.0 : 0.0;
-        }
-
-        if ($tipePerhitungan === 'turun_baik') {
-            // Rumus turun_baik: ((2 * target - realisasi) / target) * 100
-            $capaian = ((2 * $target - $realisasi) / $target) * 100;
-        } else {
-            // Rumus naik_baik: (realisasi / target) * 100
-            $capaian = ($realisasi / $target) * 100;
-        }
-
-        return round(max(0, $capaian), 2);
+    /** Hak PIC mengikuti riwayat efektif, bukan pembuat header atau PIC lama. */
+    public function effectivePic(): ?PenugasanIndikator
+    {
+        return PenugasanIndikator::effectiveOn(today(config('app.business_timezone'))->toDateString())
+            ->with('pic')->where('indikator_id', $this->indikator_id)->first();
     }
 }

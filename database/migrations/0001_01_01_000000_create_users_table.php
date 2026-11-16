@@ -6,47 +6,27 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('unit_kerjas', function (Blueprint $table) {
-            $table->id();
-            $table->string('kode', 50)->unique();
-            $table->string('nama');
-            $table->string('singkatan', 50)->nullable();
-            $table->foreignId('parent_id')->nullable()->constrained('unit_kerjas')->nullOnDelete();
-            $table->integer('urutan')->default(0);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
-
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->string('nip', 50)->nullable()->unique();
-            $table->string('jabatan')->nullable();
-            $table->foreignId('unit_kerja_id')->nullable()->constrained('unit_kerjas')->nullOnDelete();
-            $table->string('keycloak_id')->nullable()->unique();
-            $table->string('avatar_url')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
+            $table->uuid('id')->primary();
+            $table->string('keycloak_id')->unique();
+            $table->string('nama');
+            $table->string('email');
+            $table->string('nomor_telepon')->nullable();
+            $table->boolean('is_active')->default(false);
             $table->timestamps();
         });
-
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
+        Schema::create('unit', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('nama');
+            $table->enum('status', ['aktif', 'nonaktif'])->default('aktif');
+            $table->foreignUuid('created_by')->constrained('users')->restrictOnDelete();
+            $table->timestamp('created_at');
         });
-
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->foreignUuid('user_id')->nullable()->index()->constrained('users')->cascadeOnDelete();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
@@ -54,14 +34,10 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('sessions');
-        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('unit');
         Schema::dropIfExists('users');
-        Schema::dropIfExists('unit_kerjas');
     }
 };

@@ -1,0 +1,429 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeft, CalendarClock, Check, Layers } from 'lucide-react';
+import { AuthenticatedLayout } from '@/Layouts/AuthenticatedLayout';
+import { AuthRecoveryNotice } from '@/Components/Auth/AuthRecoveryNotice';
+import { Badge } from '@/Components/Badge';
+import { Button } from '@/Components/Button';
+import { Card, CardContent, CardHeader } from '@/Components/Card';
+import { Input } from '@/Components/Input';
+import { ActivationPanel } from '@/Components/Jadwal/ActivationPanel';
+import { JendelaPeriode } from '@/Components/Jadwal/JendelaPeriode';
+import { PenutupanPanel } from '@/Components/Jadwal/PenutupanPanel';
+import { SesiKoreksiPanel } from '@/Components/Jadwal/SesiKoreksiPanel';
+import { RevisiJendela } from '@/Components/Jadwal/RevisiJendela';
+import { TambahIndikatorPanel } from '@/Components/Jadwal/TambahIndikatorPanel';
+import { Select } from '@/Components/Select';
+import { useAuthRecovery } from '@/hooks/useAuthRecovery';
+import { statusJadwal } from '@/lib/jadwal';
+import type { JadwalEditorProps, JadwalPeriode, JadwalPeriodeInput } from '@/types/periode-jadwal';
+
+interface JadwalForm {
+    renstra_id: string;
+    tahun: string;
+    penutupan: string;
+    revisi?: number;
+    periode: JadwalPeriode[];
+}
+
+const linkClass =
+    'rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/30';
+const kapital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+export default function Editor(props: JadwalEditorProps) {
+    return <JadwalEditor key={props.jadwal?.id ?? 'create'} {...props} />;
+}
+
+function JadwalEditor({
+    jadwal,
+    can,
+    koreksi,
+    koreksi_indikator_options,
+    read_only_reason,
+    renstra_options,
+    periode_options,
+    indikator_belum_terjadwal,
+    periode_mulai_default,
+    perjanjian_kinerja_id,
+}: JadwalEditorProps) {
+    const form = useForm<JadwalForm>({
+        renstra_id: jadwal?.renstra_id ?? '',
+        tahun: jadwal ? String(jadwal.tahun) : '',
+        penutupan: jadwal?.penutupan ?? '',
+        ...(jadwal ? { revisi: jadwal.revisi } : {}),
+        periode: jadwal?.periode ?? [],
+    });
+    // Renstra milik jadwal tetap tampil walau bukan pilihan lagi (kalender hanya dapat dibaca).
+    const renstraOptions =
+        jadwal && !renstra_options.some((option) => option.id === jadwal.renstra.id)
+            ? [jadwal.renstra, ...renstra_options]
+            : renstra_options;
+    const renstra = renstraOptions.find((option) => option.id === form.data.renstra_id) ?? null;
+    const pilihanPeriode = periode_options.filter(
+        (option) => !form.data.periode.some((item) => item.periode_id === option.id),
+    );
+    const [failure, setFailure] = useState('');
+    const [revising, setRevising] = useState(false);
+    const recovery = useAuthRecovery();
+    const submitting = useRef(false);
+    const summaryRef = useRef<HTMLDivElement>(null);
+    const errors: Record<string, string | undefined> = form.errors;
+    const editable = !read_only_reason && (jadwal ? can.update : can.create);
+    const blocked = Boolean(failure || recovery.recovery);
+    const disabled = !editable || form.processing || blocked;
+    const title = jadwal ? `Jadwal Tahunan ${jadwal.tahun}` : 'Susun Jadwal Tahunan';
+    const authoritativeUrl = jadwal
+        ? `/jadwal/${jadwal.id}`
+        : `/jadwal?${new URLSearchParams({ renstra_id: form.data.renstra_id, tahun: form.data.tahun })}`;
+
+    useEffect(() => {
+        if (form.hasErrors) summaryRef.current?.focus();
+    }, [form.hasErrors, form.errors]);
+
+    const unknown = () =>
+        setFailure('Hasil penyimpanan belum terkonfirmasi. Periksa kalender terbaru sebelum menyimpan kembali.');
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        if (disabled || submitting.current) return;
+        submitting.current = true;
+        form.transform((data) => ({
+            renstra_id: data.renstra_id,
+            tahun: data.tahun,
+            penutupan: data.penutupan,
+            ...(jadwal ? { revisi: data.revisi } : {}),
+            periode: data.periode.map(
+                ({ periode_id, periode_revisi, pengisian_mulai, pengisian_selesai }): JadwalPeriodeInput => ({
+                    periode_id,
+                    periode_revisi,
+                    pengisian_mulai,
+                    pengisian_selesai,
+                }),
+            ),
+        }));
+        const path = jadwal ? `/jadwal/${jadwal.id}` : '/jadwal';
+        form.submit(jadwal ? 'put' : 'post', path, {
+            preserveScroll: true,
+            // Hanya hasil commit terkonfirmasi yang mengganti seluruh baseline beserta revisinya.
+            preserveState: (page) => !page.flash.success,
+            onSuccess: (page) => {
+                if (!page.flash.success)
+                    setFailure(page.flash.error || 'Hasil penyimpanan belum terkonfirmasi. Periksa kalender terbaru.');
+            },
+            onHttpException: (response) => {
+                // Status akhir dapat berasal dari GET redirect setelah mutasi sudah commit.
+                if (
+                    !recovery.handleHttpException(response, {
+                        effectiveMethod: jadwal ? 'put' : 'post',
+                        path,
+                        mutation: true,
+                    })
+                ) {
+                    setFailure(
+                        response.status === 403
+                            ? 'Hasil penyimpanan belum terkonfirmasi karena akses ditolak. Periksa izin dan kalender terbaru sebelum mencoba kembali.'
+                            : 'Hasil penyimpanan belum terkonfirmasi. Periksa kalender terbaru.',
+                    );
+                }
+                return false;
+            },
+            onNetworkError: () => {
+                unknown();
+                return false;
+            },
+            onCancel: unknown,
+            onFinish: () => {
+                submitting.current = false;
+            },
+        });
+    };
+
+    const addPeriode = (periodeId: string) => {
+        const option = periode_options.find((item) => item.id === periodeId);
+        if (!option) return;
+        form.clearErrors();
+        form.setData((data) => ({
+            ...data,
+            periode: [
+                ...data.periode,
+                {
+                    periode_id: option.id,
+                    periode_revisi: option.revisi,
+                    nama: option.nama,
+                    urutan: option.urutan,
+                    bulan_mulai: option.bulan_mulai,
+                    hari_mulai: option.hari_mulai,
+                    bulan_selesai: option.bulan_selesai,
+                    hari_selesai: option.hari_selesai,
+                    aktif: option.aktif,
+                    is_nilai_akhir: option.is_nilai_akhir,
+                    pengisian_mulai: '',
+                    pengisian_selesai: '',
+                },
+            ].sort((a, b) => a.urutan - b.urutan || a.periode_id.localeCompare(b.periode_id)),
+        }));
+    };
+    const removePeriode = (id: string) => {
+        const index = form.data.periode.findIndex((item) => item.periode_id === id);
+        const next = form.data.periode[index + 1] ?? form.data.periode[index - 1];
+        form.clearErrors();
+        form.setData((data) => ({ ...data, periode: data.periode.filter((item) => item.periode_id !== id) }));
+        document.getElementById(next ? `periode-${next.periode_id}-pengisian_mulai` : 'tambah-periode')?.focus();
+    };
+
+    return (
+        <AuthenticatedLayout
+            title={title}
+            breadcrumbs={[
+                { label: 'Jadwal Tahunan', href: '/jadwal' },
+                { label: jadwal ? `Tahun ${jadwal.tahun}` : 'Susun jadwal' },
+            ]}
+        >
+            <Head title={title} />
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <Link href="/jadwal" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    Kembali ke daftar
+                </Link>
+                {jadwal && jadwal.status !== 'draft' && (
+                    <Link
+                        href={`/jadwal/${jadwal.id}/snapshot`}
+                        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/25"
+                    >
+                        <Layers className="h-4 w-4" aria-hidden="true" />
+                        Snapshot indikator
+                    </Link>
+                )}
+            </div>
+            <AuthRecoveryNotice recovery={recovery.recovery} pending={form.processing} />
+            {failure && !recovery.recovery && (
+                <div
+                    role="alert"
+                    className="mb-5 space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm"
+                >
+                    <p>{failure}</p>
+                    <p>Salin input yang ingin dipertahankan sebelum memuat data terbaru.</p>
+                    <Link href={authoritativeUrl} className={linkClass}>
+                        Periksa kalender terbaru
+                    </Link>
+                </div>
+            )}
+            {read_only_reason && (
+                <div className="mb-5 rounded-lg border border-border bg-soft p-4 text-sm">
+                    <p className="font-semibold">Kalender hanya dapat dibaca</p>
+                    <p className="mt-1">{read_only_reason}</p>
+                </div>
+            )}
+            {jadwal?.status === 'draft' && form.data.periode.some((item) => !item.aktif) && (
+                <div className="mb-5 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm">
+                    <p className="font-semibold">Ada periode nonaktif pada draft</p>
+                    <p className="mt-1">
+                        Referensi tetap ditampilkan. Ganti atau hapus periode nonaktif sebelum aktivasi; kewajiban dan
+                        riwayat jadwal aktif/ditutup tetap dipertahankan.
+                    </p>
+                </div>
+            )}
+            <form onSubmit={submit} noValidate className="space-y-5">
+                {form.hasErrors && (
+                    <div
+                        ref={summaryRef}
+                        tabIndex={-1}
+                        role="alert"
+                        className="rounded-lg border border-danger/30 bg-danger/5 p-4 text-sm focus:outline-none focus:ring-2 focus:ring-danger/30"
+                    >
+                        <p className="font-semibold">Periksa data kalender</p>
+                        <ul className="mt-2 list-inside list-disc space-y-1">
+                            {Object.entries(errors).map(([field, message]) => (
+                                <li key={field}>{message}</li>
+                            ))}
+                        </ul>
+                        <Link href={authoritativeUrl} className="mt-2 inline-block text-primary underline">
+                            Periksa jadwal yang sudah tersimpan
+                        </Link>
+                    </div>
+                )}
+                <Card>
+                    <CardHeader>
+                        <h2 className="font-semibold">Informasi tahunan</h2>
+                        {jadwal && (
+                            <Badge variant={statusJadwal[jadwal.status].variant}>
+                                {statusJadwal[jadwal.status].label}
+                            </Badge>
+                        )}
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6">
+                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+                            <div className="col-span-2 min-w-0 lg:col-span-1">
+                                <Select
+                                    id="pilih-renstra"
+                                    label="Renstra"
+                                    required
+                                    value={form.data.renstra_id}
+                                    error={errors.renstra_id}
+                                    helperText={
+                                        renstra ? `Rentang Renstra ${renstra.tahun_mulai}–${renstra.tahun_selesai}` : undefined
+                                    }
+                                    disabled={disabled}
+                                    onChange={(event) => form.setData('renstra_id', event.target.value)}
+                                >
+                                    <option value="" disabled>
+                                        Pilih Renstra
+                                    </option>
+                                    {renstraOptions.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.nama} ({option.tahun_mulai}–{option.tahun_selesai}) ·{' '}
+                                            {kapital(option.status)}
+                                        </option>
+                                    ))}
+                                </Select>
+                                {!jadwal && renstra && form.data.tahun && (
+                                    <Link
+                                        href={authoritativeUrl}
+                                        className="mt-2 inline-block rounded text-xs text-primary underline focus:ring-2 focus:ring-primary/30"
+                                    >
+                                        Periksa jadwal Renstra dan tahun ini
+                                    </Link>
+                                )}
+                            </div>
+                            <Input
+                                name="tahun"
+                                label="Tahun"
+                                type="number"
+                                required
+                                autoComplete="off"
+                                placeholder="Contoh: 2026"
+                                value={form.data.tahun}
+                                onChange={(event) => form.setData('tahun', event.target.value)}
+                                error={errors.tahun}
+                                disabled={disabled}
+                            />
+                        </div>
+                        <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-3">
+                            <Input
+                                name="penutupan"
+                                label="Penutupan"
+                                type="date"
+                                required
+                                value={form.data.penutupan}
+                                onChange={(event) => form.setData('penutupan', event.target.value)}
+                                error={errors.penutupan}
+                                disabled={disabled}
+                            />
+                        </div>
+                        <p className="mt-3 text-xs leading-relaxed text-muted">
+                            Penutupan setelah seluruh jendela.
+                        </p>
+                    </CardContent>
+                </Card>
+                {/* Revisi menggantikan tabel baca saja di tempat agar id input tanggal tidak ganda. */}
+                {jadwal && revising ? (
+                    <RevisiJendela
+                        jadwalId={jadwal.id}
+                        tahun={jadwal.tahun}
+                        revisi={jadwal.revisi}
+                        periode={jadwal.periode}
+                        koreksi={koreksi}
+                        onCancel={() => {
+                            setRevising(false);
+                            requestAnimationFrame(() => document.getElementById('revisi-jendela-mulai')?.focus());
+                        }}
+                    />
+                ) : (
+                    <JendelaPeriode
+                        periode={form.data.periode}
+                        tahun={/^\d{4}$/.test(form.data.tahun) ? Number(form.data.tahun) : undefined}
+                        errors={errors}
+                        editable={editable}
+                        disabled={disabled}
+                        options={pilihanPeriode}
+                        emptyMessage={
+                            periode_options.length === 0
+                                ? 'Belum ada periode aktif. Tambahkan atau aktifkan di Master Periode.'
+                                : 'Semua periode aktif sudah dipilih.'
+                        }
+                        onAdd={addPeriode}
+                        onRemove={removePeriode}
+                        aksi={
+                            jadwal &&
+                            can.revise_windows && (
+                                <Button
+                                    id="revisi-jendela-mulai"
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setRevising(true);
+                                        const first = jadwal.periode[0]?.periode_id;
+                                        requestAnimationFrame(() =>
+                                            document.getElementById(`periode-${first}-pengisian_mulai`)?.focus(),
+                                        );
+                                    }}
+                                >
+                                    <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                                    Revisi jendela PIC
+                                </Button>
+                            )
+                        }
+                        onChange={(periodeId, field, value) =>
+                            form.setData((data) => ({
+                                ...data,
+                                periode: data.periode.map((period) =>
+                                    period.periode_id === periodeId ? { ...period, [field]: value } : period,
+                                ),
+                            }))
+                        }
+                    />
+                )}
+                {editable && (
+                    <div className="flex items-center justify-end gap-3">
+                        <Link
+                            href="/jadwal"
+                            className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-soft focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
+                            Batal
+                        </Link>
+                        <Button type="submit" disabled={disabled} isLoading={form.processing}>
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                            Simpan draft
+                        </Button>
+                    </div>
+                )}
+            </form>
+            {/* Aktivasi langkah terakhir: setelah kalender diisi dan disimpan. */}
+            {jadwal && can.activate && (
+                <div className="mt-5">
+                    <ActivationPanel
+                        jadwalId={jadwal.id}
+                        tahun={jadwal.tahun}
+                        // Revisi kalender yang benar-benar tampil; props bisa lebih baru saat state dipertahankan sesudah POST gagal.
+                        revisi={form.data.revisi ?? jadwal.revisi}
+                        status={jadwal.status}
+                        dirtyCalendar={form.isDirty}
+                        periodeNames={Object.fromEntries(jadwal.periode.map((item) => [item.periode_id, item.nama]))}
+                    />
+                </div>
+            )}
+            {jadwal && can.tambah_indikator && indikator_belum_terjadwal.length > 0 && (
+                <div className="mt-5">
+                    <TambahIndikatorPanel
+                        jadwalId={jadwal.id}
+                        tahun={jadwal.tahun}
+                        periode={jadwal.periode}
+                        kandidat={indikator_belum_terjadwal}
+                        periodeMulaiDefault={periode_mulai_default}
+                        perjanjianKinerjaId={perjanjian_kinerja_id}
+                    />
+                </div>
+            )}
+            {jadwal && (can.reopen || koreksi) && <div className="mt-5">
+                <SesiKoreksiPanel jadwalId={jadwal.id} revisi={jadwal.revisi} canReopen={can.reopen} koreksi={koreksi}
+                    indikator={koreksi_indikator_options} periode={jadwal.periode} />
+            </div>}
+            {/* Penutupan selalu aksi terakhir, termasuk saat sesi koreksi berjalan. */}
+            {jadwal && can.close && (
+                <div className="mt-5">
+                    <PenutupanPanel jadwalId={jadwal.id} tahun={jadwal.tahun} revisi={jadwal.revisi} />
+                </div>
+            )}
+        </AuthenticatedLayout>
+    );
+}

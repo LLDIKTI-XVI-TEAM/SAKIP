@@ -31,6 +31,12 @@ return [
 
     'connections' => [
 
+        // Outbox dan jobs memakai objek koneksi aplikasi yang sama.
+        'notifikasi' => [
+            'driver' => 'database', 'connection' => null, 'table' => 'jobs',
+            'queue' => 'notifikasi', 'retry_after' => 90, 'after_commit' => false,
+        ],
+
         'sync' => [
             'driver' => 'sync',
         ],

@@ -2,19 +2,16 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
+use App\Actions\Auth\EndLocalSession;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
-class ProcessLogout extends Controller
+class ProcessLogout
 {
-    public function __invoke(Request $request): RedirectResponse
+    public function __invoke(Request $request, EndLocalSession $endSession): RedirectResponse
     {
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $endSession->handle($request);
 
-        return redirect()->route('login')->with('message', 'Anda telah keluar.');
+        return redirect()->route('auth.logged-out');
     }
 }

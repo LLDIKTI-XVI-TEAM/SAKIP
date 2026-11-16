@@ -2,50 +2,95 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * @property 'aktif'|'nonaktif' $status
+ */
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasUuids, Notifiable;
 
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'nip',
-        'jabatan',
-        'unit_kerja_id',
-        'keycloak_id',
-        'avatar_url',
-        'is_active',
-    ];
+    protected $fillable = ['keycloak_id', 'nama', 'email', 'nomor_telepon', 'status'];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['keycloak_id'];
 
-    protected function casts(): array
+    /** @return BelongsToMany<Role, $this> */
+    public function roles(): BelongsToMany
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_active' => 'boolean',
-        ];
+        return $this->belongsToMany(Role::class, 'user_roles')
+            ->withPivot(['id', 'sumber_pemberian', 'diberikan_oleh', 'audit_id', 'created_at']);
     }
 
-    public function unitKerja(): BelongsTo
+    /**
+     * Kunci bersama role aktif secara terurut sebelum izin aktor dievaluasi ulang.
+     * Pemanggil wajib sudah membuka transaksi dan mengunci baris pengguna ini.
+     */
+    public function lockActiveRoles(): void
     {
-        return $this->belongsTo(UnitKerja::class, 'unit_kerja_id');
+        $actorRoleIds = DB::table('user_roles')
+            ->join('roles', 'roles.id', '=', 'user_roles.role_id')
+            ->where('user_roles.user_id', $this->id)
+            ->where('roles.aktif', true)
+            ->pluck('roles.id')
+            ->all();
+        sort($actorRoleIds);
+        if (! empty($actorRoleIds)) {
+            Role::whereIn('id', $actorRoleIds)->orderBy('id')->sharedLock()->get();
+        }
     }
 
+    /** Pemeriksaan label peran bukan pengganti resolver permission. */
+    public function hasRole(string $kode): bool
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains(function (Role $role) use ($kode): bool {
+                if ($role->kode !== $kode) {
+                    return false;
+                }
+                $aktif = $role->getAttribute('aktif');
+
+                return $aktif !== null ? (bool) $aktif : (bool) Role::whereKey($role->id)->value('aktif');
+            });
+        }
+
+        return $this->roles()->where('kode', $kode)->where('roles.aktif', true)->exists();
+    }
+
+    /**
+     * @param  list<string>  $kodes
+     */
+    public function hasAnyRole(array $kodes): bool
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains(function (Role $role) use ($kodes): bool {
+                if (! in_array($role->kode, $kodes, true)) {
+                    return false;
+                }
+                $aktif = $role->getAttribute('aktif');
+
+                return $aktif !== null ? (bool) $aktif : (bool) Role::whereKey($role->id)->value('aktif');
+            });
+        }
+
+        return $this->roles()->whereIn('kode', $kodes)->where('roles.aktif', true)->exists();
+    }
+
+    /** @return HasMany<PenugasanIndikator, $this> */
     public function penugasanIndikators(): HasMany
     {
         return $this->hasMany(PenugasanIndikator::class, 'user_id');
+    }
+
+    /** @return HasMany<UserPermissionGrant, $this> */
+    public function permissionGrants(): HasMany
+    {
+        return $this->hasMany(UserPermissionGrant::class, 'user_id');
     }
 }

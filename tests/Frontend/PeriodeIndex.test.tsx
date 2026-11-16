@@ -1,0 +1,486 @@
+import type { Page } from '@inertiajs/core';
+import type { ReactNode } from 'react';
+import { router } from '@inertiajs/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import Index from '@/Pages/Periode/Index';
+import type { PeriodeIndexProps } from '@/types/periode-jadwal';
+
+vi.mock('@inertiajs/react', async (original) => ({
+    ...(await original<typeof import('@inertiajs/react')>()),
+    Head: () => null,
+    usePage: () => ({ props: { auth: { can: { periode: true, jadwal: true } } } }),
+}));
+vi.mock('@/Layouts/AuthenticatedLayout', () => ({
+    AuthenticatedLayout: ({ children, headerActions }: { children: ReactNode; headerActions?: ReactNode }) => <main>{headerActions}{children}</main>,
+}));
+
+const props: PeriodeIndexProps = {
+    periode: {
+        data: [
+            {
+                id: 'periode-1',
+                nama: 'Triwulan I',
+                urutan: 1,
+                aktif: true,
+                is_nilai_akhir: false,
+                revisi: 3,
+                bulan_mulai: 1,
+                hari_mulai: 1,
+                bulan_selesai: 3,
+                hari_selesai: 31,
+                metadata_locked: false,
+                metadata_locked_reason: null,
+            },
+        ],
+        current_page: 2,
+        last_page: 2,
+        from: 21,
+        to: 21,
+        total: 21,
+        links: [
+            { url: '/periode?page=1', label: '1', active: false },
+            { url: '/periode?page=2', label: '2', active: true },
+        ],
+    },
+    current_final: { id: 'final-lain-halaman', nama: 'Triwulan IV', revisi: 9 },
+    filters: { q: '', status: null, sort: 'urutan' },
+    can: { create: true, update: true, replaceFinal: true },
+};
+const page = (flash: Page['flash'] = {}): Page => ({
+    component: 'Periode/Index',
+    props: { ...props, errors: {} },
+    url: '/periode',
+    version: null,
+    clearHistory: false,
+    encryptHistory: false,
+    rescuedProps: [],
+    rememberedState: {},
+    flash,
+});
+beforeEach(() => {
+    vi.spyOn(router, 'post').mockImplementation(() => undefined);
+    vi.spyOn(router, 'put').mockImplementation(() => undefined);
+    vi.spyOn(router, 'get').mockImplementation(() => undefined);
+});
+afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+});
+
+it('pergantian final memakai singleton lintas halaman serta kedua revisi koheren', async () => {
+    const user = userEvent.setup();
+    render(<Index {...props} />);
+    const trigger = screen.getByRole('button', { name: 'Ganti periode nilai akhir' });
+    await user.click(trigger);
+    expect(within(screen.getByRole('dialog')).getByText('Triwulan IV')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Simpan pergantian' }));
+    expect(router.post).toHaveBeenCalledWith(
+        '/periode/ganti-nilai-akhir',
+        {
+            periode_lama_id: 'final-lain-halaman',
+            revisi_lama: 9,
+            periode_pengganti_id: 'periode-1',
+            revisi_pengganti: 3,
+        },
+        expect.any(Object),
+    );
+    const options = vi.mocked(router.post).mock.calls[0][2];
+    await act(async () => {
+        options?.onSuccess?.(page({ success: 'Pergantian tersimpan.' }));
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+});
+
+it('pergantian tanpa kandidat menjelaskan kunci jadwal alih-alih menampilkan pilihan kosong', async () => {
+    const user = userEvent.setup();
+    render(<Index {...props} periode={{ ...props.periode, data: [{ ...props.periode.data[0], metadata_locked: true }] }} />);
+    await user.click(screen.getByRole('button', { name: 'Ganti periode nilai akhir' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByRole('combobox', { name: /Periode pengganti/ })).toBeNull();
+    expect(within(dialog).getByRole('status').textContent).toContain('belum dipakai jadwal aktif atau ditutup');
+    expect(within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Simpan pergantian' }).disabled).toBe(true);
+});
+
+it('koreksi periode mengirim metadata terkunci tetap dan mempertahankan input pada penolakan', async () => {
+    render(
+        <Index
+            {...props}
+            filters={{ ...props.filters, q: 'Triwulan', status: 'nonaktif' }}
+            periode={{
+                ...props.periode,
+                data: [
+                    {
+                        ...props.periode.data[0],
+                        aktif: false,
+                        is_nilai_akhir: true,
+                        metadata_locked: true,
+                        metadata_locked_reason: 'Dipakai jadwal aktif/ditutup.',
+                    },
+                ],
+            }}
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Koreksi periode Triwulan I' }));
+    expect(screen.getByLabelText<HTMLInputElement>(/^Urutan/).disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(/^Nama periode/), { target: { value: 'Triwulan Pertama' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+    expect(vi.mocked(router.put).mock.calls[0][1]).toEqual({
+        nama: 'Triwulan Pertama',
+        urutan: '1',
+        aktif: false,
+        is_nilai_akhir: true,
+        hari_mulai: '1',
+        bulan_mulai: '1',
+        hari_selesai: '31',
+        bulan_selesai: '3',
+        revisi: 3,
+    });
+    await act(async () => {
+        vi.mocked(router.put).mock.calls[0][2]?.onError?.({ revisi: 'Periode sudah berubah.' });
+    });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>(/^Nama periode/).value).toBe('Triwulan Pertama');
+    expect(screen.getByLabelText<HTMLInputElement>('Cari periode').value).toBe('Triwulan');
+    expect(screen.getByLabelText<HTMLSelectElement>('Status').value).toBe('nonaktif');
+    expect(document.activeElement?.textContent).toContain('Periode sudah berubah.');
+});
+
+it('filter mengikuti props daftar hasil redirect hanya setelah penyimpanan terkonfirmasi', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+        <Index
+            {...props}
+            filters={{ ...props.filters, q: 'Triwulan', status: 'nonaktif' }}
+            periode={{ ...props.periode, data: [{ ...props.periode.data[0], aktif: false }] }}
+        />,
+    );
+    const trigger = screen.getByRole('button', { name: 'Edit Triwulan I' });
+    await user.click(trigger);
+    await user.type(screen.getByLabelText(/^Nama periode/), ' dikoreksi');
+    await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+    const options = vi.mocked(router.put).mock.calls[0][2];
+    rerender(<Index {...props} />);
+    await act(async () => {
+        options?.onSuccess?.(page({ success: 'Periode berhasil disimpan.' }));
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByLabelText<HTMLInputElement>('Cari periode').value).toBe('');
+    expect(screen.getByLabelText<HTMLSelectElement>('Status').value).toBe('');
+    expect(document.activeElement).toBe(trigger);
+    await user.click(screen.getByRole('button', { name: 'Terapkan' }));
+    expect(router.get).toHaveBeenCalledWith(
+        '/periode',
+        { q: '', status: '', sort: 'urutan' },
+        expect.any(Object),
+    );
+});
+
+it('403 respons akhir tanpa bukti penolakan sebelum mutasi mempertahankan input sebagai hasil unknown', async () => {
+    render(<Index {...props} filters={{ ...props.filters, q: 'Triwulan', status: 'nonaktif' }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Triwulan I' }));
+    const name = screen.getByLabelText<HTMLInputElement>(/^Nama periode/);
+    fireEvent.change(name, { target: { value: 'Nama koreksi' } });
+    const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' });
+    fireEvent.click(button);
+    await act(async () => {
+        expect(vi.mocked(router.put).mock.calls[0][2]?.onHttpException?.({ status: 403, data: {}, headers: {} })).toBe(false);
+    });
+    expect(screen.getByText(/Hasil penyimpanan belum terkonfirmasi karena akses ditolak/)).toBeTruthy();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(name.value).toBe('Nama koreksi');
+    expect(screen.getByLabelText<HTMLInputElement>('Cari periode').value).toBe('Triwulan');
+    expect(screen.getByLabelText<HTMLSelectElement>('Status').value).toBe('nonaktif');
+    expect(button.disabled).toBe(true);
+    expect(screen.getByRole('link', { name: 'Periksa master terbaru' }).getAttribute('href')).toBe('/periode');
+    fireEvent.click(button);
+    expect(router.put).toHaveBeenCalledTimes(1);
+    expect(router.get).not.toHaveBeenCalled();
+});
+
+it('konfigurasi kosong menawarkan satu periode pertama aktif dan final', () => {
+    render(<Index {...props} periode={{ ...props.periode, data: [], total: 0, last_page: 1 }} current_final={null} />);
+    expect(screen.getByText('belum ditetapkan')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tambah periode' }));
+    expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').checked).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Aktif').checked).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Ganti periode nilai akhir' })).toBeNull();
+});
+
+it('tabel dan detail menampilkan rentang tanggal tanpa tahun atau penanda belum diatur', () => {
+    const tanpaTanggal = { ...props.periode.data[0], id: 'periode-2', nama: 'Semester Lama', urutan: 5, aktif: false,
+        bulan_mulai: null, hari_mulai: null, bulan_selesai: null, hari_selesai: null };
+    render(<Index {...props} periode={{ ...props.periode, data: [props.periode.data[0], tanpaTanggal] }} />);
+    const [, triwulan, semester] = within(screen.getByRole('table')).getAllByRole('row');
+    expect(triwulan.textContent).toContain('1 Jan–31 Mar');
+    expect(semester.textContent).toContain('Belum diatur');
+    fireEvent.click(screen.getByRole('button', { name: 'Lihat detail Triwulan I' }));
+    expect(within(screen.getByRole('dialog')).getByText('1 Jan–31 Mar')).toBeTruthy();
+});
+
+it('tambah periode mengirim tanggal mulai dan selesai dari isian berlabel serta menandai galat per isian', async () => {
+    const user = userEvent.setup();
+    render(<Index {...props} />);
+    await user.click(screen.getByRole('button', { name: 'Tambah periode' }));
+    await user.type(screen.getByLabelText(/^Nama periode/), 'Triwulan II');
+    await user.type(screen.getByLabelText(/^Urutan/), '2');
+    await user.selectOptions(screen.getByLabelText('Tanggal mulai'), '1');
+    await user.selectOptions(screen.getByLabelText('Bulan mulai'), 'April');
+    await user.selectOptions(screen.getByLabelText('Tanggal selesai'), '30');
+    await user.selectOptions(screen.getByLabelText('Bulan selesai'), 'Juni');
+    await user.click(screen.getByRole('button', { name: 'Simpan periode' }));
+    expect(vi.mocked(router.post).mock.calls[0][1]).toEqual({
+        nama: 'Triwulan II',
+        urutan: '2',
+        aktif: true,
+        is_nilai_akhir: false,
+        hari_mulai: '1',
+        bulan_mulai: '4',
+        hari_selesai: '30',
+        bulan_selesai: '6',
+    });
+    await act(async () => {
+        vi.mocked(router.post).mock.calls[0][2]?.onError?.({ bulan_mulai: 'Rentang tanggal tumpang tindih dengan periode aktif Triwulan I.' });
+    });
+    const bulanMulai = screen.getByLabelText('Bulan mulai');
+    expect(bulanMulai.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(bulanMulai.getAttribute('aria-describedby') ?? '')?.textContent).toContain('tumpang tindih');
+});
+
+it('pesan tabel kosong mengikuti filter yang diterapkan, bukan ketikan yang belum diterapkan', () => {
+    render(<Index {...props} periode={{ ...props.periode, data: [], total: 0, last_page: 1 }} />);
+    fireEvent.change(screen.getByLabelText('Cari periode'), { target: { value: 'abc' } });
+    expect(screen.getByText('Belum ada periode pelaporan yang dicatat.')).toBeTruthy();
+    cleanup();
+    render(<Index {...props} periode={{ ...props.periode, data: [], total: 0, last_page: 1 }} filters={{ ...props.filters, q: 'abc' }} />);
+    expect(screen.getByText('Coba ubah kata kunci atau status pada filter.')).toBeTruthy();
+});
+
+it('flag final periode nonaktif yang belum terkunci dapat dikoreksi sebelum diaktifkan sebagai periode biasa', async () => {
+    const user = userEvent.setup();
+    render(
+        <Index
+            {...props}
+            periode={{ ...props.periode, data: [{ ...props.periode.data[0], aktif: false, is_nilai_akhir: true }] }}
+        />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Edit Triwulan I' }));
+    const final = screen.getByLabelText<HTMLInputElement>('Periode nilai akhir');
+    expect(final.disabled).toBe(false);
+    await user.click(final);
+    await user.click(screen.getByLabelText('Aktif'));
+    expect(final.checked).toBe(false);
+    expect(final.disabled).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+    expect(vi.mocked(router.put).mock.calls[0][1]).toMatchObject({ aktif: true, is_nilai_akhir: false, revisi: 3 });
+});
+
+it('periode final aktif tetap memakai pergantian utuh', () => {
+    render(
+        <Index {...props} periode={{ ...props.periode, data: [{ ...props.periode.data[0], is_nilai_akhir: true }] }} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Triwulan I' }));
+    expect(screen.getByLabelText<HTMLInputElement>('Periode nilai akhir').disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLInputElement>('Aktif').disabled).toBe(true);
+});
+
+it('unknown dan callback tanpa flash sukses tidak menutup modal atau memberi replay', async () => {
+    render(<Index {...props} filters={{ ...props.filters, q: 'Triwulan', status: 'nonaktif' }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Triwulan I' }));
+    fireEvent.change(screen.getByLabelText(/^Nama periode/), { target: { value: 'Nama koreksi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan perubahan' }));
+    await act(async () => {
+        vi.mocked(router.put).mock.calls[0][2]?.onSuccess?.(page());
+    });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>(/^Nama periode/).value).toBe('Nama koreksi');
+    expect(screen.getByLabelText<HTMLInputElement>('Cari periode').value).toBe('Triwulan');
+    expect(screen.getByLabelText<HTMLSelectElement>('Status').value).toBe('nonaktif');
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Simpan perubahan' }).disabled).toBe(true);
+    expect(router.put).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('link', { name: 'Periksa master terbaru' })).toBeTruthy();
+});
+
+it('izin create-only tidak menampilkan edit atau pergantian final', () => {
+    render(<Index {...props} can={{ create: true, update: false, replaceFinal: false }} />);
+    expect(screen.getByRole('button', { name: 'Tambah periode' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit Triwulan I' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ganti periode nilai akhir' })).toBeNull();
+});
+
+it('menampilkan placeholder pencarian dan dapat mereset filter ketika filter aktif', () => {
+    render(<Index {...props} filters={{ ...props.filters, q: 'Triwulan', status: 'aktif' }} />);
+    expect(screen.getByPlaceholderText('Cari nama periode pelaporan...')).toBeTruthy();
+    const resetButton = screen.getByRole('button', { name: 'Reset' });
+    fireEvent.click(resetButton);
+
+    expect(screen.getByLabelText<HTMLInputElement>('Cari periode').value).toBe('');
+    expect(screen.getByLabelText<HTMLSelectElement>('Status').value).toBe('');
+    expect(router.get).toHaveBeenCalledWith(
+        '/periode',
+        { q: '', status: '', sort: 'urutan' },
+        { preserveState: false, replace: true },
+    );
+});
+
+it('tabel ringkas hanya menampilkan kolom penting tanpa metadata dan nilai akhir', () => {
+    render(<Index {...props} />);
+    const table = screen.getByRole('table');
+    const columns = within(table).getAllByRole('columnheader');
+    expect(columns.map((cell) => cell.textContent)).toEqual(['Nama periode', 'Urutan', 'Status', 'Rentang tanggal', 'Aksi']);
+    expect(within(table).queryByText('Nilai akhir')).toBeNull();
+    expect(within(table).queryByText('Metadata')).toBeNull();
+    expect(within(table).queryByText('Terkunci')).toBeNull();
+    expect(within(table).queryByText('Dapat diubah')).toBeNull();
+    const aksiHeader = columns.find((cell) => cell.textContent === 'Aksi');
+    expect(aksiHeader?.className).toContain('text-right');
+    const detailButton = screen.getByRole('button', { name: 'Lihat detail Triwulan I' });
+    const editButton = screen.getByRole('button', { name: 'Edit Triwulan I' });
+    for (const button of [detailButton, editButton]) {
+        expect(button.querySelector('svg')).toBeTruthy();
+        expect(button.textContent?.trim()).toBe('');
+        expect(button.closest('td')?.className).toContain('md:text-right');
+        expect(button.closest('td')?.querySelector('div.flex')?.className).toContain('justify-end');
+    }
+    const tooltips = screen.getAllByRole('tooltip').map((tip) => tip.textContent);
+    expect(tooltips).toContain('Lihat detail');
+    expect(tooltips).toContain('Edit');
+});
+
+it('aksi terkunci memakai ikon koreksi dengan tooltip dan tetap rata kanan', () => {
+    render(
+        <Index
+            {...props}
+            periode={{
+                ...props.periode,
+                data: [{ ...props.periode.data[0], metadata_locked: true }],
+            }}
+        />,
+    );
+    const koreksiButton = screen.getByRole('button', { name: 'Koreksi periode Triwulan I' });
+    expect(koreksiButton.querySelector('svg')).toBeTruthy();
+    expect(koreksiButton.textContent?.trim()).toBe('');
+    expect(koreksiButton.closest('td')?.className).toContain('md:text-right');
+    expect(koreksiButton.closest('td')?.querySelector('div.flex')?.className).toContain('justify-end');
+    expect(screen.getAllByRole('tooltip').map((tip) => tip.textContent)).toContain('Koreksi periode');
+});
+
+it('tabel periode tidak memicu scroll horizontal di semua lebar layar', () => {
+    render(
+        <Index
+            {...props}
+            periode={{
+                ...props.periode,
+                data: [
+                    {
+                        ...props.periode.data[0],
+                        nama: 'TriwulanISangatPanjangTanpaSpasiUntukUjiWrapSelTabelPeriode',
+                    },
+                ],
+            }}
+        />,
+    );
+    const table = screen.getByRole('table');
+    const wrapper = table.parentElement;
+    expect(wrapper).toBeTruthy();
+
+    const structuralTokens = (className: string): string[] => className.split(/\s+/).filter(Boolean);
+    const overflowForcers = (className: string): string[] =>
+        structuralTokens(className).filter(
+            (token) =>
+                (token.startsWith('min-w-') && token !== 'min-w-0') ||
+                token === 'w-max' ||
+                token === 'whitespace-nowrap' ||
+                token.startsWith('min-w-['),
+        );
+
+    // Wrapper tidak boleh memaksa scroll container: opt-out overflow-x-auto untuk 4 kolom yang muat.
+    expect(wrapper?.className ?? '').not.toContain('overflow-x-auto');
+    expect(overflowForcers(wrapper?.className ?? '')).toEqual([]);
+    expect(overflowForcers(table.className)).toEqual([]);
+    expect(table.className).toContain('w-full');
+
+    // Struktur tabel (thead/tbody/tr/th/td) tidak boleh punya pemicu min-width paksa.
+    const structural = Array.from(table.querySelectorAll('thead, tbody, tr, th, td'));
+    expect(structural.length).toBeGreaterThan(0);
+    for (const element of structural) {
+        expect(
+            overflowForcers((element as HTMLElement).className ?? ''),
+            `pemicu overflow pada <${element.tagName.toLowerCase()} class="${(element as HTMLElement).className}">`,
+        ).toEqual([]);
+    }
+
+    // Sel grid mobile harus bisa menyusut (min-w-0) dan nama boleh wrap.
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+        expect(row.className).toContain('min-w-0');
+    }
+    const cells = Array.from(table.querySelectorAll('tbody td'));
+    for (const cell of cells) {
+        expect(cell.className).toContain('min-w-0');
+    }
+    const namaCell = cells[0];
+    expect(namaCell.className).toContain('break-words');
+
+    // Sel aksi tetap ikon-only rata kanan dan membungkus, bukan melebar.
+    const aksiCell = cells[cells.length - 1];
+    const aksiBar = aksiCell.querySelector('div.flex');
+    expect(aksiBar?.className).toContain('flex-wrap');
+    expect(aksiBar?.className).toContain('justify-end');
+    expect(aksiBar?.className).toContain('min-w-0');
+
+    // Tooltip tidak boleh menambah lebar layout: tanpa nowrap/w-max, dibatasi max-w, rata kanan.
+    const tooltips = screen.getAllByRole('tooltip');
+    expect(tooltips.length).toBeGreaterThan(0);
+    for (const tip of tooltips) {
+        expect(tip.className).not.toContain('whitespace-nowrap');
+        expect(tip.className).not.toContain('w-max');
+        expect(overflowForcers(tip.className)).toEqual([]);
+        expect(tip.className).toContain('max-w-');
+        expect(tip.className).toMatch(/break-words|whitespace-normal/);
+        expect(tip.className).toContain('right-0');
+    }
+});
+
+it('tombol detail membuka rincian nilai akhir dan kunci urutan tanpa angka revisi lalu dapat ditutup', async () => {
+    const user = userEvent.setup();
+    render(
+        <Index
+            {...props}
+            periode={{
+                ...props.periode,
+                data: [
+                    {
+                        ...props.periode.data[0],
+                        aktif: false,
+                        is_nilai_akhir: true,
+                        metadata_locked: true,
+                        metadata_locked_reason: 'Dipakai jadwal aktif/ditutup.',
+                    },
+                ],
+            }}
+        />,
+    );
+    const table = screen.getByRole('table');
+    expect(within(table).queryByText('Dipakai jadwal aktif/ditutup.')).toBeNull();
+
+    const trigger = screen.getByRole('button', { name: 'Lihat detail Triwulan I' });
+    await user.click(trigger);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Periode nilai akhir')).toBeTruthy();
+    expect(within(dialog).getByText('Ya (riwayat)')).toBeTruthy();
+    expect(within(dialog).getByText('Urutan & nilai akhir')).toBeTruthy();
+    expect(within(dialog).getByText('Terkunci')).toBeTruthy();
+    expect(within(dialog).getByText('Dipakai jadwal aktif/ditutup.')).toBeTruthy();
+    expect(within(dialog).queryByText('Revisi')).toBeNull();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+});
+
